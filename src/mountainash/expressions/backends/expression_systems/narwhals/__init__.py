@@ -49,7 +49,9 @@ from .extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshN
 from .extensions_mountainash.expsys_nw_ext_ma_window import MountainAshNarwhalsWindowExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_struct import MountainAshNarwhalsScalarStructExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_list import MountainAshNarwhalsScalarListExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_categorical import MountainAshNarwhalsScalarCategoricalExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_aggregate import MountainAshNarwhalsScalarAggregateExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_geospatial import MountainAshNarwhalsScalarGeospatialExpressionSystem
 
 
 
@@ -91,6 +93,8 @@ class NarwhalsExpressionSystem(
     MountainAshNarwhalsWindowExpressionSystem,
     MountainAshNarwhalsScalarStructExpressionSystem,
     MountainAshNarwhalsScalarListExpressionSystem,
+    MountainAshNarwhalsScalarCategoricalExpressionSystem,
+    MountainAshNarwhalsScalarGeospatialExpressionSystem,
     MountainAshNarwhalsScalarAggregateExpressionSystem,
 
 ):

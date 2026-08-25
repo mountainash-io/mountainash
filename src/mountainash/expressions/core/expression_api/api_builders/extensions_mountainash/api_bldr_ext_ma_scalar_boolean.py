@@ -8,6 +8,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Union
 
+from ....expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+from ._operation_options import (
+    validate_boolean_tokens,
+    validate_failure_behavior,
+    validate_field_name,
+)
+
 from ..api_builder_base import BaseExpressionAPIBuilder
 from ....expression_nodes import ExpressionNode, ScalarFunctionNode, LiteralNode
 # from ....expression_nodes import ScalarFunctionNode, LiteralNode
@@ -119,6 +126,36 @@ class MountainAshScalarBooleanAPIBuilder(BaseExpressionAPIBuilder, MountainAshSc
     def always_true(self) -> BaseExpressionAPI:
         """Return a constant TRUE value."""
         node = LiteralNode(value=True)
+        return self._build(node)
+
+    def parse_boolean(
+        self,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Parse configured literal tokens into a nullable boolean."""
+        method = "parse_boolean"
+        true_values = validate_boolean_tokens(method, "true_values", true_values)
+        false_values = validate_boolean_tokens(method, "false_values", false_values)
+        field_name = validate_field_name(method, field_name)
+        failure = validate_failure_behavior(method, failure_behavior)
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+            arguments=[self._node],
+            options={
+                "true_values": true_values,
+                "false_values": false_values,
+                "failure_behavior": failure.value,
+            },
+            diagnostic_context={
+                "field_name": field_name,
+                "logical_type": "boolean",
+                "format": "tokens",
+            },
+        )
         return self._build(node)
 
     def always_false(self) -> BaseExpressionAPI:

@@ -20,6 +20,33 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import PolarsExpr
 
 
+
+_DEFAULT_DATETIME_PATTERN = (
+    r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]+)?(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+)
+_XSD_DURATION_PATTERN = (
+    r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?"
+    r"(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
+)
+_XSD_PARTIAL_DATE_PATTERNS = {
+    "year": r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+    r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$",
+    "yearmonth": r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+    r"-(?:0[1-9]|1[0-2])(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$",
+}
+
+
+def _throw_marker(valid: pl.Expr, source: pl.Expr) -> pl.Expr:
+    """Create a data-dependent cast marker for throw mode."""
+    return (
+        pl.when(valid | source.is_null())
+        .then(pl.lit("0"))
+        .otherwise(pl.lit("__invalid__"))
+        .cast(pl.Int8)
+    )
+
+
 # Substrait canonical unit name -> Polars duration-string suffix. Combined
 # with an integer multiplier (e.g. "2d", "3h", "1mo") this is accepted
 # natively by Polars' dt.truncate/dt.round/dt.offset_by -- verified against
@@ -354,34 +381,18 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         x: PolarsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-        """
-        return x.str.to_time(format)
+        return x.str.to_time(format, strict=failure_behavior != "null")
 
     def strptime_date(
         self,
         x: PolarsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
-        return x.str.to_date(format)
+        return x.str.to_date(format, strict=failure_behavior != "null")
 
     def strptime_timestamp(
         self,
@@ -389,21 +400,97 @@ class SubstraitPolarsScalarDatetimeExpressionSystem(PolarsBaseExpressionSystem, 
         /,
         format: str,
         timezone: Optional[str] = None,
+        failure_behavior: str = "throw",
     ) -> PolarsExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
-        result = x.str.to_datetime(format)
+        result = x.str.to_datetime(format, strict=failure_behavior != "null")
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
+    def parse_default(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        strict = failure_behavior != "null"
+        has_timezone = x.str.contains(r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])$")
+        normalized = x.str.replace(r"Z$", "+00:00")
+        timezone_input = pl.when(has_timezone).then(normalized).otherwise(None)
+        with_timezone = timezone_input.str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.f%z",
+            strict=strict,
+        )
+        with_timezone = with_timezone.dt.convert_time_zone("UTC").dt.replace_time_zone(None)
+        naive_input = pl.when(has_timezone).then(None).otherwise(x)
+        without_timezone = naive_input.str.to_datetime(
+            "%Y-%m-%dT%H:%M:%S%.f",
+            strict=strict,
+        )
+        return pl.when(has_timezone).then(with_timezone).otherwise(without_timezone)
+
+    def parse_datetime_default(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
+
+    def parse_xsd_duration(
+        self,
+        x: PolarsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        source = x.cast(pl.String, strict=False)
+        valid = source.str.contains(_XSD_DURATION_PATTERN)
+        valid = valid & ~source.is_in(["P", "-P", "PT", "-PT"]) & ~source.str.ends_with("T")
+        valid = valid & ~source.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+        if failure_behavior == "null":
+            return pl.when(valid).then(source).otherwise(None)
+        marker = _throw_marker(valid, source)
+        return source + marker.cast(pl.String).str.replace("0", "")
+
+    def parse_xsd_partial_date(
+        self,
+        x: PolarsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        pattern = _XSD_PARTIAL_DATE_PATTERNS[kind]
+        source = x.cast(pl.String, strict=False)
+        valid = source.str.contains(pattern) & ~source.str.starts_with("-0000")
+        valid = valid & ~source.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+        if failure_behavior == "null":
+            return pl.when(valid).then(source).otherwise(None)
+        marker = _throw_marker(valid, source)
+        return source + marker.cast(pl.String).str.replace("0", "")
+
+    def parse_temporal_any(
+        self,
+        x: PolarsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> PolarsExpr:
+        from mountainash.typespec.temporal import parse_temporal_any
+
+        dtype = {"date": pl.Date, "time": pl.Time, "datetime": pl.Datetime}[kind]
+
+        def parse(value):
+            try:
+                return parse_temporal_any(value, kind=kind)
+            except (TypeError, ValueError, OverflowError):
+                if failure_behavior == "null":
+                    return None
+                raise
+
+        return x.map_batches(
+            lambda series: series.map_elements(parse, return_dtype=dtype),
+            return_dtype=dtype,
+        )
+
 
     # =========================================================================
     # Formatting Methods

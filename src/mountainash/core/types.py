@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
 
@@ -271,11 +273,7 @@ def is_pyarrow_array(obj: Any) -> TypeGuard['PyArrowArray']:
 
 
 class BackendCapabilityError(MountainashError):
-    """Raised when a backend cannot handle an expression-typed argument.
-
-    Wraps native backend errors with curated context from the known
-    limitation registry.
-    """
+    """Raised when a backend cannot handle an expression-typed argument."""
 
     def __init__(
         self,
@@ -283,20 +281,23 @@ class BackendCapabilityError(MountainashError):
         *,
         backend: str,
         function_key: Any,
-        limitation: Any = None,  # CapabilityFact (spine MATERIALIZE residue)
+        limitation: Any = None,
+        context: Mapping[str, str] | None = None,
+        candidate_fields: tuple[str, ...] = (),
+        candidate_fact_keys: tuple[str, ...] = (),
     ) -> None:
         parts = [f"[{backend}] {message}"]
         if limitation is not None:
-            workaround = getattr(limitation, "workaround", None)
-            if workaround:
+            if workaround := getattr(limitation, "workaround", None):
                 parts.append(f"Workaround: {workaround}")
-            upstream_url = getattr(limitation, "upstream_issue", None)
-            if upstream_url:
+            if upstream_url := getattr(limitation, "upstream_issue", None):
                 parts.append(f"Upstream: {upstream_url}")
-            upstream_ref = getattr(limitation, "upstream_ref", None)
-            if upstream_ref:
+            if upstream_ref := getattr(limitation, "upstream_ref", None):
                 parts.append(f"Upstream ref: {upstream_ref}")
         super().__init__("\n".join(parts))
         self.backend = backend
         self.function_key = function_key
         self.limitation = limitation
+        self.context = MappingProxyType(dict(context)) if context is not None else None
+        self.candidate_fields = tuple(sorted(set(candidate_fields)))
+        self.candidate_fact_keys = tuple(sorted(set(candidate_fact_keys)))

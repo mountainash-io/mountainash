@@ -58,7 +58,7 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
     def _read_and_conform():
         out = visitor.backend.read_resource(node.resource)
         spec = node.resource.to_typespec()
-        if spec is not None:
+        if spec is not None and node.apply_schema_conform:
             out = visitor.apply_conform(
                 out,
                 spec,
@@ -81,6 +81,12 @@ def visit_source(node: Any, visitor: Any) -> Any:
 def visit_conform(node: Any, visitor: Any) -> Any:
     native = visitor.visit(node.input)
     return visitor._enrich_native_call(
-        node, RKEY_MOUNTAINASH_REL.CONFORM,
-        lambda: visitor.apply_conform(native, node.spec, contract=node.contract),
+        node,
+        RKEY_MOUNTAINASH_REL.CONFORM,
+        lambda: visitor.apply_conform(
+            native,
+            node.spec,
+            contract=node.contract,
+            apply_value_transforms=node.apply_value_transforms,
+        ),
     )

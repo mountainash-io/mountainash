@@ -29,6 +29,7 @@ from fixtures.backend_registry import ALL_BACKENDS
 _DATE_GATED = frozenset({"ibis-sqlite", "narwhals-pandas", "pandas"})
 _DATETIME_GATED = frozenset({"ibis-sqlite"})
 _TIME_HONORED = sorted({"polars", "polars-lazy"})
+_TEMPORAL_ANY_SUPPORTED = frozenset({"polars", "polars-lazy"})
 
 
 # ---------------------------------------------------------------------------
@@ -245,16 +246,17 @@ class TestDefaultFormatFallback:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]
-
-    def test_any_format_uses_cast(self, backend_name, backend_factory):
-        """'any' format falls through to canonical default cast."""
+    def test_any_format_uses_temporal_parser_or_gate(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15"]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="dt", type=UniversalType.DATE, format="any"),
-            ],
+        spec = TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="dt", type=UniversalType.DATE, format="any")],
         )
+        if backend_name not in _TEMPORAL_ANY_SUPPORTED:
+            with pytest.raises(BackendCapabilityError):
+                ma.relation(df).conform(spec).to_polars()
+            return
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15)]

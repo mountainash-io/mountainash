@@ -17,6 +17,7 @@ def _all() -> tuple[DivergenceFact, ...]:
         FKEY_MOUNTAINASH_SCALAR_COMPARISON as FK_MA_CMP,
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
         FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT,
         FKEY_MOUNTAINASH_WINDOW as FK_WIN,
         FKEY_SUBSTRAIT_CAST as FK_CAST,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE as FK_AGG,
@@ -28,6 +29,19 @@ def _all() -> tuple[DivergenceFact, ...]:
     )
 
     return (
+        DivergenceFact(
+            id="MA-CAT-01",
+            kind=DivergenceKind.TYPE_INFERENCE,
+            operation_keys=(FK_CAT.CAST,),
+            backends=("polars", "narwhals", "ibis"),
+            summary="Conform preserves category values as their base scalar dtype.",
+            impact=(
+                "Native category encoding and categoriesOrdered sort metadata are "
+                "not materialized. Unit D validates and reports the declaration."
+            ),
+            workaround="Use Unit D category validation for membership and ordering metadata.",
+            since="2026-08-21",
+        ),
         DivergenceFact(
             id="IB-CAST-01",
             kind=DivergenceKind.PRECISION,

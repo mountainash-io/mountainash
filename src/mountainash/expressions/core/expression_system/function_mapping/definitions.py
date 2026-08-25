@@ -44,6 +44,8 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_SET,
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_LIST,
+    FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
 )
 
@@ -81,8 +83,10 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarListExpressionSystemProtocol,
-    MountainAshScalarTernaryExpressionSystemProtocol,
+    MountainAshScalarCategoricalExpressionSystemProtocol,
+    MountainAshScalarGeospatialExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
+    MountainAshScalarTernaryExpressionSystemProtocol,
 )
 
 
@@ -297,6 +301,14 @@ def register_all_functions() -> None:
             substrait_name="xor_parity",
             is_extension=True,
             protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.xor_parity,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+            substrait_uri=MountainashExtension.BOOLEAN,
+            substrait_name="parse_boolean",
+            is_extension=True,
+            options=("true_values", "false_values", "failure_behavior"),
+            protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.parse_boolean,
         ),
     ]
 
@@ -766,14 +778,14 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_date",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_date,
-            options=("format",),
+            options=("format", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_timestamp",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
-            options=("format", "timezone"),
+            options=("format", "timezone", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
@@ -781,7 +793,39 @@ def register_all_functions() -> None:
             substrait_name="to_time",
             is_extension=True,
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.to_time,
-            options=("format",),
+            options=("format", "failure_behavior"),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="parse_datetime_default",
+            is_extension=True,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_datetime_default,
+            options=("failure_behavior",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="parse_xsd_duration",
+            is_extension=True,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_xsd_duration,
+            options=("failure_behavior",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="parse_xsd_partial_date",
+            is_extension=True,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_xsd_partial_date,
+            options=("kind", "failure_behavior"),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+            substrait_uri=MountainashExtension.DATETIME,
+            substrait_name="parse_temporal_any",
+            is_extension=True,
+            protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.parse_temporal_any,
+            options=("kind", "failure_behavior"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,
@@ -2221,6 +2265,48 @@ def register_all_functions() -> None:
     # Mountainash Struct Extensions
     # ========================================
 
+    # ========================================
+    # Mountainash Categorical Extensions
+    # ========================================
+
+    MOUNTAINASH_CATEGORICAL_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST,
+            substrait_uri=MountainashExtension.CATEGORICAL,
+            substrait_name="cast_categorical",
+            is_extension=True,
+            options=("value_type", "categories", "ordered", "failure_behavior"),
+            protocol_method=MountainAshScalarCategoricalExpressionSystemProtocol.cast_categorical,
+        ),
+    ]
+    MOUNTAINASH_GEOSPATIAL_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+            substrait_uri=MountainashExtension.GEOSPATIAL,
+            substrait_name="parse_geopoint",
+            is_extension=True,
+            options=("format", "source_representation", "failure_behavior"),
+            protocol_method=MountainAshScalarGeospatialExpressionSystemProtocol.parse_geopoint,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON,
+            substrait_uri=MountainashExtension.GEOSPATIAL,
+            substrait_name="parse_geojson",
+            is_extension=True,
+            options=("format", "failure_behavior"),
+            protocol_method=MountainAshScalarGeospatialExpressionSystemProtocol.parse_geojson,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON,
+            substrait_uri=MountainashExtension.GEOSPATIAL,
+            substrait_name="serialize_geojson",
+            is_extension=True,
+            options=("format", "failure_behavior"),
+            protocol_method=MountainAshScalarGeospatialExpressionSystemProtocol.serialize_geojson,
+        ),
+    ]
+
+
     MOUNTAINASH_STRUCT_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD,
@@ -2230,6 +2316,14 @@ def register_all_functions() -> None:
             options=("field_name",),
             protocol_method=MountainAshScalarStructExpressionSystemProtocol.struct_field,
         ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
+            substrait_uri=MountainashExtension.STRUCT,
+            substrait_name="cast_struct",
+            is_extension=True,
+            options=("fields", "failure_behavior"),
+            protocol_method=MountainAshScalarStructExpressionSystemProtocol.cast_struct,
+        ),
     ]
 
     # ========================================
@@ -2237,6 +2331,22 @@ def register_all_functions() -> None:
     # ========================================
 
     MOUNTAINASH_LIST_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            substrait_uri=MountainashExtension.LIST,
+            substrait_name="parse_list",
+            is_extension=True,
+            options=("item_type", "delimiter", "failure_behavior"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.parse_list,
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            substrait_uri=MountainashExtension.LIST,
+            substrait_name="cast_list_items",
+            is_extension=True,
+            options=("item_object_fields", "item_type", "failure_behavior"),
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.cast_list_items,
+        ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_sum", is_extension=True,
@@ -2513,9 +2623,11 @@ def register_all_functions() -> None:
         + MOUNTAINASH_DATETIME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_STRUCT_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_LIST_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_AGGREGATE_FUNCTIONS  # Mountainash aggregate extensions
+        + MOUNTAINASH_CATEGORICAL_FUNCTIONS
+        + MOUNTAINASH_GEOSPATIAL_FUNCTIONS
+        + MOUNTAINASH_STRUCT_FUNCTIONS
+        + MOUNTAINASH_LIST_FUNCTIONS
+        + MOUNTAINASH_AGGREGATE_FUNCTIONS
         + MOUNTAINASH_COMPARISON_FUNCTIONS  # Mountainash comparison extensions
     )
 

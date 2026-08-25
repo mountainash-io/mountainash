@@ -311,7 +311,7 @@ class TestNestedListItemType:
 
     def _spec(self, item_type=None):
         return TypeSpec(fields=[
-            FieldSpec(name="lst", type=UniversalType.ARRAY, item_type=item_type),
+            FieldSpec(name="lst", type=UniversalType.LIST, item_type=item_type),
         ])
 
     def test_polars_item_type_resolves_inner(self):
@@ -388,7 +388,7 @@ class TestNestedListItemType:
 class TestGeospatialItemType:
     def _spec(self, item_type):
         return TypeSpec(fields=[
-            FieldSpec(name="lst", type=UniversalType.ARRAY, item_type=item_type),
+            FieldSpec(name="lst", type=UniversalType.LIST, item_type=item_type),
         ])
 
     def test_item_type_geopoint_raises_ambiguous(self):
@@ -480,6 +480,16 @@ class TestNestedStructObjectFields:
         import polars as pl
         result = to_polars_schema(self._spec([]))
         assert result["addr"] is pl.Struct
+
+    def test_empty_array_item_object_fields_preserves_struct_hierarchy(self):
+        import polars as pl
+        field = FieldSpec(
+            name="rows",
+            type=UniversalType.ARRAY,
+            item_object_fields=(),
+        )
+        result = to_polars_schema(TypeSpec(fields=[field]))
+        assert result["rows"] == pl.List(pl.Struct({}))
 
     def test_inner_field_categories_resolve_correctly(self):
         import polars as pl

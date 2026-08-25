@@ -264,6 +264,6 @@ def contract_from_typespec(
     config_attrs: dict[str, Any] = {"name": contract_name}
     if spec.primary_key:
         config_attrs["primary_key"] = spec.primary_key
-    namespace["Config"] = type("Config", (), config_attrs)
+    namespace["Config"] = type("Config", (BaseDataContract.Config,), config_attrs)
     namespace["__typespec__"] = spec  # source spec preserved (conform + identity read it)
     return type(contract_name, (BaseDataContract,), namespace)

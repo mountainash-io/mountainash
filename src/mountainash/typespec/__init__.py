@@ -72,6 +72,14 @@ from mountainash.typespec.descriptor_context import (
     StorageDescriptorResolver,
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+from mountainash.typespec.temporal import (
+    PartialDateKind,
+    TemporalKind,
+    parse_default_datetime,
+    parse_temporal_any,
+    parse_xsd_duration,
+    parse_xsd_partial_date,
+)
 from mountainash.typespec.errors import (
     TypeSpecError,
     AmbiguousGeospatialTypeError,
@@ -131,6 +139,13 @@ __all__ = [
     "TypeConverter",
     "NarwhalsConverter",
     "TypeConverterSpec",
+    # Temporal parsers
+    "PartialDateKind",
+    "TemporalKind",
+    "parse_default_datetime",
+    "parse_temporal_any",
+    "parse_xsd_duration",
+    "parse_xsd_partial_date",
     "CustomTypeRegistry",
 
     # Data Package

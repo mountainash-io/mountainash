@@ -8,20 +8,23 @@ from mountainash.core.capabilities.schema import (
 from mountainash.core.constants import CONST_BACKEND
 
 
-def test_first_predicate_fact_is_the_join_asof_strategy_gate():
-    """Invariant flip (item 108): the mechanism now ships with exactly one
-    production predicate fact — the ibis-polars join_asof strategy gate."""
+def test_join_asof_predicate_gate_is_registered():
+    """The original join_asof predicate remains present alongside Unit C predicates."""
     from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
     from mountainash.relations.core.relation_system.relation_keys.enums import (
         RKEY_MOUNTAINASH_REL,
     )
-    load_all_capability_declarations()
-    facts = [f for f in CapabilityRegistry.facts() if f.predicate is not None]
-    assert len(facts) == 1
-    assert facts[0].operation_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
-    assert facts[0].param == "strategy"
-    assert facts[0].dialect == "ibis-polars"
 
+    load_all_capability_declarations()
+    facts = [
+        f
+        for f in CapabilityRegistry.facts()
+        if f.predicate is not None
+        and f.operation_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
+        and f.param == "strategy"
+        and f.dialect == "ibis-polars"
+    ]
+    assert len(facts) == 1
 
 def test_first_predicate_fact_is_compound_cell_safe():
     """The §6 compound-cell probe: gate_params=("tolerance", "strategy") binds

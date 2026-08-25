@@ -9,8 +9,10 @@ from __future__ import annotations
 import inspect
 import re
 from typing import get_type_hints
-
 import pytest
+
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
 
 from mountainash.expressions.backends.expression_systems.ibis import (
     IbisExpressionSystem,
@@ -330,9 +332,12 @@ def _init_a2_local_builders() -> dict:
     change. Keeping the overlay A2-local avoids all of that cross-suite
     ripple. Since 2026-08-11."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
         FKEY_MOUNTAINASH_SCALAR_DATETIME,
         FKEY_MOUNTAINASH_SCALAR_LIST,
         FKEY_MOUNTAINASH_SCALAR_STRUCT,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
         FKEY_MOUNTAINASH_WINDOW,
         FKEY_SUBSTRAIT_CONDITIONAL,
@@ -363,6 +368,12 @@ def _init_a2_local_builders() -> dict:
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR: lambda: ma.corr(c, b),
         # Namespace collision: the generic resolver finds list.median first.
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN: lambda: ma.median(0, c),
+        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(c).then(s).otherwise(b),
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS: lambda: c.parse_boolean(
+            true_values=("true",), false_values=("false",), field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: c.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: c.list.to_array(width=2),
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE: lambda: ma.quantile([0.5], 2, 1, "LINEAR"),
         SUBSTRAIT_ARITHMETIC_WINDOW.NTILE: lambda: c.ntile(4).over("b"),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY: lambda: ma.today(),
@@ -376,9 +387,33 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE: lambda: c.dt.truncate(unit="1d"),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by(offset="1d"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: c.struct.field("x"),
-        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: c.list.get(0),
-        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: c.list.to_array(width=3),
-        FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(c.gt(1)).then(c).otherwise(b),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: c.struct.cast(
+            fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(
+            format="default", source_representation="lexical", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON: lambda: c.geo.parse_geojson(
+            format="default", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON: lambda: c.geo.serialize_geojson(
+            format="default", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: lambda: s.str.parse_list(field_name="x"),
+        FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: c.list.cast_items(
+            item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
+            value_type="integer", categories=(1, 2), ordered=True, field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: lambda: c.dt.parse_default(field_name="x"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION: lambda: c.dt.parse_xsd_duration(field_name="x"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE: lambda: c.dt.parse_xsd_partial_date(
+            kind="year", field_name="x"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY: lambda: c.dt.parse_temporal_any(
+            "date", field_name="x"
+        ),
         FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB: lambda: c.log(base=10),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE: lambda: s.str.to_date("%Y-%m-%d"),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP: lambda: s.str.to_datetime("%Y-%m-%d"),
@@ -400,7 +435,7 @@ def _init_a2_local_builders() -> dict:
 _A2_LOCAL_BUILDERS = _init_a2_local_builders()
 
 _NAMESPACE_PREFIXES = {"list_": "list", "struct_": "struct"}
-_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct")
+_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct", "geo")
 
 
 def _resolve_api_callable(

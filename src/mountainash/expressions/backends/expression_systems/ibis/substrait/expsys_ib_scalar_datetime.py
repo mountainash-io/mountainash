@@ -356,20 +356,8 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            time_string: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-
-        Note:
-            Ibis may not have strptime_time. Falls back to cast.
-        """
-        # Ibis doesn't have strptime for time - fallback
         return x.cast("time")
 
     def strptime_date(
@@ -377,18 +365,8 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         x: IbisValueExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
-        # ibis >= 10 honors the strptime format directly; the previous
-        # `x.cast("date")` silently discarded it (spec 2026-07-28 section 3).
         return x.as_date(format)
 
     def strptime_timestamp(
@@ -397,24 +375,60 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         format: str,
         timezone: str = None,
+        failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
-        # `.as_timestamp()` returns timestamp('UTC'); the recast restores the
-        # naive wall-clock dtype the previous `cast("timestamp")` produced, so
-        # the fix changes the parse and nothing else. `timezone` is ignored --
-        # ibis has no timezone primitives (matches assume_timezone/to_timezone/
-        # local_timestamp/extract.timezone); a declared_unsupported fact gates
-        # this in production.
         return x.as_timestamp(format).cast("timestamp")
+    def parse_default(
+        self,
+        x: IbisValueExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return x.cast("timestamp")
+    def parse_datetime_default(
+        self,
+        x: IbisValueExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
+
+    def parse_xsd_duration(
+        self,
+        x: IbisValueExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        if failure_behavior in {"null", "throw"}:
+            valid = x.re_search(r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$")
+            valid = valid & ~x.isin(["P", "-P", "PT", "-PT"]) & ~x.re_search(r"T$")
+            return valid.ifelse(x, None)
+
+    def parse_xsd_partial_date(
+        self,
+        x: IbisValueExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        if failure_behavior in {"null", "throw"}:
+            pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+            if kind == "yearmonth":
+                pattern += r"-(?:0[1-9]|1[0-2])"
+            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+            valid = x.re_search(pattern) & ~x.re_search(r"^-0000")
+            valid = valid & ~x.re_search(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+            return valid.ifelse(x, None)
+        return x
+    def parse_temporal_any(
+        self,
+        x: IbisValueExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> IbisValueExpr:
+        return x
+
 
     # =========================================================================
     # Formatting Methods

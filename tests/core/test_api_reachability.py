@@ -19,6 +19,8 @@ import mountainash as ma
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
 
 _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
@@ -31,9 +33,12 @@ from core.test_compile_smoke import _resolve_api_callable
 def _builders() -> dict[Enum, Callable[[], Any]]:
     """Public entry points the generic resolver cannot construct."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN as MB,
         FKEY_MOUNTAINASH_SCALAR_DATETIME as MD,
         FKEY_MOUNTAINASH_SCALAR_LIST as ML,
         FKEY_MOUNTAINASH_SCALAR_STRUCT as MS,
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as MC,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as MG,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE as SA,
         FKEY_SUBSTRAIT_SCALAR_DATETIME as SD,
         SUBSTRAIT_ARITHMETIC_WINDOW as SW,
@@ -45,6 +50,13 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         # c/s/b defined inside `_init_shared_fkey_builders`. The local `c`
         # below feeds only the unique-to-A overrides.
         **_init_shared_fkey_builders(),
+        MB.PARSE_TOKENS: lambda: c.parse_boolean(
+            true_values=("true",), false_values=("false",), field_name="x"
+        ),
+        MD.PARSE_DEFAULT: lambda: c.dt.parse_default(field_name="x"),
+        MD.PARSE_XSD_DURATION: lambda: c.dt.parse_xsd_duration(field_name="x"),
+        MD.PARSE_XSD_PARTIAL_DATE: lambda: c.dt.parse_xsd_partial_date(kind="year", field_name="x"),
+        MD.PARSE_TEMPORAL_ANY: lambda: c.dt.parse_temporal_any("date", field_name="x"),
         # Options with no auto-constructible default (unique to A).
         MD.OFFSET_BY: lambda: c.dt.offset_by("1d"),
         MD.TRUNCATE: lambda: c.dt.truncate("day"),
@@ -53,7 +65,14 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         MD.ROUND: lambda: c.dt.round("day"),
         ML.GET: lambda: c.list.get(0),
         ML.TO_ARRAY: lambda: c.list.to_array(width=2),
+        ML.CAST_ITEMS: lambda: c.list.cast_items(item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        ML.PARSE: lambda: c.str.parse_list(field_name="x"),
         MS.FIELD: lambda: c.struct.field("x"),
+        MS.CAST: lambda: c.struct.cast(fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        MG.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(format="default", source_representation="lexical", field_name="x"),
+        MG.PARSE_GEOJSON: lambda: c.geo.parse_geojson(format="default", field_name="x"),
+        MG.SERIALIZE_GEOJSON: lambda: c.geo.serialize_geojson(format="default", field_name="x"),
+        MC.CAST: lambda: c.cat.cast(value_type="integer", categories=(1, 2), ordered=True, field_name="x"),
         SW.NTILE: lambda: c.ntile(4).over("b"),
         # Namespace collision: the generic resolver finds list.median first.
         SA.MEDIAN: lambda: ma.median(0, c),

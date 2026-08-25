@@ -66,7 +66,7 @@ class ConformContract:
 FIELDS_MATCH_PRESETS: dict[str, ConformContract] = {
     "open":     ConformContract(extra_columns="evolve",  missing_columns="skip"),
     "exact":    ConformContract(extra_columns="freeze",  missing_columns="freeze",
-                                mapping="positional", count_must_match=True),
+                                mapping="by_name", count_must_match=True),
     "equal":    ConformContract(extra_columns="freeze",  missing_columns="freeze"),
     "subset":   ConformContract(extra_columns="discard", missing_columns="freeze"),
     "superset": ConformContract(extra_columns="freeze",  missing_columns="skip"),

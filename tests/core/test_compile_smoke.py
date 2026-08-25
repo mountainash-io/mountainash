@@ -39,6 +39,7 @@ from mountainash.expressions.core.unified_visitor.visitor import (
 
 if TYPE_CHECKING:
     from enum import Enum
+    from mountainash.core.capabilities.schema import CapabilityFact
 
 _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
@@ -72,7 +73,7 @@ ALL_BACKENDS = [
 ]
 
 _NAMESPACE_PREFIXES = {"list_": "list", "struct_": "struct"}
-_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct")
+_DESCRIPTOR_NAMESPACES = ("str", "dt", "list", "struct", "geo")
 
 
 def _resolve_api_callable(
@@ -397,6 +398,7 @@ class PreparedSmokeCase:
     node_id: str
     param: str
     option_value: str | None
+    gate_fact: CapabilityFact | None
 
 
 class _SmokeNotApplicable(Exception):  # noqa: N818 - control-flow signal, not an error
@@ -436,17 +438,11 @@ def _fkey_scalar_node(
 
 def _derive_smoke_selector(
     fkey: Enum, fdef: object, family, dialect, expr: object
-) -> tuple[str, str | None]:
-    """Replay the production gate order (``UnifiedExpressionVisitor``) to find
-    the PRECISE (param, option_value) the invocation would gate on: op-level
-    wildcard first (GATE + UNSUPPORTED), then per-argument in protocol-signature
-    order, then per-option. The precise param matters — a wildcard would either
-    miss a param-scoped fact or pick up an unrelated materialize-boundary
-    wildcard fact. When nothing gates, the WILDCARD selector is the honest
-    'whole-op, no specific selector' identity for an undeclared raise."""
+) -> tuple[str, str | None, CapabilityFact | None]:
+    """Replay the production gate order and retain the selected gate fact."""
     node = _fkey_scalar_node(_root_node(expr), fkey)
     if node is None:
-        return (WILDCARD_PARAM, None)
+        return (WILDCARD_PARAM, None, None)
 
     op_fact = CapabilityRegistry.capability_for(fkey, WILDCARD_PARAM, family, dialect)
     if (
@@ -454,9 +450,30 @@ def _derive_smoke_selector(
         and op_fact.enforcement is Enforcement.GATE
         and op_fact.level is CapabilityLevel.UNSUPPORTED
     ):
-        return (WILDCARD_PARAM, None)
+        return (WILDCARD_PARAM, None, op_fact)
 
     protocol_method = getattr(fdef, "protocol_method", None)
+    if protocol_method is not None:
+        from mountainash.core.capabilities.predicates import bind_expression_call
+
+        bound_call = bind_expression_call(
+            operation_key=fkey,
+            backend=family,
+            dialect=dialect,
+            protocol_method=protocol_method,
+            arguments=getattr(node, "arguments", None) or [],
+            options=getattr(node, "options", None) or {},
+        )
+        violations = CapabilityRegistry.violations_for(bound_call)
+        if violations:
+            fact = min(violations, key=lambda candidate: candidate.fact_key)
+            value = (getattr(node, "options", None) or {}).get(fact.param)
+            return (
+                fact.param,
+                None if isinstance(value, ExpressionNode) else str(value),
+                fact,
+            )
+
     sig = _protocol_sig_params(protocol_method) if protocol_method is not None else ()
     arguments = getattr(node, "arguments", None) or []
     for i, arg in enumerate(arguments):
@@ -467,9 +484,9 @@ def _derive_smoke_selector(
         if fact is None or fact.enforcement is not Enforcement.GATE:
             continue
         if fact.level is CapabilityLevel.UNSUPPORTED:
-            return (param_name, None)
+            return (param_name, None, fact)
         if fact.level is CapabilityLevel.LITERAL_ONLY and isinstance(arg, ExpressionNode):
-            return (param_name, None)
+            return (param_name, None, fact)
 
     for name, value in (getattr(node, "options", None) or {}).items():
         fact = CapabilityRegistry.capability_for(
@@ -481,9 +498,45 @@ def _derive_smoke_selector(
             fact.level is CapabilityLevel.LITERAL_ONLY
             and isinstance(value, ExpressionNode)
         ):
-            return (name, str(value))
+            return (name, str(value), fact)
 
-    return (WILDCARD_PARAM, None)
+    return (WILDCARD_PARAM, None, None)
+
+
+def test_selector_carries_the_full_compound_predicate_fact() -> None:
+    from mountainash.core.capabilities.predicates import bind_expression_call
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
+    )
+
+    fkey = FK_GEO.PARSE_GEOPOINT
+    expr = ma.col("c").geo.parse_geopoint(
+        format="array",
+        source_representation="lexical",
+        field_name="c",
+    )
+    fdef = ExpressionFunctionRegistry.get(fkey)
+    node = expr.node
+    bound = bind_expression_call(
+        operation_key=fkey,
+        backend=CONST_BACKEND.NARWHALS,
+        dialect="narwhals-polars",
+        protocol_method=fdef.protocol_method,
+        arguments=node.arguments,
+        options=node.options,
+    )
+    [expected] = list(CapabilityRegistry.violations_for(bound))
+
+    selector = _derive_smoke_selector(
+        fkey,
+        fdef,
+        CONST_BACKEND.NARWHALS,
+        "narwhals-polars",
+        expr,
+    )
+    assert selector[:2] == ("format", "array")
+    assert selector[2] is expected
 
 
 def _prepare_smoke_case(fkey_str: str, frame: object) -> PreparedSmokeCase:
@@ -515,7 +568,7 @@ def _prepare_smoke_case(fkey_str: str, frame: object) -> PreparedSmokeCase:
     idn = resolve_identity(frame)
 
     def _prepared(expr: object) -> PreparedSmokeCase:
-        param, option_value = _derive_smoke_selector(
+        param, option_value, gate_fact = _derive_smoke_selector(
             fkey, fdef, idn.family, idn.dialect, expr
         )
         return PreparedSmokeCase(
@@ -523,6 +576,7 @@ def _prepare_smoke_case(fkey_str: str, frame: object) -> PreparedSmokeCase:
             node_id=_SMOKE_NODE_ID,
             param=param,
             option_value=option_value,
+            gate_fact=gate_fact,
         )
 
     builder = get_smoke_expr_builder(fkey)
@@ -627,9 +681,12 @@ def _iter_runtime_inventory_rows() -> list:
             continue
         fkey = _resolve_fkey(fkey_str)
         idn = resolve_identity(frame)
-        fact = capability_gate(
-            fkey, idn.family, dialect=idn.dialect,
-            param=case.param, option_value=case.option_value,
+        fact = case.gate_fact or capability_gate(
+            fkey,
+            idn.family,
+            dialect=idn.dialect,
+            param=case.param,
+            option_value=case.option_value,
         )
         try:
             case.compile()
@@ -724,9 +781,12 @@ class TestCompileSmoke:
 
         fkey = _resolve_fkey(fkey_str)
         idn = resolve_identity(frame)  # object-derived (pandas routes via narwhals)
-        fact = capability_gate(
-            fkey, idn.family, dialect=idn.dialect,
-            param=case.param, option_value=case.option_value,  # precise selector
+        fact = case.gate_fact or capability_gate(
+            fkey,
+            idn.family,
+            dialect=idn.dialect,
+            param=case.param,
+            option_value=case.option_value,
         )
         # compile() observes ONLY the BUILD boundary; a MATERIALIZE_RESIDUE fact
         # raises at materialize, not here, so it must never drive the

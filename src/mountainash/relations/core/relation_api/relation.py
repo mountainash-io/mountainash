@@ -172,6 +172,18 @@ class Relation(RelationBase):
         """
         return Relation(node)
 
+    def _without_resource_schema_conform(self) -> Relation:
+        """Copy resource-read leaves for validation before validator conform."""
+        from ..relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+        return self._make(
+            self._walk_and_push(
+                self._node,
+                lambda node: node.model_copy(update={"apply_schema_conform": False}),
+                ResourceReadRelNode,
+            )
+        )
+
     # --- Filtering ---
 
     def filter(self, *predicates: Any) -> Relation:
@@ -196,6 +208,7 @@ class Relation(RelationBase):
         spec: Any,
         *,
         contract: Optional[Union[str, Mapping[str, str]]] = None,
+        apply_value_transforms: bool = True,
     ) -> Relation:
         """Conform the relation to a TypeSpec.
 
@@ -232,7 +245,7 @@ class Relation(RelationBase):
             else:
                 validate_contract_dict(contract)
         from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
-        return self._make(ConformRelNode(input=self._node, spec=spec, contract=contract))
+        return self._make(ConformRelNode(input=self._node, spec=spec, contract=contract, apply_value_transforms=apply_value_transforms))
 
     # --- Sorting ---
 
@@ -606,7 +619,10 @@ class Relation(RelationBase):
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         return enrich_materialization(
-            visitor.backend, lambda: _materialize(result, unwrap=unwrap)
+            visitor.backend,
+            lambda: _materialize(result, unwrap=unwrap),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
         )
 
     def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
@@ -631,11 +647,14 @@ class Relation(RelationBase):
         """
         from mountainash.conform.drift import ConformCollection
         from mountainash.relations.schema_inference import _schema_from_dataframe
-
         from mountainash.core.limitations import enrich_materialization
-
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
-        frame = enrich_materialization(visitor.backend, lambda: _materialize(result))
+        frame = enrich_materialization(
+            visitor.backend,
+            lambda: _materialize(result),
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
+        )
         return ConformCollection(
             frame=frame,
             drifts=list(visitor.drift_reports),

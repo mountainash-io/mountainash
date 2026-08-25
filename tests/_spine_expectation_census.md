@@ -10,12 +10,12 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | INITCAP | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | SWAPCASE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | TITLE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | CAPITALIZE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | CENTER | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
-| src/mountainash/expressions/backends/capabilities/string.py:207 | manual-map | SWAPCASE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:208 | manual-map | INITCAP | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:208 | manual-map | SWAPCASE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:208 | manual-map | TITLE | ibis | * | None | spine gate fact (unsupported/gate) on ibis — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:208 | manual-map | CAPITALIZE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:208 | manual-map | CENTER | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
+| src/mountainash/expressions/backends/capabilities/string.py:208 | manual-map | SWAPCASE | narwhals | * | None | spine gate fact (unsupported/gate) on narwhals — derivable via capability_gate |
 | tests/conform/cross_backend/test_conform_drift.py:34 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-02') — migrated |
 | tests/conform/cross_backend/test_conform_transforms.py:14 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-03') — migrated |
 | tests/conform/cross_backend/test_null_fill_mode.py:66 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-TYPE-02') — migrated |
@@ -27,7 +27,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/core/test_capability_gating.py:246 | static-marker | UNRESOLVED | polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-TYPE-02') — migrated |
 | tests/expressions/argument_types/_option_helpers.py:91 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
 | tests/expressions/argument_types/_test_template.py:162 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
-| tests/expressions/argument_types/test_capability_probes.py:157 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
+| tests/expressions/argument_types/test_capability_probes.py:158 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived xfail marker (reason built from a CapabilityFact) — migrated |
 | tests/expressions/argument_types/test_op_level_gate_probes.py:46 | parametrized-case | CAPITALIZE | narwhals-pandas | op | None | spine gate fact (unsupported/gate) on narwhals/narwhals-pandas — derivable via capability_gate |
 | tests/expressions/argument_types/test_op_level_gate_probes.py:46 | parametrized-case | CAPITALIZE | narwhals-polars | op | None | spine gate fact (unsupported/gate) on narwhals/narwhals-polars — derivable via capability_gate |
 | tests/expressions/argument_types/test_op_level_gate_probes.py:46 | parametrized-case | CENTER | narwhals-pandas | op | None | spine gate fact (unsupported/gate) on narwhals/narwhals-pandas — derivable via capability_gate |
@@ -182,16 +182,16 @@ _none_
 
 | site | kind | op | backend | param | option | reason |
 | --- | --- | --- | --- | --- | --- | --- |
-| tests/core/test_api_reachability.py:113 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
-| tests/core/test_compile_smoke.py:712 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: _KNOWN_SMOKE_FAILURES park — the harness expects a NATIVE (non-BackendCapabilityError) compile failure here; not a spine-gated backend capability |
-| tests/core/test_compile_smoke.py:750 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: the dynamic compile-smoke catch-all absorber (inventory_has lookup); the absorbed gaps are the runtime found_via=catch-all rows, not an imperative-drain target |
+| tests/core/test_api_reachability.py:132 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: API reachability gap (fkey not emitted by any public API entry point) — an emission/wiring gap, not a backend capability the spine gates |
+| tests/core/test_compile_smoke.py:730 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: _KNOWN_SMOKE_FAILURES park — the harness expects a NATIVE (non-BackendCapabilityError) compile failure here; not a spine-gated backend capability |
+| tests/core/test_compile_smoke.py:795 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: the dynamic compile-smoke catch-all absorber (inventory_has lookup); the absorbed gaps are the runtime found_via=catch-all rows, not an imperative-drain target |
 | tests/core/test_rel_signature_conformance.py:126 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:236 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
 | tests/core/test_rel_signature_conformance.py:321 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: relation protocol conformance divergence (signature/dispatch/unhandled-node) — not a backend capability gate |
-| tests/core/test_signature_conformance.py:235 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:601 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:610 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:618 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:780 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
-| tests/core/test_signature_conformance.py:805 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:237 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:636 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:645 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:653 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:815 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
+| tests/core/test_signature_conformance.py:840 | imperative-xfail | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | non-capability: protocol signature/options/call-pattern conformance divergence — not a backend capability gate |
 

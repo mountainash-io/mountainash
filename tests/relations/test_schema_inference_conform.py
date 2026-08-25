@@ -8,8 +8,8 @@ typed cast → concrete dtype, and a spec given as a raw Frictionless dict.
 
 Also includes parity-guard tests asserting that inferred schema column names
 match ``rel.to_polars().columns`` and that concretely-typed inferred dtypes
-agree with the registry-mapped Polars output dtypes — including the critical
-non-string categorical case (Polars Enum/Categorical → canonical STRING).
+agree with the registry-mapped Polars output dtypes — including categorical
+fields (STRING remains STRING; non-string fields retain their base scalar).
 
 Parity oracles use the Polars runtime only by design: ``infer_schema`` never
 compiles a plan or touches a backend (it is a pure AST walk), so the inferred
@@ -23,7 +23,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
-from mountainash.conform.errors import SchemaDriftError
+from mountainash.conform.errors import ExactFieldsMismatchError, SchemaDriftError
 from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.core.dtypes import TypeTarget, registry
 from mountainash.relations.schema_inference import (
@@ -106,7 +106,7 @@ class TestOpenMode:
 
 
 class TestSelectExact:
-    def test_select_exact_positional_mapping(self):
+    def test_select_exact_rejects_positional_mapping(self):
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
         spec = TypeSpec(
             fields=[
@@ -115,12 +115,8 @@ class TestSelectExact:
             ],
             fields_match="exact",
         )
-        schema = _infer(ma.relation(df).conform(spec))
-        # Projection only — no extras.
-        assert list(schema.keys()) == ["x", "y"]
-        assert schema["x"] == D.I64
-        assert schema["y"] == D.STRING
-
+        with pytest.raises(ExactFieldsMismatchError, match="name mismatch"):
+            _infer(ma.relation(df).conform(spec))
 
 class TestSelectEqual:
     def test_select_equal_one_to_one(self):
@@ -232,8 +228,8 @@ class TestParityGuards:
             actual_canon = _polars_schema_canonical(actual)[name]
             assert dt == actual_canon, f"{name}: inferred={dt} actual={actual_canon}"
 
-    def test_parity_select_exact_order(self):
-        # Exact-mode order parity: inferred == to_polars() for fields_match='exact'.
+    def test_parity_select_exact_rejects_positional_mapping(self):
+        # Exact-mode requires ordered source names, not positional renaming.
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
         spec = TypeSpec(
             fields=[
@@ -243,9 +239,8 @@ class TestParityGuards:
             fields_match="exact",
         )
         rel = ma.relation(df).conform(spec)
-        inferred = _infer(rel)
-        actual = rel.to_polars().schema
-        assert list(inferred.keys()) == list(actual.names())
+        with pytest.raises(ExactFieldsMismatchError, match="name mismatch"):
+            _infer(rel)
 
     def test_parity_categorical_string_field(self):
         # Categorical on a STRING field → registry maps pl.Categorical → STRING.
@@ -266,9 +261,10 @@ class TestParityGuards:
         assert inferred["grade"] == D.STRING
         assert _polars_schema_canonical(actual)["grade"] == D.STRING
 
-    def test_categorical_on_non_string_field_infers_string(self):
-        # Critical oracle: INTEGER-typed field + categories constraint must
-        # report STRING (Polars Enum/Categorical → canonical STRING).
+    def test_categorical_on_non_string_field_preserves_base_scalar(self):
+        # Unit C categorical behavior: an INTEGER-typed field retains its base
+        # scalar dtype (I64); categories constrain values but do not replace the
+        # declared scalar type with STRING.
         # We don't call to_polars() here because Polars cannot cast Int64→Cat
         # without an intermediate string step — the inference contract is what
         # we're verifying.
@@ -283,7 +279,7 @@ class TestParityGuards:
         )
         rel = ma.relation(df).conform(spec)
         inferred = _infer(rel)
-        assert inferred["grade"] == D.STRING
+        assert inferred["grade"] == D.I64
 
 
 # ---------------------------------------------------------------------------
@@ -364,8 +360,8 @@ class TestExactModeOrderParity:
 
     _SPEC = TypeSpec(
         fields=[
-            FieldSpec(name="x", type=U.INTEGER),
-            FieldSpec(name="y", type=U.STRING),
+            FieldSpec(name="x_src", type=U.INTEGER),
+            FieldSpec(name="y_src", type=U.STRING),
         ],
         fields_match="exact",
     )

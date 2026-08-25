@@ -6,7 +6,7 @@ import pytest
 from mountainash.conform.expressions import ConformResult, _build_conform_exprs
 from mountainash.conform.errors import (
     ConformError,
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     ExtraFieldsError,
     MissingFieldsError,
     NoMatchingFieldsError,
@@ -170,7 +170,7 @@ class TestFieldsMatchEqual:
 
 
 class TestFieldsMatchExact:
-    def test_exact_maps_by_position(self):
+    def test_exact_maps_by_name(self):
         spec = TypeSpec(
             fields=[
                 FieldSpec(name="first", type=UniversalType.STRING),
@@ -178,7 +178,7 @@ class TestFieldsMatchExact:
             ],
             fields_match="exact",
         )
-        result = _build_conform_exprs(spec, available_columns=["col_x", "col_y"])
+        result = _build_conform_exprs(spec, available_columns=["first", "second"])
         assert len(result.exprs) == 2
 
     def test_exact_raises_on_count_mismatch(self):
@@ -186,17 +186,16 @@ class TestFieldsMatchExact:
             fields=[FieldSpec(name="a", type=UniversalType.STRING)],
             fields_match="exact",
         )
-        with pytest.raises(ExactFieldCountError) as exc_info:
+        with pytest.raises(ExactFieldsMismatchError) as exc_info:
             _build_conform_exprs(spec, available_columns=["a", "b", "c"])
-        assert exc_info.value.expected_count == 1
-        assert exc_info.value.actual_count == 3
+        assert exc_info.value.reason == "count"
 
-    def test_exact_ignores_rename_from(self):
+    def test_exact_uses_rename_from_as_source_name(self):
         spec = TypeSpec(
             fields=[FieldSpec(name="target", type=UniversalType.STRING, rename_from="ignored")],
             fields_match="exact",
         )
-        result = _build_conform_exprs(spec, available_columns=["actual_col"])
+        result = _build_conform_exprs(spec, available_columns=["ignored"])
         assert len(result.exprs) == 1
 
 

@@ -11,7 +11,10 @@ from __future__ import annotations
 
 from typing import Protocol, TYPE_CHECKING
 
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+
 if TYPE_CHECKING:
+    from mountainash.typespec.spec import FieldSpec
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
 
 
@@ -23,4 +26,14 @@ class MountainAshScalarStructAPIBuilderProtocol(Protocol):
 
     def field(self, name: str) -> BaseExpressionAPI:
         """Extract a named field from a struct column."""
+        ...
+
+    def cast(
+        self,
+        *,
+        fields: tuple["FieldSpec", ...],
+        field_name: str,
+        failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+    ) -> BaseExpressionAPI:
+        """Recursively cast a native struct."""
         ...

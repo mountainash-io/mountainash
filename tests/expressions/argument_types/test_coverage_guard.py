@@ -380,6 +380,34 @@ _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {
     },
 }
 
+# Unit C source-dispatch operations have dedicated conform/operation tests; the
+# argument matrix does not yet provide backend-neutral dynamic-column fixtures
+# for their diagnostic parser carriers.
+_KNOWN_UNTESTED_ARGUMENT_PARAMS.update(
+    {
+        (protocol, operation, "x"): KnownGap(
+            gap_kind=GapKind.UNTESTED_ARGUMENT,
+            reason="Unit C diagnostic parser is covered by conform contract tests",
+            since="2026-08-25",
+        )
+        for protocol, operation in {
+            ("MountainAshScalarBooleanExpressionSystemProtocol", "parse_boolean"),
+            ("MountainAshScalarCategoricalExpressionSystemProtocol", "cast_categorical"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geojson"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geopoint"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson"),
+            ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items"),
+            ("MountainAshScalarListExpressionSystemProtocol", "parse_list"),
+            ("MountainAshScalarStructExpressionSystemProtocol", "cast_struct"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_datetime_default"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_default"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_temporal_any"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_xsd_duration"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_xsd_partial_date"),
+        }
+    }
+)
+
 
 _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], KnownGap] = {
     key: KnownGap(
@@ -1046,6 +1074,54 @@ _KNOWN_UNTESTED_OPTION_PARAMS[
         "substrait-arithmetic-missing-ops"
     ),
     since="2026-07-21",
+)
+
+
+# Unit C options are pinned by conform/cross-backend contract suites. Keep them
+# registered here until the argument matrix grows diagnostic-aware fixtures.
+_KNOWN_UNTESTED_OPTION_PARAMS.update(
+    {
+            (protocol, operation, param): KnownGap(
+                gap_kind=GapKind.UNTESTED_OPTION,
+                reason="Option behavior coverage is not implemented yet; Unit C conform contract tests own these options",
+                since="2026-08-25",
+        )
+        for protocol, operation, param in {
+            ("MountainAshScalarBooleanExpressionSystemProtocol", "parse_boolean", "failure_behavior"),
+            ("MountainAshScalarBooleanExpressionSystemProtocol", "parse_boolean", "false_values"),
+            ("MountainAshScalarBooleanExpressionSystemProtocol", "parse_boolean", "true_values"),
+            ("MountainAshScalarCategoricalExpressionSystemProtocol", "cast_categorical", "categories"),
+            ("MountainAshScalarCategoricalExpressionSystemProtocol", "cast_categorical", "failure_behavior"),
+            ("MountainAshScalarCategoricalExpressionSystemProtocol", "cast_categorical", "ordered"),
+            ("MountainAshScalarCategoricalExpressionSystemProtocol", "cast_categorical", "value_type"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geojson", "failure_behavior"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geojson", "format"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geopoint", "failure_behavior"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geopoint", "format"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "parse_geopoint", "source_representation"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson", "failure_behavior"),
+            ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson", "format"),
+            ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "failure_behavior"),
+            ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "item_object_fields"),
+            ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "item_type"),
+            ("MountainAshScalarListExpressionSystemProtocol", "parse_list", "delimiter"),
+            ("MountainAshScalarListExpressionSystemProtocol", "parse_list", "failure_behavior"),
+            ("MountainAshScalarListExpressionSystemProtocol", "parse_list", "item_type"),
+            ("MountainAshScalarStringExpressionSystemProtocol", "to_time", "failure_behavior"),
+            ("MountainAshScalarStructExpressionSystemProtocol", "cast_struct", "failure_behavior"),
+            ("MountainAshScalarStructExpressionSystemProtocol", "cast_struct", "fields"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_datetime_default", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_default", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_temporal_any", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_temporal_any", "kind"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_xsd_duration", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_xsd_partial_date", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "parse_xsd_partial_date", "kind"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_date", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_time", "failure_behavior"),
+            ("SubstraitScalarDatetimeExpressionSystemProtocol", "strptime_timestamp", "failure_behavior"),
+        }
+    }
 )
 
 

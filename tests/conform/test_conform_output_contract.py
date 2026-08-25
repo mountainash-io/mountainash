@@ -12,7 +12,7 @@ Declared-type table (from spec 2026-06-25-conform-output-contract-design.md):
   | type ANY/None, non-dotted, no fill  | PASSTHROUGH         |
   | type ANY/None + null_fill           | UNDETERMINED        |
   | type ANY/None, dotted source        | UNDETERMINED        |
-  | categories                          | STRING              |
+  | categories                          | declared base scalar type |
   | type ARRAY                          | to_canonical(ARRAY) |
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.conform.errors import (
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     ExtraFieldsError,
     MissingFieldsError,
     NoMatchingFieldsError,
@@ -203,18 +203,16 @@ class TestEqualMode:
 # ---------------------------------------------------------------------------
 
 class TestExactMode:
-    def test_exact_maps_positionally(self):
+    def test_exact_maps_by_name_after_order_guard(self):
         spec = _spec(_fld("x"), _fld("y"), fields_match="exact")
-        contract = resolve_conform_output(spec, available_columns=["col_a", "col_b"])
-        assert contract.emitted[0].source_name == "col_a"
-        assert contract.emitted[0].field.name == "x"
-        assert contract.emitted[1].source_name == "col_b"
-        assert contract.emitted[1].field.name == "y"
+        contract = resolve_conform_output(spec, available_columns=["x", "y"])
+        assert [field.source_name for field in contract.emitted] == ["x", "y"]
 
     def test_exact_raises_on_count_mismatch(self):
         spec = _spec(_fld("x"), _fld("y"), fields_match="exact")
-        with pytest.raises(ExactFieldCountError):
-            resolve_conform_output(spec, available_columns=["col_a"])
+        with pytest.raises(ExactFieldsMismatchError) as exc_info:
+            resolve_conform_output(spec, available_columns=["x"])
+        assert exc_info.value.reason == "count"
 
 
 # ---------------------------------------------------------------------------
@@ -340,14 +338,14 @@ class TestDeclaredType:
         contract = resolve_conform_output(spec, available_columns=["f"])
         assert contract.emitted[0].declared_type == MountainashDtype.STRING
 
-    def test_categories_on_integer_field_yields_string(self):
-        """categories on an integer-base field still → STRING (registry rule)."""
+    def test_categories_on_integer_field_yields_integer(self):
+        """categories preserve the declared integer base type."""
         spec = _spec(
             FieldSpec(name="f", type=UniversalType.INTEGER, categories=[1, 2, 3]),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
-        assert contract.emitted[0].declared_type == MountainashDtype.STRING
+        assert contract.emitted[0].declared_type == MountainashDtype.I64
 
     def test_array_type_yields_canonical_array(self):
         """ARRAY → to_canonical(ARRAY)."""
@@ -358,6 +356,13 @@ class TestDeclaredType:
         contract = resolve_conform_output(spec, available_columns=["f"])
         expected = to_canonical(UniversalType.ARRAY)
         assert contract.emitted[0].declared_type == expected
+
+    def test_list_type_yields_canonical_list(self):
+        """LIST lexical parsing still emits the physical canonical list."""
+        field = FieldSpec(name="f", type=UniversalType.LIST, item_type="integer")
+        spec = _spec(field, fields_match="open")
+        contract = resolve_conform_output(spec, available_columns=["f"])
+        assert contract.emitted[0].declared_type == to_canonical(UniversalType.LIST)
 
     def test_temporal_with_custom_format_yields_canonical(self):
         """DATE/DATETIME/TIME with custom format → to_canonical(type)."""

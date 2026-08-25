@@ -87,6 +87,8 @@ def _enum_key(fact: CapabilityFact):
         fact.dialect or "",
         fact.option_value or "",
         fact.value_class.value if fact.value_class is not None else "",
+        fact.residue_signal.value,
+        fact.fact_key,
     )
 
 
@@ -398,6 +400,20 @@ class CapabilityRegistry:
             )
             if vc_fact is not None:
                 return vc_fact
+            conditioned = sorted(
+                (
+                    fact
+                    for fact in cls._predicate_facts
+                    if fact.operation_key == operation_key
+                    and fact.param == param
+                    and fact.option_value == option_value
+                    and fact.backend is backend
+                    and (fact.dialect is None or fact.dialect == dialect)
+                ),
+                key=lambda fact: fact.fact_key,
+            )
+            if conditioned:
+                return conditioned[0]
         for key in (
             (operation_key, param, backend, dialect, None),
             (operation_key, param, backend, None, None),
@@ -461,6 +477,25 @@ class CapabilityRegistry:
                         continue
                 out[key] = fact
         return out
+
+    @classmethod
+    def residue_candidates(
+        cls,
+        backend: CONST_BACKEND,
+        dialect: str | None = None,
+        *,
+        operation_key: Any | None = None,
+    ) -> tuple[CapabilityFact, ...]:
+        """Return all applicable residue facts in deterministic order."""
+        facts = cls.facts(
+            backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
+        )
+        return tuple(
+            fact
+            for fact in facts
+            if (fact.dialect is None or fact.dialect == dialect)
+            and (operation_key is None or fact.operation_key == operation_key)
+        )
 
     @classmethod
     def router_facts(

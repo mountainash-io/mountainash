@@ -11,15 +11,21 @@ level (the root is the only error exported from the package `__init__`).
 """
 from __future__ import annotations
 
-from mountainash.core.errors import InvalidOptionValueError, MountainashError
+from mountainash.core.errors import (
+    CapabilityResidueInvariantError,
+    InvalidOptionValueError,
+    MountainashError,
+)
 from mountainash.conform.errors import (
     ConformError,
     MissingFieldsError,
     ExtraFieldsError,
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     NoMatchingFieldsError,
     ConformTransformError,
     SchemaDriftError,
+    UnresolvedSourceTypeError,
+    IncompatibleSourceTypeError,
 )
 from mountainash.relations.core.errors import InvalidSampleArgumentsError
 from mountainash.relations.dag.errors import (
@@ -77,17 +83,20 @@ __all__ = [
     "ConformError",
     "MissingFieldsError",
     "ExtraFieldsError",
-    "ExactFieldCountError",
+    "ExactFieldsMismatchError",
     "MembershipArgumentError",
     "NativeExprMemberError",
     "NestedCollectionError",
     "NoMatchingFieldsError",
     "ConformTransformError",
     "SchemaDriftError",
+    "UnresolvedSourceTypeError",
+    "IncompatibleSourceTypeError",
     "DAGError",
     "RelationDAGRequired",
     "MissingResourceSchema",
     "UnsupportedResourceFormat",
+    "CapabilityResidueInvariantError",
     "DtypeError",
     "UnknownDtypeError",
     "DtypeMappingError",

@@ -34,7 +34,13 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         pattern = re.escape(suffix) + "$"
         return x.re_replace(pattern, "")
 
-    def to_time(self, x, /, format: str):
+    def to_time(
+        self,
+        x,
+        /,
+        format: str,
+        failure_behavior: str = "throw",
+    ):
         from mountainash.core.types import BackendCapabilityError
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRING
         raise BackendCapabilityError(

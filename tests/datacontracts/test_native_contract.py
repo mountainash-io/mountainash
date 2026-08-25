@@ -101,6 +101,18 @@ class TestValidate:
             )["check_id"].to_list()
         )
         assert {"email__pattern", "age__ge"} <= failing
+    def test_missing_coerce_config_preserves_default_coercion(self):
+        class DefaultCoercionContract(BaseDataContract):
+            value: int
+
+            class Config:
+                name = "default-coercion"
+
+        result = DefaultCoercionContract.validate_datacontract(
+            pl.DataFrame({"value": ["7"]})
+        )
+        assert result.passes
+
 
     def test_keyed_identity_from_natural_key(self):
         df = pl.DataFrame(

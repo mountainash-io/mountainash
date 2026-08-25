@@ -28,23 +28,30 @@ class FactSource(Enum):
 
 class Domain(Enum):
     STRING = "string"
+    BOOLEAN = "boolean"
     ARITHMETIC = "arithmetic"
     DATETIME = "datetime"
     LIST = "list"
+    CATEGORICAL = "categorical"
+    STRUCT = "struct"
+    GEOSPATIAL = "geospatial"
     SET = "set"
     TERNARY = "ternary"
     RELATION = "relation"
-
 
 # Enum-class-name suffix -> Domain. Extended only when a new FKEY/RKEY
 # category gains declaration facts; classify_domain raises on unknowns so
 # the extension is forced, not forgotten.
 _DOMAIN_SUFFIXES: dict[str, Domain] = {
     "STRING": Domain.STRING,
+    "BOOLEAN": Domain.BOOLEAN,
     "ARITHMETIC": Domain.ARITHMETIC,
     "DATETIME": Domain.DATETIME,
     "LIST": Domain.LIST,
+    "CATEGORICAL": Domain.CATEGORICAL,
+    "STRUCT": Domain.STRUCT,
     "SET": Domain.SET,
+    "GEOSPATIAL": Domain.GEOSPATIAL,
     "TERNARY": Domain.TERNARY,
 }
 

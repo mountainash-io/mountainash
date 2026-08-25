@@ -355,19 +355,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into time using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed time expression.
-
-        Note:
-            Narwhals doesn't have strptime. Raises NotImplementedError.
-        """
         raise NotImplementedError(
             "strptime_time() is not supported by the Narwhals backend."
         )
@@ -377,16 +366,8 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         x: NarwhalsExpr,
         /,
         format: str,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into date using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-
-        Returns:
-            Parsed date expression.
-        """
         return x.str.to_date(format=format)
 
     def strptime_timestamp(
@@ -395,21 +376,66 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         format: str,
         timezone: str = None,
+        failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        """Parse string into timestamp using provided format.
-
-        Args:
-            x: String to parse.
-            format: strptime format string.
-            timezone: Optional timezone (IANA format).
-
-        Returns:
-            Parsed timestamp expression.
-        """
         result = x.str.to_datetime(format=format)
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
         return result
+    def parse_default(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return x.str.to_datetime()
+    def parse_datetime_default(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return self.parse_default(x, failure_behavior=failure_behavior)
+
+    def parse_xsd_duration(
+        self,
+        x: NarwhalsExpr,
+        /,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        if failure_behavior in {"null", "throw"}:
+            valid = x.str.contains(
+                r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$"
+            ) & ~x.is_in(["P", "-P", "PT", "-PT"]) & ~x.str.ends_with("T")
+            valid = valid & ~x.str.contains(r"\+14:[0-5][1-9]$")
+            return nw.when(valid).then(x).otherwise(None)
+        return x
+
+    def parse_xsd_partial_date(
+        self,
+        x: NarwhalsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        if failure_behavior in {"null", "throw"}:
+            pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
+            if kind == "yearmonth":
+                pattern += r"-(?:0[1-9]|1[0-2])"
+            pattern += r"(?:Z|[+-](?:0[0-9]|1[0-4]):[0-5][0-9])?$"
+            valid = x.str.contains(pattern) & ~x.str.starts_with("-0000")
+            valid = valid & ~x.str.contains(r"[+-]14:(?:0[1-9]|[1-5][0-9])$")
+            return nw.when(valid).then(x).otherwise(None)
+        return x
+    def parse_temporal_any(
+        self,
+        x: NarwhalsExpr,
+        /,
+        kind: str,
+        failure_behavior: str = "throw",
+    ) -> NarwhalsExpr:
+        return x
+
 
     # =========================================================================
     # Formatting Methods

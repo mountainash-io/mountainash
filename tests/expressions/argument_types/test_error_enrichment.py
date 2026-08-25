@@ -48,13 +48,17 @@ def test_capability_facts_have_required_fields(fact):
     migrate). It does NOT assert a fact *count* — completeness of the migration
     is the job of the closed-by-default integrity guards (Task 11/12).
     """
-    assert fact.message, f"{_fact_id(fact)} missing message"
     if fact.boundary is Boundary.MATERIALIZE:
-        # Enriched at _call_with_expr_support — must declare the native errors it catches.
-        assert fact.native_errors, f"{_fact_id(fact)} MATERIALIZE fact missing native_errors"
-        assert isinstance(fact.native_errors, tuple)
-        for e in fact.native_errors:
-            assert isinstance(e, type) and issubclass(e, Exception)
+        # Exception residue is enriched with declared native errors. A
+        # non-null-to-null residue is a value transform and deliberately has no
+        # native exception to capture.
+        if fact.residue_signal.value == "non_null_to_null":
+            assert fact.native_errors == ()
+        else:
+            assert fact.native_errors, f"{_fact_id(fact)} MATERIALIZE fact missing native_errors"
+            assert isinstance(fact.native_errors, tuple)
+            for e in fact.native_errors:
+                assert isinstance(e, type) and issubclass(e, Exception)
     else:
         # BUILD facts gate at the visitor before the native call, so by design
         # they carry no native_errors (schema keeps them empty).

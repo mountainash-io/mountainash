@@ -16,6 +16,7 @@ from typing import Optional
 
 import pytest
 
+from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.extraction import (
     _DATACLASS_SCHEMA_CACHE,
     extract_schema_from_dataclass,
@@ -29,6 +30,8 @@ from mountainash.typespec.extraction import (
     from_pydantic,
 )
 from mountainash.typespec.spec import TypeSpec
+
+from mountainash.typespec.source_shape import extract_source_shapes
 
 
 # ============================================================================
@@ -87,6 +90,14 @@ class TestExtractFromPolars:
         id_field = schema.get_field("id")
         assert id_field.backend_type is None
 
+
+    def test_source_shapes_use_schema_without_rows(self):
+        pl = pytest.importorskip("polars")
+        frame = pl.DataFrame(schema={"values": pl.List(pl.Int64)})
+        shape = extract_source_shapes(frame)["values"]
+        assert shape.canonical_type is MountainashDtype.LIST
+        assert shape.item_shape.canonical_type is MountainashDtype.I64
+
     def test_returns_type_spec(self, polars_mixed_df):
         schema = extract_schema_from_dataframe(polars_mixed_df)
         assert isinstance(schema, TypeSpec)
@@ -124,6 +135,10 @@ class TestExtractFromPandas:
         schema = extract_schema_from_dataframe(pandas_df)
         assert "id" in schema.field_names
         assert "name" in schema.field_names
+
+    def test_preserve_backend_types_keeps_pandas_scalar_dtype(self, pandas_df):
+        schema = extract_from_dataframe(pandas_df, preserve_backend_types=True)
+        assert schema.get_field("id").backend_type == "int64"
 
 
 # ============================================================================
@@ -388,7 +403,7 @@ class TestExtractFromPydantic:
 
 
 class TestExtractionOverRegistry:
-    def test_polars_list_populates_item_type(self):
+    def test_polars_native_list_has_no_lexical_properties(self):
         import polars as pl
         from mountainash.typespec.extraction import extract_from_dataframe
         from mountainash.typespec.universal_types import UniversalType
@@ -396,7 +411,51 @@ class TestExtractionOverRegistry:
         spec = extract_from_dataframe(df)
         (field,) = [f for f in spec.fields if f.name == "tags"]
         assert field.type == UniversalType.ARRAY
-        assert field.item_type == "integer"
+        assert field.item_type is None
+        assert field.delimiter is None
+        assert field.item_object_fields is None
+
+    def test_polars_array_of_structs_recurses_nested_array_of_structs(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame(
+            {
+                "rows": [
+                    [{"name": "outer", "children": [{"id": 1, "tags": ["a"]}]}],
+                ],
+            }
+        )
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "rows"]
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        assert field.delimiter is None
+        assert [(f.name, f.type) for f in field.item_object_fields] == [
+            ("name", UniversalType.STRING),
+            ("children", UniversalType.ARRAY),
+        ]
+        (children,) = [f for f in field.item_object_fields if f.name == "children"]
+        assert children.item_type is None
+        assert children.delimiter is None
+        assert [(f.name, f.type) for f in children.item_object_fields] == [
+            ("id", UniversalType.INTEGER),
+            ("tags", UniversalType.ARRAY),
+        ]
+        (tags,) = [f for f in children.item_object_fields if f.name == "tags"]
+        assert tags.item_type is None
+        assert tags.item_object_fields is None
+        from mountainash.typespec.converters import to_polars_schema
+        assert to_polars_schema(spec)["rows"] == pl.List(
+            pl.Struct(
+                {
+                    "name": pl.String,
+                    "children": pl.List(
+                        pl.Struct({"id": pl.Int64, "tags": pl.List(pl.String)})
+                    ),
+                }
+            )
+        )
 
     def test_polars_struct_populates_object_fields(self):
         import polars as pl
@@ -453,6 +512,77 @@ class TestExtractionOverRegistry:
         spec = extract_from_dataframe(table, preserve_backend_types=True)
         (field,) = [f for f in spec.fields if f.name == "addr"]
         assert field.backend_type is None
+
+    def test_pyarrow_array_of_structs_recurses_nested_array_of_structs(self):
+        pytest.importorskip("pyarrow")
+        import pyarrow as pa
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+
+        child_type = pa.struct([pa.field("code", pa.string())])
+        row_type = pa.struct(
+            [
+                pa.field("id", pa.int64()),
+                pa.field("children", pa.list_(child_type)),
+            ]
+        )
+        table = pa.table(
+            {
+                "rows": pa.array(
+                    [[{"id": 1, "children": [{"code": "x"}]}]],
+                    type=pa.list_(row_type),
+                )
+            }
+        )
+        spec = extract_from_dataframe(table)
+        (field,) = [f for f in spec.fields if f.name == "rows"]
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        (children,) = [f for f in field.item_object_fields if f.name == "children"]
+        assert children.type is UniversalType.ARRAY
+        (code,) = [f for f in children.item_object_fields if f.name == "code"]
+        assert code.type is UniversalType.STRING
+
+    def test_pandas_arrow_list_and_struct_use_source_shapes(self):
+        pytest.importorskip("pyarrow")
+        import pandas as pd
+        import pyarrow as pa
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+
+        row_type = pa.struct([pa.field("id", pa.int64())])
+        df = pd.DataFrame(
+            {
+                "rows": pd.Series(
+                    [[{"id": 1}]],
+                    dtype=pd.ArrowDtype(pa.list_(row_type)),
+                ),
+                "addr": pd.Series(
+                    [{"id": 1}],
+                    dtype=pd.ArrowDtype(row_type),
+                ),
+            }
+        )
+        spec = extract_from_dataframe(df)
+        rows = spec.get_field("rows")
+        addr = spec.get_field("addr")
+        assert rows.type is UniversalType.ARRAY
+        assert rows.item_object_fields[0].type is UniversalType.INTEGER
+        assert addr.type is UniversalType.OBJECT
+        assert addr.object_fields[0].type is UniversalType.INTEGER
+
+    def test_polars_list_null_child_has_bare_array_shape(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+
+        spec = extract_from_dataframe(
+            pl.DataFrame({"values": pl.Series([None], dtype=pl.List(pl.Null))})
+        )
+        field = spec.get_field("values")
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        assert field.item_object_fields is None
 
     def test_extraction_resolver_round_trip_pins_full_struct_not_just_no_raise(self):
         import polars as pl

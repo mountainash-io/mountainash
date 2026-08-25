@@ -7,6 +7,8 @@ Three fact kinds:
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -55,6 +57,10 @@ class Enforcement(Enum):
     ROUTER_METADATA = "router_metadata"          # a backend router consumes this; never raises
     MATERIALIZE_RESIDUE = "materialize_residue"  # enriches a native error raised during dispatch or materialization (item 88)
 
+
+class ResidueSignal(Enum):
+    EXCEPTION = "exception"
+    NON_NULL_TO_NULL = "non_null_to_null"
 
 _LEGAL_BOUNDARY = {
     Enforcement.GATE: Boundary.BUILD,
@@ -176,6 +182,34 @@ class Predicate:
         object.__setattr__(self, "clauses", tuple(sorted(clauses, key=_clause_key)))
 
 
+def _normalized_value(value: Any) -> Any:
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, frozenset):
+        normalized = [_normalized_value(item) for item in value]
+        return sorted(normalized, key=lambda item: (type(item).__name__, repr(item)))
+    if isinstance(value, tuple):
+        return [_normalized_value(item) for item in value]
+    return value
+
+
+def _predicate_digest(fact: "CapabilityFact") -> str:
+    clauses = (
+        [
+            (clause.path, clause.op.value, _normalized_value(clause.operand))
+            for clause in fact.predicate.clauses
+        ]
+        if fact.predicate is not None
+        else []
+    )
+    payload = {
+        "option_value": _normalized_value(fact.option_value),
+        "value_class": _normalized_value(fact.value_class),
+        "predicate": clauses,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
 def _validate_since(since: str, owner: str) -> None:
     if not _SINCE_RE.match(since):
         raise ValueError(f"{owner}: since must be YYYY-MM-DD, got {since!r}")
@@ -204,14 +238,36 @@ class CapabilityFact:
     value_class: ValueClass | None = None   # value-class fact; option_value MUST be None
     enforcement: Enforcement = Enforcement.GATE  # what the system does; condition is prose only
     predicate: Predicate | None = None     # compound co-value limit (§4); None = param-keyed fact
+    residue_signal: ResidueSignal = ResidueSignal.EXCEPTION
 
     def __post_init__(self) -> None:
-        _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
-        if self.boundary is Boundary.MATERIALIZE and not self.native_errors:
+        if self.residue_signal is not ResidueSignal.EXCEPTION and (
+            self.enforcement is not Enforcement.MATERIALIZE_RESIDUE
+        ):
             raise ValueError(
                 f"CapabilityFact({self.operation_key}, {self.param}): "
-                "MATERIALIZE facts must declare native_errors"
+                "both materialization residue signals require "
+                "MATERIALIZE_RESIDUE enforcement"
             )
+        if (
+            self.enforcement is Enforcement.MATERIALIZE_RESIDUE
+            and self.residue_signal is ResidueSignal.NON_NULL_TO_NULL
+            and self.native_errors
+        ):
+            raise ValueError(
+                f"CapabilityFact({self.operation_key}, {self.param}): "
+                "NON_NULL_TO_NULL residue facts must have empty native_errors"
+            )
+        if (
+            self.enforcement is Enforcement.MATERIALIZE_RESIDUE
+            and self.residue_signal is ResidueSignal.EXCEPTION
+            and not self.native_errors
+        ):
+            raise ValueError(
+                f"CapabilityFact({self.operation_key}, {self.param}): "
+                "EXCEPTION residue facts must declare native_errors"
+            )
+        _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
         if self.level is CapabilityLevel.EXPR_CAPABLE and self.dialect is None:
             raise ValueError(
                 f"CapabilityFact({self.operation_key}, {self.param}): explicit "
@@ -270,11 +326,15 @@ class CapabilityFact:
                     f"CapabilityFact({self.operation_key}, {self.param}): predicate "
                     "facts must use the BUILD boundary (§4.5)"
                 )
-            if self.option_value is not None or self.value_class is not None:
+            if self.value_class is not None:
                 raise ValueError(
                     f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
-                    "fact is value-agnostic — the predicate carries the value scoping; "
-                    "option_value and value_class must be None"
+                    "fact cannot also use value_class"
+                )
+            if self.option_value is not None:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
+                    "fact is value-agnostic and cannot also use option_value"
                 )
             if self.param == WILDCARD_PARAM:
                 raise ValueError(
@@ -299,6 +359,29 @@ class CapabilityFact:
                     f"CapabilityFact({self.operation_key}, {self.param!r}): param must "
                     f"be one of the predicate's clause roots {sorted(roots)}"
                 )
+
+
+    @property
+    def fact_key(self) -> str:
+        operation_type = (
+            f"{type(self.operation_key).__module__}."
+            f"{type(self.operation_key).__qualname__}"
+        )
+        operation = getattr(self.operation_key, "name", str(self.operation_key))
+        backend = getattr(self.backend, "value", str(self.backend))
+        dialect = self.dialect or ""
+        return "|".join(
+            (
+                operation_type,
+                str(operation),
+                self.param,
+                str(backend),
+                dialect,
+                self.boundary.value,
+                self.residue_signal.value,
+                _predicate_digest(self),
+            )
+        )
 
 
 class DivergenceKind(Enum):

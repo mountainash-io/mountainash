@@ -132,10 +132,15 @@ class BackendResultHelper:
             result = df.select(backend_expr.alias(column_alias)).collect()
             return result[column_alias].to_list()
 
-        elif backend_name in ("polars", "narwhals", "narwhals-polars", "narwhals-pandas", "pandas"):
+        elif backend_name in (
+            "polars", "pandas", "narwhals", "narwhals-polars", "narwhals-pandas",
+        ):
             # Polars/Narwhals/Pandas: use .alias(), then to_list()
             # (pandas is routed through narwhals in factory)
             result = df.select(backend_expr.alias(column_alias))
+            return result[column_alias].to_list()
+        elif backend_name == "narwhals-lazy":
+            result = df.select(backend_expr.alias(column_alias)).collect()
             return result[column_alias].to_list()
 
         else:

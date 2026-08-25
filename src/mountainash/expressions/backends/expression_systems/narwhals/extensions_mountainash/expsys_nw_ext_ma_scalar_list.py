@@ -9,13 +9,88 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-
+from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import TypeTarget
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[nw.Expr]):
-    """Narwhals implementation of list operations."""
+    def parse_list(
+        self,
+        x,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: str = "throw",
+    ):
+        return self._call_with_expr_support(
+            lambda: self._parse_list_impl(
+                x,
+                item_type=item_type,
+                delimiter=delimiter,
+                failure_behavior=failure_behavior,
+            ),
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            item_type=item_type,
+            failure_behavior=failure_behavior,
+        )
+
+    def _parse_list_impl(
+        self,
+        x,
+        *,
+        item_type: str,
+        delimiter: str,
+        failure_behavior: str,
+    ):
+        values = x.str.split(delimiter)
+        if item_type == "string":
+            return values
+        if item_type == "boolean":
+            import re
+
+            escaped = re.escape(delimiter)
+            normalized = x
+            for tokens, replacement in (
+                ("true|True|TRUE|1", "1"),
+                ("false|False|FALSE|0", "0"),
+            ):
+                normalized = normalized.str.replace_all(
+                    rf"(^|{escaped})({tokens})",
+                    rf"${{1}}{replacement}",
+                )
+            return normalized.str.split(delimiter).cast(nw.List(nw.Int8)).cast(nw.List(nw.Boolean))
+        target = {
+            "integer": nw.Int64,
+            "number": nw.Float64,
+            "datetime": nw.Datetime,
+            "date": nw.Date,
+            "time": nw.Time,
+        }[item_type]
+        return values.cast(nw.List(target()))
+
+    def cast_list_items(
+        self,
+        x,
+        /,
+        *,
+        item_object_fields: tuple[FieldSpec, ...] = (),
+        item_type: str | None = None,
+        failure_behavior: str = "throw",
+    ):
+        if item_type is not None:
+            from mountainash.typespec.universal_types import parse_universal, to_canonical
+            canonical = to_canonical(parse_universal(item_type))
+            from mountainash.core.dtypes import registry
+            dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
+            return x.cast(nw.List(dtype))
+        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
+        dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        return x.cast(dtype)
 
     def list_sum(self, x: NarwhalsExpr, /):
         return x.list.sum()

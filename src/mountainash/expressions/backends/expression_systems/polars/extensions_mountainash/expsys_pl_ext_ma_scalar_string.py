@@ -37,8 +37,14 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
     def strip_suffix(self, x, /, *, suffix: str):
         return x.str.strip_suffix(suffix)
 
-    def to_time(self, x, /, format: str):
-        return x.str.to_time(format)
+    def to_time(
+        self,
+        x,
+        /,
+        format: str,
+        failure_behavior: str = "throw",
+    ):
+        return x.str.to_time(format, strict=failure_behavior != "null")
 
     def to_integer(self, x, /, base: int = 10):
         return x.str.to_integer(base=base)

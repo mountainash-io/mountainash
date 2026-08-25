@@ -9,7 +9,7 @@ Extensions beyond Substrait standard:
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from mountainash.core.types import ExpressionT
 
@@ -20,6 +20,18 @@ class MountainAshScalarBooleanExpressionSystemProtocol(Protocol[ExpressionT]):
     These operations extend beyond the Substrait standard boolean
     functions to provide additional boolean operations.
     """
+
+    def parse_boolean(
+        self,
+        x: ExpressionT,
+        /,
+        *,
+        true_values: tuple[str, ...],
+        false_values: tuple[str, ...],
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> ExpressionT:
+        """Parse configured literal tokens into a nullable boolean."""
+        ...
 
     def xor_parity(
         self,

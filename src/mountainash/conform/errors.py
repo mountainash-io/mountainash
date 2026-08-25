@@ -5,11 +5,12 @@ field count mismatches, and transform compilation failures.
 
 See: https://datapackage.org/standard/table-schema/#fieldsMatch
 """
-from __future__ import annotations
-
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, List
 
 from mountainash.core.errors import MountainashError
+
+if TYPE_CHECKING:
+    from mountainash.conform.diagnostics import OperationDiagnostic
 
 
 class ConformError(MountainashError):
@@ -42,17 +43,54 @@ class ExtraFieldsError(ConformError):
         )
 
 
-class ExactFieldCountError(ConformError):
-    """Field count mismatch in exact mode (positional mapping)."""
+class ExactFieldsMismatchError(ConformError):
+    """Ordered exact-field mismatch with a stable machine-readable reason."""
 
-    def __init__(self, *, expected_count: int, actual_count: int) -> None:
-        self.expected_count = expected_count
-        self.actual_count = actual_count
+    def __init__(
+        self,
+        *,
+        expected: list[str] | tuple[str, ...],
+        actual: list[str] | tuple[str, ...],
+        reason: str,
+    ) -> None:
+        self.expected = tuple(expected)
+        self.actual = tuple(actual)
+        self.reason = reason
         super().__init__(
-            f"fieldsMatch='exact': spec has {expected_count} fields but data "
-            f"has {actual_count} columns. Exact mode requires identical count."
+            f"fieldsMatch='exact': {reason} mismatch; expected "
+            f"{self.expected!r}, actual {self.actual!r}"
         )
 
+
+class UnresolvedSourceTypeError(ConformError):
+    """The source representation is required but schema evidence is unknown."""
+
+    def __init__(self, *, field_name: str, requirement: str) -> None:
+        self.field_name = field_name
+        self.requirement = requirement
+        super().__init__(
+            f"field {field_name!r} requires resolved source type evidence: "
+            f"{requirement}"
+        )
+
+
+class IncompatibleSourceTypeError(ConformError):
+    """The source representation cannot satisfy a field operation."""
+
+    def __init__(
+        self,
+        *,
+        field_name: str,
+        source_detail: str,
+        requirement: str,
+    ) -> None:
+        self.field_name = field_name
+        self.source_detail = source_detail
+        self.requirement = requirement
+        super().__init__(
+            f"field {field_name!r} has incompatible source type "
+            f"{source_detail!r}; requires {requirement}"
+        )
 
 class NoMatchingFieldsError(ConformError):
     """No overlap between spec fields and data source columns."""
@@ -72,14 +110,32 @@ class ConformTransformError(ConformError):
     """The conform pipeline failed due to incompatible source data types."""
 
     def __init__(
-        self, *, original_error: Exception, spec_summary: str
+        self,
+        *,
+        original_error: Exception,
+        candidates: tuple["OperationDiagnostic", ...] = (),
+        spec_summary: str | None = None,
     ) -> None:
         self.original_error = original_error
-        self.spec_summary = spec_summary
-        super().__init__(
-            f"Conform transform failed: {original_error}. "
-            f"Check TypeSpec parsing properties: {spec_summary}"
+        self.candidates = tuple(
+            sorted(candidates, key=lambda item: (item.field_name, item.logical_type, item.format))
         )
+        # Kept while older callers migrate to the diagnostic trace contract.
+        self.spec_summary = spec_summary
+        if len(self.candidates) == 1:
+            candidate = self.candidates[0]
+            detail = (
+                f"field {candidate.field_name!r}, logical type "
+                f"{candidate.logical_type!r}, format {candidate.format!r}"
+            )
+        elif self.candidates:
+            fields = sorted({candidate.field_name for candidate in self.candidates})
+            detail = f"candidate fields {fields!r}"
+        elif spec_summary is not None:
+            detail = f"Check TypeSpec parsing properties: {spec_summary}"
+        else:
+            detail = "no matching conform operation diagnostic"
+        super().__init__(f"Conform transform failed: {original_error}; {detail}")
 
 
 class SchemaDriftError(ConformError):

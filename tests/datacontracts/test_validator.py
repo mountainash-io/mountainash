@@ -36,6 +36,68 @@ class TestValidatorContractOnly:
         assert result.validator_name == "my_validator"
 
 
+def test_coerce_false_still_applies_structural_conform():
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    class Contract(BaseDataContract):
+        value: str = Field(str_matches="^.+$")
+
+        class Config(BaseDataContract.Config):
+            coerce = False
+
+    Contract.__typespec__ = TypeSpec(
+        fields=[
+            FieldSpec(
+                name="value",
+                type=UniversalType.INTEGER,
+                rename_from="raw_value",
+            )
+        ],
+        fields_match="open",
+    )
+
+    result = Validator(
+        name="contract",
+        contract=Contract,
+    ).validate(pl.DataFrame({"raw_value": ["1"]}))
+
+    assert result.passes is True
+
+
+@pytest.mark.parametrize(
+    "fields_match",
+    ["open", "exact", "equal", "subset", "superset", "partial"],
+)
+@pytest.mark.parametrize("coerce", [True, False])
+def test_validator_conforms_all_fields_match_modes(fields_match, coerce):
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    class Contract(BaseDataContract):
+        value: object = Field()
+
+        class Config(BaseDataContract.Config):
+            pass
+
+    Contract.Config.coerce = coerce
+    Contract.__typespec__ = TypeSpec(
+        fields=[FieldSpec(name="value", type=UniversalType.INTEGER)],
+        fields_match=fields_match,
+    )
+    source = {"value": ["1"]}
+    if fields_match in {"open", "subset", "partial"}:
+        source["extra"] = [1]
+
+    result = Validator(name="contract", contract=Contract).validate(
+        pl.DataFrame(source),
+    )
+
+    assert result.passes is True
+
+
+
+
 class TestValidatorWithRules:
     """Validator with contract + expression-based rules."""
 

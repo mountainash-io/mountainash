@@ -181,6 +181,12 @@ class TestTier1NativeDataFrame:
         df = pl.DataFrame({"id": ["1", "2"], "name": ["a", "b"]})
         result = apply_native_conversions_to_dataframe(df, {})
         assert result.schema == df.schema
+
+    def test_geopoint_native_conversion_uses_field_format(self):
+        df = pl.DataFrame({"point": [[1.0, 2.0]]})
+        field = FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array")
+        result = apply_native_conversions_to_dataframe(df, {"point": field})
+        assert result["point"].to_list() == [[1.0, 2.0]]
         assert result.shape == df.shape
 
 

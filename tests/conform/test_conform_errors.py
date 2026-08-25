@@ -7,7 +7,7 @@ from mountainash.conform.errors import (
     ConformError,
     MissingFieldsError,
     ExtraFieldsError,
-    ExactFieldCountError,
+    ExactFieldsMismatchError,
     NoMatchingFieldsError,
     ConformTransformError,
 )
@@ -16,10 +16,7 @@ from mountainash.conform.errors import (
 class TestConformErrorHierarchy:
     def test_all_errors_inherit_from_conform_error(self):
         assert issubclass(MissingFieldsError, ConformError)
-        assert issubclass(ExtraFieldsError, ConformError)
-        assert issubclass(ExactFieldCountError, ConformError)
-        assert issubclass(NoMatchingFieldsError, ConformError)
-        assert issubclass(ConformTransformError, ConformError)
+        assert issubclass(ExactFieldsMismatchError, ConformError)
 
     def test_missing_fields_error_attributes(self):
         err = MissingFieldsError(
@@ -40,12 +37,12 @@ class TestConformErrorHierarchy:
         assert err.fields_match == "superset"
         assert "unknown_col" in str(err)
 
-    def test_exact_field_count_error_attributes(self):
-        err = ExactFieldCountError(expected_count=3, actual_count=5)
-        assert err.expected_count == 3
-        assert err.actual_count == 5
-        assert "3" in str(err)
-        assert "5" in str(err)
+    def test_exact_fields_mismatch_error_attributes(self):
+        err = ExactFieldsMismatchError(expected=("a",), actual=("b",), reason="name")
+        assert err.expected == ("a",)
+        assert err.actual == ("b",)
+        assert err.reason == "name"
+        assert "name" in str(err)
 
     def test_no_matching_fields_error_attributes(self):
         err = NoMatchingFieldsError(

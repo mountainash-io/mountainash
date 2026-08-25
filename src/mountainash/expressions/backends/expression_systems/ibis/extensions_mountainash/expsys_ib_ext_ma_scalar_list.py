@@ -10,9 +10,11 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-
+from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import TypeTarget
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
-
 
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
@@ -21,6 +23,72 @@ _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of list operations."""
+    def parse_list(
+        self,
+        x,
+        /,
+        *,
+        item_type: str = "string",
+        delimiter: str = ",",
+        failure_behavior: str = "throw",
+    ):
+        values = x.split(delimiter)
+        if item_type == "string":
+            return values
+        if item_type == "boolean":
+            true_values = ("true", "True", "TRUE", "1")
+            false_values = ("false", "False", "FALSE", "0")
+            invalid = ibis.literal("__invalid_boolean_token__").cast("boolean")
+            parsed = values.map(
+                lambda item: ibis.cases(
+                    (item.isin(true_values), ibis.literal(True)),
+                    (item.isin(false_values), ibis.literal(False)),
+                    else_=invalid,
+                )
+            )
+            if failure_behavior == "null":
+                invalid_items = parsed.map(lambda item: item.isnull()).anys().fill_null(False)
+                return ibis.ifelse(
+                    x.isnull(), ibis.null(),
+                    ibis.ifelse(invalid_items, ibis.null(), parsed),
+                )
+            return parsed
+        target = {
+            "integer": "int64",
+            "number": "float64",
+            "datetime": "timestamp",
+            "date": "date",
+            "time": "time",
+        }[item_type]
+        caster = (
+            (lambda item: item.try_cast(target))
+            if failure_behavior == "null"
+            else (lambda item: item.cast(target))
+        )
+        parsed = values.map(caster)
+        if failure_behavior == "null":
+            invalid = parsed.map(lambda item: item.isnull()).anys().fill_null(False)
+            return ibis.ifelse(x.isnull(), ibis.null(), ibis.ifelse(invalid, ibis.null(), parsed))
+        return parsed
+
+    def cast_list_items(
+        self,
+        x,
+        /,
+        *,
+        item_object_fields: tuple[FieldSpec, ...] = (),
+        item_type: str | None = None,
+        failure_behavior: str = "throw",
+    ):
+        if item_type is not None:
+            from mountainash.typespec.universal_types import parse_universal, to_canonical
+            from mountainash.core.dtypes import registry
+            canonical = to_canonical(parse_universal(item_type))
+            dtype = registry.to_native_schema(canonical, TypeTarget.IBIS)
+            return x.try_cast(f"array<{dtype}>") if failure_behavior == "null" else x.cast(f"array<{dtype}>")
+        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
+        dtype = _resolve_field_native(field, TypeTarget.IBIS)
+        return x.try_cast(dtype) if failure_behavior == "null" else x.cast(dtype)
 
     def list_sum(self, x, /):
         return x.sums()

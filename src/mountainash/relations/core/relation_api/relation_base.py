@@ -109,6 +109,8 @@ class RelationBase:
         if isinstance(node, (ReadRelNode, SourceRelNode, RefRelNode)):
             return node
         if not node.children():
+            if target_type is not None and isinstance(node, target_type):
+                return transform_fn(node)
             return node
 
         rebuilt: RelationNode

@@ -170,7 +170,8 @@ def apply_native_conversions_to_dataframe(
     """
     from mountainash.core.lazy_imports import import_polars
     from mountainash.core.dtypes import TypeTarget, registry
-    from mountainash.typespec.universal_types import UniversalType, to_canonical
+    from mountainash.typespec.converters import resolve_field_canonical
+    from mountainash.typespec.universal_types import UniversalType
 
     pl = import_polars()
     if pl is None:
@@ -184,7 +185,7 @@ def apply_native_conversions_to_dataframe(
     for col_name, field_spec in native_conversions.items():
         # Only cast if there's a non-ANY type declared and column exists
         if field_spec.type and field_spec.type != UniversalType.ANY and col_name in df.columns:
-            canon = to_canonical(field_spec.type)
+            canon = resolve_field_canonical(field_spec)
             if canon is not None:
                 cast_dict[col_name] = registry.to_native_schema(canon, TypeTarget.POLARS)
 

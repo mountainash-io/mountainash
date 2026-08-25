@@ -129,28 +129,30 @@ class FieldSpec:
     decimal_char: Optional[str] = None
     group_char: Optional[str] = None
     bare_number: Optional[bool] = None
-    item_type: Optional[str] = None  # valid only when type is LIST or ARRAY (decision 14)
+    item_type: Optional[str] = None  # valid only when type is LIST (lexical)
     object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: OBJECT inner-field schema
     item_object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: ARRAY item struct schema
-    delimiter: Optional[str] = None  # valid only when type is LIST or ARRAY (decision 14)
+    delimiter: Optional[str] = None  # valid only when type is LIST (lexical)
     backend_type: Optional[str] = None
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
 
-    # Interim (Unit B -> Unit C) property/type compatibility for
-    # item_type/delimiter. See decision 14: native list extraction always
-    # emits ARRAY (never LIST — a native dtype cannot prove lexical LIST
-    # intent), and conform's pre-existing ARRAY/item_type split branch
-    # (backlog item 109) still keys on type == ARRAY. __post_init__ therefore
-    # checks membership in (LIST, ARRAY), not LIST alone; Unit C narrows this
-    # back to (LIST,) once ARRAY stops carrying these properties.
     def __post_init__(self) -> None:
-        list_like = (UniversalType.LIST, UniversalType.ARRAY)
-        if self.item_type is not None and self.type not in list_like:
-            raise IncompatibleFieldPropertiesError(self.name, "item_type", self.type, list_like)
-        if self.delimiter is not None and self.type not in list_like:
-            raise IncompatibleFieldPropertiesError(self.name, "delimiter", self.type, list_like)
+        if self.item_type is not None and self.type is not UniversalType.LIST:
+            raise IncompatibleFieldPropertiesError(
+                self.name,
+                "item_type",
+                self.type,
+                (UniversalType.LIST,),
+            )
+        if self.delimiter is not None and self.type is not UniversalType.LIST:
+            raise IncompatibleFieldPropertiesError(
+                self.name,
+                "delimiter",
+                self.type,
+                (UniversalType.LIST,),
+            )
         if self.item_object_fields is not None and self.type is not UniversalType.ARRAY:
             raise IncompatibleFieldPropertiesError(
                 self.name, "item_object_fields", self.type, (UniversalType.ARRAY,)

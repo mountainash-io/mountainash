@@ -34,6 +34,8 @@ def _example_raw_value(annotation: str):
         return True
     if "float" in annotation:
         return 1.5
+    if "tuple" in annotation:
+        return ()
     if "FrozenSet" in annotation or "frozenset" in annotation:
         return frozenset()
     if "Collection" in annotation or "Sequence" in annotation or "Iterable" in annotation or "List" in annotation or "list" in annotation:

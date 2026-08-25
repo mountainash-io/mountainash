@@ -5,6 +5,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.conform.errors import IncompatibleSourceTypeError
 from mountainash.typespec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
@@ -23,14 +24,11 @@ def _frame(backend, data):
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_conform_duration(backend):
+def test_conform_duration_rejects_integer_source(backend):
     df = _frame(backend, {"d": [1_000_000, 2_000_000]})
     spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="d", type=UniversalType.DURATION)])
-    out = ma.relation(df).conform(spec).to_polars()
-    # DURATION is a canonical semantic-string type — maps to the backend's
-    # string dtype on every target (spec §11), like YEARMONTH below.
-    assert out.schema["d"] == pl.String
-
+    with pytest.raises(IncompatibleSourceTypeError, match="requires duration source"):
+        ma.relation(df).conform(spec).to_polars()
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_conform_year(backend):
@@ -43,11 +41,11 @@ def test_conform_year(backend):
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_conform_yearmonth(backend):
+def test_conform_yearmonth_rejects_integer_source(backend):
     df = _frame(backend, {"ym": [202401, 202402]})
     spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="ym", type=UniversalType.YEARMONTH)])
-    out = ma.relation(df).conform(spec).to_polars()
-    assert out.schema["ym"] == pl.String
+    with pytest.raises(IncompatibleSourceTypeError, match="requires yearmonth source"):
+        ma.relation(df).conform(spec).to_polars()
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)

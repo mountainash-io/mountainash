@@ -26,3 +26,4 @@ class ResourceReadRelNode(RelationNode):
     _operation_key: ClassVar[Optional[Enum]] = RKEY_MOUNTAINASH_REL.READ_RESOURCE
 
     resource: DataResource
+    apply_schema_conform: bool = True

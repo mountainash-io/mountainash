@@ -180,15 +180,23 @@ class Validator:
                 )
             seen_ids.add(check.id)
 
-        # --- data phase
         prepared = self._prepare_data(data, context)
-        rel = prepared if isinstance(prepared, Relation) else ma.relation(prepared)
+        # Resource descriptors have their own ordinary-read conformance. A
+        # validator owns the single conformance plan for this validation run,
+        # so copy resource leaves with that built-in pass disabled first.
+        rel = (
+            prepared._without_resource_schema_conform()
+            if isinstance(prepared, Relation)
+            else ma.relation(prepared)
+        )
         rel, slice_diagnostics = self._slice(
             rel, head=head, tail=tail, sample=sample, random_seed=random_seed
         )
 
-        if getattr(self.contract.Config, "coerce", True):
-            rel = rel.conform(spec)
+        rel = rel.conform(
+            spec,
+            apply_value_transforms=bool(getattr(self.contract.Config, "coerce", True)),
+        )
 
         result = ValidationRunner().validate_relation(
             rel,

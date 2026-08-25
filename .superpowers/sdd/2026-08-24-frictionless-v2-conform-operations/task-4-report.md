@@ -1,0 +1,97 @@
+# Task 4 report
+
+## Status
+
+Implemented the Task 4 list, categorical, and struct operation slices.
+
+## Red/green evidence
+
+- Red gate: `tests/conform/test_v2_operation_ast.py` and `tests/conform/cross_backend/test_v2_operations.py` were absent; the required command failed during collection with file-not-found.
+- Green operation tests: `hatch run test:test-target-quick tests/conform/test_v2_operation_ast.py tests/conform/cross_backend/test_v2_operations.py -q` — **11 passed**.
+- Scoped Ruff: `hatch run ruff:check src/mountainash/expressions src/mountainash/core/capabilities tests/conform/test_v2_operation_ast.py` — **all checks passed**.
+- `git diff --check` passed.
+- A focused wiring run reached 2,341 passing tests; four existing test-harness cases remain unrelated to this slice (conditional AST parking, GET/TO_ARRAY argument overrides, and aggregate protocol registry coverage).
+
+## Delivered wiring
+
+- Added `LIST.PARSE`, `LIST.CAST_ITEMS`, `CATEGORICAL.CAST`, and `STRUCT.CAST` enum keys, exact mappings, protocols, API builders, package exports, and all three backend families.
+- Added `.str.parse_list()`, `.list.cast_items()`, `.cat.cast()`, `.struct.cast()` and `Domain.CATEGORICAL` / `Domain.STRUCT`.
+- Added raw-option validation, diagnostic metadata separation, recursive `FieldSpec` option handling, complete-list null behavior, base-scalar categorical behavior, and capability declarations for the Task 4 matrix.
+- Registered divergence `MA-CAT-01`.
+- Added AST and cross-backend tests.
+## Commit
+
+`3f1ee462` — `feat(conform): add list category and struct operations`
+
+## Concerns
+
+- Ibis execution backends were not materialized locally because the environment lacks the optional `duckdb` package. Ibis expression compilation and capability gating were smoke-tested.
+## Review-fix evidence
+
+- Review-fix operation/capability tests: `25 passed`.
+- API reachability and protocol alignment: `423 passed, 39 skipped, 37 xfailed`.
+- Scoped Ruff and source compilation both pass.
+- Review fixes are in amend commit `3f1ee462` after the follow-up changes.
+## Re-review fix evidence
+
+- Boolean throw mode now raises on invalid list tokens; null mode nulls the complete list.
+- Recursive nested list/struct null-mode casts are atomic on newly-null non-null leaves.
+- ALL_BACKENDS AST reachability and expanded invalid-option/recursive-serialization tests pass.
+- Conditioned capability facts retain failure behavior selectors and values; ibis-sqlite categorical integer has one applicable fact.
+
+## Round 4/5 residual-fix evidence
+
+- Conditioned `LIST.PARSE` null limitations retain exact `param="failure_behavior"` / `option_value="null"` selectors while remaining predicate-gated; unsupported null facts are emitted only for item types supported in throw mode, and unsupported-in-both cells collapse to one wildcard gate. Duplicate SQLite categorical limitation was removed.
+- Narwhals-pandas list parsing residue is now a materialization-scoped wildcard `UNSUPPORTED` fact. Narwhals and Ibis boolean parsers use only `true/True/TRUE/1` and `false/False/FALSE/0`; Polars mixed-case tokens remain rejected.
+- Expanded AST validation covers every structural option shape, recursive list/struct `FieldSpec` serialization, and backend/native-node exclusion. Expanded cross-backend coverage executes all `ALL_BACKENDS` string-list materializations, exact SQLite gates, Polars/Narwhals/Ibis boolean paths, nested atomic null-mode casts, and conditioned selector gates.
+- Focused operation suites: `41 passed`.
+- Capability/declaration/divergence suites: `40 passed`.
+- Scoped Ruff, `git diff --check`: passed.
+- Final selected gate: `458 passed, 39 skipped, 37 xfailed`; Ruff and compileall pass.
+
+## Round 5/5 complete-matrix evidence
+
+- Replaced representative backend checks with `ALL_BACKENDS` matrices for all seven `LIST.PARSE` item types, throw/null invalid complete-list values, recursive `LIST.CAST_ITEMS`, recursive `STRUCT.CAST`, and string/integer `CATEGORICAL.CAST` values.
+- Every unsupported cell asserts its exact operation key, backend family, dialect, parameter, option value, and predicate when conditioned. `narwhals-lazy` now compiles through `NarwhalsExpressionSystem("narwhals-lazy")` rather than the eager Polars dialect.
+- Narwhals categorical casts use the supported Narwhals cast signature while preserving the declared base scalar output.
+- Focused Task 4 gate: `279 passed, 23 deselected, 4 warnings` from `hatch run test:test-target-quick tests/conform/test_v2_operation_ast.py tests/conform/cross_backend/test_v2_operations.py -k "list or categorical or struct" -v`.
+- Scoped Ruff: `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+- `git diff --check` passed.
+
+## Post-cap blocker repairs
+
+- Ibis-Polars `LIST.PARSE` non-string cells materialized through `_extract()` and exposed an upstream `ArrayMap` execution gap. The capability matrix now declares only string parsing supported on this dialect, and the ALL_BACKENDS tests assert exact `item_type` gates for integer, boolean, number, date, datetime, and time cells. Compile-only exits were removed for parse, invalid-item, recursive list-cast, and recursive struct-cast paths; the latter two now materialize and assert behavior.
+- Narwhals-Pandas integer categorical null mode now uses a null-on-failure `map_batches` conversion, preserving valid integers and returning null for invalid or original-null values. Added regression coverage for both the `pandas` alias and `narwhals-pandas` dialect.
+
+## Focused verification
+
+- `hatch run test:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k 'ibis-polars' -v` — 30 passed.
+- `hatch run test:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_invalid_values -v` — 2 passed.
+- `hatch run test:test-target-quick tests/core/test_capability_declarations.py tests/core/test_capability_gate.py tests/core/test_divergence_facts.py tests/conform/cross_backend/test_v2_operations.py -k 'list or categorical or struct or ibis_polars or narwhals_pandas' -v` — 282 passed, 35 deselected, 4 warnings.
+- `hatch run ruff:check src/mountainash/expressions/backends/capabilities/list.py src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+- `git diff --check` — passed.
+
+## Post-repair Important defect
+
+- Narwhals-Pandas integer categorical null-mode conversion now declares `return_dtype=nw.Int64`.
+- The batch converter returns a pandas nullable `Int64` series, so invalid values and original nulls remain null without falling back to object dtype.
+- The regression asserts the valid integer value, null behavior, and `nw.Int64` dtype for both the `pandas` alias and `narwhals-pandas` dialect.
+
+## Post-repair verification
+
+- `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_invalid_values -q` — 2 passed.
+- `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k categorical -q` — 39 passed, 248 deselected.
+- `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+
+## Signed-Int64 overflow repair
+
+- Added a Narwhals-Pandas categorical integer null-mode regression for `"9223372036854775808"` across both the `pandas` alias and `narwhals-pandas` dialect. The test keeps the valid `"2"` result and original `None` null behavior, and asserts `nw.Int64` output.
+- `_cast_integer_null` now maps every converted integer outside signed 64-bit range (`[-2**63, 2**63 - 1]`) to null before constructing pandas nullable `Int64`; in-range values and existing invalid/null handling remain unchanged.
+
+## Overflow repair verification
+
+- Red regression: `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py::test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow -q` — **2 failed** with pandas `OverflowError` before the repair.
+- Green regression: same command — **2 passed**.
+- Focused categorical suite: `hatch run test.py3.12:test-target-quick tests/conform/cross_backend/test_v2_operations.py -k categorical -q` — **41 passed, 248 deselected**.
+- Scoped Ruff: `hatch run ruff:check src/mountainash/expressions/backends/expression_systems/narwhals/extensions_mountainash/expsys_nw_ext_ma_scalar_categorical.py tests/conform/cross_backend/test_v2_operations.py` — all checks passed.
+- `git diff --check` — passed.

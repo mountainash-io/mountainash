@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional, Protocol, Sequence, TypeVar, Union
+from typing import Any, Callable, Mapping, Optional, Protocol, Sequence, TypeVar, Union
 
 from typing_extensions import Self
 
@@ -25,7 +25,15 @@ class RelationAPIProtocol(Protocol):
 
     # ── Conformance ──
 
-    def conform(self, spec: Any) -> Self: ...
+    def conform(
+        self,
+        spec: Any,
+        *,
+        contract: Optional[Union[str, Mapping[str, str]]] = None,
+        apply_value_transforms: bool = True,
+    ) -> Self: ...
+
+    def _without_resource_schema_conform(self) -> Self: ...
 
     # ── Filtering ──
 

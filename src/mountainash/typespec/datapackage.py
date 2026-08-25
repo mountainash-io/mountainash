@@ -408,7 +408,11 @@ class DataPackage(BaseModel):
                 dag.assets[r.name] = ref
                 continue
             if r.name in overrides:
-                dag.add(r.name, ma.relation(overrides[r.name]))
+                relation = ma.relation(overrides[r.name])
+                spec = r.to_typespec()
+                if spec is not None:
+                    relation = relation.conform(spec)
+                dag.add(r.name, relation)
             else:
                 dag.add(r.name, resource_to_relation(r))
 

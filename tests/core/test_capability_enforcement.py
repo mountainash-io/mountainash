@@ -68,7 +68,7 @@ class TestCompatibilityTable:
 
     def test_materialize_residue_requires_materialize(self):
         with pytest.raises(ValueError, match="MATERIALIZE"):
-            _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE)
+            _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE, native_errors=(ValueError,))
 
     def test_each_role_accepts_its_legal_boundary(self):
         assert _fact().boundary is Boundary.BUILD
