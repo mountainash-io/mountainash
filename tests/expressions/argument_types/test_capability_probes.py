@@ -16,9 +16,9 @@ from typing import Any
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement
 
+from mountainash.core.constants import CONST_BACKEND
 # Trigger fact registration (replaced by bootstrap.load_all_capability_declarations()
 # in Task 12, same PR).
 import mountainash.expressions.backends.expression_systems.polars.base  # noqa: F401
@@ -86,6 +86,7 @@ def _gating_expression_facts():
         and f.predicate is None  # predicate facts carry option_value=None/value_class=None and route to the compound-cell guard (item 66b)
         and f.probe_exempt is None
         and _is_expression_fact(f)
+        and f.enforcement is Enforcement.GATE
     ]
 
 

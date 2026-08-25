@@ -182,3 +182,19 @@ Focused verification:
 
 - `tests/conform/test_final_branch_review_fixes.py tests/conform/cross_backend/test_v2_type_actions.py`: **107 passed**.
 - `tests/conform/cross_backend/test_missing_values.py`: **89 passed, 9 warnings**.
+
+## CI artifact 1648 Unit C regression reconciliation
+
+- Reconciled Unit C source-dispatch contract tests for lexical/native temporal, list, struct, and categorical inputs. Integer DURATION/YEARMONTH sources now assert `IncompatibleSourceTypeError`; empty lexical lists assert null; categorical declarations retain their base scalar dtype; conflicting concrete OBJECT shapes are rejected; boolean list parsing is a supported test case.
+- Native datacontract validation now defaults missing `Config.coerce` to the base contract default (`True`), with a regression covering inherited/custom Config classes.
+- Updated compile-smoke builders with required diagnostic/options inputs, added predicate-aware selector resolution, and regenerated the committed smoke inventory/census.
+- Registered all Unit C capability declaration modules, separated duplicate datetime/XSD probe-wave evidence, preserved non-null-to-null XSD residue semantics, and refreshed generated coverage artifacts.
+- Completed new Unit C protocol classifications, explicit argument/option disposition records, predicate probe exemptions, and option/fact integrity fixtures.
+
+Verification:
+
+- Unit C capability/argument/option clusters: **passing** after focused repair.
+- Coverage docs/render guards: **48 passed**.
+- Compile-smoke Unit C selectors: **56 passed**; inventory preflight/reclassification: **4 passed**.
+- Datacontract Config regression and existing native contract checks: **passing**.
+- Remaining focused failures are unrelated and intentionally unchanged: Ibis typed-null emission (6 cases), Ibis date-vs-datetime output in temporal-format tests (11 cases), and the validation-runner contextual-rule extra `extract_date` column (1 case).

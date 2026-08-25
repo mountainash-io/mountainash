@@ -51,7 +51,10 @@ from mountainash.core.capabilities import (
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_MA_DT,
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
+    FKEY_MOUNTAINASH_SCALAR_STRING as FK_MA_STR,
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     FKEY_SUBSTRAIT_SCALAR_DATETIME as FK_SUB_DT,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
@@ -336,12 +339,20 @@ def test_no_stale_unreachable_dialect_class_fact_entries() -> None:
 
 def test_declared_cells_and_option_facts_are_mutually_backed() -> None:
     # 1. Exact Arm: exact-backed declared cells <-> exact value-scoped facts.
-    # Op-level cells are backed by WILDCARD_PARAM facts (Task 4 / PR-B), not
-    # value-scoped ones, so they are excluded from this arm. The orphan guard
-    # test_op_level_backed_cells_resolve_to_wildcard_facts above walks the
-    # op-level side of the contract. _MATRIX_UNREACHABLE_DIALECT_FACTS are
-    # also excluded — see that constant's docstring.
-    fact_keys = _option_fact_keys() - _MATRIX_UNREACHABLE_DIALECT_FACTS
+    # Unit C structural facts are predicate-backed contract cells until the
+    # diagnostic-aware option matrix is added; exact-arm closure covers the
+    # finite Substrait/rounding matrix here.
+    _UNIT_C_OPS = {
+        FK_CAT.CAST,
+        FK_LIST.PARSE,
+        FK_LIST.CAST_ITEMS,
+        FK_MA_STR.TO_TIME,
+    }
+    fact_keys = {
+        key
+        for key in _option_fact_keys()
+        if key[0] not in _UNIT_C_OPS
+    } - _MATRIX_UNREACHABLE_DIALECT_FACTS
     exact_declared_keys = {
         cell_fact_key(cell)
         for cell in OPTION_DISPOSITIONS
@@ -423,7 +434,15 @@ def test_family_default_option_facts_are_mutually_backed() -> None:
         and fact.level in _GATING
         and fact.dialect is None
     }
-    assert family_defaults == OPTION_FAMILY_DEFAULT_FACT_KEYS
+    expected = OPTION_FAMILY_DEFAULT_FACT_KEYS | {
+        (FK_MA_STR.TO_TIME, "failure_behavior", "null", backend, None)
+        for backend in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS)
+    } | {
+        (fkey, "failure_behavior", "null", backend, None)
+        for fkey in (FK_SUB_DT.STRPTIME_DATE, FK_SUB_DT.STRPTIME_TIMESTAMP)
+        for backend in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS)
+    }
+    assert family_defaults == expected
 
 
 def test_duckdb_refinement_precedes_ibis_family_default() -> None:

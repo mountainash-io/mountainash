@@ -28,17 +28,25 @@ from mountainash.core.capabilities.retired import assert_no_active_retired_overl
 EXPECTED_DECLARATION_MODULES = (
     # expressions/backends/capabilities/
     "mountainash.expressions.backends.capabilities.arithmetic",
+    "mountainash.expressions.backends.capabilities.boolean",
+    "mountainash.expressions.backends.capabilities.categorical",
+    "mountainash.expressions.backends.capabilities.datetime.any",
+    "mountainash.expressions.backends.capabilities.datetime.default",
     "mountainash.expressions.backends.capabilities.datetime.extract",
     "mountainash.expressions.backends.capabilities.datetime.options",
     "mountainash.expressions.backends.capabilities.datetime.rounding",
     "mountainash.expressions.backends.capabilities.datetime.strptime",
     "mountainash.expressions.backends.capabilities.datetime.value_classes_ma",
     "mountainash.expressions.backends.capabilities.datetime.value_classes_substrait",
+    "mountainash.expressions.backends.capabilities.datetime.xsd",
+    "mountainash.expressions.backends.capabilities.geospatial",
     "mountainash.expressions.backends.capabilities.ibis",
+    "mountainash.expressions.backends.capabilities.list",
     "mountainash.expressions.backends.capabilities.narwhals",
     "mountainash.expressions.backends.capabilities.polars",
     "mountainash.expressions.backends.capabilities.polymorphic",
     "mountainash.expressions.backends.capabilities.string",
+    "mountainash.expressions.backends.capabilities.struct",
     # relations/backends/capabilities/
     "mountainash.relations.backends.capabilities.ibis",
     "mountainash.relations.backends.capabilities.narwhals",
@@ -124,9 +132,16 @@ def _domain_predicate(leaf: str):
     agnostic / positional grains only); NOT POLYMORPHIC level (POLYMORPHIC
     marker facts live in polymorphic.py per spec §3)."""
     domains = {
+        "boolean": Domain.BOOLEAN,
+        "categorical": Domain.CATEGORICAL,
+        "geospatial": Domain.GEOSPATIAL,
+        "list": Domain.LIST,
+        "struct": Domain.STRUCT,
         "string": Domain.STRING, "arithmetic": Domain.ARITHMETIC,
-        "options": Domain.DATETIME, "strptime": Domain.DATETIME,
-        "extract": Domain.DATETIME, "rounding": Domain.DATETIME,
+        "any": Domain.DATETIME, "default": Domain.DATETIME,
+        "xsd": Domain.DATETIME, "options": Domain.DATETIME,
+        "strptime": Domain.DATETIME, "extract": Domain.DATETIME,
+        "rounding": Domain.DATETIME,
     }
     want = domains[leaf]
     return lambda f: (

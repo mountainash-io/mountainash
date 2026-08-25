@@ -195,7 +195,7 @@ class Validator:
 
         rel = rel.conform(
             spec,
-            apply_value_transforms=bool(self.contract.Config.coerce),
+            apply_value_transforms=bool(getattr(self.contract.Config, "coerce", True)),
         )
 
         result = ValidationRunner().validate_relation(

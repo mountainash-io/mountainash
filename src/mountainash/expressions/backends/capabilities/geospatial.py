@@ -42,6 +42,11 @@ def _gated(
         dialect=dialect,
         message=_MSG,
         since=SINCE,
+        probe_exempt=(
+            "GeoJSON parse/serialize is covered by conform geospatial contract tests"
+            if predicate is None
+            else None
+        ),
     )
 
 

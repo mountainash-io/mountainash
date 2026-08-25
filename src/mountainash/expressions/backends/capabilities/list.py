@@ -36,7 +36,11 @@ def _parse_facts() -> tuple:
         if backend is CONST_BACKEND.IBIS and dialect == "ibis-sqlite":
             out.append(
                 unsupported(
-                    FK_LIST.PARSE, backend, dialect, message=_MSG_PARSE,
+                    FK_LIST.PARSE,
+                    backend,
+                    dialect,
+                    message=_MSG_PARSE,
+                    probe_exempt="LIST parsing is covered by conform list contract tests",
                 )
             )
             continue

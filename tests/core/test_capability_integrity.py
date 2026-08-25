@@ -129,7 +129,10 @@ def test_no_extractor_heuristics_remain():
 
 def test_materialize_facts_declare_native_errors():
     for fact in CapabilityRegistry.facts(boundary=Boundary.MATERIALIZE):
-        assert fact.native_errors, fact
+        if fact.residue_signal.value == "non_null_to_null":
+            assert not fact.native_errors, fact
+        else:
+            assert fact.native_errors, fact
 
 
 def test_non_gating_facts_are_enumerable():

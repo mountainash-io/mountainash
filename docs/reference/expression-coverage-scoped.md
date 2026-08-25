@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 43 · Facts: 1467 · Registered operations: 326 · Implementation records: 978
+Declarations: 69 · Facts: 1558 · Registered operations: 338 · Implementation records: 1014
 
 Legend — scoped deviations:
 
@@ -30,6 +30,26 @@ Legend — scoped deviations:
   is omitted from detail rows.
 
 ## Per-op detail (scoped)
+
+### `PARSE_TOKENS` × ibis (FKEY_MOUNTAINASH_SCALAR_BOOLEAN)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | failure_behavior | — | — | unsupported | gate | build | — | ibis-sqlite cannot enforce throw-on-invalid boolean tokens | — | — | 2026-08-25 | — | — |
+
+### `CAST` × narwhals (FKEY_MOUNTAINASH_SCALAR_CATEGORICAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-lazy | value_type | — | — | unsupported | gate | build | — | This backend cannot execute CATEGORICAL.CAST for the requested value type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | value_type | — | — | unsupported | gate | build | — | This backend cannot execute CATEGORICAL.CAST for the requested value type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | value_type | — | — | unsupported | gate | build | — | This backend cannot execute CATEGORICAL.CAST for the requested value type and failure behavior | — | — | 2026-08-24 | — | — |
+
+### `CAST` × ibis (FKEY_MOUNTAINASH_SCALAR_CATEGORICAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | value_type | — | — | unsupported | gate | build | — | This backend cannot execute CATEGORICAL.CAST for the requested value type and failure behavior | — | — | 2026-08-24 | — | — |
 
 ### `ADD_DAYS` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
@@ -167,6 +187,44 @@ Legend — scoped deviations:
 | * | timezone | — | iana_timezone | unsupported | gate | build | — | is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb) | — | — | 2026-08-16 | — | — |
 | ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb) | — | — | 2026-08-16 | — | — |
 
+### `PARSE_XSD_DURATION` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-pandas | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+| narwhals-polars | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+
+### `PARSE_XSD_DURATION` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-duckdb | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+| ibis-polars | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+| ibis-sqlite | * | — | — | unsupported | gate | build | — | ibis-sqlite has no XSD lexical parser; gate before backend dispatch | — | — | 2026-08-21 | — | XSD lexical parser behavior is covered by conform temporal contract tests |
+
+### `PARSE_XSD_PARTIAL_DATE` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-pandas | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+| narwhals-polars | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+
+### `PARSE_XSD_PARTIAL_DATE` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-duckdb | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+| ibis-polars | * | — | — | unsupported | materialize_residue | materialize | — | invalid XSD lexical values are converted to null by the residue policy | — | — | 2026-08-21 | — | — |
+| ibis-sqlite | * | — | — | unsupported | gate | build | — | ibis-sqlite has no XSD lexical parser; gate before backend dispatch | — | — | 2026-08-21 | — | XSD lexical parser behavior is covered by conform temporal contract tests |
+
 ### `ROUND` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
@@ -207,6 +265,44 @@ Legend — scoped deviations:
 | ibis-sqlite | unit | — | duration_multiplier | unsupported | gate | build | — | ibis-sqlite has no TimestampBucket compilation rule -- a multiplied MA duration (e.g. dt.truncate('2d')) is unsupported there; verified 2026-08-18, ibis 12.0.0 | — | — | 2026-08-18 | — | — |
 | ibis-sqlite | unit | 1h, 1m, 1ms, 1q, 1s, 1us, hour, microsecond, millisecond, minute, quarter, second | — | unsupported | gate | build | — | ibis-sqlite has no TimestampTruncate support for units finer than DAY, and no TimestampBucket compilation rule (blocks multiple>1 bucketing, which quarter needs); verified 2026-08-16, ibis 12.0.0 | — | — | 2026-08-16 | — | — |
 
+### `PARSE_GEOPOINT` × narwhals (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| * | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| * | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+
+### `PARSE_GEOPOINT` × ibis (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| * | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| * | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| ibis-sqlite | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| ibis-sqlite | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+| ibis-sqlite | format | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | — |
+
+### `CAST_ITEMS` × narwhals (FKEY_MOUNTAINASH_SCALAR_LIST)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-lazy | failure_behavior | null | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | failure_behavior | throw | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | null | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | throw | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | failure_behavior | null | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+
+### `CAST_ITEMS` × ibis (FKEY_MOUNTAINASH_SCALAR_LIST)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-duckdb | failure_behavior | null | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-polars | failure_behavior | null | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-sqlite | failure_behavior | null | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-sqlite | failure_behavior | throw | — | unsupported | gate | build | — | This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior | — | — | 2026-08-24 | — | — |
+
 ### `CONTAINS` × narwhals (FKEY_MOUNTAINASH_SCALAR_LIST)
 
 #### Dialect-scoped whole-op
@@ -224,6 +320,53 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | narwhals-polars | index | — | — | unsupported | materialize_residue | materialize | index < 0 | narwhals list.get() (and list.last(), which calls get(-1)) rejects negative indices on the polars backend. | Use a non-negative index, or the polars/ibis backends. | NW-LIST-04 | 2026-08-01 | ValueError | value-conditioned (negative index) — not a structural param gate |
+
+### `PARSE` × narwhals (FKEY_MOUNTAINASH_SCALAR_LIST)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-pandas | * | — | — | unsupported | materialize_residue | materialize | — | Narwhals pandas list parsing may raise a TypeError during materialization | — | — | 2026-08-24 | TypeError | — |
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | item_type | datetime | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | item_type | time | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | item_type | datetime | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | item_type | time | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | item_type | datetime | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | item_type | time | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+
+### `PARSE` × ibis (FKEY_MOUNTAINASH_SCALAR_LIST)
+
+#### Dialect-scoped whole-op
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-sqlite | * | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | LIST parsing is covered by conform list contract tests |
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-duckdb | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-duckdb | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-duckdb | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-duckdb | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-duckdb | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-duckdb | item_type | datetime | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-polars | item_type | boolean, date, datetime, integer, number, time | — | unsupported | gate | build | — | This backend cannot execute LIST.PARSE for the requested item type and failure behavior | — | — | 2026-08-24 | — | — |
 
 ### `T_CONTAINS` × narwhals (FKEY_MOUNTAINASH_SCALAR_LIST)
 
@@ -272,6 +415,38 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | * | haystack | — | — | polymorphic | gate | build | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
+
+### `TO_TIME` × narwhals (FKEY_MOUNTAINASH_SCALAR_STRING)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | failure_behavior | null | — | unsupported | gate | build | — | null-on-invalid custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | — |
+
+### `TO_TIME` × ibis (FKEY_MOUNTAINASH_SCALAR_STRING)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | failure_behavior | null | — | unsupported | gate | build | — | null-on-invalid custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | — |
+
+### `CAST` × narwhals (FKEY_MOUNTAINASH_SCALAR_STRUCT)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| narwhals-polars | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+
+### `CAST` × ibis (FKEY_MOUNTAINASH_SCALAR_STRUCT)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ibis-duckdb | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-polars | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-sqlite | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
+| ibis-sqlite | failure_behavior | — | — | unsupported | gate | build | — | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
 
 ### `ABS` × polars (FKEY_SUBSTRAIT_SCALAR_ARITHMETIC)
 
@@ -1035,6 +1210,10 @@ Legend — scoped deviations:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | narwhals-pandas | * | — | — | unsupported | gate | build | — | narwhals raises NotImplementedError for str.to_date() on the default pandas backend (it would return an object-dtype Series, diverging from the polars API); str.to_datetime() is unaffected and stays supported | — | — | 2026-07-30 | — | whole-op gate on a WILDCARD_PARAM fact; cannot be keyed on an OpSpec param (OpSpecs are indexed by concrete argument name) — verified by the dedicated cross-backend gate tests in test_datetime_strptime_format.py |
 
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | failure_behavior | null | — | unsupported | gate | build | — | null-on-invalid custom temporal parsing is supported only by Polars | — | — | 2026-08-21 | — | — |
+
 ### `STRPTIME_DATE` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
 
 #### Dialect-scoped whole-op
@@ -1042,6 +1221,16 @@ Legend — scoped deviations:
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | ibis-sqlite | * | — | — | unsupported | gate | build | — | ibis-sqlite has no compilation rule for StringToDate/StringToTimestamp (OperationNotDefinedError); format-driven parsing is unavailable on this dialect, so it is gated rather than left to fail natively | — | — | 2026-07-30 | — | whole-op gate on a WILDCARD_PARAM fact; cannot be keyed on an OpSpec param (OpSpecs are indexed by concrete argument name) — verified by the dedicated cross-backend gate tests in test_datetime_strptime_format.py |
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | failure_behavior | null | — | unsupported | gate | build | — | null-on-invalid custom temporal parsing is supported only by Polars | — | — | 2026-08-21 | — | — |
+
+### `STRPTIME_TIMESTAMP` × narwhals (FKEY_SUBSTRAIT_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | failure_behavior | null | — | unsupported | gate | build | — | null-on-invalid custom temporal parsing is supported only by Polars | — | — | 2026-08-21 | — | — |
 
 ### `STRPTIME_TIMESTAMP` × ibis (FKEY_SUBSTRAIT_SCALAR_DATETIME)
 
@@ -1053,6 +1242,7 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | failure_behavior | null | — | unsupported | gate | build | — | null-on-invalid custom temporal parsing is supported only by Polars | — | — | 2026-08-21 | — | — |
 | * | timezone | — | iana_timezone | unsupported | gate | build | — | strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone | — | — | 2026-08-15 | — | — |
 | ibis-duckdb | timezone | — | iana_timezone | unsupported | gate | build | — | strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone | — | — | 2026-08-15 | — | — |
 

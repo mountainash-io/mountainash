@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 43 · Facts: 1467 · Registered operations: 326 · Implementation records: 978
+Declarations: 69 · Facts: 1558 · Registered operations: 338 · Implementation records: 1014
 
 Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -50,9 +50,9 @@ Legend — cell states (by exception):
 
 | Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |
 | --- | --- | --- | --- | --- | --- | --- |
-| polars | 191 | 83 | 52 | 0 | 0 | 326 |
-| narwhals | 97 | 151 | 78 | 0 | 0 | 326 |
-| ibis | 138 | 110 | 78 | 0 | 0 | 326 |
+| polars | 152 | 134 | 52 | 0 | 0 | 338 |
+| narwhals | 86 | 161 | 91 | 0 | 0 | 338 |
+| ibis | 86 | 161 | 91 | 0 | 0 | 338 |
 
 contradictions: 0
 audited_unknown: 0
@@ -61,9 +61,9 @@ audited_unknown: 0
 
 | Axis | Breakdown |
 | --- | --- |
-| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1244 |
-| Enforcement | gate 1460, router_metadata 3, materialize_residue 4 |
-| Backend | polars 265, narwhals 586, ibis 616 |
+| Level | expr_capable 149, literal_only 65, polymorphic 9, unsupported 1335 |
+| Enforcement | gate 1542, router_metadata 3, materialize_residue 13 |
+| Backend | polars 265, narwhals 634, ibis 659 |
 
 `pandas` / `pyarrow` are routed input types (they execute via the narwhals path) and are not independent coverage columns.
 
@@ -71,11 +71,22 @@ audited_unknown: 0
 
 | Backend | Source | Domain | Probe date | Library versions | Fixtures |
 | --- | --- | --- | --- | --- | --- |
+| ibis | mountainash | boolean | 2026-08-25 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, ibis 12.0.0 | boolean-token-parse, boolean-invalid-token-failure |
+| ibis | mountainash | categorical | 2026-08-24 |  | categorical-base-scalar |
 | ibis | mountainash | datetime | 2026-07-05 |  |  |
 | ibis | mountainash | datetime | 2026-08-16 |  | ibis-duckdb, ibis-sqlite |
 | ibis | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
+| ibis | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | ibis-duckdb |
+| ibis | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | ibis-polars |
+| ibis | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | ibis-sqlite |
+| ibis | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-any, ibis, narwhals-polars, narwhals-pandas |
+| ibis | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-default, ibis, narwhals-polars, narwhals-pandas |
+| ibis | mountainash | geospatial | 2026-08-21 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, pyarrow 25.0.1, ibis 12.0.0 | geopoint-format-representation, geojson-object-root, native-coordinate-validation |
+| ibis | mountainash | list | 2026-08-24 |  | lexical-list-seven-item-types, recursive-array-struct |
 | ibis | mountainash | relation | 2026-07-05 |  |  |
 | ibis | mountainash | set | — | — | — |
+| ibis | mountainash | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| ibis | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
 | ibis | mountainash | ternary | — | — | — |
 | ibis | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -89,12 +100,22 @@ audited_unknown: 0
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars |
 | ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars, ibis-duckdb, ibis-sqlite |
 | ibis | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | boolean | 2026-08-25 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, ibis 12.0.0 | boolean-token-parse, boolean-invalid-token-failure |
+| narwhals | mountainash | categorical | 2026-08-24 |  | categorical-base-scalar |
 | narwhals | mountainash | datetime | 2026-07-05 |  |  |
 | narwhals | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | datetime | 2026-08-16 |  | narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | narwhals-pandas |
+| narwhals | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | narwhals-polars |
+| narwhals | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-any, ibis, narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-default, ibis, narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | geospatial | 2026-08-21 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, pyarrow 25.0.1, ibis 12.0.0 | geopoint-format-representation, geojson-object-root, native-coordinate-validation |
 | narwhals | mountainash | list | 2026-07-05 |  |  |
+| narwhals | mountainash | list | 2026-08-24 |  | lexical-list-seven-item-types, recursive-array-struct |
 | narwhals | mountainash | relation | 2026-07-05 |  |  |
 | narwhals | mountainash | set | — | — | — |
+| narwhals | mountainash | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
+| narwhals | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
 | narwhals | mountainash | ternary | — | — | — |
 | narwhals | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -105,8 +126,13 @@ audited_unknown: 0
 | narwhals | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
+| polars | mountainash | boolean | 2026-08-25 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, ibis 12.0.0 | boolean-token-parse, boolean-invalid-token-failure |
+| polars | mountainash | categorical | 2026-08-24 |  | categorical-base-scalar |
+| polars | mountainash | geospatial | 2026-08-21 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, pyarrow 25.0.1, ibis 12.0.0 | geopoint-format-representation, geojson-object-root, native-coordinate-validation |
+| polars | mountainash | list | 2026-08-24 |  | lexical-list-seven-item-types, recursive-array-struct |
 | polars | mountainash | relation | 2026-07-05 |  |  |
 | polars | mountainash | set | — | — | — |
+| polars | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
 | polars | mountainash | ternary | — | — | — |
 | polars | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
@@ -122,6 +148,19 @@ audited_unknown: 0
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
 | `FLOOR_DIVIDE` | ✓ | ✓ | ✓ |
+
+### `FKEY_MOUNTAINASH_SCALAR_BOOLEAN` (mountainash / boolean)
+
+| Operation | polars | narwhals | ibis |
+| --- | --- | --- | --- |
+| `PARSE_TOKENS` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `XOR_PARITY` | ✓ audited | ✓ audited | ✓ audited |
+
+### `FKEY_MOUNTAINASH_SCALAR_CATEGORICAL` (mountainash / categorical)
+
+| Operation | polars | narwhals | ibis |
+| --- | --- | --- | --- |
+| `CAST` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_DATETIME` (mountainash / datetime)
 
@@ -168,6 +207,10 @@ audited_unknown: 0
 | `MONTH_START` | ✓ | ✓ audited | ✓ audited |
 | `NOW` | ✓ | ✓ audited | ✓ audited |
 | `OFFSET_BY` | ✓ | ✓ audited | ✓ audited |
+| `PARSE_DEFAULT` | ✓ | ✗ unsupported | ✗ unsupported |
+| `PARSE_TEMPORAL_ANY` | ✓ | ✗ unsupported | ✗ unsupported |
+| `PARSE_XSD_DURATION` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 2 dialects) ⚠ runtime | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ⚠ runtime |
+| `PARSE_XSD_PARTIAL_DATE` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 2 dialects) ⚠ runtime | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ⚠ runtime |
 | `ROUND` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 1 value-classes, 2 dialects) |
 | `TIME` | ✓ | ✓ audited | ✓ audited |
 | `TODAY` | ✓ | ✓ audited | ✓ audited |
@@ -181,51 +224,61 @@ audited_unknown: 0
 | `TO_TIMEZONE` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
 | `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 1 value-classes, 1 dialects) |
 
+### `FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL` (mountainash / geospatial)
+
+| Operation | polars | narwhals | ibis |
+| --- | --- | --- | --- |
+| `PARSE_GEOJSON` | ✓ audited | ✗ unsupported | ✗ unsupported |
+| `PARSE_GEOPOINT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `SERIALIZE_GEOJSON` | ✓ audited | ✗ unsupported | ✗ unsupported |
+
 ### `FKEY_MOUNTAINASH_SCALAR_LIST` (mountainash / list)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `AGG` | ✓ | ✓ audited | ✓ |
-| `ALL` | ✓ | ✓ audited | ✓ |
-| `ANY` | ✓ | ✓ audited | ✓ |
-| `ARG_MAX` | ✓ | ✓ audited | ✓ |
-| `ARG_MIN` | ✓ | ✓ audited | ✓ |
-| `CONCAT` | ✓ | ✓ audited | ✓ |
-| `CONTAINS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ |
-| `COUNT_MATCHES` | ✓ | ✓ audited | ✓ |
-| `DIFF` | ✓ | ✓ audited | ✓ |
-| `DROP_NULLS` | ✓ | ✓ audited | ✓ |
-| `EXPLODE` | ✓ | ✓ audited | ✓ |
-| `FILTER` | ✓ | ✓ audited | ✓ |
-| `GATHER` | ✓ | ✓ audited | ✓ |
-| `GATHER_EVERY` | ✓ | ✓ audited | ✓ |
-| `GET` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ |
-| `HEAD` | ✓ | ✓ audited | ✓ |
-| `ITEM` | ✓ | ✓ audited | ✓ |
-| `JOIN` | ✓ | ✓ audited | ✓ |
-| `LEN` | ✓ | ✓ audited | ✓ |
-| `MAX` | ✓ | ✓ audited | ✓ |
-| `MEAN` | ✓ | ✓ audited | ✓ |
-| `MEDIAN` | ✓ | ✓ audited | ✓ |
-| `MIN` | ✓ | ✓ audited | ✓ |
-| `N_UNIQUE` | ✓ | ✓ audited | ✓ |
-| `REVERSE` | ✓ | ✓ audited | ✓ |
-| `SAMPLE` | ✓ | ✓ audited | ✓ |
-| `SET_DIFFERENCE` | ✓ | ✓ audited | ✓ |
-| `SET_INTERSECTION` | ✓ | ✓ audited | ✓ |
-| `SET_SYMMETRIC_DIFFERENCE` | ✓ | ✓ audited | ✓ |
-| `SET_UNION` | ✓ | ✓ audited | ✓ |
-| `SHIFT` | ✓ | ✓ audited | ✓ |
-| `SLICE` | ✓ | ✓ audited | ✓ |
-| `SORT` | ✓ | ✓ audited | ✓ |
-| `STD` | ✓ | ✓ audited | ✓ |
-| `SUM` | ✓ | ✓ audited | ✓ |
-| `TAIL` | ✓ | ✓ audited | ✓ |
-| `TO_ARRAY` | ✓ | ✓ audited | ✓ |
-| `TO_STRUCT` | ✓ | ✓ audited | ✓ |
-| `T_CONTAINS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ |
-| `UNIQUE` | ✓ | ✓ audited | ✓ |
-| `VAR` | ✓ | ✓ audited | ✓ |
+| `AGG` | ✓ audited | ✓ audited | ✓ audited |
+| `ALL` | ✓ audited | ✓ audited | ✓ audited |
+| `ANY` | ✓ audited | ✓ audited | ✓ audited |
+| `ARG_MAX` | ✓ audited | ✓ audited | ✓ audited |
+| `ARG_MIN` | ✓ audited | ✓ audited | ✓ audited |
+| `CAST_ITEMS` | ✓ audited | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 3 dialects) |
+| `CONCAT` | ✓ audited | ✓ audited | ✓ audited |
+| `CONTAINS` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
+| `COUNT_MATCHES` | ✓ audited | ✓ audited | ✓ audited |
+| `DIFF` | ✓ audited | ✓ audited | ✓ audited |
+| `DROP_NULLS` | ✓ audited | ✓ audited | ✓ audited |
+| `EXPLODE` | ✓ audited | ✓ audited | ✓ audited |
+| `FILTER` | ✓ audited | ✓ audited | ✓ audited |
+| `GATHER` | ✓ audited | ✓ audited | ✓ audited |
+| `GATHER_EVERY` | ✓ audited | ✓ audited | ✓ audited |
+| `GET` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
+| `HEAD` | ✓ audited | ✓ audited | ✓ audited |
+| `ITEM` | ✓ audited | ✓ audited | ✓ audited |
+| `JOIN` | ✓ audited | ✓ audited | ✓ audited |
+| `LEN` | ✓ audited | ✓ audited | ✓ audited |
+| `MAX` | ✓ audited | ✓ audited | ✓ audited |
+| `MEAN` | ✓ audited | ✓ audited | ✓ audited |
+| `MEDIAN` | ✓ audited | ✓ audited | ✓ audited |
+| `MIN` | ✓ audited | ✓ audited | ✓ audited |
+| `N_UNIQUE` | ✓ audited | ✓ audited | ✓ audited |
+| `PARSE` | ✓ audited | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 3 dialects) ⚠ runtime | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite |
+| `REVERSE` | ✓ audited | ✓ audited | ✓ audited |
+| `SAMPLE` | ✓ audited | ✓ audited | ✓ audited |
+| `SET_DIFFERENCE` | ✓ audited | ✓ audited | ✓ audited |
+| `SET_INTERSECTION` | ✓ audited | ✓ audited | ✓ audited |
+| `SET_SYMMETRIC_DIFFERENCE` | ✓ audited | ✓ audited | ✓ audited |
+| `SET_UNION` | ✓ audited | ✓ audited | ✓ audited |
+| `SHIFT` | ✓ audited | ✓ audited | ✓ audited |
+| `SLICE` | ✓ audited | ✓ audited | ✓ audited |
+| `SORT` | ✓ audited | ✓ audited | ✓ audited |
+| `STD` | ✓ audited | ✓ audited | ✓ audited |
+| `SUM` | ✓ audited | ✓ audited | ✓ audited |
+| `TAIL` | ✓ audited | ✓ audited | ✓ audited |
+| `TO_ARRAY` | ✓ audited | ✓ audited | ✓ audited |
+| `TO_STRUCT` | ✓ audited | ✓ audited | ✓ audited |
+| `T_CONTAINS` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
+| `UNIQUE` | ✓ audited | ✓ audited | ✓ audited |
+| `VAR` | ✓ audited | ✓ audited | ✓ audited |
 
 ### `FKEY_MOUNTAINASH_SCALAR_SET` (mountainash / set)
 
@@ -238,15 +291,22 @@ audited_unknown: 0
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `DECODE` | ✓ | ✓ | ✓ |
-| `ENCODE` | ✓ | ✓ | ✓ |
-| `EXTRACT_GROUPS` | ✓ | ✓ | ✓ |
-| `JSON_DECODE` | ✓ | ✓ | ✓ |
-| `JSON_PATH_MATCH` | ✓ | ✓ | ✓ |
-| `REGEX_CONTAINS` | ✓ | ✓ | ✓ |
-| `STRIP_SUFFIX` | ✓ | ✓ | ✓ |
-| `TO_INTEGER` | ✓ | ✓ | ✓ |
-| `TO_TIME` | ✓ | ✓ | ✓ |
+| `DECODE` | ✓ | ✓ audited | ✓ audited |
+| `ENCODE` | ✓ | ✓ audited | ✓ audited |
+| `EXTRACT_GROUPS` | ✓ | ✓ audited | ✓ audited |
+| `JSON_DECODE` | ✓ | ✓ audited | ✓ audited |
+| `JSON_PATH_MATCH` | ✓ | ✓ audited | ✓ audited |
+| `REGEX_CONTAINS` | ✓ | ✓ audited | ✓ audited |
+| `STRIP_SUFFIX` | ✓ | ✓ audited | ✓ audited |
+| `TO_INTEGER` | ✓ | ✓ audited | ✓ audited |
+| `TO_TIME` | ✓ | ✗ unsupported + ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects) | ✗ unsupported + ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects) |
+
+### `FKEY_MOUNTAINASH_SCALAR_STRUCT` (mountainash / struct)
+
+| Operation | polars | narwhals | ibis |
+| --- | --- | --- | --- |
+| `CAST` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 3 dialects) |
+| `FIELD` | ✓ audited | ✓ audited | ✓ audited |
 
 ### `FKEY_MOUNTAINASH_SCALAR_TERNARY` (mountainash / ternary)
 
@@ -315,6 +375,16 @@ audited_unknown: 0
 | `TAN` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 | `TANH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
 
+### `FKEY_SUBSTRAIT_SCALAR_BOOLEAN` (substrait / boolean)
+
+| Operation | polars | narwhals | ibis |
+| --- | --- | --- | --- |
+| `AND` | ✓ | ✓ | ✓ |
+| `AND_NOT` | ✓ | ✓ | ✓ |
+| `NOT` | ✓ | ✓ | ✓ |
+| `OR` | ✓ | ✓ | ✓ |
+| `XOR` | ✓ | ✓ | ✓ |
+
 ### `FKEY_SUBSTRAIT_SCALAR_DATETIME` (substrait / datetime)
 
 | Operation | polars | narwhals | ibis |
@@ -327,8 +397,8 @@ audited_unknown: 0
 | `ROUND_CALENDAR` | ✓ audited | ✓ audited | ◐ partial (2 params, 8 option-selectors, 0 value-classes, 2 dialects) |
 | `ROUND_TEMPORAL` | ✓ audited | ✓ audited | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) |
 | `STRFTIME` | ✓ audited | ✓ audited | ✓ audited |
-| `STRPTIME_DATE` | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
-| `STRPTIME_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) · unsupported on ibis-sqlite |
+| `STRPTIME_DATE` | ✓ audited | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
+| `STRPTIME_TIMESTAMP` | ✓ audited | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 1 option-selectors, 1 value-classes, 2 dialects) · unsupported on ibis-sqlite |
 
 ### `FKEY_SUBSTRAIT_SCALAR_SET` (substrait / set)
 
@@ -424,14 +494,11 @@ No declaration domain exists for these enum classes yet; no audit applies (every
 - `FKEY_MOUNTAINASH_NAME` (5 ops — all implemented on 3/3 backends): `ALIAS`, `NAME_TO_LOWER`, `NAME_TO_UPPER`, `PREFIX`, `SUFFIX`
 - `FKEY_MOUNTAINASH_NULL` (3 ops — all implemented on 3/3 backends): `FILL_NAN`, `FILL_NULL`, `NULL_IF`
 - `FKEY_MOUNTAINASH_SCALAR_AGGREGATE` (1 ops — all implemented on 3/3 backends): `COUNT_DISTINCT`
-- `FKEY_MOUNTAINASH_SCALAR_BOOLEAN` (1 ops — all implemented on 3/3 backends): `XOR_PARITY`
 - `FKEY_MOUNTAINASH_SCALAR_COMPARISON` (1 ops — all implemented on 3/3 backends): `IS_DUPLICATED`
-- `FKEY_MOUNTAINASH_SCALAR_STRUCT` (1 ops — all implemented on 3/3 backends): `FIELD`
 - `FKEY_MOUNTAINASH_WINDOW` (10 ops — all implemented on 3/3 backends): `BACKWARD_FILL`, `CUM_COUNT`, `CUM_MAX`, `CUM_MIN`, `CUM_PROD`, `CUM_SUM`, `DIFF`, `FORWARD_FILL`, `RANK_AVERAGE`, `RANK_MAX`
 - `FKEY_SUBSTRAIT_CAST` (1 ops — all implemented on 3/3 backends): `CAST`
 - `FKEY_SUBSTRAIT_CONDITIONAL` (1 ops — all implemented on 3/3 backends): `IF_THEN_ELSE`
 - `FKEY_SUBSTRAIT_SCALAR_AGGREGATE` (16 ops — all implemented on 3/3 backends): `ANY_VALUE`, `AVG`, `BOOL_AND`, `BOOL_OR`, `CORR`, `COUNT`, `COUNT_RECORDS`, `MAX`, `MEDIAN`, `MIN`, `MODE`, `PRODUCT`, `QUANTILE`, `STD_DEV`, `SUM`, `VARIANCE`
-- `FKEY_SUBSTRAIT_SCALAR_BOOLEAN` (5 ops — all implemented on 3/3 backends): `AND`, `AND_NOT`, `NOT`, `OR`, `XOR`
 - `FKEY_SUBSTRAIT_SCALAR_COMPARISON` (22 ops — all implemented on 3/3 backends): `BETWEEN`, `COALESCE`, `EQUAL`, `GREATEST`, `GREATEST_SKIP_NULL`, `GT`, `GTE`, `IS_FALSE`, `IS_FINITE`, `IS_INFINITE`, `IS_NAN`, `IS_NOT_FALSE`, `IS_NOT_NULL`, `IS_NOT_TRUE`, `IS_NULL`, `IS_TRUE`, `LEAST`, `LEAST_SKIP_NULL`, `LT`, `LTE`, `NOT_EQUAL`, `NULL_IF`
 - `FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC` (5 ops — all implemented on 3/3 backends): `LOG`, `LOG10`, `LOG1P`, `LOG2`, `LOGB`
 - `FKEY_SUBSTRAIT_SCALAR_ROUNDING` (3 ops — all implemented on 3/3 backends): `CEIL`, `FLOOR`, `ROUND`
@@ -440,6 +507,66 @@ No declaration domain exists for these enum classes yet; no audit applies (every
 ## Per-op detail
 
 Cells whose facts are all scoped (dialect / parameter / option / value-class) have no section here — see [`expression-coverage-scoped.md`](expression-coverage-scoped.md) for the scoped detail. `refinements` (EXPR_CAPABLE + dialect) are scoped by construction; `dialect-scoped whole-op` facts appear under that doc's `Dialect-scoped whole-op` subheading.
+
+### `PARSE_DEFAULT` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | default datetime parsing requires the Polars native parser | — | — | 2026-08-25 | — | Default datetime parsing is covered by conform temporal contract tests |
+
+### `PARSE_DEFAULT` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | default datetime parsing requires the Polars native parser | — | — | 2026-08-25 | — | Default datetime parsing is covered by conform temporal contract tests |
+
+### `PARSE_TEMPORAL_ANY` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | temporal-any parsing requires a row-wise native parser | — | — | 2026-08-25 | — | Temporal-any parsing is covered by conform temporal contract tests |
+
+### `PARSE_TEMPORAL_ANY` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | temporal-any parsing requires a row-wise native parser | — | — | 2026-08-25 | — | Temporal-any parsing is covered by conform temporal contract tests |
+
+### `PARSE_GEOJSON` × narwhals (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+
+### `PARSE_GEOJSON` × ibis (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+
+### `SERIALIZE_GEOJSON` × narwhals (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+
+### `SERIALIZE_GEOJSON` × ibis (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+
+### `TO_TIME` × narwhals (FKEY_MOUNTAINASH_SCALAR_STRING)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | Custom time parsing is covered by conform temporal contract tests |
+
+### `TO_TIME` × ibis (FKEY_MOUNTAINASH_SCALAR_STRING)
+
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | Custom time parsing is covered by conform temporal contract tests |
 
 ### `COLLECT_VALUES` × polars (FKEY_MOUNTAINASH_SCALAR_TERNARY)
 
@@ -551,6 +678,7 @@ Cells whose facts are all scoped (dialect / parameter / option / value-class) ha
 | IB-WIN-04 | engine_leniency | ibis | `CUM_PROD` | Ibis lacks cum_prod as a window function (AttributeError at materialize) | col().cum_prod() raises on all ibis backends; polars and eager narwhals compute it | Use a polars or eager narwhals backend for cumulative product | — | 2026-08-06 |
 | IB-WIN-05 | engine_leniency | ibis | `RANK_AVERAGE`, `RANK_MAX` | Ibis raises BackendCapabilityError (unenriched) for rank(method='average'\|'max') — no SQL equivalent | rank(method='average') and rank(method='max') raise on all ibis backends; polars/narwhals compute them | Use rank(method='min'/'dense'/'ordinal') on ibis, or polars/narwhals for average/max | IB-WIN-05 | 2026-08-06 |
 | MA-AGG-01 | engine_leniency | polars, polars-lazy, pandas, narwhals-polars, narwhals-pandas, narwhals-lazy, ibis-duckdb, ibis-sqlite | `CORR` | corr() Substrait signature is wired only on ibis-polars; every other backend raises (NotImplementedError / UnsupportedOperationError / OperationNotDefinedError) | ma.corr() raises on all backends except ibis-polars | Use ibis-polars for corr(), or compute correlation manually | — | 2026-08-06 |
+| MA-CAT-01 | type_inference | polars, narwhals, ibis | `CAST` | Conform preserves category values as their base scalar dtype. | Native category encoding and categoriesOrdered sort metadata are not materialized. Unit D validates and reports the declaration. | Use Unit D category validation for membership and ordering metadata. | — | 2026-08-21 |
 | MA-CONF-01 | engine_leniency | pandas, narwhals-pandas, ibis-sqlite | — | conform struct dotted-source extraction is unsupported on pandas/narwhals-pandas (TypeError) and ibis-sqlite (UnsupportedBackendType) — no native struct column type | conform() with a dotted struct source path raises on pandas/narwhals-pandas/ibis-sqlite; polars and ibis-duckdb/ibis-polars extract it | Use a polars backend or ibis-duckdb/ibis-polars for struct dotted-source conform | — | 2026-08-06 |
 | MA-CONF-02 | engine_leniency | pandas, narwhals, ibis-sqlite | — | conform discard-value/discard-row drift policies are unsupported on pandas/narwhals (unenriched BackendCapabilityError) and ibis-sqlite (OperationNotDefinedError) | conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them | Use a polars backend or ibis-duckdb/ibis-polars for discard drift policies | — | 2026-08-06 |
 | MA-CONF-03 | engine_leniency | ibis | — | conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform) | a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it | Use a polars or narwhals backend for full conform transform pipelines | — | 2026-08-06 |

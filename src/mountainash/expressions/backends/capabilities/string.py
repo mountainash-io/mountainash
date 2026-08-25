@@ -835,6 +835,7 @@ _TEMPORAL_THROW_FACTS = tuple(
         backend=backend,
         message="custom time parsing is supported only by Polars",
         since="2026-08-21",
+        probe_exempt="Custom time parsing is covered by conform temporal contract tests",
     )
     for backend in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS)
 )

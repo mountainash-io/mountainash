@@ -7,11 +7,12 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT
 
 _SINCE = "2026-08-21"
-_EVIDENCE = ProbeEvidence(
-    probe_date=_SINCE,
-    library_versions=(("ibis", "12.0.0"), ("narwhals", "2.24.0"), ("polars", "1.43.2")),
-    fixtures=("ibis-sqlite", "ibis-duckdb", "ibis-polars", "narwhals-polars", "narwhals-pandas"),
-)
+def _evidence(dialect: str) -> ProbeEvidence:
+    return ProbeEvidence(
+        probe_date=_SINCE,
+        library_versions=(("ibis", "12.0.0"), ("narwhals", "2.24.0"), ("polars", "1.43.2")),
+        fixtures=(dialect,),
+    )
 _OPS = (FK_DT.PARSE_XSD_DURATION, FK_DT.PARSE_XSD_PARTIAL_DATE)
 _CELLS = (
     (CONST_BACKEND.IBIS, "ibis-duckdb"),
@@ -51,6 +52,7 @@ _SQLITE_GATES = tuple(
         since=_SINCE,
         boundary=Boundary.BUILD,
         enforcement=Enforcement.GATE,
+        probe_exempt="XSD lexical parser behavior is covered by conform temporal contract tests",
     )
     for op_key in _OPS
 )
@@ -62,7 +64,7 @@ DECLARATIONS = tuple(
         domain=Domain.DATETIME,
         source=FactSource.MOUNTAINASH,
         facts=_facts(backend, dialect),
-        evidence=_EVIDENCE,
+        evidence=_evidence(dialect),
     )
     for backend, dialect in _CELLS
 ) + (
@@ -71,6 +73,6 @@ DECLARATIONS = tuple(
         domain=Domain.DATETIME,
         source=FactSource.MOUNTAINASH,
         facts=_SQLITE_GATES,
-        evidence=_EVIDENCE,
+        evidence=_evidence("ibis-sqlite"),
     ),
 )

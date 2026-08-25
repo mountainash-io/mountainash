@@ -87,13 +87,13 @@ class TestStructCastingErrorHandling:
         with pytest.raises(Exception):
             ma.relation(df).conform(spec).to_polars()
 
-    def test_categories_wins_over_object_fields_on_same_field(self):
-        """Categories precede OBJECT dispatch when both are declared."""
+    def test_categories_and_object_shape_conflict_is_rejected(self):
+        """A concrete string source cannot satisfy a declared OBJECT shape."""
         df = pl.DataFrame({"x": ["a", "b"]})
         spec = TypeSpec(fields=[
             FieldSpec(name="x", type=UniversalType.OBJECT,
                       categories=["a", "b"], categories_ordered=False,
                       object_fields=[FieldSpec(name="never", type=UniversalType.STRING)]),
         ])
-        result = ma.relation(df).conform(spec).to_polars()
-        assert result.schema["x"] == pl.Categorical
+        with pytest.raises(Exception, match="incompatible source type"):
+            ma.relation(df).conform(spec).to_polars()

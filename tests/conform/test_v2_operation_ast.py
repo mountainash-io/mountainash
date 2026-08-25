@@ -42,7 +42,7 @@ def test_temporal_keys_have_exact_wire_mappings() -> None:
         assert ExpressionFunctionRegistry.get(key).substrait_name == name
 
 
-def test_temporal_nodes_keep_diagnostics_out_of_backend_options() -> None:
+def test_temporal_nodes_keep_diagnostics_separate_from_real_options() -> None:
     expr = ma.col("source")
     nodes = (
         expr.dt.parse_default(field_name="value"),
@@ -52,6 +52,7 @@ def test_temporal_nodes_keep_diagnostics_out_of_backend_options() -> None:
     )
     for built in nodes:
         node = built._node
+        assert node.options["failure_behavior"] == "throw"
         assert "field_name" not in node.options
         assert node.diagnostic_context["field_name"]
 

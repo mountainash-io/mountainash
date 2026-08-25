@@ -57,6 +57,8 @@ _CATEGORY_MAP = {
     "MountainAshScalarStringExpressionSystemProtocol": "string",
     "MountainAshScalarListExpressionSystemProtocol": "list",
     "MountainAshScalarStructExpressionSystemProtocol": "struct",
+    "MountainAshScalarCategoricalExpressionSystemProtocol": "categorical",
+    "MountainAshScalarGeospatialExpressionSystemProtocol": "geospatial",
     "MountainAshScalarComparisonExpressionSystemProtocol": "comparison",
     "MountainashExtensionAggregateExpressionSystemProtocol": "aggregate",
     "MountainashWindowExpressionSystemProtocol": "window",
@@ -102,7 +104,9 @@ def _classify_annotation(ann: Any) -> Kind:
     # Optional[concrete] (typing.Optional spelling)
     if s.startswith("typing.Optional[") and any(t in s for t in ("int", "str", "bool", "float", "bytes", "object")):
         return "option"
-    # Literal collections (frozenset, set, list, tuple, Collection) carrying literal values
+    # Literal tuples/records are option payloads, not expression arguments.
+    if s.startswith(("tuple[", "typing.Tuple[", "typing.Tuple[")):
+        return "option"
     if any(tok in s for tok in ("FrozenSet", "frozenset", "typing.Collection", "collections.abc.Collection", "list[str]", "list[int]")):
         return "option"
     if ann is typing.Any or s == "typing.Any":

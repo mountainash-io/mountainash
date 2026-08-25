@@ -34,6 +34,19 @@
   runtime_observable: false
   since: '2026-08-01'
   display_site: tests/relations/test_unnest.py:140
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS|ibis-sqlite|failure_behavior|throw
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS
+  backend: ibis-sqlite
+  param: failure_behavior
+  option_value: throw
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
 - key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR|pandas|*|None
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR
@@ -1273,84 +1286,6 @@
   node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
   operation_key: FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT
   backend: narwhals-pandas
-  param: '*'
-  option_value: null
-  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
-    fact; catalogued for SP2 classification
-  classification: conditional-raise
-  found_via: catch-all
-  runtime_observable: true
-  since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME|pandas|*|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
-  operation_key: FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-  backend: pandas
-  param: '*'
-  option_value: null
-  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
-    fact; catalogued for SP2 classification
-  classification: conditional-raise
-  found_via: catch-all
-  runtime_observable: true
-  since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME|narwhals-polars|*|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
-  operation_key: FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-  backend: narwhals-polars
-  param: '*'
-  option_value: null
-  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
-    fact; catalogued for SP2 classification
-  classification: conditional-raise
-  found_via: catch-all
-  runtime_observable: true
-  since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME|narwhals-pandas|*|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
-  operation_key: FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-  backend: narwhals-pandas
-  param: '*'
-  option_value: null
-  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
-    fact; catalogued for SP2 classification
-  classification: conditional-raise
-  found_via: catch-all
-  runtime_observable: true
-  since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME|ibis-polars|*|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
-  operation_key: FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-  backend: ibis-polars
-  param: '*'
-  option_value: null
-  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
-    fact; catalogued for SP2 classification
-  classification: conditional-raise
-  found_via: catch-all
-  runtime_observable: true
-  since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME|ibis-duckdb|*|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
-  operation_key: FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-  backend: ibis-duckdb
-  param: '*'
-  option_value: null
-  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
-    fact; catalogued for SP2 classification
-  classification: conditional-raise
-  found_via: catch-all
-  runtime_observable: true
-  since: '2026-08-01'
-  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
-- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME|ibis-sqlite|*|None
-  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
-  operation_key: FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME
-  backend: ibis-sqlite
   param: '*'
   option_value: null
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
@@ -2601,6 +2536,84 @@
   backend: ibis-sqlite
   param: microseconds
   option_value: null
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT|pandas|format|array
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT
+  backend: pandas
+  param: format
+  option_value: array
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT|narwhals-polars|format|array
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT
+  backend: narwhals-polars
+  param: format
+  option_value: array
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT|narwhals-pandas|format|array
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT
+  backend: narwhals-pandas
+  param: format
+  option_value: array
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT|ibis-polars|format|array
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT
+  backend: ibis-polars
+  param: format
+  option_value: array
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT|ibis-duckdb|format|array
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT
+  backend: ibis-duckdb
+  param: format
+  option_value: array
+  current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
+    fact; catalogued for SP2 classification
+  classification: conditional-raise
+  found_via: catch-all
+  runtime_observable: true
+  since: '2026-08-01'
+  display_site: tests/core/test_compile_smoke.py:TestCompileSmoke.test_compile_succeeds
+- key: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds|FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT|ibis-sqlite|format|array
+  node_id: tests/core/test_compile_smoke.py::TestCompileSmoke::test_compile_succeeds
+  operation_key: FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT
+  backend: ibis-sqlite
+  param: format
+  option_value: array
   current_reason: runtime-observed BackendCapabilityError with no UNSUPPORTED gate
     fact; catalogued for SP2 classification
   classification: conditional-raise

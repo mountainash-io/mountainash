@@ -35,12 +35,64 @@ _BOOL_COLS = ["e"]
 
 def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
         FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
+        FKEY_MOUNTAINASH_SCALAR_LIST,
+        FKEY_MOUNTAINASH_SCALAR_STRING,
         FKEY_SUBSTRAIT_CAST,
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
     )
 
     return {
+        FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS: (
+            [ma.col("c")],
+            {
+                "true_values": ("true",),
+                "false_values": ("false",),
+                "field_name": "c",
+            },
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: (
+            [ma.col("c")],
+            {"field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION: (
+            [ma.col("c")],
+            {"field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE: (
+            [ma.col("c")],
+            {"kind": "year", "field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY: (
+            [ma.col("c"), "datetime"],
+            {"field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: (
+            [ma.col("c")],
+            {
+                "format": "array",
+                "source_representation": "lexical",
+                "field_name": "c",
+            },
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON: (
+            [ma.col("c")],
+            {"format": "default", "field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON: (
+            [ma.col("c")],
+            {"format": "default", "field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: (
+            [ma.col("c")],
+            {"item_type": "string", "delimiter": ",", "field_name": "c"},
+        ),
+        FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME: (
+            [ma.col("c"), "%H:%M:%S"],
+            {"field_name": "c"},
+        ),
         FKEY_SUBSTRAIT_CAST.CAST: ([ma.col("a")], {"dtype": "str"}),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE: ([ma.col("a"), "UTC"], {}),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE: ([ma.col("a"), "UTC"], {}),
@@ -55,7 +107,6 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
             {"rounding": "FLOOR", "unit": "MONTH"},
         ),
     }
-
 
 
 _SMOKE_ARG_OVERRIDES: dict[Enum, tuple[list[Any], dict[str, Any]]] = _init_smoke_overrides()

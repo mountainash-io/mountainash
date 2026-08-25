@@ -13,7 +13,7 @@ class TestCategoricalCasting:
     """Conform pipeline: categories and categoriesOrdered."""
 
     def test_simple_array_categories_unordered(self):
-        """Simple array categories without ordered flag -> pl.Categorical."""
+        """Simple array categories preserve the declared base scalar type."""
         df = pl.DataFrame({"color": ["red", "blue", "red"]})
         spec = TypeSpec(
             fields=[
@@ -26,10 +26,10 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["color"].to_list() == ["red", "blue", "red"]
-        assert result["color"].dtype == pl.Categorical
+        assert result["color"].dtype == pl.String
 
     def test_simple_array_categories_ordered(self):
-        """Ordered categories -> pl.Enum with defined order."""
+        """Ordered categories preserve the declared base scalar type."""
         df = pl.DataFrame({"size": ["S", "M", "L"]})
         spec = TypeSpec(
             fields=[
@@ -43,7 +43,7 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["size"].to_list() == ["S", "M", "L"]
-        assert result["size"].dtype == pl.Enum
+        assert result["size"].dtype == pl.String
 
     def test_object_array_categories(self):
         """Object-form categories: use 'value' key, ignore 'label'."""
@@ -63,7 +63,7 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["fruit"].to_list() == ["apple", "banana", "apple"]
-        assert result["fruit"].dtype == pl.Categorical
+        assert result["fruit"].dtype == pl.String
 
     def test_object_array_categories_ordered(self):
         """Object-form + ordered -> pl.Enum with values in order."""
@@ -84,10 +84,10 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["level"].to_list() == ["low", "high", "low"]
-        assert result["level"].dtype == pl.Enum
+        assert result["level"].dtype == pl.String
 
     def test_categories_with_base_type_cast(self):
-        """Categories on a non-string field: base type cast then categorical."""
+        """Categories on a non-string field preserve the declared string type."""
         df = pl.DataFrame({"score": [1, 2, 3]})
         spec = TypeSpec(
             fields=[
@@ -104,7 +104,7 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == ["1", "2", "3"]
-        assert result["score"].dtype == pl.Enum
+        assert result["score"].dtype == pl.String
 
     def test_categories_preserves_null(self):
         """Null values pass through categorical casting."""
@@ -120,10 +120,10 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["color"].to_list() == ["red", None, "blue"]
-        assert result["color"].dtype == pl.Categorical
+        assert result["color"].dtype == pl.String
 
     def test_categories_ordered_false_is_categorical(self):
-        """Explicitly setting categories_ordered=False -> pl.Categorical."""
+        """Explicit categories_ordered=False preserves the declared base type."""
         df = pl.DataFrame({"tag": ["a", "b", "a"]})
         spec = TypeSpec(
             fields=[
@@ -137,4 +137,4 @@ class TestCategoricalCasting:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["tag"].to_list() == ["a", "b", "a"]
-        assert result["tag"].dtype == pl.Categorical
+        assert result["tag"].dtype == pl.String

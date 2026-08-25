@@ -19,6 +19,7 @@ def unsupported(
     message: str,
     option: str | None = None,
     value: str | None = None,
+    probe_exempt: str | None = None,
     **conditions: str,
 ) -> CapabilityFact:
     if conditions:
@@ -30,11 +31,12 @@ def unsupported(
     return CapabilityFact(
         operation_key=operation_key,
         param=param,
-        option_value=value,
+        option_value=None if conditions else value,
         level=CapabilityLevel.UNSUPPORTED,
         backend=backend,
         dialect=dialect,
         message=message,
         since=SINCE,
         predicate=option_predicate(**conditions) if conditions else None,
+        probe_exempt=probe_exempt,
     )

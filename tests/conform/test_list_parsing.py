@@ -40,7 +40,7 @@ class TestListParsingDefaultDelimiter:
             fields=[FieldSpec(name="tags", type=UniversalType.LIST)],
         )
         result = ma.relation(df).conform(spec).to_polars()
-        assert result["tags"].to_list() == [[""]]
+        assert result["tags"].to_list() == [None]
 
 
 class TestListParsingCustomDelimiter:
@@ -105,11 +105,6 @@ class TestListParsingItemType:
         inner = result["vals"].to_list()[0]
         assert [pytest.approx(v) for v in inner] == [1.1, 2.2, 3.3]
 
-    @pytest.mark.xfail(
-        reason="Polars cannot cast Utf8 -> Boolean in list.eval context; "
-               "Frictionless list spec only guarantees 'default formats'.",
-        strict=True,
-    )
     def test_boolean_item_type(self):
         df = pl.DataFrame({"flags": ["true,false,true"]})
         spec = TypeSpec(

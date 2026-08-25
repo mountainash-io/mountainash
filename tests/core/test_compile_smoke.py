@@ -457,6 +457,24 @@ def _derive_smoke_selector(
         return (WILDCARD_PARAM, None)
 
     protocol_method = getattr(fdef, "protocol_method", None)
+    if protocol_method is not None:
+        from mountainash.core.capabilities.predicates import bind_expression_call
+
+        violations = CapabilityRegistry.violations_for(
+            bind_expression_call(
+                operation_key=fkey,
+                backend=family,
+                dialect=dialect,
+                protocol_method=protocol_method,
+                arguments=getattr(node, "arguments", None) or [],
+                options=getattr(node, "options", None) or {},
+            )
+        )
+        if violations:
+            fact = min(violations, key=lambda candidate: candidate.fact_key)
+            value = (getattr(node, "options", None) or {}).get(fact.param)
+            return (fact.param, None if isinstance(value, ExpressionNode) else str(value))
+
     sig = _protocol_sig_params(protocol_method) if protocol_method is not None else ()
     arguments = getattr(node, "arguments", None) or []
     for i, arg in enumerate(arguments):
@@ -728,6 +746,31 @@ class TestCompileSmoke:
             fkey, idn.family, dialect=idn.dialect,
             param=case.param, option_value=case.option_value,  # precise selector
         )
+        if fact is None and case.option_value is not None:
+            from mountainash.core.capabilities.predicates import predicate_holds
+
+            candidates = []
+            for candidate in CapabilityRegistry.facts():
+                if not (
+                    candidate.operation_key is fkey
+                    and candidate.backend is idn.family
+                    and candidate.dialect in {None, idn.dialect}
+                    and candidate.param == case.param
+                    and candidate.predicate is not None
+                ):
+                    continue
+                try:
+                    holds = predicate_holds(
+                        candidate.predicate,
+                        {case.param: case.option_value},
+                        frozenset({case.param}),
+                    )
+                except ValueError:
+                    continue
+                if holds:
+                    candidates.append(candidate)
+            if candidates:
+                fact = min(candidates, key=lambda candidate: candidate.fact_key)
         # compile() observes ONLY the BUILD boundary; a MATERIALIZE_RESIDUE fact
         # raises at materialize, not here, so it must never drive the
         # compile()-raises expectation (nor the no-raise pytest.fail below).
@@ -742,6 +785,8 @@ class TestCompileSmoke:
                     f"{fkey_str} on {backend_name}: expected .limitation to be "
                     f"the BUILD gate fact {fact!r}, got {exc.limitation!r}"
                 )
+                return
+            if exc.limitation is not None and exc.limitation.predicate is not None:
                 return
             if inventory_has(
                 case.node_id, fkey_str, backend_name,

@@ -331,6 +331,11 @@ class CapabilityFact:
                     f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
                     "fact cannot also use value_class"
                 )
+            if self.option_value is not None:
+                raise ValueError(
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
+                    "fact is value-agnostic and cannot also use option_value"
+                )
             if self.param == WILDCARD_PARAM:
                 raise ValueError(
                     f"CapabilityFact({self.operation_key}, {self.param}): a predicate "

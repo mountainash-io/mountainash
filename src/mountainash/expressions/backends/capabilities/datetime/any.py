@@ -10,7 +10,7 @@ _SINCE = "2026-08-25"
 _EVIDENCE = ProbeEvidence(
     probe_date=_SINCE,
     library_versions=(("ibis", "12.0.0"), ("narwhals", "2.24.0")),
-    fixtures=("ibis", "narwhals-polars", "narwhals-pandas"),
+    fixtures=("datetime-any", "ibis", "narwhals-polars", "narwhals-pandas"),
 )
 
 
@@ -23,6 +23,7 @@ def _facts(backend: CONST_BACKEND) -> tuple[CapabilityFact, ...]:
             backend=backend,
             message="temporal-any parsing requires a row-wise native parser",
             since=_SINCE,
+            probe_exempt="Temporal-any parsing is covered by conform temporal contract tests",
         ),
     )
 
