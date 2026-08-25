@@ -73,6 +73,27 @@ def test_unknown_native_shapes_remain_unresolved() -> None:
         )
 
 
+def test_unknown_any_source_passes_through_without_synthetic_drift() -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(None)},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+    assert result.drift is not None
+    assert result.drift.type_mismatches == []
+
+
+def test_any_string_source_normalizes_missing_sentinels() -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(MountainashDtype.STRING)},
+    )
+    output = pl.DataFrame({"value": ["", "kept"]}).select(_compile(result.exprs[0]))
+    assert output["value"].to_list() == [None, "kept"]
+
+
 @pytest.mark.parametrize("action", ["evolve", "discard_value", "discard_row"])
 def test_incompatible_concrete_source_uses_data_type_action(action: str) -> None:
     result = _build_conform_exprs(
@@ -466,6 +487,21 @@ def test_native_temporal_sources_can_cast_to_string(source: MountainashDtype) ->
     )
     assert result.exprs[0].node.function_key.name == "ALIAS"
 
+def test_native_duration_source_uses_configured_action() -> None:
+    with pytest.raises(IncompatibleSourceTypeError):
+        _build_conform_exprs(
+            _spec(FieldSpec(name="value", type=UniversalType.DURATION)),
+            available_columns=("value",),
+            actual_shapes={"value": SourceShape(MountainashDtype.DURATION)},
+        )
+    evolved = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=UniversalType.DURATION)),
+        available_columns=("value",),
+        actual_shapes={"value": SourceShape(MountainashDtype.DURATION)},
+        contract=_contract("evolve"),
+    )
+    assert evolved.exprs[0].node.function_key.name == "ALIAS"
+
 
 def test_year_accepts_integer_source_but_rejects_float() -> None:
     result = _build_conform_exprs(
@@ -561,11 +597,10 @@ def test_unknown_lexical_duration_and_yearmonth_keep_dispatch(field_type: Univer
     [
         FieldSpec(name="items", type=UniversalType.ARRAY),
         FieldSpec(name="record", type=UniversalType.OBJECT),
-        FieldSpec(name="value", type=UniversalType.ANY),
         FieldSpec(name="value", type=UniversalType.DATE, format="%Y/%m/%d"),
         FieldSpec(name="value", type=UniversalType.YEAR),
     ],
-    ids=["array", "object", "any", "custom-date", "year"],
+    ids=["array", "object", "custom-date", "year"],
 )
 def test_absent_source_shape_evidence_is_unresolved(field: FieldSpec) -> None:
     with pytest.raises(UnresolvedSourceTypeError):
@@ -582,6 +617,16 @@ def test_absent_source_shape_evidence_is_unresolved(field: FieldSpec) -> None:
     )
     assert evolved.exprs[0].node.function_key.name == "ALIAS"
 
+
+def test_absent_any_source_shape_evidence_passes_through() -> None:
+    result = _build_conform_exprs(
+        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        available_columns=("value",),
+        actual_shapes={},
+    )
+    assert result.exprs[0].node.function_key.name == "ALIAS"
+    assert result.drift is not None
+    assert result.drift.type_mismatches == []
 
 def test_missing_dotted_source_shape_evidence_is_unresolved() -> None:
     field = FieldSpec(

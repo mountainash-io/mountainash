@@ -170,3 +170,15 @@ Verification:
 
 - Absent-shape regressions: **6 passed**.
 - Full focused Unit C source-dispatch set after amendment: **413 passed**.
+
+## Final-release review repairs
+
+- Opaque `ANY` source shapes now pass through without synthetic unknown drift or unresolved-source errors, including absent shape evidence.
+- Concrete physical `STRING` sources normalize configured missing sentinels even when the declared logical type is `ANY`; unknown non-lexical carriers remain untouched.
+- Native `DURATION` sources are incompatible with lexical Frictionless `DURATION` and therefore follow the configured data-type action instead of bypassing XSD duration parsing.
+- Structural-only type drift retains the configured data-type action in its report with `applied=False`; emitted fields remain free of value-transform actions.
+
+Focused verification:
+
+- `tests/conform/test_final_branch_review_fixes.py tests/conform/cross_backend/test_v2_type_actions.py`: **107 passed**.
+- `tests/conform/cross_backend/test_missing_values.py`: **89 passed, 9 warnings**.

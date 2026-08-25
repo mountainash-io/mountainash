@@ -360,24 +360,7 @@ def resolve_conform_output(
         declared = _declared_canonical(em.field)
         actual_dtype = (actual_dtypes or {}).get(em.source_name)
         mismatch: TypeDrift | None = None
-        if (
-            actual_shapes is not None
-            and actual_shape is not None
-            and actual_shape.canonical_type is None
-            and em.field.type is UniversalType.ANY
-        ):
-            mismatch = TypeDrift(
-                em.field.name,
-                None,
-                None,
-                "unknown",
-                None,
-                "unknown",
-                None,
-                "ANY source representation",
-                apply_value_transforms,
-            )
-        elif declared is not None and actual_shapes is not None:
+        if declared is not None and actual_shapes is not None:
             expected_shape = _expected_shape(em.field)
             requirement = _shape_detail(expected_shape) or str(declared)
             if actual_shape is None or actual_shape.canonical_type is None:
@@ -471,12 +454,13 @@ def resolve_conform_output(
         if mismatch is None:
             resolved.append(em)
             continue
-        action = contract.data_type if apply_value_transforms else None
+        reported_action = contract.data_type
+        action = reported_action if apply_value_transforms else None
         applied = bool(
             apply_value_transforms
             and action in {"coerce", "discard_value", "discard_row"}
         )
-        mismatch = dataclasses.replace(mismatch, action=action, applied=applied)
+        mismatch = dataclasses.replace(mismatch, action=reported_action, applied=applied)
         type_mismatches.append(mismatch)
         if action == "evolve":
             em = dataclasses.replace(em, type_action="evolve", effective_type=mismatch.actual)
@@ -568,7 +552,6 @@ def _build_field_expr(
     shape = source_shape or SourceShape(None)
     canonical = shape.canonical_type
     typed_shapes = {
-        UniversalType.ANY,
         UniversalType.LIST,
         UniversalType.ARRAY,
         UniversalType.OBJECT,
@@ -650,7 +633,6 @@ def _build_field_expr(
             UniversalType.TIME: {MountainashDtype.TIME, MountainashDtype.STRING},
             UniversalType.DATETIME: {MountainashDtype.TIMESTAMP, MountainashDtype.STRING},
             UniversalType.DURATION: {
-                MountainashDtype.DURATION,
                 MountainashDtype.XSD_DURATION,
                 MountainashDtype.STRING,
             },
@@ -730,7 +712,7 @@ def _build_field_expr(
     sentinels = fld.missing_values if fld.missing_values is not None else schema_missing_values
     from mountainash.typespec._categorical import categorical_values
     sentinel_values = categorical_values(list(sentinels))
-    if sentinel_values and fld.type in scalar_types and lexical:
+    if sentinel_values and (fld.type in scalar_types or canonical is MountainashDtype.STRING) and lexical:
         if fld.type == UniversalType.BOOLEAN:
             true_values = fld.true_values or ["true", "True", "TRUE", "1"]
             false_values = fld.false_values or ["false", "False", "FALSE", "0"]

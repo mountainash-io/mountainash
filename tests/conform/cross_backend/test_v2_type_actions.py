@@ -48,7 +48,7 @@ def test_structural_only_assesses_drift_without_actions() -> None:
     )
     assert result.drift is not None
     assert result.drift.type_mismatches[0].applied is False
-    assert result.drift.type_mismatches[0].action is None
+    assert result.drift.type_mismatches[0].action == "coerce"
 
 
 def test_unknown_actual_shape_is_unknown_drift_evidence() -> None:
