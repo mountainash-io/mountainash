@@ -258,7 +258,47 @@ def test_unit_c_wildcard_facts_have_explicit_op_level_cells() -> None:
     assert expected <= covered
 
 
+
+def test_unit_c_wildcard_facts_have_explicit_op_level_cells() -> None:
+    """Every Unit C whole-operation gate has a visible matrix cell."""
+    unit_c_fkeys = (
+        FK_MA_DT.PARSE_DEFAULT,
+        FK_MA_DT.PARSE_TEMPORAL_ANY,
+        FK_GEO.PARSE_GEOJSON,
+        FK_GEO.SERIALIZE_GEOJSON,
+    )
+    expected = {
+        (fkey, fixture)
+        for fkey in unit_c_fkeys
+        for fixture in ("ibis", "narwhals-polars", "narwhals-pandas")
+    }
+    covered = {
+        (cell.fkey, cell.fixture)
+        for cell in OPTION_DISPOSITIONS
+        if cell.backing_mode == "op-level"
+    }
+    assert expected <= covered
 # Value-scoped facts whose dialect the 4-fixture argument-type matrix cannot
+
+def test_unit_c_wildcard_facts_have_explicit_op_level_cells() -> None:
+    """Every Unit C whole-operation gate has a visible matrix cell."""
+    unit_c_fkeys = (
+        FK_MA_DT.PARSE_DEFAULT,
+        FK_MA_DT.PARSE_TEMPORAL_ANY,
+        FK_GEO.PARSE_GEOJSON,
+        FK_GEO.SERIALIZE_GEOJSON,
+    )
+    expected = {
+        (fkey, fixture)
+        for fkey in unit_c_fkeys
+        for fixture in ("ibis", "narwhals-polars", "narwhals-pandas")
+    }
+    covered = {
+        (cell.fkey, cell.fixture)
+        for cell in OPTION_DISPOSITIONS
+        if cell.backing_mode == "op-level"
+    }
+    assert expected <= covered
 # instantiate at all -- its "ibis" fixture is hardcoded to ibis-duckdb (see
 # conftest.py's MATRIX_IDENTITIES); there is no ibis-polars/ibis-sqlite
 # fixture here to carry a per-cell OptionCell. Structurally unreachable by
@@ -1086,8 +1126,6 @@ def test_probe_role_coverage_fails_when_registration_is_missing(
             ),
             "error-sensitive",
         ),
-    ],
-)
 def test_param_taxonomy_precedence(isolated_option_state, dispositions, expected) -> None:
     protocol, op, param = "P", "op", "choice"
     OPTION_DISPOSITIONS.extend(

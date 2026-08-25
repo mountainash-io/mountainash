@@ -458,15 +458,48 @@ class TestExtractionOverRegistry:
         )
 
     def test_polars_struct_populates_object_fields(self):
+    def test_polars_native_list_has_no_lexical_properties(self):
         import polars as pl
         from mountainash.typespec.extraction import extract_from_dataframe
         from mountainash.typespec.universal_types import UniversalType
-        df = pl.DataFrame([{"addr": {"street": "Main St", "zip": "12345"}}])
+        df = pl.DataFrame({"tags": [[1, 2], [3]]})
         spec = extract_from_dataframe(df)
-        (field,) = [f for f in spec.fields if f.name == "addr"]
-        assert field.type == UniversalType.OBJECT
-        names = {f.name: f.type for f in field.object_fields}
-        assert names == {"street": UniversalType.STRING, "zip": UniversalType.STRING}
+        (field,) = [f for f in spec.fields if f.name == "tags"]
+        assert field.type == UniversalType.ARRAY
+        assert field.item_type is None
+        assert field.delimiter is None
+        assert field.item_object_fields is None
+
+    def test_polars_array_of_structs_recurses_nested_array_of_structs(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame(
+            {
+                "rows": [
+                    {"name": "outer", "children": [{"id": 1, "tags": ["a"]}]},
+                ],
+            }
+        )
+        spec = extract_from_dataframe(df)
+        (field,) = [f for f in spec.fields if f.name == "rows"]
+        assert field.type is UniversalType.ARRAY
+        assert field.item_type is None
+        assert field.delimiter is None
+        assert [(f.name, f.type) for f in field.item_object_fields] == [
+            ("name", UniversalType.STRING),
+            ("children", UniversalType.ARRAY),
+        ]
+        (children,) = [f for f in field.item_object_fields if f.name == "children"]
+        assert children.item_type is None
+        assert children.delimiter is None
+        assert [(f.name, f.type) for f in children.item_object_fields] == [
+            ("id", UniversalType.INTEGER),
+            ("tags", UniversalType.ARRAY),
+        ]
+        (tags,) = [f for f in children.item_object_fields if f.name == "tags"]
+        assert tags.item_type is None
+        assert tags.item_object_fields is None
 
     def test_polars_struct_two_levels_deep_populates_object_fields_recursively(self):
         import polars as pl
