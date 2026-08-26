@@ -68,20 +68,20 @@ def _validate_constraints(
 
     for name in ("required", "unique"):
         value = getattr(constraints, name)
-        if type(value) is not bool:
+        if type(value) is not bool:  # noqa: E721 — strict declaration shape
             _constraint_issue(issues, f"{path}/constraints/{name}", f"{name} must be bool")
 
     for name in ("min_length", "max_length"):
         value = getattr(constraints, name)
-        if value is not None and (type(value) is not int or value < 0):
+        if value is not None and (type(value) is not int or value < 0):  # noqa: E721 — bool is not an integer
             _constraint_issue(
                 issues,
                 f"{path}/constraints/{name}",
                 f"{name} must be a non-negative integer",
             )
     if (
-        type(constraints.min_length) is int
-        and type(constraints.max_length) is int
+        type(constraints.min_length) is int  # noqa: E721 — strict declaration shape
+        and type(constraints.max_length) is int  # noqa: E721 — strict declaration shape
         and constraints.min_length > constraints.max_length
     ):
         _constraint_issue(
@@ -387,7 +387,7 @@ def _validate_field_properties(
                 f"{path}/categories_ordered",
                 "categories_ordered requires categories",
             )
-        elif type(field.categories_ordered) is not bool:
+        elif type(field.categories_ordered) is not bool:  # noqa: E721 — strict declaration shape
             _constraint_issue(
                 issues,
                 f"{path}/categories_ordered",

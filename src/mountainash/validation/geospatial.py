@@ -184,7 +184,7 @@ def reconstruct_topojson_line(
     """Decode, reverse, and stitch a TopoJSON line's arc references."""
     line: list[tuple[float, ...]] = []
     for arc_index in arc_indexes:
-        if type(arc_index) is not int:
+        if type(arc_index) is not int:  # noqa: E721 — bool is not an arc index
             raise ValueError("TopoJSON arc reference must be an integer")
         selected = _decoded_arc(topology, arc_index if arc_index >= 0 else ~arc_index)
         if arc_index < 0:

@@ -104,11 +104,11 @@ def freeze_value(value: Any) -> Any:
 def _canonical_bytes(value: Any) -> bytes:
     if value is None:
         return b"n"
-    if type(value) is bool:
+    if type(value) is bool:  # noqa: E721 — bool has its own canonical tag
         return b"b1" if value else b"b0"
-    if type(value) is int:
+    if type(value) is int:  # noqa: E721 — bool must not become an integer
         return f"i{value}".encode()
-    if type(value) is float:
+    if type(value) is float:  # noqa: E721 — preserve exact float encoding
         return f"f{value.hex()}".encode()
     if isinstance(value, str):
         encoded = value.encode("utf-8")

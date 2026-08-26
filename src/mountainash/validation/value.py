@@ -131,7 +131,7 @@ def canonical_value_key(value: Any) -> tuple[Any, ...]:
         return ("invalid",)
     if value is None:
         return ("null",)
-    if type(value) is bool:
+    if type(value) is bool:  # noqa: E721 — bool never equals a number
         return ("bool", value)
     if isinstance(value, Decimal):
         if value.is_nan():
@@ -139,9 +139,9 @@ def canonical_value_key(value: Any) -> tuple[Any, ...]:
         if value.is_infinite():
             return ("infinity", 1 if value > 0 else -1)
         return ("number", value.normalize())
-    if type(value) is int:
+    if type(value) is int:  # noqa: E721 — bool never equals a number
         return ("number", Decimal(value))
-    if type(value) is float:
+    if type(value) is float:  # noqa: E721 — use float's round-trip decimal
         if math.isnan(value):
             return ("nan",)
         if math.isinf(value):
@@ -175,7 +175,7 @@ def canonical_value_key(value: Any) -> tuple[Any, ...]:
 def _render_json_value(value: Any) -> Any:
     if value is INVALID_VALUE:
         return {"$invalid": True}
-    if value is None or type(value) is bool or isinstance(value, (str, int, float)):
+    if value is None or type(value) is bool or isinstance(value, (str, int, float)):  # noqa: E721 — preserve JSON bool identity
         return value
     if isinstance(value, Decimal):
         return {"$decimal": str(value)}
@@ -280,11 +280,11 @@ def _type_format_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     if type_name == "string":
         return isinstance(value, str)
     if type_name == "integer":
-        return type(value) is int
+        return type(value) is int  # noqa: E721 — bool is not an integer
     if type_name == "number":
-        return type(value) in {int, float} or isinstance(value, Decimal)
+        return type(value) in {int, float} or isinstance(value, Decimal)  # noqa: E721 — bool is not numeric
     if type_name == "boolean":
-        return type(value) is bool
+        return type(value) is bool  # noqa: E721 — subclasses are invalid
     if type_name in {"list", "array"}:
         return isinstance(value, (list, tuple))
     if type_name == "object":
