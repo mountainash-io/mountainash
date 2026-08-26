@@ -188,3 +188,31 @@ def test_value_rule_keeps_row_number_identity_from_cached_frame() -> None:
 
     assert result.check_summaries["status"].item() == "failed"
     assert result.failure_cases["row_number"].to_list() == [1]
+
+
+def test_nested_object_rule_executes_instead_of_isolating_an_error() -> None:
+    """Nested declarations must produce a data verdict for valid objects."""
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"child": "ok"}]}),
+        plan=compile_datacontract(
+            TypeSpec(
+                fields=[
+                    FieldSpec(
+                        name="payload",
+                        type=UniversalType.OBJECT,
+                        object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                    )
+                ]
+            )
+        ),
+    )
+
+    assert result.check_summaries.filter(pl.col("check_id") == "payload_nested")[
+        "status"
+    ].item() == "passed"

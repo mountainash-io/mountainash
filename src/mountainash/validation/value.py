@@ -405,6 +405,23 @@ def _json_schema_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return not compile_json_schema(options["schema"]).validate(value)
 
 
+def _nested_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    """Validate the structural container boundary for recursive field rules."""
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    object_fields = options.get("object_fields")
+    item_object_fields = options.get("item_object_fields")
+    if object_fields:
+        return isinstance(value, Mapping)
+    if item_object_fields:
+        return isinstance(value, (list, tuple)) and all(
+            item is None or isinstance(item, Mapping) for item in value
+        )
+    return True
+
+
 def _geojson_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     if value is INVALID_VALUE:
         return None
@@ -459,7 +476,7 @@ VALUE_RULE_REGISTRY = MappingProxyType(
         ValueValidatorKey.XSD_PATTERN: _entry(_pattern_options, _pattern_execute, "pattern", "row"),
         ValueValidatorKey.MEMBERSHIP: _entry(_membership_options, _membership_execute, "membership", "row"),
         ValueValidatorKey.UNIQUE: _entry(_mapping_only, _unavailable_execute, "unique", "column"),
-        ValueValidatorKey.NESTED: _entry(_mapping_only, _unavailable_execute, "nested", "row"),
+        ValueValidatorKey.NESTED: _entry(_mapping_only, _nested_execute, "nested", "row"),
         ValueValidatorKey.JSON_SCHEMA: _entry(_json_schema_options, _json_schema_execute, "json_schema", "row"),
         ValueValidatorKey.GEOJSON: _entry(_mapping_only, _geojson_execute, "geojson", "row"),
         ValueValidatorKey.GEOJSON_WINDING: _entry(_mapping_only, _geojson_winding_execute, "geojson_winding", "row"),
