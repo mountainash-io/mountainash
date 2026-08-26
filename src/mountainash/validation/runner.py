@@ -109,11 +109,12 @@ class ValidationRunner:
                 contract=conform_contract,
                 apply_value_transforms=apply_value_transforms,
             )
-            checks = (
-                *plan.checks,
-                *checks,
-                *build_standalone_fk_checks(plan, resource_name=validator_name or "__standalone__"),
+            standalone_rules = (
+                build_standalone_fk_checks(plan, resource_name=validator_name or "__standalone__")
+                if fk_resolver is None
+                else ()
             )
+            checks = (*plan.checks, *checks, *standalone_rules)
             if fk_resolver is None:
                 def fk_resolver(_name):
                     return rel
@@ -569,6 +570,7 @@ class ValidationRunner:
         checks_by_resource: "dict[str, list[Any]]",
         *,
         identity_by_resource: "dict[str, RowIdentity] | None" = None,
+        plans_by_resource: "dict[str, Any] | None" = None,
         context: "dict[str, Any] | None" = None,
         fail_fast: bool = False,
         failure_sample: int | None = None,
@@ -587,6 +589,7 @@ class ValidationRunner:
             return as_relation(natives[name])
 
         identity_by_resource = identity_by_resource or {}
+        plans_by_resource = plans_by_resource or {}
         results: dict[str, ValidationResult] = {}
         fk_rules: list[Any] = []
 
@@ -598,6 +601,8 @@ class ValidationRunner:
                 result = self.validate_relation(
                     _resolver(name),
                     intra,
+                    fk_resolver=_resolver,
+                    plan=plans_by_resource.get(name),
                     identity=resource_identity,
                     allow_imperfect_key=allow_imperfect_key,
                     context=context,
