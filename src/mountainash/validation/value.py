@@ -381,6 +381,22 @@ def _pattern_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return isinstance(value, str) and re.search(options["pattern"], value) is not None
 
 
+def _json_schema_options(options: Mapping[str, Any]) -> None:
+    _mapping_only(options)
+    if not isinstance(options.get("schema"), Mapping):
+        raise CheckDeclarationError("JSON Schema value rule requires mapping option 'schema'")
+
+
+def _json_schema_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    from mountainash.validation.jsonschema import compile_json_schema
+
+    return not compile_json_schema(options["schema"]).validate(value)
+
+
 def _unavailable_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     """A named later-unit executor; it cannot be selected by a default path."""
     del value, options
@@ -406,7 +422,7 @@ VALUE_RULE_REGISTRY = MappingProxyType(
         ValueValidatorKey.MEMBERSHIP: _entry(_membership_options, _membership_execute, "membership", "row"),
         ValueValidatorKey.UNIQUE: _entry(_mapping_only, _unavailable_execute, "unique", "column"),
         ValueValidatorKey.NESTED: _entry(_mapping_only, _unavailable_execute, "nested", "row"),
-        ValueValidatorKey.JSON_SCHEMA: _entry(_mapping_only, _unavailable_execute, "json_schema", "row"),
+        ValueValidatorKey.JSON_SCHEMA: _entry(_json_schema_options, _json_schema_execute, "json_schema", "row"),
         ValueValidatorKey.GEOJSON: _entry(_mapping_only, _unavailable_execute, "geojson", "row"),
         ValueValidatorKey.GEOJSON_WINDING: _entry(_mapping_only, _unavailable_execute, "geojson_winding", "row"),
         ValueValidatorKey.TOPOJSON: _entry(_mapping_only, _unavailable_execute, "topojson", "row"),
