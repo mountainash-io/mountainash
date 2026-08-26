@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from mountainash.core.errors import MountainashError
 
@@ -73,6 +73,53 @@ class UnsupportedResourceDialect(DescriptorError, ValueError):
 
 class TypeSpecError(MountainashError, ValueError):
     """Base for field-value/type-shape structural errors (sibling to DescriptorError)."""
+
+
+class InvalidTypeSpecSemantics(TypeSpecError):
+    """A TypeSpec has one or more deterministic semantic declaration issues."""
+
+    def __init__(self, issues: tuple[Any, ...], resource_name: str | None) -> None:
+        self.issues = issues
+        self.resource_name = resource_name
+        scope = f" for resource {resource_name!r}" if resource_name is not None else ""
+        details = "; ".join(
+            f"{issue.path} [{issue.code}]: {issue.message}" for issue in issues
+        )
+        super().__init__(f"invalid TypeSpec semantics{scope}: {details}")
+
+
+class InvalidConstraintDeclaration(TypeSpecError):
+    """A field or schema constraint is malformed or inapplicable."""
+
+
+class InvalidJSONSchemaConstraint(TypeSpecError):
+    """A JSON Schema declaration is malformed."""
+
+
+class JSONSchemaReferenceDenied(TypeSpecError):
+    """A JSON Schema declaration references a non-local resource."""
+
+
+class AmbiguousFieldName(TypeSpecError):
+    """A name-addressed TypeSpec scope contains duplicate field names."""
+
+
+class InvalidFieldIdentifier(TypeSpecError):
+    """A field name or rename source is not a non-empty string."""
+
+    def __init__(
+        self,
+        field_path: str,
+        property_name: Literal["name", "rename_from"],
+        rejected_value: Any,
+    ) -> None:
+        self.field_path = field_path
+        self.property_name = property_name
+        self.rejected_value = rejected_value
+        super().__init__(
+            f"{field_path}/{property_name} must be a non-empty string; "
+            f"got {rejected_value!r}"
+        )
 
 
 class AmbiguousGeospatialTypeError(TypeSpecError):
@@ -160,6 +207,12 @@ __all__ = [
     "InvalidDescriptorRelationship",
     "UnsupportedResourceDialect",
     "TypeSpecError",
+    "InvalidTypeSpecSemantics",
+    "InvalidConstraintDeclaration",
+    "InvalidJSONSchemaConstraint",
+    "JSONSchemaReferenceDenied",
+    "AmbiguousFieldName",
+    "InvalidFieldIdentifier",
     "AmbiguousGeospatialTypeError",
     "InvalidGeospatialFormatError",
     "InvalidKeyShapeError",
