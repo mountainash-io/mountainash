@@ -370,6 +370,14 @@ def _string_format_execute(value: Any, options: Mapping[str, Any]) -> bool | Non
         from urllib.parse import urlparse
 
         return bool(urlparse(value).scheme)
+    if format_name == "binary":
+        from base64 import b64decode
+
+        try:
+            b64decode(value, validate=True)
+        except ValueError:
+            return False
+        return True
     return False
 
 

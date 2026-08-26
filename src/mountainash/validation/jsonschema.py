@@ -5,7 +5,7 @@ shared declaration boundary so semantic validation and runtime execution agree.
 """
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -75,7 +75,7 @@ def _reject_remote_references(value: Any) -> None:
                 )
         for nested in value.values():
             _reject_remote_references(nested)
-    elif isinstance(value, list):
+    elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         for nested in value:
             _reject_remote_references(nested)
 

@@ -135,3 +135,56 @@ def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
     assert result.passes
     assert result._materialized_source.to_dict(as_series=False) == {"id": [1, 2]}
     assert collect_calls == 1
+
+
+def test_binary_string_format_uses_base64_lexical_validation() -> None:
+    """Accepted binary-format declarations must not reject every value."""
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": ["AQI=", "not base64"]}),
+        plan=compile_datacontract(
+            TypeSpec(
+                fields=[
+                    FieldSpec(
+                        name="payload",
+                        type=UniversalType.STRING,
+                        format="binary",
+                    )
+                ]
+            )
+        ),
+    )
+
+    summary = result.check_summaries.filter(
+        pl.col("check_id") == "payload_string_format"
+    ).row(0, named=True)
+    assert summary["pass_count"] == 1
+    assert summary["fail_count"] == 1
+
+
+def test_value_rule_keeps_row_number_identity_from_cached_frame() -> None:
+    """ValueRule failures retain row ordinals after one materialization."""
+    import polars as pl
+
+    from mountainash.validation import RowIdentity, ValidationRunner
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"state": ["open", "closed"]}),
+        [
+            ValueRule(
+                id="state_membership",
+                fields=["state"],
+                validator=ValueValidatorKey.MEMBERSHIP,
+                options={"allowed": ["open"]},
+            )
+        ],
+        identity=RowIdentity("row_number"),
+    )
+
+    assert result.check_summaries["status"].item() == "failed"
+    assert result.failure_cases["row_number"].to_list() == [1]

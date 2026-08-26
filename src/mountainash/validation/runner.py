@@ -167,6 +167,10 @@ class ValidationRunner:
             )
         elif identity.kind == "row_number":
             rel = rel.with_row_index(name=ROW_ORDINAL)
+            if self._materialized_value_frame is not None:
+                self._materialized_value_frame = self._materialized_value_frame.with_row_index(
+                    name=ROW_ORDINAL
+                )
 
         summaries: list[CheckSummary] = []
         failure_frames: list[pl.DataFrame] = []

@@ -70,3 +70,11 @@ def test_remote_references_are_denied_at_compile_time(keyword: str) -> None:
     """Validation cannot fetch a declaration-controlled remote document."""
     with pytest.raises(JSONSchemaReferenceDenied):
         compile_json_schema({keyword: "https://example.com/schema.json"})
+
+
+def test_remote_reference_inside_frozen_sequence_is_denied() -> None:
+    """Rule-option freezing must not bypass the local-reference policy."""
+    with pytest.raises(JSONSchemaReferenceDenied):
+        compile_json_schema(
+            {"allOf": ({"$ref": "https://example.com/schema.json"},)}
+        )
