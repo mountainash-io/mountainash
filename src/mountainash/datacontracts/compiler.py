@@ -1,11 +1,9 @@
-"""Compile TypeSpec constraints into validation checks + native contract classes.
+"""Compile immutable TypeSpec validation plans and native contract classes.
 
-compile_datacontract(spec) -> list[ValidationCheck]   (intra-table checks ONLY;
-    TypeSpec.foreign_keys are owned by mountainash.validation.fk.build_fk_checks;
-    TypeSpec.primary_key ALSO emits the composite-uniqueness RelationRule here)
-contract_from_typespec(spec) -> type[BaseDataContract] (the class factory)
-constraint_checks(col, constraints)                    (the ONE constraint->check mapping)
-extra_field_checks(col, field)                         (beyond-Frictionless Field kwargs)
+``compile_datacontract(spec)`` returns a ``CompiledValidationPlan`` containing
+all local checks and frozen FK declarations. ``contract_from_typespec(spec)``
+builds the native declaration class. The standard constraint mapping remains
+private to this compiler so callers cannot bypass frozen-plan compilation.
 """
 from __future__ import annotations
 
