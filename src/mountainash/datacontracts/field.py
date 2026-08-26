@@ -56,8 +56,19 @@ class Field:
         )
 
     def to_checks(self, col_name: str) -> "list[ValidationCheck]":
-        from mountainash.datacontracts.compiler import constraint_checks, extra_field_checks
+        from mountainash.datacontracts.compiler import compile_field_checks
+        from mountainash.typespec.spec import FieldSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.validation.plan import freeze_field_extension
 
-        return constraint_checks(
-            col_name, self.to_constraints(), severity=self.severity
-        ) + extra_field_checks(col_name, self, severity=self.severity)
+        field_spec = FieldSpec(
+            name=col_name,
+            type=UniversalType.ANY,
+            constraints=self.to_constraints(),
+        )
+        return list(
+            compile_field_checks(
+                field_spec,
+                extension=freeze_field_extension(self),
+            )
+        )

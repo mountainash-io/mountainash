@@ -114,8 +114,8 @@ class TestPrimaryKeyUnique:
         spec = TypeSpec(
             fields=[FieldSpec(name="a", type=UniversalType.ANY), FieldSpec(name="b", type=UniversalType.ANY)], primary_key=["a", "b"]
         )
-        checks = compile_datacontract(spec)
-        pk = [c for c in checks if c.id == "primary_key_unique"]
+        plan = compile_datacontract(spec)
+        pk = [c for c in plan.checks if c.id == "primary_key_unique"]
         assert len(pk) == 1 and isinstance(pk[0], RelationRule)
 
         df = pl.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "x"]})
@@ -129,5 +129,7 @@ class TestPrimaryKeyUnique:
         from mountainash.typespec.spec import FieldSpec, TypeSpec
         from mountainash.typespec.universal_types import UniversalType
 
-        checks = compile_datacontract(TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)]))
-        assert "primary_key_unique" not in [c.id for c in checks]
+        plan = compile_datacontract(
+            TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)])
+        )
+        assert "primary_key_unique" not in [c.id for c in plan.checks]

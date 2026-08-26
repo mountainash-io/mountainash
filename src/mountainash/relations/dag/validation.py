@@ -78,12 +78,17 @@ def _run(
         if name not in dag.relations:
             raise KeyError(f"relation {name!r} not in DAG")
         if isinstance(spec, TypeSpec):
-            checks = compile_datacontract(spec)
+            plan = compile_datacontract(spec)
+            checks = list(plan.checks)
             spec_for_identity = spec
             natural_key = None
         elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
-            checks = spec.to_checks()
             spec_for_identity = spec.to_typespec()
+            plan = compile_datacontract(
+                spec_for_identity,
+                extensions=spec._contract_fields,
+            )
+            checks = list(plan.checks)
             natural_key = getattr(spec.Config, "natural_key", None)
         else:
             raise TypeError(

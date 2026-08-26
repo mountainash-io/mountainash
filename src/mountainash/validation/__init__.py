@@ -54,6 +54,7 @@ from mountainash.validation.schema import (
     require_valid_typespec,
     validate_typespec_semantics,
 )
+from mountainash.validation.plan import CompiledValidationPlan
 
 __all__ = [
     "BLOCKING_STATUSES",
@@ -79,6 +80,7 @@ __all__ = [
     "ValidationResult",
     "ValidationRunner",
     "TypeSpecIssue",
+    "CompiledValidationPlan",
     "build_fk_checks",
     "check_kind",
     "classify",

@@ -10,18 +10,25 @@ extra_field_checks(col, field)                         (beyond-Frictionless Fiel
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 import mountainash as ma
 from mountainash.datacontracts.rule import guarded
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.checks import RelationRule, RowRule
+from mountainash.validation.plan import (
+    build_compiled_plan,
+    freeze_field_extension,
+)
+from mountainash.validation.schema import require_valid_typespec
 
 if TYPE_CHECKING:
     from mountainash.datacontracts.contract import BaseDataContract
     from mountainash.datacontracts.field import Field
+    from mountainash.validation.plan import FieldValidationExtension
     from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
     from mountainash.validation.checks import ValidationCheck
+    from mountainash.validation.plan import CompiledValidationPlan
 
 # Truthful Python annotations. DATE/TIME/DATETIME map to their real
 # datetime.* types. DURATION/YEAR/YEARMONTH map to str — not a legacy
@@ -150,13 +157,15 @@ def constraint_checks(
         )
     return checks
 
-
 def extra_field_checks(
-    col: str, f: "Field", *, severity: str = "blocking"
+    col: str,
+    f: Any,
+    *,
+    severity: str = "blocking",
+    nullable: bool | None = None,
 ) -> "list[ValidationCheck]":
-    """Beyond-Frictionless Field kwargs (spec §9.1 third amendment) — each a
-    guarded RowRule; FieldConstraints stays structurally Frictionless."""
-    nullable = f.nullable
+    """Compile native Field additions outside the Frictionless constraint shape."""
+    nullable = f.nullable if nullable is None else nullable
     tests: "list[tuple[str, Any]]" = []
     if f.eq is not None:
         tests.append(("eq", ma.col(col).eq(f.eq)))
@@ -203,19 +212,62 @@ def primary_key_check(spec: "TypeSpec") -> "RelationRule | None":
     return RelationRule(id="primary_key_unique", plan=plan)
 
 
-def compile_datacontract(spec: "TypeSpec") -> "list[ValidationCheck]":
-    """Compile a TypeSpec's field constraints into validation checks."""
+def compile_field_checks(
+    field_spec: "FieldSpec",
+    *,
+    extension: "FieldValidationExtension | None" = None,
+) -> "tuple[ValidationCheck, ...]":
+    """Compile one standard field plus its frozen native additions."""
+    severity = extension.severity if extension is not None else "blocking"
+    checks = constraint_checks(
+        field_spec.name,
+        field_spec.constraints,
+        categories=field_spec.categories,
+        severity=severity,
+    )
+    if extension is not None:
+        checks.extend(
+            extra_field_checks(
+                field_spec.name,
+                extension,
+                severity=extension.severity,
+                nullable=not (
+                    field_spec.constraints.required
+                    if field_spec.constraints is not None
+                    else False
+                ),
+            )
+        )
+    return tuple(checks)
+
+
+def compile_datacontract(
+    spec: "TypeSpec",
+    extensions: "Mapping[str, Field] | None" = None,
+) -> "CompiledValidationPlan":
+    """Compile a semantically valid TypeSpec into one immutable validation plan."""
+    require_valid_typespec(spec)
+    extensions = extensions or {}
+    unknown_extensions = set(extensions) - set(spec.field_names)
+    if unknown_extensions:
+        raise ValueError(
+            f"native extensions name undeclared fields: {sorted(unknown_extensions)!r}"
+        )
+    frozen_extensions = {
+        name: freeze_field_extension(field) for name, field in extensions.items()
+    }
     checks: "list[ValidationCheck]" = []
     for field_spec in spec.fields:
         checks.extend(
-            constraint_checks(
-                field_spec.name, field_spec.constraints, categories=field_spec.categories
+            compile_field_checks(
+                field_spec,
+                extension=frozen_extensions.get(field_spec.name),
             )
         )
     pk_check = primary_key_check(spec)
     if pk_check is not None:
         checks.append(pk_check)
-    return checks
+    return build_compiled_plan(spec, checks)
 
 
 def _field_from_spec(field_spec: "FieldSpec") -> "Field":

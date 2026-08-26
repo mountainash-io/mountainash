@@ -72,7 +72,7 @@ def test_to_checks_matches_compile_datacontract_check_ids():
     from mountainash.datacontracts.compiler import compile_datacontract, contract_from_typespec
 
     spec = UserContract.to_typespec()
-    compiled_ids = {c.id for c in compile_datacontract(spec)}
+    compiled_ids = {c.id for c in compile_datacontract(spec).checks}
     contract_ids = {c.id for c in contract_from_typespec(spec).to_checks()}
     assert compiled_ids == contract_ids
 
