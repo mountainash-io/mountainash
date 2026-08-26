@@ -10,6 +10,8 @@ extra_field_checks(col, field)                         (beyond-Frictionless Fiel
 from __future__ import annotations
 
 import datetime
+import operator
+from functools import reduce
 from typing import TYPE_CHECKING, Any, Mapping
 
 import mountainash as ma
@@ -307,6 +309,28 @@ def primary_key_check(spec: "TypeSpec") -> "RelationRule | None":
     return RelationRule(id="primary_key_unique", plan=plan)
 
 
+def unique_key_checks(spec: "TypeSpec") -> "list[RelationRule]":
+    """Compile each composite unique key with SQL MATCH SIMPLE null semantics."""
+    checks: list[RelationRule] = []
+    for index, key in enumerate(spec.unique_keys or ()):
+        keys = tuple(key)
+
+        def plan(rel: Any, _keys: tuple[str, ...] = keys) -> Any:
+            non_null = reduce(
+                operator.and_,
+                (ma.col(name).is_not_null() for name in _keys),
+            )
+            return (
+                rel.filter(non_null)
+                .group_by(*_keys)
+                .agg(ma.count_records().alias("__ma_n__"))
+                .filter(ma.col("__ma_n__").gt(1))
+            )
+
+        checks.append(RelationRule(id=f"unique_key__{index}", plan=plan))
+    return checks
+
+
 def compile_field_checks(
     field_spec: "FieldSpec",
     *,
@@ -357,6 +381,7 @@ def compile_datacontract(
     pk_check = primary_key_check(spec)
     if pk_check is not None:
         checks.append(pk_check)
+    checks.extend(unique_key_checks(spec))
     return build_compiled_plan(spec, checks)
 
 
