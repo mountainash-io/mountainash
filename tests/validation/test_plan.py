@@ -7,7 +7,7 @@ import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.checks import RowRule
-from mountainash.validation.plan import build_compiled_plan
+from mountainash.validation.plan import build_compiled_plan, thaw_value
 
 
 def test_compiled_plan_copies_mutable_check_declarations():
@@ -33,3 +33,13 @@ def test_compiled_plan_copies_mutable_check_declarations():
     assert compiled_check.metadata["provenance"]["source"] == "initial"
     with pytest.raises(TypeError):
         compiled_check.metadata["new"] = "value"
+
+
+def test_thaw_rejects_unregistered_dataclass_identifiers():
+    with pytest.raises(ValueError, match="unsupported frozen dataclass"):
+        thaw_value(
+            {
+                "__dataclass__": "pathlib:Path",
+                "fields": {},
+            }
+        )

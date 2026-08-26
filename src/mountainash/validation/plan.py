@@ -5,7 +5,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import Enum
 import hashlib
-import importlib
 from types import MappingProxyType
 from typing import Any, TYPE_CHECKING
 
@@ -190,19 +189,61 @@ def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValida
 __all__ = ["CompiledValidationPlan"]
 
 
+def _thaw_dataclass_type(identifier: str) -> type[Any]:
+    """Resolve only the closed TypeSpec declaration vocabulary."""
+    from mountainash.typespec.spec import (
+        FieldConstraints,
+        FieldSpec,
+        ForeignKey,
+        ForeignKeyReference,
+        LabeledValue,
+        TypeSpec,
+    )
+
+    allowed = {
+        f"{cls.__module__}:{cls.__qualname__}": cls
+        for cls in (
+            FieldConstraints,
+            FieldSpec,
+            ForeignKey,
+            ForeignKeyReference,
+            LabeledValue,
+            TypeSpec,
+        )
+    }
+    try:
+        return allowed[identifier]
+    except KeyError:
+        raise ValueError(
+            f"unsupported frozen dataclass declaration {identifier!r}"
+        ) from None
+
+
+def _thaw_enum(module_name: str, class_name: str, value: Any) -> Any:
+    """Resolve only TypeSpec's closed universal-type enum."""
+    from mountainash.typespec.universal_types import UniversalType
+
+    if (module_name, class_name) != (
+        UniversalType.__module__,
+        UniversalType.__qualname__,
+    ):
+        raise ValueError(
+            f"unsupported frozen enum declaration {module_name}:{class_name}"
+        )
+    return UniversalType(value)
+
+
 def thaw_value(value: Any) -> Any:
     """Reconstruct one private mutable declaration copy from a frozen snapshot."""
     if isinstance(value, Mapping) and "__dataclass__" in value:
-        module_name, class_name = value["__dataclass__"].split(":", maxsplit=1)
-        cls = getattr(importlib.import_module(module_name), class_name)
+        cls = _thaw_dataclass_type(value["__dataclass__"])
         return cls(**{name: thaw_value(item) for name, item in value["fields"].items()})
     if (
         isinstance(value, tuple)
         and len(value) == 4
         and value[0] == "__enum__"
     ):
-        cls = getattr(importlib.import_module(value[1]), value[2])
-        return cls(value[3])
+        return _thaw_enum(value[1], value[2], value[3])
     if isinstance(value, Mapping):
         return {thaw_value(key): thaw_value(item) for key, item in value.items()}
     if isinstance(value, tuple):
