@@ -129,3 +129,60 @@ def test_no_evidence_defers_to_execution(monkeypatch):
     rules, errors = build_fk_checks(dag, {"orders": spec})
     assert errors == []
     assert len(rules) == 1  # execution-time guard owns the failure
+
+
+def test_compiled_plan_emits_standalone_self_reference_rule():
+    """A self FK has no DAG dependency and can execute from one plan."""
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.validation.fk import build_standalone_fk_checks
+
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(name="manager_id", type=UniversalType.INTEGER),
+            ],
+            foreign_keys=[
+                ForeignKey(
+                    fields=["manager_id"],
+                    reference=ForeignKeyReference(resource=None, fields=["id"]),
+                )
+            ],
+        )
+    )
+
+    rules = build_standalone_fk_checks(plan, resource_name="employees")
+
+    assert len(rules) == 1
+    assert rules[0].child == rules[0].parent == "employees"
+
+
+def test_compiled_plan_runs_its_standalone_self_reference():
+    """Self-FK failures execute without requiring a synthetic DAG."""
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(name="manager_id", type=UniversalType.INTEGER),
+            ],
+            foreign_keys=[
+                ForeignKey(
+                    fields=["manager_id"],
+                    reference=ForeignKeyReference(resource=None, fields=["id"]),
+                )
+            ],
+        )
+    )
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"id": [1], "manager_id": [99]}),
+        plan=plan,
+        validator_name="employees",
+    )
+
+    assert result.check_summaries.filter(pl.col("check_kind") == "foreign_key")[
+        "status"
+    ].item() == "failed"

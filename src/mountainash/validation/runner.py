@@ -101,6 +101,7 @@ class ValidationRunner:
 
         rel = relation if isinstance(relation, Relation) else as_relation(relation)
         if plan is not None:
+            from mountainash.validation.fk import build_standalone_fk_checks
             from mountainash.validation.plan import thaw_typespec
 
             rel = rel.conform(
@@ -108,7 +109,14 @@ class ValidationRunner:
                 contract=conform_contract,
                 apply_value_transforms=apply_value_transforms,
             )
-            checks = (*plan.checks, *checks)
+            checks = (
+                *plan.checks,
+                *checks,
+                *build_standalone_fk_checks(plan, resource_name=validator_name or "__standalone__"),
+            )
+            if fk_resolver is None:
+                def fk_resolver(_name):
+                    return rel
         # Collapse the (possibly conform-laden) plan to a concrete frame ONCE,
         # up front, so every per-check executor below runs against materialized
         # data. Without this, each check re-collects the whole plan — including
