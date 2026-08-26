@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import Enum
 import hashlib
 import importlib
@@ -141,6 +141,17 @@ def _foreign_key_declaration_key(
 ) -> bytes:
     return _canonical_bytes((child_fields, parent_resource, parent_fields))
 
+def _freeze_check(check: Any) -> Any:
+    """Copy check declarations into the immutable compiled-plan snapshot."""
+    if not is_dataclass(check) or isinstance(check, type):
+        return check
+    replacements = {
+        item.name: freeze_value(getattr(check, item.name))
+        for item in fields(check)
+        if item.name not in {"expr", "plan", "validator"}
+    }
+    return replace(check, **replacements)
+
 
 def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValidationPlan:
     declaration = freeze_typespec(spec)
@@ -168,7 +179,7 @@ def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValida
     )
     fingerprint = hashlib.sha256(_canonical_bytes(declaration)).hexdigest()
     return CompiledValidationPlan(
-        checks=tuple(checks),
+        checks=tuple(_freeze_check(check) for check in checks),
         field_plan=field_plan,
         foreign_keys=foreign_keys,
         declaration=declaration,

@@ -33,6 +33,44 @@ def test_geojson_polygon_requires_closed_linear_rings() -> None:
     ]
 
 
+def test_geojson_value_rule_preserves_structured_diagnostic() -> None:
+    """GeoJSON semantic failures retain their instance path and validator."""
+    import polars as pl
+
+    from mountainash.validation import ValidationRunner, ValueRule, ValueValidatorKey
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame(
+            {
+                "geometry": [
+                    {
+                        "type": "Polygon",
+                        "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1]]],
+                    }
+                ]
+            }
+        ),
+        [
+            ValueRule(
+                id="geometry_geojson",
+                fields=["geometry"],
+                validator=ValueValidatorKey.GEOJSON,
+                options={},
+            )
+        ],
+    )
+
+    assert result.failure_cases.select(
+        "instance_path", "schema_path", "validator"
+    ).to_dicts() == [
+        {
+            "instance_path": "/coordinates/0",
+            "schema_path": None,
+            "validator": "geojson.ring_closed",
+        }
+    ]
+
+
 def test_topology_negative_arc_index_uses_bitwise_complement() -> None:
     """TopoJSON negative arc references select and reverse ``~index``."""
     topology = {

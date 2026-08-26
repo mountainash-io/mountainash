@@ -183,6 +183,46 @@ class TestFKValidation:
         assert result.fk_result.check_summaries.height == 1
         assert result.fk_result.check_summaries.row(0, named=True)["status"] == "passed"
 
+    def test_fk_uses_conformed_resource_columns(self):
+        """FKs run against each resource's logical post-conform schema."""
+        dag = _build_dag(
+            {
+                "customers": pl.DataFrame({"customer_key": ["1"]}),
+                "orders": pl.DataFrame({"order_customer_key": ["1"]}),
+            }
+        )
+        dag.constraint_edges.add(("customers", "orders"))
+        customer_spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="id",
+                    type=UniversalType.INTEGER,
+                    rename_from="customer_key",
+                )
+            ]
+        )
+        order_spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="customer_id",
+                    type=UniversalType.INTEGER,
+                    rename_from="order_customer_key",
+                )
+            ],
+            foreign_keys=[
+                ForeignKey(
+                    fields=["customer_id"],
+                    reference=ForeignKeyReference(resource="customers", fields=["id"]),
+                )
+            ],
+        )
+
+        result = dag.validate(specs={"customers": customer_spec, "orders": order_spec})
+
+        assert result.passes is True
+        assert result.fk_result.passes is True
+        assert result.fk_result.check_summaries.row(0, named=True)["status"] == "passed"
+
     def test_orphan_fk_fails(self):
         dag = self._make_fk_dag(orphans=True)
         specs = self._make_specs()

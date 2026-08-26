@@ -65,6 +65,47 @@ def test_json_schema_value_rule_reports_instance_failure() -> None:
     assert summary["status"] == "failed"
     assert summary["fail_count"] == 1
 
+
+def test_json_schema_value_rule_preserves_all_structured_diagnostics() -> None:
+    """Two nested failures remain two deterministic failure-case records."""
+    import polars as pl
+
+    from mountainash.validation import ValidationRunner, ValueRule, ValueValidatorKey
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"id": "bad", "extra": 1}]}),
+        [
+            ValueRule(
+                id="payload_schema",
+                fields=["payload"],
+                validator=ValueValidatorKey.JSON_SCHEMA,
+                options={
+                    "schema": {
+                        "type": "object",
+                        "properties": {"id": {"type": "integer"}},
+                        "additionalProperties": False,
+                    }
+                },
+            )
+        ],
+    )
+
+    assert result.check_summaries.row(0, named=True)["fail_count"] == 1
+    assert result.failure_cases.select(
+        "instance_path", "schema_path", "validator"
+    ).to_dicts() == [
+        {
+            "instance_path": "",
+            "schema_path": "/additionalProperties",
+            "validator": "additionalProperties",
+        },
+        {
+            "instance_path": "/id",
+            "schema_path": "/properties/id/type",
+            "validator": "type",
+        },
+    ]
+
 @pytest.mark.parametrize("keyword", ["$ref", "$dynamicRef", "$recursiveRef"])
 def test_remote_references_are_denied_at_compile_time(keyword: str) -> None:
     """Validation cannot fetch a declaration-controlled remote document."""

@@ -405,20 +405,91 @@ def _json_schema_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return not compile_json_schema(options["schema"]).validate(value)
 
 
+def _nested_fields(snapshot: Any) -> Sequence[Any]:
+    """Thaw the plan-owned field snapshot only for one logical evaluation."""
+    if not snapshot:
+        return ()
+    from mountainash.validation.plan import thaw_value
+
+    fields = thaw_value(snapshot)
+    return fields if isinstance(fields, list) else ()
+
+
+def _nested_field_valid(value: Any, field: Any) -> bool:
+    """Apply the supported field vocabulary recursively to one logical value."""
+    constraints = field.constraints
+    if value is None:
+        return not (constraints and constraints.required)
+    if not _type_format_execute(
+        value, {"type": field.type.value, "format": field.format}
+    ):
+        return False
+    if constraints:
+        if any(
+            not _range_execute(value, {name: bound})
+            for name, bound in {
+                "minimum": constraints.minimum,
+                "maximum": constraints.maximum,
+                "exclusive_minimum": constraints.exclusive_minimum,
+                "exclusive_maximum": constraints.exclusive_maximum,
+            }.items()
+            if bound is not None
+        ):
+            return False
+        if any(
+            not _length_execute(value, {name: bound})
+            for name, bound in {
+                "min_length": constraints.min_length,
+                "max_length": constraints.max_length,
+            }.items()
+            if bound is not None
+        ):
+            return False
+        if constraints.pattern is not None and not _pattern_execute(
+            value, {"pattern": constraints.pattern}
+        ):
+            return False
+        if constraints.enum is not None and not _membership_execute(
+            value, {"allowed": constraints.enum}
+        ):
+            return False
+        if constraints.json_schema is not None and not _json_schema_execute(
+            value, {"schema": constraints.json_schema}
+        ):
+            return False
+    if field.object_fields and not _nested_object_valid(value, field.object_fields):
+        return False
+    if field.item_object_fields and not _nested_items_valid(
+        value, field.item_object_fields
+    ):
+        return False
+    return True
+
+
+def _nested_object_valid(value: Any, fields: Sequence[Any]) -> bool:
+    return isinstance(value, Mapping) and all(
+        _nested_field_valid(value.get(field.name), field) for field in fields
+    )
+
+
+def _nested_items_valid(value: Any, fields: Sequence[Any]) -> bool:
+    return isinstance(value, (list, tuple)) and all(
+        item is None or _nested_object_valid(item, fields) for item in value
+    )
+
+
 def _nested_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
-    """Validate the structural container boundary for recursive field rules."""
+    """Apply child field declarations recursively to object and array values."""
     if value is INVALID_VALUE:
         return None
     if value is None:
         return True
-    object_fields = options.get("object_fields")
-    item_object_fields = options.get("item_object_fields")
+    object_fields = _nested_fields(options.get("object_fields"))
+    item_object_fields = _nested_fields(options.get("item_object_fields"))
     if object_fields:
-        return isinstance(value, Mapping)
+        return _nested_object_valid(value, object_fields)
     if item_object_fields:
-        return isinstance(value, (list, tuple)) and all(
-            item is None or isinstance(item, Mapping) for item in value
-        )
+        return _nested_items_valid(value, item_object_fields)
     return True
 
 
@@ -452,6 +523,72 @@ def _topojson_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return not validate_topojson(value)
 
 
+
+@dataclass(frozen=True)
+class StructuredValueDiagnostic:
+    """One deterministic nested-value failure suitable for result transport."""
+
+    instance_path: str
+    schema_path: str | None
+    validator: str
+    message: str
+
+
+def structured_value_diagnostics(
+    validator: ValueValidatorKey, value: Any, options: Mapping[str, Any]
+) -> tuple[StructuredValueDiagnostic, ...]:
+    """Return every nested diagnostic for an already-failed logical value."""
+    if value is INVALID_VALUE or value is None:
+        return ()
+    if validator is ValueValidatorKey.JSON_SCHEMA:
+        from mountainash.validation.jsonschema import compile_json_schema
+
+        return tuple(
+            StructuredValueDiagnostic(
+                instance_path=item.instance_path,
+                schema_path=item.schema_path,
+                validator=item.validator,
+                message=item.message,
+            )
+            for item in compile_json_schema(options["schema"]).validate(value)
+        )
+    if validator is ValueValidatorKey.GEOJSON:
+        from mountainash.validation.geospatial import validate_geojson
+
+        return tuple(
+            StructuredValueDiagnostic(
+                instance_path=item.instance_path,
+                schema_path=None,
+                validator=item.validator,
+                message=item.message,
+            )
+            for item in validate_geojson(value)
+        )
+    if validator is ValueValidatorKey.GEOJSON_WINDING:
+        from mountainash.validation.geospatial import validate_geojson_winding
+
+        return tuple(
+            StructuredValueDiagnostic(
+                instance_path=item.instance_path,
+                schema_path=None,
+                validator=item.validator,
+                message=item.message,
+            )
+            for item in validate_geojson_winding(value)
+        )
+    if validator is ValueValidatorKey.TOPOJSON:
+        from mountainash.validation.geospatial import validate_topojson
+
+        return tuple(
+            StructuredValueDiagnostic(
+                instance_path=item.instance_path,
+                schema_path=None,
+                validator=item.validator,
+                message=item.message,
+            )
+            for item in validate_topojson(value)
+        )
+    return ()
 def _unavailable_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     """A named later-unit executor; it cannot be selected by a default path."""
     del value, options

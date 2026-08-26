@@ -138,11 +138,15 @@ class ValidationRunner:
         # ahead of the data-phase failure.
         materialized_source: pl.DataFrame | None = None
         self._materialized_value_frame: pl.DataFrame | None = None
+        self._last_materialized_native: Any = None
         try:
             materialized = rel.collect(unwrap=False, backend=backend)
+            self._last_materialized_native = materialized
             if isinstance(materialized, pl.DataFrame):
                 materialized_source = materialized
                 self._materialized_value_frame = materialized
+            else:
+                materialized_source = as_relation(materialized).to_polars()
             rel = as_relation(materialized)
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
             identity = identity or RowIdentity("none")
@@ -369,7 +373,10 @@ class ValidationRunner:
         failure_sample: int | None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
         from mountainash.validation.result import rows_as_struct_failures
-        from mountainash.validation.value import VALUE_RULE_REGISTRY
+        from mountainash.validation.value import (
+            VALUE_RULE_REGISTRY,
+            structured_value_diagnostics,
+        )
 
         if not check.fields:
             raise ValueError(f"{check.validator.name.lower()} rules require one or more fields")
@@ -384,19 +391,28 @@ class ValidationRunner:
                 f"declared fields {sorted(missing_fields)!r} are absent from materialized data"
             )
         entry = VALUE_RULE_REGISTRY[check.validator]
+        values: list[Any] | None = None
         if check.validator.name == "UNIQUE":
             outcomes = self._unique_value_outcomes(frame, check.fields)
         elif len(check.fields) == 1:
-            outcomes = [
-                entry.execute(value, check.options)
-                for value in frame[check.fields[0]].to_list()
-            ]
+            values = frame[check.fields[0]].to_list()
+            outcomes = [entry.execute(value, check.options) for value in values]
         else:
             raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
+        failed_indices = [index for index, outcome in enumerate(outcomes) if outcome is False]
         failed = [outcome is False for outcome in outcomes]
+        diagnostics = (
+            [
+                structured_value_diagnostics(check.validator, values[index], check.options)
+                for index in failed_indices
+            ]
+            if values is not None
+            else [()] * len(failed_indices)
+        )
         failures = frame.filter(pl.Series(failed))
         if failure_sample is not None:
             failures = failures.head(failure_sample)
+            diagnostics = diagnostics[:failure_sample]
         failure_frame = rows_as_struct_failures(
             failures,
             check_id=check.id,
@@ -410,6 +426,8 @@ class ValidationRunner:
             failure_frame = failure_frame.with_columns(
                 pl.Series("row_number", failures[ROW_ORDINAL])
             )
+        if failure_frame.height:
+            failure_frame = self._attach_value_diagnostics(failure_frame, diagnostics)
         fail_count = sum(failed)
         unknown_count = sum(outcome is None for outcome in outcomes)
         total = frame.height
@@ -439,6 +457,29 @@ class ValidationRunner:
             ),
             failure_frame,
         )
+
+    @staticmethod
+    def _attach_value_diagnostics(
+        failure_frame: pl.DataFrame, diagnostics: Sequence[Sequence[Any]]
+    ) -> pl.DataFrame:
+        """Expand nested diagnostics without changing per-source row counts."""
+        records: list[dict[str, Any]] = []
+        for record, row_diagnostics in zip(
+            failure_frame.to_dicts(), diagnostics, strict=True
+        ):
+            if not row_diagnostics:
+                records.append(record)
+                continue
+            for diagnostic in row_diagnostics:
+                diagnostic_record = dict(record)
+                diagnostic_record.update(
+                    instance_path=diagnostic.instance_path,
+                    schema_path=diagnostic.schema_path,
+                    validator=diagnostic.validator,
+                    message=diagnostic.message,
+                )
+                records.append(diagnostic_record)
+        return pl.DataFrame(records, schema=failure_frame.schema)
 
     @staticmethod
     def _unique_value_outcomes(frame: pl.DataFrame, fields: Sequence[str]) -> list[bool | None]:
@@ -636,6 +677,8 @@ class ValidationRunner:
                     identity_diagnostics={},
                 )
             results[name] = result
+            if self._last_materialized_native is not None:
+                natives[name] = self._last_materialized_native
             if fail_fast and not result.passes:
                 return DAGValidationResult(
                     passes=False,

@@ -15,6 +15,43 @@ from mountainash.validation.value import (
 )
 
 
+def test_nested_object_fields_apply_child_constraints() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="payload",
+                    type=UniversalType.OBJECT,
+                    object_fields=[
+                        FieldSpec(
+                            name="age",
+                            type=UniversalType.INTEGER,
+                            constraints=FieldConstraints(required=True, minimum=0),
+                        )
+                    ],
+                )
+            ]
+        )
+    )
+
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"age": -1}]}),
+        plan=plan,
+    )
+
+    nested_summary = result.check_summaries.filter(
+        pl.col("check_id") == "payload_nested"
+    ).row(0, named=True)
+    assert nested_summary["status"] == "failed"
+
+
 def test_duration_parser_preserves_calendar_months_and_decimal_seconds() -> None:
     """Duration values retain months rather than collapsing to timedeltas."""
     assert parse_duration_value("P1Y2M3DT4H5M6.50S") == DurationValue(
