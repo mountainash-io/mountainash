@@ -37,6 +37,7 @@ def test_topology_negative_arc_index_uses_bitwise_complement() -> None:
     """TopoJSON negative arc references select and reverse ``~index``."""
     topology = {
         "type": "Topology",
+        "transform": {"scale": [1, 1], "translate": [0, 0]},
         "arcs": [
             [[0, 0], [1, 0]],
             [[1, 1], [0, -1]],
@@ -48,4 +49,35 @@ def test_topology_negative_arc_index_uses_bitwise_complement() -> None:
         (0.0, 0.0),
         (1.0, 0.0),
         (1.0, 1.0),
+    ]
+
+
+def test_unquantized_topojson_arcs_are_absolute_positions() -> None:
+    """Only transformed TopoJSON arcs use delta encoding."""
+    topology = {
+        "type": "Topology",
+        "arcs": [[[10, 10], [20, 20]]],
+        "objects": {},
+    }
+
+    assert reconstruct_topojson_line(topology, arc_indexes=[0]) == [
+        (10.0, 10.0),
+        (20.0, 20.0),
+    ]
+
+
+def test_topojson_rejects_out_of_range_object_arc_reference() -> None:
+    """Object geometry arc indexes must resolve against the topology table."""
+    from mountainash.validation.geospatial import validate_topojson
+
+    diagnostics = validate_topojson(
+        {
+            "type": "Topology",
+            "arcs": [[[0, 0], [1, 1]]],
+            "objects": {"bad": {"type": "LineString", "arcs": [99]}},
+        }
+    )
+
+    assert [(item.instance_path, item.validator) for item in diagnostics] == [
+        ("/objects/bad/arcs/0", "topojson.arc_index")
     ]

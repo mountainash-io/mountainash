@@ -150,13 +150,33 @@ def _decoded_arc(topology: Mapping[str, Any], index: int) -> list[tuple[float, .
     arc = arcs[index]
     if not isinstance(arc, Sequence):
         raise ValueError(f"TopoJSON arc {index} must be an array")
+    transform = topology.get("transform")
+    if transform is not None:
+        scale = transform.get("scale") if isinstance(transform, Mapping) else None
+        translate = transform.get("translate") if isinstance(transform, Mapping) else None
+        if not (
+            isinstance(scale, Sequence)
+            and isinstance(translate, Sequence)
+            and len(scale) == len(translate) == 2
+        ):
+            raise ValueError("TopoJSON transform requires two-element scale and translate")
+    else:
+        scale = translate = None
+
     previous: list[float] | None = None
     decoded: list[tuple[float, ...]] = []
     for position in arc:
-        if not isinstance(position, Sequence) or isinstance(position, (str, bytes)) or len(position) < 2:
+        if (
+            not isinstance(position, Sequence)
+            or isinstance(position, (str, bytes))
+            or len(position) < 2
+        ):
             raise ValueError(f"TopoJSON arc {index} contains an invalid position")
         if any(not _is_number(value) for value in position):
             raise ValueError(f"TopoJSON arc {index} contains a non-finite coordinate")
+        if transform is None:
+            decoded.append(tuple(float(value) for value in position))
+            continue
         if previous is None:
             previous = [float(value) for value in position]
         else:
@@ -164,17 +184,13 @@ def _decoded_arc(topology: Mapping[str, Any], index: int) -> list[tuple[float, .
                 previous[dimension] + float(value)
                 for dimension, value in enumerate(position)
             ]
-        decoded.append(tuple(previous))
-    transform = topology.get("transform")
-    if transform is not None:
-        scale = transform.get("scale") if isinstance(transform, Mapping) else None
-        translate = transform.get("translate") if isinstance(transform, Mapping) else None
-        if not (isinstance(scale, Sequence) and isinstance(translate, Sequence) and len(scale) == len(translate) == 2):
-            raise ValueError("TopoJSON transform requires two-element scale and translate")
-        decoded = [
-            (point[0] * float(scale[0]) + float(translate[0]), point[1] * float(scale[1]) + float(translate[1]), *point[2:])
-            for point in decoded
-        ]
+        decoded.append(
+            (
+                previous[0] * float(scale[0]) + float(translate[0]),
+                previous[1] * float(scale[1]) + float(translate[1]),
+                *previous[2:],
+            )
+        )
     return decoded
 
 
@@ -259,6 +275,54 @@ def validate_geojson_winding(value: Any) -> tuple[GeospatialDiagnostic, ...]:
     return tuple(sorted(diagnostics, key=lambda item: (item.instance_path, item.validator)))
 
 
+def _validate_arc_indexes(
+    value: Any,
+    path: str,
+    *,
+    arc_count: int,
+    diagnostics: list[GeospatialDiagnostic],
+) -> None:
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        for index, item in enumerate(value):
+            _validate_arc_indexes(
+                item,
+                f"{path}/{index}",
+                arc_count=arc_count,
+                diagnostics=diagnostics,
+            )
+        return
+    if type(value) is not int:  # noqa: E721 — bool is not an arc index
+        diagnostics.append(_diagnostic(path, "topojson.arc_index", "arc index must be an integer"))
+    elif (value < 0 and ~value >= arc_count) or value >= arc_count:
+        diagnostics.append(_diagnostic(path, "topojson.arc_index", "arc index is out of range"))
+
+
+def _validate_topology_geometry(
+    geometry: Any,
+    path: str,
+    *,
+    arc_count: int,
+    diagnostics: list[GeospatialDiagnostic],
+) -> None:
+    if not isinstance(geometry, Mapping):
+        diagnostics.append(_diagnostic(path, "topojson.geometry", "object member must be a geometry"))
+        return
+    if geometry.get("type") == "GeometryCollection":
+        geometries = geometry.get("geometries")
+        if not isinstance(geometries, Sequence) or isinstance(geometries, (str, bytes)):
+            diagnostics.append(_diagnostic(f"{path}/geometries", "topojson.geometries", "GeometryCollection requires geometries"))
+        else:
+            for index, child in enumerate(geometries):
+                _validate_topology_geometry(child, f"{path}/geometries/{index}", arc_count=arc_count, diagnostics=diagnostics)
+    elif geometry.get("type") in {"LineString", "MultiLineString", "Polygon", "MultiPolygon"}:
+        _validate_arc_indexes(
+            geometry.get("arcs"),
+            f"{path}/arcs",
+            arc_count=arc_count,
+            diagnostics=diagnostics,
+        )
+
+
 def validate_topojson(value: Any) -> tuple[GeospatialDiagnostic, ...]:
     """Validate TopoJSON topology structure before reconstructed geometry use."""
     diagnostics: list[GeospatialDiagnostic] = []
@@ -279,4 +343,12 @@ def validate_topojson(value: Any) -> tuple[GeospatialDiagnostic, ...]:
                     diagnostics.append(_diagnostic(f"/arcs/{index}", "topojson.arc_length", "arc must have at least two positions"))
             except ValueError as error:
                 diagnostics.append(_diagnostic(f"/arcs/{index}", "topojson.arc", str(error)))
+    if isinstance(value.get("objects"), Mapping) and isinstance(arcs, Sequence):
+        for name, geometry in value["objects"].items():
+            _validate_topology_geometry(
+                geometry,
+                f"/objects/{name}",
+                arc_count=len(arcs),
+                diagnostics=diagnostics,
+            )
     return tuple(sorted(diagnostics, key=lambda item: (item.instance_path, item.validator, item.message)))
