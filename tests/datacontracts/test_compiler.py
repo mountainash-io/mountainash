@@ -5,13 +5,14 @@ import pytest
 from mountainash.datacontracts.compiler import compile_datacontract
 from mountainash.exceptions import InvalidTypeSpecSemantics
 from mountainash.typespec import (
+    FieldConstraints,
     FieldSpec,
     ForeignKey,
     ForeignKeyReference,
     TypeSpec,
     UniversalType,
 )
-from mountainash.validation import CompiledValidationPlan
+from mountainash.validation import CompiledValidationPlan, ValueRule, ValueValidatorKey
 
 
 def test_compiled_plan_isolated_from_nested_mutation() -> None:
@@ -88,3 +89,108 @@ def test_compilation_preserves_native_field_extensions_and_severity() -> None:
     }
     assert expected <= set(checks)
     assert {checks[check_id].severity for check_id in expected} == {"warning"}
+
+
+
+def test_every_declared_field_gets_type_format_first() -> None:
+    """Intrinsic format validation exists even without declared constraints."""
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(
+                    name="label",
+                    type=UniversalType.STRING,
+                    constraints=FieldConstraints(min_length=1, max_length=8),
+                ),
+            ]
+        )
+    )
+
+    value_rules = [check for check in plan.checks if isinstance(check, ValueRule)]
+    assert [
+        (check.id, check.validator)
+        for check in value_rules[:2]
+    ] == [
+        ("id_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("label_type_format", ValueValidatorKey.TYPE_FORMAT),
+    ]
+
+
+def test_compiler_maps_each_standard_constraint_once() -> None:
+    """The complete standard vocabulary has one explicit ValueRule owner."""
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="amount",
+                    type=UniversalType.NUMBER,
+                    constraints=FieldConstraints(
+                        required=True,
+                        unique=True,
+                        minimum=1,
+                        maximum=10,
+                        exclusive_minimum=0,
+                        exclusive_maximum=11,
+                        enum=[1, 2],
+                        enum_weights={"1": 1.0},
+                    ),
+                ),
+                FieldSpec(
+                    name="label",
+                    type=UniversalType.STRING,
+                    constraints=FieldConstraints(
+                        min_length=1,
+                        max_length=8,
+                        pattern=r"[a-z]+",
+                        enum=["draft"],
+                    ),
+                    categories=["draft"],
+                ),
+                FieldSpec(
+                    name="payload",
+                    type=UniversalType.OBJECT,
+                    object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                    constraints=FieldConstraints(json_schema={"type": "object"}),
+                ),
+                FieldSpec(
+                    name="items",
+                    type=UniversalType.ARRAY,
+                    item_object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                ),
+                FieldSpec(name="shape", type=UniversalType.GEOJSON),
+            ]
+        )
+    )
+
+    assert [
+        (check.id, check.validator)
+        for check in plan.checks
+        if isinstance(check, ValueRule)
+    ] == [
+        ("amount_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("amount_range", ValueValidatorKey.RANGE),
+        ("amount_enum_membership", ValueValidatorKey.MEMBERSHIP),
+        ("amount_unique", ValueValidatorKey.UNIQUE),
+        ("label_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("label_length", ValueValidatorKey.LENGTH),
+        ("label_pattern", ValueValidatorKey.XSD_PATTERN),
+        ("label_enum_membership", ValueValidatorKey.MEMBERSHIP),
+        ("label_category_membership", ValueValidatorKey.MEMBERSHIP),
+        ("payload_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("payload_json_schema", ValueValidatorKey.JSON_SCHEMA),
+        ("payload_nested", ValueValidatorKey.NESTED),
+        ("items_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("items_nested", ValueValidatorKey.NESTED),
+        ("shape_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("shape_geojson", ValueValidatorKey.GEOJSON),
+        ("shape_geojson_winding", ValueValidatorKey.GEOJSON_WINDING),
+    ]
+    rules = {check.id: check for check in plan.checks}
+    assert rules["amount_range"].options == {
+        "minimum": 1,
+        "maximum": 10,
+        "exclusive_minimum": 0,
+        "exclusive_maximum": 11,
+    }
+    assert rules["amount_enum_membership"].metadata["enum_weights"] == {"1": 1.0}

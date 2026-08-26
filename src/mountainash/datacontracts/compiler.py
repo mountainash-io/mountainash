@@ -14,8 +14,9 @@ from typing import TYPE_CHECKING, Any, Mapping
 
 import mountainash as ma
 from mountainash.datacontracts.rule import guarded
+from mountainash.typespec.spec import FieldConstraints
 from mountainash.typespec.universal_types import UniversalType
-from mountainash.validation.checks import RelationRule, RowRule
+from mountainash.validation.checks import RelationRule, RowRule, ValueRule, ValueValidatorKey
 from mountainash.validation.plan import (
     build_compiled_plan,
     freeze_field_extension,
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     from mountainash.datacontracts.contract import BaseDataContract
     from mountainash.datacontracts.field import Field
     from mountainash.validation.plan import FieldValidationExtension
-    from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
     from mountainash.validation.checks import ValidationCheck
     from mountainash.validation.plan import CompiledValidationPlan
 
@@ -73,86 +74,169 @@ def _category_values(categories: "list[Any] | None") -> "list[Any] | None":
 
 
 def constraint_checks(
-    col: str,
-    constraints: "FieldConstraints | None",
+    field_spec: "FieldSpec",
     *,
-    categories: "list[Any] | None" = None,
     severity: str = "blocking",
 ) -> "list[ValidationCheck]":
-    checks: "list[ValidationCheck]" = []
-    c = constraints
-    nullable = not (c.required if c is not None else False)
+    """Compile the complete standard constraint vocabulary once.
 
-    if c is not None and c.required:
-        checks.append(
-            RowRule(id=f"{col}__not_null", expr=ma.col(col).is_not_null(),
-                    severity=severity, fields=[col])
+    ``required`` remains an expression rule because it operates directly on
+    post-conform nulls. Every other standard field constraint is a logical
+    ``ValueRule`` and therefore shares canonical parsing/equality across
+    backends.
+    """
+    col = field_spec.name
+    constraints = field_spec.constraints
+    checks: "list[ValidationCheck]" = [
+        ValueRule(
+            id=f"{col}_type_format",
+            fields=(col,),
+            validator=ValueValidatorKey.TYPE_FORMAT,
+            options={"type": field_spec.type.value, "format": field_spec.format},
+            severity=severity,
         )
-    if c is not None and c.minimum is not None:
-        checks.append(
-            RowRule(
-                id=f"{col}__ge",
-                expr=_maybe_guard(nullable, col, ma.col(col).ge(c.minimum)),
-                severity=severity,
-                fields=[col],
-            )
-        )
-    if c is not None and c.maximum is not None:
-        checks.append(
-            RowRule(
-                id=f"{col}__le",
-                expr=_maybe_guard(nullable, col, ma.col(col).le(c.maximum)),
-                severity=severity,
-                fields=[col],
-            )
-        )
-    if c is not None and (c.min_length is not None or c.max_length is not None):
-        length = ma.col(col).str.len_chars()
-        test = None
-        if c.min_length is not None:
-            test = length.ge(c.min_length)
-        if c.max_length is not None:
-            upper = length.le(c.max_length)
-            test = upper if test is None else (test & upper)
-        checks.append(
-            RowRule(
-                id=f"{col}__str_length",
-                expr=_maybe_guard(nullable, col, test),
-                severity=severity,
-                fields=[col],
-            )
-        )
-    if c is not None and c.pattern is not None:
-        checks.append(
-            RowRule(
-                id=f"{col}__pattern",
-                expr=_maybe_guard(
-                    nullable, col, ma.col(col).str.regex_contains(c.pattern)
-                ),
-                severity=severity,
-                fields=[col],
-            )
-        )
+    ]
+    constraints = constraints or FieldConstraints()
 
-    enum_values = c.enum if (c is not None and c.enum is not None) else _category_values(categories)
-    if enum_values:
+    if constraints.required:
         checks.append(
             RowRule(
-                id=f"{col}__isin",
-                expr=_maybe_guard(nullable, col, ma.col(col).is_in(enum_values)),
+                id=f"{col}__not_null",
+                expr=ma.col(col).is_not_null(),
                 severity=severity,
                 fields=[col],
             )
         )
-    if c is not None and c.unique:
-        # Row-level via is_duplicated (PR-A prerequisite): every duplicated
-        # row is a failure case, not just a table-level verdict.
+    bounds = {
+        name: value
+        for name, value in {
+            "minimum": constraints.minimum,
+            "maximum": constraints.maximum,
+            "exclusive_minimum": constraints.exclusive_minimum,
+            "exclusive_maximum": constraints.exclusive_maximum,
+        }.items()
+        if value is not None
+    }
+    if bounds:
         checks.append(
-            RowRule(
-                id=f"{col}__unique",
-                expr=ma.col(col).is_duplicated().not_(),
+            ValueRule(
+                id=f"{col}_range",
+                fields=(col,),
+                validator=ValueValidatorKey.RANGE,
+                options=bounds,
                 severity=severity,
-                fields=[col],
+            )
+        )
+    lengths = {
+        name: value
+        for name, value in {
+            "min_length": constraints.min_length,
+            "max_length": constraints.max_length,
+        }.items()
+        if value is not None
+    }
+    if lengths:
+        checks.append(
+            ValueRule(
+                id=f"{col}_length",
+                fields=(col,),
+                validator=ValueValidatorKey.LENGTH,
+                options=lengths,
+                severity=severity,
+            )
+        )
+    if field_spec.type is UniversalType.STRING and field_spec.format != "default":
+        checks.append(
+            ValueRule(
+                id=f"{col}_string_format",
+                fields=(col,),
+                validator=ValueValidatorKey.STRING_FORMAT,
+                options={"format": field_spec.format},
+                severity=severity,
+            )
+        )
+    if constraints.pattern is not None:
+        checks.append(
+            ValueRule(
+                id=f"{col}_pattern",
+                fields=(col,),
+                validator=ValueValidatorKey.XSD_PATTERN,
+                options={"pattern": constraints.pattern},
+                severity=severity,
+            )
+        )
+    if constraints.enum is not None:
+        checks.append(
+            ValueRule(
+                id=f"{col}_enum_membership",
+                fields=(col,),
+                validator=ValueValidatorKey.MEMBERSHIP,
+                options={"allowed": constraints.enum},
+                severity=severity,
+                metadata={"enum_weights": constraints.enum_weights},
+            )
+        )
+    categories = _category_values(field_spec.categories)
+    if categories is not None:
+        checks.append(
+            ValueRule(
+                id=f"{col}_category_membership",
+                fields=(col,),
+                validator=ValueValidatorKey.MEMBERSHIP,
+                options={"allowed": categories},
+                severity=severity,
+            )
+        )
+    if constraints.unique:
+        checks.append(
+            ValueRule(
+                id=f"{col}_unique",
+                fields=(col,),
+                validator=ValueValidatorKey.UNIQUE,
+                options={},
+                severity=severity,
+            )
+        )
+    if constraints.json_schema is not None:
+        checks.append(
+            ValueRule(
+                id=f"{col}_json_schema",
+                fields=(col,),
+                validator=ValueValidatorKey.JSON_SCHEMA,
+                options={"schema": constraints.json_schema},
+                severity=severity,
+            )
+        )
+    if field_spec.object_fields or field_spec.item_object_fields:
+        checks.append(
+            ValueRule(
+                id=f"{col}_nested",
+                fields=(col,),
+                validator=ValueValidatorKey.NESTED,
+                options={
+                    "object_fields": field_spec.object_fields,
+                    "item_object_fields": field_spec.item_object_fields,
+                },
+                severity=severity,
+            )
+        )
+    if field_spec.type is UniversalType.GEOJSON:
+        checks.append(
+            ValueRule(
+                id=f"{col}_geojson",
+                fields=(col,),
+                validator=ValueValidatorKey.GEOJSON,
+                options={"format": field_spec.format},
+                severity=severity,
+            )
+        )
+        checks.append(
+            ValueRule(
+                id=f"{col}_geojson_winding",
+                fields=(col,),
+                validator=ValueValidatorKey.GEOJSON_WINDING,
+                options={},
+                severity=severity,
             )
         )
     return checks
@@ -219,12 +303,7 @@ def compile_field_checks(
 ) -> "tuple[ValidationCheck, ...]":
     """Compile one standard field plus its frozen native additions."""
     severity = extension.severity if extension is not None else "blocking"
-    checks = constraint_checks(
-        field_spec.name,
-        field_spec.constraints,
-        categories=field_spec.categories,
-        severity=severity,
-    )
+    checks = constraint_checks(field_spec, severity=severity)
     if extension is not None:
         checks.extend(
             extra_field_checks(

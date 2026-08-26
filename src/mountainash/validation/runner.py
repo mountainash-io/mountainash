@@ -339,14 +339,24 @@ class ValidationRunner:
         from mountainash.validation.result import rows_as_struct_failures
         from mountainash.validation.value import VALUE_RULE_REGISTRY
 
-        if len(check.fields) != 1:
-            raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
-        field = check.fields[0]
+        if not check.fields:
+            raise ValueError(f"{check.validator.name.lower()} rules require one or more fields")
         frame = rel.to_polars()
-        if field not in frame.columns:
-            raise ValueError(f"declared field {field!r} is absent from materialized data")
+        missing_fields = set(check.fields) - set(frame.columns)
+        if missing_fields:
+            raise ValueError(
+                f"declared fields {sorted(missing_fields)!r} are absent from materialized data"
+            )
         entry = VALUE_RULE_REGISTRY[check.validator]
-        outcomes = [entry.execute(value, check.options) for value in frame[field].to_list()]
+        if check.validator.name == "UNIQUE":
+            outcomes = self._unique_value_outcomes(frame, check.fields)
+        elif len(check.fields) == 1:
+            outcomes = [
+                entry.execute(value, check.options)
+                for value in frame[check.fields[0]].to_list()
+            ]
+        else:
+            raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
         failed = [outcome is False for outcome in outcomes]
         failures = frame.filter(pl.Series(failed))
         if failure_sample is not None:
@@ -385,6 +395,33 @@ class ValidationRunner:
             ),
             failure_frame,
         )
+
+    @staticmethod
+    def _unique_value_outcomes(frame: pl.DataFrame, fields: Sequence[str]) -> list[bool | None]:
+        """Return one logical uniqueness outcome per source row.
+
+        Null tuples pass under Frictionless field-unique semantics. A repeated
+        non-null key marks every member of that duplicate group as failed.
+        """
+        from mountainash.validation.value import INVALID_VALUE, canonical_value_key
+
+        outcomes: list[bool | None] = [True] * frame.height
+        first_index_by_key: dict[tuple[Any, ...], int] = {}
+        values_by_field = [frame[field].to_list() for field in fields]
+        for row_index, values in enumerate(zip(*values_by_field, strict=True)):
+            if any(value is INVALID_VALUE for value in values):
+                outcomes[row_index] = None
+                continue
+            if any(value is None for value in values):
+                continue
+            key = tuple(canonical_value_key(value) for value in values)
+            first_index = first_index_by_key.get(key)
+            if first_index is None:
+                first_index_by_key[key] = row_index
+            else:
+                outcomes[first_index] = False
+                outcomes[row_index] = False
+        return outcomes
 
     # -- ScalarRule ---------------------------------------------------------
 

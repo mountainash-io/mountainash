@@ -269,6 +269,118 @@ def _membership_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     }
 
 
+def _type_format_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    type_name = options.get("type")
+    if type_name == "any":
+        return True
+    if type_name == "string":
+        return isinstance(value, str)
+    if type_name == "integer":
+        return type(value) is int
+    if type_name == "number":
+        return type(value) in {int, float} or isinstance(value, Decimal)
+    if type_name == "boolean":
+        return type(value) is bool
+    if type_name in {"list", "array"}:
+        return isinstance(value, (list, tuple))
+    if type_name == "object":
+        return isinstance(value, Mapping)
+    if type_name == "duration":
+        return parse_duration_value(value) is not INVALID_VALUE
+    if type_name == "year":
+        return parse_partial_date_value(value, kind="year") is not INVALID_VALUE
+    if type_name == "yearmonth":
+        return parse_partial_date_value(value, kind="yearmonth") is not INVALID_VALUE
+    if type_name == "geojson":
+        return isinstance(value, Mapping)
+    if type_name == "geopoint":
+        return isinstance(value, (list, tuple)) and len(value) in {2, 3}
+    from datetime import date, datetime, time
+
+    if type_name == "date":
+        return isinstance(value, date) and not isinstance(value, datetime)
+    if type_name == "time":
+        return isinstance(value, time)
+    if type_name == "datetime":
+        return isinstance(value, datetime)
+    return False
+
+
+def _length_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    try:
+        length = len(value)
+    except TypeError:
+        return False
+    minimum = options.get("min_length")
+    maximum = options.get("max_length")
+    return (minimum is None or length >= minimum) and (maximum is None or length <= maximum)
+
+
+def _range_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    try:
+        return (
+            (options.get("minimum") is None or value >= options["minimum"])
+            and (options.get("maximum") is None or value <= options["maximum"])
+            and (
+                options.get("exclusive_minimum") is None
+                or value > options["exclusive_minimum"]
+            )
+            and (
+                options.get("exclusive_maximum") is None
+                or value < options["exclusive_maximum"]
+            )
+        )
+    except TypeError:
+        return False
+
+
+def _string_format_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    if not isinstance(value, str):
+        return False
+    format_name = options.get("format")
+    if format_name in {None, "default"}:
+        return True
+    if format_name == "email":
+        return re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value) is not None
+    if format_name == "uuid":
+        from uuid import UUID
+
+        try:
+            UUID(value)
+        except ValueError:
+            return False
+        return True
+    if format_name == "uri":
+        from urllib.parse import urlparse
+
+        return bool(urlparse(value).scheme)
+    return False
+
+
+def _pattern_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    return isinstance(value, str) and re.search(options["pattern"], value) is not None
+
+
 def _unavailable_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     """A named later-unit executor; it cannot be selected by a default path."""
     del value, options
@@ -286,11 +398,11 @@ def _entry(
 
 VALUE_RULE_REGISTRY = MappingProxyType(
     {
-        ValueValidatorKey.TYPE_FORMAT: _entry(_mapping_only, _unavailable_execute, "type", "column"),
-        ValueValidatorKey.LENGTH: _entry(_length_options, _unavailable_execute, "length", "row"),
-        ValueValidatorKey.RANGE: _entry(_range_options, _unavailable_execute, "range", "row"),
-        ValueValidatorKey.STRING_FORMAT: _entry(_mapping_only, _unavailable_execute, "format", "row"),
-        ValueValidatorKey.XSD_PATTERN: _entry(_pattern_options, _unavailable_execute, "pattern", "row"),
+        ValueValidatorKey.TYPE_FORMAT: _entry(_mapping_only, _type_format_execute, "type", "column"),
+        ValueValidatorKey.LENGTH: _entry(_length_options, _length_execute, "length", "row"),
+        ValueValidatorKey.RANGE: _entry(_range_options, _range_execute, "range", "row"),
+        ValueValidatorKey.STRING_FORMAT: _entry(_mapping_only, _string_format_execute, "format", "row"),
+        ValueValidatorKey.XSD_PATTERN: _entry(_pattern_options, _pattern_execute, "pattern", "row"),
         ValueValidatorKey.MEMBERSHIP: _entry(_membership_options, _membership_execute, "membership", "row"),
         ValueValidatorKey.UNIQUE: _entry(_mapping_only, _unavailable_execute, "unique", "column"),
         ValueValidatorKey.NESTED: _entry(_mapping_only, _unavailable_execute, "nested", "row"),
