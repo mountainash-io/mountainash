@@ -193,4 +193,5 @@ def test_compiler_maps_each_standard_constraint_once() -> None:
         "exclusive_minimum": 0,
         "exclusive_maximum": 11,
     }
+    assert rules["shape_geojson_winding"].severity == "warning"
     assert rules["amount_enum_membership"].metadata["enum_weights"] == {"1": 1.0}

@@ -397,6 +397,36 @@ def _json_schema_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return not compile_json_schema(options["schema"]).validate(value)
 
 
+def _geojson_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    from mountainash.validation.geospatial import validate_geojson
+
+    return not validate_geojson(value)
+
+
+def _geojson_winding_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    from mountainash.validation.geospatial import validate_geojson_winding
+
+    return not validate_geojson_winding(value)
+
+
+def _topojson_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
+    if value is INVALID_VALUE:
+        return None
+    if value is None:
+        return True
+    from mountainash.validation.geospatial import validate_topojson
+
+    return not validate_topojson(value)
+
+
 def _unavailable_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     """A named later-unit executor; it cannot be selected by a default path."""
     del value, options
@@ -423,9 +453,9 @@ VALUE_RULE_REGISTRY = MappingProxyType(
         ValueValidatorKey.UNIQUE: _entry(_mapping_only, _unavailable_execute, "unique", "column"),
         ValueValidatorKey.NESTED: _entry(_mapping_only, _unavailable_execute, "nested", "row"),
         ValueValidatorKey.JSON_SCHEMA: _entry(_json_schema_options, _json_schema_execute, "json_schema", "row"),
-        ValueValidatorKey.GEOJSON: _entry(_mapping_only, _unavailable_execute, "geojson", "row"),
-        ValueValidatorKey.GEOJSON_WINDING: _entry(_mapping_only, _unavailable_execute, "geojson_winding", "row"),
-        ValueValidatorKey.TOPOJSON: _entry(_mapping_only, _unavailable_execute, "topojson", "row"),
+        ValueValidatorKey.GEOJSON: _entry(_mapping_only, _geojson_execute, "geojson", "row"),
+        ValueValidatorKey.GEOJSON_WINDING: _entry(_mapping_only, _geojson_winding_execute, "geojson_winding", "row"),
+        ValueValidatorKey.TOPOJSON: _entry(_mapping_only, _topojson_execute, "topojson", "row"),
     }
 )
 

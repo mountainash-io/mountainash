@@ -221,24 +221,35 @@ def constraint_checks(
             )
         )
     if field_spec.type is UniversalType.GEOJSON:
-        checks.append(
-            ValueRule(
-                id=f"{col}_geojson",
-                fields=(col,),
-                validator=ValueValidatorKey.GEOJSON,
-                options={"format": field_spec.format},
-                severity=severity,
+        if field_spec.format == "topojson":
+            checks.append(
+                ValueRule(
+                    id=f"{col}_topojson",
+                    fields=(col,),
+                    validator=ValueValidatorKey.TOPOJSON,
+                    options={},
+                    severity=severity,
+                )
             )
-        )
-        checks.append(
-            ValueRule(
-                id=f"{col}_geojson_winding",
-                fields=(col,),
-                validator=ValueValidatorKey.GEOJSON_WINDING,
-                options={},
-                severity=severity,
+        else:
+            checks.append(
+                ValueRule(
+                    id=f"{col}_geojson",
+                    fields=(col,),
+                    validator=ValueValidatorKey.GEOJSON,
+                    options={"format": field_spec.format},
+                    severity=severity,
+                )
             )
-        )
+            checks.append(
+                ValueRule(
+                    id=f"{col}_geojson_winding",
+                    fields=(col,),
+                    validator=ValueValidatorKey.GEOJSON_WINDING,
+                    options={},
+                    severity="warning",
+                )
+            )
     return checks
 
 def extra_field_checks(
