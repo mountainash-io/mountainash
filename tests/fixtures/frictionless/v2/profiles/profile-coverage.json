@@ -803,11 +803,7 @@
         "status": "implemented"
       },
       "execution": {
-        "status": "deferred",
-        "reason": "Unit D owns data-backed resource execution.",
-        "since": "2026-08-20",
-        "owner_unit": "D",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-d"
+        "status": "implemented"
       }
     },
     {
@@ -2237,6 +2233,18 @@
     },
     {
       "capability": "x-mountainash:validation.rule.scalar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.value",
       "storage": {
         "status": "implemented"
       },
