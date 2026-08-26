@@ -173,6 +173,7 @@ class ValidationRunner:
             "row": self._run_row_rule,
             "scalar": self._run_scalar_rule,
             "relation": self._run_relation_rule,
+            "value": self._run_value_rule,
             "foreign_key": functools.partial(
                 self._run_foreign_key_rule, fk_resolver=fk_resolver
             ),
@@ -325,6 +326,65 @@ class ValidationRunner:
         if "row" in out.columns:
             keep.append("row")
         return out.select(keep)
+
+    # -- ValueRule ----------------------------------------------------------
+
+    def _run_value_rule(
+        self,
+        rel: "Relation",
+        check: Any,
+        identity: RowIdentity,
+        failure_sample: int | None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        from mountainash.validation.result import rows_as_struct_failures
+        from mountainash.validation.value import VALUE_RULE_REGISTRY
+
+        if len(check.fields) != 1:
+            raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
+        field = check.fields[0]
+        frame = rel.to_polars()
+        if field not in frame.columns:
+            raise ValueError(f"declared field {field!r} is absent from materialized data")
+        entry = VALUE_RULE_REGISTRY[check.validator]
+        outcomes = [entry.execute(value, check.options) for value in frame[field].to_list()]
+        failed = [outcome is False for outcome in outcomes]
+        failures = frame.filter(pl.Series(failed))
+        if failure_sample is not None:
+            failures = failures.head(failure_sample)
+        failure_frame = rows_as_struct_failures(
+            failures,
+            check_id=check.id,
+            check_kind="value",
+        )
+        fail_count = sum(failed)
+        unknown_count = sum(outcome is None for outcome in outcomes)
+        total = frame.height
+        pass_count = total - fail_count - unknown_count
+        passing_count = pass_count + unknown_count
+        status = (
+            "passed"
+            if total == 0
+            or (
+                passing_count / total >= check.mostly
+                if check.mostly is not None
+                else fail_count == 0 and unknown_count == 0
+            )
+            else "failed"
+        )
+        return (
+            CheckSummary(
+                check_id=check.id,
+                check_kind="value",
+                status=status,
+                pass_count=pass_count,
+                fail_count=fail_count,
+                unknown_count=unknown_count,
+                total_rows=total,
+                mostly=check.mostly,
+                severity=check.severity,
+            ),
+            failure_frame,
+        )
 
     # -- ScalarRule ---------------------------------------------------------
 
