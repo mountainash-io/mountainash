@@ -100,3 +100,38 @@ def test_membership_rule_compares_structured_logical_values() -> None:
     summary = result.check_summaries.row(0, named=True)
     assert summary["status"] == "failed"
     assert summary["fail_count"] == 1
+
+
+def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
+    """Plan execution conforms before intrinsic logical-value validation."""
+    import polars as pl
+
+    import mountainash as ma
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.relations import Relation
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    relation = ma.relation(pl.DataFrame({"old": ["1", "2"]}))
+    collect_calls = 0
+    original_collect = Relation.collect
+
+    def counted_collect(self, *args, **kwargs):
+        nonlocal collect_calls
+        collect_calls += 1
+        return original_collect(self, *args, **kwargs)
+
+    monkeypatch.setattr(Relation, "collect", counted_collect)
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="id", rename_from="old", type=UniversalType.INTEGER),
+            ]
+        )
+    )
+
+    result = ValidationRunner().validate_relation(relation, plan=plan)
+
+    assert result.passes
+    assert result._materialized_source.to_dict(as_series=False) == {"id": [1, 2]}
+    assert collect_calls == 1

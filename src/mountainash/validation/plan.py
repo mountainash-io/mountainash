@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 import hashlib
+import importlib
 from types import MappingProxyType
 from typing import Any, TYPE_CHECKING
 
@@ -176,3 +177,34 @@ def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValida
 
 
 __all__ = ["CompiledValidationPlan"]
+
+
+def thaw_value(value: Any) -> Any:
+    """Reconstruct one private mutable declaration copy from a frozen snapshot."""
+    if isinstance(value, Mapping) and "__dataclass__" in value:
+        module_name, class_name = value["__dataclass__"].split(":", maxsplit=1)
+        cls = getattr(importlib.import_module(module_name), class_name)
+        return cls(**{name: thaw_value(item) for name, item in value["fields"].items()})
+    if (
+        isinstance(value, tuple)
+        and len(value) == 4
+        and value[0] == "__enum__"
+    ):
+        cls = getattr(importlib.import_module(value[1]), value[2])
+        return cls(value[3])
+    if isinstance(value, Mapping):
+        return {thaw_value(key): thaw_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [thaw_value(item) for item in value]
+    if isinstance(value, frozenset):
+        return {thaw_value(item) for item in value}
+    return value
+
+
+def thaw_typespec(plan: CompiledValidationPlan) -> TypeSpec:
+    """Build a fresh TypeSpec for runner-owned conform from a compiled plan."""
+    from mountainash.typespec.spec import TypeSpec
+
+    thawed = thaw_value(plan.declaration)
+    assert isinstance(thawed, TypeSpec)
+    return thawed

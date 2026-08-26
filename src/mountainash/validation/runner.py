@@ -14,7 +14,7 @@ from __future__ import annotations
 import functools
 import operator
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import polars as pl
 
@@ -81,8 +81,11 @@ class ValidationRunner:
     def validate_relation(
         self,
         relation: "Relation | Any",
-        checks: Sequence[Any],
+        checks: Sequence[Any] = (),
         *,
+        plan: Any = None,
+        apply_value_transforms: bool = True,
+        conform_contract: "str | Mapping[str, str] | None" = None,
         identity: RowIdentity | None = None,
         allow_imperfect_key: bool = False,
         context: dict[str, Any] | None = None,
@@ -97,6 +100,15 @@ class ValidationRunner:
         from mountainash.relations import relation as as_relation
 
         rel = relation if isinstance(relation, Relation) else as_relation(relation)
+        if plan is not None:
+            from mountainash.validation.plan import thaw_typespec
+
+            rel = rel.conform(
+                thaw_typespec(plan),
+                contract=conform_contract,
+                apply_value_transforms=apply_value_transforms,
+            )
+            checks = (*plan.checks, *checks)
         # Collapse the (possibly conform-laden) plan to a concrete frame ONCE,
         # up front, so every per-check executor below runs against materialized
         # data. Without this, each check re-collects the whole plan — including
@@ -115,8 +127,14 @@ class ValidationRunner:
         # of the runner. ``check_kind`` is evaluated per check first, so a
         # genuine declaration error (``UnknownCheckTypeError``) still raises,
         # ahead of the data-phase failure.
+        materialized_source: pl.DataFrame | None = None
+        self._materialized_value_frame: pl.DataFrame | None = None
         try:
-            rel = as_relation(rel.collect(unwrap=False, backend=backend))
+            materialized = rel.collect(unwrap=False, backend=backend)
+            if isinstance(materialized, pl.DataFrame):
+                materialized_source = materialized
+                self._materialized_value_frame = materialized
+            rel = as_relation(materialized)
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
             identity = identity or RowIdentity("none")
             summaries = [
@@ -164,6 +182,7 @@ class ValidationRunner:
             failure_cases=combine_failure_frames(failure_frames, identity),
             identity=identity,
             identity_diagnostics=identity_diagnostics,
+            _materialized_source=materialized_source,
         )
 
     # -- dispatch -----------------------------------------------------------
@@ -341,7 +360,11 @@ class ValidationRunner:
 
         if not check.fields:
             raise ValueError(f"{check.validator.name.lower()} rules require one or more fields")
-        frame = rel.to_polars()
+        frame = (
+            self._materialized_value_frame
+            if self._materialized_value_frame is not None
+            else rel.to_polars()
+        )
         missing_fields = set(check.fields) - set(frame.columns)
         if missing_fields:
             raise ValueError(
