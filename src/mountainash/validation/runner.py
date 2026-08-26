@@ -389,6 +389,14 @@ class ValidationRunner:
             check_id=check.id,
             check_kind="value",
         )
+        if failure_frame.height and identity.kind == "keyed":
+            failure_frame = failure_frame.with_columns(
+                [pl.Series(name, failures[name]) for name in identity.key_fields]
+            )
+        elif failure_frame.height and identity.kind == "row_number":
+            failure_frame = failure_frame.with_columns(
+                pl.Series("row_number", failures[ROW_ORDINAL])
+            )
         fail_count = sum(failed)
         unknown_count = sum(outcome is None for outcome in outcomes)
         total = frame.height
