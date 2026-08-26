@@ -374,6 +374,7 @@ class ValidationRunner:
     ) -> "tuple[CheckSummary, pl.DataFrame]":
         from mountainash.validation.result import rows_as_struct_failures
         from mountainash.validation.value import (
+            INVALID_VALUE,
             VALUE_RULE_REGISTRY,
             structured_value_diagnostics,
         )
@@ -392,18 +393,46 @@ class ValidationRunner:
             )
         entry = VALUE_RULE_REGISTRY[check.validator]
         values: list[Any] | None = None
+        diagnostics_by_source: list[Sequence[Any]] | None = None
         if check.validator.name == "UNIQUE":
             outcomes = self._unique_value_outcomes(frame, check.fields)
         elif len(check.fields) == 1:
             values = frame[check.fields[0]].to_list()
-            outcomes = [entry.execute(value, check.options) for value in values]
+            if check.validator.name in {
+                "JSON_SCHEMA",
+                "GEOJSON",
+                "GEOJSON_WINDING",
+                "TOPOJSON",
+            }:
+                diagnostics_by_source = [
+                    structured_value_diagnostics(check.validator, value, check.options)
+                    for value in values
+                ]
+                outcomes = [
+                    None
+                    if value is INVALID_VALUE
+                    else True
+                    if value is None
+                    else not diagnostics
+                    for value, diagnostics in zip(
+                        values, diagnostics_by_source, strict=True
+                    )
+                ]
+            else:
+                outcomes = [entry.execute(value, check.options) for value in values]
         else:
             raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
         failed_indices = [index for index, outcome in enumerate(outcomes) if outcome is False]
         failed = [outcome is False for outcome in outcomes]
         diagnostics = (
             [
-                structured_value_diagnostics(check.validator, values[index], check.options)
+                (
+                    diagnostics_by_source[index]
+                    if diagnostics_by_source is not None
+                    else structured_value_diagnostics(
+                        check.validator, values[index], check.options
+                    )
+                )
                 for index in failed_indices
             ]
             if values is not None
