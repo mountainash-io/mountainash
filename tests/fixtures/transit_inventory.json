@@ -22,17 +22,6 @@
     "legacy_unwrapped": true
   },
   {
-    "module": "mountainash.core.limitations",
-    "owner": "enrich_materialization",
-    "callee": "execute",
-    "fingerprint": "47c785b72eb33dc8",
-    "boundary_key": "IBIS_INTERNAL_EXECUTE",
-    "transit_class": "INTERNAL_EXECUTION_TRANSIT",
-    "reason": "Ibis Table.execute() on a successful result converts it to pandas before relation wrapping (spec 4.1) -- the documented root-cause bug this migration removes.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
     "module": "mountainash.datacontracts.result_processor",
     "owner": "ValidationResultProcessor._normalise_rule_metadata",
     "callee": "to_polars",
@@ -669,6 +658,72 @@
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
     "legacy_unwrapped": true
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "diagnostic_polars_view",
+    "callee": "collect",
+    "fingerprint": "3e7ac7b6af0de5cd",
+    "boundary_key": "NATIVE_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "diagnostic_polars_view",
+    "callee": "from_pandas",
+    "fingerprint": "c84bd56d742f72bd",
+    "boundary_key": "PYDATA_EXPLICIT_PANDAS_INPUT",
+    "transit_class": "EXPLICIT_PANDAS_INPUT",
+    "reason": "pl.from_pandas(): a declared pandas-selected source conversion.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": true
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "diagnostic_polars_view",
+    "callee": "to_arrow",
+    "fingerprint": "69fb044787986e11",
+    "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "A declared PyArrow-producing terminal; never pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": true
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "diagnostic_polars_view",
+    "callee": "to_pyarrow",
+    "fingerprint": "a719947fa3b2c08f",
+    "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "A declared PyArrow-producing terminal; never pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": true
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "materialize_native",
+    "callee": "collect",
+    "fingerprint": "3e7ac7b6af0de5cd",
+    "boundary_key": "NATIVE_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "materialize_native",
+    "callee": "collect",
+    "fingerprint": "6a904a750d9adf41",
+    "boundary_key": "NATIVE_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
