@@ -5,7 +5,7 @@ from __future__ import annotations
 def test_facade_reexports_are_same_objects():
     from mountainash import exceptions as exc
 
-    from mountainash.core.errors import MountainashError
+    from mountainash.core.errors import BackendConversionError, MountainashError
     from mountainash.conform.errors import ConformError, MissingFieldsError
     from mountainash.relations.dag.errors import (
         DAGError, RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat,
@@ -17,6 +17,7 @@ def test_facade_reexports_are_same_objects():
 
     expected = {
         "MountainashError": MountainashError,
+        "BackendConversionError": BackendConversionError,
         "ConformError": ConformError,
         "MissingFieldsError": MissingFieldsError,
         "DAGError": DAGError,
