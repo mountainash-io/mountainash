@@ -564,7 +564,7 @@
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_narwhals_dialect",
     "callee": "collect",
-    "fingerprint": "a2b473a2571f4ea4",
+    "fingerprint": "d8d958154920284a",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
