@@ -36,7 +36,7 @@ POLARS_AND_IBIS = [
     pytest.param("narwhals-pandas", marks=xfail_divergence("NW-DT-05", backend="narwhals-pandas")),
     "ibis-polars",
     "ibis-duckdb",
-    "ibis-sqlite",
+    pytest.param("ibis-sqlite", marks=xfail_divergence("IB-DT-17", backend="ibis-sqlite")),
 ]
 
 POLARS_IBIS_DUCKDB_SQLITE = [
