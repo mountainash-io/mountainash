@@ -361,3 +361,264 @@ def explicit_pandas_egress(native: NativeExecutionValue) -> Any:
         route="explicit_pandas_egress",
         reason="no declared pandas conversion route for this native type",
     )
+
+
+def coerce_to_polars(target: Any, value: Any) -> Any:
+    """Coerce *value* to match a Polars *target* for cross-type join/union
+    operand coercion (spec 9). Returns a lazy Polars frame -- the shape
+    :class:`UnifiedRelationVisitor` expects mid-compile, unlike
+    :func:`explicit_polars_egress`'s eager terminal result.
+
+    No pandas round-trip fallback: a Narwhals value uses its own declared
+    ``to_polars()``; an unrecognized value raises ``BackendConversionError``.
+    """
+    import polars as pl
+
+    from mountainash.core.types import (
+        is_ibis_table,
+        is_narwhals_dataframe,
+        is_narwhals_lazyframe,
+        is_pandas_dataframe,
+        is_polars_dataframe,
+        is_polars_lazyframe,
+        is_pyarrow_table,
+    )
+
+    if is_polars_lazyframe(value):
+        return value
+    if is_polars_dataframe(value):
+        return value.lazy()
+    if is_pandas_dataframe(value):
+        converted = cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.PANDAS_TO_POLARS_EGRESS, pl.from_pandas, value),
+        )
+        return converted.lazy()
+    if is_pyarrow_table(value):
+        converted = cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, value),
+        )
+        return converted.lazy()
+    if isinstance(value, dict):
+        return pl.DataFrame(value).lazy()
+    if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
+        return pl.DataFrame(value).lazy()
+    if is_ibis_table(value):
+        arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
+        converted = cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, arrow),
+        )
+        return converted.lazy()
+    if is_narwhals_lazyframe(value):
+        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+    if is_narwhals_dataframe(value):
+        converted = cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.NARWHALS_TO_POLARS_EGRESS, value.to_polars),
+        )
+        return converted.lazy()
+
+    raise BackendConversionError(
+        f"Cannot coerce {type(value).__name__} to Polars for cross-type join.",
+        boundary_key=None,
+        source_family=None,
+        source_dialect=None,
+        destination_family="polars",
+        destination_dialect="polars",
+        source_type=type(value).__name__,
+        route="coerce_to_polars",
+        reason="no declared Polars conversion route for this cross-type-join operand",
+    )
+
+
+def coerce_to_narwhals(target: Any, value: Any) -> Any:
+    """Coerce *value* to match a Narwhals *target* for cross-type join/union
+    operand coercion (spec 9), then delegate exact dialect/eager-shape
+    matching to :func:`coerce_narwhals_dialect`.
+
+    A column mapping (dict) or row mapping (sequence of dicts) builds a
+    destination-native Narwhals frame directly via ``nw.from_dict()``/
+    ``nw.from_dicts(backend=...)`` -- never a ``pd.DataFrame()`` intermediate.
+    """
+    import narwhals as nw
+
+    from mountainash.core.types import is_ibis_table, is_polars_lazyframe
+
+    source_type = type(value).__name__
+    target_namespace = nw.get_native_namespace(target)
+    try:
+        if isinstance(value, dict):
+            converted = transit_call(
+                BoundaryKey.NARWHALS_FROM_DICT_ADAPTER,
+                nw.from_dict,
+                value,
+                backend=target_namespace,
+            )
+        elif isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
+            converted = transit_call(
+                BoundaryKey.NARWHALS_FROM_DICTS_ADAPTER,
+                nw.from_dicts,
+                list(value),
+                backend=target_namespace,
+            )
+        elif is_polars_lazyframe(value):
+            collected = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+            converted = nw.from_native(collected, eager_only=True)
+        elif is_ibis_table(value):
+            arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
+            converted = nw.from_native(arrow, eager_only=True)
+        else:
+            converted = nw.from_native(value, eager_only=True)
+    except Exception as exc:
+        raise BackendConversionError(
+            f"Cannot coerce {source_type} to Narwhals for cross-type join: {exc}",
+            boundary_key=None,
+            source_family=None,
+            source_dialect=None,
+            destination_family="narwhals",
+            destination_dialect=None,
+            source_type=source_type,
+            route="coerce_to_narwhals",
+            reason=str(exc),
+        ) from exc
+    return coerce_narwhals_dialect(target, converted)
+
+
+def coerce_to_ibis(target: Any, value: Any) -> Any:
+    """Coerce *value* to match an Ibis *target* for cross-type join/union
+    operand coercion (spec 9).
+
+    A column mapping (dict) or row mapping (sequence of dicts) converts to
+    Arrow first (``pa.table()``/``pa.Table.from_pylist()``), then
+    ``ibis.memtable()`` -- Ibis's own ``memtable()`` constructs pandas
+    internally from a raw dict/list (spec 4.4's probe), so the fix routes
+    through Arrow before Ibis ever sees the mapping.
+    """
+    from mountainash.core.types import is_narwhals_lazyframe
+
+    source_type = type(value).__name__
+    try:
+        import ibis
+
+        from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import (
+            ensure_sqlite_nat_adapter,
+        )
+
+        ensure_sqlite_nat_adapter()
+        if isinstance(value, dict):
+            import pyarrow as pa
+
+            arrow = transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, pa.table(value))
+            return arrow
+        if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
+            import pyarrow as pa
+
+            arrow_table = pa.Table.from_pylist(list(value))
+            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow_table)
+        if is_narwhals_lazyframe(value):
+            eager = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+            arrow = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, eager.to_arrow)
+            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
+        return ibis.memtable(value)
+    except Exception as exc:
+        raise BackendConversionError(
+            f"Cannot coerce {source_type} to Ibis for cross-type join: {exc}",
+            boundary_key=None,
+            source_family=None,
+            source_dialect=None,
+            destination_family="ibis",
+            destination_dialect=None,
+            source_type=source_type,
+            route="coerce_to_ibis",
+            reason=str(exc),
+        ) from exc
+
+
+_NW_SUPPORTED_DIALECT_IMPLEMENTATIONS = frozenset({"pandas", "polars", "pyarrow"})
+
+
+def coerce_narwhals_dialect(target: Any, value: Any) -> Any:
+    """Coerce *value* to match *target*'s narwhals native dialect and
+    eager/lazy shape when both are narwhals frames (spec 9.1); a no-op
+    otherwise, or when both already share the exact same dialect and shape.
+
+    Each destination method is a separate, literal ``transit_call()`` site
+    (never a computed ``getattr(value, method_name)``, which the closed
+    census cannot verify -- spec 13.1).
+    """
+    from mountainash.core.backend_detection import narwhals_dialect
+    from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
+
+    if not (
+        (is_narwhals_dataframe(target) or is_narwhals_lazyframe(target))
+        and (is_narwhals_dataframe(value) or is_narwhals_lazyframe(value))
+    ):
+        return value
+
+    target_dialect = narwhals_dialect(target)
+    value_dialect = narwhals_dialect(value)
+    target_is_lazy = is_narwhals_lazyframe(target)
+    value_is_lazy = is_narwhals_lazyframe(value)
+    if target_dialect is not None and target_dialect == value_dialect and target_is_lazy == value_is_lazy:
+        return value  # identical shape: same dialect string AND same eager/lazy-ness
+
+    if target_is_lazy:
+        raise BackendConversionError(
+            f"Cannot coerce a {value_dialect} operand against a lazy "
+            f"{target_dialect} target for cross-dialect join/union -- "
+            "narwhals does not support combining a lazy target with an "
+            "eager or differently-shaped lazy operand.",
+            boundary_key=None,
+            source_family="narwhals",
+            source_dialect=value_dialect,
+            destination_family="narwhals",
+            destination_dialect=target_dialect,
+            source_type=type(value).__name__,
+            route="coerce_narwhals_dialect",
+            reason="lazy narwhals target cannot combine with an eager or differently-shaped operand",
+        )
+
+    target_implementation = target.implementation.value
+    if target_implementation not in _NW_SUPPORTED_DIALECT_IMPLEMENTATIONS:
+        raise BackendConversionError(
+            f"Cannot coerce {value_dialect} operand to match {target_dialect} "
+            "for cross-dialect join/union -- unsupported target dialect.",
+            boundary_key=None,
+            source_family="narwhals",
+            source_dialect=value_dialect,
+            destination_family="narwhals",
+            destination_dialect=target_dialect,
+            source_type=type(value).__name__,
+            route="coerce_narwhals_dialect",
+            reason=f"unsupported narwhals target implementation {target_implementation!r}",
+        )
+
+    try:
+        if value_is_lazy:
+            value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, cast(Any, value).collect)
+            if narwhals_dialect(value) == target_dialect:
+                return value
+        import narwhals as nw
+
+        if target_implementation == "pandas":
+            converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_PANDAS, value.to_pandas)
+        elif target_implementation == "polars":
+            converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_POLARS, value.to_polars)
+        else:
+            converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, value.to_arrow)
+        return nw.from_native(converted, eager_only=True)
+    except Exception as exc:
+        raise BackendConversionError(
+            f"Failed to coerce {value_dialect} operand to {target_dialect} "
+            f"for cross-dialect join/union: {exc}",
+            boundary_key=None,
+            source_family="narwhals",
+            source_dialect=value_dialect,
+            destination_family="narwhals",
+            destination_dialect=target_dialect,
+            source_type=type(value).__name__,
+            route="coerce_narwhals_dialect",
+            reason=str(exc),
+        ) from exc

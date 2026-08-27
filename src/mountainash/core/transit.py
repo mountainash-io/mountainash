@@ -87,6 +87,12 @@ class BoundaryKey(Enum):
     NARWHALS_TO_PANDAS_EGRESS = auto()
     IBIS_TO_PANDAS_EGRESS = auto()
     ARROW_TO_PANDAS_EGRESS = auto()
+    NARWHALS_FROM_DICT_ADAPTER = auto()
+    NARWHALS_FROM_DICTS_ADAPTER = auto()
+    ARROW_TO_IBIS_ADAPTER = auto()
+    NARWHALS_DIALECT_TO_PANDAS = auto()
+    NARWHALS_DIALECT_TO_POLARS = auto()
+    NARWHALS_DIALECT_TO_ARROW = auto()
 
 
 @dataclass(frozen=True)
@@ -335,6 +341,104 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
         destination_families=frozenset({"pandas"}),
         destination_dialects=frozenset({"pandas"}),
         reason="A declared, user-visible pandas terminal via PyArrow Table.to_pandas().",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_FROM_DICT_ADAPTER: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="cross-type join column-mapping adapter",
+        route=RouteKey.CROSS_FAMILY_COERCION,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"narwhals"}),
+        destination_dialects=frozenset(
+            {"narwhals-pandas", "narwhals-polars", "narwhals-pyarrow"}
+        ),
+        reason=(
+            "nw.from_dict(data, backend=target_namespace) builds a "
+            "destination-native Narwhals frame from a column mapping; "
+            "replaces the pd.DataFrame() fallback (spec 4.3/9)."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_FROM_DICTS_ADAPTER: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="cross-type join row-mapping adapter",
+        route=RouteKey.CROSS_FAMILY_COERCION,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"narwhals"}),
+        destination_dialects=frozenset(
+            {"narwhals-pandas", "narwhals-polars", "narwhals-pyarrow"}
+        ),
+        reason=(
+            "nw.from_dicts(rows, backend=target_namespace) builds a "
+            "destination-native Narwhals frame from a sequence of row "
+            "mappings; replaces the pd.DataFrame() fallback (spec 4.3/9)."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.ARROW_TO_IBIS_ADAPTER: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="cross-type join Ibis construction from Arrow",
+        route=RouteKey.CROSS_FAMILY_COERCION,
+        step=2,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"pyarrow"}),
+        source_dialects=frozenset({"pyarrow"}),
+        destination_families=frozenset({"ibis"}),
+        destination_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+        reason=(
+            "ibis.memtable(arrow_table) after converting a dict/row-mapping "
+            "operand to Arrow first; avoids Ibis's own internal pandas "
+            "construction from a raw dict/list (spec 4.4)."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_DIALECT_TO_PANDAS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="same-family Narwhals dialect coercion to pandas",
+        route=RouteKey.NARWHALS_DIALECT_COERCION,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-polars", "narwhals-pyarrow"}),
+        destination_families=frozenset({"narwhals"}),
+        destination_dialects=frozenset({"narwhals-pandas"}),
+        reason=(
+            "Narwhals DataFrame.to_pandas() when the join/union target's "
+            "own dialect is narwhals-pandas; a declared same-family dialect "
+            "match, not an internal execution transit."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_DIALECT_TO_POLARS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="same-family Narwhals dialect coercion to polars",
+        route=RouteKey.NARWHALS_DIALECT_COERCION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-pandas", "narwhals-pyarrow"}),
+        destination_families=frozenset({"narwhals"}),
+        destination_dialects=frozenset({"narwhals-polars"}),
+        reason="Narwhals DataFrame.to_polars() to match the target's narwhals-polars dialect.",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_DIALECT_TO_ARROW: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="same-family Narwhals dialect coercion to pyarrow",
+        route=RouteKey.NARWHALS_DIALECT_COERCION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-pandas", "narwhals-polars"}),
+        destination_families=frozenset({"narwhals"}),
+        destination_dialects=frozenset({"narwhals-pyarrow"}),
+        reason="Narwhals DataFrame.to_arrow() to match the target's narwhals-pyarrow dialect.",
         since=_SINCE_2026_08_27,
     ),
 }

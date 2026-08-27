@@ -83,90 +83,6 @@ _OVERRIDES: dict[tuple[str, str, str], Disposition] = {
         "dependency residue failure).",
     ),
     (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "DataFrame",
-    ): (
-        "PROHIBITED_NARWHALS_DICT_PANDAS_FALLBACK",
-        "INTERNAL_EXECUTION_TRANSIT",
-        "pd.DataFrame(value) as the Narwhals-target dict/row-dict fallback "
-        "(spec 4.3) -- prohibited; Task 5 replaces it with a destination-"
-        "native constructor.",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "to_pandas",
-    ): (
-        "PROHIBITED_POLARS_NARWHALS_PANDAS_FALLBACK",
-        "INTERNAL_EXECUTION_TRANSIT",
-        "Narwhals native.to_pandas() as the Polars-target fallback for an "
-        "otherwise unknown input (spec 4.3) -- prohibited; Task 5 replaces "
-        "it with the Arrow-first adapter (spec 4.4).",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "collect",
-    ): (
-        "CROSS_TYPE_JOIN_ADAPTER",
-        "SEMANTICS_PRESERVING_ADAPTER",
-        "Materializes a Polars LazyFrame operand mid cross-type-join adapter "
-        "before Narwhals ingestion; part of the declared adapter route.",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "to_pyarrow",
-    ): (
-        "CROSS_TYPE_JOIN_ADAPTER",
-        "SEMANTICS_PRESERVING_ADAPTER",
-        "Arrow-preferred conversion step of the declared cross-type-join "
-        "adapter (spec 4.4's Arrow-before-pandas rule).",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "to_native",
-    ): (
-        "CROSS_TYPE_JOIN_ADAPTER",
-        "SEMANTICS_PRESERVING_ADAPTER",
-        "Unwraps a Narwhals lazy operand immediately before ibis.memtable() "
-        "ingestion; part of the declared cross-type-join adapter route.",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "memtable",
-    ): (
-        "CROSS_TYPE_JOIN_ADAPTER",
-        "SEMANTICS_PRESERVING_ADAPTER",
-        "Ibis-target construction step of the declared cross-type-join "
-        "adapter; Task 5 routes its dict/row-dict input through Arrow first "
-        "(spec 4.4).",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_to_match",
-        "from_native",
-    ): (
-        "CROSS_TYPE_JOIN_ADAPTER",
-        "SEMANTICS_PRESERVING_ADAPTER",
-        "Narwhals ingestion step of the declared cross-type-join adapter "
-        "route.",
-    ),
-    (
-        "mountainash.relations.core.unified_visitor.relation_visitor",
-        "UnifiedRelationVisitor._coerce_same_family_dialect",
-        "from_native",
-    ): (
-        "NARWHALS_DIALECT_COERCION_ADAPTER",
-        "SEMANTICS_PRESERVING_ADAPTER",
-        "Re-wraps a converted native value after same-family Narwhals "
-        "dialect coercion (e.g. .to_pandas()/.to_polars()/.to_arrow()); part "
-        "of the declared dialect-coercion adapter route.",
-    ),
-    (
         "mountainash.relations.dag.dag",
         "_anchor_prototype",
         "from_native",
@@ -281,6 +197,12 @@ _DEFAULT_BY_CALLEE: dict[str, Disposition] = {
         "construction.",
     ),
     "from_dict": (
+        "NARWHALS_CONSTRUCTOR_ADAPTER",
+        "SEMANTICS_PRESERVING_ADAPTER",
+        "Narwhals constructor call; permitted only for a declared "
+        "destination identity.",
+    ),
+    "from_dicts": (
         "NARWHALS_CONSTRUCTOR_ADAPTER",
         "SEMANTICS_PRESERVING_ADAPTER",
         "Narwhals constructor call; permitted only for a declared "

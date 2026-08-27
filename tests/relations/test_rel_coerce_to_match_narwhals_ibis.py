@@ -285,15 +285,15 @@ class TestErrorWrappingPreservesOriginalTypeAndContext:
     """Design spec testing plan #15-17."""
 
     def test_narwhals_conversion_failure_wraps_original_source_type(self):
-        """A valid dict succeeds its own reassignment to an intermediate
-        pd.DataFrame; narwhals.from_native is then force-failed via mock --
-        the wrapped TypeError must cite the ORIGINAL raw type (dict), not
-        the intermediate DataFrame, proving source_type was captured
-        before reassignment."""
+        """Task 5: a dict operand now builds the target-native Narwhals
+        frame directly via ``nw.from_dict(..., backend=target_namespace)``
+        (never a pandas intermediate). Force-fail that call via mock -- the
+        wrapped TypeError must cite the ORIGINAL raw type (dict), proving
+        source_type was captured before the attempt."""
         from unittest.mock import patch
 
         target = _nw_pandas({"id": [1, 2]})
-        with patch("narwhals.from_native", side_effect=RuntimeError("boom")):
+        with patch("narwhals.from_dict", side_effect=RuntimeError("boom")):
             with pytest.raises(TypeError, match=r"Cannot coerce dict to Narwhals.*boom"):
                 UnifiedRelationVisitor._coerce_to_match(target, {"id": [1]})
 
