@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 import polars as pl
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.relations.dag.errors import (
     ResourceSchemaCastError,
     UnsupportedResourceFormat,
@@ -14,7 +15,6 @@ from mountainash.relations.dag.errors import (
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
-
 
 def _declared_polars_schema(resource: Any) -> Optional[dict[str, Any]]:
     """Resolve a resource's schema to a Polars {name: dtype} map.
@@ -79,7 +79,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         seed: Optional[int] = None,
     ) -> pl.LazyFrame:
         # LazyFrame does not support .sample() directly — collect, sample, re-lazy.
-        frame = relation.collect()
+        frame = transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, relation.collect)
         if n is not None:
             n = min(n, frame.height)
         return frame.sample(n=n, fraction=fraction, seed=seed).lazy()
@@ -113,7 +113,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
     ) -> pl.LazyFrame:
         # Pivot requires eager DataFrame — collect, pivot, re-lazy.
         return (
-            relation.collect()
+            transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, relation.collect)
             .pivot(
                 on=on,
                 index=index,

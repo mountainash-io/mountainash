@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Type
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.pydata.mappers.dataclass_mapping import map_list_of_namedtuples_to_dataclasses
 from mountainash.pydata.mappers.pydantic_mapping import map_list_of_namedtuples_to_pydantic
 
@@ -71,67 +72,67 @@ class EgressToPythonData:
     @classmethod
     def _to_list_of_tuples(cls, df: 'SupportedDataFrames', /) -> List[Tuple]:
         """Convert DataFrame to list of tuples via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_list_of_tuples(pl_df)
 
     @classmethod
     def _to_list_of_dictionaries(cls, df: 'SupportedDataFrames', /) -> List[Dict[Any, Any]]:
         """Convert DataFrame to list of dictionaries via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_list_of_dictionaries(pl_df)
 
     @classmethod
     def _to_dictionary_of_lists(cls, df: 'SupportedDataFrames', /) -> Dict[Any, List[Any]]:
         """Convert DataFrame to dictionary of lists via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_dictionary_of_lists(pl_df)
 
     @classmethod
     def _to_dictionary_of_series_pandas(cls, df: 'SupportedDataFrames', /) -> Dict[str, 'PandasSeries']:
         """Convert DataFrame to dict of pandas Series via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_dictionary_of_series_pandas(pl_df)
 
     @classmethod
     def _to_dictionary_of_series_polars(cls, df: 'SupportedDataFrames', /) -> Dict[str, 'PolarsSeries']:
         """Convert DataFrame to dict of Polars Series via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_dictionary_of_series_polars(pl_df)
 
     @classmethod
     def _to_list_of_named_tuples(cls, df: 'SupportedDataFrames', /) -> Sequence[Tuple]:
         """Convert DataFrame to list of named tuples via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_list_of_named_tuples(pl_df)
 
     @classmethod
     def _to_list_of_typed_named_tuples(cls, df: 'SupportedDataFrames', /, preserve_dates: Optional[bool] = False) -> Sequence[Tuple]:
         """Convert DataFrame to list of typed named tuples via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_list_of_typed_named_tuples(pl_df, preserve_dates=preserve_dates)
 
     @classmethod
     def _to_index_of_dictionaries(cls, df: 'SupportedDataFrames', /, index_fields: str|List[str]) -> Dict[str, List]:
         """Convert DataFrame to indexed dict of dicts via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_index_of_dictionaries(pl_df, index_fields=index_fields)
 
     @classmethod
     def _to_index_of_tuples(cls, df: 'SupportedDataFrames', /, index_fields: str|List[str]) -> Dict[str, List]:
         """Convert DataFrame to indexed dict of tuples via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_index_of_tuples(pl_df, index_fields=index_fields)
 
     @classmethod
     def _to_index_of_named_tuples(cls, df: 'SupportedDataFrames', /, index_fields: str|List[str]) -> Dict[str, List]:
         """Convert DataFrame to indexed dict of named tuples via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_index_of_named_tuples(pl_df, index_fields=index_fields)
 
     @classmethod
     def _to_index_of_typed_named_tuples(cls, df: 'SupportedDataFrames', /, index_fields: str|List[str], preserve_dates: Optional[bool] = False) -> Dict[str, List]:
         """Convert DataFrame to indexed dict of typed named tuples via Polars."""
-        pl_df = ma.relation(df).to_polars()
+        pl_df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return EgressPydataFromPolars._to_index_of_typed_named_tuples(pl_df, index_fields=index_fields, preserve_dates=preserve_dates)
 
     # ======================

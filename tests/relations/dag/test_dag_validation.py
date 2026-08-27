@@ -395,3 +395,117 @@ class TestIdentityIsolation:
         users_summary = result.results["users"].check_summaries.row(0, named=True)
         assert users_summary["check_id"] == "__identity__"
         assert users_summary["status"] == "error"
+
+
+class TestSharedMaterializationSession:
+    """Task 8: DAG validation shares one DAGMaterializationSession across
+    every planned resource, foreign-key parent, and execution dependency."""
+
+    def test_validation_compiles_child_parent_and_dependency_once(self, monkeypatch):
+        from collections import Counter
+
+        from mountainash.relations.core.materialization import DiagnosticFrameView
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
+
+        dag = RelationDAG()
+        dag.add(
+            "raw_orders",
+            ma.relation(pl.DataFrame({"order_id": [1], "customer_id": [10]})),
+        )
+        dag.add("orders", dag.ref("raw_orders").select("order_id", "customer_id"))
+        dag.add("customers", ma.relation(pl.DataFrame({"id": [10]})))
+        orders_spec = TypeSpec(
+            fields=[
+                FieldSpec(name="order_id", type=UniversalType.INTEGER),
+                FieldSpec(name="customer_id", type=UniversalType.INTEGER),
+            ],
+            foreign_keys=[
+                ForeignKey(
+                    fields=["customer_id"],
+                    reference=ForeignKeyReference(resource="customers", fields=["id"]),
+                )
+            ],
+        )
+        customers_spec = TypeSpec(
+            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]
+        )
+        compile_calls: Counter = Counter()
+        original_compile = DAGMaterializationSession._compile_named
+        original_resolve = DAGMaterializationSession.resolve
+
+        def counted_compile(self, name, **kwargs):
+            compile_calls[name] += 1
+            return original_compile(self, name, **kwargs)
+
+        def checked_resolve(self, name, family, dialect):
+            value = original_resolve(self, name, family, dialect)
+            assert not isinstance(value, DiagnosticFrameView)
+            return value
+
+        monkeypatch.setattr(DAGMaterializationSession, "_compile_named", counted_compile)
+        monkeypatch.setattr(DAGMaterializationSession, "resolve", checked_resolve)
+        result = dag.validate(
+            {"orders": orders_spec, "customers": customers_spec}
+        )
+
+        assert result.passes
+        assert compile_calls == Counter(
+            {"raw_orders": 1, "orders": 1, "customers": 1}
+        )
+
+    def test_validation_session_isolates_unrelated_preparation_failure(self):
+        # A resource whose relation tree references a name absent from the
+        # DAG entirely fails during session.compile_registered() itself --
+        # a genuine preparation failure, not a per-check data failure
+        # (already covered by _guarded()'s own per-check isolation). A real
+        # constraint is required: an empty check list vacuously passes even
+        # on a genuine preparation failure (established Task 6 semantics,
+        # unchanged here -- ValidationRunner.validate_relation()'s own
+        # error-isolation branch has the identical "zero checks -> zero
+        # error summaries -> vacuous pass" shape).
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="age",
+                    type=UniversalType.INTEGER,
+                    constraints=FieldConstraints(minimum=0),
+                )
+            ]
+        )
+        dag = RelationDAG()
+        dag.add("bad", dag.ref("does_not_exist").select("age"))
+        dag.add("good", ma.relation(pl.DataFrame({"age": [10]})))
+
+        result = dag.validate({"bad": spec, "good": spec})
+
+        assert result.results["bad"].passes is False
+        assert result.results["good"].passes is True
+
+    def test_validate_quick_closes_its_session_once(self, monkeypatch):
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
+
+        close_calls = []
+        original_close = DAGMaterializationSession.close
+
+        def counted_close(self, release_owned):
+            close_calls.append(release_owned)
+            return original_close(self, release_owned=release_owned)
+
+        monkeypatch.setattr(DAGMaterializationSession, "close", counted_close)
+        dag = RelationDAG()
+        dag.add("bad", ma.relation(pl.DataFrame({"age": [-1]})))
+        dag.add("good", ma.relation(pl.DataFrame({"age": [10]})))
+        spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="age",
+                    type=UniversalType.INTEGER,
+                    constraints=FieldConstraints(minimum=0),
+                )
+            ]
+        )
+
+        result = dag.validate_quick({"bad": spec, "good": spec})
+
+        assert list(result.results) == ["bad"]
+        assert close_calls == [True]

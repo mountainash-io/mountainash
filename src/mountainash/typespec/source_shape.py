@@ -6,6 +6,7 @@ from typing import Any
 
 from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.core.types import (
     is_ibis_table,
     is_narwhals_dataframe,
@@ -155,7 +156,7 @@ def _from_narwhals_dtype(dtype: Any) -> SourceShape:
 
 
 def _from_narwhals_schema(native: Any) -> dict[str, SourceShape]:
-    underlying = native.to_native()
+    underlying = transit_call(BoundaryKey.NARWHALS_SCHEMA_UNWRAP, native.to_native)
     if is_pandas_dataframe(underlying):
         return _from_pandas_dtypes(underlying.dtypes)
     return {name: _from_narwhals_dtype(dtype) for name, dtype in native.schema.items()}

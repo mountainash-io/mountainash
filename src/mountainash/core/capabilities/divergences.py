@@ -196,17 +196,6 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-07-05",
         ),
         DivergenceFact(
-            id="MA-TYPE-01",
-            kind=DivergenceKind.TYPE_INFERENCE,
-            operation_keys=(),
-            backends=("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
-            summary="Typed all-NULL columns lose their declared dtype through to_polars()'s pandas bridge",
-            impact="Ibis-backed materialization reports String or Float64 instead of the declared dtype",
-            workaround="Re-cast after materialization or inspect the pre-materialization Ibis schema",
-            upstream_ref="MA-TYPE-01",
-            since="2026-07-05",
-        ),
-        DivergenceFact(
             id="MA-TYPE-02",
             kind=DivergenceKind.SEMANTICS,
             operation_keys=(FK_CAST.CAST,),

@@ -5,6 +5,7 @@ import logging
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
+from mountainash.core.transit import BoundaryKey, transit_call
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
@@ -137,14 +138,14 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
                     raise ValueError(f"Mixed Series types detected. Key '{key}' is not a pandas Series")
 
             # Create pandas DataFrame first, then convert to Polars
-            pandas_df = pd.DataFrame(data)
-            df = pl.from_pandas(pandas_df)
+            pandas_df = transit_call(BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT, pd.DataFrame, data)
+            df = transit_call(BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT, pl.from_pandas, pandas_df)
         else:
             raise ValueError(f"Unsupported Series type from module: {module_name}")
 
         # Apply column transformations if provided
         if type_spec is not None:
             import mountainash as ma
-            df = ma.relation(df).conform(type_spec).to_polars()
+            df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(type_spec).to_polars)
 
         return df

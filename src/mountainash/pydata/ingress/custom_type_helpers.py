@@ -10,6 +10,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import logging
 
+from mountainash.core.transit import BoundaryKey, transit_call
+
 if TYPE_CHECKING:
     from mountainash.core.types import PolarsFrame
     from mountainash.typespec.spec import TypeSpec, FieldSpec
@@ -224,7 +226,7 @@ def apply_native_conversions_to_dataframe(
     )
     try:
         exprs = _build_conform_exprs(native_spec)
-        df = ma.relation(df).with_columns(*exprs).to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).with_columns(*exprs).to_polars)
     except Exception as e:
         logger.warning(
             f"Error applying native operations via expressions: {e}. "
@@ -263,7 +265,7 @@ def _apply_narwhals_custom_converters(
 
     from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
     was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
-    nw_df = nw.from_native(df) if was_native else df
+    nw_df = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df) if was_native else df
 
     for col_name, field_spec in narwhals_custom.items():
         cast_type = field_spec.custom_cast
@@ -289,7 +291,7 @@ def _apply_narwhals_custom_converters(
             f"→ '{target_name}' (vectorized)"
         )
 
-    result = nw_df.to_native() if was_native else nw_df
+    result = transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, nw_df.to_native) if was_native else nw_df
     return result
 
 
@@ -368,7 +370,7 @@ def apply_hybrid_conversion(
         )
         try:
             conform_result = _build_conform_exprs(native_spec)
-            df = ma.relation(df).with_columns(*conform_result.exprs).to_polars()
+            df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).with_columns(*conform_result.exprs).to_polars)
         except Exception as e:
             logger.warning(
                 f"Error applying native operations via expressions: {e}. "

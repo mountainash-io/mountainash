@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 from pydantic import ConfigDict, Field
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
 from mountainash.relations.core.unified_visitor.visit_registry import RelationVisitRegistry
 
@@ -102,7 +103,9 @@ def _visit_pipeline_step(node: Any, visitor: Any) -> Any:
             f"No executor provided for PipelineStepRelNode '{node.step_name}'. "
             f"Pass an executor via source(..., executor=runner) or dag.add(..., executor=runner)."
         )
-    return node.executor.execute(
+    return transit_call(
+        BoundaryKey.PIPELINE_STEP_EXECUTOR,
+        node.executor.execute,
         pipeline=node.pipeline,
         step_name=node.step_name,
         params=node.bound_params,

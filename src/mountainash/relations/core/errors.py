@@ -20,3 +20,7 @@ class UnregisteredRelationNodeError(MountainashError):
 
 class InvalidSampleArgumentsError(MountainashError, ValueError):
     """Relation.sample() argument-contract violation."""
+
+
+class MaterializationScopeClosedError(MountainashError, RuntimeError):
+    """Raised when a closed materialization scope receives new ownership."""
