@@ -485,6 +485,8 @@ def coerce_to_narwhals(target: Any, value: Any) -> Any:
             converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, arrow, eager_only=True)
         else:
             converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, value, eager_only=True)
+    except BackendConversionError:
+        raise
     except Exception as exc:
         raise BackendConversionError(
             f"Cannot coerce {source_type} to Narwhals for cross-type join: {exc}",
@@ -536,6 +538,8 @@ def coerce_to_ibis(target: Any, value: Any) -> Any:
             arrow = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, eager.to_arrow)
             return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
         return transit_call(BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER, ibis.memtable, value)
+    except BackendConversionError:
+        raise
     except Exception as exc:
         raise BackendConversionError(
             f"Cannot coerce {source_type} to Ibis for cross-type join: {exc}",
@@ -623,6 +627,8 @@ def coerce_narwhals_dialect(target: Any, value: Any) -> Any:
         else:
             converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, value.to_arrow)
         return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, converted, eager_only=True)
+    except BackendConversionError:
+        raise
     except Exception as exc:
         raise BackendConversionError(
             f"Failed to coerce {value_dialect} operand to {target_dialect} "

@@ -265,7 +265,7 @@ def _apply_narwhals_custom_converters(
 
     from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
     was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
-    nw_df = nw.from_native(df) if was_native else df
+    nw_df = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df) if was_native else df
 
     for col_name, field_spec in narwhals_custom.items():
         cast_type = field_spec.custom_cast
@@ -291,7 +291,7 @@ def _apply_narwhals_custom_converters(
             f"→ '{target_name}' (vectorized)"
         )
 
-    result = transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, nw_df.to_native) if was_native else nw_df
+    result = transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, nw_df.to_native) if was_native else nw_df
     return result
 
 

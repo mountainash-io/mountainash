@@ -122,13 +122,13 @@ class EgressFromPolars(BaseEgressDataFrame):
 
         if as_lazy is None:
             # Default: preserve input type (polars eager → narwhals eager)
-            return nw.from_native(df)
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df)
         elif as_lazy:
             # Force lazy
-            return nw.from_native(df.lazy())
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df.lazy())
         else:
             # Force eager (already eager)
-            return nw.from_native(df)
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df)
 
     @classmethod
     def _to_pandas(cls, df: PolarsFrame, /) -> PandasFrame:

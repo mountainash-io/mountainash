@@ -87,6 +87,37 @@ def test_census_fixture_rejects_every_undeclared_dispatch_shape(tmp_path):
     )
 
 
+def test_lazy_import_factory_alias_is_resolved_like_a_module_import(tmp_path):
+    """spec section 13.1's alias resolution must recognize the codebase's
+    own lazy-import convention (f.development-practices/import-conventions.md,
+    "lazy_imports for runtime optional backends"): `nw = import_narwhals()`
+    binds `nw` to the `narwhals` module exactly as `import narwhals as nw`
+    would. Without this, a Narwhals/pandas namespace call reached through
+    the lazy-import factory is invisible to the census."""
+    module = tmp_path / "lazy_alias.py"
+    module.write_text(
+        "from mountainash.core.lazy_imports import import_narwhals\n"
+        "from mountainash.core.transit import BoundaryKey, transit_call\n"
+        "\n"
+        "def unwrapped(value):\n"
+        "    nw = import_narwhals()\n"
+        "    return nw.from_native(value)\n"
+        "\n"
+        "def wrapped(value):\n"
+        "    nw = import_narwhals()\n"
+        "    return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, value)\n"
+    )
+    discovered = discover_transit_candidates(tmp_path)
+    by_owner = {c.owner: c for c in discovered}
+
+    assert "unwrapped" in by_owner, "nw.from_native() via the factory alias must be discovered"
+    assert by_owner["unwrapped"].callee == "from_native"
+    assert by_owner["unwrapped"].wrapped is False
+
+    assert "wrapped" in by_owner
+    assert by_owner["wrapped"].wrapped is True
+
+
 def test_every_wrapped_candidate_uses_a_literal_boundary_key(tmp_path):
     """A `transit_call()` site is `wrapped=True` only when its key is a
     literal `BoundaryKey.MEMBER` attribute access."""
@@ -226,11 +257,6 @@ _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
         "Exercised functionally throughout tests/relations/cross_backend/ and "
         "tests/relations/test_native_materialization.py's Narwhals-lazy collection "
         "tests.",
-        "2026-08-27",
-    ),
-    "NARWHALS_NATIVE_WRAP": (
-        "Exercised functionally by tests/relations/test_resource_transit_boundaries.py's "
-        "reader trace tests and tests/relations/dag/test_resource_read_cross_backend.py.",
         "2026-08-27",
     ),
     "NARWHALS_NATIVE_UNWRAP_NON_PANDAS": (

@@ -59,6 +59,23 @@ NARWHALS_RISKY_NAMES: frozenset[str] = frozenset(
 # the imported `pandas` module (or a name imported directly from it).
 PANDAS_RISKY_NAMES: frozenset[str] = frozenset({"DataFrame", "Series", "Index", "concat"})
 
+# `import X as Y` is not the only way a module ends up bound to a local
+# name: the codebase's own lazy-import convention (see
+# f.development-practices/import-conventions.md, "lazy_imports for runtime
+# optional backends") assigns a module via a factory call instead --
+# `nw = import_narwhals()` binds `nw` to the `narwhals` module exactly as
+# `import narwhals as nw` would. Without recognizing this, every
+# `NARWHALS_RISKY_NAMES`/`PANDAS_RISKY_NAMES` namespace call reached through
+# the lazy-import convention is invisible to the census -- a structural
+# blind spot, not a handful of one-off sites.
+_LAZY_IMPORT_FACTORY_MODULE: dict[str, str] = {
+    "import_pandas": "pandas",
+    "import_narwhals": "narwhals",
+    "import_polars": "polars",
+    "import_ibis": "ibis",
+    "import_pyarrow": "pyarrow",
+}
+
 _DYNAMIC_DISPATCH_OWNERS: frozenset[str] = frozenset({"getattr", "methodcaller", "partial"})
 
 
@@ -131,6 +148,28 @@ class _AliasMap:
                 for alias in node.names:
                     local = alias.asname or alias.name
                     self.imported_symbols[local] = (node.module, alias.name)
+        # Second pass: `target = import_narwhals()` (or `import_pandas`/
+        # `import_polars`/`import_ibis`/`import_pyarrow`) binds `target` to
+        # that module, same as a literal `import` statement. Requires
+        # `imported_symbols` from the first pass to resolve the factory
+        # call's own origin.
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+                continue
+            target = node.targets[0]
+            value = node.value
+            if not isinstance(target, ast.Name) or not isinstance(value, ast.Call):
+                continue
+            func = value.func
+            if not isinstance(func, ast.Name):
+                continue
+            origin = self.imported_symbols.get(func.id)
+            if origin is None:
+                continue
+            _origin_module, original_name = origin
+            module = _LAZY_IMPORT_FACTORY_MODULE.get(original_name)
+            if module is not None:
+                self.module_aliases[target.id] = module
 
     def resolves_to_module(self, name_node: ast.expr, module: str) -> bool:
         return isinstance(name_node, ast.Name) and self.module_aliases.get(name_node.id) == module

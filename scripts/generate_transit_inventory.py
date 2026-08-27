@@ -71,17 +71,6 @@ _OVERRIDES: dict[tuple[str, str, str], Disposition] = {
         "Narwhals for the DAG's declared cross-dialect prototype adapter.",
     ),
     (
-        "mountainash.pydata.ingress.custom_type_helpers",
-        "_apply_narwhals_custom_converters",
-        "to_native",
-    ): (
-        "NARWHALS_NATIVE_UNWRAP_PANDAS",
-        "EXPLICIT_PANDAS_INPUT",
-        "Round-trips a Narwhals wrapper back to the caller's own originally-"
-        "selected native type (`was_native`), preserving a pandas source "
-        "identity when the caller supplied one.",
-    ),
-    (
         "mountainash.pipelines.integration.relation",
         "_visit_pipeline_step",
         "execute",

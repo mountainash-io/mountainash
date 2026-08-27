@@ -605,14 +605,17 @@ class Relation(RelationBase):
         """Execute the plan and return a fully materialized native result.
 
         Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
-        an Ibis expression returns an executed result, narwhals returns its
-        native frame, and so on. One syntax for all backends.
+        an Ibis expression returns a cached, dialect-intact Ibis ``Table``,
+        narwhals returns its native frame, and so on. One syntax for all
+        backends.
 
         Args:
             unwrap: When *True* (default), narwhals wrappers are stripped so
-                the caller receives the underlying pandas / PyArrow frame.
-                Pass *False* to keep the narwhals wrapper (useful for internal
-                code that needs narwhals-level operations on the result).
+                the caller receives the underlying native value (pandas only
+                when the caller's own source was pandas-selected; Polars,
+                PyArrow, or Ibis otherwise). Pass *False* to keep the
+                narwhals wrapper (useful for internal code that needs
+                narwhals-level operations on the result).
             backend: Optional explicit backend name, overriding auto-detection
                 -- see :meth:`_compile_and_execute_with_visitor`. Mirrors
                 :meth:`collect_with_drift`'s ``backend`` override.

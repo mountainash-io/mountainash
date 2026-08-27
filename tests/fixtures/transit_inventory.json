@@ -111,6 +111,28 @@
   },
   {
     "module": "mountainash.pydata.egress.egress_pydata_from_polars",
+    "owner": "EgressFromPolars._to_narwhals",
+    "callee": "from_native",
+    "fingerprint": "5eb976795121f86f",
+    "boundary_key": "NARWHALS_NATIVE_WRAP",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.pydata.egress.egress_pydata_from_polars",
+    "owner": "EgressFromPolars._to_narwhals",
+    "callee": "from_native",
+    "fingerprint": "a89166431d7d40e0",
+    "boundary_key": "NARWHALS_NATIVE_WRAP",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.pydata.egress.egress_pydata_from_polars",
     "owner": "EgressFromPolars._to_pandas",
     "callee": "to_pandas",
     "fingerprint": "fc83264a7e06f78f",
@@ -255,11 +277,22 @@
   {
     "module": "mountainash.pydata.ingress.custom_type_helpers",
     "owner": "_apply_narwhals_custom_converters",
+    "callee": "from_native",
+    "fingerprint": "a89166431d7d40e0",
+    "boundary_key": "NARWHALS_NATIVE_WRAP",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.pydata.ingress.custom_type_helpers",
+    "owner": "_apply_narwhals_custom_converters",
     "callee": "to_native",
-    "fingerprint": "27a9c45dc8fe644f",
-    "boundary_key": "NARWHALS_NATIVE_UNWRAP_PANDAS",
-    "transit_class": "EXPLICIT_PANDAS_INPUT",
-    "reason": "Round-trips a Narwhals wrapper back to the caller's own originally-selected native type (`was_native`), preserving a pandas source identity when the caller supplied one.",
+    "fingerprint": "a83edc18d87448de",
+    "boundary_key": "NARWHALS_NATIVE_UNWRAP_NON_PANDAS",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Unwraps a Narwhals frame to its native value for schema/metadata inspection only.",
     "since": "2026-08-27",
     "legacy_unwrapped": false
   },
