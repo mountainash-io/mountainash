@@ -816,6 +816,17 @@
   {
     "module": "mountainash.relations.core.materialization",
     "owner": "diagnostic_polars_view",
+    "callee": "collect",
+    "fingerprint": "6a904a750d9adf41",
+    "boundary_key": "NATIVE_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "diagnostic_polars_view",
     "callee": "from_pandas",
     "fingerprint": "bcb1c4534328dead",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_INPUT",
@@ -1298,6 +1309,17 @@
     "legacy_unwrapped": false
   },
   {
+    "module": "mountainash.validation.identity",
+    "owner": "validate_keyed_identity",
+    "callee": "to_polars",
+    "fingerprint": "28ae7cc03bbc8dc2",
+    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": true
+  },
+  {
     "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._collect_row_failures",
     "callee": "to_polars",
@@ -1340,5 +1362,27 @@
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
     "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.validation.runner",
+    "owner": "ValidationRunner._run_value_rule",
+    "callee": "execute",
+    "fingerprint": "5f5df477fca466ab",
+    "boundary_key": "IBIS_SCALAR_EXECUTE",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Ibis scalar/count execution; the result is a Python scalar, never a pandas frame.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": true
+  },
+  {
+    "module": "mountainash.validation.runner",
+    "owner": "ValidationRunner._run_value_rule",
+    "callee": "to_polars",
+    "fingerprint": "28ae7cc03bbc8dc2",
+    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": true
   }
 ]

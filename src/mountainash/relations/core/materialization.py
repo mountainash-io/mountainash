@@ -217,6 +217,7 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
     from mountainash.core.types import (
         is_ibis_table,
         is_narwhals_dataframe,
+        is_narwhals_lazyframe,
         is_pandas_dataframe,
         is_polars_dataframe,
         is_polars_lazyframe,
@@ -224,6 +225,8 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
     )
 
     value: Any = native.value
+    if is_narwhals_lazyframe(value):
+        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
     if is_polars_lazyframe(value):
         value = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
     if is_polars_dataframe(value):
@@ -615,7 +618,7 @@ def coerce_narwhals_dialect(target: Any, value: Any) -> Any:
 
     try:
         if value_is_lazy:
-            value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, cast(Any, value).collect)
+            value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, cast("Any", value).collect)
             if narwhals_dialect(value) == target_dialect:
                 return value
         import narwhals as nw

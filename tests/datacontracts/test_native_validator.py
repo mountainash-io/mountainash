@@ -41,7 +41,7 @@ class TestFlow:
         df = pl.DataFrame({"name": ["a"], "age": [200]})
         result = validator.validate(df)
         ids = result.check_summaries["check_id"].to_list()
-        assert "age__ge" in ids
+        assert "age_range" in ids
         assert "age_under_150" in ids
         assert result.passes is False  # 200 >= 150
 
@@ -56,7 +56,7 @@ class TestFlow:
         assert skipped["check_id"].to_list() == ["age_under_150"]
         assert skipped["diagnostic"][0].startswith("excluded:")
         assert "age_under_150" not in result.failure_cases["check_id"].to_list()
-        assert result.passes is True  # skipped never blocks; age__ge passes (200 >= 0)
+        assert result.passes is True  # skipped never blocks; age_range passes (200 >= 0)
         assert result.context == {"region": "test"}  # 17 P3: one dict, both uses
 
     def test_only_when_gate_skips_with_reason(self):
@@ -94,7 +94,7 @@ class TestFlow:
     def test_duplicate_check_id_across_contract_and_rules_raises(self):
         from mountainash.validation.errors import CheckDeclarationError
 
-        rules = RuleRegistry([Rule("age__ge", expr=ma.col("age").ge(0))])  # collides with Field check id
+        rules = RuleRegistry([Rule("age_range", expr=ma.col("age").ge(0))])  # collides with Field check id
         validator = Validator(name="people", contract=PersonContract, rules=rules)
         with pytest.raises(CheckDeclarationError, match="duplicate check id"):
             validator.validate(pl.DataFrame({"name": ["a"], "age": [1]}))

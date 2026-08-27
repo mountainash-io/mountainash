@@ -31,7 +31,7 @@ class TestBaseDataContract:
         failing = result.check_summaries.filter(
             result.check_summaries["status"] != "passed"
         )["check_id"].to_list()
-        assert "id__ge" in failing
+        assert "id_range" in failing
         assert isinstance(result.failure_cases, pl.DataFrame)
 
     def test_validate_quick_fails_on_first(self):
