@@ -105,6 +105,8 @@ class BoundaryKey(Enum):
     PIPELINE_STEP_EXECUTOR = auto()
     RESULT_PROCESSOR_POLARS_MATERIALIZE = auto()
     NARWHALS_SCHEMA_UNWRAP = auto()
+    DIAGNOSTIC_VIEW_FROM_PANDAS = auto()
+    DIAGNOSTIC_VIEW_FROM_ARROW = auto()
 
 
 @dataclass(frozen=True)
@@ -651,6 +653,41 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
             "inspection only; the unwrapped value (including a pandas "
             "DataFrame when the source is pandas-backed) never escapes as "
             "data, only as SourceShape metadata."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.DIAGNOSTIC_VIEW_FROM_PANDAS: BoundarySpec(
+        owner="mountainash.relations.core.materialization",
+        consumer="diagnostic Polars view built from a pandas-selected native value",
+        route=RouteKey.DIAGNOSTIC_POLARS_VIEW,
+        step=1,
+        transit_class=TransitClass.RESULT_DIAGNOSTIC_VIEW,
+        source_families=frozenset({"pandas"}),
+        source_dialects=frozenset({"pandas", "narwhals-pandas"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "diagnostic_polars_view() wraps a pandas-selected native value "
+            "for read-only diagnostic/result transport only (spec 6.2's "
+            "RESULT_DIAGNOSTIC_VIEW class); never returned to execution, "
+            "stored in a relation leaf, or cached in a DAG resolver."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.DIAGNOSTIC_VIEW_FROM_ARROW: BoundarySpec(
+        owner="mountainash.relations.core.materialization",
+        consumer="diagnostic Polars view built via a to_arrow()/to_pyarrow() terminal",
+        route=RouteKey.DIAGNOSTIC_POLARS_VIEW,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"ibis", "pyarrow", "narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "diagnostic_polars_view()'s Arrow-preserving fallback: whichever "
+            "of to_pyarrow()/to_arrow() the native value declares, routed "
+            "through pl.from_arrow(); never pandas."
         ),
         since=_SINCE_2026_08_27,
     ),

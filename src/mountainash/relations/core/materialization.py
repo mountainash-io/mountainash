@@ -215,9 +215,12 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
     import polars as pl
 
     from mountainash.core.types import (
+        is_ibis_table,
+        is_narwhals_dataframe,
         is_pandas_dataframe,
         is_polars_dataframe,
         is_polars_lazyframe,
+        is_pyarrow_table,
     )
 
     value: Any = native.value
@@ -227,12 +230,23 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
         return DiagnosticFrameView(value, native.value_identity)
 
     if is_pandas_dataframe(value):
-        pandas_frame: pl.DataFrame = pl.from_pandas(value)
+        pandas_frame: pl.DataFrame = transit_call(
+            BoundaryKey.DIAGNOSTIC_VIEW_FROM_PANDAS, pl.from_pandas, value
+        )
         return DiagnosticFrameView(pandas_frame, native.value_identity)
 
-    to_arrow = getattr(value, "to_pyarrow", None) or getattr(value, "to_arrow", None)
-    if callable(to_arrow):
-        arrow_frame = cast("pl.DataFrame", pl.from_arrow(to_arrow()))
+    if is_ibis_table(value):
+        arrow_native = transit_call(BoundaryKey.DIAGNOSTIC_VIEW_FROM_ARROW, value.to_pyarrow)
+        arrow_frame = cast("pl.DataFrame", pl.from_arrow(arrow_native))
+        return DiagnosticFrameView(arrow_frame, native.value_identity)
+
+    if is_pyarrow_table(value):
+        arrow_frame = cast("pl.DataFrame", pl.from_arrow(value))
+        return DiagnosticFrameView(arrow_frame, native.value_identity)
+
+    if is_narwhals_dataframe(value):
+        arrow_native = transit_call(BoundaryKey.DIAGNOSTIC_VIEW_FROM_ARROW, value.to_arrow)
+        arrow_frame = cast("pl.DataFrame", pl.from_arrow(arrow_native))
         return DiagnosticFrameView(arrow_frame, native.value_identity)
 
     raise BackendConversionError(
@@ -465,12 +479,12 @@ def coerce_to_narwhals(target: Any, value: Any) -> Any:
             )
         elif is_polars_lazyframe(value):
             collected = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
-            converted = nw.from_native(collected, eager_only=True)
+            converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, collected, eager_only=True)
         elif is_ibis_table(value):
             arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
-            converted = nw.from_native(arrow, eager_only=True)
+            converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, arrow, eager_only=True)
         else:
-            converted = nw.from_native(value, eager_only=True)
+            converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, value, eager_only=True)
     except Exception as exc:
         raise BackendConversionError(
             f"Cannot coerce {source_type} to Narwhals for cross-type join: {exc}",
@@ -521,7 +535,7 @@ def coerce_to_ibis(target: Any, value: Any) -> Any:
             eager = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
             arrow = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, eager.to_arrow)
             return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
-        return ibis.memtable(value)
+        return transit_call(BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER, ibis.memtable, value)
     except Exception as exc:
         raise BackendConversionError(
             f"Cannot coerce {source_type} to Ibis for cross-type join: {exc}",
@@ -608,7 +622,7 @@ def coerce_narwhals_dialect(target: Any, value: Any) -> Any:
             converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_POLARS, value.to_polars)
         else:
             converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, value.to_arrow)
-        return nw.from_native(converted, eager_only=True)
+        return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, converted, eager_only=True)
     except Exception as exc:
         raise BackendConversionError(
             f"Failed to coerce {value_dialect} operand to {target_dialect} "

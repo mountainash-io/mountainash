@@ -41,6 +41,8 @@ __all__ = [
 
 def _anchor_prototype(family: CONST_BACKEND, dialect: "str | None") -> Any:
     """A lightweight empty object of *family* for coercion to target."""
+    from mountainash.core.transit import BoundaryKey, transit_call
+
     if family is CONST_BACKEND.POLARS:
         import polars as pl
 
@@ -48,21 +50,28 @@ def _anchor_prototype(family: CONST_BACKEND, dialect: "str | None") -> Any:
     if family is CONST_BACKEND.IBIS:
         import ibis
 
-        return ibis.memtable({})
+        return transit_call(BoundaryKey.DAG_PROTOTYPE_ADAPTER, ibis.memtable, {})
     if family is CONST_BACKEND.NARWHALS:
         import narwhals as nw
 
         if dialect == "narwhals-polars":
             import polars as pl
 
-            return nw.from_native(pl.DataFrame({}), eager_only=True)
+            return transit_call(
+                BoundaryKey.DAG_PROTOTYPE_ADAPTER, nw.from_native, pl.DataFrame({}), eager_only=True
+            )
         if dialect == "narwhals-pyarrow":
             import pyarrow as pa
 
-            return nw.from_native(pa.table({}), eager_only=True)
+            return transit_call(
+                BoundaryKey.DAG_PROTOTYPE_ADAPTER, nw.from_native, pa.table({}), eager_only=True
+            )
         import pandas as pd
 
-        return nw.from_native(pd.DataFrame({}), eager_only=True)
+        pandas_empty = transit_call(BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT, pd.DataFrame, {})
+        return transit_call(
+            BoundaryKey.DAG_PROTOTYPE_ADAPTER, nw.from_native, pandas_empty, eager_only=True
+        )
     return None
 
 

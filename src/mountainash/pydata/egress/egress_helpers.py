@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec, FieldSpec
 
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.typespec.spec import TypeSpec, FieldSpec
 from mountainash.pydata.ingress.custom_type_helpers import separate_conversions
 
@@ -61,7 +62,7 @@ def apply_native_conversions_for_egress(
     if spec is None:
         if not isinstance(df, pl.DataFrame):
             import mountainash as ma
-            df = ma.relation(df).to_polars()
+            df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
         return df, {}
 
     # Separate conversions into three tiers
@@ -94,10 +95,10 @@ def apply_native_conversions_for_egress(
         # strict "exact", which would enforce column-shape here).
         conform_spec = TypeSpec(fields=conform_fields, fields_match="open")
         import mountainash as ma
-        df = ma.relation(df).conform(conform_spec).to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(conform_spec).to_polars)
     elif not isinstance(df, pl.DataFrame):
         import mountainash as ma
-        df = ma.relation(df).to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).to_polars)
     else:
         # No conform needed; but custom fields with source_name == name are already
         # correctly named — nothing to do.

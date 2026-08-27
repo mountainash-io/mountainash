@@ -3,23 +3,23 @@
     "module": "mountainash.core.backend_detection",
     "owner": "identify_backend",
     "callee": "from_native",
-    "fingerprint": "eb660a71444bba98",
+    "fingerprint": "542fde2ff6084c64",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.core.backend_detection",
     "owner": "identify_backend_identity",
     "callee": "from_native",
-    "fingerprint": "6d6c2159c24f599e",
+    "fingerprint": "d5a638b58857bb28",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.datacontracts.result_processor",
@@ -36,56 +36,56 @@
     "module": "mountainash.datacontracts.validator",
     "owner": "Validator._to_polars_frame",
     "callee": "collect",
-    "fingerprint": "86874f3c0c10c047",
+    "fingerprint": "d4def2d4c6c3496d",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.datacontracts.validator",
     "owner": "Validator._to_polars_frame",
     "callee": "to_polars",
-    "fingerprint": "28ae7cc03bbc8dc2",
+    "fingerprint": "e2ae319d7eb0ee1a",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pipelines.integration.relation",
     "owner": "_visit_pipeline_step",
     "callee": "execute",
-    "fingerprint": "9703e31d2070ed62",
+    "fingerprint": "ddaa1220feb5a794",
     "boundary_key": "PIPELINE_STEP_EXECUTOR",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "node.executor.execute(...) is a pipeline-step executor call, unrelated to Ibis Table.execute() or any backend conversion; syntactically risky-named only.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_helpers",
     "owner": "apply_native_conversions_for_egress",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_helpers",
     "owner": "apply_native_conversions_for_egress",
     "callee": "to_polars",
-    "fingerprint": "74a1cd2c29b0155f",
+    "fingerprint": "1d8392bf9f1c951e",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_pydata_from_polars",
@@ -135,199 +135,199 @@
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_dictionary_of_lists",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_dictionary_of_series_pandas",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_dictionary_of_series_polars",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_index_of_dictionaries",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_index_of_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_index_of_tuples",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_index_of_typed_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_list_of_dictionaries",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_list_of_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_list_of_tuples",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
     "owner": "EgressToPythonData._to_list_of_typed_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "390f25a97f5c0552",
+    "fingerprint": "1a039c26124a154b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.custom_type_helpers",
     "owner": "_apply_narwhals_custom_converters",
     "callee": "to_native",
-    "fingerprint": "582ecd487cb03355",
+    "fingerprint": "27a9c45dc8fe644f",
     "boundary_key": "NARWHALS_NATIVE_UNWRAP_PANDAS",
     "transit_class": "EXPLICIT_PANDAS_INPUT",
     "reason": "Round-trips a Narwhals wrapper back to the caller's own originally-selected native type (`was_native`), preserving a pandas source identity when the caller supplied one.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.custom_type_helpers",
     "owner": "apply_hybrid_conversion",
     "callee": "to_polars",
-    "fingerprint": "25b2a6ab5091e296",
+    "fingerprint": "8042473ef9271030",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.custom_type_helpers",
     "owner": "apply_native_conversions_to_dataframe",
     "callee": "to_polars",
-    "fingerprint": "0b735a37bd94218b",
+    "fingerprint": "828afbcae9ef5f32",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_collection",
     "owner": "IngressFromCollection.convert",
     "callee": "to_polars",
-    "fingerprint": "f9658a7287fecd0a",
+    "fingerprint": "91abc7849b2b6ba5",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_default",
     "owner": "DataframeFromDefault.convert",
     "callee": "to_polars",
-    "fingerprint": "f9658a7287fecd0a",
+    "fingerprint": "91abc7849b2b6ba5",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_indexed",
     "owner": "DataframeFromIndexedData.convert",
     "callee": "to_polars",
-    "fingerprint": "f9658a7287fecd0a",
+    "fingerprint": "91abc7849b2b6ba5",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_namedtuple",
     "owner": "DataframeFromNamedTuple.convert",
     "callee": "to_polars",
-    "fingerprint": "f9658a7287fecd0a",
+    "fingerprint": "91abc7849b2b6ba5",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_series",
@@ -366,12 +366,12 @@
     "module": "mountainash.pydata.ingress.ingress_from_tuple",
     "owner": "DataframeFromTuple.convert",
     "callee": "to_polars",
-    "fingerprint": "f9658a7287fecd0a",
+    "fingerprint": "91abc7849b2b6ba5",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
@@ -542,12 +542,12 @@
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_narwhals_dialect",
     "callee": "from_native",
-    "fingerprint": "9d76cefb45eb696d",
+    "fingerprint": "8d40098ce310e8af",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
@@ -608,12 +608,12 @@
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_to_ibis",
     "callee": "memtable",
-    "fingerprint": "a671e76f9d34b523",
+    "fingerprint": "ac15487b8376539c",
     "boundary_key": "IBIS_CONSTRUCTOR_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Declared Ibis table construction from Arrow or resource-native input.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
@@ -685,34 +685,34 @@
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_to_narwhals",
     "callee": "from_native",
-    "fingerprint": "21babf58a642e7e5",
+    "fingerprint": "6077364826cd5aa9",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_to_narwhals",
     "callee": "from_native",
-    "fingerprint": "614a435709f70205",
+    "fingerprint": "63f99c8088a324b9",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_to_narwhals",
     "callee": "from_native",
-    "fingerprint": "fc239540f326f146",
+    "fingerprint": "a0733871f3b80127",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
@@ -784,34 +784,34 @@
     "module": "mountainash.relations.core.materialization",
     "owner": "diagnostic_polars_view",
     "callee": "from_pandas",
-    "fingerprint": "c84bd56d742f72bd",
+    "fingerprint": "bcb1c4534328dead",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_INPUT",
     "transit_class": "EXPLICIT_PANDAS_INPUT",
     "reason": "pl.from_pandas(): a declared pandas-selected source conversion.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
     "owner": "diagnostic_polars_view",
     "callee": "to_arrow",
-    "fingerprint": "69fb044787986e11",
+    "fingerprint": "9b024e9548b6363a",
     "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared PyArrow-producing terminal; never pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
     "owner": "diagnostic_polars_view",
     "callee": "to_pyarrow",
-    "fingerprint": "a719947fa3b2c08f",
+    "fingerprint": "da96c2e6c0aa114b",
     "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared PyArrow-producing terminal; never pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
@@ -927,232 +927,210 @@
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.describe",
     "callee": "collect",
-    "fingerprint": "e700c94ee0fc6b70",
+    "fingerprint": "5e20593797b94969",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.item",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_dataclasses",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_dict",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_dict_of_series_pandas",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_dict_of_series_polars",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_dicts",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_ibis",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_index_of_dicts",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_index_of_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_index_of_tuples",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_index_of_typed_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_narwhals",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_pyarrow",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_pyarrow",
     "callee": "to_pyarrow",
-    "fingerprint": "a7ab6d141fd01a8a",
+    "fingerprint": "6e75f586712db1e4",
     "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared PyArrow-producing terminal; never pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_pydantic",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_tuples",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.to_typed_named_tuples",
     "callee": "to_polars",
-    "fingerprint": "0e3365cc883d9f4f",
+    "fingerprint": "3ed2d9d3f7c8b14d",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.relations.core.relation_api.relation",
-    "owner": "_materialize",
-    "callee": "collect",
-    "fingerprint": "e176c20fbeedd318",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.relations.core.relation_api.relation",
-    "owner": "_materialize",
-    "callee": "to_native",
-    "fingerprint": "17c763ca0845beaf",
-    "boundary_key": "NARWHALS_NATIVE_UNWRAP_PANDAS",
-    "transit_class": "EXPLICIT_PANDAS_INPUT",
-    "reason": "Relation.collect()'s terminal unwrap of an eager Narwhals frame to its native value -- returns pandas when the caller's selected source was pandas (spec 6.2's identity-preservation rule).",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.relation_api.relation",
@@ -1178,69 +1156,102 @@
   },
   {
     "module": "mountainash.relations.dag.dag",
-    "owner": "RelationDAG.collect",
-    "callee": "memtable",
-    "fingerprint": "4c245f55b1e32f5c",
-    "boundary_key": "IBIS_INTERNAL_EXECUTE",
-    "transit_class": "INTERNAL_EXECUTION_TRANSIT",
-    "reason": "Wraps a pandas-transited residue with ibis.memtable() to restore a lazy marker without restoring the original dialect or null representation (spec 4.2's DAG target residue failure).",
+    "owner": "_force_eager",
+    "callee": "collect",
+    "fingerprint": "3e7ac7b6af0de5cd",
+    "boundary_key": "NATIVE_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.dag.dag",
+    "owner": "_force_eager",
+    "callee": "collect",
+    "fingerprint": "6a904a750d9adf41",
+    "boundary_key": "NATIVE_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.dag.dag",
+    "owner": "_force_eager",
+    "callee": "to_native",
+    "fingerprint": "9722921bdfb7414e",
+    "boundary_key": "NARWHALS_NATIVE_UNWRAP_NON_PANDAS",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Unwraps a Narwhals frame to its native value for schema/metadata inspection only.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.dag.dag",
+    "owner": "_force_eager",
+    "callee": "to_native",
+    "fingerprint": "cfd5d45849946d5c",
+    "boundary_key": "NARWHALS_NATIVE_UNWRAP_NON_PANDAS",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Unwraps a Narwhals frame to its native value for schema/metadata inspection only.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "DataFrame",
-    "fingerprint": "77d6e74e8f2ee904",
+    "fingerprint": "7eb2000ccc23648b",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_INPUT",
     "transit_class": "EXPLICIT_PANDAS_INPUT",
     "reason": "pd.DataFrame(): a declared pandas-selected source or destination construction.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "from_native",
-    "fingerprint": "01e8db331325aef8",
+    "fingerprint": "37281fb4dda1bbb0",
     "boundary_key": "DAG_PROTOTYPE_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Wraps an empty native placeholder (Polars/PyArrow/pandas) into Narwhals for the DAG's declared cross-dialect prototype adapter.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "from_native",
-    "fingerprint": "04656eb8c6c313b1",
+    "fingerprint": "b76559e13c14d924",
     "boundary_key": "DAG_PROTOTYPE_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Wraps an empty native placeholder (Polars/PyArrow/pandas) into Narwhals for the DAG's declared cross-dialect prototype adapter.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "from_native",
-    "fingerprint": "e4d84e8aae4af25a",
+    "fingerprint": "c3fe7cca692ba7af",
     "boundary_key": "DAG_PROTOTYPE_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Wraps an empty native placeholder (Polars/PyArrow/pandas) into Narwhals for the DAG's declared cross-dialect prototype adapter.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "memtable",
-    "fingerprint": "bbc71de1898289ec",
+    "fingerprint": "139833fa782bd169",
     "boundary_key": "IBIS_CONSTRUCTOR_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Declared Ibis table construction from Arrow or resource-native input.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.typespec.source_shape",
@@ -1257,44 +1268,44 @@
     "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._collect_row_failures",
     "callee": "to_polars",
-    "fingerprint": "5b354d6a1cbc2d1b",
+    "fingerprint": "f0ea0d1a0a64a73b",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._run_foreign_key_rule",
     "callee": "to_polars",
-    "fingerprint": "73716134571be0d0",
+    "fingerprint": "cb0654ee8f6316f8",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._run_relation_rule",
     "callee": "to_polars",
-    "fingerprint": "73716134571be0d0",
+    "fingerprint": "cb0654ee8f6316f8",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._run_row_rule",
     "callee": "to_polars",
-    "fingerprint": "7efc58a591997fb4",
+    "fingerprint": "ae4d66489d2edca2",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   }
 ]

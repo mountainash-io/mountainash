@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 import polars as pl
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.validation.checks import VERDICT_PASSING, check_kind
 from mountainash.validation.errors import IdentityInvalidError, UnknownCheckTypeError
@@ -261,11 +262,8 @@ class ValidationRunner:
             _outcome_expr(check.expr).alias(_OUTCOME)
         )
 
-        counts_pl = (
-            projected.group_by(_OUTCOME)
-            .agg(ma.count_records().alias("__ma_n__"))
-            .to_polars()
-        )
+        chain = projected.group_by(_OUTCOME).agg(ma.count_records().alias("__ma_n__"))
+        counts_pl = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, chain.to_polars)
         counts = dict(zip(counts_pl[_OUTCOME].to_list(), counts_pl["__ma_n__"].to_list()))
         pass_count = int(counts.get("pass", 0))
         fail_count = int(counts.get("fail", 0))
@@ -331,7 +329,9 @@ class ValidationRunner:
         if value_column and value_column not in select_cols:
             select_cols.append(value_column)
 
-        fail_pl = failing.select(*select_cols, _OUTCOME).to_polars()
+        fail_pl = transit_call(
+            BoundaryKey.RELATION_TO_POLARS_TERMINAL, failing.select(*select_cols, _OUTCOME).to_polars
+        )
 
         out = fail_pl.rename({_OUTCOME: "outcome"})
         if identity.kind == "row_number":
@@ -395,7 +395,8 @@ class ValidationRunner:
         if fail_count:
             sampled = failing.head(failure_sample) if failure_sample is not None else failing
             failures = rows_as_struct_failures(
-                sampled.to_polars(), check_id=check.id, check_kind="relation"
+                transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, sampled.to_polars),
+                check_id=check.id, check_kind="relation",
             )
 
         summary = CheckSummary(
@@ -444,7 +445,8 @@ class ValidationRunner:
         if orphan_count:
             sampled = orphans.head(failure_sample) if failure_sample is not None else orphans
             failures = rows_as_struct_failures(
-                sampled.to_polars(), check_id=check.id, check_kind="foreign_key"
+                transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, sampled.to_polars),
+                check_id=check.id, check_kind="foreign_key",
             )
 
         summary = CheckSummary(

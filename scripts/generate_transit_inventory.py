@@ -61,17 +61,6 @@ _OVERRIDES: dict[tuple[str, str, str], Disposition] = {
         "this migration removes.",
     ),
     (
-        "mountainash.relations.dag.dag",
-        "RelationDAG.collect",
-        "memtable",
-    ): (
-        "IBIS_INTERNAL_EXECUTE",
-        "INTERNAL_EXECUTION_TRANSIT",
-        "Wraps a pandas-transited residue with ibis.memtable() to restore a "
-        "lazy marker without restoring the original dialect or null "
-        "representation (spec 4.2's DAG target residue failure).",
-    ),
-    (
         "mountainash.relations.dag.materialization",
         "_anchor_prototype",
         "from_native",
@@ -91,17 +80,6 @@ _OVERRIDES: dict[tuple[str, str, str], Disposition] = {
         "Round-trips a Narwhals wrapper back to the caller's own originally-"
         "selected native type (`was_native`), preserving a pandas source "
         "identity when the caller supplied one.",
-    ),
-    (
-        "mountainash.relations.core.relation_api.relation",
-        "_materialize",
-        "to_native",
-    ): (
-        "NARWHALS_NATIVE_UNWRAP_PANDAS",
-        "EXPLICIT_PANDAS_INPUT",
-        "Relation.collect()'s terminal unwrap of an eager Narwhals frame to "
-        "its native value -- returns pandas when the caller's selected "
-        "source was pandas (spec 6.2's identity-preservation rule).",
     ),
     (
         "mountainash.pipelines.integration.relation",

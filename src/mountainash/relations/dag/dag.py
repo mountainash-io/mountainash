@@ -27,6 +27,34 @@ time to derive dependency edges (from RefRelNode instances), then defers
 materialization to ``collect()`` (added in Task 17).
 """
 
+
+def _force_eager(value: Any, *, unwrap: bool) -> Any:
+    """Force a lazy Polars/Narwhals value eager for residue enrichment
+    (spec section 13, Task 10). Replaces the deleted
+    ``Relation._materialize()`` -- the collection contract stays identical
+    (Polars/Narwhals lazy -> eager; ``unwrap`` additionally converts an
+    eager Narwhals frame to its native value, pandas included when the
+    source itself was pandas-selected), but every conversion now routes
+    through a literal, census-tracked ``transit_call()``.
+    """
+    from mountainash.core.backend_detection import narwhals_dialect
+    from mountainash.core.transit import BoundaryKey, transit_call
+    from mountainash.core.types import (
+        is_narwhals_dataframe,
+        is_narwhals_lazyframe,
+        is_polars_lazyframe,
+    )
+
+    if is_polars_lazyframe(value):
+        return transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+    if is_narwhals_lazyframe(value):
+        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+    if unwrap and is_narwhals_dataframe(value):
+        if narwhals_dialect(value) == "narwhals-pandas":
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
+        return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
+    return value
+
 class RelationDAG:
     """Container for named Relations with dependency and constraint edge sets.
 
@@ -169,23 +197,15 @@ class RelationDAG:
             return result
 
         from mountainash.core.limitations import enrich_materialization
-        from mountainash.core.types import (
-            is_ibis_table,
-            is_narwhals_lazyframe,
-            is_polars_lazyframe,
-        )
-        from mountainash.relations.core.relation_api.relation import _materialize
+        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
 
         original = result
         result = enrich_materialization(
             visitor.backend,
-            lambda: _materialize(result, unwrap=False),
+            lambda: _force_eager(result, unwrap=False),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
         )
-        if is_ibis_table(original) and not is_ibis_table(result):
-            import ibis
-            result = ibis.memtable(result)
         if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
             result = result.lazy()
         return result
@@ -208,14 +228,13 @@ class RelationDAG:
             output frame.
         """
         from mountainash.conform.drift import ConformCollection
-        from mountainash.relations.core.relation_api.relation import _materialize
         from mountainash.relations.schema_inference import _schema_from_dataframe
         from mountainash.core.limitations import enrich_materialization
 
         result, visitor = self._collect_with_visitor(name, backend=backend)
         frame = enrich_materialization(
             visitor.backend,
-            lambda: _materialize(result),
+            lambda: _force_eager(result, unwrap=True),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
         )
