@@ -36,6 +36,7 @@ from mountainash.validation.result import (
 
 if TYPE_CHECKING:
     from mountainash.relations import Relation
+    from mountainash.validation.prepared import PreparedValidationInput
 
 _RAW = "__ma_raw__"
 _OUTCOME = "__ma_outcome__"
@@ -93,32 +94,34 @@ class ValidationRunner:
         datacontract_name: str | None = None,
         fk_resolver: Any = None,
     ) -> ValidationResult:
-        from mountainash.relations import Relation
-        from mountainash.relations import relation as as_relation
+        """Prepare *relation* exactly once, then run *checks* against it.
 
-        rel = relation if isinstance(relation, Relation) else as_relation(relation)
-        # Collapse the (possibly conform-laden) plan to a concrete frame ONCE,
-        # up front, so every per-check executor below runs against materialized
-        # data. Without this, each check re-collects the whole plan — including
-        # a full-contract conform — so cost is O(checks × contract_fields)
-        # (item 56). ``collect(unwrap=False)`` is eager AND backend-preserving
-        # (it keeps narwhals/ibis wrappers), so re-wrapping round-trips the
-        # backend and outcome semantics are byte-identical across all backends.
-        # (An explicit ``backend`` still overrides auto-detection — the DAG
-        # path relies on it — and materialising an already-concrete frame is
-        # cheap.)
-        #
-        # A plan-level failure here (most commonly a conform cast failure) must
-        # honour the same isolation contract as a per-check executor failure
-        # (spec §6.5, ``_guarded``): it degrades to ``status="error"`` for every
-        # check and still returns a ``ValidationResult`` — it must not raise out
-        # of the runner. ``check_kind`` is evaluated per check first, so a
-        # genuine declaration error (``UnknownCheckTypeError``) still raises,
-        # ahead of the data-phase failure.
+        Compiles the plan and materializes it with the dedicated
+        ``VALIDATION_SOURCE`` purpose (spec section 6) inside one
+        ``MaterializationScope``, owning it for the run's duration -- so
+        every per-check executor below runs against the SAME materialized
+        source instead of re-collecting the whole plan (including a
+        full-contract conform) once per check (item 56).
+
+        A plan-level failure here (most commonly a conform cast failure)
+        must honour the same isolation contract as a per-check executor
+        failure (spec section 6.5, ``_guarded``): it degrades to
+        ``status="error"`` for every check and still returns a
+        ``ValidationResult`` -- it must not raise out of the runner.
+        ``check_kind`` is evaluated per check first (inside
+        ``_validate_prepared_relation``), so a genuine declaration error
+        (``UnknownCheckTypeError``) still raises, ahead of the data-phase
+        failure.
+        """
+        from mountainash.relations.core.materialization import MaterializationScope
+        from mountainash.validation.prepared import prepare_validation_input
+
+        identity = identity or RowIdentity("none")
+        scope = MaterializationScope()
         try:
-            rel = as_relation(rel.collect(unwrap=False, backend=backend))
+            prepared = prepare_validation_input(relation, backend=backend, scope=scope)
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
-            identity = identity or RowIdentity("none")
+            scope.close()
             summaries = [
                 self._error_summary(check, check_kind(check), exc) for check in checks
             ]
@@ -132,8 +135,41 @@ class ValidationRunner:
                 identity=identity,
                 identity_diagnostics={},
             )
+        try:
+            return self._validate_prepared_relation(
+                prepared,
+                checks,
+                identity=identity,
+                allow_imperfect_key=allow_imperfect_key,
+                context=context,
+                fail_fast=fail_fast,
+                failure_sample=failure_sample,
+                validator_name=validator_name,
+                datacontract_name=datacontract_name,
+                fk_resolver=fk_resolver,
+            )
+        finally:
+            scope.close()
 
-        identity = identity or RowIdentity("none")
+    def _validate_prepared_relation(
+        self,
+        prepared: "PreparedValidationInput",
+        checks: Sequence[Any],
+        *,
+        identity: RowIdentity,
+        allow_imperfect_key: bool,
+        context: dict[str, Any] | None,
+        fail_fast: bool,
+        failure_sample: int | None,
+        validator_name: str,
+        datacontract_name: str | None,
+        fk_resolver: Any,
+    ) -> ValidationResult:
+        """Run *checks* against an already-prepared, already-materialized
+        source (spec section 6). Rule queries stay native on
+        ``prepared.relation``; only small counts and selected failure rows
+        convert to Polars per check (spec section 6.2's outcome model)."""
+        rel = prepared.relation
         identity_diagnostics: dict[str, Any] = {}
         if identity.kind == "keyed":
             identity_diagnostics = validate_keyed_identity(

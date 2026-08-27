@@ -1450,16 +1450,5 @@
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
     "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner.validate_relation",
-    "callee": "collect",
-    "fingerprint": "664c031bd155906f",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
   }
 ]
