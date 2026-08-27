@@ -24,6 +24,7 @@ __getattr__, __dir__, __all__ = lazy_loader.attach(
             "UnknownRelationRef",
             "UnsupportedResourceFormat",
         ],
+        "materialization": ["CanonicalEntry", "DAGMaterializationSession"],
         "protocol": ["RelationDAGProtocol"],
         "resource_ref": ["ResourceRef"],
         "traversal": ["relation_children", "walk_refs"],

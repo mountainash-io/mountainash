@@ -1310,17 +1310,6 @@
   },
   {
     "module": "mountainash.relations.dag.dag",
-    "owner": "RelationDAG._compile_with_refs",
-    "callee": "memtable",
-    "fingerprint": "2d96120f63ccb9bf",
-    "boundary_key": "IBIS_INTERNAL_EXECUTE",
-    "transit_class": "INTERNAL_EXECUTION_TRANSIT",
-    "reason": "Wraps a pandas-transited dependency residue with ibis.memtable() to restore a lazy marker, changing backend identity (spec 4.2's DAG dependency residue failure).",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.relations.dag.dag",
     "owner": "RelationDAG.collect",
     "callee": "memtable",
     "fingerprint": "4c245f55b1e32f5c",
@@ -1331,7 +1320,7 @@
     "legacy_unwrapped": true
   },
   {
-    "module": "mountainash.relations.dag.dag",
+    "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "DataFrame",
     "fingerprint": "77d6e74e8f2ee904",
@@ -1342,7 +1331,7 @@
     "legacy_unwrapped": true
   },
   {
-    "module": "mountainash.relations.dag.dag",
+    "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "from_native",
     "fingerprint": "01e8db331325aef8",
@@ -1353,7 +1342,7 @@
     "legacy_unwrapped": true
   },
   {
-    "module": "mountainash.relations.dag.dag",
+    "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "from_native",
     "fingerprint": "04656eb8c6c313b1",
@@ -1364,7 +1353,7 @@
     "legacy_unwrapped": true
   },
   {
-    "module": "mountainash.relations.dag.dag",
+    "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "from_native",
     "fingerprint": "e4d84e8aae4af25a",
@@ -1375,7 +1364,7 @@
     "legacy_unwrapped": true
   },
   {
-    "module": "mountainash.relations.dag.dag",
+    "module": "mountainash.relations.dag.materialization",
     "owner": "_anchor_prototype",
     "callee": "memtable",
     "fingerprint": "bbc71de1898289ec",

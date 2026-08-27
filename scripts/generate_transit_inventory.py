@@ -72,18 +72,7 @@ _OVERRIDES: dict[tuple[str, str, str], Disposition] = {
         "representation (spec 4.2's DAG target residue failure).",
     ),
     (
-        "mountainash.relations.dag.dag",
-        "RelationDAG._compile_with_refs",
-        "memtable",
-    ): (
-        "IBIS_INTERNAL_EXECUTE",
-        "INTERNAL_EXECUTION_TRANSIT",
-        "Wraps a pandas-transited dependency residue with ibis.memtable() to "
-        "restore a lazy marker, changing backend identity (spec 4.2's DAG "
-        "dependency residue failure).",
-    ),
-    (
-        "mountainash.relations.dag.dag",
+        "mountainash.relations.dag.materialization",
         "_anchor_prototype",
         "from_native",
     ): (
