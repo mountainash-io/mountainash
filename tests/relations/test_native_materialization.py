@@ -3,9 +3,13 @@
 """
 from __future__ import annotations
 
+import datetime as _dt
+
 import pytest
 
+import mountainash as ma
 from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.types import is_ibis_table
 from mountainash.relations.core.materialization import (
     DiagnosticFrameView,
     ExecutionForm,
@@ -14,6 +18,7 @@ from mountainash.relations.core.materialization import (
     diagnostic_polars_view,
     materialize_native,
 )
+from mountainash.relations.core.relation_api.relation import Relation
 
 
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
@@ -113,3 +118,46 @@ def test_diagnostic_polars_view_from_ibis_uses_arrow_not_pandas(
     monkeypatch.setattr(type(native.value), "to_pandas", _boom, raising=False)
     view = diagnostic_polars_view(native)
     assert view.frame["age"].to_list() == [30, -1, None]
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+def test_collect_retains_ibis_table_and_dialect(backend_name, backend_factory):
+    table = backend_factory.create({"d": [_dt.date(2024, 1, 2), None]}, backend_name)
+    result = ma.relation(table).collect(unwrap=False)
+    assert is_ibis_table(result)
+    assert identify_backend_identity(result).dialect == backend_name
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+def test_to_pandas_does_not_call_to_polars(backend_name, backend_factory, monkeypatch):
+    relation = ma.relation(backend_factory.create({"x": [1, None]}, backend_name))
+    monkeypatch.setattr(Relation, "to_polars", lambda self: pytest.fail("Polars transit"))
+    result = relation.to_pandas()
+    assert result["x"].tolist()[0] == 1
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars"])
+def test_ibis_to_polars_egress_never_constructs_pandas(
+    backend_name, backend_factory, monkeypatch
+):
+    """Mountainash's own to_polars() route never constructs pandas.
+
+    ibis-sqlite excluded: ibis's SQLite backend uses pandas as an internal
+    implementation detail of its own ``to_pyarrow_batches()``
+    (``ibis.formats.pandas.SQLitePandasData.convert_table()``), outside
+    Mountainash's call site and outside this policy's control. The dtype
+    fidelity that matters -- Arrow preserving `date32` -- is still verified
+    for ibis-sqlite by `test_ibis_egress_prefers_arrow_over_pandas`.
+    """
+    import pandas as pd
+    import polars as pl
+
+    table = backend_factory.create({"d": [_dt.date(2024, 1, 2), None]}, backend_name)
+
+    def _tripwire(self, *args, **kwargs):
+        pytest.fail("pandas.DataFrame constructed during Ibis-to-Polars egress")
+
+    monkeypatch.setattr(pd.DataFrame, "__init__", _tripwire)
+    result = ma.relation(table).to_polars()
+    assert isinstance(result, pl.DataFrame)
+    assert result["d"].dtype == pl.Date

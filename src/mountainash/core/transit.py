@@ -79,6 +79,14 @@ class BoundaryKey(Enum):
     NARWHALS_NATIVE_UNWRAP_NON_PANDAS = auto()
     IBIS_NATIVE_CACHE = auto()
     IBIS_INTERNAL_EXECUTE = auto()
+    IBIS_TO_ARROW_EGRESS = auto()
+    ARROW_TO_POLARS_EGRESS = auto()
+    PANDAS_TO_POLARS_EGRESS = auto()
+    NARWHALS_TO_POLARS_EGRESS = auto()
+    POLARS_TO_PANDAS_EGRESS = auto()
+    NARWHALS_TO_PANDAS_EGRESS = auto()
+    IBIS_TO_PANDAS_EGRESS = auto()
+    ARROW_TO_PANDAS_EGRESS = auto()
 
 
 @dataclass(frozen=True)
@@ -200,6 +208,133 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
             "specification stays registered only for the negative synthetic "
             "proof once production call sites stop using it."
         ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.IBIS_TO_ARROW_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit Polars egress from Ibis",
+        route=RouteKey.EXPLICIT_POLARS_EGRESS,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"ibis"}),
+        source_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+        destination_families=frozenset({"pyarrow"}),
+        destination_dialects=frozenset({"pyarrow"}),
+        reason=(
+            "Ibis Table.to_pyarrow() is the Arrow-preserving first step of "
+            "explicit_polars_egress(); Arrow keeps date32/temporal types a "
+            "pandas round-trip would widen (spec 4.4)."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.ARROW_TO_POLARS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit Polars egress from Arrow",
+        route=RouteKey.EXPLICIT_POLARS_EGRESS,
+        step=2,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"pyarrow"}),
+        source_dialects=frozenset({"pyarrow"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "pl.from_arrow() converts a PyArrow table to Polars, whether "
+            "chained after IBIS_TO_ARROW_EGRESS or from a direct PyArrow "
+            "source; never touches pandas."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.PANDAS_TO_POLARS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit Polars egress from a pandas-selected source",
+        route=RouteKey.EXPLICIT_POLARS_EGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_INPUT,
+        source_families=frozenset({"pandas"}),
+        source_dialects=frozenset({"pandas", "narwhals-pandas"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "pl.from_pandas() converts a declared pandas-selected source to "
+            "Polars; the source identity is pandas, not an internal "
+            "conversion detail."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_TO_POLARS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit Polars egress from Narwhals",
+        route=RouteKey.EXPLICIT_POLARS_EGRESS,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "Narwhals DataFrame.to_polars() is narwhals' own declared "
+            "conversion API; its destination is always Polars regardless of "
+            "the wrapped backend."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.POLARS_TO_PANDAS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit pandas egress from Polars",
+        route=RouteKey.EXPLICIT_PANDAS_EGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"polars"}),
+        source_dialects=frozenset({"polars"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason="A declared, user-visible pandas terminal via Polars' own to_pandas().",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_TO_PANDAS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit pandas egress from Narwhals",
+        route=RouteKey.EXPLICIT_PANDAS_EGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-polars", "narwhals-pyarrow"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason=(
+            "A declared, user-visible pandas terminal via Narwhals' own "
+            "to_pandas() for a non-pandas-selected source."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.IBIS_TO_PANDAS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit pandas egress from Ibis",
+        route=RouteKey.EXPLICIT_PANDAS_EGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"ibis"}),
+        source_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason=(
+            "A declared, user-visible pandas terminal via Ibis Table's own "
+            "to_pandas() -- called directly, never through "
+            "explicit_polars_egress()."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.ARROW_TO_PANDAS_EGRESS: BoundarySpec(
+        owner=_MATERIALIZATION_OWNER,
+        consumer="explicit pandas egress from PyArrow",
+        route=RouteKey.EXPLICIT_PANDAS_EGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"pyarrow"}),
+        source_dialects=frozenset({"pyarrow"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason="A declared, user-visible pandas terminal via PyArrow Table.to_pandas().",
         since=_SINCE_2026_08_27,
     ),
 }

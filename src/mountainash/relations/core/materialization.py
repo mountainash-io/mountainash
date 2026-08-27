@@ -250,3 +250,114 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
             "native type"
         ),
     )
+
+
+def explicit_polars_egress(native: NativeExecutionValue) -> "pl.DataFrame":
+    """Convert *native* to Polars via its declared route (spec 8.3).
+
+    No non-pandas fallback: an Ibis table prefers Arrow (``to_pyarrow()``
+    then ``pl.from_arrow()``), a PyArrow table converts directly, a
+    pandas-selected source uses ``pl.from_pandas()``, and a Narwhals frame
+    uses its own ``to_polars()``. A source with no declared route raises
+    ``BackendConversionError`` instead of a silent ``to_pandas()`` detour.
+    """
+    import polars as pl
+
+    from mountainash.core.types import (
+        is_ibis_table,
+        is_narwhals_dataframe,
+        is_pandas_dataframe,
+        is_polars_dataframe,
+        is_pyarrow_table,
+    )
+
+    value = native.value
+
+    if is_polars_dataframe(value):
+        return value
+
+    if is_ibis_table(value):
+        arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
+        return cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, arrow),
+        )
+
+    if is_pyarrow_table(value):
+        return cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, value),
+        )
+
+    if is_pandas_dataframe(value):
+        return cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.PANDAS_TO_POLARS_EGRESS, pl.from_pandas, value),
+        )
+
+    if is_narwhals_dataframe(value):
+        return cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.NARWHALS_TO_POLARS_EGRESS, value.to_polars),
+        )
+
+    raise BackendConversionError(
+        "explicit_polars_egress() has no declared conversion route for this "
+        "native value",
+        boundary_key=None,
+        source_family=str(native.value_identity.family),
+        source_dialect=native.value_identity.dialect,
+        destination_family="polars",
+        destination_dialect="polars",
+        source_type=type(value).__name__,
+        route="explicit_polars_egress",
+        reason="no declared Polars conversion route for this native type",
+    )
+
+
+def explicit_pandas_egress(native: NativeExecutionValue) -> Any:
+    """Convert *native* to pandas via its declared route (spec 8.3).
+
+    A pandas-selected source passes through (or unwraps from Narwhals). Every
+    other family calls its own native ``to_pandas()`` terminal directly --
+    Ibis and PyArrow never route through ``explicit_polars_egress()`` first.
+    """
+    from mountainash.core.types import (
+        is_ibis_table,
+        is_narwhals_dataframe,
+        is_pandas_dataframe,
+        is_polars_dataframe,
+        is_pyarrow_table,
+    )
+
+    value = native.value
+
+    if is_pandas_dataframe(value):
+        return value
+
+    if is_narwhals_dataframe(value):
+        if native.value_identity.dialect == "narwhals-pandas":
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
+        return transit_call(BoundaryKey.NARWHALS_TO_PANDAS_EGRESS, value.to_pandas)
+
+    if is_polars_dataframe(value):
+        return transit_call(BoundaryKey.POLARS_TO_PANDAS_EGRESS, value.to_pandas)
+
+    if is_ibis_table(value):
+        return transit_call(BoundaryKey.IBIS_TO_PANDAS_EGRESS, value.to_pandas)
+
+    if is_pyarrow_table(value):
+        return transit_call(BoundaryKey.ARROW_TO_PANDAS_EGRESS, value.to_pandas)
+
+    raise BackendConversionError(
+        "explicit_pandas_egress() has no declared conversion route for this "
+        "native value",
+        boundary_key=None,
+        source_family=str(native.value_identity.family),
+        source_dialect=native.value_identity.dialect,
+        destination_family="pandas",
+        destination_dialect="pandas",
+        source_type=type(value).__name__,
+        route="explicit_pandas_egress",
+        reason="no declared pandas conversion route for this native type",
+    )
