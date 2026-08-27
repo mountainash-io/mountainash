@@ -149,16 +149,12 @@ def test_duplicate_primary_key_isolates_identity_failure(tmp_path, backend_name)
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", _COLLECT_BACKENDS)
 def test_drifting_data_reports_specific_checks_cross_backend(tmp_path, backend_name):
-    """Identity holds (no duplicate parents.id); three independent violation
-    kinds (range, enum, FK) fire in one dag.validate() call — proves which
-    checks fired, not just that something failed.
+    """Identity holds while range, enum, and FK checks fail independently.
 
-    A fourth kind (pattern) is deliberately NOT asserted here: it exposed a
-    genuine pre-existing defect on narwhals/ibis-duckdb (item 103, backlog) —
-    the `pattern` check's NULL-on-no-match assumption doesn't hold on either
-    backend, so it silently reports "passed" instead of "failed" there. See
-    test_pattern_violation_detected_polars for the Polars-only proof; the
-    other three violation kinds are confirmed correct on all 3 backends."""
+    Pattern behavior is isolated in
+    ``test_pattern_violation_is_detected_cross_backend`` so its XML Schema
+    assertion stays discriminating across every backend.
+    """
     pkg = _load_package(
         tmp_path,
         parents=[
@@ -190,13 +186,10 @@ def test_drifting_data_reports_specific_checks_cross_backend(tmp_path, backend_n
     assert fk_summary["fail_count"] == 1
 
 
-def test_pattern_violation_detected_polars(tmp_path):
-    """Polars-only: the `pattern` check correctly reports "failed" for a
-    value violating the constraint. Narrowed from the cross-backend test
-    above — narwhals/ibis-duckdb both silently report "passed" instead
-    (item 103, backlog: `pattern-constraint-check-silently-passes-narwhals-ibis-duckdb.md`),
-    a genuine pre-existing defect unrelated to this item's `to_typespec()`
-    seam and explicitly out of scope to fix here (spec §7)."""
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _COLLECT_BACKENDS)
+def test_pattern_violation_is_detected_cross_backend(tmp_path, backend_name):
+    """A compiled XML Schema pattern fails uniformly after DAG materialization."""
     pkg = _load_package(
         tmp_path,
         parents=[
@@ -211,7 +204,7 @@ def test_pattern_violation_detected_polars(tmp_path):
     dag = pkg.to_relation_dag()
     specs = {r.name: r.to_typespec() for r in pkg.resources}
 
-    result = dag.validate(specs, backend="polars")
+    result = dag.validate(specs, backend=backend_name)
 
     assert result.passes is False
     parents_summaries = result.results["parents"].check_summaries
