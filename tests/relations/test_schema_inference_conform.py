@@ -232,10 +232,6 @@ class TestParityGuards:
         # Exact-mode requires ordered source names, not positional renaming.
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
         spec = TypeSpec(
-    def test_parity_select_exact_rejects_positional_mapping(self):
-        # Exact-mode requires ordered source names, not positional renaming.
-        df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
-        spec = TypeSpec(
             fields=[
                 FieldSpec(name="x", type=U.INTEGER),
                 FieldSpec(name="y", type=U.STRING),
