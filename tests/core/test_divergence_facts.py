@@ -23,7 +23,7 @@ def test_lookup_and_unknown_id():
 def test_ma_conf_04_registered():
     fact = divergence_by_id("MA-CONF-04")
     assert fact is not None
-    assert fact.backends == ("ibis-sqlite",)
+    assert fact.backends == ("pandas", "narwhals-pandas", "ibis-sqlite")
 
 
 def test_narwhals_pandas_titlecase_divergence_registered():
