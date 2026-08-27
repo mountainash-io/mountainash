@@ -303,7 +303,7 @@ def transit_call(
 
     trace = _ACTIVE_TRACE.get()
     if trace is not None:
-        source_type = (
+        trace_source_type = (
             _qualified_type(trace_source) if trace_source is not _UNSET else None
         )
         trace.records.append(
@@ -312,7 +312,7 @@ def transit_call(
                 route=spec.route,
                 transit_class=spec.transit_class,
                 consumer=spec.consumer,
-                source_type=source_type,
+                source_type=trace_source_type,
                 result_type=_qualified_type(result),
             )
         )
