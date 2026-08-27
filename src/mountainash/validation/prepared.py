@@ -23,11 +23,13 @@ if TYPE_CHECKING:
         MaterializationScope,
         NativeExecutionValue,
     )
+    from mountainash.relations.dag.materialization import DAGMaterializationSession
 
 __all__ = [
     "PreparedValidationInput",
     "assert_prepared_identity",
     "prepare_validation_input",
+    "prepare_validation_input_from_session",
 ]
 
 
@@ -98,5 +100,28 @@ def prepare_validation_input(
     native = materialize_native(
         result, compiler_identity, MaterializationPurpose.VALIDATION_SOURCE, scope=scope
     )
+    assert_prepared_identity(native, native.value)
+    return PreparedValidationInput(relation=as_relation(native.value), native=native)
+
+
+def prepare_validation_input_from_session(
+    session: "DAGMaterializationSession", name: str
+) -> PreparedValidationInput:
+    """Build a :class:`PreparedValidationInput` for a DAG-registered *name*
+    from an already-shared :class:`~mountainash.relations.dag.materialization.DAGMaterializationSession`
+    (Task 8, spec section 10/18: "the Unit D node transform hook for
+    planned resources").
+
+    Unlike :func:`prepare_validation_input`, this never compiles *name*
+    itself -- ``session.compile_registered()`` already compiles and
+    materializes it (memoized, shared with every other consumer in the
+    same session: a dependency, another planned resource's foreign-key
+    reference, ...), so multiple validated resources referencing the same
+    upstream DAG relation share one compile instead of each re-running
+    ``prepare_validation_input()`` independently.
+    """
+    from mountainash.relations import relation as as_relation
+
+    native, _visitor = session.compile_registered(name)
     assert_prepared_identity(native, native.value)
     return PreparedValidationInput(relation=as_relation(native.value), native=native)

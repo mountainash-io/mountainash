@@ -311,8 +311,10 @@ class DAGMaterializationSession:
                 diagnostic_trace=trace, residue_checks=residue_checks_this,
             )
             if was_lazy:
+                relazified = forced.value.lazy()
                 native = NativeExecutionValue(
-                    forced.value.lazy(), forced.compiler_identity, forced.value_identity,
+                    relazified, forced.compiler_identity,
+                    identify_backend_identity(relazified),
                     ExecutionForm.LAZY,
                 )
             else:

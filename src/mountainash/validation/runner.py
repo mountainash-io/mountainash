@@ -472,91 +472,148 @@ class ValidationRunner:
         fk_error_summaries: "list[CheckSummary] | None" = None,
         allow_imperfect_key: bool = False,
     ) -> "DAGValidationResult":
+        """Validate every resource in *checks_by_resource*, then every
+        foreign-key rule, through ONE shared
+        :class:`~mountainash.relations.dag.materialization.DAGMaterializationSession`
+        (spec section 10/18): a resource referenced as both a planned
+        (spec'd) resource and a dependency or foreign-key parent of
+        another compiles exactly once, shared across every consumer.
+        """
         from mountainash.relations import relation as as_relation
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
         from mountainash.validation.checks import ForeignKeyRule
+        from mountainash.validation.prepared import prepare_validation_input_from_session
 
-        natives: dict[str, Any] = {}
+        session = DAGMaterializationSession(dag, backend=backend, isolate_failures=True)
+        prepared_by_name: "dict[str, PreparedValidationInput]" = {}
+
+        def _prepare(name: str) -> "PreparedValidationInput":
+            if name not in prepared_by_name:
+                prepared_by_name[name] = prepare_validation_input_from_session(session, name)
+            return prepared_by_name[name]
 
         def _resolver(name: str) -> Any:
-            if name not in natives:
-                natives[name] = dag.collect(name, backend=backend)
-            return as_relation(natives[name])
+            # A planned (spec'd) resource reuses its own PreparedValidationInput's
+            # relation; an execution-only dependency (Unit D's "identity
+            # transform") is compiled plainly through the session -- no
+            # PreparedValidationInput wrapper, since it was never itself
+            # validated.
+            prepared = prepared_by_name.get(name)
+            if prepared is not None:
+                return prepared.relation
+            native, _visitor = session.compile_registered(name)
+            return as_relation(native.value)
 
         identity_by_resource = identity_by_resource or {}
         results: dict[str, ValidationResult] = {}
         fk_rules: list[Any] = []
 
-        for name, checks in checks_by_resource.items():
-            intra = [c for c in checks if not isinstance(c, ForeignKeyRule)]
-            fk_rules.extend(c for c in checks if isinstance(c, ForeignKeyRule))
-            resource_identity = identity_by_resource.get(name) or RowIdentity("none")
-            try:
-                result = self.validate_relation(
-                    _resolver(name),
-                    intra,
-                    identity=resource_identity,
-                    allow_imperfect_key=allow_imperfect_key,
-                    context=context,
-                    fail_fast=fail_fast,
-                    failure_sample=failure_sample,
-                    validator_name=name,
-                )
-            except IdentityInvalidError as exc:
-                # spec item 8j §3.2: a resource's invalid keyed identity never
-                # aborts the batch — isolate it into that resource's own failing
-                # result, same as every other exception in this loop already is
-                # (materialisation failures, runner.py:118-134). "__identity__"
-                # mirrors the existing "__fk__" synthetic-result naming
-                # (runner.py:470, the fail_fast early-return branch this snippet
-                # mirrors; runner.py:490, the fk_result construction).
-                summary = CheckSummary(
-                    check_id="__identity__",
-                    check_kind=None,
-                    status="error",
-                    severity="blocking",
-                    error=f"{type(exc).__name__}: {exc}",
-                )
-                result = ValidationResult(
-                    passes=False,
-                    validator_name=name,
-                    datacontract_name=None,
-                    context=dict(context or {}),
-                    check_summaries=summaries_frame([summary]),
-                    failure_cases=combine_failure_frames([], resource_identity),
-                    identity=resource_identity,
-                    identity_diagnostics={},
-                )
-            results[name] = result
-            if fail_fast and not result.passes:
-                return DAGValidationResult(
-                    passes=False,
-                    results=results,
-                    fk_result=ValidationResult(
-                        passes=True, validator_name="__fk__", context=dict(context or {})
-                    ),
-                )
+        try:
+            for name, checks in checks_by_resource.items():
+                intra = [c for c in checks if not isinstance(c, ForeignKeyRule)]
+                fk_rules.extend(c for c in checks if isinstance(c, ForeignKeyRule))
+                resource_identity = identity_by_resource.get(name) or RowIdentity("none")
+                try:
+                    prepared = _prepare(name)
+                except Exception as exc:  # noqa: BLE001 — isolation is the contract
+                    # A resource's own preparation failure (most commonly a
+                    # conform cast failure) isolates to that resource's own
+                    # failing result, same as validate_relation()'s
+                    # equivalent plan-level isolation (Task 6) — it must not
+                    # abort unrelated resources in this batch.
+                    summaries = [
+                        self._error_summary(c, check_kind(c), exc) for c in checks
+                    ]
+                    result = ValidationResult(
+                        passes=passes_from_summaries(summaries),
+                        validator_name=name,
+                        datacontract_name=None,
+                        context=dict(context or {}),
+                        check_summaries=summaries_frame(summaries),
+                        failure_cases=combine_failure_frames([], resource_identity),
+                        identity=resource_identity,
+                        identity_diagnostics={},
+                    )
+                    results[name] = result
+                    if fail_fast and not result.passes:
+                        return DAGValidationResult(
+                            passes=False,
+                            results=results,
+                            fk_result=ValidationResult(
+                                passes=True, validator_name="__fk__", context=dict(context or {})
+                            ),
+                        )
+                    continue
 
-        identity = RowIdentity("none")
-        fk_summaries: list[CheckSummary] = list(fk_error_summaries or [])
-        fk_frames: list[pl.DataFrame] = []
-        for fk in fk_rules:
-            summary, failures = self._guarded(
-                functools.partial(self._run_foreign_key_rule, fk_resolver=_resolver),
-                None, fk, "foreign_key", identity, failure_sample,
+                try:
+                    result = self._validate_prepared_relation(
+                        prepared,
+                        intra,
+                        identity=resource_identity,
+                        allow_imperfect_key=allow_imperfect_key,
+                        context=context,
+                        fail_fast=fail_fast,
+                        failure_sample=failure_sample,
+                        validator_name=name,
+                        datacontract_name=None,
+                        fk_resolver=_resolver,
+                    )
+                except IdentityInvalidError as exc:
+                    # spec item 8j §3.2: a resource's invalid keyed identity never
+                    # aborts the batch — isolate it into that resource's own failing
+                    # result, same as a preparation failure above. "__identity__"
+                    # mirrors the existing "__fk__" synthetic-result naming.
+                    summary = CheckSummary(
+                        check_id="__identity__",
+                        check_kind=None,
+                        status="error",
+                        severity="blocking",
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                    result = ValidationResult(
+                        passes=False,
+                        validator_name=name,
+                        datacontract_name=None,
+                        context=dict(context or {}),
+                        check_summaries=summaries_frame([summary]),
+                        failure_cases=combine_failure_frames([], resource_identity),
+                        identity=resource_identity,
+                        identity_diagnostics={},
+                    )
+                results[name] = result
+                if fail_fast and not result.passes:
+                    return DAGValidationResult(
+                        passes=False,
+                        results=results,
+                        fk_result=ValidationResult(
+                            passes=True, validator_name="__fk__", context=dict(context or {})
+                        ),
+                    )
+
+
+            identity = RowIdentity("none")
+            fk_summaries: list[CheckSummary] = list(fk_error_summaries or [])
+            fk_frames: list[pl.DataFrame] = []
+            for fk in fk_rules:
+                summary, failures = self._guarded(
+                    functools.partial(self._run_foreign_key_rule, fk_resolver=_resolver),
+                    None, fk, "foreign_key", identity, failure_sample,
+                )
+                fk_summaries.append(summary)
+                if failures.height:
+                    fk_frames.append(failures)
+                if fail_fast and is_blocking(summary):
+                    break  # same definition passes_from_summaries penalises (spec §8)
+
+            fk_result = ValidationResult(
+                passes=passes_from_summaries(fk_summaries),
+                validator_name="__fk__",
+                context=dict(context or {}),
+                check_summaries=summaries_frame(fk_summaries),
+                failure_cases=combine_failure_frames(fk_frames, identity),
+                identity=identity,
             )
-            fk_summaries.append(summary)
-            if failures.height:
-                fk_frames.append(failures)
-            if fail_fast and is_blocking(summary):
-                break  # same definition passes_from_summaries penalises (spec §8)
-
-        fk_result = ValidationResult(
-            passes=passes_from_summaries(fk_summaries),
-            validator_name="__fk__",
-            context=dict(context or {}),
-            check_summaries=summaries_frame(fk_summaries),
-            failure_cases=combine_failure_frames(fk_frames, identity),
-            identity=identity,
-        )
-        passes = all(r.passes for r in results.values()) and fk_result.passes
-        return DAGValidationResult(passes=passes, results=results, fk_result=fk_result)
+            passes = all(r.passes for r in results.values()) and fk_result.passes
+            return DAGValidationResult(passes=passes, results=results, fk_result=fk_result)
+        finally:
+            session.close(release_owned=True)

@@ -1398,17 +1398,6 @@
   },
   {
     "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner._resolver",
-    "callee": "collect",
-    "fingerprint": "8fc83e059a805cd9",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._run_foreign_key_rule",
     "callee": "to_polars",
     "fingerprint": "73716134571be0d0",
