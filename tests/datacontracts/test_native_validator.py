@@ -18,6 +18,17 @@ class PersonContract(BaseDataContract):
         coerce = False  # tests drive conform explicitly
 
 
+class DatedPersonContract(PersonContract):
+    """PersonContract plus the column the as-of contextual rule reads.
+
+    Exact-mode conform requires the contract to declare every input column;
+    a contextual rule's ``fields`` metadata is execution metadata, not a
+    schema extension.
+    """
+
+    extract_date: str
+
+
 def _rules():
     return RuleRegistry([
         Rule("age_under_150", expr=ma.col("age").lt(150)),
@@ -102,7 +113,7 @@ class TestFlow:
                 .le(ma.lit(require_as_of(ctx).replace(tzinfo=None))),
             fields=["extract_date"],
         )])
-        validator = Validator(name="people", contract=PersonContract, rules=rules)
+        validator = Validator(name="people", contract=DatedPersonContract, rules=rules)
         df = pl.DataFrame({
             "name": ["a", "b"], "age": [1, 2],
             "extract_date": ["2026-07-01T00:00:00", "2026-08-01T00:00:00"],

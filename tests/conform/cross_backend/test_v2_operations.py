@@ -26,14 +26,15 @@ from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResul
 from tests.fixtures.capability_gating import (
     assert_capability_gated,
     assert_predicate_capability_gated,
+    assert_predicate_clauses,
 )
 from fixtures.backend_registry import ALL_BACKENDS
 _SYSTEMS = {
     "polars": PolarsExpressionSystem("polars"),
     "polars-lazy": PolarsExpressionSystem("polars"),
     "pandas": NarwhalsExpressionSystem("narwhals-pandas"),
-    "narwhals-polars": NarwhalsExpressionSystem("narwhals-polars"),
     "narwhals-pandas": NarwhalsExpressionSystem("narwhals-pandas"),
+    "narwhals-polars": NarwhalsExpressionSystem("narwhals-polars"),
     "narwhals-lazy": NarwhalsExpressionSystem("narwhals-lazy"),
     "ibis-duckdb": IbisExpressionSystem("ibis-duckdb"),
     "ibis-polars": IbisExpressionSystem("ibis-polars"),
@@ -233,8 +234,9 @@ def test_conditioned_null_list_fact_gates_matching_item_type() -> None:
         UnifiedExpressionVisitor(
             NarwhalsExpressionSystem("narwhals-polars")
         ).visit(expr._node)
-    assert error.value.limitation.option_value == "null"
-    assert error.value.limitation.predicate is not None
+    limitation = error.value.limitation
+    assert limitation.param == "failure_behavior"
+    assert_predicate_clauses(limitation, item_type="integer", failure_behavior="null")
 
 
 def test_conditioned_null_list_fact_does_not_block_supported_item_type() -> None:
@@ -268,33 +270,36 @@ def test_boolean_list_parser_rejects_mixed_case_tokens(backend_name: str) -> Non
         BackendResultHelper.select_and_extract(frame, compiled, "values", backend_name)
 
 
-def test_list_null_capability_uses_exact_failure_selector_without_duplicates() -> None:
+def test_list_null_capability_uses_predicate_failure_selector_without_duplicates() -> None:
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.schema import ClauseOp
     from mountainash.core.constants import CONST_BACKEND
 
-    fact = CapabilityRegistry.capability_for(
-        FK_LIST.PARSE,
-        "failure_behavior",
-        CONST_BACKEND.NARWHALS,
-        dialect="narwhals-polars",
-        option_value="null",
-    )
-    assert fact is not None
-    assert fact.level is CapabilityLevel.UNSUPPORTED
-    assert fact.option_value == "null"
-    assert fact.predicate is not None
     matching = [
         item for item in CapabilityRegistry.facts()
         if item.operation_key is FK_LIST.PARSE
         and item.backend is CONST_BACKEND.NARWHALS
         and item.dialect == "narwhals-polars"
         and item.param == "failure_behavior"
-        and item.option_value == "null"
+        and item.predicate is not None
+        and any(
+            clause.op is ClauseOp.EQ
+            and clause.path == "failure_behavior"
+            and clause.operand == "null"
+            for clause in item.predicate.clauses
+        )
     ]
-    keys = {
-        (item.param, item.option_value, item.predicate)
+    assert matching
+    assert all(item.level is CapabilityLevel.UNSUPPORTED for item in matching)
+    assert all(item.option_value is None for item in matching)
+    gated_types = [
+        clause.operand
         for item in matching
-    }
+        for clause in item.predicate.clauses
+        if clause.path == "item_type"
+    ]
+    assert len(set(gated_types)) == len(gated_types)
+    keys = {(item.param, item.option_value, item.predicate) for item in matching}
     assert len(keys) == len(matching)
 
 
@@ -431,7 +436,7 @@ def test_list_parse_invalid_item_is_complete_value_failure(
         fact = error.limitation
         assert fact.operation_key is FK_LIST.PARSE
         assert fact.param == "failure_behavior"
-        assert fact.option_value == "null"
+        assert_predicate_clauses(fact, item_type=item_type, failure_behavior="null")
         assert fact.backend is family
         assert fact.dialect == dialect
         return
@@ -599,12 +604,13 @@ def test_struct_cast_recursive_matrix(
         else backend_name in {"polars", "polars-lazy"}
     )
     if not supported:
-        assert_capability_gated(
-            FK_STRUCT.CAST, family, dialect=dialect,
-            param="failure_behavior",
-            option_value=failure_behavior.value,
-            build=build,
-        )
+        error = assert_predicate_capability_gated(build)
+        fact = error.limitation
+        assert fact.operation_key is FK_STRUCT.CAST
+        assert fact.param == "failure_behavior"
+        assert fact.backend is family
+        assert fact.dialect == dialect
+        assert_predicate_clauses(fact, failure_behavior=failure_behavior.value)
         return
     values = _extract(
         backend_name,
@@ -625,10 +631,13 @@ def test_struct_cast_null_mode_invalidates_recursive_value(backend_name: str) ->
     build = lambda: _compile_for(backend_name, expr)
     family, dialect = _gate(backend_name)
     if backend_name not in {"polars", "polars-lazy"}:
-        assert_capability_gated(
-            FK_STRUCT.CAST, family, dialect=dialect,
-            param="failure_behavior", option_value="null", build=build,
-        )
+        error = assert_predicate_capability_gated(build)
+        fact = error.limitation
+        assert fact.operation_key is FK_STRUCT.CAST
+        assert fact.param == "failure_behavior"
+        assert fact.backend is family
+        assert fact.dialect == dialect
+        assert_predicate_clauses(fact, failure_behavior="null")
         return
     values = _extract(
         backend_name,
@@ -660,10 +669,13 @@ def test_categorical_cast_preserves_supported_base_values(
     build = lambda: _compile_for(backend_name, expr)
     family, dialect = _gate(backend_name)
     if backend_name == "ibis-sqlite" and value_type == "integer":
-        assert_capability_gated(
-            FK_CAT.CAST, family, dialect=dialect,
-            param="value_type", option_value="integer", build=build,
-        )
+        error = assert_predicate_capability_gated(build)
+        fact = error.limitation
+        assert fact.operation_key is FK_CAT.CAST
+        assert fact.param == "value_type"
+        assert fact.backend is family
+        assert fact.dialect == dialect
+        assert_predicate_clauses(fact, value_type="integer")
         return
     if (
         backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}
@@ -674,9 +686,9 @@ def test_categorical_cast_preserves_supported_base_values(
         fact = error.limitation
         assert fact.operation_key is FK_CAT.CAST
         assert fact.param == "value_type"
-        assert fact.option_value == "integer"
         assert fact.backend is family
         assert fact.dialect == dialect
+        assert_predicate_clauses(fact, value_type="integer", failure_behavior="null")
         return
     values = _extract(
         backend_name, {"status": [source_value]}, build(), "status",
@@ -701,7 +713,7 @@ def test_narwhals_pandas_categorical_integer_nulls_invalid_values(
     assert fact.backend is family
     assert fact.dialect == dialect
     assert fact.param == "value_type"
-    assert fact.option_value == "integer"
+    assert_predicate_clauses(fact, value_type="integer", failure_behavior="null")
 
 
 @pytest.mark.parametrize("backend_name", ("pandas", "narwhals-pandas"))
@@ -722,7 +734,7 @@ def test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow(
     assert fact.backend is family
     assert fact.dialect == dialect
     assert fact.param == "value_type"
-    assert fact.option_value == "integer"
+    assert_predicate_clauses(fact, value_type="integer", failure_behavior="null")
 
 
 def test_polars_geopoint_default_preserves_valid_text_and_nulls() -> None:
