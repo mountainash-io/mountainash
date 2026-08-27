@@ -197,9 +197,6 @@ def enrich_materialization(
     facts = CapabilityRegistry.residue_candidates(family, active_dialect)
     try:
         result = fn()
-        from mountainash.core.types import is_ibis_table
-        if is_ibis_table(result):
-            result = result.execute()
     except BackendCapabilityError:
         raise
     except ConformError:

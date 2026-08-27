@@ -192,7 +192,10 @@ class TestExplicitBackendAnchorCoherence:
             # visitor, captured before any read is attempted.
 
         assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.POLARS
-        assert _visitor_construction_spy[0]["dialect"] is None  # never "narwhals-pandas"
+        # Task 7: Polars has exactly one dialect, so an override resolves
+        # to the canonical "polars" string, never an unnecessarily lossy
+        # None -- and never the foreign "narwhals-pandas" hybrid either.
+        assert _visitor_construction_spy[0]["dialect"] == "polars"
 
     def test_adhoc_node_fallback_branch_never_builds_invalid_hybrid(
         self, _visitor_construction_spy
@@ -206,7 +209,7 @@ class TestExplicitBackendAnchorCoherence:
             pass
 
         assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.POLARS
-        assert _visitor_construction_spy[0]["dialect"] is None  # never "narwhals-pandas"
+        assert _visitor_construction_spy[0]["dialect"] == "polars"
 
     def test_no_override_still_resolves_family_and_dialect_from_same_leaf(
         self, _visitor_construction_spy
@@ -273,13 +276,16 @@ def _dialect_spy_factory(monkeypatch):
 
 
 class TestPerRefDialectSwapAndRestore:
-    """Spy-based identity test (testing plan #4): the anchor ref gets the
-    original objects; a same-dialect ref reuses those same objects (by
-    id()); a differing-dialect same-family ref gets a new, correctly-
-    dialected pair; a subsequent same-dialect ref after a swap restores the
-    original objects (catches stale-loop-state bugs); the target sees the
-    originals after the loop. Also covers testing plan #2's "both anchor
-    directions" requirement with a second, role-reversed test."""
+    """Spy-based identity test (testing plan #4): the anchor ref gets its
+    own correctly-dialected pair; a same-dialect ref gets its own pair
+    resolving to the SAME dialect string (Task 7: no longer the same
+    object -- each named resource compiles with its own dedicated
+    visitor); a differing-dialect same-family ref gets a new,
+    correctly-dialected pair; a subsequent same-dialect ref never
+    inherits a prior differing ref's stale dialect; the target sees the
+    anchor's dialect after the dependency loop. Also covers testing plan
+    #2's "both anchor directions" requirement with a second, role-reversed
+    test."""
 
     def test_swap_and_restore_across_three_refs(self, _dialect_spy_factory):
         dag = RelationDAG()
@@ -320,14 +326,15 @@ class TestPerRefDialectSwapAndRestore:
         assert captured["b"]["entry"]["backend_id"] != anchor_backend_id
         assert captured["b"]["entry"]["expr_visitor_id"] != anchor_expr_id
 
-        # Restoration, not a fresh third construction and not b's stale state.
+        # Task 7: each named resource compiles with its own dedicated
+        # visitor now (no shared-visitor swap-and-restore mechanism to
+        # verify by object identity) -- "c" and "final" resolve back to
+        # the SAME dialect as the anchor ("a"), not "b"'s stale state,
+        # which is the invariant that matters; a fresh object per
+        # resource is expected, not a regression.
         assert captured["c"]["entry"]["backend_dialect"] == "narwhals-polars"
-        assert captured["c"]["entry"]["backend_id"] == anchor_backend_id
-        assert captured["c"]["entry"]["expr_visitor_id"] == anchor_expr_id
 
         assert captured["final"]["entry"]["backend_dialect"] == "narwhals-polars"
-        assert captured["final"]["entry"]["backend_id"] == anchor_backend_id
-        assert captured["final"]["entry"]["expr_visitor_id"] == anchor_expr_id
 
     def test_reversed_anchor_direction_pandas_anchor_polars_differs(
         self, _dialect_spy_factory

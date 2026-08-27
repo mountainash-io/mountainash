@@ -167,8 +167,11 @@ class TestBoundaries:
             ma.concat([ma.relation(lazy_anchor),
                        ma.relation(ibis.memtable({"k": [2]}))]).to_polars()
 
-    def test_lazy_narwhals_operand_polars_anchor_not_rescued(self):
+    def test_lazy_narwhals_operand_polars_anchor_coerces_via_collect(self):
+        """Task 5: the Polars-target adapter now handles a lazy Narwhals
+        operand by collecting it (NARWHALS_LAZY_COLLECT) then converting via
+        its declared to_polars() route -- no longer an accidental gap."""
         lazy_operand = _nw_lazy_polars({"k": [3, 4]})
-        with pytest.raises(TypeError):
-            ma.concat([ma.relation(pl.DataFrame({"k": [1, 2]})),
-                       ma.relation(lazy_operand)]).to_polars()
+        result = ma.concat([ma.relation(pl.DataFrame({"k": [1, 2]})),
+                             ma.relation(lazy_operand)]).to_polars()
+        assert sorted(result.to_dict(as_series=False)["k"]) == [1, 2, 3, 4]

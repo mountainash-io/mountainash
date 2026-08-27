@@ -9,6 +9,7 @@ import re as _re
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_narwhals, import_polars
+from mountainash.core.transit import BoundaryKey, transit_call
 
 from .base_egress_strategy import BaseEgressDataFrame
 
@@ -121,18 +122,20 @@ class EgressFromPolars(BaseEgressDataFrame):
 
         if as_lazy is None:
             # Default: preserve input type (polars eager → narwhals eager)
-            return nw.from_native(df)
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df)
         elif as_lazy:
             # Force lazy
-            return nw.from_native(df.lazy())
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df.lazy())
         else:
             # Force eager (already eager)
-            return nw.from_native(df)
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, df)
 
     @classmethod
     def _to_pandas(cls, df: PolarsFrame, /) -> PandasFrame:
         nw = import_narwhals()
-        return nw.from_native(df).to_pandas()
+        return transit_call(
+            BoundaryKey.PYDATA_EXPLICIT_PANDAS_EGRESS, nw.from_native(df).to_pandas
+        )
 
     @classmethod
     def _to_polars(cls, df: PolarsFrame, /, as_lazy: Optional[bool] = None) -> PolarsFrameTypes:
@@ -163,7 +166,7 @@ class EgressFromPolars(BaseEgressDataFrame):
     def _to_pyarrow(cls, df: PolarsFrame, /) -> PyArrowTable:
         """Convert Polars DataFrame to PyArrow Table."""
         nw = import_narwhals()
-        return nw.from_native(df).to_arrow()
+        return transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, nw.from_native(df).to_arrow)
 
     # def _to_pyarrow_recordbatch(cls, df: PolarsFrame, batchsize: int = 1):
     #     """Convert Polars DataFrame to PyArrow RecordBatch."""
@@ -177,7 +180,10 @@ class EgressFromPolars(BaseEgressDataFrame):
     @classmethod
     def _to_dictionary_of_series_pandas(cls, df: PolarsFrame, /) -> Dict[str, PandasSeries]:
         nw = import_narwhals()
-        return nw.from_native(df).to_pandas().to_dict(orient='series')
+        pandas_df = transit_call(
+            BoundaryKey.PYDATA_EXPLICIT_PANDAS_EGRESS, nw.from_native(df).to_pandas
+        )
+        return pandas_df.to_dict(orient='series')
 
 
     @classmethod
@@ -427,7 +433,7 @@ class EgressFromPolars(BaseEgressDataFrame):
         except ImportError as e:
             raise ImportError("ibis-framework is required for Ibis conversion.") from e
         arrow_table = cls._to_pyarrow(df)
-        return ibis.memtable(arrow_table)
+        return transit_call(BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER, ibis.memtable, arrow_table)
 
 
 # Alias used by DataFrameEgressFactory and __init__.py exports

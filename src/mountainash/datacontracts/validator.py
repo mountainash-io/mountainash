@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import polars as pl
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.validation.checks import classify
 from mountainash.validation.errors import CheckDeclarationError
 from mountainash.validation.identity import resolve_identity
@@ -57,9 +58,9 @@ class Validator:
 
     @staticmethod
     def _to_polars_frame(rel: Any) -> pl.DataFrame:
-        materialised = rel.to_polars()
+        materialised = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, rel.to_polars)
         if isinstance(materialised, pl.LazyFrame):
-            materialised = materialised.collect()
+            materialised = transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, materialised.collect)
         return materialised
     @classmethod
     def _slice(

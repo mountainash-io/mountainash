@@ -6,6 +6,7 @@ from typing import Any
 
 import narwhals as nw
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
     SubstraitReadRelationSystemProtocol,
 )
@@ -20,4 +21,6 @@ class SubstraitNarwhalsReadRelationSystem(
         # If already a Narwhals DataFrame, return as-is.
         if hasattr(dataframe, "_compliant_frame"):
             return dataframe
-        return nw.from_native(dataframe, eager_only=True)
+        return transit_call(
+            BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, dataframe, eager_only=True
+        )

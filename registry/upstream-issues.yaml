@@ -1967,10 +1967,17 @@ issues:
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: open
+  status: resolved_in_mountainash
   our_workaround: none
-  notes: ''
-  last_verified: '2026-07-05'
+  notes: 'RESOLVED (pandas-transit-elimination migration, Task 3/4, 2026-08-27):
+    explicit_polars_egress() no longer routes an Ibis result through
+    to_pandas()/pl.from_pandas(); it converts via to_pyarrow() -> pl.from_arrow(),
+    which preserves the declared dtype for a typed all-NULL column. Verified
+    empirically 2026-08-27 via
+    tests/conform/cross_backend/test_null_fill_mode.py::TestTypedNullEmission::test_missing_field_emits_typed_all_null_column
+    passing on all three affected backends (ibis-duckdb, ibis-polars, ibis-sqlite)
+    across all four type variants. DivergenceFact removed from divergences.py.'
+  last_verified: '2026-08-27'
 - id: MA-TYPE-02
   project: mountainash-internal
   category: type-system

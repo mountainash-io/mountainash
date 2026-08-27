@@ -223,3 +223,23 @@ class TestEnrichMaterializationPreferOperationKeys:
                 backend, self._boom_type_error,
                 prefer_operation_keys=frozenset({"some_unrelated_op"}),
             )
+
+
+def test_enrich_materialization_does_not_execute_successful_ibis_table():
+    from types import SimpleNamespace
+
+    import ibis
+
+    table = ibis.memtable({"x": [1]})
+    backend = SimpleNamespace(
+        backend_type=CONST_BACKEND.IBIS,
+        dialect=None,
+        BACKEND_NAME="ibis",
+    )
+    trace = SimpleNamespace(records=())
+    result = enrich_materialization(
+        backend,
+        lambda: table,
+        diagnostic_trace=trace,
+    )
+    assert result is table

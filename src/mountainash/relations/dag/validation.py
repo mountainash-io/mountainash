@@ -2,9 +2,10 @@
 
 FK check generation has exactly one owner: validation.fk.build_fk_checks
 (dag.constraint_metadata + spec-supplied TypeSpec.foreign_keys, deduplicated;
-invalid declarations surface as status="error" check summaries). Relations
-compile per the requested backend through dag.collect — no forced Polars
-materialisation. dependency_edges are never read as FK metadata;
+invalid declarations surface as status="error" check summaries). Every
+planned and dependency relation compiles exactly once, through the requested
+backend, via ONE shared DAGMaterializationSession (spec §10/§18) — never a
+bare `dag.collect()`. dependency_edges are never read as FK metadata;
 constraint_edges alone never create FK checks (two-edge-graph-model).
 """
 from __future__ import annotations

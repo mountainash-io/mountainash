@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Ty
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection, ConformDrift
+    from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.relations.schema_inference import SchemaTypeStatus
 
@@ -14,6 +15,7 @@ from mountainash.core.constants import (
     SetType,
     SortField,
 )
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
@@ -109,31 +111,31 @@ def _combine_result(node: "RelationNode", operands: "Sequence[Any]") -> "Relatio
     return Relation(node)
 
 
-def _materialize(result: Any, *, unwrap: bool = True) -> Any:
-    """Eagerly materialize a compiled backend-native result.
+def _compiler_identity(visitor: "Any") -> "BackendIdentity":
+    """The backend identity the visitor compiled against (spec 7.1)."""
+    from mountainash.core.capabilities.identity import BackendIdentity
+
+    return BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
+
+
+def _unwrap_native(value: Any, *, unwrap: bool) -> Any:
+    """Unwrap a Narwhals frame to its native value when requested.
 
     Shared by :meth:`Relation.collect` and :meth:`Relation.collect_with_drift`
-    so both terminals apply identical lazy-frame / narwhals unwrap semantics:
-    a Polars ``LazyFrame`` source returns a ``DataFrame``, a narwhals
-    ``LazyFrame`` is collected and (when ``unwrap``) has its native frame
-    unwrapped, and anything already eager passes through unchanged.
+    after :func:`materialize_native` has already forced any lazy value
+    eager. Routes through the boundary key matching the frame's
+    runtime-detected dialect -- pandas-selected or not -- so an unwrap that
+    happens to surface pandas stays a declared, traced boundary rather than
+    a bare call (spec 8.2).
     """
-    from mountainash.core.types import (
-        is_narwhals_dataframe,
-        is_narwhals_lazyframe,
-        is_polars_lazyframe,
-    )
+    from mountainash.core.backend_detection import narwhals_dialect
+    from mountainash.core.types import is_narwhals_dataframe
 
-    if is_polars_lazyframe(result):
-        return result.collect()
-    if is_narwhals_lazyframe(result):
-        # A narwhals LazyFrame is itself lazy; materialise it so the result
-        # is eager, as callers' contracts promise. narwhals
-        # ``LazyFrame.collect()`` returns an eager narwhals ``DataFrame``.
-        result = result.collect()
-    if unwrap and is_narwhals_dataframe(result):
-        return result.to_native()
-    return result
+    if not (unwrap and is_narwhals_dataframe(value)):
+        return value
+    if narwhals_dialect(value) == "narwhals-pandas":
+        return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
+    return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
 
 
 # ---------------------------------------------------------------------------
@@ -603,24 +605,39 @@ class Relation(RelationBase):
         """Execute the plan and return a fully materialized native result.
 
         Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
-        an Ibis expression returns an executed result, narwhals returns its
-        native frame, and so on. One syntax for all backends.
+        an Ibis expression returns a cached, dialect-intact Ibis ``Table``,
+        narwhals returns its native frame, and so on. One syntax for all
+        backends.
 
         Args:
             unwrap: When *True* (default), narwhals wrappers are stripped so
-                the caller receives the underlying pandas / PyArrow frame.
-                Pass *False* to keep the narwhals wrapper (useful for internal
-                code that needs narwhals-level operations on the result).
+                the caller receives the underlying native value (pandas only
+                when the caller's own source was pandas-selected; Polars,
+                PyArrow, or Ibis otherwise). Pass *False* to keep the
+                narwhals wrapper (useful for internal code that needs
+                narwhals-level operations on the result).
             backend: Optional explicit backend name, overriding auto-detection
                 -- see :meth:`_compile_and_execute_with_visitor`. Mirrors
                 :meth:`collect_with_drift`'s ``backend`` override.
         """
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _materialize_thunk() -> Any:
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT
+            )
+            return _unwrap_native(native.value, unwrap=unwrap)
+
         return enrich_materialization(
             visitor.backend,
-            lambda: _materialize(result, unwrap=unwrap),
+            _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
         )
@@ -646,12 +663,25 @@ class Relation(RelationBase):
             ACTUAL output frame (not the declared spec).
         """
         from mountainash.conform.drift import ConformCollection
-        from mountainash.relations.schema_inference import _schema_from_dataframe
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
+        from mountainash.relations.schema_inference import _schema_from_dataframe
+
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _materialize_thunk() -> Any:
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT
+            )
+            return _unwrap_native(native.value, unwrap=True)
+
         frame = enrich_materialization(
             visitor.backend,
-            lambda: _materialize(result),
+            _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
         )
@@ -683,7 +713,7 @@ class Relation(RelationBase):
             RelationDAGRequired: if the relation contains a ``RefRelNode`` and
                 is compiled standalone.
         """
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
 
         if column not in df.columns:
             raise KeyError(column)
@@ -801,47 +831,81 @@ class Relation(RelationBase):
         return EgressFromPolars
 
     def to_polars(self) -> Any:
-        """Execute and return a Polars DataFrame."""
-        from mountainash.core.types import (
-            is_pandas_dataframe,
-            is_polars_dataframe,
+        """Execute and return a Polars DataFrame.
+
+        A declared route per source family (spec 8.3): Ibis prefers Arrow
+        (``to_pyarrow()`` then ``pl.from_arrow()``), PyArrow converts
+        directly, a pandas-selected source uses ``pl.from_pandas()``, and
+        Narwhals uses its own ``to_polars()``. No non-pandas fallback: a
+        source with no declared route raises ``BackendConversionError``.
+        """
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            explicit_polars_egress,
+            materialize_native,
         )
 
-        result = self.collect()
-        if is_polars_dataframe(result):
-            return result
-        import polars as pl
-        if is_pandas_dataframe(result):
-            return pl.from_pandas(result)
-        # Arrow preserves types a pandas round-trip widens -- ibis `date`
-        # becomes datetime64[s] via to_pandas(), and polars then reads it as
-        # Datetime(ms). to_pyarrow() keeps date32[day] -> polars Date.
-        to_arrow = getattr(result, "to_pyarrow", None)
-        if callable(to_arrow):
-            try:
-                return pl.from_arrow(to_arrow())
-            except Exception:
-                pass
-        return pl.from_pandas(result.to_pandas())
+        result, visitor = self._compile_and_execute_with_visitor()
+        compiler_identity = _compiler_identity(visitor)
+
+        def _egress_thunk() -> Any:
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
+            )
+            return explicit_polars_egress(native)
+
+        return enrich_materialization(
+            visitor.backend,
+            _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
+        )
 
     def to_pandas(self) -> Any:
-        """Execute and return a Pandas DataFrame."""
-        df = self.to_polars()
-        return self._egress_strategy().to_pandas(df)
+        """Execute and return a Pandas DataFrame.
+
+        A declared route per source family (spec 8.3): a pandas-selected
+        source passes through, Polars/Narwhals/Ibis/PyArrow each call their
+        own native ``to_pandas()`` terminal directly. Ibis and PyArrow never
+        route through :meth:`to_polars` first.
+        """
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            explicit_pandas_egress,
+            materialize_native,
+        )
+
+        result, visitor = self._compile_and_execute_with_visitor()
+        compiler_identity = _compiler_identity(visitor)
+
+        def _egress_thunk() -> Any:
+            native = materialize_native(
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
+            )
+            return explicit_pandas_egress(native)
+
+        return enrich_materialization(
+            visitor.backend,
+            _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.residue_checks,
+        )
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_dictionary_of_lists(df)
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """Execute and return a list of row dicts."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_list_of_dictionaries(df)
 
     def to_tuples(self) -> list[tuple]:
         """Execute the plan and return rows as a list of tuples."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy()._to_list_of_tuples(df)
 
     def to_dataclasses(
@@ -864,7 +928,7 @@ class Relation(RelationBase):
         Returns:
             List of dataclass instances.
         """
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy()._to_list_of_dataclasses(
             df,
             cls,
@@ -891,7 +955,7 @@ class Relation(RelationBase):
         Returns:
             List of Pydantic model instances.
         """
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy()._to_list_of_pydantic(
             df,
             cls,
@@ -903,60 +967,60 @@ class Relation(RelationBase):
 
     def to_named_tuples(self) -> Sequence[tuple]:
         """Execute and return rows as a list of named tuples."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_list_of_named_tuples(df)
 
     def to_typed_named_tuples(self, *, preserve_dates: bool = False) -> Sequence[tuple]:
         """Execute and return rows as typed named tuples with __annotations__."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy()._to_list_of_typed_named_tuples(
             df, preserve_dates=preserve_dates,
         )
 
     def to_pyarrow(self) -> Any:
         """Execute and return a PyArrow Table."""
-        df = self.to_polars()
-        return self._egress_strategy().to_pyarrow(df)
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        return transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, self._egress_strategy().to_pyarrow, df)
 
     def to_narwhals(self, *, as_lazy: Optional[bool] = None) -> Any:
         """Execute and return a narwhals DataFrame or LazyFrame."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_narwhals(df, as_lazy=as_lazy)
 
     def to_ibis(self) -> Any:
         """Execute and return an Ibis memtable."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_ibis(df)
 
     def to_dict_of_series_polars(self) -> dict[str, Any]:
         """Execute and return a dict of column name -> Polars Series."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_dictionary_of_series_polars(df)
 
     def to_dict_of_series_pandas(self) -> dict[str, Any]:
         """Execute and return a dict of column name -> Pandas Series."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_dictionary_of_series_pandas(df)
 
     # --- Egress: indexed terminals ---
 
     def to_index_of_dicts(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as dicts."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_index_of_dictionaries(
             df, index_fields=index_fields,
         )
 
     def to_index_of_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as tuples."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_index_of_tuples(
             df, index_fields=index_fields,
         )
 
     def to_index_of_named_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as named tuples."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_index_of_named_tuples(
             df, index_fields=index_fields,
         )
@@ -968,7 +1032,7 @@ class Relation(RelationBase):
         preserve_dates: bool = False,
     ) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as typed named tuples."""
-        df = self.to_polars()
+        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
         return self._egress_strategy().to_index_of_typed_named_tuples(
             df, index_fields=index_fields, preserve_dates=preserve_dates,
         )
@@ -1039,7 +1103,7 @@ class Relation(RelationBase):
 
         Returns a materialised DataFrame. Polars backend only.
         """
-        collected = self.collect()
+        collected = transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, self.collect)
         if hasattr(collected, "describe"):
             return collected.describe()
         raise NotImplementedError(

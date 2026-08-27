@@ -8,43 +8,6 @@ from mountainash.relations.core.relation_nodes.extensions_mountainash import Ref
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 
-def _consumer_prototype(family: CONST_BACKEND, dialect: str | None) -> Any:
-    """Alias for :func:`_anchor_prototype` (the consumer-side prototype
-    ``_coerce_to_match`` needs as its target object). Same function, renamed
-    at the call site so item 97's resolver-time coercion reads naturally
-    without rewriting item 92's territory."""
-    return _anchor_prototype(family, dialect)
-
-
-def _anchor_prototype(family: CONST_BACKEND, dialect: str | None) -> Any:
-    """A lightweight empty object of *family* for coercion to target."""
-    if family is CONST_BACKEND.POLARS:
-        import polars as pl
-        return pl.DataFrame({}).lazy()
-    if family is CONST_BACKEND.IBIS:
-        import ibis
-        return ibis.memtable({})
-    if family is CONST_BACKEND.NARWHALS:
-        import narwhals as nw
-        if dialect == "narwhals-polars":
-            import polars as pl
-            return nw.from_native(pl.DataFrame({}), eager_only=True)
-        if dialect == "narwhals-pyarrow":
-            import pyarrow as pa
-            return nw.from_native(pa.table({}), eager_only=True)
-        import pandas as pd
-        return nw.from_native(pd.DataFrame({}), eager_only=True)
-    return None
-
-
-def _is_lazy_narwhals(obj: Any) -> bool:
-    """True iff *obj* is a narwhals LazyFrame."""
-    try:
-        import narwhals as nw
-        return isinstance(obj, nw.LazyFrame)
-    except Exception:
-        return False
-
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection
     from mountainash.core.dtypes import MountainashDtype
@@ -63,6 +26,34 @@ a new visitor stack. The DAG walks each named relation's tree once at add()
 time to derive dependency edges (from RefRelNode instances), then defers
 materialization to ``collect()`` (added in Task 17).
 """
+
+
+def _force_eager(value: Any, *, unwrap: bool) -> Any:
+    """Force a lazy Polars/Narwhals value eager for residue enrichment
+    (spec section 13, Task 10). Replaces the deleted
+    ``Relation._materialize()`` -- the collection contract stays identical
+    (Polars/Narwhals lazy -> eager; ``unwrap`` additionally converts an
+    eager Narwhals frame to its native value, pandas included when the
+    source itself was pandas-selected), but every conversion now routes
+    through a literal, census-tracked ``transit_call()``.
+    """
+    from mountainash.core.backend_detection import narwhals_dialect
+    from mountainash.core.transit import BoundaryKey, transit_call
+    from mountainash.core.types import (
+        is_narwhals_dataframe,
+        is_narwhals_lazyframe,
+        is_polars_lazyframe,
+    )
+
+    if is_polars_lazyframe(value):
+        return transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+    if is_narwhals_lazyframe(value):
+        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+    if unwrap and is_narwhals_dataframe(value):
+        if narwhals_dialect(value) == "narwhals-pandas":
+            return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
+        return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
+    return value
 
 class RelationDAG:
     """Container for named Relations with dependency and constraint edge sets.
@@ -206,23 +197,15 @@ class RelationDAG:
             return result
 
         from mountainash.core.limitations import enrich_materialization
-        from mountainash.core.types import (
-            is_ibis_table,
-            is_narwhals_lazyframe,
-            is_polars_lazyframe,
-        )
-        from mountainash.relations.core.relation_api.relation import _materialize
+        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
 
         original = result
         result = enrich_materialization(
             visitor.backend,
-            lambda: _materialize(result, unwrap=False),
+            lambda: _force_eager(result, unwrap=False),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
         )
-        if is_ibis_table(original) and not is_ibis_table(result):
-            import ibis
-            result = ibis.memtable(result)
         if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
             result = result.lazy()
         return result
@@ -245,14 +228,13 @@ class RelationDAG:
             output frame.
         """
         from mountainash.conform.drift import ConformCollection
-        from mountainash.relations.core.relation_api.relation import _materialize
         from mountainash.relations.schema_inference import _schema_from_dataframe
         from mountainash.core.limitations import enrich_materialization
 
         result, visitor = self._collect_with_visitor(name, backend=backend)
         frame = enrich_materialization(
             visitor.backend,
-            lambda: _materialize(result),
+            lambda: _force_eager(result, unwrap=True),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
         )
@@ -357,295 +339,123 @@ class RelationDAG:
         """Compile ``node`` after materialising all relations in ``ref_names``.
 
         This is the shared compilation core used by both ``collect()`` and
-        ``execute()``.  It builds a visitor with a ``ref_resolver`` closure
-        over a per-call cache, compiles every relation named in ``ref_names``
-        in topological order, then compiles ``node`` itself and returns
-        ``(result, visitor)`` — callers needing post-compile visitor state
-        (e.g. ``collect_with_drift()``'s ``visitor.drift_reports``) can
-        retrieve it without a second compilation pass.
+        ``execute()``. Cache and resolver mechanics delegate to a fresh
+        :class:`~mountainash.relations.dag.materialization.DAGMaterializationSession`
+        (Task 7, spec section 10) -- every relation named in ``ref_names``
+        is compiled and materialized exactly once, shared across every
+        consumer, coerced to a consumer's active identity via a declared
+        adapter and memoized per distinct consumer identity. Discarded
+        without releasing owned native caches (spec 10.5: ordinary
+        collection never releases a value referenced by the returned
+        native expression graph) -- ``session.close(release_owned=False)``.
+
+        Returns ``(result, visitor)`` — callers needing post-compile
+        visitor state (e.g. ``collect_with_drift()``'s
+        ``visitor.drift_reports``) can retrieve it without a second
+        compilation pass.
         """
         missing_refs = sorted(n for n in ref_names if n not in self.relations)
         if missing_refs:
             raise self._unknown_ref_error(missing_refs[0])
-        from mountainash.relations.core.relation_protocols.relsys_base import (
-            get_relation_system,
-        )
-        from mountainash.expressions.core.expression_system.expsys_base import (
-            get_expression_system,
-        )
-        from mountainash.expressions.core.unified_visitor import (
-            UnifiedExpressionVisitor,
-        )
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
+
+        from mountainash.relations.dag.materialization import (
+            DAGMaterializationSession,
+            _is_lazy_narwhals,
+            _resolve_backend_and_dialect,
         )
 
-        # Resolve the anchor's PHYSICAL identity (family, dialect) once, via
-        # the combined resolver -- walking the named anchor relation (or,
-        # for an ad-hoc execute() node with no refs and no target name, the
-        # node's own leaf) -- THEN apply any explicit backend= override on
-        # top, coherently. Round-2 fix: the branches previously combined an
-        # override-derived family with a dialect string detected
-        # independently from a leaf whose actual family might not match the
-        # override, constructing an invalid (family, dialect) hybrid (e.g.
-        # PolarsRelationSystem(dialect="narwhals-pandas")) whenever backend=
-        # was given but disagreed with the anchor's own physical family.
-        # The dialect is now trusted ONLY when it was actually detected on
-        # a leaf belonging to the resolved (possibly overridden) family.
-        if backend_target_name is not None:
-            actual_family, actual_dialect = self._resolve_actual_identity_for(
-                backend_target_name
+        session = DAGMaterializationSession(self, backend=backend)
+        try:
+            if key_target_name is not None:
+                # collect()'s case: the target IS itself a registered
+                # relation -- the session's own per-name compile handles
+                # it (and every dependency it transitively requires)
+                # directly; unwrap to the raw native value to preserve
+                # this method's existing contract.
+                native, visitor = session.compile_registered(key_target_name)
+                # Each named resource compiled with its own dedicated
+                # visitor (Task 7) -- collect_with_drift()'s caller reads
+                # ONE visitor.drift_reports list, so prepend every
+                # transitively-required dependency's own drift reports,
+                # in the same topological (depth-first) order they were
+                # produced, ahead of the target's own.
+                dependency_drifts: "list[Any]" = []
+                for dep_name in self.topological_order(target=key_target_name):
+                    if dep_name == key_target_name:
+                        continue
+                    dep_visitor = session._visitors.get(dep_name)
+                    if dep_visitor is not None:
+                        dependency_drifts.extend(dep_visitor.drift_reports)
+                visitor.drift_reports = dependency_drifts + visitor.drift_reports
+                return native.value, visitor
+
+            # execute()'s ad-hoc case: `node` is not a registered relation
+            # (no session cache entry of its own), so resolve its identity
+            # and compile it directly here, using the session only to
+            # resolve its refs.
+            from mountainash.expressions.core.expression_system.expsys_base import (
+                get_expression_system,
             )
-        elif ref_names:
-            # Use the first ref (alphabetically, for determinism) for detection
-            anchor_name = sorted(ref_names)[0]
-            actual_family, actual_dialect = self._resolve_actual_identity_for(
-                anchor_name
+            from mountainash.expressions.core.unified_visitor import (
+                UnifiedExpressionVisitor,
             )
-        else:
-            # No refs and no target name -- ad-hoc node with no registered
-            # name; probe its own leaf directly.
-            actual_family, actual_dialect = self._resolve_actual_identity_for_node(
-                node
+            from mountainash.relations.core.relation_protocols.relsys_base import (
+                get_relation_system,
+            )
+            from mountainash.relations.core.unified_visitor.relation_visitor import (
+                UnifiedRelationVisitor,
             )
 
-        if backend is not None:
-            try:
-                resolved_backend = CONST_BACKEND(backend.lower())
-            except ValueError:
-                raise ValueError(f"unknown backend: {backend!r}")
-            # Only trust the detected dialect if it actually belongs to the
-            # resolved (possibly overridden) family -- NEVER combine an
-            # overridden family with a foreign leaf's dialect string.
-            dialect = actual_dialect if actual_family == resolved_backend else None
-        else:
-            resolved_backend = (
-                actual_family if actual_family is not None else CONST_BACKEND.POLARS
-            )
-            dialect = actual_dialect
-
-        relation_system_cls = get_relation_system(resolved_backend)
-        relation_system = relation_system_cls(dialect=dialect)
-        expression_system_cls = get_expression_system(resolved_backend)
-        expression_system = expression_system_cls(dialect=dialect)
-        expr_visitor = UnifiedExpressionVisitor(expression_system)
-
-        # Item 97 (inherits item 92's Revision 4 upfront guard, broadened to
-        # ANY foreign-family ref -- bare or derived -- not just a bare
-        # ReadRelNode root): a lazy narwhals ANCHOR consuming foreign refs
-        # must reject before caching -- _coerce_to_match's eager-over-lazy
-        # handling is order-dependent and must not be relied upon.
-        if backend_target_name is not None or ref_names:
-            anchor_name = backend_target_name or sorted(ref_names)[0]
-            anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
-            if anchor_leaf is not None and _is_lazy_narwhals(anchor_leaf.dataframe):
-                if any(
-                    self._resolve_actual_identity_for(n)[0]
-                    not in (None, resolved_backend)
-                    for n in ref_names
-                ):
-                    raise TypeError(
-                        "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
-                    )
-
-        canonical: dict[str, "tuple[Any, CONST_BACKEND | None, str | None]"] = {}
-        coerced: dict[tuple[str, CONST_BACKEND, str | None], Any] = {}
-
-        def resolver(n: str) -> Any:
-            value, src_family, src_dialect = canonical[n]
-            if src_family is None:
-                return value  # no-leaf ref: already anchor-family
-            cons_family = visitor.backend.backend_type
-            cons_dialect = visitor.backend.dialect
-            needs_coercion = (
-                src_family != cons_family
-                or (
-                    src_family is CONST_BACKEND.NARWHALS
-                    and src_dialect != cons_dialect
+            if backend_target_name is not None:
+                actual_family, actual_dialect = self._resolve_actual_identity_for(
+                    backend_target_name
                 )
-            )
-            if not needs_coercion:
-                return value
-            key = (n, cons_family, cons_dialect)
-            if key not in coerced:
-                proto = _consumer_prototype(cons_family, cons_dialect)
-                coerced[key] = UnifiedRelationVisitor._coerce_to_match(proto, value)
-            return coerced[key]
-
-        # KeyDriftContext (item 48 PR-D): +1 optional visitor param,
-        # analogous to ref_resolver. The context's resource_name is the
-        # apply_conform() fallback "child" identity for nodes that carry no
-        # resource_name of their own (a bare ConformRelNode; a
-        # ResourceReadRelNode always supplies its own Frictionless name).
-        #
-        # backend_target_name and key_target_name are deliberately separate
-        # params (PR-2 Sec 2.2): backend_target_name governs backend
-        # DETECTION only (which relation's leaf ReadRelNode to inspect) and
-        # is set even for an ad-hoc execute() target, purely so an
-        # arbitrary alphabetically-first dependency can anchor detection.
-        # key_target_name governs the TARGET's key-context IDENTITY only.
-        # Conflating the two previously misattributed an ad-hoc execute()
-        # target's key assessment to that same alphabetically-first
-        # dependency's FK constraints. key_target_name is None for
-        # execute() (no DAG identity to assess an ad-hoc relation against)
-        # and set to the real name for collect()/collect_with_drift(), so
-        # key_context stays None for ad-hoc targets (frame-level,
-        # key_changes stays None -- not assessed) and correct for named
-        # targets. The dependency loop below always builds each
-        # dependency's OWN context regardless of the target's identity
-        # (including when it's None), so a bare-conformed dependency is
-        # NEVER assessed against the TARGET's FK constraints — avoiding
-        # both the original misattribution and a wrong report / spurious
-        # freeze for the dependency itself.
-        key_context = None
-        if key_target_name is not None:
-            from mountainash.relations.dag.key_context import KeyDriftContext
-
-            key_context = KeyDriftContext(
-                resource_name=key_target_name,
-                constraints_for=self.constraints_for,
-                schema_of=self.schema,
-            )
-
-        visitor = UnifiedRelationVisitor(
-            relation_system,
-            expression_visitor=expr_visitor,
-            ref_resolver=resolver,
-            key_context=key_context,
-            identity_resolver=lambda name: self.relations[name]._node,
-        )
-
-        # Compile refs in topological order
-        if ref_names:
-            from mountainash.relations.dag.key_context import KeyDriftContext
-
-            # Item 97: canonical materialization -- every ref is compiled
-            # exactly once, with ITS OWN (family, dialect) identity, and
-            # stored as (value, family, dialect) in `canonical`. A consumer
-            # of that ref coerces it lazily via `resolver()` above (memoised
-            # per (name, consumer_family, consumer_dialect)). This replaces
-            # item 89's four-way branch (anchor-for-foreign-bare-read /
-            # own-dialect / reuse-anchor) with a three-way branch that still
-            # reuses the anchor's objects for the same-family-same-dialect
-            # case (item 89's zero-cost homogeneous-DAG path).
-            full_order = self.topological_order(target=None)
-            for n in full_order:
-                if n not in ref_names:
-                    continue
-                rel = self.relations[n]
-                root = getattr(rel, "_node", None)
-                if root is None:
-                    raise ValueError(f"relation {n!r} has no _node attribute")
-
-                ref_family, ref_dialect = self._resolve_actual_identity_for(n)
-                checks_start = len(visitor.residue_checks)
-                trace_counts = {
-                    key: len(trace.records)
-                    for key, trace in visitor.diagnostic_traces.items()
-                }
-
-                # Each dependency is key-assessed against ITS OWN
-                # constraints, unconditionally -- including a no-leaf
-                # SourceRelNode ref -- independent of whether the target
-                # itself has a key identity.
-                visitor.key_context = KeyDriftContext(
-                    resource_name=n,
-                    constraints_for=self.constraints_for,
-                    schema_of=self.schema,
+            elif ref_names:
+                anchor_name = sorted(ref_names)[0]
+                actual_family, actual_dialect = self._resolve_actual_identity_for(
+                    anchor_name
                 )
+            else:
+                actual_family, actual_dialect = self._resolve_actual_identity_for_node(
+                    node
+                )
+            resolved_backend, dialect = _resolve_backend_and_dialect(
+                actual_family, actual_dialect, backend
+            )
 
-                if ref_family is None:
-                    # No physical read identity (pure SourceRelNode/inline-
-                    # data ref). Materialise with the anchor pair.
-                    visitor.backend, visitor.expr_visitor = (
-                        relation_system,
-                        expr_visitor,
-                    )
-                    compiled = root.accept(visitor)
-                    canonical[n] = (compiled, None, None)
-                elif ref_family == resolved_backend and ref_dialect == dialect:
-                    # Same family + same dialect as the anchor: reuse the
-                    # anchor's ORIGINAL objects (item 89's zero-cost path).
-                    visitor.backend, visitor.expr_visitor = (
-                        relation_system,
-                        expr_visitor,
-                    )
-                    compiled = root.accept(visitor)
-                    canonical[n] = (compiled, ref_family, ref_dialect)
-                else:
-                    # Foreign family, or same family with a different
-                    # dialect: compile with the ref's OWN (family, dialect)
-                    # identity -- never the anchor's -- so a dialect-scoped
-                    # CapabilityFact gates/enriches correctly, and store the
-                    # raw canonical value uncoerced; coercion happens lazily
-                    # at resolver() call time, against the ACTUAL consumer.
-                    visitor.backend = get_relation_system(ref_family)(dialect=ref_dialect)
-                    visitor.expr_visitor = UnifiedExpressionVisitor(
-                        get_expression_system(ref_family)(dialect=ref_dialect)
-                    )
-                    compiled = root.accept(visitor)
-                    canonical[n] = (compiled, ref_family, ref_dialect)
+            # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
+            # must reject before caching.
+            if backend_target_name is not None or ref_names:
+                anchor_name = backend_target_name or sorted(ref_names)[0]
+                _anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
+                if anchor_leaf is not None and _is_lazy_narwhals(anchor_leaf.dataframe):
+                    if any(
+                        self._resolve_actual_identity_for(n)[0]
+                        not in (None, resolved_backend)
+                        for n in ref_names
+                    ):
+                        raise TypeError(
+                            "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
+                        )
 
-                dependency_checks = visitor.residue_checks[checks_start:]
-                dep_family = getattr(visitor.backend, "backend_type", None)
-                dep_dialect = getattr(visitor.backend, "dialect", None)
-                dep_trace = visitor.diagnostic_traces.get((dep_family, dep_dialect))
-                dep_trace_records = ()
-                if dep_trace is not None:
-                    dep_trace_records = dep_trace.records[
-                        trace_counts.get((dep_family, dep_dialect), 0):
-                    ]
-                if dependency_checks or dep_trace_records:
-                    from types import SimpleNamespace
+            relation_system = get_relation_system(resolved_backend)(dialect=dialect)
+            expr_visitor = UnifiedExpressionVisitor(
+                get_expression_system(resolved_backend)(dialect=dialect)
+            )
 
-                    from mountainash.core.limitations import enrich_materialization
-                    from mountainash.relations.core.relation_api.relation import (
-                        _materialize,
-                    )
-                    from mountainash.core.types import (
-                        is_ibis_table,
-                        is_narwhals_lazyframe,
-                        is_polars_lazyframe,
-                    )
+            def ref_resolver(n: str) -> Any:
+                return session.resolve(n, resolved_backend, dialect)
 
-                    scoped_trace = (
-                        SimpleNamespace(records=dep_trace_records)
-                        if dep_trace_records
-                        else None
-                    )
-                    original = compiled
-                    compiled = enrich_materialization(
-                        visitor.backend,
-                        lambda: _materialize(compiled, unwrap=False),
-                        diagnostic_trace=scoped_trace,
-                        residue_checks=dependency_checks,
-                    )
-                    if is_ibis_table(original) and not is_ibis_table(compiled):
-                        import ibis
-                        compiled = ibis.memtable(compiled)
-                    if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
-                        compiled = compiled.lazy()
-                    if dep_trace is not None and dep_trace_records:
-                        consumed = {id(record) for record in dep_trace_records}
-                        dep_trace._records = [
-                            record
-                            for record in dep_trace._records
-                            if id(record) not in consumed
-                        ]
-                    del visitor.residue_checks[checks_start:]
-                    canonical[n] = (compiled, ref_family, ref_dialect)
-
-            # Restore the anchor's ORIGINAL backend/expr_visitor/key_context
-            # ONCE, after the loop -- never per-branch (a trailing no-leaf
-            # ref must not leak its key_context into the target compile).
-            visitor.backend, visitor.expr_visitor, visitor.key_context = (
+            visitor = UnifiedRelationVisitor(
                 relation_system,
-                expr_visitor,
-                key_context,
+                expression_visitor=expr_visitor,
+                ref_resolver=ref_resolver,
+                key_context=None,  # ad-hoc execute() target: no DAG identity to assess
+                identity_resolver=lambda n: self.relations[n]._node,
             )
-
-        # Compile the target node itself
-        return node.accept(visitor), visitor
+            return node.accept(visitor), visitor
+        finally:
+            session.close(release_owned=False)
 
     def schema(
         self, name: str

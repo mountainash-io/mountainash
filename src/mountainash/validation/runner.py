@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import polars as pl
 
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.validation.checks import VERDICT_PASSING, check_kind
 from mountainash.validation.errors import IdentityInvalidError, UnknownCheckTypeError
@@ -36,6 +37,7 @@ from mountainash.validation.result import (
 
 if TYPE_CHECKING:
     from mountainash.relations import Relation
+    from mountainash.validation.prepared import PreparedValidationInput
 
 _RAW = "__ma_raw__"
 _OUTCOME = "__ma_outcome__"
@@ -96,8 +98,29 @@ class ValidationRunner:
         datacontract_name: str | None = None,
         fk_resolver: Any = None,
     ) -> ValidationResult:
+        """Prepare *relation* exactly once, then run *checks* against it.
+
+        Compiles the plan and materializes it with the dedicated
+        ``VALIDATION_SOURCE`` purpose (spec section 6) inside one
+        ``MaterializationScope``, owning it for the run's duration -- so
+        every per-check executor below runs against the SAME materialized
+        source instead of re-collecting the whole plan (including a
+        full-contract conform) once per check (item 56).
+
+        A plan-level failure here (most commonly a conform cast failure)
+        must honour the same isolation contract as a per-check executor
+        failure (spec section 6.5, ``_guarded``): it degrades to
+        ``status="error"`` for every check and still returns a
+        ``ValidationResult`` -- it must not raise out of the runner.
+        ``check_kind`` is evaluated per check first (inside
+        ``_validate_prepared_relation``), so a genuine declaration error
+        (``UnknownCheckTypeError``) still raises, ahead of the data-phase
+        failure.
+        """
         from mountainash.relations import Relation
         from mountainash.relations import relation as as_relation
+        from mountainash.relations.core.materialization import MaterializationScope
+        from mountainash.validation.prepared import prepare_validation_input
 
         rel = relation if isinstance(relation, Relation) else as_relation(relation)
         if plan is not None:
@@ -116,40 +139,15 @@ class ValidationRunner:
             )
             checks = (*plan.checks, *checks, *standalone_rules)
             if fk_resolver is None:
-                def fk_resolver(_name):
+                def fk_resolver(_name: str) -> Any:
                     return rel
-        # Collapse the (possibly conform-laden) plan to a concrete frame ONCE,
-        # up front, so every per-check executor below runs against materialized
-        # data. Without this, each check re-collects the whole plan — including
-        # a full-contract conform — so cost is O(checks × contract_fields)
-        # (item 56). ``collect(unwrap=False)`` is eager AND backend-preserving
-        # (it keeps narwhals/ibis wrappers), so re-wrapping round-trips the
-        # backend and outcome semantics are byte-identical across all backends.
-        # (An explicit ``backend`` still overrides auto-detection — the DAG
-        # path relies on it — and materialising an already-concrete frame is
-        # cheap.)
-        #
-        # A plan-level failure here (most commonly a conform cast failure) must
-        # honour the same isolation contract as a per-check executor failure
-        # (spec §6.5, ``_guarded``): it degrades to ``status="error"`` for every
-        # check and still returns a ``ValidationResult`` — it must not raise out
-        # of the runner. ``check_kind`` is evaluated per check first, so a
-        # genuine declaration error (``UnknownCheckTypeError``) still raises,
-        # ahead of the data-phase failure.
-        materialized_source: pl.DataFrame | None = None
-        self._materialized_value_frame: pl.DataFrame | None = None
-        self._last_materialized_native: Any = None
+
+        identity = identity or RowIdentity("none")
+        scope = MaterializationScope()
         try:
-            materialized = rel.collect(unwrap=False, backend=backend)
-            self._last_materialized_native = materialized
-            if isinstance(materialized, pl.DataFrame):
-                materialized_source = materialized
-                self._materialized_value_frame = materialized
-            else:
-                materialized_source = as_relation(materialized).to_polars()
-            rel = as_relation(materialized)
+            prepared = prepare_validation_input(rel, backend=backend, scope=scope)
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
-            identity = identity or RowIdentity("none")
+            scope.close()
             summaries = [
                 self._error_summary(check, check_kind(check), exc) for check in checks
             ]
@@ -163,8 +161,47 @@ class ValidationRunner:
                 identity=identity,
                 identity_diagnostics={},
             )
+        try:
+            return self._validate_prepared_relation(
+                prepared,
+                checks,
+                identity=identity,
+                allow_imperfect_key=allow_imperfect_key,
+                context=context,
+                fail_fast=fail_fast,
+                failure_sample=failure_sample,
+                validator_name=validator_name,
+                datacontract_name=datacontract_name,
+                fk_resolver=fk_resolver,
+            )
+        finally:
+            scope.close()
 
-        identity = identity or RowIdentity("none")
+    def _validate_prepared_relation(
+        self,
+        prepared: "PreparedValidationInput",
+        checks: Sequence[Any],
+        *,
+        identity: RowIdentity,
+        allow_imperfect_key: bool,
+        context: dict[str, Any] | None,
+        fail_fast: bool,
+        failure_sample: int | None,
+        validator_name: str,
+        datacontract_name: str | None,
+        fk_resolver: Any,
+    ) -> ValidationResult:
+        """Run *checks* against an already-prepared, already-materialized
+        source (spec section 6). Rule queries stay native on
+        ``prepared.relation``; only small counts and selected failure rows
+        convert to Polars per check (spec section 6.2's outcome model)."""
+        rel = prepared.relation
+        materialized_source = (
+            prepared.diagnostic_source.frame
+            if prepared.diagnostic_source is not None
+            else None
+        )
+        self._materialized_value_frame = materialized_source
         identity_diagnostics: dict[str, Any] = {}
         if identity.kind == "keyed":
             identity_diagnostics = validate_keyed_identity(
@@ -262,11 +299,8 @@ class ValidationRunner:
             _outcome_expr(check.expr).alias(_OUTCOME)
         )
 
-        counts_pl = (
-            projected.group_by(_OUTCOME)
-            .agg(ma.count_records().alias("__ma_n__"))
-            .to_polars()
-        )
+        chain = projected.group_by(_OUTCOME).agg(ma.count_records().alias("__ma_n__"))
+        counts_pl = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, chain.to_polars)
         counts = dict(zip(counts_pl[_OUTCOME].to_list(), counts_pl["__ma_n__"].to_list()))
         pass_count = int(counts.get("pass", 0))
         fail_count = int(counts.get("fail", 0))
@@ -332,7 +366,9 @@ class ValidationRunner:
         if value_column and value_column not in select_cols:
             select_cols.append(value_column)
 
-        fail_pl = failing.select(*select_cols, _OUTCOME).to_polars()
+        fail_pl = transit_call(
+            BoundaryKey.RELATION_TO_POLARS_TERMINAL, failing.select(*select_cols, _OUTCOME).to_polars
+        )
 
         out = fail_pl.rename({_OUTCOME: "outcome"})
         if identity.kind == "row_number":
@@ -570,7 +606,8 @@ class ValidationRunner:
         if fail_count:
             sampled = failing.head(failure_sample) if failure_sample is not None else failing
             failures = rows_as_struct_failures(
-                sampled.to_polars(), check_id=check.id, check_kind="relation"
+                transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, sampled.to_polars),
+                check_id=check.id, check_kind="relation",
             )
 
         summary = CheckSummary(
@@ -619,7 +656,8 @@ class ValidationRunner:
         if orphan_count:
             sampled = orphans.head(failure_sample) if failure_sample is not None else orphans
             failures = rows_as_struct_failures(
-                sampled.to_polars(), check_id=check.id, check_kind="foreign_key"
+                transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, sampled.to_polars),
+                check_id=check.id, check_kind="foreign_key",
             )
 
         summary = CheckSummary(
@@ -648,96 +686,169 @@ class ValidationRunner:
         fk_error_summaries: "list[CheckSummary] | None" = None,
         allow_imperfect_key: bool = False,
     ) -> "DAGValidationResult":
+        """Validate every resource in *checks_by_resource*, then every
+        foreign-key rule, through ONE shared
+        :class:`~mountainash.relations.dag.materialization.DAGMaterializationSession`
+        (spec section 10/18): a resource referenced as both a planned
+        (spec'd) resource and a dependency or foreign-key parent of
+        another compiles exactly once, shared across every consumer.
+        """
         from mountainash.relations import relation as as_relation
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
         from mountainash.validation.checks import ForeignKeyRule
-
-        natives: dict[str, Any] = {}
-
-        def _resolver(name: str) -> Any:
-            if name not in natives:
-                natives[name] = dag.collect(name, backend=backend)
-            return as_relation(natives[name])
+        from mountainash.validation.plan import thaw_typespec
+        from mountainash.validation.prepared import prepare_validation_input_from_session
 
         identity_by_resource = identity_by_resource or {}
         plans_by_resource = plans_by_resource or {}
+
+        def _plan_transform(plan: Any) -> Any:
+            def transform(rel: Any) -> Any:
+                return rel.conform(thaw_typespec(plan))
+
+            return transform
+
+        session = DAGMaterializationSession(
+            dag,
+            backend=backend,
+            isolate_failures=True,
+            node_transforms={
+                name: _plan_transform(plan) for name, plan in plans_by_resource.items()
+            },
+        )
+        prepared_by_name: "dict[str, PreparedValidationInput]" = {}
+
+        def _prepare(name: str) -> "PreparedValidationInput":
+            if name not in prepared_by_name:
+                prepared_by_name[name] = prepare_validation_input_from_session(session, name)
+            return prepared_by_name[name]
+
+        def _resolver(name: str) -> Any:
+            # A planned (spec'd) resource reuses its own PreparedValidationInput's
+            # relation; an execution-only dependency (Unit D's "identity
+            # transform") is compiled plainly through the session -- no
+            # PreparedValidationInput wrapper, since it was never itself
+            # validated.
+            prepared = prepared_by_name.get(name)
+            if prepared is not None:
+                return prepared.relation
+            native, _visitor = session.compile_registered(name)
+            return as_relation(native.value)
+
         results: dict[str, ValidationResult] = {}
         fk_rules: list[Any] = []
 
-        for name, checks in checks_by_resource.items():
-            intra = [c for c in checks if not isinstance(c, ForeignKeyRule)]
-            fk_rules.extend(c for c in checks if isinstance(c, ForeignKeyRule))
-            resource_identity = identity_by_resource.get(name) or RowIdentity("none")
-            try:
-                result = self.validate_relation(
-                    _resolver(name),
-                    intra,
-                    fk_resolver=_resolver,
-                    plan=plans_by_resource.get(name),
-                    identity=resource_identity,
-                    allow_imperfect_key=allow_imperfect_key,
-                    context=context,
-                    fail_fast=fail_fast,
-                    failure_sample=failure_sample,
-                    validator_name=name,
-                )
-            except IdentityInvalidError as exc:
-                # spec item 8j §3.2: a resource's invalid keyed identity never
-                # aborts the batch — isolate it into that resource's own failing
-                # result, same as every other exception in this loop already is
-                # (materialisation failures, runner.py:118-134). "__identity__"
-                # mirrors the existing "__fk__" synthetic-result naming
-                # (runner.py:470, the fail_fast early-return branch this snippet
-                # mirrors; runner.py:490, the fk_result construction).
-                summary = CheckSummary(
-                    check_id="__identity__",
-                    check_kind=None,
-                    status="error",
-                    severity="blocking",
-                    error=f"{type(exc).__name__}: {exc}",
-                )
-                result = ValidationResult(
-                    passes=False,
-                    validator_name=name,
-                    datacontract_name=None,
-                    context=dict(context or {}),
-                    check_summaries=summaries_frame([summary]),
-                    failure_cases=combine_failure_frames([], resource_identity),
-                    identity=resource_identity,
-                    identity_diagnostics={},
-                )
-            results[name] = result
-            if self._last_materialized_native is not None:
-                natives[name] = self._last_materialized_native
-            if fail_fast and not result.passes:
-                return DAGValidationResult(
-                    passes=False,
-                    results=results,
-                    fk_result=ValidationResult(
-                        passes=True, validator_name="__fk__", context=dict(context or {})
-                    ),
-                )
+        try:
+            for name, checks in checks_by_resource.items():
+                plan = plans_by_resource.get(name)
+                local_checks = [
+                    *(plan.checks if plan is not None else ()),
+                    *checks,
+                ]
+                intra = [c for c in local_checks if not isinstance(c, ForeignKeyRule)]
+                fk_rules.extend(c for c in local_checks if isinstance(c, ForeignKeyRule))
+                resource_identity = identity_by_resource.get(name) or RowIdentity("none")
+                try:
+                    prepared = _prepare(name)
+                except Exception as exc:  # noqa: BLE001 — isolation is the contract
+                    # A resource's own preparation failure (most commonly a
+                    # conform cast failure) isolates to that resource's own
+                    # failing result, same as validate_relation()'s
+                    # equivalent plan-level isolation (Task 6) — it must not
+                    # abort unrelated resources in this batch.
+                    summaries = [
+                        self._error_summary(c, check_kind(c), exc) for c in local_checks
+                    ]
+                    result = ValidationResult(
+                        passes=passes_from_summaries(summaries),
+                        validator_name=name,
+                        datacontract_name=None,
+                        context=dict(context or {}),
+                        check_summaries=summaries_frame(summaries),
+                        failure_cases=combine_failure_frames([], resource_identity),
+                        identity=resource_identity,
+                        identity_diagnostics={},
+                    )
+                    results[name] = result
+                    if fail_fast and not result.passes:
+                        return DAGValidationResult(
+                            passes=False,
+                            results=results,
+                            fk_result=ValidationResult(
+                                passes=True, validator_name="__fk__", context=dict(context or {})
+                            ),
+                        )
+                    continue
 
-        identity = RowIdentity("none")
-        fk_summaries: list[CheckSummary] = list(fk_error_summaries or [])
-        fk_frames: list[pl.DataFrame] = []
-        for fk in fk_rules:
-            summary, failures = self._guarded(
-                functools.partial(self._run_foreign_key_rule, fk_resolver=_resolver),
-                None, fk, "foreign_key", identity, failure_sample,
+                try:
+                    result = self._validate_prepared_relation(
+                        prepared,
+                        intra,
+                        identity=resource_identity,
+                        allow_imperfect_key=allow_imperfect_key,
+                        context=context,
+                        fail_fast=fail_fast,
+                        failure_sample=failure_sample,
+                        validator_name=name,
+                        datacontract_name=None,
+                        fk_resolver=_resolver,
+                    )
+                except IdentityInvalidError as exc:
+                    # spec item 8j §3.2: a resource's invalid keyed identity never
+                    # aborts the batch — isolate it into that resource's own failing
+                    # result, same as a preparation failure above. "__identity__"
+                    # mirrors the existing "__fk__" synthetic-result naming.
+                    summary = CheckSummary(
+                        check_id="__identity__",
+                        check_kind=None,
+                        status="error",
+                        severity="blocking",
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                    result = ValidationResult(
+                        passes=False,
+                        validator_name=name,
+                        datacontract_name=None,
+                        context=dict(context or {}),
+                        check_summaries=summaries_frame([summary]),
+                        failure_cases=combine_failure_frames([], resource_identity),
+                        identity=resource_identity,
+                        identity_diagnostics={},
+                    )
+                results[name] = result
+                if fail_fast and not result.passes:
+                    return DAGValidationResult(
+                        passes=False,
+                        results=results,
+                        fk_result=ValidationResult(
+                            passes=True, validator_name="__fk__", context=dict(context or {})
+                        ),
+                    )
+
+
+            identity = RowIdentity("none")
+            fk_summaries: list[CheckSummary] = list(fk_error_summaries or [])
+            fk_frames: list[pl.DataFrame] = []
+            for fk in fk_rules:
+                summary, failures = self._guarded(
+                    functools.partial(self._run_foreign_key_rule, fk_resolver=_resolver),
+                    None, fk, "foreign_key", identity, failure_sample,
+                )
+                fk_summaries.append(summary)
+                if failures.height:
+                    fk_frames.append(failures)
+                if fail_fast and is_blocking(summary):
+                    break  # same definition passes_from_summaries penalises (spec §8)
+
+            fk_result = ValidationResult(
+                passes=passes_from_summaries(fk_summaries),
+                validator_name="__fk__",
+                context=dict(context or {}),
+                check_summaries=summaries_frame(fk_summaries),
+                failure_cases=combine_failure_frames(fk_frames, identity),
+                identity=identity,
             )
-            fk_summaries.append(summary)
-            if failures.height:
-                fk_frames.append(failures)
-            if fail_fast and is_blocking(summary):
-                break  # same definition passes_from_summaries penalises (spec §8)
-
-        fk_result = ValidationResult(
-            passes=passes_from_summaries(fk_summaries),
-            validator_name="__fk__",
-            context=dict(context or {}),
-            check_summaries=summaries_frame(fk_summaries),
-            failure_cases=combine_failure_frames(fk_frames, identity),
-            identity=identity,
-        )
-        passes = all(r.passes for r in results.values()) and fk_result.passes
-        return DAGValidationResult(passes=passes, results=results, fk_result=fk_result)
+            passes = all(r.passes for r in results.values()) and fk_result.passes
+            return DAGValidationResult(passes=passes, results=results, fk_result=fk_result)
+        finally:
+            session.close(release_owned=True)

@@ -193,7 +193,7 @@ def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):
                         )[1])
     p = tmp_path / "d.json"; p.write_text('[{"a": 1}, {"a": 2}]')
     res = DataResource(name="d", path=str(p), format="json")
-    sys.modules.pop("pandas", None)
+    monkeypatch.delitem(sys.modules, "pandas", raising=False)
     tbl = MountainashIbisExtensionRelationSystem().read_resource(res)
     rows = tbl.to_pyarrow().to_pylist()
     assert calls["n"] == 1                       # went through the fallback

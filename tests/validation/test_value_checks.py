@@ -113,15 +113,15 @@ def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
     from mountainash.validation import ValidationRunner
 
     relation = ma.relation(pl.DataFrame({"old": ["1", "2"]}))
-    collect_calls = 0
-    original_collect = Relation.collect
+    compilation_calls = 0
+    original_compile = Relation._compile_and_execute_with_visitor
 
-    def counted_collect(self, *args, **kwargs):
-        nonlocal collect_calls
-        collect_calls += 1
-        return original_collect(self, *args, **kwargs)
+    def counted_compile(self, *args, **kwargs):
+        nonlocal compilation_calls
+        compilation_calls += 1
+        return original_compile(self, *args, **kwargs)
 
-    monkeypatch.setattr(Relation, "collect", counted_collect)
+    monkeypatch.setattr(Relation, "_compile_and_execute_with_visitor", counted_compile)
     plan = compile_datacontract(
         TypeSpec(
             fields=[
@@ -134,7 +134,7 @@ def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
 
     assert result.passes
     assert result._materialized_source.to_dict(as_series=False) == {"id": [1, 2]}
-    assert collect_calls == 1
+    assert compilation_calls == 1
 
 
 def test_binary_string_format_uses_base64_lexical_validation() -> None:
