@@ -217,7 +217,16 @@ def test_narwhals_lazy_categorical_gate_is_declared_once() -> None:
         and fact.backend is CONST_BACKEND.NARWHALS
         and fact.dialect == "narwhals-lazy"
         and fact.param == "value_type"
-        and fact.option_value == "integer"
+        and fact.predicate is not None
     ]
 
     assert len(facts) == 1
+    gate = facts[0]
+    assert gate.level is CapabilityLevel.UNSUPPORTED
+    assert gate.option_value is None
+    clauses = {
+        (clause.path, clause.operand)
+        for clause in gate.predicate.clauses
+        if clause.op is ClauseOp.EQ
+    }
+    assert clauses == {("value_type", "integer"), ("failure_behavior", "null")}

@@ -20,6 +20,7 @@ from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
+    ClauseOp,
     Enforcement,
     WILDCARD_PARAM,
 )
@@ -160,6 +161,32 @@ def assert_predicate_capability_gated(build) -> BackendCapabilityError:
         f"limitation={ei.value.limitation!r}"
     )
     return ei.value
+
+
+def assert_predicate_clauses(fact: CapabilityFact, **expected: object) -> None:
+    """Assert each ``name=value`` pair appears as an EQ clause on ``fact.predicate``.
+
+    Predicate facts carry their selectors as clauses, never ``option_value``
+    (the schema forces ``option_value`` to ``None`` whenever a predicate is
+    present). Assertions on predicate-gated limitations must inspect clauses.
+    """
+    assert fact.predicate is not None, (
+        f"expected predicate clauses on {fact.operation_key} fact, got {fact!r}"
+    )
+    actual = {
+        clause.path: getattr(clause.operand, "value", clause.operand)
+        for clause in fact.predicate.clauses
+        if clause.op is ClauseOp.EQ
+    }
+    missing = {
+        name: value
+        for name, value in expected.items()
+        if actual.get(name) != getattr(value, "value", value)
+    }
+    assert not missing, (
+        f"expected EQ clauses {missing} on {fact.operation_key} predicate; "
+        f"actual clauses: {actual}"
+    )
 
 
 def xfail_divergence(divergence_id, *, backend, strict=True) -> pytest.MarkDecorator:
