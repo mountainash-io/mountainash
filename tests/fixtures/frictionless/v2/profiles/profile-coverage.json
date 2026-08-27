@@ -1244,73 +1244,37 @@
     {
       "capability": "schema:fields[].constraints.exclusiveMaximum",
       "storage": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "typed": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "execution": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       }
     },
     {
       "capability": "schema:fields[].constraints.exclusiveMinimum",
       "storage": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "typed": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "execution": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       }
     },
     {
       "capability": "schema:fields[].constraints.jsonSchema",
       "storage": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "typed": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       },
       "execution": {
-        "status": "deferred",
-        "reason": "Unit B owns the complete v2 constraint vocabulary.",
-        "since": "2026-08-20",
-        "owner_unit": "B",
-        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+        "status": "implemented"
       }
     },
     {

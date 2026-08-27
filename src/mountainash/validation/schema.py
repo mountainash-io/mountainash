@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass, field as dataclass_field, fields as dataclass_fields
+from enum import Enum, auto
 import math
 import re
+from types import MappingProxyType
 from typing import Any
 
 from mountainash.typespec.errors import (
@@ -26,6 +28,84 @@ from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.jsonschema import compile_json_schema
 
 
+
+class ValidationImplementationKind(Enum):
+    """Execution disposition for one field-type and constraint pair."""
+
+    EXPRESSION_CHECK = auto()
+    VALUE_CHECK = auto()
+    DECLARATION_ONLY = auto()
+    METADATA_ONLY = auto()
+    UNSUPPORTED = auto()
+
+
+_RANGE_TYPES = frozenset(
+    {
+        UniversalType.INTEGER,
+        UniversalType.NUMBER,
+        UniversalType.DATE,
+        UniversalType.TIME,
+        UniversalType.DATETIME,
+        UniversalType.DURATION,
+        UniversalType.YEAR,
+        UniversalType.YEARMONTH,
+    }
+)
+_LENGTH_TYPES = frozenset(
+    {
+        UniversalType.STRING,
+        UniversalType.ARRAY,
+        UniversalType.OBJECT,
+        UniversalType.GEOJSON,
+    }
+)
+
+
+def _implementation_kind(
+    field_type: UniversalType, constraint: str
+) -> ValidationImplementationKind:
+    if constraint == "required":
+        return ValidationImplementationKind.EXPRESSION_CHECK
+    if constraint in {"unique", "enum"}:
+        return ValidationImplementationKind.VALUE_CHECK
+    if constraint in {"minimum", "maximum", "exclusive_minimum", "exclusive_maximum"}:
+        return (
+            ValidationImplementationKind.VALUE_CHECK
+            if field_type in _RANGE_TYPES
+            else ValidationImplementationKind.UNSUPPORTED
+        )
+    if constraint in {"min_length", "max_length"}:
+        return (
+            ValidationImplementationKind.VALUE_CHECK
+            if field_type in _LENGTH_TYPES
+            else ValidationImplementationKind.UNSUPPORTED
+        )
+    if constraint == "pattern":
+        return (
+            ValidationImplementationKind.VALUE_CHECK
+            if field_type is UniversalType.STRING
+            else ValidationImplementationKind.UNSUPPORTED
+        )
+    if constraint == "json_schema":
+        return (
+            ValidationImplementationKind.VALUE_CHECK
+            if field_type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            else ValidationImplementationKind.UNSUPPORTED
+        )
+    if constraint == "enum_weights":
+        return ValidationImplementationKind.METADATA_ONLY
+    return ValidationImplementationKind.UNSUPPORTED
+
+
+VALIDATION_IMPLEMENTATION_REGISTRY: Mapping[
+    tuple[UniversalType, str], ValidationImplementationKind
+] = MappingProxyType(
+    {
+        (field_type, constraint.name): _implementation_kind(field_type, constraint.name)
+        for field_type in UniversalType
+        for constraint in dataclass_fields(FieldConstraints)
+    }
+)
 @dataclass(frozen=True)
 class TypeSpecIssue:
     """One declaration error with a stable pointer and machine-readable code."""
@@ -90,71 +170,18 @@ def _validate_constraints(
             "min_length must not exceed max_length",
         )
 
-    allowed: dict[str, frozenset[UniversalType]] = {
-        "min_length": frozenset(
-            {UniversalType.STRING, UniversalType.ARRAY, UniversalType.OBJECT, UniversalType.GEOJSON}
-        ),
-        "max_length": frozenset(
-            {UniversalType.STRING, UniversalType.ARRAY, UniversalType.OBJECT, UniversalType.GEOJSON}
-        ),
-        "minimum": frozenset(
-            {
-                UniversalType.INTEGER,
-                UniversalType.NUMBER,
-                UniversalType.DATE,
-                UniversalType.TIME,
-                UniversalType.DATETIME,
-                UniversalType.DURATION,
-                UniversalType.YEAR,
-                UniversalType.YEARMONTH,
-            }
-        ),
-        "maximum": frozenset(
-            {
-                UniversalType.INTEGER,
-                UniversalType.NUMBER,
-                UniversalType.DATE,
-                UniversalType.TIME,
-                UniversalType.DATETIME,
-                UniversalType.DURATION,
-                UniversalType.YEAR,
-                UniversalType.YEARMONTH,
-            }
-        ),
-        "exclusive_minimum": frozenset(
-            {
-                UniversalType.INTEGER,
-                UniversalType.NUMBER,
-                UniversalType.DATE,
-                UniversalType.TIME,
-                UniversalType.DATETIME,
-                UniversalType.DURATION,
-                UniversalType.YEAR,
-                UniversalType.YEARMONTH,
-            }
-        ),
-        "exclusive_maximum": frozenset(
-            {
-                UniversalType.INTEGER,
-                UniversalType.NUMBER,
-                UniversalType.DATE,
-                UniversalType.TIME,
-                UniversalType.DATETIME,
-                UniversalType.DURATION,
-                UniversalType.YEAR,
-                UniversalType.YEARMONTH,
-            }
-        ),
-        "pattern": frozenset({UniversalType.STRING}),
-        "json_schema": frozenset({UniversalType.ARRAY, UniversalType.OBJECT}),
-    }
-    for name, types in allowed.items():
+    for constraint in dataclass_fields(FieldConstraints):
+        name = constraint.name
         value = getattr(constraints, name)
-        if value is not None and field.type not in types:
+        kind = VALIDATION_IMPLEMENTATION_REGISTRY.get(
+            (field.type, name), ValidationImplementationKind.UNSUPPORTED
+        )
+        if value is not None and kind is ValidationImplementationKind.UNSUPPORTED:
+            type_name = getattr(field.type, "value", repr(field.type))
             _constraint_issue(
                 issues,
                 f"{path}/constraints/{name}",
-                f"{name} is not valid for {field.type.value!r}",
+                f"{name} is not valid for {type_name!r}",
             )
 
     if constraints.pattern is not None:
