@@ -468,7 +468,7 @@ class TestTypeSpecToContract:
         assert contract.contract_name() == "users"
         ids = [c.id for c in contract.to_checks()]
         assert "id__not_null" in ids
-        assert "id__unique" in ids
+        assert "id_unique" in ids
 
     def test_to_contract_name_override(self):
         spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.INTEGER)])

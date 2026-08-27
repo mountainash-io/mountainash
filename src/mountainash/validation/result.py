@@ -37,6 +37,10 @@ FAILURE_CASE_BASE_SCHEMA: dict[str, Any] = {
     "outcome": pl.String,  # fail | unknown
     "value": pl.String,
     "message": pl.String,
+    "instance_path": pl.String,
+    "schema_path": pl.String,
+    "validator": pl.String,
+    "label_declarations": pl.String,
 }
 
 
@@ -201,7 +205,23 @@ def rows_as_struct_failures(
         pl.lit("fail").alias("outcome"),
         pl.lit(None, dtype=pl.String).alias("value"),
         pl.lit(None, dtype=pl.String).alias("message"),
-    ).select("check_id", "check_kind", "column", "outcome", "value", "message", "row")
+        pl.lit(None, dtype=pl.String).alias("instance_path"),
+        pl.lit(None, dtype=pl.String).alias("schema_path"),
+        pl.lit(None, dtype=pl.String).alias("validator"),
+        pl.lit(None, dtype=pl.String).alias("label_declarations"),
+    ).select(
+        "check_id",
+        "check_kind",
+        "column",
+        "outcome",
+        "value",
+        "message",
+        "instance_path",
+        "schema_path",
+        "validator",
+        "label_declarations",
+        "row",
+    )
 
 
 def interpolate_message(
@@ -254,6 +274,11 @@ class ValidationResult:
     identity_diagnostics: dict[str, Any] = field(default_factory=dict)
     diagnostics: dict[str, Any] = field(default_factory=dict)
     processor: Any = None  # ValidationResultProcessor; typed Any (dependency direction)
+    _materialized_source: pl.DataFrame | None = field(
+        default=None,
+        repr=False,
+        compare=False,
+    )
 
     @property
     def key_fields(self) -> "tuple[str, ...]":

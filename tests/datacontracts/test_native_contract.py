@@ -49,8 +49,8 @@ class TestToTypespec:
         ids = [c.id for c in UserContract.to_checks()]
         assert "id__not_null" in ids
         assert "email__not_null" in ids
-        assert "email__pattern" in ids
-        assert "age__ge" in ids
+        assert "email_pattern" in ids
+        assert "age_range" in ids
 
     def test_to_checks_includes_primary_key_unique(self):
         ids = [c.id for c in UserContract.to_checks()]
@@ -72,7 +72,7 @@ def test_to_checks_matches_compile_datacontract_check_ids():
     from mountainash.datacontracts.compiler import compile_datacontract, contract_from_typespec
 
     spec = UserContract.to_typespec()
-    compiled_ids = {c.id for c in compile_datacontract(spec)}
+    compiled_ids = {c.id for c in compile_datacontract(spec).checks}
     contract_ids = {c.id for c in contract_from_typespec(spec).to_checks()}
     assert compiled_ids == contract_ids
 
@@ -100,7 +100,7 @@ class TestValidate:
                 result.check_summaries["status"] != "passed"
             )["check_id"].to_list()
         )
-        assert {"email__pattern", "age__ge"} <= failing
+        assert {"email_pattern", "age_range"} <= failing
     def test_missing_coerce_config_preserves_default_coercion(self):
         class DefaultCoercionContract(BaseDataContract):
             value: int
@@ -197,6 +197,8 @@ def test_unique_failure_without_key_identity():
     result = NoKeyContract.validate_datacontract(df)
     assert result.passes is False
     assert result.identity.kind == "none"
-    summary = result.check_summaries.row(0, named=True)
-    assert summary["check_id"] == "id__unique"
+    summary = result.check_summaries.filter(
+        result.check_summaries["check_id"] == "id_unique"
+    ).row(0, named=True)
+    assert summary["check_id"] == "id_unique"
     assert summary["fail_count"] == 2  # both duplicated rows flagged

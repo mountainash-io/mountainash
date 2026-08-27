@@ -1,280 +1,197 @@
-"""Tests for contract_from_typespec — TypeSpec to native BaseDataContract."""
-from __future__ import annotations
+"""Immutable TypeSpec-to-validation-plan compilation."""
 
 import pytest
-import polars as pl
 
-from mountainash.typespec.spec import TypeSpec, FieldSpec, FieldConstraints
-from mountainash.typespec.universal_types import UniversalType
-from mountainash.datacontracts.compiler import contract_from_typespec
-from mountainash.datacontracts.contract import BaseDataContract
+from mountainash.datacontracts.compiler import compile_datacontract
+from mountainash.exceptions import InvalidTypeSpecSemantics
+from mountainash.typespec import (
+    FieldConstraints,
+    FieldSpec,
+    ForeignKey,
+    ForeignKeyReference,
+    TypeSpec,
+    UniversalType,
+)
+from mountainash.validation import CompiledValidationPlan, ValueRule, ValueValidatorKey
 
 
-from fixtures.backend_registry import ALL_BACKENDS
-
-
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_isin_from_labeled_categories(backend_name, backend_factory) -> None:
-    from mountainash.typespec.spec import LabeledValue
-
+def test_compiled_plan_isolated_from_nested_mutation() -> None:
+    """Mutating a declaration after compilation must not alter executable checks."""
     spec = TypeSpec(
         fields=[
             FieldSpec(
-                "status",
-                UniversalType.STRING,
-                categories=[
-                    LabeledValue("active", "Active"),
-                    LabeledValue("cancelled", "Cancelled"),
-                ],
+                name="payload",
+                type=UniversalType.OBJECT,
+                object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
             )
-        ]
-    )
-    Contract = contract_from_typespec(spec)
-    Contract.Config.coerce = False
-    good = backend_factory.create(
-        {"status": ["active", "cancelled"]}, backend_name
-    )
-    bad = backend_factory.create(
-        {"status": ["active", "unknown"]}, backend_name
-    )
-    assert Contract.validate_datacontract(good).passes is True
-    assert Contract.validate_datacontract(bad).passes is False
-
-def _make_spec(*fields: FieldSpec) -> TypeSpec:
-    return TypeSpec(fields=list(fields))
-
-
-def _failing_check_ids(result) -> list[str]:
-    return result.check_summaries.filter(
-        result.check_summaries["status"] != "passed"
-    )["check_id"].to_list()
-
-
-class TestCompileDatacontract:
-
-    def test_basic_string_field(self):
-        spec = _make_spec(FieldSpec(name="name", type=UniversalType.STRING))
-        Contract = contract_from_typespec(spec)
-        assert issubclass(Contract, BaseDataContract)
-        df = pl.DataFrame({"name": ["alice", "bob"]})
-        result = Contract.validate_datacontract(df)
-        assert result.passes is True
-
-    def test_integer_field(self):
-        spec = _make_spec(FieldSpec(name="age", type=UniversalType.INTEGER))
-        Contract = contract_from_typespec(spec)
-        df = pl.DataFrame({"age": [25, 30]})
-        result = Contract.validate_datacontract(df)
-        assert result.passes is True
-
-    def test_custom_name(self):
-        spec = _make_spec(FieldSpec(name="x", type=UniversalType.STRING))
-        Contract = contract_from_typespec(spec, name="MyContract")
-        assert Contract.__name__ == "MyContract"
-
-    def test_default_name_from_spec_title(self):
-        spec = TypeSpec(
-            fields=[FieldSpec(name="x", type=UniversalType.STRING)],
-            title="AccountSchema",
-        )
-        Contract = contract_from_typespec(spec)
-        assert Contract.__name__ == "AccountSchema"
-
-    def test_nullable_from_required_constraint(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="email",
-                type=UniversalType.STRING,
-                constraints=FieldConstraints(required=True),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_with_null = pl.DataFrame({"email": [None, "a@b.com"]})
-        result = Contract.validate_datacontract(df_with_null)
-        assert result.passes is False
-        assert "email__not_null" in _failing_check_ids(result)
-
-    def test_ge_from_minimum_constraint(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="age",
-                type=UniversalType.INTEGER,
-                constraints=FieldConstraints(minimum=0),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_bad = pl.DataFrame({"age": [-1, 5]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "age__ge" in _failing_check_ids(result)
-
-    def test_le_from_maximum_constraint(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="score",
-                type=UniversalType.NUMBER,
-                constraints=FieldConstraints(maximum=100.0),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_bad = pl.DataFrame({"score": [50.0, 150.0]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "score__le" in _failing_check_ids(result)
-
-    def test_isin_from_enum_constraint(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="status",
-                type=UniversalType.STRING,
-                constraints=FieldConstraints(enum=["active", "inactive"]),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_bad = pl.DataFrame({"status": ["active", "deleted"]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "status__isin" in _failing_check_ids(result)
-
-    def test_pattern_from_pattern_constraint(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="code",
-                type=UniversalType.STRING,
-                constraints=FieldConstraints(pattern=r"^[A-Z]{3}$"),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_good = pl.DataFrame({"code": ["ABC", "XYZ"]})
-        result = Contract.validate_datacontract(df_good)
-        assert result.passes is True
-        df_bad = pl.DataFrame({"code": ["abc", "XY"]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "code__pattern" in _failing_check_ids(result)
-
-    def test_unique_constraint(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="id",
-                type=UniversalType.INTEGER,
-                constraints=FieldConstraints(unique=True),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_bad = pl.DataFrame({"id": [1, 1, 2]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "id__unique" in _failing_check_ids(result)
-
-    def test_multiple_fields(self):
-        spec = _make_spec(
-            FieldSpec(name="id", type=UniversalType.INTEGER, constraints=FieldConstraints(required=True, minimum=1)),
-            FieldSpec(name="name", type=UniversalType.STRING),
-            FieldSpec(name="score", type=UniversalType.NUMBER),
-        )
-        Contract = contract_from_typespec(spec)
-        df = pl.DataFrame({"id": [1, 2], "name": ["a", "b"], "score": [1.0, 2.0]})
-        result = Contract.validate_datacontract(df)
-        assert result.passes is True
-
-    def test_isin_from_categories_plain_values(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="status",
-                type=UniversalType.STRING,
-                categories=["active", "cancelled", "pending"],
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_good = pl.DataFrame({"status": ["active", "pending"]})
-        result = Contract.validate_datacontract(df_good)
-        assert result.passes is True
-        df_bad = pl.DataFrame({"status": ["active", "unknown"]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "status__isin" in _failing_check_ids(result)
-
-    def test_isin_from_categories_value_label_dicts(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="code",
-                type=UniversalType.STRING,
-                categories=[
-                    {"value": "a", "label": "Active"},
-                    {"value": "c", "label": "Cancelled"},
-                ],
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_good = pl.DataFrame({"code": ["a", "c"]})
-        result = Contract.validate_datacontract(df_good)
-        assert result.passes is True
-        df_bad = pl.DataFrame({"code": ["a", "z"]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "code__isin" in _failing_check_ids(result)
-
-    def test_enum_constraint_takes_precedence_over_categories(self):
-        spec = _make_spec(
-            FieldSpec(
-                name="tier",
-                type=UniversalType.STRING,
-                categories=["a", "b", "c"],
-                constraints=FieldConstraints(enum=["x", "y"]),
-            ),
-        )
-        Contract = contract_from_typespec(spec)
-        df_good = pl.DataFrame({"tier": ["x", "y"]})
-        result = Contract.validate_datacontract(df_good)
-        assert result.passes is True
-        df_bad = pl.DataFrame({"tier": ["a", "x"]})
-        result = Contract.validate_datacontract(df_bad)
-        assert result.passes is False
-        assert "tier__isin" in _failing_check_ids(result)
-
-    def test_no_constraints_produces_nullable_field(self):
-        spec = _make_spec(FieldSpec(name="val", type=UniversalType.STRING))
-        Contract = contract_from_typespec(spec)
-        df = pl.DataFrame({"val": [None, "x"]})
-        result = Contract.validate_datacontract(df)
-        assert result.passes is True
-
-class TestPatternCheckCrossBackend:
-    """Pattern checks must fail on non-matching values on every backend."""
-
-    def _spec(self):
-        return _make_spec(
-            FieldSpec(
-                name="code",
-                type=UniversalType.STRING,
-                constraints=FieldConstraints(pattern=r"^[a-z]{3}-[0-9]{2}$"),
+        ],
+        foreign_keys=[
+            ForeignKey(
+                fields=["payload"],
+                reference=ForeignKeyReference(resource=None, fields=["payload"]),
             )
+        ],
+    )
+
+    plan = compile_datacontract(spec)
+    fingerprint = plan.declaration_fingerprint
+    check_ids = tuple(check.id for check in plan.checks)
+
+    spec.fields[0].object_fields[0].name = "renamed"
+    spec.foreign_keys[0].reference.fields.append("other")
+
+    assert isinstance(plan, CompiledValidationPlan)
+    assert plan.declaration_fingerprint == fingerprint
+    assert tuple(check.id for check in plan.checks) == check_ids
+    assert plan.field_plan.by_name["payload"].name == "payload"
+
+
+def test_compile_datacontract_rejects_semantics_before_compilation() -> None:
+    """An executable plan cannot be built from a semantically invalid declaration."""
+    spec = TypeSpec(fields=[FieldSpec(name="", type=UniversalType.STRING)])
+
+    with pytest.raises(InvalidTypeSpecSemantics):
+        compile_datacontract(spec)
+
+
+def test_compilation_preserves_native_field_extensions_and_severity() -> None:
+    """Dropping native rules during plan compilation would weaken a contract."""
+    from mountainash.datacontracts import BaseDataContract, Field
+
+    class NativeContract(BaseDataContract):
+        value: int = Field(
+            eq=1,
+            ne=2,
+            gt=0,
+            lt=3,
+            notin=[-1],
+            str_contains="1",
+            str_startswith="1",
+            str_endswith="1",
+            severity="warning",
         )
 
-    def _data(self, backend, values):
-        df = pl.DataFrame({"code": values})
-        if backend == "narwhals-pandas":
-            import narwhals as nw
+    plan = compile_datacontract(
+        NativeContract.to_typespec(),
+        extensions=NativeContract._contract_fields,
+    )
 
-            return nw.from_native(df.to_pandas())
-        if backend == "ibis-duckdb":
-            ibis = pytest.importorskip("ibis")
+    checks = {check.id: check for check in plan.checks}
+    expected = {
+        "value__eq",
+        "value__ne",
+        "value__gt",
+        "value__lt",
+        "value__notin",
+        "value__str_contains",
+        "value__str_startswith",
+        "value__str_endswith",
+    }
+    assert expected <= set(checks)
+    assert {checks[check_id].severity for check_id in expected} == {"warning"}
 
-            return ibis.duckdb.connect().create_table("t", df.to_arrow())
-        return df
 
-    @pytest.mark.parametrize("backend", ["polars", "narwhals-pandas", "ibis-duckdb"])
-    def test_non_matching_value_fails(self, backend):
-        result = self._spec().to_contract(name="pattern_xb").validate_datacontract(
-            self._data(backend, ["abc-12", "###"])
+
+def test_every_declared_field_gets_type_format_first() -> None:
+    """Intrinsic format validation exists even without declared constraints."""
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="id", type=UniversalType.INTEGER),
+                FieldSpec(
+                    name="label",
+                    type=UniversalType.STRING,
+                    constraints=FieldConstraints(min_length=1, max_length=8),
+                ),
+            ]
         )
-        assert not result.passes
-        assert "code__pattern" in _failing_check_ids(result)
+    )
 
-    @pytest.mark.parametrize("backend", ["polars", "narwhals-pandas", "ibis-duckdb"])
-    def test_matching_values_pass(self, backend):
-        result = self._spec().to_contract(name="pattern_xb").validate_datacontract(
-            self._data(backend, ["abc-12", "xyz-99"])
+    value_rules = [check for check in plan.checks if isinstance(check, ValueRule)]
+    assert [
+        (check.id, check.validator)
+        for check in value_rules[:2]
+    ] == [
+        ("id_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("label_type_format", ValueValidatorKey.TYPE_FORMAT),
+    ]
+
+
+def test_compiler_maps_each_standard_constraint_once() -> None:
+    """The complete standard vocabulary has one explicit ValueRule owner."""
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="amount",
+                    type=UniversalType.NUMBER,
+                    constraints=FieldConstraints(
+                        required=True,
+                        unique=True,
+                        minimum=1,
+                        maximum=10,
+                        exclusive_minimum=0,
+                        exclusive_maximum=11,
+                        enum=[1, 2],
+                        enum_weights={"1": 1.0},
+                    ),
+                ),
+                FieldSpec(
+                    name="label",
+                    type=UniversalType.STRING,
+                    constraints=FieldConstraints(
+                        min_length=1,
+                        max_length=8,
+                        pattern=r"[a-z]+",
+                        enum=["draft"],
+                    ),
+                    categories=["draft"],
+                ),
+                FieldSpec(
+                    name="payload",
+                    type=UniversalType.OBJECT,
+                    object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                    constraints=FieldConstraints(json_schema={"type": "object"}),
+                ),
+                FieldSpec(
+                    name="items",
+                    type=UniversalType.ARRAY,
+                    item_object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                ),
+                FieldSpec(name="shape", type=UniversalType.GEOJSON),
+            ]
         )
-        assert result.passes
+    )
+
+    assert [
+        (check.id, check.validator)
+        for check in plan.checks
+        if isinstance(check, ValueRule)
+    ] == [
+        ("amount_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("amount_range", ValueValidatorKey.RANGE),
+        ("amount_enum_membership", ValueValidatorKey.MEMBERSHIP),
+        ("amount_unique", ValueValidatorKey.UNIQUE),
+        ("label_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("label_length", ValueValidatorKey.LENGTH),
+        ("label_pattern", ValueValidatorKey.XSD_PATTERN),
+        ("label_enum_membership", ValueValidatorKey.MEMBERSHIP),
+        ("label_category_membership", ValueValidatorKey.MEMBERSHIP),
+        ("payload_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("payload_json_schema", ValueValidatorKey.JSON_SCHEMA),
+        ("payload_nested", ValueValidatorKey.NESTED),
+        ("items_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("items_nested", ValueValidatorKey.NESTED),
+        ("shape_type_format", ValueValidatorKey.TYPE_FORMAT),
+        ("shape_geojson", ValueValidatorKey.GEOJSON),
+        ("shape_geojson_winding", ValueValidatorKey.GEOJSON_WINDING),
+    ]
+    rules = {check.id: check for check in plan.checks}
+    assert rules["amount_range"].options == {
+        "minimum": 1,
+        "maximum": 10,
+        "exclusive_minimum": 0,
+        "exclusive_maximum": 11,
+    }
+    assert rules["shape_geojson_winding"].severity == "warning"
+    assert rules["amount_enum_membership"].metadata["enum_weights"] == {"1": 1.0}

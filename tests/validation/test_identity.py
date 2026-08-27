@@ -49,3 +49,28 @@ def test_require_keyed_gates():
         require_keyed(RowIdentity("row_number"), feature="pivot_key_fields")
     with pytest.raises(IdentityRequiredError):
         require_keyed(RowIdentity("none"), feature="interpolate_messages")
+
+
+def test_composite_unique_excludes_any_null_row():
+    """Composite uniqueness follows MATCH SIMPLE null exclusion."""
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.validation import ValidationRunner
+
+    frame = pl.DataFrame({"a": [1, 1, 1], "b": [None, None, 2]})
+    plan = compile_datacontract(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="a", type=UniversalType.INTEGER),
+                FieldSpec(name="b", type=UniversalType.INTEGER),
+            ],
+            unique_keys=[["a", "b"]],
+        )
+    )
+
+    result = ValidationRunner().validate_relation(frame, plan=plan)
+
+    assert result.check_summaries.filter(pl.col("check_id") == "unique_key__0")[
+        "fail_count"
+    ].item() == 0

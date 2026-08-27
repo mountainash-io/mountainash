@@ -79,7 +79,8 @@ def test_prepare_validation_input_returns_frozen_dataclass_shape():
     with MaterializationScope() as scope:
         prepared = prepare_validation_input(ma.relation(df), scope=scope)
         assert isinstance(prepared, PreparedValidationInput)
-        assert prepared.diagnostic_source is None
+        assert prepared.diagnostic_source is not None
+        assert prepared.diagnostic_source.frame.to_dict(as_series=False) == {"x": [1]}
         with pytest.raises(Exception, match="frozen|cannot assign"):
             prepared.native = None  # type: ignore[misc]
 

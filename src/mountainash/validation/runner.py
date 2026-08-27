@@ -14,7 +14,7 @@ from __future__ import annotations
 import functools
 import operator
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import polars as pl
 
@@ -83,8 +83,11 @@ class ValidationRunner:
     def validate_relation(
         self,
         relation: "Relation | Any",
-        checks: Sequence[Any],
+        checks: Sequence[Any] = (),
         *,
+        plan: Any = None,
+        apply_value_transforms: bool = True,
+        conform_contract: "str | Mapping[str, str] | None" = None,
         identity: RowIdentity | None = None,
         allow_imperfect_key: bool = False,
         context: dict[str, Any] | None = None,
@@ -114,13 +117,35 @@ class ValidationRunner:
         (``UnknownCheckTypeError``) still raises, ahead of the data-phase
         failure.
         """
+        from mountainash.relations import Relation
+        from mountainash.relations import relation as as_relation
         from mountainash.relations.core.materialization import MaterializationScope
         from mountainash.validation.prepared import prepare_validation_input
+
+        rel = relation if isinstance(relation, Relation) else as_relation(relation)
+        if plan is not None:
+            from mountainash.validation.fk import build_standalone_fk_checks
+            from mountainash.validation.plan import thaw_typespec
+
+            rel = rel.conform(
+                thaw_typespec(plan),
+                contract=conform_contract,
+                apply_value_transforms=apply_value_transforms,
+            )
+            standalone_rules = (
+                build_standalone_fk_checks(plan, resource_name=validator_name or "__standalone__")
+                if fk_resolver is None
+                else ()
+            )
+            checks = (*plan.checks, *checks, *standalone_rules)
+            if fk_resolver is None:
+                def fk_resolver(_name: str) -> Any:
+                    return rel
 
         identity = identity or RowIdentity("none")
         scope = MaterializationScope()
         try:
-            prepared = prepare_validation_input(relation, backend=backend, scope=scope)
+            prepared = prepare_validation_input(rel, backend=backend, scope=scope)
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
             scope.close()
             summaries = [
@@ -171,6 +196,12 @@ class ValidationRunner:
         ``prepared.relation``; only small counts and selected failure rows
         convert to Polars per check (spec section 6.2's outcome model)."""
         rel = prepared.relation
+        materialized_source = (
+            prepared.diagnostic_source.frame
+            if prepared.diagnostic_source is not None
+            else None
+        )
+        self._materialized_value_frame = materialized_source
         identity_diagnostics: dict[str, Any] = {}
         if identity.kind == "keyed":
             identity_diagnostics = validate_keyed_identity(
@@ -178,6 +209,10 @@ class ValidationRunner:
             )
         elif identity.kind == "row_number":
             rel = rel.with_row_index(name=ROW_ORDINAL)
+            if self._materialized_value_frame is not None:
+                self._materialized_value_frame = self._materialized_value_frame.with_row_index(
+                    name=ROW_ORDINAL
+                )
 
         summaries: list[CheckSummary] = []
         failure_frames: list[pl.DataFrame] = []
@@ -201,6 +236,7 @@ class ValidationRunner:
             failure_cases=combine_failure_frames(failure_frames, identity),
             identity=identity,
             identity_diagnostics=identity_diagnostics,
+            _materialized_source=materialized_source,
         )
 
     # -- dispatch -----------------------------------------------------------
@@ -210,6 +246,7 @@ class ValidationRunner:
             "row": self._run_row_rule,
             "scalar": self._run_scalar_rule,
             "relation": self._run_relation_rule,
+            "value": self._run_value_rule,
             "foreign_key": functools.partial(
                 self._run_foreign_key_rule, fk_resolver=fk_resolver
             ),
@@ -362,6 +399,180 @@ class ValidationRunner:
             keep.append("row")
         return out.select(keep)
 
+    # -- ValueRule ----------------------------------------------------------
+
+    def _run_value_rule(
+        self,
+        rel: "Relation",
+        check: Any,
+        identity: RowIdentity,
+        failure_sample: int | None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        from mountainash.validation.result import rows_as_struct_failures
+        from mountainash.validation.value import (
+            INVALID_VALUE,
+            VALUE_RULE_REGISTRY,
+            structured_value_diagnostics,
+        )
+
+        if not check.fields:
+            raise ValueError(f"{check.validator.name.lower()} rules require one or more fields")
+        frame = (
+            self._materialized_value_frame
+            if self._materialized_value_frame is not None
+            else rel.to_polars()
+        )
+        missing_fields = set(check.fields) - set(frame.columns)
+        if missing_fields:
+            raise ValueError(
+                f"declared fields {sorted(missing_fields)!r} are absent from materialized data"
+            )
+        entry = VALUE_RULE_REGISTRY[check.validator]
+        values: list[Any] | None = None
+        diagnostics_by_source: list[Sequence[Any]] | None = None
+        if check.validator.name == "UNIQUE":
+            outcomes = self._unique_value_outcomes(frame, check.fields)
+        elif len(check.fields) == 1:
+            values = frame[check.fields[0]].to_list()
+            if check.validator.name in {
+                "JSON_SCHEMA",
+                "GEOJSON",
+                "GEOJSON_WINDING",
+                "TOPOJSON",
+            }:
+                diagnostics_by_source = [
+                    structured_value_diagnostics(check.validator, value, check.options)
+                    for value in values
+                ]
+                outcomes = [
+                    None
+                    if value is INVALID_VALUE
+                    else True
+                    if value is None
+                    else not diagnostics
+                    for value, diagnostics in zip(
+                        values, diagnostics_by_source, strict=True
+                    )
+                ]
+            else:
+                outcomes = [entry.execute(value, check.options) for value in values]
+        else:
+            raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
+        failed_indices = [index for index, outcome in enumerate(outcomes) if outcome is False]
+        failed = [outcome is False for outcome in outcomes]
+        diagnostics = (
+            [
+                (
+                    diagnostics_by_source[index]
+                    if diagnostics_by_source is not None
+                    else structured_value_diagnostics(
+                        check.validator, values[index], check.options
+                    )
+                )
+                for index in failed_indices
+            ]
+            if values is not None
+            else [()] * len(failed_indices)
+        )
+        failures = frame.filter(pl.Series(failed))
+        if failure_sample is not None:
+            failures = failures.head(failure_sample)
+            diagnostics = diagnostics[:failure_sample]
+        failure_frame = rows_as_struct_failures(
+            failures,
+            check_id=check.id,
+            check_kind="value",
+        )
+        if failure_frame.height and identity.kind == "keyed":
+            failure_frame = failure_frame.with_columns(
+                [pl.Series(name, failures[name]) for name in identity.key_fields]
+            )
+        elif failure_frame.height and identity.kind == "row_number":
+            failure_frame = failure_frame.with_columns(
+                pl.Series("row_number", failures[ROW_ORDINAL])
+            )
+        if failure_frame.height:
+            failure_frame = self._attach_value_diagnostics(failure_frame, diagnostics)
+        fail_count = sum(failed)
+        unknown_count = sum(outcome is None for outcome in outcomes)
+        total = frame.height
+        pass_count = total - fail_count - unknown_count
+        passing_count = pass_count + unknown_count
+        status = (
+            "passed"
+            if total == 0
+            or (
+                passing_count / total >= check.mostly
+                if check.mostly is not None
+                else fail_count == 0 and unknown_count == 0
+            )
+            else "failed"
+        )
+        return (
+            CheckSummary(
+                check_id=check.id,
+                check_kind="value",
+                status=status,
+                pass_count=pass_count,
+                fail_count=fail_count,
+                unknown_count=unknown_count,
+                total_rows=total,
+                mostly=check.mostly,
+                severity=check.severity,
+            ),
+            failure_frame,
+        )
+
+    @staticmethod
+    def _attach_value_diagnostics(
+        failure_frame: pl.DataFrame, diagnostics: Sequence[Sequence[Any]]
+    ) -> pl.DataFrame:
+        """Expand nested diagnostics without changing per-source row counts."""
+        records: list[dict[str, Any]] = []
+        for record, row_diagnostics in zip(
+            failure_frame.to_dicts(), diagnostics, strict=True
+        ):
+            if not row_diagnostics:
+                records.append(record)
+                continue
+            for diagnostic in row_diagnostics:
+                diagnostic_record = dict(record)
+                diagnostic_record.update(
+                    instance_path=diagnostic.instance_path,
+                    schema_path=diagnostic.schema_path,
+                    validator=diagnostic.validator,
+                    message=diagnostic.message,
+                )
+                records.append(diagnostic_record)
+        return pl.DataFrame(records, schema=failure_frame.schema)
+
+    @staticmethod
+    def _unique_value_outcomes(frame: pl.DataFrame, fields: Sequence[str]) -> list[bool | None]:
+        """Return one logical uniqueness outcome per source row.
+
+        Null tuples pass under Frictionless field-unique semantics. A repeated
+        non-null key marks every member of that duplicate group as failed.
+        """
+        from mountainash.validation.value import INVALID_VALUE, canonical_value_key
+
+        outcomes: list[bool | None] = [True] * frame.height
+        first_index_by_key: dict[tuple[Any, ...], int] = {}
+        values_by_field = [frame[field].to_list() for field in fields]
+        for row_index, values in enumerate(zip(*values_by_field, strict=True)):
+            if any(value is INVALID_VALUE for value in values):
+                outcomes[row_index] = None
+                continue
+            if any(value is None for value in values):
+                continue
+            key = tuple(canonical_value_key(value) for value in values)
+            first_index = first_index_by_key.get(key)
+            if first_index is None:
+                first_index_by_key[key] = row_index
+            else:
+                outcomes[first_index] = False
+                outcomes[row_index] = False
+        return outcomes
+
     # -- ScalarRule ---------------------------------------------------------
 
     def _run_scalar_rule(
@@ -467,6 +678,7 @@ class ValidationRunner:
         checks_by_resource: "dict[str, list[Any]]",
         *,
         identity_by_resource: "dict[str, RowIdentity] | None" = None,
+        plans_by_resource: "dict[str, Any] | None" = None,
         context: "dict[str, Any] | None" = None,
         fail_fast: bool = False,
         failure_sample: int | None = None,
@@ -484,9 +696,26 @@ class ValidationRunner:
         from mountainash.relations import relation as as_relation
         from mountainash.relations.dag.materialization import DAGMaterializationSession
         from mountainash.validation.checks import ForeignKeyRule
+        from mountainash.validation.plan import thaw_typespec
         from mountainash.validation.prepared import prepare_validation_input_from_session
 
-        session = DAGMaterializationSession(dag, backend=backend, isolate_failures=True)
+        identity_by_resource = identity_by_resource or {}
+        plans_by_resource = plans_by_resource or {}
+
+        def _plan_transform(plan: Any) -> Any:
+            def transform(rel: Any) -> Any:
+                return rel.conform(thaw_typespec(plan))
+
+            return transform
+
+        session = DAGMaterializationSession(
+            dag,
+            backend=backend,
+            isolate_failures=True,
+            node_transforms={
+                name: _plan_transform(plan) for name, plan in plans_by_resource.items()
+            },
+        )
         prepared_by_name: "dict[str, PreparedValidationInput]" = {}
 
         def _prepare(name: str) -> "PreparedValidationInput":
@@ -506,14 +735,18 @@ class ValidationRunner:
             native, _visitor = session.compile_registered(name)
             return as_relation(native.value)
 
-        identity_by_resource = identity_by_resource or {}
         results: dict[str, ValidationResult] = {}
         fk_rules: list[Any] = []
 
         try:
             for name, checks in checks_by_resource.items():
-                intra = [c for c in checks if not isinstance(c, ForeignKeyRule)]
-                fk_rules.extend(c for c in checks if isinstance(c, ForeignKeyRule))
+                plan = plans_by_resource.get(name)
+                local_checks = [
+                    *(plan.checks if plan is not None else ()),
+                    *checks,
+                ]
+                intra = [c for c in local_checks if not isinstance(c, ForeignKeyRule)]
+                fk_rules.extend(c for c in local_checks if isinstance(c, ForeignKeyRule))
                 resource_identity = identity_by_resource.get(name) or RowIdentity("none")
                 try:
                     prepared = _prepare(name)
@@ -524,7 +757,7 @@ class ValidationRunner:
                     # equivalent plan-level isolation (Task 6) — it must not
                     # abort unrelated resources in this batch.
                     summaries = [
-                        self._error_summary(c, check_kind(c), exc) for c in checks
+                        self._error_summary(c, check_kind(c), exc) for c in local_checks
                     ]
                     result = ValidationResult(
                         passes=passes_from_summaries(summaries),

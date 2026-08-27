@@ -16,6 +16,8 @@ from mountainash.validation.checks import (
     ScalarRule,
     ValidationCheck,
     check_kind,
+    ValueRule,
+    ValueValidatorKey,
     classify,
     require_as_of,
     validate_severity,
@@ -49,6 +51,12 @@ from mountainash.validation.result import (
     summaries_frame,
 )
 from mountainash.validation.runner import ROW_ORDINAL, ValidationRunner
+from mountainash.validation.schema import (
+    TypeSpecIssue,
+    require_valid_typespec,
+    validate_typespec_semantics,
+)
+from mountainash.validation.plan import CompiledValidationPlan
 
 __all__ = [
     "BLOCKING_STATUSES",
@@ -73,6 +81,10 @@ __all__ = [
     "ValidationError",
     "ValidationResult",
     "ValidationRunner",
+    "TypeSpecIssue",
+    "CompiledValidationPlan",
+    "ValueRule",
+    "ValueValidatorKey",
     "build_fk_checks",
     "check_kind",
     "classify",
@@ -88,4 +100,6 @@ __all__ = [
     "summaries_frame",
     "validate_keyed_identity",
     "validate_severity",
+    "require_valid_typespec",
+    "validate_typespec_semantics",
 ]

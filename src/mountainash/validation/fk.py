@@ -15,6 +15,37 @@ from mountainash.validation.checks import ForeignKeyRule
 from mountainash.validation.result import CheckSummary
 
 
+def build_standalone_fk_checks(
+    plan: Any,
+    *,
+    resource_name: str,
+) -> tuple[ForeignKeyRule, ...]:
+    """Build plan-owned self-reference checks without a RelationDAG.
+
+    Cross-resource references need parent materialization and are therefore
+    rejected before a standalone runner can read either side.
+    """
+    from mountainash.relations.dag.errors import RelationDAGRequired
+
+    rules: list[ForeignKeyRule] = []
+    for foreign_key in plan.foreign_keys:
+        parent = foreign_key.parent_resource or resource_name
+        if parent != resource_name:
+            raise RelationDAGRequired(
+                f"foreign key from {resource_name!r} to {parent!r} requires RelationDAG"
+            )
+        rules.append(
+            ForeignKeyRule(
+                id=_fk_check_id(resource_name, parent, list(foreign_key.child_fields)),
+                child=resource_name,
+                parent=parent,
+                child_fields=list(foreign_key.child_fields),
+                parent_fields=list(foreign_key.parent_fields),
+            )
+        )
+    return tuple(rules)
+
+
 def _fk_check_id(child: str, parent: str, child_fields: "list[str]") -> str:
     return f"fk__{child}__{'.'.join(child_fields)}__{parent}"
 

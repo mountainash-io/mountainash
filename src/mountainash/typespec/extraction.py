@@ -385,7 +385,7 @@ def _from_pydantic_v2(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
         schema_field = FieldSpec(
             name=field_name,
             type=universal_type,
-            format=format_hint,
+            format=format_hint or "default",
             constraints=constraints if constraints else None,
             description=description,
         )

@@ -13,11 +13,11 @@ def _ids(checks):
 class TestFieldToChecks:
     def test_not_nullable_emits_not_null(self):
         checks = Field(nullable=False).to_checks("age")
-        assert _ids(checks) == ["age__not_null"]
+        assert _ids(checks) == ["age_type_format", "age__not_null"]
 
     def test_range_checks_guarded_when_nullable(self):
         checks = Field(ge=0, le=100).to_checks("age")
-        assert _ids(checks) == ["age__ge", "age__le"]
+        assert _ids(checks) == ["age_type_format", "age_range"]
         # guarded: a null age is not a range violation
         df = pl.DataFrame({"age": [50, None]})
         result = ValidationRunner().validate_relation(ma.relation(df), checks)
@@ -35,28 +35,32 @@ class TestFieldToChecks:
         checks = Field(
             str_matches=r".+@.+", str_length={"min_value": 3, "max_value": 50}
         ).to_checks("email")
-        assert _ids(checks) == ["email__str_length", "email__pattern"]
+        assert _ids(checks) == ["email_type_format", "email_length", "email_pattern"]
 
     def test_isin(self):
         checks = Field(isin=["open", "closed"]).to_checks("status")
-        assert _ids(checks) == ["status__isin"]
+        assert _ids(checks) == ["status_type_format", "status_enum_membership"]
         df = pl.DataFrame({"status": ["open", "bogus", None]})
         result = ValidationRunner().validate_relation(ma.relation(df), checks)
-        summary = result.check_summaries.row(0, named=True)
+        summary = result.check_summaries.filter(
+            result.check_summaries["check_id"] == "status_enum_membership"
+        ).row(0, named=True)
         assert summary["fail_count"] == 1      # "bogus"
         assert summary["pass_count"] == 2      # "open" + guarded null passes
 
-    def test_unique_uses_is_duplicated(self):
+    def test_unique_uses_canonical_value_keys(self):
         checks = Field(unique=True).to_checks("id")
-        assert _ids(checks) == ["id__unique"]
-        assert isinstance(checks[0], RowRule)
+        assert _ids(checks) == ["id_type_format", "id_unique"]
         df = pl.DataFrame({"id": [1, 2, 2]})
         result = ValidationRunner().validate_relation(ma.relation(df), checks)
-        assert result.check_summaries["fail_count"][0] == 2  # both duplicate rows flagged
+        summary = result.check_summaries.filter(
+            result.check_summaries["check_id"] == "id_unique"
+        ).row(0, named=True)
+        assert summary["fail_count"] == 2  # both duplicate rows flagged
 
     def test_fields_attribute_set_for_column_attribution(self):
         checks = Field(ge=0).to_checks("age")
-        assert checks[0].fields == ["age"]
+        assert checks[1].fields == ("age",)
 
     def test_full_vocabulary_kwargs(self):
         """spec §9.1 third amendment: the beyond-Frictionless comparison/
@@ -66,6 +70,7 @@ class TestFieldToChecks:
             str_contains="a", str_startswith="b", str_endswith="c",
         ).to_checks("x")
         assert _ids(checks) == [
+            "x_type_format",
             "x__eq", "x__ne", "x__gt", "x__lt", "x__notin",
             "x__str_contains", "x__str_startswith", "x__str_endswith",
         ]
@@ -114,8 +119,8 @@ class TestPrimaryKeyUnique:
         spec = TypeSpec(
             fields=[FieldSpec(name="a", type=UniversalType.ANY), FieldSpec(name="b", type=UniversalType.ANY)], primary_key=["a", "b"]
         )
-        checks = compile_datacontract(spec)
-        pk = [c for c in checks if c.id == "primary_key_unique"]
+        plan = compile_datacontract(spec)
+        pk = [c for c in plan.checks if c.id == "primary_key_unique"]
         assert len(pk) == 1 and isinstance(pk[0], RelationRule)
 
         df = pl.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "x"]})
@@ -129,5 +134,7 @@ class TestPrimaryKeyUnique:
         from mountainash.typespec.spec import FieldSpec, TypeSpec
         from mountainash.typespec.universal_types import UniversalType
 
-        checks = compile_datacontract(TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)]))
-        assert "primary_key_unique" not in [c.id for c in checks]
+        plan = compile_datacontract(
+            TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)])
+        )
+        assert "primary_key_unique" not in [c.id for c in plan.checks]

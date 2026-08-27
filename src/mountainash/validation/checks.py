@@ -8,7 +8,8 @@ is a reserved slot (Tier B) — constructing it raises.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Union
+from enum import Enum, auto
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, Union
 
 from mountainash.validation.errors import CheckDeclarationError
 
@@ -54,6 +55,71 @@ def validate_severity(check_id: str, severity: str) -> None:
             f"check {check_id!r}: unknown severity {severity!r}; "
             f"expected one of {sorted(SEVERITIES)}"
         )
+
+
+
+
+class ValueValidatorKey(Enum):
+    """Closed logical-value validator vocabulary."""
+
+    TYPE_FORMAT = auto()
+    LENGTH = auto()
+    RANGE = auto()
+    STRING_FORMAT = auto()
+    XSD_PATTERN = auto()
+    MEMBERSHIP = auto()
+    UNIQUE = auto()
+    NESTED = auto()
+    JSON_SCHEMA = auto()
+    GEOJSON = auto()
+    GEOJSON_WINDING = auto()
+    TOPOJSON = auto()
+
+
+@dataclass(frozen=True)
+class ValueRule:
+    """A per-row rule that executes on post-conform logical Python values."""
+
+    id: str
+    fields: Sequence[str]
+    validator: ValueValidatorKey
+    options: Mapping[str, Any]
+    mostly: float | None = None
+    severity: str = "blocking"
+    error_message: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        from mountainash.validation.plan import freeze_value
+        from mountainash.validation.value import validate_value_rule_options
+
+        if isinstance(self.fields, str) or not isinstance(self.fields, Sequence):
+            raise CheckDeclarationError(f"check {self.id!r}: fields must be a sequence of names")
+        frozen_fields = tuple(self.fields)
+        if (
+            not frozen_fields
+            or any(not isinstance(name, str) or not name for name in frozen_fields)
+            or len(set(frozen_fields)) != len(frozen_fields)
+        ):
+            raise CheckDeclarationError(
+                f"check {self.id!r}: fields must be unique non-empty strings"
+            )
+        if not isinstance(self.validator, ValueValidatorKey):
+            raise CheckDeclarationError(
+                f"check {self.id!r}: validator must be a ValueValidatorKey"
+            )
+        if not isinstance(self.options, Mapping):
+            raise CheckDeclarationError(f"check {self.id!r}: options must be a mapping")
+        if self.mostly is not None and not (0.0 < self.mostly <= 1.0):
+            raise CheckDeclarationError(
+                f"check {self.id!r}: mostly must be in (0, 1], got {self.mostly}"
+            )
+        validate_severity(self.id, self.severity)
+        frozen_options = freeze_value(self.options)
+        validate_value_rule_options(self.validator, frozen_options)
+        object.__setattr__(self, "fields", frozen_fields)
+        object.__setattr__(self, "options", frozen_options)
+        object.__setattr__(self, "metadata", freeze_value(self.metadata))
 
 
 @dataclass(frozen=True)
@@ -156,9 +222,17 @@ class DistributionRule:
         )
 
 
-ValidationCheck = Union[RowRule, ScalarRule, RelationRule, ForeignKeyRule, DistributionRule]
+ValidationCheck = Union[
+    ValueRule,
+    RowRule,
+    ScalarRule,
+    RelationRule,
+    ForeignKeyRule,
+    DistributionRule,
+]
 
 _KIND_BY_TYPE: dict[type, str] = {
+    ValueRule: "value",
     RowRule: "row",
     ScalarRule: "scalar",
     RelationRule: "relation",

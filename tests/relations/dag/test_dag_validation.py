@@ -14,6 +14,7 @@ from mountainash.relations.dag import RelationDAG
 from mountainash.relations.dag.validation import DAGValidationResult
 from mountainash.datacontracts.contract import BaseDataContract
 from mountainash.datacontracts.compiler import compile_datacontract
+from mountainash.exceptions import InvalidTypeSpecSemantics
 
 
 def _build_dag(tables: dict[str, pl.DataFrame]) -> RelationDAG:
@@ -180,6 +181,46 @@ class TestFKValidation:
         assert result.passes is True
         assert result.fk_result.passes is True
         assert result.fk_result.check_summaries.height == 1
+        assert result.fk_result.check_summaries.row(0, named=True)["status"] == "passed"
+
+    def test_fk_uses_conformed_resource_columns(self):
+        """FKs run against each resource's logical post-conform schema."""
+        dag = _build_dag(
+            {
+                "customers": pl.DataFrame({"customer_key": ["1"]}),
+                "orders": pl.DataFrame({"order_customer_key": ["1"]}),
+            }
+        )
+        dag.constraint_edges.add(("customers", "orders"))
+        customer_spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="id",
+                    type=UniversalType.INTEGER,
+                    rename_from="customer_key",
+                )
+            ]
+        )
+        order_spec = TypeSpec(
+            fields=[
+                FieldSpec(
+                    name="customer_id",
+                    type=UniversalType.INTEGER,
+                    rename_from="order_customer_key",
+                )
+            ],
+            foreign_keys=[
+                ForeignKey(
+                    fields=["customer_id"],
+                    reference=ForeignKeyReference(resource="customers", fields=["id"]),
+                )
+            ],
+        )
+
+        result = dag.validate(specs={"customers": customer_spec, "orders": order_spec})
+
+        assert result.passes is True
+        assert result.fk_result.passes is True
         assert result.fk_result.check_summaries.row(0, named=True)["status"] == "passed"
 
     def test_orphan_fk_fails(self):
@@ -381,20 +422,19 @@ class TestIdentityIsolation:
         result = dag.validate(specs={"users": spec})  # must not raise
         assert result.passes is False
 
-    def test_missing_key_fields_isolated_not_raised_even_with_allow_imperfect_key(self):
-        # identity.py:69-73's missing-key-fields raise is unconditional - allow_imperfect_key
-        # never suppresses it (spec §7 round-2 fix) - but §3.2's DAG-tier isolation is categorical
-        # regardless of *why* IdentityInvalidError was raised, so it must still not escape here.
-        dag = _build_dag({"users": pl.DataFrame({"age": [30, 40]})})  # no "id" column at all
+    def test_missing_declared_key_field_fails_before_dag_execution(self):
+        """A key naming no TypeSpec field is a declaration error, not bad data."""
+        dag = _build_dag({"users": pl.DataFrame({"age": [30, 40]})})
         spec = TypeSpec(
             fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
-            primary_key=["id"],  # declared key column absent from the actual data
+            primary_key=["id"],
         )
-        result = dag.validate(specs={"users": spec}, allow_imperfect_key=True)  # must not raise
-        assert result.passes is False
-        users_summary = result.results["users"].check_summaries.row(0, named=True)
-        assert users_summary["check_id"] == "__identity__"
-        assert users_summary["status"] == "error"
+        with pytest.raises(InvalidTypeSpecSemantics) as caught:
+            dag.validate(specs={"users": spec}, allow_imperfect_key=True)
+
+        assert tuple((issue.path, issue.code) for issue in caught.value.issues) == (
+            ("/primary_key/0", "typespec.invalid_constraint_declaration"),
+        )
 
 
 class TestSharedMaterializationSession:

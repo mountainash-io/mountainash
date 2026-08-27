@@ -72,6 +72,7 @@ def _run(
     from mountainash.validation.runner import ValidationRunner
 
     checks_by_resource: dict[str, list[Any]] = {}
+    plans_by_resource: dict[str, Any] = {}
     identity_by_resource: dict[str, Any] = {}
     fk_specs: dict[str, TypeSpec] = {}
 
@@ -79,12 +80,19 @@ def _run(
         if name not in dag.relations:
             raise KeyError(f"relation {name!r} not in DAG")
         if isinstance(spec, TypeSpec):
-            checks = compile_datacontract(spec)
+            plan = compile_datacontract(spec)
+            checks = []
+            plans_by_resource[name] = plan
             spec_for_identity = spec
             natural_key = None
         elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
-            checks = spec.to_checks()
             spec_for_identity = spec.to_typespec()
+            plan = compile_datacontract(
+                spec_for_identity,
+                extensions=spec._contract_fields,
+            )
+            checks = []
+            plans_by_resource[name] = plan
             natural_key = getattr(spec.Config, "natural_key", None)
         else:
             raise TypeError(
@@ -105,6 +113,7 @@ def _run(
         dag,
         checks_by_resource,
         identity_by_resource=identity_by_resource,
+        plans_by_resource=plans_by_resource,
         context=context,
         fail_fast=fail_fast,
         failure_sample=failure_sample,

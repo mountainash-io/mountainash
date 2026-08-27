@@ -6,10 +6,11 @@ No silent fallback between tiers.
 """
 from __future__ import annotations
 
-import operator
 from dataclasses import dataclass
-from functools import reduce
 from typing import TYPE_CHECKING, Any, Literal
+
+
+from mountainash.validation.value import canonical_value_key
 
 from mountainash.validation.errors import (
     CheckDeclarationError,
@@ -49,47 +50,42 @@ def resolve_identity(
             f"unknown row_identity {row_identity!r}; expected 'row_number' or None"
         )
     return RowIdentity(kind="none")
-
-
 def validate_keyed_identity(
     rel: "Relation",
     identity: RowIdentity,
     *,
     allow_imperfect_key: bool = False,
 ) -> dict[str, Any]:
-    """Verify declared keyed identity holds against the data (spec §7).
-
-    Raises IdentityInvalidError on missing key fields always, and on
-    null-key rows / duplicate key tuples unless allow_imperfect_key=True —
-    in which case the counts are returned as diagnostics.
-    """
-    import mountainash as ma
-
-    schema_cols = set(rel.schema.keys())
-    missing = [k for k in identity.key_fields if k not in schema_cols]
+    """Verify keyed identity using the shared canonical logical-key algebra."""
+    frame = rel.to_polars()
+    missing = [name for name in identity.key_fields if name not in frame.columns]
     if missing:
         raise IdentityInvalidError(
             f"keyed identity {identity.key_fields}: key fields missing from data: {missing}"
         )
 
-    null_predicate = reduce(operator.or_, (ma.col(k).is_null() for k in identity.key_fields))
-    null_key_rows = rel.filter(null_predicate).count_rows()
-
-    duplicate_key_tuples = (
-        rel.group_by(*identity.key_fields)
-        .agg(ma.count_records().alias("__ma_key_count__"))
-        .filter(ma.col("__ma_key_count__").gt(ma.lit(1)))
-        .count_rows()
-    )
+    null_key_rows = 0
+    first_row_by_key: dict[tuple[Any, ...], int] = {}
+    duplicate_keys: set[tuple[Any, ...]] = set()
+    columns = [frame[name].to_list() for name in identity.key_fields]
+    for row_index, values in enumerate(zip(*columns, strict=True)):
+        if any(value is None for value in values):
+            null_key_rows += 1
+            continue
+        key = tuple(canonical_value_key(value) for value in values)
+        if key in first_row_by_key:
+            duplicate_keys.add(key)
+        else:
+            first_row_by_key[key] = row_index
 
     diagnostics = {
         "null_key_rows": null_key_rows,
-        "duplicate_key_tuples": duplicate_key_tuples,
+        "duplicate_key_tuples": len(duplicate_keys),
     }
-    if (null_key_rows or duplicate_key_tuples) and not allow_imperfect_key:
+    if (null_key_rows or duplicate_keys) and not allow_imperfect_key:
         raise IdentityInvalidError(
             f"keyed identity {identity.key_fields} does not hold: "
-            f"{null_key_rows} null-key rows, {duplicate_key_tuples} duplicate key tuples. "
+            f"{null_key_rows} null-key rows, {len(duplicate_keys)} duplicate key tuples. "
             "Pass allow_imperfect_key=True to proceed with diagnostics recorded."
         )
     return diagnostics

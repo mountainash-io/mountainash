@@ -11,7 +11,7 @@ whole query plan once per consumer.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.materialization import (
@@ -155,10 +155,12 @@ class DAGMaterializationSession:
         *,
         backend: "str | None" = None,
         isolate_failures: bool = False,
+        node_transforms: "Mapping[str, Callable[[Any], Any]] | None" = None,
     ) -> None:
         self.dag = dag
         self.backend = backend
         self.isolate_failures = isolate_failures
+        self._node_transforms = dict(node_transforms or {})
         self._canonical: "dict[str, CanonicalEntry]" = {}
         self._coerced: "dict[tuple[str, CONST_BACKEND, str | None], NativeExecutionValue]" = {}
         self._diagnostic_views: "dict[str, DiagnosticFrameView]" = {}
@@ -205,6 +207,9 @@ class DAGMaterializationSession:
             raise self.dag._unknown_ref_error(name)
 
         rel = self.dag.relations[name]
+        transform = self._node_transforms.get(name)
+        if transform is not None:
+            rel = transform(rel)
         root = getattr(rel, "_node", None)
         if root is None:
             raise ValueError(f"relation {name!r} has no _node attribute")

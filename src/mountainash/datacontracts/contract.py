@@ -85,15 +85,13 @@ class BaseDataContract:
 
     @classmethod
     def to_checks(cls) -> "list[ValidationCheck]":
-        from mountainash.datacontracts.compiler import primary_key_check
+        from mountainash.datacontracts.compiler import compile_datacontract
 
-        checks: "list[ValidationCheck]" = []
-        for name, contract_field in cls._contract_fields.items():
-            checks.extend(contract_field.to_checks(name))
-        pk_check = primary_key_check(cls.to_typespec())
-        if pk_check is not None:
-            checks.append(pk_check)
-        return checks
+        plan = compile_datacontract(
+            cls.to_typespec(),
+            extensions=cls._contract_fields,
+        )
+        return list(plan.checks)
 
     @classmethod
     def validate_datacontract(

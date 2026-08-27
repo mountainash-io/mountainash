@@ -1,0 +1,2259 @@
+{
+  "schema_version": 1,
+  "source_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+  "prose_capabilities": [
+    {
+      "capability": "package:contributors[].role",
+      "source_url": "https://datapackage.org/standard/data-package/",
+      "section_anchor": "#contributors",
+      "quotation": "Contributor role metadata is accepted by the Mountainash descriptor model but is absent from the pinned profile schema.",
+      "absent_from_profile": true
+    }
+  ],
+  "upstream_exceptions": [
+    {
+      "discrepancy_id": "DP-V2-01",
+      "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+      "prose_evidence": "The v2 profile retains the table resource type branch.",
+      "affected_path": "resource:type=value:\"table\"",
+      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "review_date": "2026-08-20"
+    },
+    {
+      "discrepancy_id": "DP-V2-02",
+      "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+      "prose_evidence": "The v2 profile permits a resource path array.",
+      "affected_path": "resource:path[]",
+      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "review_date": "2026-08-20"
+    },
+    {
+      "discrepancy_id": "DP-V2-03",
+      "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+      "prose_evidence": "The v2 profile includes the year field type.",
+      "affected_path": "schema:fields[].type=value:\"year\"",
+      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "review_date": "2026-08-20"
+    },
+    {
+      "discrepancy_id": "DP-V2-04",
+      "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+      "prose_evidence": "The v2 profile includes the topojson format branch.",
+      "affected_path": "schema:fields[].format=value:\"topojson\"",
+      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "review_date": "2026-08-20"
+    },
+    {
+      "discrepancy_id": "DP-V2-05",
+      "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+      "prose_evidence": "The v2 profile includes structured array item types.",
+      "affected_path": "dialect:itemType=value:\"array\"",
+      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "review_date": "2026-08-20"
+    },
+    {
+      "discrepancy_id": "DP-V2-06",
+      "evidence_commit": "6a201af8ed2eacbb3a2440e82e4c55d5807f9c09",
+      "prose_evidence": "The v2 profile retains path-based license descriptors.",
+      "affected_path": "package:licenses[].path",
+      "selected_behavior": "Preserve the pinned upstream capability and expose it in the descriptor codec.",
+      "review_date": "2026-08-20"
+    }
+  ],
+  "local_policies": [
+    {
+      "decision_id": "MA-V2-01",
+      "normative_behavior": "Descriptor $schema is optional and absent values remain absent.",
+      "selected_behavior": "Do not synthesize a $schema value when decoding or encoding any descriptor kind.",
+      "affected_kinds": [
+        "package",
+        "resource",
+        "dialect",
+        "schema"
+      ],
+      "decision_reference": "2026-08-20-frictionless-v2-descriptor-codec.md#ma-v2-01",
+      "review_date": "2026-08-20"
+    }
+  ],
+  "rows": [
+    {
+      "capability": "dialect:$schema",
+      "storage": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "execution": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      }
+    },
+    {
+      "capability": "dialect:commentChar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:commentRows[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:delimiter",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "dialect:doubleQuote",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:escapeChar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "dialect:header",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "dialect:headerJoin",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:headerRows[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:itemKeys[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:itemType",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:itemType=value:\"array\"",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-05",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:itemType=value:\"object\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:lineTerminator",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:nullSequence",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "dialect:property",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:quoteChar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "dialect:sheetName",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:sheetNumber",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns spreadsheet dialect execution.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:skipInitialSpace",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "dialect:table",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit E owns execution support for dialect options not accepted by the current reader.",
+        "since": "2026-08-20",
+        "owner_unit": "E",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-e"
+      }
+    },
+    {
+      "capability": "package:$schema",
+      "storage": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "execution": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      }
+    },
+    {
+      "capability": "package:contributors[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].email",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].familyName",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].givenName",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].organization",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].path",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].role",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      },
+      "absent_from_profile": true
+    },
+    {
+      "capability": "package:contributors[].roles[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:contributors[].title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:created",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:description",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:homepage",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:id",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:image",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:keywords[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:licenses[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:licenses[].name",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:licenses[].path",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-06",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:licenses[].title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:name",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:resources[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:sources[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:sources[].email",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:sources[].path",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:sources[].title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:sources[].version",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "package:version",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:$schema",
+      "storage": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "execution": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      }
+    },
+    {
+      "capability": "resource:bytes",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:data",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:description",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:encoding",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:format",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:hash",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:homepage",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:licenses[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:licenses[].name",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:licenses[].path",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:licenses[].title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:mediatype",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:name",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:path",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:path[]",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-02",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:sources[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:sources[].email",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:sources[].path",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:sources[].title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:sources[].version",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:type",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "resource:type=value:\"table\"",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:$schema",
+      "storage": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      },
+      "execution": {
+        "status": "local_policy",
+        "reason": "Mountainash intentionally treats $schema as optional descriptor metadata.",
+        "decision_reference": "MA-V2-01",
+        "review_date": "2026-08-20"
+      }
+    },
+    {
+      "capability": "schema:description",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fieldsMatch",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fieldsMatch[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].bareNumber",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].categories",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].categoriesOrdered",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].categories[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].categories[].label",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].categories[].value",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.enum",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.enum[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.exclusiveMaximum",
+      "storage": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      },
+      "typed": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.exclusiveMinimum",
+      "storage": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      },
+      "typed": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.jsonSchema",
+      "storage": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      },
+      "typed": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      },
+      "execution": {
+        "status": "deferred",
+        "reason": "Unit B owns the complete v2 constraint vocabulary.",
+        "since": "2026-08-20",
+        "owner_unit": "B",
+        "acceptance_reference": "2026-08-19-frictionless-v2-alignment-design.md#unit-b"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.maxLength",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.maximum",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.minLength",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.minimum",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.pattern",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.required",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].constraints.unique",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].decimalChar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].delimiter",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].description",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].example",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].falseValues[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"array\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"binary\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"default\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"email\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"object\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"topojson\"",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-04",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"uri\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].format=value:\"uuid\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].groupChar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].itemType",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].missingValues",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].missingValues[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].missingValues[].label",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].missingValues[].value",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].name",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].rdfType",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].trueValues[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"any\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"array\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"boolean\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"date\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"datetime\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"duration\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"geojson\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"geopoint\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"integer\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"list\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"number\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"object\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"string\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"time\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"year\"",
+      "storage": {
+        "status": "upstream_exception",
+        "reason": "Pinned upstream behavior is retained pending the documented discrepancy review.",
+        "discrepancy_id": "DP-V2-03",
+        "review_date": "2026-08-20"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:fields[].type=value:\"yearmonth\"",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[].fields",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[].fields[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[].reference",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[].reference.fields",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[].reference.fields[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:foreignKeys[].reference.resource",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:missingValues",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:missingValues[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:missingValues[].label",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:missingValues[].value",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:primaryKey",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:primaryKey[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:title",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "schema:uniqueKeys[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:contract",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].backend_type",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].custom_cast",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].enum_weights",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].null_fill",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].object_fields[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].item_object_fields[]",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields[].rename_from",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:schema:fields_match",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.distribution",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.foreign-key",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.relation",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.row",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.scalar",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    },
+    {
+      "capability": "x-mountainash:validation.rule.value",
+      "storage": {
+        "status": "implemented"
+      },
+      "typed": {
+        "status": "implemented"
+      },
+      "execution": {
+        "status": "implemented"
+      }
+    }
+  ]
+}

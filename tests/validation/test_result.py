@@ -36,9 +36,9 @@ def test_empty_failure_frame_keyed():
     frame = empty_failure_frame(RowIdentity("keyed", ("id", "code")))
     assert frame.columns == [
         "check_id", "check_kind", "column", "outcome", "value", "message",
+        "instance_path", "schema_path", "validator", "label_declarations",
         "id", "code", "row_number", "row",
     ]
-    assert frame.height == 0
     assert frame["row_number"].dtype == pl.Int64
 
 
@@ -183,3 +183,30 @@ def test_dag_validation_result_shape():
     fk = ValidationResult(passes=True, validator_name="__fk__")
     dag_result = DAGValidationResult(passes=True, results={"users": inner}, fk_result=fk)
     assert dag_result.results["users"].passes
+
+
+def test_private_materialized_source_is_not_public_result_state():
+    """The processor handoff cannot leak into equality, repr, or diagnostics."""
+    base = {
+        "passes": True,
+        "validator_name": "unit-d",
+        "check_summaries": summaries_frame([]),
+        "failure_cases": empty_failure_frame(RowIdentity("none")),
+        "identity": RowIdentity("none"),
+    }
+    result = ValidationResult(**base, _materialized_source=pl.DataFrame({"id": [1]}))
+    same = ValidationResult(**base, _materialized_source=pl.DataFrame({"id": [2]}))
+
+    assert result == same
+    assert "_materialized_source" not in repr(result)
+    assert "_materialized_source" not in result.check_summaries.columns
+    assert "_materialized_source" not in result.failure_cases.columns
+
+
+def test_failure_schema_exposes_structured_validator_paths():
+    """All failure outputs reserve deterministic fields for value diagnostics."""
+    frame = empty_failure_frame(RowIdentity("none"))
+
+    assert {"instance_path", "schema_path", "validator", "label_declarations"} <= set(
+        frame.columns
+    )

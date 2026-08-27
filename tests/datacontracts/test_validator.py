@@ -62,7 +62,9 @@ def test_coerce_false_still_applies_structural_conform():
         contract=Contract,
     ).validate(pl.DataFrame({"raw_value": ["1"]}))
 
-    assert result.passes is True
+    assert result.passes is False
+    assert result._materialized_source.to_dict(as_series=False) == {"value": ["1"]}
+    assert result.check_summaries["check_id"].to_list() == ["value_type_format"]
 
 
 @pytest.mark.parametrize(
@@ -93,7 +95,10 @@ def test_validator_conforms_all_fields_match_modes(fields_match, coerce):
         pl.DataFrame(source),
     )
 
-    assert result.passes is True
+    assert result.passes is coerce
+    assert result._materialized_source["value"].to_list() == (
+        [1] if coerce else ["1"]
+    )
 
 
 

@@ -162,12 +162,12 @@ def test_drifting_data_reports_specific_checks_cross_backend(tmp_path, backend_n
     pkg = _load_package(
         tmp_path,
         parents=[
-            {"id": 1, "name": "alice", "score": 150},  # score__le violation
+            {"id": 1, "name": "alice", "score": 150},  # score_range violation
             {"id": 2, "name": "bob", "score": 50},  # conforming
         ],
         children=[
             {"id": 10, "customer_id": 99, "status": "active"},  # FK orphan
-            {"id": 20, "customer_id": 2, "status": "pending"},  # status__isin violation
+            {"id": 20, "customer_id": 2, "status": "pending"},  # status_enum_membership violation
         ],
     )
     dag = pkg.to_relation_dag()
@@ -179,10 +179,10 @@ def test_drifting_data_reports_specific_checks_cross_backend(tmp_path, backend_n
     assert result.fk_result.passes is False
 
     parents_summaries = result.results["parents"].check_summaries
-    assert _status(parents_summaries, "score__le") == "failed"
+    assert _status(parents_summaries, "score_range") == "failed"
 
     children_summaries = result.results["children"].check_summaries
-    assert _status(children_summaries, "status__isin") == "failed"
+    assert _status(children_summaries, "status_enum_membership") == "failed"
 
     fk_summary = result.fk_result.check_summaries.row(0, named=True)
     assert fk_summary["check_id"] == "fk__children__customer_id__parents"
@@ -201,7 +201,7 @@ def test_pattern_violation_detected_polars(tmp_path):
         tmp_path,
         parents=[
             {"id": 1, "name": "alice", "score": 50},  # conforming
-            {"id": 2, "name": "BOB2", "score": 50},  # name__pattern violation
+            {"id": 2, "name": "BOB2", "score": 50},  # name_pattern violation
         ],
         children=[
             {"id": 10, "customer_id": 1, "status": "active"},
@@ -215,7 +215,7 @@ def test_pattern_violation_detected_polars(tmp_path):
 
     assert result.passes is False
     parents_summaries = result.results["parents"].check_summaries
-    assert _status(parents_summaries, "name__pattern") == "failed"
+    assert _status(parents_summaries, "name_pattern") == "failed"
 
 
 def test_to_contract_round_trip_via_datapackage(tmp_path):

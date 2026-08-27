@@ -91,6 +91,7 @@ def prepare_validation_input(
     from mountainash.relations import relation as as_relation
     from mountainash.relations.core.materialization import (
         MaterializationPurpose,
+        diagnostic_polars_view,
         materialize_native,
     )
 
@@ -101,7 +102,11 @@ def prepare_validation_input(
         result, compiler_identity, MaterializationPurpose.VALIDATION_SOURCE, scope=scope
     )
     assert_prepared_identity(native, native.value)
-    return PreparedValidationInput(relation=as_relation(native.value), native=native)
+    return PreparedValidationInput(
+        relation=as_relation(native.value),
+        native=native,
+        diagnostic_source=diagnostic_polars_view(native),
+    )
 
 
 def prepare_validation_input_from_session(
@@ -124,4 +129,8 @@ def prepare_validation_input_from_session(
 
     native, _visitor = session.compile_registered(name)
     assert_prepared_identity(native, native.value)
-    return PreparedValidationInput(relation=as_relation(native.value), native=native)
+    return PreparedValidationInput(
+        relation=as_relation(native.value),
+        native=native,
+        diagnostic_source=session.diagnostic_view(name),
+    )
