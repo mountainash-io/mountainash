@@ -93,6 +93,18 @@ class BoundaryKey(Enum):
     NARWHALS_DIALECT_TO_PANDAS = auto()
     NARWHALS_DIALECT_TO_POLARS = auto()
     NARWHALS_DIALECT_TO_ARROW = auto()
+    RELATION_TO_POLARS_TERMINAL = auto()
+    NATIVE_LAZY_COLLECT = auto()
+    NARWHALS_NATIVE_WRAP = auto()
+    NON_PANDAS_ARROW_TERMINAL = auto()
+    IBIS_CONSTRUCTOR_ADAPTER = auto()
+    IBIS_SCALAR_EXECUTE = auto()
+    DAG_PROTOTYPE_ADAPTER = auto()
+    PYDATA_EXPLICIT_PANDAS_INPUT = auto()
+    PYDATA_EXPLICIT_PANDAS_EGRESS = auto()
+    PIPELINE_STEP_EXECUTOR = auto()
+    RESULT_PROCESSOR_POLARS_MATERIALIZE = auto()
+    NARWHALS_SCHEMA_UNWRAP = auto()
 
 
 @dataclass(frozen=True)
@@ -439,6 +451,207 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
         destination_families=frozenset({"narwhals"}),
         destination_dialects=frozenset({"narwhals-pyarrow"}),
         reason="Narwhals DataFrame.to_arrow() to match the target's narwhals-pyarrow dialect.",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.RELATION_TO_POLARS_TERMINAL: BoundarySpec(
+        owner="mountainash.relations.core.relation_api.relation",
+        consumer="Relation terminal/intermediate Polars materialization",
+        route=RouteKey.NATIVE_MATERIALIZATION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars", "narwhals", "ibis", "pyarrow"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "A declared Polars-producing terminal or intermediate call on a "
+            "Relation, egress/ingress converter, validator, or processor; "
+            "its result is never pandas by contract."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NATIVE_LAZY_COLLECT: BoundarySpec(
+        owner="mountainash.relations.core.relation_api.relation",
+        consumer="native lazy-frame or relation materialization outside the shared session",
+        route=RouteKey.NATIVE_MATERIALIZATION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars", "narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"polars", "narwhals"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "Native materialization of a Polars/Narwhals lazy frame or a "
+            "Mountainash relation whose declared terminal never itself "
+            "constructs pandas."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_NATIVE_WRAP: BoundarySpec(
+        owner=(
+            "mountainash.relations.backends.relation_systems.narwhals."
+            "extensions_mountainash.relsys_nw_ext_ma_util"
+        ),
+        consumer="narwhals wrap of an arbitrary native value for reading, inspection, or coercion",
+        route=RouteKey.RESOURCE_READ,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars", "pandas", "pyarrow", "narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"narwhals"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "Wraps an arbitrary native value into a Narwhals frame for "
+            "inspection, resource reading, or adapter ingestion; the wrap "
+            "call itself never constructs pandas."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NON_PANDAS_ARROW_TERMINAL: BoundarySpec(
+        owner="mountainash.relations.core.relation_api.relation",
+        consumer="declared PyArrow-producing terminal",
+        route=RouteKey.PYDATA_EGRESS,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars", "narwhals", "ibis"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pyarrow"}),
+        destination_dialects=frozenset({"pyarrow"}),
+        reason="A declared PyArrow-producing terminal; never pandas.",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER: BoundarySpec(
+        owner=(
+            "mountainash.relations.backends.relation_systems.ibis."
+            "extensions_mountainash.relsys_ib_ext_ma_util"
+        ),
+        consumer="declared Ibis table construction from Arrow or resource-native input",
+        route=RouteKey.RESOURCE_READ,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"pyarrow", "polars", "narwhals", "pandas"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"ibis"}),
+        destination_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+        reason="Declared Ibis table construction from Arrow or resource-native input.",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.IBIS_SCALAR_EXECUTE: BoundarySpec(
+        owner=(
+            "mountainash.relations.backends.relation_systems.ibis."
+            "extensions_mountainash.relsys_ib_ext_ma_util"
+        ),
+        consumer="Ibis scalar/count execution",
+        route=RouteKey.IBIS_SCALAR_TERMINAL,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"ibis"}),
+        source_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+        destination_families=frozenset({"python"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "Ibis scalar/count execution; the result is a Python scalar, "
+            "never a pandas frame."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.DAG_PROTOTYPE_ADAPTER: BoundarySpec(
+        owner="mountainash.relations.dag.materialization",
+        consumer="DAG cross-dialect anchor prototype construction",
+        route=RouteKey.RESOURCE_READ,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"pandas", "polars", "pyarrow"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"narwhals", "ibis"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "Wraps an empty native placeholder (Polars/PyArrow/pandas) into "
+            "Narwhals or Ibis for the DAG's declared cross-dialect prototype "
+            "adapter."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT: BoundarySpec(
+        owner="mountainash.pydata.ingress.ingress_from_series",
+        consumer="explicit pandas-selected pydata ingress source",
+        route=RouteKey.PYDATA_INGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_INPUT,
+        source_families=frozenset({"python", "pandas"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pandas", "polars"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "pd.DataFrame()/pl.from_pandas(): a declared pandas-selected "
+            "source or destination construction for pydata ingress."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.PYDATA_EXPLICIT_PANDAS_EGRESS: BoundarySpec(
+        owner="mountainash.pydata.egress.egress_pydata_from_polars",
+        consumer="explicit user-visible pandas pydata egress terminal",
+        route=RouteKey.PYDATA_EGRESS,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"polars"}),
+        source_dialects=frozenset({"polars"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason="A declared, user-visible pandas terminal.",
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.PIPELINE_STEP_EXECUTOR: BoundarySpec(
+        owner="mountainash.pipelines.integration.relation",
+        consumer="pipeline-step executor invocation",
+        route=RouteKey.NATIVE_MATERIALIZATION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"python"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"python"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "node.executor.execute(...) is a pipeline-step executor call, "
+            "unrelated to Ibis Table.execute() or any backend conversion; "
+            "syntactically risky-named only."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.RESULT_PROCESSOR_POLARS_MATERIALIZE: BoundarySpec(
+        owner="mountainash.datacontracts.result_processor",
+        consumer="ValidationResultProcessor internal Polars diagnostic materialization",
+        route=RouteKey.RESULT_PROCESSING,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars"}),
+        source_dialects=frozenset({"polars"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "ValidationResultProcessor's internal frame source and every "
+            "produced diagnostic are Polars-only by contract; the "
+            "collect()/to_polars() calls that build and filter them never "
+            "touch pandas."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.NARWHALS_SCHEMA_UNWRAP: BoundarySpec(
+        owner="mountainash.typespec.source_shape",
+        consumer="narwhals frame unwrap for schema/metadata inspection",
+        route=RouteKey.SCHEMA_INSPECTION,
+        step=1,
+        transit_class=TransitClass.RESULT_DIAGNOSTIC_VIEW,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pandas", "polars", "narwhals", "pyarrow"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "Unwraps a Narwhals frame to its native value for schema/dtype "
+            "inspection only; the unwrapped value (including a pandas "
+            "DataFrame when the source is pandas-backed) never escapes as "
+            "data, only as SourceShape metadata."
+        ),
         since=_SINCE_2026_08_27,
     ),
 }

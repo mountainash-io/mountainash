@@ -23,146 +23,14 @@
   },
   {
     "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor._normalise_rule_metadata",
-    "callee": "to_polars",
-    "fingerprint": "31f7c28fb6fea24a",
-    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.enriched_failure_cases",
+    "owner": "_collect_polars",
     "callee": "collect",
-    "fingerprint": "b73168d923f3155c",
+    "fingerprint": "1b334ff1041b4d61",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.failure_cases_for_column",
-    "callee": "collect",
-    "fingerprint": "4cdbf8596c1ca6a2",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.failure_cases_for_rule",
-    "callee": "collect",
-    "fingerprint": "2ef5ab7744fd6a7a",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.failure_count_by_column",
-    "callee": "collect",
-    "fingerprint": "1355f1c5314b825f",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.failure_count_by_rule",
-    "callee": "collect",
-    "fingerprint": "01e947929387876f",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.interpolate_messages",
-    "callee": "collect",
-    "fingerprint": "0522dd72de1bf9a0",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.pivot_all_fields",
-    "callee": "collect",
-    "fingerprint": "d1eb37034fc25f68",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.pivot_key_fields",
-    "callee": "collect",
-    "fingerprint": "cea78f1c0ec92643",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.profiled_failure_count",
-    "callee": "collect",
-    "fingerprint": "097f58759b4428e1",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.profiled_failure_count_by_column",
-    "callee": "collect",
-    "fingerprint": "4913165e85bfd498",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.profiled_failure_count_by_rule",
-    "callee": "collect",
-    "fingerprint": "67b5e00519121565",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
-  },
-  {
-    "module": "mountainash.datacontracts.result_processor",
-    "owner": "ValidationResultProcessor.profiled_failure_count_by_value",
-    "callee": "collect",
-    "fingerprint": "908aaec91e3df36c",
-    "boundary_key": "NATIVE_LAZY_COLLECT",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.datacontracts.validator",
@@ -223,45 +91,45 @@
     "module": "mountainash.pydata.egress.egress_pydata_from_polars",
     "owner": "EgressFromPolars._to_dictionary_of_series_pandas",
     "callee": "to_pandas",
-    "fingerprint": "176d35ecf2fc4755",
+    "fingerprint": "fc83264a7e06f78f",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_EGRESS",
     "transit_class": "EXPLICIT_PANDAS_EGRESS",
     "reason": "A declared, user-visible pandas terminal.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_pydata_from_polars",
     "owner": "EgressFromPolars._to_ibis",
     "callee": "memtable",
-    "fingerprint": "b4639e94e5a7871e",
+    "fingerprint": "9ee9aaff8984ee4d",
     "boundary_key": "IBIS_CONSTRUCTOR_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Declared Ibis table construction from Arrow or resource-native input.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_pydata_from_polars",
     "owner": "EgressFromPolars._to_pandas",
     "callee": "to_pandas",
-    "fingerprint": "176d35ecf2fc4755",
+    "fingerprint": "fc83264a7e06f78f",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_EGRESS",
     "transit_class": "EXPLICIT_PANDAS_EGRESS",
     "reason": "A declared, user-visible pandas terminal.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_pydata_from_polars",
     "owner": "EgressFromPolars._to_pyarrow",
     "callee": "to_arrow",
-    "fingerprint": "d5c66e77d4ed9588",
+    "fingerprint": "5a21662df7834f2f",
     "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared PyArrow-producing terminal; never pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.egress.egress_to_pythondata",
@@ -465,34 +333,34 @@
     "module": "mountainash.pydata.ingress.ingress_from_series",
     "owner": "DataframeFromSeriesDict.convert",
     "callee": "DataFrame",
-    "fingerprint": "854ffa157d75ab3f",
+    "fingerprint": "5ee1d69cc28326ab",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_INPUT",
     "transit_class": "EXPLICIT_PANDAS_INPUT",
     "reason": "pd.DataFrame(): a declared pandas-selected source or destination construction.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_series",
     "owner": "DataframeFromSeriesDict.convert",
     "callee": "from_pandas",
-    "fingerprint": "71496b453ebc4d25",
+    "fingerprint": "c46f4fb0f60c40a9",
     "boundary_key": "PYDATA_EXPLICIT_PANDAS_INPUT",
     "transit_class": "EXPLICIT_PANDAS_INPUT",
     "reason": "pl.from_pandas(): a declared pandas-selected source conversion.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_series",
     "owner": "DataframeFromSeriesDict.convert",
     "callee": "to_polars",
-    "fingerprint": "f9658a7287fecd0a",
+    "fingerprint": "91abc7849b2b6ba5",
     "boundary_key": "RELATION_TO_POLARS_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.pydata.ingress.ingress_from_tuple",
@@ -509,155 +377,155 @@
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.empty_frame",
     "callee": "memtable",
-    "fingerprint": "a54f5c274a2ae327",
+    "fingerprint": "2681c5a7d363f981",
     "boundary_key": "IBIS_CONSTRUCTOR_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Declared Ibis table construction from Arrow or resource-native input.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.empty_frame",
     "callee": "to_arrow",
-    "fingerprint": "9b0d446a4ad8a187",
+    "fingerprint": "02bf3638d9195fc0",
     "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared PyArrow-producing terminal; never pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.fetch_from_end",
     "callee": "execute",
-    "fingerprint": "06ecd7e61d7f5b4b",
+    "fingerprint": "4abd83dd89ddaf49",
     "boundary_key": "IBIS_SCALAR_EXECUTE",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Ibis scalar/count execution; the result is a Python scalar, never a pandas frame.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.read_resource",
     "callee": "memtable",
-    "fingerprint": "a54f5c274a2ae327",
+    "fingerprint": "2681c5a7d363f981",
     "boundary_key": "IBIS_CONSTRUCTOR_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Declared Ibis table construction from Arrow or resource-native input.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.read_resource",
     "callee": "memtable",
-    "fingerprint": "caf3cea927ea967e",
+    "fingerprint": "7b89d3fd4f8ec016",
     "boundary_key": "IBIS_CONSTRUCTOR_ADAPTER",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Declared Ibis table construction from Arrow or resource-native input.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.read_resource",
     "callee": "to_arrow",
-    "fingerprint": "9b0d446a4ad8a187",
+    "fingerprint": "02bf3638d9195fc0",
     "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "A declared PyArrow-producing terminal; never pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util",
     "owner": "MountainashIbisExtensionRelationSystem.sample",
     "callee": "execute",
-    "fingerprint": "06ecd7e61d7f5b4b",
+    "fingerprint": "4abd83dd89ddaf49",
     "boundary_key": "IBIS_SCALAR_EXECUTE",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Ibis scalar/count execution; the result is a Python scalar, never a pandas frame.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util",
     "owner": "MountainashNarwhalsExtensionRelationSystem.empty_frame",
     "callee": "from_native",
-    "fingerprint": "6d52cbf7122d8138",
+    "fingerprint": "0e2fd7add83003ed",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util",
     "owner": "MountainashNarwhalsExtensionRelationSystem.read_resource",
     "callee": "from_native",
-    "fingerprint": "6d52cbf7122d8138",
+    "fingerprint": "0e2fd7add83003ed",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util",
     "owner": "MountainashNarwhalsExtensionRelationSystem.read_resource",
     "callee": "from_native",
-    "fingerprint": "982cba3e5d5f9c83",
+    "fingerprint": "f881b984e3f999cc",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.narwhals.extensions_mountainash.relsys_nw_ext_ma_util",
     "owner": "MountainashNarwhalsExtensionRelationSystem.sample",
     "callee": "collect",
-    "fingerprint": "873fbcc175b72c5b",
+    "fingerprint": "76d7e243dcb46a90",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.narwhals.substrait.relsys_nw_read",
     "owner": "SubstraitNarwhalsReadRelationSystem.read",
     "callee": "from_native",
-    "fingerprint": "08394bcc52d90257",
+    "fingerprint": "eaf787b1abef1155",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util",
     "owner": "MountainashPolarsExtensionRelationSystem.pivot",
     "callee": "collect",
-    "fingerprint": "24a0f62072dd8d49",
+    "fingerprint": "45fc94ffbd0906ad",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util",
     "owner": "MountainashPolarsExtensionRelationSystem.sample",
     "callee": "collect",
-    "fingerprint": "24a0f62072dd8d49",
+    "fingerprint": "45fc94ffbd0906ad",
     "boundary_key": "NATIVE_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Native materialization of a Polars/Narwhals lazy frame or a Mountainash relation whose declared terminal never itself constructs pandas.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.relations.core.materialization",
@@ -1378,12 +1246,12 @@
     "module": "mountainash.typespec.source_shape",
     "owner": "_from_narwhals_schema",
     "callee": "to_native",
-    "fingerprint": "a75a8ecfec56e839",
+    "fingerprint": "b2170062d93f2b47",
     "boundary_key": "NARWHALS_NATIVE_UNWRAP_NON_PANDAS",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Unwraps a Narwhals frame to its native value for schema/metadata inspection only.",
     "since": "2026-08-27",
-    "legacy_unwrapped": true
+    "legacy_unwrapped": false
   },
   {
     "module": "mountainash.validation.runner",

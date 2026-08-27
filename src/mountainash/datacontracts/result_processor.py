@@ -8,16 +8,43 @@ per-method compatibility matrix.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import polars as pl_mod
 
 import mountainash as ma
+from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.validation.errors import IdentityRequiredError
 from mountainash.validation.identity import RowIdentity, require_keyed
 
 if TYPE_CHECKING:
     import polars as pl
+
+
+def _collect_polars(relation: Any) -> "pl.DataFrame":
+    """Materialize a Relation built purely over ValidationResultProcessor's
+    own Polars-only sources (spec section 13 step 6).
+
+    Uses ``Relation.compile()`` -- the raw, unmaterialized native plan --
+    instead of ``Relation.collect()``, so the ONLY conversion boundary this
+    processor's own materialization records is
+    ``RESULT_PROCESSOR_POLARS_MATERIALIZE`` (route=RESULT_PROCESSING), never
+    ``Relation.collect()``'s own generic NATIVE_MATERIALIZATION-routed
+    ``POLARS_LAZY_COLLECT``. Fails closed if the compiled plan is ever not
+    Polars -- every processor source is contractually Polars-only.
+    """
+    compiled = relation.compile()
+    if isinstance(compiled, pl_mod.LazyFrame):
+        return cast(
+            "pl.DataFrame",
+            transit_call(BoundaryKey.RESULT_PROCESSOR_POLARS_MATERIALIZE, compiled.collect),
+        )
+    if isinstance(compiled, pl_mod.DataFrame):
+        return compiled
+    raise TypeError(
+        "ValidationResultProcessor requires Polars-only relations; "
+        f"got a compiled plan of type {type(compiled).__name__}"
+    )
 
 
 class ValidationResultProcessor:
@@ -56,27 +83,24 @@ class ValidationResultProcessor:
         return self._failure_cases
 
     def failure_cases_for_column(self, column: str) -> "pl.DataFrame":
-        return self._rel.filter(ma.col("column").eq(ma.lit(column))).collect()
+        return _collect_polars(self._rel.filter(ma.col("column").eq(ma.lit(column))))
 
     def failure_cases_for_rule(self, rule_id: str) -> "pl.DataFrame":
-        return self._rel.filter(ma.col("check_id").eq(ma.lit(rule_id))).collect()
+        return _collect_polars(self._rel.filter(ma.col("check_id").eq(ma.lit(rule_id))))
 
     def failure_count(self) -> int:
         return len(self._failure_cases)
 
     def failure_count_by_column(self) -> "pl.DataFrame":
-        return (
+        return _collect_polars(
             self._rel.filter(ma.col("column").is_not_null())
             .group_by("column")
             .agg(ma.count_records().alias("count"))
-            .collect()
         )
 
     def failure_count_by_rule(self) -> "pl.DataFrame":
-        return (
-            self._rel.group_by("check_id")
-            .agg(ma.count_records().alias("count"))
-            .collect()
+        return _collect_polars(
+            self._rel.group_by("check_id").agg(ma.count_records().alias("count"))
         )
 
     # -- enrichment -------------------------------------------------------------
@@ -108,7 +132,7 @@ class ValidationResultProcessor:
                 ma.col("column_name").is_in(self._natural_key).alias("column_is_natural_key"),
             )
 
-        result = enriched.collect()
+        result = _collect_polars(enriched)
         self._enriched = result
         return result
 
@@ -131,35 +155,31 @@ class ValidationResultProcessor:
         return rel.select(*dims, *identity_cols).unique()
 
     def profiled_failure_count(self) -> "pl.DataFrame":
-        return (
+        return _collect_polars(
             self._unique_failing("validator_name")
             .group_by("validator_name")
             .agg(ma.count_records().alias("unique_row_count"))
-            .collect()
         )
 
     def profiled_failure_count_by_column(self) -> "pl.DataFrame":
-        return (
+        return _collect_polars(
             self._unique_failing("validator_name", "column_name")
             .group_by("validator_name", "column_name")
             .agg(ma.count_records().alias("unique_row_count"))
-            .collect()
         )
 
     def profiled_failure_count_by_value(self) -> "pl.DataFrame":
-        return (
+        return _collect_polars(
             self._unique_failing("validator_name", "column_name", "value_str")
             .group_by("validator_name", "column_name", "value_str")
             .agg(ma.count_records().alias("unique_row_count"))
-            .collect()
         )
 
     def profiled_failure_count_by_rule(self) -> "pl.DataFrame":
-        return (
+        return _collect_polars(
             self._unique_failing("validator_name", "rule_id")
             .group_by("validator_name", "rule_id")
             .agg(ma.count_records().alias("unique_row_count"))
-            .collect()
         )
 
     # -- rule health -----------------------------------------------------------
@@ -209,18 +229,18 @@ class ValidationResultProcessor:
             .unique()
         )
         joined = failures.join(ma.relation(resolved), on=keys, how="inner")
-        return joined.collect()
+        return _collect_polars(joined)
 
     def pivot_key_fields(self, source_data: Any | None = None) -> "pl.DataFrame":
         """Key field values per failing rule — straight from the failure cases
         (source_data accepted for back-compat; no longer needed)."""
         require_keyed(self._identity, feature="pivot_key_fields")
-        return (
+        chain = (
             ma.relation(self.enriched_failure_cases())
             .select("rule_id", *self._identity.key_fields)
             .unique()
-            .collect()
         )
+        return _collect_polars(chain)
 
     def _normalise_rule_metadata(self, rule_metadata: Any) -> "pl.DataFrame":
         import polars as pl_mod
@@ -237,7 +257,7 @@ class ValidationResultProcessor:
             return pl_mod.DataFrame(rows)
         if isinstance(rule_metadata, pl_mod.DataFrame):
             return rule_metadata
-        return ma.relation(rule_metadata).to_polars()
+        return _collect_polars(ma.relation(rule_metadata))
 
     def interpolate_messages(
         self, rule_metadata: Any, source_data: Any | None = None
@@ -262,7 +282,7 @@ class ValidationResultProcessor:
         ).unique()
         joined_source = failures.join(ma.relation(resolved_source), on=keys, how="inner")
         with_meta = joined_source.join(ma.relation(meta_df), on=["rule_id"], how="inner")
-        result_df = with_meta.collect()
+        result_df = _collect_polars(with_meta)
 
         result_df = result_df.with_columns(
             pl_mod.col("error_message").alias("error_message_template"),
