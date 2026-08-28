@@ -140,13 +140,15 @@ produces a **physical/logical boundary**: the resulting column carries the *deco
 logical value* for validation and logical egress, but the transported field is a
 closed transport carrier for every other relation operation. A transported field
 cannot be used as a filter, sort, join, grouping, aggregate, or distinct input before
-logical decoding — attempting to `.to_polars()`, `.to_pandas()`, or another native
-terminal on a relation whose plan still requires that decode raises
-`LogicalTerminalRequired`, naming the affected fields and the terminals that do
-resolve it (`validation`, `to_dicts`, `to_tuples`, `item`, `to_dataclasses`,
-`to_pydantic`, …). `evolve` (preserve the source, decode only for validation) and a
-structural-only conform (no value transform) are exempt — both remain natively
-collectible.
+logical decoding. `.to_polars()`, `.to_pandas()`, `to_dicts`, `to_tuples`, `item`,
+`to_dataclasses`, `to_pydantic`, and `validation` are all logical terminals: they
+resolve the decode and return the logical value. Only DAG-level **native
+collection** (`dag.collect()`/`dag.collect_with_drift()`) fails closed — attempting
+native collection on a relation whose plan still requires that decode raises
+`LogicalTerminalRequired`, naming the affected fields. `evolve` (preserve the
+source, decode only for validation) and a structural-only conform (no value
+transform) are exempt from native collection's fail-closed check — both remain
+natively collectible.
 
 `dag.validate(specs)` is itself a logical terminal: it always resolves every declared
 structured field's logical value, regardless of the DAG's native-collection intent,

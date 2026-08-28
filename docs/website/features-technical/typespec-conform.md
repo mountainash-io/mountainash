@@ -95,16 +95,18 @@ containers, resolved through logical conversion rather than either path above.
 
 Decoding JSON text opens a **physical/logical boundary**. A decoding action
 (`coerce`, `discard_value`, `discard_row`) produces a column whose *logical* value —
-the decoded Python `list`/`dict` — drives validation and logical egress (`to_dicts()`,
-`to_dataclasses()`, `to_pydantic()`, …), but the *physical* column is a closed
-transport carrier for everything else. A transported field cannot be used as a
-filter, sort, join, grouping, aggregate, or distinct input before logical decoding.
-Calling a native terminal (`to_polars()`, `to_pandas()`, a bare `dag.collect()`) on a
-relation whose plan still needs that decode raises `LogicalTerminalRequired`,
-naming the affected fields and every terminal that does resolve them. `evolve`
-(preserve the physical source, decode only for validation) and a structural-only
-conform (no value transform) stay natively collectible — nothing to decode, nothing
-to fail closed on.
+the decoded Python `list`/`dict` — drives validation and logical egress, but the
+*physical* column is a closed transport carrier for everything else. A transported
+field cannot be used as a filter, sort, join, grouping, aggregate, or distinct
+input before logical decoding. `to_polars()`, `to_pandas()`, `to_dicts()`,
+`to_tuples()`, `to_dataclasses()`, `to_pydantic()`, and `validation` are all
+logical terminals: they resolve the decode and return the logical value. Only
+DAG-level **native collection** (a bare `dag.collect()`/`dag.collect_with_drift()`)
+fails closed — calling it on a relation whose plan still needs that decode raises
+`LogicalTerminalRequired`, naming the affected fields. `evolve` (preserve the
+physical source, decode only for validation) and a structural-only conform (no
+value transform) stay natively collectible — nothing to decode, nothing to fail
+closed on.
 
 `dag.validate(specs)` is always a logical terminal: JSON Schema, identity,
 uniqueness, and foreign-key checks compare decoded logical values, never raw
