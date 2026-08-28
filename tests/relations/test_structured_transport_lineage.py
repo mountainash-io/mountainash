@@ -277,3 +277,33 @@ def test_aggregate_rejects_transport_before_backend_aggregate_dispatch(monkeypat
 
     with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
         relation.group_by("payload").agg(ma.col("other").sum()).to_polars()
+
+def test_open_conform_preserves_incoming_structured_transport_lineage():
+    """An open conform keeps a transported field it does not redeclare."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    first = ma.relation(pl.DataFrame({"payload": ["[1]"], "other": [1]})).conform(
+        TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        ),
+        contract={"data_type": "coerce"},
+    )
+    second = first.conform(
+        TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="other", type=UniversalType.INTEGER)],
+        ),
+        contract={"data_type": "coerce"},
+    )
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        second.filter(ma.col("payload").is_not_null()).to_polars()
+
+    from mountainash.relations import LogicalTerminalRequired
+
+    with pytest.raises(LogicalTerminalRequired):
+        second.collect()

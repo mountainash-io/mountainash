@@ -188,6 +188,7 @@ class UnifiedRelationVisitor:
         self.drift_reports: list["ConformDrift"] = []
         self._structured_plans_by_node: dict[int, Any] = {}
         self._conform_plans_by_node: dict[int, Any] = {}
+        self._conform_metadata_by_node: dict[int, tuple[bool, frozenset[str], frozenset[str]]] = {}
         self._ref_plans_by_node: dict[int, Any] = {}
         self.structured_field_plans: Any = MappingProxyType({})
 
@@ -368,17 +369,31 @@ class UnifiedRelationVisitor:
 
     def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
         """Record a node's transport output only after its native dispatch succeeds."""
-        from mountainash.relations.core.structured_lineage import propagate_structured_plans
-
+        from mountainash.conform.structured_transport import (
+            freeze_structured_field_plans,
+        )
+        from mountainash.relations.core.structured_lineage import (
+            propagate_structured_plans,
+        )
         plans = self._conform_plans_by_node.get(
             id(node), self._ref_plans_by_node.get(id(node), None)
         )
+        metadata = self._conform_metadata_by_node.get(id(node))
+        child_maps = self._transport_child_maps(node, op)
         if plans is None:
             plans = propagate_structured_plans(
                 node,
-                self._transport_child_maps(node, op),
+                child_maps,
                 MappingProxyType({}),
             )
+        elif metadata is not None and metadata[0]:
+            _, overwritten, dropped = metadata
+            incoming = child_maps[0] if child_maps else MappingProxyType({})
+            carried = dict(incoming)
+            for field_name in overwritten | dropped:
+                carried.pop(field_name, None)
+            carried.update(plans)
+            plans = freeze_structured_field_plans(carried)
         self._structured_plans_by_node[id(node)] = plans
         self.structured_field_plans = plans
 
@@ -651,6 +666,22 @@ class UnifiedRelationVisitor:
             resolved_contract.extra_columns == "evolve"
             and resolved_contract.mapping == "by_name"
         )
+        if owner_node is not None:
+            available_set = set(available) if available is not None else None
+            overwritten = frozenset(
+                field.name
+                for field in schema.fields
+                if (
+                    available_set is None
+                    or field.source_name.split(".", 1)[0] in available_set
+                    or resolved_contract.missing_columns == "null_fill"
+                )
+            )
+            self._conform_metadata_by_node[id(owner_node)] = (
+                use_open,
+                overwritten,
+                frozenset(conform_result.renamed_sources),
+            )
 
         trace = self._active_diagnostic_trace()
         previous_trace = getattr(self.expr_visitor, "diagnostic_trace", None)
