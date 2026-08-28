@@ -81,6 +81,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/expressions/cross_backend/test_datetime_enrichment.py:34 | static-marker | UNRESOLVED | pandas | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-05') — migrated |
 | tests/expressions/cross_backend/test_datetime_enrichment.py:35 | static-marker | UNRESOLVED | narwhals-polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-05') — migrated |
 | tests/expressions/cross_backend/test_datetime_enrichment.py:36 | static-marker | UNRESOLVED | narwhals-pandas | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-05') — migrated |
+| tests/expressions/cross_backend/test_datetime_enrichment.py:39 | static-marker | UNRESOLVED | ibis-sqlite | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-DT-17') — migrated |
 | tests/expressions/cross_backend/test_datetime_enrichment.py:45 | static-marker | UNRESOLVED | pandas | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-05') — migrated |
 | tests/expressions/cross_backend/test_datetime_enrichment.py:46 | static-marker | UNRESOLVED | narwhals-polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-05') — migrated |
 | tests/expressions/cross_backend/test_datetime_enrichment.py:47 | static-marker | UNRESOLVED | narwhals-pandas | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-DT-05') — migrated |
@@ -158,6 +159,8 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/relations/cross_backend/test_rel_join_results.py:73 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-15') — migrated |
 | tests/relations/cross_backend/test_rel_join_results.py:74 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-REL-05') — migrated |
 | tests/relations/cross_backend/test_rel_join_results.py:80 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-17') — migrated |
+| tests/relations/cross_backend/test_structured_logical_egress.py:31 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-04') — migrated |
+| tests/relations/cross_backend/test_structured_logical_egress.py:41 | static-marker | UNRESOLVED | narwhals-polars | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-06') — migrated |
 | tests/relations/cross_backend/test_terminal_scalar_aggregates.py:13 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-AGG-05') — migrated |
 | tests/relations/cross_backend/test_terminal_scalar_aggregates.py:14 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('NW-AGG-03') — migrated |
 | tests/relations/test_relation_aliases.py:23 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-10') — migrated |
@@ -165,6 +168,7 @@ Buckets: `migrated` (derivable from the spine today), `retained` (a LITERAL_ONLY
 | tests/validation/cross_backend/test_runner_semantics.py:10 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-VAL-01') — migrated |
 | tests/validation/cross_backend/test_runner_semantics.py:15 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('IB-REL-06') — migrated |
 | tests/validation/cross_backend/test_runner_semantics.py:15 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-VAL-02') — migrated |
+| tests/validation/cross_backend/test_structured_constraints.py:17 | static-marker | UNRESOLVED | UNRESOLVED | UNRESOLVED | None | spine-derived id-keyed divergence mark via xfail_divergence('MA-CONF-04') — migrated |
 
 ## retained
 

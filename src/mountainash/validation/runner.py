@@ -196,12 +196,12 @@ class ValidationRunner:
         ``prepared.relation``; only small counts and selected failure rows
         convert to Polars per check (spec section 6.2's outcome model)."""
         rel = prepared.relation
-        materialized_source = (
-            prepared.diagnostic_source.frame
-            if prepared.diagnostic_source is not None
-            else None
-        )
+        from mountainash.relations.core.logical_snapshot import resolved_snapshot_to_polars
+
+        materialized_source = resolved_snapshot_to_polars(prepared.logical_snapshot)
         self._materialized_value_frame = materialized_source
+        self._logical_snapshot = prepared.logical_snapshot
+        self._structured_field_plans = prepared.structured_field_plans
         identity_diagnostics: dict[str, Any] = {}
         if identity.kind == "keyed":
             identity_diagnostics = validate_keyed_identity(
@@ -291,6 +291,12 @@ class ValidationRunner:
         self, rel: "Relation", check: Any, identity: RowIdentity,
         failure_sample: int | None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
+        if (
+            check.metadata.get("standard_constraint") == "required"
+            and check.metadata.get("field") in self._structured_field_plans
+        ):
+            return self._run_transported_required_rule(check, identity, failure_sample)
+
         import mountainash as ma
 
         passing = VERDICT_PASSING[check.booleanizer or "t_is_true"]
@@ -333,6 +339,103 @@ class ValidationRunner:
             severity=check.severity,
         )
         return summary, failures
+
+    def _run_transported_required_rule(
+        self, check: Any, identity: RowIdentity, failure_sample: int | None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        """Compute a ``required`` outcome from the resolved logical snapshot
+        for a transport-plan-covered field (spec Task 6 step 7): the
+        physical value can be a non-null malformed string that still
+        decodes to a logical null (``discard_value``) -- a native
+        ``.is_not_null()`` expression on the physical column would see it
+        as present and pass incorrectly. Row universe and ordinals match
+        every other structured-aware check: the shared discard-row keep
+        set already applied when the logical snapshot was resolved."""
+        field = check.metadata["field"]
+        frame = self._materialized_value_frame
+        values = self._logical_snapshot.logical_columns[field]
+        failed_mask = [value is None for value in values]
+        total = len(values)
+        fail_count = sum(failed_mask)
+        pass_count = total - fail_count
+        status = (
+            "passed"
+            if total == 0
+            or (
+                pass_count / total >= check.mostly
+                if check.mostly is not None
+                else fail_count == 0
+            )
+            else "failed"
+        )
+        failures = pl.DataFrame()
+        if fail_count and frame is not None:
+            failures = self._collect_transported_required_failures(
+                frame, failed_mask, check, identity, failure_sample
+            )
+        summary = CheckSummary(
+            check_id=check.id,
+            check_kind="row",
+            status=status,
+            pass_count=pass_count,
+            fail_count=fail_count,
+            unknown_count=0,
+            total_rows=total,
+            mostly=check.mostly,
+            severity=check.severity,
+        )
+        return summary, failures
+
+    @staticmethod
+    def _collect_transported_required_failures(
+        frame: pl.DataFrame,
+        failed_mask: "list[bool]",
+        check: Any,
+        identity: RowIdentity,
+        failure_sample: int | None,
+    ) -> pl.DataFrame:
+        field = check.metadata["field"]
+        failing = frame.filter(pl.Series(failed_mask))
+        if failure_sample is not None:
+            failing = failing.head(failure_sample)
+
+        struct_fields = list(check.fields or [])
+        select_cols: list[str] = []
+        if identity.kind == "keyed":
+            select_cols.extend(identity.key_fields)
+        elif identity.kind == "row_number":
+            select_cols.append(ROW_ORDINAL)
+        for name in struct_fields:
+            if name not in select_cols:
+                select_cols.append(name)
+        if field not in select_cols:
+            select_cols.append(field)
+
+        out = failing.select(select_cols)
+        if identity.kind == "row_number":
+            out = out.rename({ROW_ORDINAL: "row_number"})
+        out = out.with_columns(
+            pl.lit("fail").alias("outcome"),
+            pl.lit(None, dtype=pl.String).alias("value"),
+            pl.lit(None, dtype=pl.String).alias("message"),
+            pl.lit(check.id).alias("check_id"),
+            pl.lit("row").alias("check_kind"),
+            pl.lit(field, dtype=pl.String).alias("column"),
+        )
+        if struct_fields:
+            from mountainash.validation.result import _struct_safe_columns
+
+            row_struct = _struct_safe_columns(out.select(struct_fields)).select(
+                pl.struct(pl.all()).alias("row")
+            )
+            out = out.with_columns(row_struct.to_series())
+        keep = ["check_id", "check_kind", "column", "outcome", "value", "message"]
+        keep.extend(k for k in identity.key_fields if k in out.columns)
+        if "row_number" in out.columns:
+            keep.append("row_number")
+        if "row" in out.columns:
+            keep.append("row")
+        return out.select(keep)
 
     def _collect_row_failures(
         self, projected: "Relation", check: Any, identity: RowIdentity,

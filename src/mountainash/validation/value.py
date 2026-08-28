@@ -113,7 +113,15 @@ def parse_partial_date_value(
 
 
 def parse_logical_value(value: Any, *, type_name: str) -> Any:
-    """Parse Unit C semantic-string values without touching backend objects."""
+    """Parse Unit C semantic-string values without touching backend objects.
+
+    ``array``/``object`` route through the shared structured decoder
+    (``mountainash.conform.structured_transport``) -- the fallback for a
+    declared structured field with no transport plan (spec Task 6 step 5).
+    A transport-plan-covered field's value already arrives pre-decoded via
+    ``PreparedValidationInput.logical_snapshot``; this function is never
+    called a second time for it.
+    """
     if value is None:
         return None
     if type_name == "duration":
@@ -122,6 +130,24 @@ def parse_logical_value(value: Any, *, type_name: str) -> Any:
         return parse_partial_date_value(value, kind="year")
     if type_name == "yearmonth":
         return parse_partial_date_value(value, kind="yearmonth")
+    if type_name == "array":
+        from mountainash.conform.structured_transport import (
+            INVALID_STRUCTURED_VALUE,
+            StructuredRoot,
+            decode_structured_value,
+        )
+
+        decoded = decode_structured_value(value, expected_root=StructuredRoot.ARRAY)
+        return INVALID_VALUE if decoded is INVALID_STRUCTURED_VALUE else decoded
+    if type_name == "object":
+        from mountainash.conform.structured_transport import (
+            INVALID_STRUCTURED_VALUE,
+            StructuredRoot,
+            decode_structured_value,
+        )
+
+        decoded = decode_structured_value(value, expected_root=StructuredRoot.OBJECT)
+        return INVALID_VALUE if decoded is INVALID_STRUCTURED_VALUE else decoded
     return value
 
 

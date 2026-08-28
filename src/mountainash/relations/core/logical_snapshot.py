@@ -78,8 +78,15 @@ def _slice_native(family: CONST_BACKEND, column: Any, positions: list[int]) -> A
     if family is CONST_BACKEND.POLARS:
         return column[positions]
     # PyArrow, Narwhals, and Ibis snapshots all capture PyArrow-native
-    # columns (see the adapters below); ChunkedArray/Array both expose take().
-    return column.take(positions)
+    # columns (see the adapters below); ChunkedArray/Array both expose
+    # take(). An empty Python list has no elements to infer a type from,
+    # so PyArrow would otherwise build a null-typed indices array and
+    # reject the kernel lookup against the real column dtype -- force
+    # int64 explicitly so the empty-input (vacuous pass) case works for
+    # every column dtype, not just the ones PyArrow happens to infer.
+    import pyarrow as pa
+
+    return column.take(pa.array(positions, type=pa.int64()))
 
 
 class _BaseSnapshotAdapter:

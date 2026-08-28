@@ -165,6 +165,7 @@ class DAGMaterializationSession:
         self._coerced: "dict[tuple[str, CONST_BACKEND, str | None], NativeExecutionValue]" = {}
         self._diagnostic_views: "dict[str, DiagnosticFrameView]" = {}
         self._visitors: "dict[str, UnifiedRelationVisitor]" = {}
+        self._validation_native: "dict[str, NativeExecutionValue]" = {}
         self._scope = MaterializationScope()
         self._closed = False
 
@@ -360,6 +361,34 @@ class DAGMaterializationSession:
         transitively-required dependency exactly once along the way."""
         entry = self._compile_named(name, honor_override=True)
         return entry.native, self._visitors[name]
+
+    def validation_native(
+        self, name: str
+    ) -> "tuple[NativeExecutionValue, UnifiedRelationVisitor]":
+        """The DAG-canonical native for *name*, forced eager for validation
+        (Task 6/8, spec 10.2/10.4).
+
+        A Polars/Narwhals DAG-canonical native intentionally stays lazy so
+        Polars' own optimizer can fuse shared subexpressions across
+        consumers; validation needs concrete columns for identity checks
+        and the logical-terminal snapshot, so this forces exactly one
+        ``.collect()`` on top of the shared canonical value the first time
+        *name* is validated, memoized per name so a resource validated
+        more than once in the same session (e.g. a keyed identity check
+        followed by a foreign-key check) shares that one collect instead
+        of re-executing the query plan per call. An Ibis DAG-canonical
+        native is already forced eager via ``.cache()`` at DAG_CANONICAL
+        compile time and passes through unchanged.
+        """
+        native, visitor = self.compile_registered(name)
+        if name not in self._validation_native:
+            if native.form is ExecutionForm.LAZY:
+                native = materialize_native(
+                    native.value, native.compiler_identity,
+                    MaterializationPurpose.VALIDATION_SOURCE, scope=self._scope,
+                )
+            self._validation_native[name] = native
+        return self._validation_native[name], visitor
 
     def resolve(
         self,

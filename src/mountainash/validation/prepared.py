@@ -8,6 +8,12 @@ module compiles the relation exactly once and materializes it with the
 dedicated ``VALIDATION_SOURCE`` purpose instead, which forces an Ibis table
 eager via a single ``.cache()`` call (spec 7.2), owned by the caller's
 ``MaterializationScope``.
+
+One shared logical-terminal snapshot (Tasks 3/4) is then resolved once with
+``StructuredActionConsumer.VALIDATION`` -- every value check, the transported
+``required`` interception, identity, and uniqueness read the same decoded
+logical values and share the same row ordinals, instead of each re-decoding
+structured cells independently.
 """
 from __future__ import annotations
 
@@ -17,9 +23,13 @@ from typing import TYPE_CHECKING, Any
 from mountainash.core.errors import BackendConversionError
 
 if TYPE_CHECKING:
+    from mountainash.conform.structured_transport import StructuredFieldPlanMap
     from mountainash.relations import Relation
+    from mountainash.relations.core.logical_snapshot import (
+        LogicalTerminalSnapshot,
+        ResolvedLogicalSnapshot,
+    )
     from mountainash.relations.core.materialization import (
-        DiagnosticFrameView,
         MaterializationScope,
         NativeExecutionValue,
     )
@@ -39,7 +49,9 @@ class PreparedValidationInput:
 
     relation: "Relation"
     native: "NativeExecutionValue"
-    diagnostic_source: "DiagnosticFrameView | None" = None
+    structured_field_plans: "StructuredFieldPlanMap"
+    snapshot: "LogicalTerminalSnapshot"
+    logical_snapshot: "ResolvedLogicalSnapshot"
 
 
 def assert_prepared_identity(native: "NativeExecutionValue", value: Any) -> None:
@@ -72,6 +84,30 @@ def assert_prepared_identity(native: "NativeExecutionValue", value: Any) -> None
         )
 
 
+def _resolve_prepared_snapshot(
+    native: "NativeExecutionValue",
+    structured_field_plans: "StructuredFieldPlanMap",
+) -> "tuple[LogicalTerminalSnapshot, ResolvedLogicalSnapshot]":
+    """One physical snapshot, resolved once for validation consumers.
+
+    Shared by both producer functions below so a caller never re-derives
+    the diagnostic frame via ``diagnostic_polars_view()`` after the
+    snapshot exists (spec Task 6 step 4) -- the snapshot IS the one eager
+    read; every downstream consumer reads through it.
+    """
+    from mountainash.conform.structured_transport import StructuredActionConsumer
+    from mountainash.relations.core.logical_snapshot import (
+        logical_terminal_snapshot,
+        resolve_logical_snapshot,
+    )
+
+    snapshot = logical_terminal_snapshot(native)
+    logical_snapshot = resolve_logical_snapshot(
+        snapshot, structured_field_plans, consumer=StructuredActionConsumer.VALIDATION
+    )
+    return snapshot, logical_snapshot
+
+
 def prepare_validation_input(
     relation: "Relation | Any",
     *,
@@ -84,14 +120,15 @@ def prepare_validation_input(
     An Ibis source is forced eager via exactly one ``.cache()`` call, owned
     by *scope*, so every downstream check executor reuses the same
     materialized result instead of re-executing the whole query plan once
-    per check.
+    per check. The resulting logical-terminal snapshot adds exactly one
+    ``.to_pyarrow()``/``.to_arrow()`` extraction on top of that same cache
+    (Task 6 step 1) -- never a second native execution.
     """
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.relations import Relation
     from mountainash.relations import relation as as_relation
     from mountainash.relations.core.materialization import (
         MaterializationPurpose,
-        diagnostic_polars_view,
         materialize_native,
     )
 
@@ -102,10 +139,13 @@ def prepare_validation_input(
         result, compiler_identity, MaterializationPurpose.VALIDATION_SOURCE, scope=scope
     )
     assert_prepared_identity(native, native.value)
+    snapshot, logical_snapshot = _resolve_prepared_snapshot(native, visitor.structured_field_plans)
     return PreparedValidationInput(
         relation=as_relation(native.value),
         native=native,
-        diagnostic_source=diagnostic_polars_view(native),
+        structured_field_plans=visitor.structured_field_plans,
+        snapshot=snapshot,
+        logical_snapshot=logical_snapshot,
     )
 
 
@@ -117,20 +157,33 @@ def prepare_validation_input_from_session(
     (Task 8, spec section 10/18: "the Unit D node transform hook for
     planned resources").
 
-    Unlike :func:`prepare_validation_input`, this never compiles *name*
+    Unlike :func:`prepare_validation_input`, this never *compiles* *name*
     itself -- ``session.compile_registered()`` already compiles and
     materializes it (memoized, shared with every other consumer in the
     same session: a dependency, another planned resource's foreign-key
     reference, ...), so multiple validated resources referencing the same
     upstream DAG relation share one compile instead of each re-running
     ``prepare_validation_input()`` independently.
+
+    A Polars/Narwhals DAG-canonical native intentionally stays lazy (spec
+    10.2/10.4's documented lazy-when-possible contract, so Polars' own
+    optimizer can fuse shared subexpressions); a keyed/row identity check
+    and a logical-terminal snapshot both need concrete columns, so
+    ``session.validation_native()`` forces exactly one ``.collect()`` on
+    top of that shared canonical value the first time *name* is
+    validated, memoized per name -- an Ibis DAG-canonical native is
+    already forced eager via ``.cache()`` at DAG_CANONICAL compile time
+    (spec 10.2) and passes through unchanged.
     """
     from mountainash.relations import relation as as_relation
 
-    native, _visitor = session.compile_registered(name)
+    native, visitor = session.validation_native(name)
     assert_prepared_identity(native, native.value)
+    snapshot, logical_snapshot = _resolve_prepared_snapshot(native, visitor.structured_field_plans)
     return PreparedValidationInput(
         relation=as_relation(native.value),
         native=native,
-        diagnostic_source=session.diagnostic_view(name),
+        structured_field_plans=visitor.structured_field_plans,
+        snapshot=snapshot,
+        logical_snapshot=logical_snapshot,
     )
