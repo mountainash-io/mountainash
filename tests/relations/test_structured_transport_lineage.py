@@ -307,3 +307,157 @@ def test_open_conform_preserves_incoming_structured_transport_lineage():
 
     with pytest.raises(LogicalTerminalRequired):
         second.collect()
+
+def test_with_columns_overwrite_clears_stale_transport_lineage():
+    """Replacing a transported output with a computed value drops its old plan."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+
+    result = relation.with_columns(ma.lit("not-json").alias("payload")).to_polars()
+
+    assert result["payload"].to_list() == ["not-json"]
+
+def test_join_tracks_right_transport_under_backend_suffix():
+    """A colliding right-side transported field is decoded under payload_right."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left = ma.relation(pl.DataFrame({"id": [1], "payload": ["left"]}))
+    right = ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(
+        TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        )
+    )
+
+    result = left.join(right, on="id").to_polars()
+
+    assert result["payload"].to_list() == ["left"]
+    assert result["payload_right"].to_list() == [[2]]
+
+def test_join_asof_rejects_transport_used_as_group_key(monkeypatch):
+    """A transported ``by`` key is rejected before join-asof dispatch."""
+    import polars as pl
+
+    from mountainash.relations.backends.relation_systems.polars import (
+        PolarsRelationSystem,
+    )
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    def join_asof_must_not_run(*args, **kwargs):
+        raise AssertionError("backend join_asof received a transported group key")
+
+    monkeypatch.setattr(PolarsRelationSystem, "join_asof", join_asof_must_not_run)
+    left = ma.relation(
+        pl.DataFrame({"time": [1], "payload": ["[1]"]})
+    ).conform(
+        TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        )
+    )
+    right = ma.relation(pl.DataFrame({"time": [1], "payload": ["[1]"]}))
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        left.join_asof(right, on="time", by="payload").to_polars()
+
+def test_drop_nulls_without_subset_rejects_every_transported_field(monkeypatch):
+    """An implicit all-column drop-nulls consumer cannot inspect a carrier."""
+    import polars as pl
+
+    from mountainash.relations.backends.relation_systems.polars import (
+        PolarsRelationSystem,
+    )
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    def drop_nulls_must_not_run(*args, **kwargs):
+        raise AssertionError("backend drop_nulls received a transported field")
+
+    monkeypatch.setattr(PolarsRelationSystem, "drop_nulls", drop_nulls_must_not_run)
+    relation = ma.relation(pl.DataFrame({"payload": ["{broken"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)]),
+        contract={"data_type": "discard_value"},
+    )
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        relation.drop_nulls().to_polars()
+
+def test_unpivot_preserves_transport_on_explicit_index():
+    """An index carrier survives unpivot while value columns are melted."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(
+        pl.DataFrame({"payload": ["[1]", "[2]"], "metric": [10, 20]})
+    ).conform(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="payload", type=UniversalType.ARRAY),
+                FieldSpec(name="metric", type=UniversalType.INTEGER),
+            ]
+        )
+    )
+
+    result = relation.unpivot(on="metric", index="payload").to_polars()
+
+    assert result["payload"].to_list() == [[1], [2]]
+
+def test_join_keeps_both_transport_plans_when_right_name_collides():
+    """Both colliding carriers remain tracked under their final output names."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    spec = TypeSpec(
+        fields_match="open",
+        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+    )
+    left = ma.relation(pl.DataFrame({"id": [1], "payload": ["[1]"]})).conform(spec)
+    right = ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(spec)
+
+    result = left.join(right, on="id").to_polars()
+
+    assert result["payload"].to_list() == [[1]]
+    assert result["payload_right"].to_list() == [[2]]
+
+
+def test_unpivot_rejects_transport_used_as_value(monkeypatch):
+    """A transported ``on`` field is rejected before unpivot dispatch."""
+    import polars as pl
+
+    from mountainash.relations.backends.relation_systems.polars import (
+        PolarsRelationSystem,
+    )
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    def unpivot_must_not_run(*args, **kwargs):
+        raise AssertionError("backend unpivot received a transported value")
+
+    monkeypatch.setattr(PolarsRelationSystem, "unpivot", unpivot_must_not_run)
+    relation = ma.relation(
+        pl.DataFrame({"payload": ["[1]"], "metric": [10]})
+    ).conform(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="payload", type=UniversalType.ARRAY),
+                FieldSpec(name="metric", type=UniversalType.INTEGER),
+            ]
+        )
+    )
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        relation.unpivot(on="payload", index="metric").to_polars()

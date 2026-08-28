@@ -39,6 +39,7 @@ _PROJECT_RENAME = TransportLineagePolicy("project_rename")
 _REJECT_CONSUMERS = TransportLineagePolicy("reject_consumers")
 _JOIN = TransportLineagePolicy("join")
 _AGGREGATE = TransportLineagePolicy("aggregate")
+_UNPIVOT = TransportLineagePolicy("unpivot")
 _UNION_ALL = TransportLineagePolicy("union_all")
 _REJECT_REMAINING = TransportLineagePolicy("reject_remaining")
 
@@ -63,7 +64,7 @@ TRANSPORT_LINEAGE_POLICIES: Mapping[Enum, TransportLineagePolicy] = MappingProxy
         RM.WITH_ROW_INDEX: _PRESERVE,
         RM.EXPLODE: _REJECT_CONSUMERS,
         RM.SAMPLE: _PRESERVE,
-        RM.UNPIVOT: _AGGREGATE,
+        RM.UNPIVOT: _UNPIVOT,
         RM.PIVOT: _AGGREGATE,
         RM.TOP_K: _REJECT_CONSUMERS,
         RM.UNNEST: _REJECT_CONSUMERS,
@@ -183,6 +184,37 @@ def _renamed(plan: StructuredFieldPlan, name: str) -> StructuredFieldPlan:
     return replace(plan, field_name=name)
 
 
+def _relation_output_names(node: Any) -> set[str]:
+    """Best-effort names for a relation's physical output columns."""
+    try:
+        from mountainash.relations.schema_inference import infer_schema
+
+        return set(infer_schema(node, None))
+    except Exception:
+        return set()
+
+
+def _join_child_maps(
+    node: Any,
+    left: StructuredFieldPlanMap,
+    right: StructuredFieldPlanMap,
+) -> Sequence[StructuredFieldPlanMap]:
+    """Rename right-side plans to the join backend's output names."""
+    if getattr(getattr(node, "join_type", None), "name", None) in {"SEMI", "ANTI"}:
+        return [left]
+
+    left_names = _relation_output_names(getattr(node, "left", None)) | set(left)
+    shared_keys = set(getattr(node, "on", None) or ())
+    suffix = getattr(node, "suffix", "_right") or "_right"
+    mapped_right: dict[str, StructuredFieldPlan] = {}
+    for name, plan in right.items():
+        if name in shared_keys:
+            continue
+        output = f"{name}{suffix}" if name in left_names else name
+        mapped_right[output] = _renamed(plan, output)
+    return [left, freeze_structured_field_plans(mapped_right)]
+
+
 def _merged_inputs(
     node: Any, child_maps: Sequence[StructuredFieldPlanMap], *, require_equal: bool
 ) -> StructuredFieldPlanMap:
@@ -252,13 +284,20 @@ def propagate_structured_plans(
         return freeze_structured_field_plans(carried)
     if policy is _PROJECT_WITH_COLUMNS:
         carried = dict(incoming)
+        from mountainash.relations.schema_inference import infer_expression_name
+
         for expression in getattr(node, "expressions", ()):
             direct = _direct_projection(expression)
             if direct is not None:
                 source, output = direct
                 if source in incoming:
                     carried[output] = _renamed(incoming[source], output)
+                elif output in incoming:
+                    carried.pop(output, None)
                 continue
+            output = infer_expression_name(expression)
+            if output in incoming:
+                carried.pop(output, None)
             _reject_consumed_fields(node, incoming, expression, "a projection expression")
         return freeze_structured_field_plans(carried)
     if policy is _PROJECT_DROP:
@@ -275,6 +314,16 @@ def propagate_structured_plans(
             }
         )
     if policy is _REJECT_CONSUMERS:
+        if node.operation_key is RM.DROP_NULLS:
+            subset = (getattr(node, "options", {}) or {}).get("subset")
+            if not subset:
+                _reject_consumed_fields(
+                    node,
+                    incoming,
+                    set(incoming),
+                    getattr(node.operation_key, "name", "operation"),
+                )
+                return freeze_structured_field_plans(incoming)
         _reject_consumed_fields(node, incoming, vars(node), getattr(node.operation_key, "name", "operation"))
         return freeze_structured_field_plans(incoming)
     if policy is _JOIN:
@@ -283,16 +332,27 @@ def propagate_structured_plans(
         _reject_consumed_fields(
             node,
             left,
-            [getattr(node, "on", ()), getattr(node, "left_on", ())],
+            [getattr(node, "on", ()), getattr(node, "left_on", ()), getattr(node, "by", ())],
             getattr(node.operation_key, "name", "join"),
         )
         _reject_consumed_fields(
             node,
             right,
-            [getattr(node, "on", ()), getattr(node, "right_on", ())],
+            [getattr(node, "on", ()), getattr(node, "right_on", ()), getattr(node, "by", ())],
             getattr(node.operation_key, "name", "join"),
         )
-        return _merged_inputs(node, [left, right], require_equal=False)
+        return _merged_inputs(node, _join_child_maps(node, left, right), require_equal=False)
+    if policy is _UNPIVOT:
+        options = getattr(node, "options", {}) or {}
+        on = options.get("on", ())
+        _reject_consumed_fields(node, incoming, on, "unpivot values")
+        index = options.get("index")
+        if not index:
+            return _empty()
+        index_names = _named_values(index)
+        return freeze_structured_field_plans(
+            {name: plan for name, plan in incoming.items() if name in index_names}
+        )
     if policy is _AGGREGATE:
         _reject_consumed_fields(node, incoming, vars(node), getattr(node.operation_key, "name", "aggregate"))
         return _empty()
