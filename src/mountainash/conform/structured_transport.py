@@ -130,6 +130,32 @@ def _normalize_native(value: Any) -> Any:
     raise TypeError(f"unsupported structured native value: {type(value)!r}")
 
 
+def _is_native_null_scalar(value: Any) -> bool:
+    """Recognize backend null scalars only at the physical-cell boundary."""
+    if value is None:
+        return True
+    if isinstance(value, float):
+        return math.isnan(value)
+    value_type = type(value)
+    return value_type.__module__.startswith("pandas.") and value_type.__name__ in {
+        "NAType",
+        "NaTType",
+    }
+
+
+def _all_numbers_are_finite(value: Any) -> None:
+    """Reject non-finite numeric leaves in a decoded JSON tree."""
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError("non-finite JSON number")
+    elif isinstance(value, list):
+        for item in value:
+            _all_numbers_are_finite(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            _all_numbers_are_finite(item)
+
+
 def decode_structured_value(
     value: Any, *, expected_root: StructuredRoot
 ) -> list[Any] | dict[str, Any] | None | InvalidStructuredValue:
@@ -140,6 +166,8 @@ def decode_structured_value(
             if isinstance(value, str)
             else _normalize_native(value)
         )
+        if isinstance(value, str):
+            _all_numbers_are_finite(decoded)
         if decoded is None:
             return None
         if expected_root is StructuredRoot.ARRAY and isinstance(decoded, list):
@@ -152,7 +180,7 @@ def decode_structured_value(
 
 
 def _apply_missing_value(value: Any, plan: StructuredFieldPlan) -> tuple[Any, bool]:
-    post_missing = None if value is None or (
+    post_missing = None if _is_native_null_scalar(value) or (
         isinstance(value, str) and value in plan.missing_values
     ) else value
     return post_missing, post_missing is None

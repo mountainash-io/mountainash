@@ -66,6 +66,9 @@ def test_decode_structured_value_normalizes_accepted_values(value, root, expecte
         ("[NaN]", StructuredRoot.ARRAY),
         ("[Infinity]", StructuredRoot.ARRAY),
         ("[-Infinity]", StructuredRoot.ARRAY),
+        ("[1e400]", StructuredRoot.ARRAY),
+        ('{"value": 1e400}', StructuredRoot.OBJECT),
+        ('{"nested": {"values": [1e400]}}', StructuredRoot.OBJECT),
         ({1: "not-a-string-key"}, StructuredRoot.OBJECT),
         ([math.nan], StructuredRoot.ARRAY),
         ([math.inf], StructuredRoot.ARRAY),
@@ -180,3 +183,30 @@ def test_discard_row_keeps_missing_value_with_invalid_null_fill_as_logical_null(
     assert resolution.post_missing_is_null is True
     assert resolution.logical_value is None
     assert resolution.keep is True
+
+
+@pytest.mark.parametrize("backend_name", ["pandas", "narwhals-pandas"])
+@pytest.mark.parametrize("missing_kind", ["pandas_na", "numpy_nan"])
+def test_opaque_backend_null_scalars_use_structured_null_fill(
+    backend_name, missing_kind, backend_factory
+):
+    """Opaque pandas cells carrying backend null scalars follow missing semantics."""
+    import numpy as np
+    import pandas as pd
+
+    missing = pd.NA if missing_kind == "pandas_na" else np.nan
+    frame = backend_factory.create({"payload": [[1], missing]}, backend_name)
+    physical_value = frame["payload"].to_list()[1]
+    plan = make_plan(
+        carrier=StructuredCarrier.OPAQUE,
+        null_fill=[99],
+    )
+
+    resolution = resolve_structured_cell(
+        physical_value,
+        plan=plan,
+        consumer=StructuredActionConsumer.VALIDATION,
+    )
+
+    assert resolution.post_missing_is_null is True
+    assert resolution.logical_value == [99]
