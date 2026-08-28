@@ -216,3 +216,64 @@ def test_filter_rejects_transport_before_backend_filter_dispatch(monkeypatch):
 
     with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
         relation.filter(ma.col("payload").is_not_null()).to_polars()
+
+
+def test_sort_rejects_transport_before_backend_sort_dispatch(monkeypatch):
+    """The visitor checks lineage on real ``SortField`` payloads before calling Polars.
+
+    Regression coverage for item 115: the other tests in this module drive
+    ``propagate_structured_plans`` directly with a synthetic ``SimpleNamespace``, so a
+    real ``SortRelNode`` (whose ``sort_fields`` are genuine ``SortField`` instances,
+    not bare strings) is never exercised end-to-end elsewhere.
+    """
+    import polars as pl
+
+    from mountainash.relations.backends.relation_systems.polars import (
+        PolarsRelationSystem,
+    )
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    def sort_must_not_run(*args, **kwargs):
+        raise AssertionError("backend sort received a transported physical field")
+
+    monkeypatch.setattr(PolarsRelationSystem, "sort", sort_must_not_run)
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        relation.sort("payload").to_polars()
+
+
+def test_aggregate_rejects_transport_before_backend_aggregate_dispatch(monkeypatch):
+    """The visitor checks lineage on real ``AggregateRelNode`` keys before calling Polars.
+
+    Regression coverage for item 115: exercises the ``_AGGREGATE`` policy's
+    ``vars(node)`` walk (which includes the node's own ``input`` child relation
+    alongside ``keys``/``measures``) against a real relation, not a synthetic
+    ``SimpleNamespace``.
+    """
+    import polars as pl
+
+    from mountainash.relations.backends.relation_systems.polars import (
+        PolarsRelationSystem,
+    )
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    def aggregate_must_not_run(*args, **kwargs):
+        raise AssertionError("backend aggregate received a transported physical field")
+
+    monkeypatch.setattr(PolarsRelationSystem, "aggregate", aggregate_must_not_run)
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"], "other": [1]})).conform(
+        TypeSpec(
+            fields=[
+                FieldSpec(name="payload", type=UniversalType.ARRAY),
+                FieldSpec(name="other", type=UniversalType.INTEGER),
+            ]
+        )
+    )
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        relation.group_by("payload").agg(ma.col("other").sum()).to_polars()
