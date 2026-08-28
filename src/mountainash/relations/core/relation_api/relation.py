@@ -138,6 +138,60 @@ def _unwrap_native(value: Any, *, unwrap: bool) -> Any:
     return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
 
 
+def _blocking_structured_plans(plans: Any) -> Any:
+    """The subset of *plans* that requires a logical terminal snapshot."""
+    from types import MappingProxyType
+    return MappingProxyType(
+        {name: plan for name, plan in plans.items() if plan.requires_logical_terminal}
+    )
+
+
+def _guard_native_terminal(plans: Any) -> None:
+    """Raise before any native materialization if a field needs logical
+    resolution first (spec Task 5 step 7). ``collect()`` and
+    ``collect_with_drift()`` call this before ``materialize_native()`` --
+    no native terminal attempt occurs for a structured field that still
+    needs decoding.
+    """
+    from mountainash.relations.core.errors import LogicalTerminalRequired
+
+    blocking = _blocking_structured_plans(plans)
+    if blocking:
+        raise LogicalTerminalRequired(blocking)
+
+
+def _resolve_logical_egress(
+    result: Any,
+    visitor: Any,
+    compiler_identity: "BackendIdentity",
+    *,
+    to_native: Callable[[Any], Any],
+) -> Any:
+    """One logical-terminal snapshot, resolved once, handed to the
+    requested output adapter (spec Task 5 step 6): compile already
+    happened in the caller; this materializes with ``LOGICAL_TERMINAL``
+    inside one scope, snapshots once, resolves transported cells once,
+    and closes the scope after ``to_native`` finishes building output.
+    """
+    from mountainash.relations.core.logical_snapshot import (
+        logical_terminal_snapshot,
+        resolve_logical_snapshot,
+    )
+    from mountainash.relations.core.materialization import (
+        MaterializationPurpose,
+        MaterializationScope,
+        materialize_native,
+    )
+
+    with MaterializationScope() as scope:
+        native = materialize_native(
+            result, compiler_identity, MaterializationPurpose.LOGICAL_TERMINAL, scope=scope
+        )
+        snapshot = logical_terminal_snapshot(native)
+        resolved = resolve_logical_snapshot(snapshot, visitor.structured_field_plans)
+        return to_native(resolved)
+
+
 # ---------------------------------------------------------------------------
 # Relation
 # ---------------------------------------------------------------------------
@@ -628,6 +682,7 @@ class Relation(RelationBase):
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         compiler_identity = _compiler_identity(visitor)
+        _guard_native_terminal(visitor.structured_field_plans)
 
         def _materialize_thunk() -> Any:
             native = materialize_native(
@@ -672,6 +727,7 @@ class Relation(RelationBase):
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         compiler_identity = _compiler_identity(visitor)
+        _guard_native_terminal(visitor.structured_field_plans)
 
         def _materialize_thunk() -> Any:
             native = materialize_native(
@@ -850,6 +906,14 @@ class Relation(RelationBase):
         compiler_identity = _compiler_identity(visitor)
 
         def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                from mountainash.relations.core.logical_snapshot import (
+                    resolved_snapshot_to_polars,
+                )
+
+                return _resolve_logical_egress(
+                    result, visitor, compiler_identity, to_native=resolved_snapshot_to_polars
+                )
             native = materialize_native(
                 result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
             )
@@ -881,6 +945,14 @@ class Relation(RelationBase):
         compiler_identity = _compiler_identity(visitor)
 
         def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                from mountainash.relations.core.logical_snapshot import (
+                    resolved_snapshot_to_pandas,
+                )
+
+                return _resolve_logical_egress(
+                    result, visitor, compiler_identity, to_native=resolved_snapshot_to_pandas
+                )
             native = materialize_native(
                 result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
             )

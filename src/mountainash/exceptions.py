@@ -29,7 +29,7 @@ from mountainash.conform.errors import (
     IncompatibleSourceTypeError,
     UnsupportedStructuredTransportUse,
 )
-from mountainash.relations.core.errors import InvalidSampleArgumentsError
+from mountainash.relations.core.errors import InvalidSampleArgumentsError, LogicalTerminalRequired
 from mountainash.relations.dag.errors import (
     DAGError,
     RelationDAGRequired,
@@ -88,6 +88,7 @@ __all__ = [
     "BackendConversionError",
     "InvalidOptionValueError",
     "InvalidSampleArgumentsError",
+    "LogicalTerminalRequired",
     "BareExpressionCollectionError",
     "ConformError",
     "MissingFieldsError",

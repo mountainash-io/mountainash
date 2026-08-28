@@ -233,6 +233,17 @@ def _resolution_error(field_name: str, plan: Any, row_ordinal: int) -> ConformTr
     )
 
 
+def _python_value(value: Any) -> Any:
+    """Normalize one physical cell to a Python-native scalar before
+    structured resolution. PyArrow-native snapshot columns (the PyArrow,
+    Narwhals, and Ibis adapters all capture Arrow columns) yield ``Scalar``
+    wrapper objects when iterated, not the underlying Python value the
+    shared decoder expects; every other adapter's native sequence type
+    already yields native Python scalars."""
+    as_py = getattr(value, "as_py", None)
+    return as_py() if callable(as_py) else value
+
+
 def resolve_logical_snapshot(
     snapshot: LogicalTerminalSnapshot,
     plans: StructuredFieldPlanMap,
@@ -252,7 +263,7 @@ def resolve_logical_snapshot(
             continue
         values: list[Any] = []
         for index, value in enumerate(physical):
-            resolution = resolve_structured_cell(value, plan=plan, consumer=consumer)
+            resolution = resolve_structured_cell(_python_value(value), plan=plan, consumer=consumer)
             if resolution.logical_value is INVALID_STRUCTURED_VALUE:
                 if plan.configured_action == "coerce":
                     raise _resolution_error(field_name, plan, snapshot.row_ordinals[index])

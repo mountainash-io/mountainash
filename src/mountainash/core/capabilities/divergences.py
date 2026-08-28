@@ -823,15 +823,15 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-18",
         ),
         DivergenceFact(
-            id="MA-CONF-05",
+            id="MA-CONF-06",
             kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(),  # temporary portable JSON-text and opaque structured transport
-            backends=("pandas", "narwhals-pandas"),
-            summary="pandas and narwhals-pandas cannot yet materialize portable JSON-text or opaque ARRAY/OBJECT transport",
-            impact="portable structured validation and logical egress remain unavailable on pandas/narwhals-pandas until the transport matrix is complete",
-            workaround="Use Polars, narwhals-polars, or an Ibis DuckDB/Polars backend while portable transport support is completing",
+            operation_keys=(),  # opaque structured field logical egress via Narwhals-wrapped Polars
+            backends=("narwhals-polars",),
+            summary="Polars Object dtype has no defined Arrow representation; Narwhals' to_arrow() serializes raw object pointers instead of the underlying value",
+            impact="an opaque-carrier structured field (no schema evidence, already-native Python container) fails to decode through logical egress when the source is a Narwhals-wrapped Polars frame",
+            workaround="Use a bare Polars relation (not Narwhals-wrapped) or a pandas/narwhals-pandas source for an opaque structured field; a JSON-text or schema-proven native LIST/STRUCT carrier is unaffected",
             upstream_ref=None,
-            since="2026-08-27",
+            since="2026-08-28",
         ),
         DivergenceFact(
             id="MA-TERN-01",
