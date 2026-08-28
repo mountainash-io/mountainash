@@ -353,6 +353,17 @@ class TestMalformedAndWrongRootStructuredInput:
         assert summary["fail_count"] == 0, backend_name
         assert summary["status"] == "failed", backend_name  # unknown is not tolerated by default
 
+    def test_malformed_json_reports_type_format_failure_cross_backend(
+        self, backend_name, backend_factory
+    ):
+        rel = _object_relation(backend_name, backend_factory, ["{broken", '{"a": 1}'])
+        result = _value_check(rel, "TYPE_FORMAT", options={"type": "object"})
+        summary = result.check_summaries.row(0, named=True)
+        assert summary["status"] == "failed", backend_name
+        assert summary["fail_count"] == 1, backend_name
+        assert summary["unknown_count"] == 0, backend_name
+
+
     def test_wrong_root_is_unknown_not_a_crash(self, backend_name, backend_factory):
         """An ARRAY-declared field whose JSON text decodes to an object
         root is a structural mismatch, not a value the check ever sees."""

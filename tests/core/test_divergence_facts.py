@@ -26,6 +26,11 @@ def test_ma_conf_04_registered_for_native_ibis_sqlite_struct_construction():
     assert fact.backends == ("ibis-sqlite",)
 
 
+
+def test_temporary_ma_conf_05_is_removed():
+    with pytest.raises(KeyError, match="unknown divergence id"):
+        divergence_by_id("MA-CONF-05")
+
 def test_ma_conf_06_registered_for_narwhals_polars_object_dtype_arrow_gap():
     fact = divergence_by_id("MA-CONF-06")
     assert fact is not None

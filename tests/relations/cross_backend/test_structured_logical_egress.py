@@ -54,6 +54,59 @@ def _json_relation(backend_name, backend_factory, *, action: str = "coerce"):
     return ma.relation(df).conform(spec, contract={"data_type": action})
 
 
+def _json_object_relation(backend_name, backend_factory):
+    df = backend_factory.create(
+        {"payload": ['{"a": 1, "nested": {"ok": true}}', "{}"]}, backend_name
+    )
+    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
+    return ma.relation(df).conform(spec, contract={"data_type": "coerce"})
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_json_object_egress_returns_python_dictionaries(backend_name, backend_factory):
+    rel = _json_object_relation(backend_name, backend_factory)
+    assert rel.to_dicts() == [
+        {"payload": {"a": 1, "nested": {"ok": True}}},
+        {"payload": {}},
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_evolve_preserves_structured_source_values(backend_name, backend_factory):
+    rel = _json_relation(backend_name, backend_factory, action="evolve")
+    result = rel.to_polars()
+    assert result["payload"].to_list() == ["[1,2]", "[3]"]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_json_object_egress_to_polars_uses_object_column(
+    backend_name, backend_factory
+):
+    import polars as pl
+
+    rel = _json_object_relation(backend_name, backend_factory)
+    result = rel.to_polars()
+    assert result["payload"].dtype == pl.Object
+    assert result["payload"].to_list() == [
+        {"a": 1, "nested": {"ok": True}},
+        {},
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_json_object_egress_to_pandas_preserves_object_containers(
+    backend_name, backend_factory
+):
+    rel = _json_object_relation(backend_name, backend_factory)
+    result = rel.to_pandas()
+    assert result["payload"].dtype == object
+    assert result["payload"].tolist() == [
+        {"a": 1, "nested": {"ok": True}},
+        {},
+    ]
+
+
+
 # ---------------------------------------------------------------------------
 # Step 1: native-terminal failure -- fail closed, zero materialization
 # ---------------------------------------------------------------------------
