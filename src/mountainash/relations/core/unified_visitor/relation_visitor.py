@@ -5,6 +5,9 @@ Composes with the expression visitor for compiling embedded expression ASTs.
 """
 
 from __future__ import annotations
+
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from mountainash.core.types import (
@@ -185,6 +188,11 @@ class UnifiedRelationVisitor:
         # available_columns and no actual_dtypes evidence contributes
         # nothing (honest non-assessment, not "assessed clean").
         self.drift_reports: list["ConformDrift"] = []
+        self._structured_plans_by_node: dict[int, Any] = {}
+        self._conform_plans_by_node: dict[int, Any] = {}
+        self._conform_metadata_by_node: dict[int, tuple[bool, frozenset[str], frozenset[str]]] = {}
+        self._ref_plans_by_node: dict[int, Any] = {}
+        self.structured_field_plans: Any = MappingProxyType({})
 
     def visit(self, node: RelationNode) -> Any:
         """Single dispatch site (spec §3.5): third-party visit-registry
@@ -316,6 +324,107 @@ class UnifiedRelationVisitor:
         except Exception:
             return None, None
 
+    def _transport_child_maps(self, node: RelationNode, op: Any) -> list[Any]:
+        """Return completed transport maps for this node's relation inputs."""
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            ArgKind,
+        )
+
+        children: list[RelationNode] = []
+        for binding in op.args:
+            value = getattr(node, binding.field)
+            if binding.kind is ArgKind.INPUT:
+                children.append(value)
+            elif binding.kind is ArgKind.INPUT_LIST:
+                children.extend(value)
+        if not children:
+            children.extend(
+                child
+                for child in (
+                    getattr(node, "left", None),
+                    getattr(node, "right", None),
+                    getattr(node, "input", None),
+                )
+                if child is not None
+            )
+        return [
+            self._structured_plans_by_node.get(id(child), MappingProxyType({}))
+            for child in children
+        ]
+
+    def _ref_output_names(self, node: RelationNode) -> set[str]:
+        """Return output names for a ref from its resolved native value."""
+        if self.ref_resolver is None:
+            return set()
+        try:
+            resolved = self.ref_resolver(node.name)
+            if isinstance(resolved, Mapping):
+                return set(resolved)
+            collect_schema = getattr(resolved, "collect_schema", None)
+            if callable(collect_schema):
+                schema = collect_schema()
+                names = getattr(schema, "names", None)
+                if callable(names):
+                    return set(names())
+            columns = getattr(resolved, "columns", None)
+            if columns is not None:
+                return set(columns)
+        except Exception:
+            pass
+        return set()
+
+
+    def _prepare_transport_lineage(self, node: RelationNode, op: Any | None = None) -> None:
+        """Reject unsafe transport consumers before expression or backend dispatch."""
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            RelationOperationRegistry,
+        )
+        from mountainash.relations.core.structured_lineage import propagate_structured_plans
+
+        operation = op or RelationOperationRegistry.get(node.operation_key)
+        conform_plans = self._conform_plans_by_node.get(
+            id(node), self._ref_plans_by_node.get(id(node), MappingProxyType({}))
+        )
+        propagate_structured_plans(
+            node,
+            self._transport_child_maps(node, operation),
+            conform_plans,
+            output_names_resolver=self._ref_output_names,
+            backend=getattr(self.backend, "backend_type", None),
+        )
+
+    def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
+        """Record a node's transport output only after its native dispatch succeeds."""
+        from mountainash.conform.structured_transport import (
+            freeze_structured_field_plans,
+        )
+        from mountainash.relations.core.structured_lineage import (
+            propagate_structured_plans,
+        )
+        plans = self._conform_plans_by_node.get(
+            id(node), self._ref_plans_by_node.get(id(node), None)
+        )
+        metadata = self._conform_metadata_by_node.get(id(node))
+        child_maps = self._transport_child_maps(node, op)
+        if plans is None:
+            plans = propagate_structured_plans(
+                node,
+                child_maps,
+                MappingProxyType({}),
+                output_names_resolver=self._ref_output_names,
+                backend=getattr(self.backend, "backend_type", None),
+            )
+        elif metadata is not None and metadata[0]:
+            _, overwritten, dropped = metadata
+            incoming = child_maps[0] if child_maps else MappingProxyType({})
+            carried = dict(incoming)
+            for field_name in overwritten | dropped:
+                carried.pop(field_name, None)
+            carried.update(plans)
+            plans = freeze_structured_field_plans(carried)
+        self._structured_plans_by_node[id(node)] = plans
+        self.structured_field_plans = plans
+
     def _dispatch(self, node: RelationNode, op: Any) -> Any:
         if self.enforce_capabilities:
             self._gate_capabilities(node, op)
@@ -323,21 +432,40 @@ class UnifiedRelationVisitor:
         from mountainash.core.limitations import enrich_materialization
 
         if op.handler is not None:
-            # Handler ops wrap their own native call (see handlers.py) --
-            # never wrap the whole handler, or a child read/coercion
-            # TypeError would be narrowed under the parent's RKEY.
-            return op.handler(node, self)
+            # Handler ops own their native call. Each handler visits relation
+            # inputs, prepares lineage, then invokes the backend; completion
+            # stays centralized so every dispatched operation records a map.
+            result = op.handler(node, self)
+            self._complete_transport_lineage(node, op)
+            return result
+        from mountainash.relations.core.relation_system.relation_mapping.registry import (
+            ArgKind,
+        )
+
+        prepared_inputs = {
+            binding.field: self._bind(node, binding)
+            for binding in op.args
+            if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}
+        }
+        self._prepare_transport_lineage(node, op)
         method = getattr(self.backend, op.protocol_method.__name__)
-        args = [self._bind(node, b) for b in op.args]  # children compiled OUTSIDE the wrap
+        args = [
+            prepared_inputs[binding.field]
+            if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}
+            else self._bind(node, binding)
+            for binding in op.args
+        ]
         kwargs = self._bind_options(node, op)
         prefer = _present_operation_keys(node, op)
         d = self._authoritative_dialect(node, op)
         dialect = getattr(self.backend, "dialect", None) if d is _UNRESOLVED else d
-        return enrich_materialization(
+        result = enrich_materialization(
             self.backend, lambda: method(*args, **kwargs),
             prefer_operation_keys=prefer,
             dialect=dialect,
         )
+        self._complete_transport_lineage(node, op)
+        return result
 
     def _enrich_native_call(self, node: RelationNode, operation_key: Any, fn: Callable[[], Any]) -> Any:
         """Wrap a single native backend call in residue enrichment, scoped to
@@ -432,6 +560,7 @@ class UnifiedRelationVisitor:
         empty_from_schema: bool = False,
         contract: Optional[Any] = None,
         resource_name: Optional[str] = None,
+        owner_node: RelationNode | None = None,
         apply_value_transforms: bool = True,
     ) -> Any:
         """Apply conform from a TypeSpec or raw Frictionless schema dict.
@@ -550,6 +679,10 @@ class UnifiedRelationVisitor:
             schema_of=key_schema_of,
             apply_value_transforms=apply_value_transforms,
         )
+        if owner_node is not None:
+            self._conform_plans_by_node[id(owner_node)] = (
+                conform_result.structured_field_plans
+            )
         if conform_result.drift is not None:
             self.drift_reports.append(conform_result.drift)
 
@@ -561,6 +694,22 @@ class UnifiedRelationVisitor:
             resolved_contract.extra_columns == "evolve"
             and resolved_contract.mapping == "by_name"
         )
+        if owner_node is not None:
+            available_set = set(available) if available is not None else None
+            overwritten = frozenset(
+                field.name
+                for field in schema.fields
+                if (
+                    available_set is None
+                    or field.source_name.split(".", 1)[0] in available_set
+                    or resolved_contract.missing_columns == "null_fill"
+                )
+            )
+            self._conform_metadata_by_node[id(owner_node)] = (
+                use_open,
+                overwritten,
+                frozenset(conform_result.renamed_sources),
+            )
 
         trace = self._active_diagnostic_trace()
         previous_trace = getattr(self.expr_visitor, "diagnostic_trace", None)

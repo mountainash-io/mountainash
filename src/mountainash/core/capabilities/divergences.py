@@ -814,13 +814,24 @@ def _all() -> tuple[DivergenceFact, ...]:
         DivergenceFact(
             id="MA-CONF-04",
             kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(),  # typespec/conform struct materialization
+            operation_keys=(),  # native Ibis-SQLite Struct construction
             backends=("ibis-sqlite",),
-            summary="ibis-sqlite cannot construct struct-typed tables at all — UnsupportedBackendType('Struct types aren't supported in SQLite') on table creation, struct literals, and string-to-struct casts",
-            impact="any test constructing a struct-typed source table on ibis-sqlite raises UnsupportedBackendType; ibis-duckdb/ibis-polars and polars/narwhals construct it (resolver schema-string construction for to_ibis_schema stays exercised — only real-table execution is gated)",
-            workaround="Use ibis-duckdb/ibis-polars or a polars/narwhals backend for struct-typed data",
+            summary="ibis-sqlite cannot construct a native struct-typed table",
+            impact="conform() with a native OBJECT source raises UnsupportedBackendType on ibis-sqlite; other supported native structured backends execute it",
+            workaround="Use a non-SQLite Ibis backend or a Polars-backed backend for native struct conform",
             upstream_ref=None,
             since="2026-08-18",
+        ),
+        DivergenceFact(
+            id="MA-CONF-06",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # opaque structured field logical egress via Narwhals-wrapped Polars
+            backends=("narwhals-polars",),
+            summary="Polars Object dtype has no defined Arrow representation; Narwhals' to_arrow() serializes raw object pointers instead of the underlying value",
+            impact="an opaque-carrier structured field (no schema evidence, already-native Python container) fails to decode through logical egress when the source is a Narwhals-wrapped Polars frame",
+            workaround="Use a bare Polars relation (not Narwhals-wrapped) or a pandas/narwhals-pandas source for an opaque structured field; a JSON-text or schema-proven native LIST/STRUCT carrier is unaffected",
+            upstream_ref=None,
+            since="2026-08-28",
         ),
         DivergenceFact(
             id="MA-TERN-01",

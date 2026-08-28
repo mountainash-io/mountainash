@@ -92,6 +92,22 @@ class IncompatibleSourceTypeError(ConformError):
             f"{source_detail!r}; requires {requirement}"
         )
 
+
+class UnsupportedStructuredTransportUse(ConformError):
+    """A transported structured physical carrier reached an unsafe relation use."""
+
+    def __init__(
+        self, *, field_name: str, root: str, node_type: str, consumer: str
+    ) -> None:
+        self.field_name = field_name
+        self.root = root
+        self.node_type = node_type
+        self.consumer = consumer
+        super().__init__(
+            f"Transported {root} field {field_name!r} cannot be used by "
+            f"{consumer} in {node_type} before logical decoding"
+        )
+
 class NoMatchingFieldsError(ConformError):
     """No overlap between spec fields and data source columns."""
 
@@ -136,6 +152,17 @@ class ConformTransformError(ConformError):
         else:
             detail = "no matching conform operation diagnostic"
         super().__init__(f"Conform transform failed: {original_error}; {detail}")
+
+    @classmethod
+    def structured(
+        cls, *, field_name: str, expected_root: str, row_ordinal: int
+    ) -> "ConformTransformError":
+        """Create a value-safe logical structured transport error."""
+        error = ValueError(
+            f"invalid {expected_root} value in field {field_name!r} "
+            f"at row ordinal {row_ordinal}"
+        )
+        return cls(original_error=error, candidates=())
 
 
 class SchemaDriftError(ConformError):

@@ -12,7 +12,6 @@ backend, and only small results materialise to Polars.
 from __future__ import annotations
 
 import functools
-import operator
 import time
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
@@ -140,7 +139,7 @@ class ValidationRunner:
             checks = (*plan.checks, *checks, *standalone_rules)
             if fk_resolver is None:
                 def fk_resolver(_name: str) -> Any:
-                    return rel
+                    return prepared
 
         identity = identity or RowIdentity("none")
         scope = MaterializationScope()
@@ -196,16 +195,16 @@ class ValidationRunner:
         ``prepared.relation``; only small counts and selected failure rows
         convert to Polars per check (spec section 6.2's outcome model)."""
         rel = prepared.relation
-        materialized_source = (
-            prepared.diagnostic_source.frame
-            if prepared.diagnostic_source is not None
-            else None
-        )
+        from mountainash.relations.core.logical_snapshot import resolved_snapshot_to_polars
+
+        materialized_source = resolved_snapshot_to_polars(prepared.logical_snapshot)
         self._materialized_value_frame = materialized_source
+        self._logical_snapshot = prepared.logical_snapshot
+        self._structured_field_plans = prepared.structured_field_plans
         identity_diagnostics: dict[str, Any] = {}
         if identity.kind == "keyed":
             identity_diagnostics = validate_keyed_identity(
-                rel, identity, allow_imperfect_key=allow_imperfect_key
+                prepared.logical_snapshot, identity, allow_imperfect_key=allow_imperfect_key
             )
         elif identity.kind == "row_number":
             rel = rel.with_row_index(name=ROW_ORDINAL)
@@ -291,6 +290,12 @@ class ValidationRunner:
         self, rel: "Relation", check: Any, identity: RowIdentity,
         failure_sample: int | None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
+        if (
+            check.metadata.get("standard_constraint") == "required"
+            and check.metadata.get("field") in self._structured_field_plans
+        ):
+            return self._run_transported_required_rule(check, identity, failure_sample)
+
         import mountainash as ma
 
         passing = VERDICT_PASSING[check.booleanizer or "t_is_true"]
@@ -333,6 +338,103 @@ class ValidationRunner:
             severity=check.severity,
         )
         return summary, failures
+
+    def _run_transported_required_rule(
+        self, check: Any, identity: RowIdentity, failure_sample: int | None,
+    ) -> "tuple[CheckSummary, pl.DataFrame]":
+        """Compute a ``required`` outcome from the resolved logical snapshot
+        for a transport-plan-covered field (spec Task 6 step 7): the
+        physical value can be a non-null malformed string that still
+        decodes to a logical null (``discard_value``) -- a native
+        ``.is_not_null()`` expression on the physical column would see it
+        as present and pass incorrectly. Row universe and ordinals match
+        every other structured-aware check: the shared discard-row keep
+        set already applied when the logical snapshot was resolved."""
+        field = check.metadata["field"]
+        frame = self._materialized_value_frame
+        values = self._logical_snapshot.logical_columns[field]
+        failed_mask = [value is None for value in values]
+        total = len(values)
+        fail_count = sum(failed_mask)
+        pass_count = total - fail_count
+        status = (
+            "passed"
+            if total == 0
+            or (
+                pass_count / total >= check.mostly
+                if check.mostly is not None
+                else fail_count == 0
+            )
+            else "failed"
+        )
+        failures = pl.DataFrame()
+        if fail_count and frame is not None:
+            failures = self._collect_transported_required_failures(
+                frame, failed_mask, check, identity, failure_sample
+            )
+        summary = CheckSummary(
+            check_id=check.id,
+            check_kind="row",
+            status=status,
+            pass_count=pass_count,
+            fail_count=fail_count,
+            unknown_count=0,
+            total_rows=total,
+            mostly=check.mostly,
+            severity=check.severity,
+        )
+        return summary, failures
+
+    @staticmethod
+    def _collect_transported_required_failures(
+        frame: pl.DataFrame,
+        failed_mask: "list[bool]",
+        check: Any,
+        identity: RowIdentity,
+        failure_sample: int | None,
+    ) -> pl.DataFrame:
+        field = check.metadata["field"]
+        failing = frame.filter(pl.Series(failed_mask))
+        if failure_sample is not None:
+            failing = failing.head(failure_sample)
+
+        struct_fields = list(check.fields or [])
+        select_cols: list[str] = []
+        if identity.kind == "keyed":
+            select_cols.extend(identity.key_fields)
+        elif identity.kind == "row_number":
+            select_cols.append(ROW_ORDINAL)
+        for name in struct_fields:
+            if name not in select_cols:
+                select_cols.append(name)
+        if field not in select_cols:
+            select_cols.append(field)
+
+        out = failing.select(select_cols)
+        if identity.kind == "row_number":
+            out = out.rename({ROW_ORDINAL: "row_number"})
+        out = out.with_columns(
+            pl.lit("fail").alias("outcome"),
+            pl.lit(None, dtype=pl.String).alias("value"),
+            pl.lit(None, dtype=pl.String).alias("message"),
+            pl.lit(check.id).alias("check_id"),
+            pl.lit("row").alias("check_kind"),
+            pl.lit(field, dtype=pl.String).alias("column"),
+        )
+        if struct_fields:
+            from mountainash.validation.result import _struct_safe_columns
+
+            row_struct = _struct_safe_columns(out.select(struct_fields)).select(
+                pl.struct(pl.all()).alias("row")
+            )
+            out = out.with_columns(row_struct.to_series())
+        keep = ["check_id", "check_kind", "column", "outcome", "value", "message"]
+        keep.extend(k for k in identity.key_fields if k in out.columns)
+        if "row_number" in out.columns:
+            keep.append("row_number")
+        if "row" in out.columns:
+            keep.append("row")
+        return out.select(keep)
 
     def _collect_row_failures(
         self, projected: "Relation", check: Any, identity: RowIdentity,
@@ -622,7 +724,14 @@ class ValidationRunner:
         self, rel: "Relation", check: Any, identity: RowIdentity,
         failure_sample: int | None, *, fk_resolver: Any = None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
-        import mountainash as ma
+        """Compare canonical logical keys (spec 15.2, Task 9) -- never a
+        backend join. A JSON-text/opaque carrier's raw bytes cannot define
+        logical equality (whitespace, object-name order); every foreign
+        key uses the same `canonical_value_key()` algebra as identity and
+        uniqueness, over each side's prepared logical snapshot.
+        """
+        from mountainash.relations.core.logical_snapshot import resolved_snapshot_to_polars
+        from mountainash.validation.fk import _canonical_key_rows
 
         if fk_resolver is None:
             # Captured by the isolation guard -> CheckSummary(status="error"),
@@ -632,41 +741,55 @@ class ValidationRunner:
                 "(no resolver for child/parent names)"
             )
 
-        child = fk_resolver(check.child)
-        parent = fk_resolver(check.parent)
+        child_prepared = fk_resolver(check.child)
+        parent_prepared = fk_resolver(check.parent)
 
-        target = child
-        if check.exclude_null_child:
-            # SQL MATCH SIMPLE: any-null component excludes the row.
-            all_non_null = functools.reduce(
-                operator.and_, (ma.col(f).is_not_null() for f in check.child_fields)
-            )
-            target = child.filter(all_non_null)
+        child_rows = _canonical_key_rows(child_prepared, check.child_fields, child=True)
+        parent_rows = _canonical_key_rows(parent_prepared, check.parent_fields, child=False)
+        parent_keys = {row.key for row in parent_rows.rows if row.outcome == "candidate"}
 
-        orphans = target.join(
-            parent.select(*check.parent_fields).unique(),
-            left_on=check.child_fields,
-            right_on=check.parent_fields,
-            how="anti",
-        )
-        orphan_count = orphans.count_rows()
-        status = "passed" if orphan_count == 0 else "failed"
+        failing_ordinals: list[int] = []
+        unknown_count = 0
+        for row in child_rows.rows:
+            if row.outcome == "excluded_null":
+                # SQL MATCH SIMPLE (default): any-null component excludes
+                # the row from evaluation entirely. Disabled: a null
+                # component can never truthfully equal a parent value
+                # (three-valued NULL semantics), so it is a guaranteed
+                # orphan, not an unknown.
+                if not check.exclude_null_child:
+                    failing_ordinals.append(row.ordinal)
+                continue
+            if row.outcome == "unknown":
+                unknown_count += 1
+                continue
+            if row.key not in parent_keys:
+                failing_ordinals.append(row.ordinal)
+
+        fail_count = len(failing_ordinals)
+        status = "passed" if fail_count == 0 else "failed"
 
         failures = pl.DataFrame()
-        if orphan_count:
-            sampled = orphans.head(failure_sample) if failure_sample is not None else orphans
+        if fail_count:
+            failing_set = frozenset(failing_ordinals)
+            child_frame = resolved_snapshot_to_polars(child_prepared.logical_snapshot)
+            mask = [o in failing_set for o in child_prepared.logical_snapshot.keep_ordinals]
+            orphans = child_frame.filter(pl.Series(mask))
+            if failure_sample is not None:
+                orphans = orphans.head(failure_sample)
             failures = rows_as_struct_failures(
-                transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, sampled.to_polars),
-                check_id=check.id, check_kind="foreign_key",
+                orphans, check_id=check.id, check_kind="foreign_key",
             )
 
         summary = CheckSummary(
             check_id=check.id,
             check_kind="foreign_key",
             status=status,
-            fail_count=orphan_count,
+            fail_count=fail_count,
+            unknown_count=unknown_count,
+            total_rows=len(child_rows.rows),
             severity=check.severity,
-            diagnostic=str(orphan_count),
+            diagnostic=str(fail_count),
         )
         return summary, failures
 
@@ -693,11 +816,13 @@ class ValidationRunner:
         (spec'd) resource and a dependency or foreign-key parent of
         another compiles exactly once, shared across every consumer.
         """
-        from mountainash.relations import relation as as_relation
-        from mountainash.relations.dag.materialization import DAGMaterializationSession
+        from mountainash.relations.dag.materialization import (
+            DAGMaterializationSession,
+            SessionMode,
+        )
+        from mountainash.relations.dag.validation_context import DAGValidationContext
         from mountainash.validation.checks import ForeignKeyRule
         from mountainash.validation.plan import thaw_typespec
-        from mountainash.validation.prepared import prepare_validation_input_from_session
 
         identity_by_resource = identity_by_resource or {}
         plans_by_resource = plans_by_resource or {}
@@ -715,25 +840,17 @@ class ValidationRunner:
             node_transforms={
                 name: _plan_transform(plan) for name, plan in plans_by_resource.items()
             },
+            mode=SessionMode.VALIDATION,
         )
-        prepared_by_name: "dict[str, PreparedValidationInput]" = {}
-
-        def _prepare(name: str) -> "PreparedValidationInput":
-            if name not in prepared_by_name:
-                prepared_by_name[name] = prepare_validation_input_from_session(session, name)
-            return prepared_by_name[name]
+        validation_context = DAGValidationContext(session)
 
         def _resolver(name: str) -> Any:
-            # A planned (spec'd) resource reuses its own PreparedValidationInput's
-            # relation; an execution-only dependency (Unit D's "identity
-            # transform") is compiled plainly through the session -- no
-            # PreparedValidationInput wrapper, since it was never itself
-            # validated.
-            prepared = prepared_by_name.get(name)
-            if prepared is not None:
-                return prepared.relation
-            native, _visitor = session.compile_registered(name)
-            return as_relation(native.value)
+            # Task 9: the FK resolver needs the full PreparedValidationInput
+            # (its logical snapshot) for canonical key comparison, never a
+            # backend join -- `context.prepare()` works for any
+            # DAG-registered name, whether or not it also has its own
+            # declared checks in this run.
+            return validation_context.prepare(name)
 
         results: dict[str, ValidationResult] = {}
         fk_rules: list[Any] = []
@@ -749,7 +866,7 @@ class ValidationRunner:
                 fk_rules.extend(c for c in local_checks if isinstance(c, ForeignKeyRule))
                 resource_identity = identity_by_resource.get(name) or RowIdentity("none")
                 try:
-                    prepared = _prepare(name)
+                    prepared = validation_context.prepare(name)
                 except Exception as exc:  # noqa: BLE001 — isolation is the contract
                     # A resource's own preparation failure (most commonly a
                     # conform cast failure) isolates to that resource's own

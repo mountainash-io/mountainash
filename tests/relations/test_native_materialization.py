@@ -39,6 +39,26 @@ def test_validation_materialization_caches_ibis_without_changing_identity(
         assert native.value.to_pyarrow()["age"].to_pylist() == [30, -1, None]
 
 
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+def test_logical_terminal_materialization_caches_ibis_once_per_scope(
+    backend_name, backend_factory
+):
+    """Logical terminal snapshots force a cache without executing through pandas."""
+    table = backend_factory.create({"age": [30, -1, None]}, backend_name)
+    identity = identify_backend_identity(table)
+
+    with MaterializationScope() as scope:
+        native = materialize_native(
+            table,
+            identity,
+            MaterializationPurpose.LOGICAL_TERMINAL,
+            scope=scope,
+        )
+
+        assert native.form is ExecutionForm.DEFERRED
+        assert native.value.to_pyarrow()["age"].to_pylist() == [30, -1, None]
+
 def test_materialization_scope_releases_owned_callbacks_once():
     releases = []
     scope = MaterializationScope()

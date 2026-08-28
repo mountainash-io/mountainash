@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
 
-from mountainash.validation.value import canonical_value_key
+from mountainash.validation.value import INVALID_VALUE, canonical_value_key
 
 from mountainash.validation.errors import (
     CheckDeclarationError,
@@ -19,7 +19,7 @@ from mountainash.validation.errors import (
 )
 
 if TYPE_CHECKING:
-    from mountainash.relations import Relation
+    from mountainash.relations.core.logical_snapshot import ResolvedLogicalSnapshot
     from mountainash.typespec.spec import TypeSpec
 
 
@@ -50,25 +50,42 @@ def resolve_identity(
             f"unknown row_identity {row_identity!r}; expected 'row_number' or None"
         )
     return RowIdentity(kind="none")
+
+
 def validate_keyed_identity(
-    rel: "Relation",
+    logical_snapshot: "ResolvedLogicalSnapshot",
     identity: RowIdentity,
     *,
     allow_imperfect_key: bool = False,
 ) -> dict[str, Any]:
-    """Verify keyed identity using the shared canonical logical-key algebra."""
-    frame = rel.to_polars()
-    missing = [name for name in identity.key_fields if name not in frame.columns]
+    """Verify keyed identity using the shared canonical logical-key algebra.
+
+    Reads key columns by name from the prepared logical snapshot (spec
+    section 15, Task 7 step 5) -- never ``Relation.to_polars()``, which
+    would re-execute the relation and, for a `coerce`-action structured
+    key field, raise on an invalid value instead of reporting it as an
+    unknown key component.
+    """
+    from mountainash.relations.core.logical_snapshot import logical_column_values
+
+    columns = logical_snapshot.logical_columns
+    missing = [name for name in identity.key_fields if name not in columns]
     if missing:
         raise IdentityInvalidError(
             f"keyed identity {identity.key_fields}: key fields missing from data: {missing}"
         )
 
     null_key_rows = 0
+    unknown_key_rows = 0
     first_row_by_key: dict[tuple[Any, ...], int] = {}
     duplicate_keys: set[tuple[Any, ...]] = set()
-    columns = [frame[name].to_list() for name in identity.key_fields]
-    for row_index, values in enumerate(zip(*columns, strict=True)):
+    field_columns = [
+        logical_column_values(logical_snapshot, name) for name in identity.key_fields
+    ]
+    for row_index, values in enumerate(zip(*field_columns, strict=True)):
+        if any(value is INVALID_VALUE for value in values):
+            unknown_key_rows += 1
+            continue
         if any(value is None for value in values):
             null_key_rows += 1
             continue
@@ -80,12 +97,14 @@ def validate_keyed_identity(
 
     diagnostics = {
         "null_key_rows": null_key_rows,
+        "unknown_key_rows": unknown_key_rows,
         "duplicate_key_tuples": len(duplicate_keys),
     }
-    if (null_key_rows or duplicate_keys) and not allow_imperfect_key:
+    if (null_key_rows or unknown_key_rows or duplicate_keys) and not allow_imperfect_key:
         raise IdentityInvalidError(
             f"keyed identity {identity.key_fields} does not hold: "
-            f"{null_key_rows} null-key rows, {len(duplicate_keys)} duplicate key tuples. "
+            f"{null_key_rows} null-key rows, {unknown_key_rows} unknown-key rows, "
+            f"{len(duplicate_keys)} duplicate key tuples. "
             "Pass allow_imperfect_key=True to proceed with diagnostics recorded."
         )
     return diagnostics

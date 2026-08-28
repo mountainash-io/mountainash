@@ -336,6 +336,66 @@ _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
         "Relation egress terminal or ValidationRunner rule.",
         "2026-08-27",
     ),
+    "LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "test_resolved_snapshot_to_pandas_retains_untagged_dtype_and_tags_object_column "
+        "and tests/relations/cross_backend/test_structured_logical_egress.py's "
+        "TestCompleteLogicalEgressJsonText.test_to_pandas_returns_object_column "
+        "(ALL_BACKENDS-parametrized).",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_PANDAS_TO_POLARS": (
+        "Exercised functionally by tests/relations/cross_backend/"
+        "test_structured_logical_egress.py's TestCompleteLogicalEgressJsonText."
+        "test_to_polars_returns_object_column's pandas/narwhals-pandas-source cases "
+        "(ALL_BACKENDS-parametrized).",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_ARROW_TO_POLARS": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "test_resolved_snapshot_to_polars_retains_untagged_dtype_and_tags_object_column "
+        "and tests/relations/cross_backend/test_structured_logical_egress.py's "
+        "ibis-source test_to_polars_returns_object_column cases (ALL_BACKENDS-parametrized).",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_POLARS_TO_PANDAS": (
+        "Exercised functionally by tests/relations/cross_backend/"
+        "test_structured_logical_egress.py's TestCompleteLogicalEgressJsonText."
+        "test_to_pandas_returns_object_column's polars/narwhals-polars-source cases "
+        "(ALL_BACKENDS-parametrized).",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_ARROW_TO_PANDAS": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "ibis snapshot-capture tests and tests/relations/cross_backend/"
+        "test_structured_logical_egress.py's ibis-source test_to_pandas_returns_object_column "
+        "cases (ALL_BACKENDS-parametrized).",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_NARWHALS_TO_ARROW": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "test_narwhals_snapshot_captures_every_declared_dialect_directly.",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_IBIS_TO_ARROW": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "test_ibis_snapshot_reads_cache_once_and_never_touches_pandas.",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_POLARS_DISPATCH": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "test_resolved_snapshot_to_polars_retains_untagged_dtype_and_tags_object_column "
+        "and every to_polars() egress terminal test across "
+        "tests/relations/cross_backend/test_structured_logical_egress.py.",
+        "2026-08-27",
+    ),
+    "LOGICAL_SNAPSHOT_PANDAS_DISPATCH": (
+        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
+        "test_resolved_snapshot_to_pandas_retains_untagged_dtype_and_tags_object_column "
+        "and every to_pandas() egress terminal test across "
+        "tests/relations/cross_backend/test_structured_logical_egress.py.",
+        "2026-08-27",
+    ),
 }
 
 

@@ -165,15 +165,26 @@ def test_unmatched_manifest_row_is_named() -> None:
 def test_incomplete_disposition_is_named(status: str, missing_key: str) -> None:
     manifest = deepcopy(load_json(PROFILE_DIR / "profile-coverage.json"))
     row = next(
-        row
-        for row in manifest["rows"]
-        if row["storage"]["status"] == status
+        row for row in manifest["rows"] if row["storage"]["status"] == "implemented"
     )
-    del row["storage"][missing_key]
+    disposition = {
+        "status": status,
+        "reason": "synthetic incomplete-disposition fixture",
+        "since": "2026-08-27",
+        "owner_unit": "D",
+        "acceptance_reference": "test fixture",
+        "discrepancy_id": "MA-TEST-01",
+        "review_date": "2026-08-27",
+        "decision_reference": "MA-TEST-01",
+    }
+    del disposition[missing_key]
+    row["storage"] = disposition
+
     errors = validate_profile_coverage(
         profiles=load_profile_set(PROFILE_DIR),
         manifest=manifest,
     )
+
     assert any(row["capability"] in error and missing_key in error for error in errors)
 
 
@@ -322,20 +333,19 @@ def test_unsupported_dialect_options_are_execution_deferred() -> None:
     )
 
 
-def test_unsupported_constraints_are_unit_b_deferred() -> None:
+def test_unit_d_constraints_are_implemented_in_every_profile_dimension() -> None:
     manifest = load_json(PROFILE_DIR / "profile-coverage.json")
-    unsupported = {
+    capabilities = {
         "schema:fields[].constraints.exclusiveMaximum",
         "schema:fields[].constraints.exclusiveMinimum",
         "schema:fields[].constraints.jsonSchema",
     }
-    for capability in unsupported:
+    for capability in capabilities:
         row = next(
             row for row in manifest["rows"] if row["capability"] == capability
         )
         for dimension in ("storage", "typed", "execution"):
-            assert row[dimension]["status"] == "deferred"
-            assert row[dimension]["owner_unit"] == "B"
+            assert row[dimension]["status"] == "implemented"
 
 
 def test_evidence_commit_mutation_is_named() -> None:

@@ -239,3 +239,46 @@ class TestToDictsEdgeCases:
         old_result = df.to_dicts()
         new_result = rel.to_dicts()
         assert new_result == old_result
+
+
+# ---------------------------------------------------------------------------
+# Structured logical egress delegation (spec Task 5)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def structured_rel():
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    df = pl.DataFrame({"tags": ["[1,2]", "[3]"], "name": ["a", "b"]})
+    spec = TypeSpec(
+        fields_match="open", fields=[FieldSpec(name="tags", type=UniversalType.ARRAY)]
+    )
+    return ma.relation(df).conform(spec, contract={"data_type": "coerce"})
+
+
+class TestStructuredLogicalEgressDelegation:
+    """Every Python-egress terminal delegates through to_polars(); a
+    structured field resolves once through the shared logical snapshot,
+    not per terminal (spec Task 5 step 6)."""
+
+    def test_to_dict_decodes_structured_field(self, structured_rel):
+        result = structured_rel.to_dict()
+        assert result["tags"] == [[1, 2], [3]]
+
+    def test_to_dicts_decodes_structured_field(self, structured_rel):
+        result = structured_rel.to_dicts()
+        assert result == [{"tags": [1, 2], "name": "a"}, {"tags": [3], "name": "b"}]
+
+    def test_to_tuples_decodes_structured_field(self, structured_rel):
+        result = structured_rel.to_tuples()
+        assert result[0][0] == [1, 2]
+
+    def test_item_decodes_structured_field(self, structured_rel):
+        assert structured_rel.item("tags", 0) == [1, 2]
+
+    def test_to_pandas_tags_object_column(self, structured_rel):
+        result = structured_rel.to_pandas()
+        assert result["tags"].dtype == object
+        assert result["tags"].tolist() == [[1, 2], [3]]

@@ -189,6 +189,23 @@ def combine_failure_frames(
     return combined.select(ordered)
 
 
+def _struct_safe_columns(rows: pl.DataFrame) -> pl.DataFrame:
+    """Polars structs cannot nest an ``Object``-dtype column ("nested
+    objects are not allowed"); a resolved structured field's logical
+    column is exactly that (spec Task 6). Render any such column as
+    canonical JSON text before struct construction -- deterministic,
+    matches every other logical-value diagnostic in this module."""
+    from mountainash.validation.value import render_value
+
+    object_columns = [name for name, dtype in rows.schema.items() if dtype == pl.Object]
+    if not object_columns:
+        return rows
+    return rows.with_columns(
+        pl.Series(name, [render_value(v) for v in rows[name].to_list()])
+        for name in object_columns
+    )
+
+
 def rows_as_struct_failures(
     rows: pl.DataFrame, *, check_id: str, check_kind: str
 ) -> pl.DataFrame:
@@ -197,7 +214,7 @@ def rows_as_struct_failures(
     reserved failure-case columns (spec §8)."""
     if rows.height == 0:
         return pl.DataFrame()
-    structured = rows.select(pl.struct(pl.all()).alias("row"))
+    structured = _struct_safe_columns(rows).select(pl.struct(pl.all()).alias("row"))
     return structured.with_columns(
         pl.lit(check_id).alias("check_id"),
         pl.lit(check_kind).alias("check_kind"),

@@ -352,3 +352,240 @@ def test_every_data_type_action_has_one_evaluator_branch(action: str) -> None:
     assert result.drift is not None
     mismatch = result.drift.type_mismatches[0]
     assert mismatch.action == action
+
+
+
+# ---------------------------------------------------------------------------
+# Item 113 Unit D Task 7 step 1/2: the complete structured failure-policy
+# matrix for resolve_structured_cell() (spec sections 12.1-12.6).
+# ---------------------------------------------------------------------------
+
+
+def _structured_plan(
+    *,
+    action: str,
+    apply_value_transforms: bool,
+    null_fill=None,
+    root=None,
+):
+    from mountainash.conform.structured_transport import (
+        StructuredCarrier,
+        StructuredFieldPlan,
+        StructuredRoot,
+    )
+
+    return StructuredFieldPlan(
+        field_name="payload",
+        root=root or StructuredRoot.OBJECT,
+        carrier=StructuredCarrier.OPAQUE,
+        configured_action=action,
+        apply_value_transforms=apply_value_transforms,
+        missing_values=("MISSING",),
+        null_fill=null_fill,
+        declaration_fingerprint="test",
+        origin_node_id="test",
+    )
+
+
+#: The exact discriminating rows from the plan: physical null, a missing
+#: sentinel, valid JSON text, malformed JSON text, and a valid native value.
+#: Root is OBJECT, so every value except "{broken" decodes successfully;
+#: null/"MISSING" decode to logical null, "{broken" is the one genuinely
+#: invalid non-null row.
+_DISCRIMINATING_VALUES = (None, "MISSING", '{"ok": 1}', "{broken", {"native": True})
+
+#: Each value's (decoded_logical_value_or_INVALID, post_missing_is_null)
+#: after missing-value normalization + decode, independent of action.
+#: Filled in per-test since INVALID_STRUCTURED_VALUE is a runtime import.
+
+
+class TestResolveStructuredCellMatrix:
+    """Task 7 step 1: parametrize every action with value transforms
+    enabled and disabled, across schema-level/field-level missing values,
+    JSON-text and native cells, and a malformed non-null row."""
+
+    def _decoded_table(self):
+        from mountainash.conform.structured_transport import INVALID_STRUCTURED_VALUE
+
+        return {
+            None: (None, True),
+            "MISSING": (None, True),
+            '{"ok": 1}': ({"ok": 1}, False),
+            "{broken": (INVALID_STRUCTURED_VALUE, False),
+            "__native__": ({"native": True}, False),
+        }
+
+    def _key(self, value):
+        return "__native__" if value == {"native": True} else value
+
+    @pytest.mark.parametrize("consumer_name", ("VALIDATION", "LOGICAL_EGRESS"))
+    @pytest.mark.parametrize("action", ("coerce", "evolve", "freeze", "discard_value", "discard_row"))
+    def test_transforms_disabled_never_discards_and_always_decodes_for_validation(
+        self, action, consumer_name
+    ):
+        """Structural-only conform (apply_value_transforms=False) never
+        removes a row for any action; a logical egress passes the raw
+        physical value through untouched, validation still decodes to
+        report the true logical state (spec 12.1)."""
+        from mountainash.conform.structured_transport import (
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        consumer = getattr(StructuredActionConsumer, consumer_name)
+        plan = _structured_plan(action=action, apply_value_transforms=False)
+        decoded_table = self._decoded_table()
+        for value in _DISCRIMINATING_VALUES:
+            resolution = resolve_structured_cell(value, plan=plan, consumer=consumer)
+            assert resolution.keep is True, (action, consumer_name, value)
+            if consumer is StructuredActionConsumer.LOGICAL_EGRESS:
+                assert resolution.logical_value is value, (action, consumer_name, value)
+            else:
+                expected, expected_null = decoded_table[self._key(value)]
+                assert resolution.logical_value is expected or resolution.logical_value == expected, (
+                    action, consumer_name, value,
+                )
+                assert resolution.post_missing_is_null is expected_null, (action, consumer_name, value)
+
+    @pytest.mark.parametrize("consumer_name", ("VALIDATION", "LOGICAL_EGRESS"))
+    def test_coerce_always_reports_the_decoded_value_and_never_discards(self, consumer_name):
+        """`coerce` (spec 12.3): every row is kept at the cell-resolution
+        layer for both consumers -- whether an invalid decode instead
+        *raises* is a `resolve_logical_snapshot()`-level, consumer-gated
+        decision (spec 12.2/12.3), not this function's."""
+        from mountainash.conform.structured_transport import (
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        consumer = getattr(StructuredActionConsumer, consumer_name)
+        plan = _structured_plan(action="coerce", apply_value_transforms=True)
+        decoded_table = self._decoded_table()
+        for value in _DISCRIMINATING_VALUES:
+            resolution = resolve_structured_cell(value, plan=plan, consumer=consumer)
+            expected, _ = decoded_table[self._key(value)]
+            assert resolution.logical_value is expected or resolution.logical_value == expected, (
+                consumer_name, value,
+            )
+            assert resolution.keep is True, (consumer_name, value)
+
+    @pytest.mark.parametrize("consumer_name", ("VALIDATION", "LOGICAL_EGRESS"))
+    def test_discard_value_nulls_only_the_invalid_cell(self, consumer_name):
+        """`discard_value` (spec 12.4): an invalid decoded value becomes
+        logical null; a valid decoded value remains unchanged; every row
+        is kept. Identical for both consumers."""
+        from mountainash.conform.structured_transport import (
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        consumer = getattr(StructuredActionConsumer, consumer_name)
+        plan = _structured_plan(action="discard_value", apply_value_transforms=True)
+        decoded_table = self._decoded_table()
+        for value in _DISCRIMINATING_VALUES:
+            resolution = resolve_structured_cell(value, plan=plan, consumer=consumer)
+            assert resolution.keep is True, (consumer_name, value)
+            if value == "{broken":
+                assert resolution.logical_value is None, (consumer_name, value)
+            else:
+                expected, _ = decoded_table[self._key(value)]
+                assert resolution.logical_value is expected or resolution.logical_value == expected, (
+                    consumer_name, value,
+                )
+
+    @pytest.mark.parametrize("consumer_name", ("VALIDATION", "LOGICAL_EGRESS"))
+    def test_discard_row_removes_only_the_genuinely_invalid_non_null_row(self, consumer_name):
+        """`discard_row` (spec 12.5): a physical null or missing sentinel is
+        retained and becomes logical null; a genuinely non-null malformed
+        value is removed; a valid value is retained unchanged. Identical
+        keep mask for every logical terminal and validation."""
+        from mountainash.conform.structured_transport import (
+            INVALID_STRUCTURED_VALUE,
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        consumer = getattr(StructuredActionConsumer, consumer_name)
+        plan = _structured_plan(action="discard_row", apply_value_transforms=True)
+        decoded_table = self._decoded_table()
+        for value in _DISCRIMINATING_VALUES:
+            resolution = resolve_structured_cell(value, plan=plan, consumer=consumer)
+            if value == "{broken":
+                assert resolution.logical_value is INVALID_STRUCTURED_VALUE, (consumer_name, value)
+                assert resolution.keep is False, (consumer_name, value)
+            else:
+                expected, _ = decoded_table[self._key(value)]
+                assert resolution.logical_value is expected or resolution.logical_value == expected, (
+                    consumer_name, value,
+                )
+                assert resolution.keep is True, (consumer_name, value)
+
+    @pytest.mark.parametrize("action", ("evolve", "freeze"))
+    def test_evolve_and_freeze_preserve_source_for_egress_and_decode_for_validation(self, action):
+        """`evolve`/`freeze` (spec 12.6): a logical egress preserves the
+        actual UNTOUCHED source value in relation results (not even
+        missing-value normalized); validation still parses its private
+        logical cache from the declared field plan. Every row is kept --
+        `freeze` never raises at the cell-resolution layer; a schema-drift
+        raise (if configured) happens at a higher layer, not here."""
+        from mountainash.conform.structured_transport import (
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        plan = _structured_plan(action=action, apply_value_transforms=True)
+        decoded_table = self._decoded_table()
+        for value in _DISCRIMINATING_VALUES:
+            egress = resolve_structured_cell(
+                value, plan=plan, consumer=StructuredActionConsumer.LOGICAL_EGRESS
+            )
+            assert egress.keep is True, (action, value)
+            assert egress.logical_value is value, (action, value)
+
+            validation = resolve_structured_cell(
+                value, plan=plan, consumer=StructuredActionConsumer.VALIDATION
+            )
+            assert validation.keep is True, (action, value)
+            expected, _ = decoded_table[self._key(value)]
+            assert validation.logical_value is expected or validation.logical_value == expected, (
+                action, value,
+            )
+
+
+class TestPreFillDiscardRowException:
+    """Task 7 step 2: a null_fill that is itself invalid never makes a
+    physically-null/missing row look like a genuine decode failure."""
+
+    def test_invalid_null_fill_keeps_null_and_missing_rows_as_logical_null(self):
+        from mountainash.conform.structured_transport import (
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        plan = _structured_plan(
+            action="discard_row", apply_value_transforms=True, null_fill="{broken"
+        )
+        for value in (None, "MISSING"):
+            for consumer in (
+                StructuredActionConsumer.VALIDATION,
+                StructuredActionConsumer.LOGICAL_EGRESS,
+            ):
+                res = resolve_structured_cell(value, plan=plan, consumer=consumer)
+                assert res.logical_value is None, (value, consumer)
+                assert res.keep is True, (value, consumer)
+
+    def test_malformed_non_null_row_is_still_removed_under_the_same_plan(self):
+        from mountainash.conform.structured_transport import (
+            INVALID_STRUCTURED_VALUE,
+            StructuredActionConsumer,
+            resolve_structured_cell,
+        )
+
+        plan = _structured_plan(
+            action="discard_row", apply_value_transforms=True, null_fill="{broken"
+        )
+        res = resolve_structured_cell(
+            "{broken", plan=plan, consumer=StructuredActionConsumer.VALIDATION
+        )
+        assert res.logical_value is INVALID_STRUCTURED_VALUE
+        assert res.keep is False

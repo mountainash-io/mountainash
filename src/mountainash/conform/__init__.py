@@ -21,6 +21,7 @@ from mountainash.conform.errors import (
     SchemaDriftError,
     UnresolvedSourceTypeError,
     IncompatibleSourceTypeError,
+    UnsupportedStructuredTransportUse,
 )
 from mountainash.conform.drift import (
     TypeDrift,
@@ -43,6 +44,7 @@ __all__ = [
     "SchemaDriftError",
     "UnresolvedSourceTypeError",
     "IncompatibleSourceTypeError",
+    "UnsupportedStructuredTransportUse",
     "TypeDrift",
     "ColumnDrift",
     "KeyDrift",

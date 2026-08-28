@@ -39,6 +39,17 @@ POLARS_AND_IBIS = [
     "ibis-sqlite",
 ]
 
+POLARS_AND_IBIS_TIME = [
+    "polars",
+    "polars-lazy",
+    pytest.param("pandas", marks=xfail_divergence("NW-DT-05", backend="pandas")),
+    pytest.param("narwhals-polars", marks=xfail_divergence("NW-DT-05", backend="narwhals-polars")),
+    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-DT-05", backend="narwhals-pandas")),
+    "ibis-polars",
+    "ibis-duckdb",
+    pytest.param("ibis-sqlite", marks=xfail_divergence("IB-DT-17", backend="ibis-sqlite")),
+]
+
 POLARS_IBIS_DUCKDB_SQLITE = [
     "polars",
     "polars-lazy",
@@ -67,7 +78,7 @@ class TestDateExtraction:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", POLARS_AND_IBIS)
+@pytest.mark.parametrize("backend_name", POLARS_AND_IBIS_TIME)
 class TestTimeExtraction:
     def test_time(self, backend_name, backend_factory, collect_expr):
         data = {"ts": [datetime(2024, 3, 15, 10, 30), datetime(2024, 7, 20, 14, 0)]}

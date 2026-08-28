@@ -5,6 +5,7 @@ import dataclasses
 import enum
 import warnings
 from dataclasses import dataclass, field as dataclass_field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Union
 
 from mountainash.conform.contract import ConformContract, resolve_contract
@@ -18,6 +19,15 @@ from mountainash.conform.errors import (
     SchemaDriftError,
     UnresolvedSourceTypeError,
 )
+from mountainash.conform.structured_transport import (
+    StructuredCarrier,
+    StructuredFieldPlan,
+    StructuredFieldPlanMap,
+    StructuredRoot,
+    freeze_structured_field_plans,
+    freeze_structured_value,
+)
+from mountainash.typespec._fingerprint import declaration_fingerprint, freeze_typespec
 from mountainash.typespec.source_shape import SourceShape
 
 if TYPE_CHECKING:
@@ -83,6 +93,80 @@ class ConformResult:
     drift: "ConformDrift | None" = None
     row_filters: list[Any] = dataclass_field(default_factory=list)
     residue_checks: list[MaterializationResidueCheck] = dataclass_field(default_factory=list)
+    structured_field_plans: StructuredFieldPlanMap = dataclass_field(
+        default_factory=lambda: MappingProxyType({})
+    )
+
+
+def _structured_carrier(
+    field: "FieldSpec", source_shape: SourceShape | None
+) -> StructuredCarrier | None:
+    """Classify a declared structured field from schema evidence only."""
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.universal_types import UniversalType
+
+    if field.type not in {UniversalType.ARRAY, UniversalType.OBJECT}:
+        return None
+    canonical = source_shape.canonical_type if source_shape is not None else None
+    native = (
+        MountainashDtype.LIST
+        if field.type is UniversalType.ARRAY
+        else MountainashDtype.STRUCT
+    )
+    if canonical is native:
+        return StructuredCarrier.NATIVE
+    if canonical in {MountainashDtype.STRING, MountainashDtype.JSON}:
+        return StructuredCarrier.JSON_TEXT
+    if canonical is None:
+        return StructuredCarrier.OPAQUE
+    return None
+
+
+def _build_structured_field_plans(
+    emitted: Sequence[EmittedField],
+    *,
+    schema_missing_values: Sequence[Any],
+    data_type_action: str,
+    apply_value_transforms: bool,
+    declaration_fingerprint: str,
+    node_identity: tuple | None,
+) -> StructuredFieldPlanMap:
+    """Freeze one transport plan for every declared ARRAY and OBJECT output field."""
+    from mountainash.typespec._categorical import categorical_values
+    from mountainash.typespec.universal_types import UniversalType
+
+    plans: dict[str, StructuredFieldPlan] = {}
+    origin_node_id = str(node_identity[0]) if node_identity else "standalone"
+    for item in emitted:
+        if item.field.type not in {UniversalType.ARRAY, UniversalType.OBJECT}:
+            continue
+        values = (
+            item.field.missing_values
+            if item.field.missing_values is not None
+            else schema_missing_values
+        )
+        missing_values = tuple(
+            value for value in categorical_values(list(values)) if isinstance(value, str)
+        )
+        carrier = _structured_carrier(item.field, item.source_shape)
+        if carrier is None:
+            continue
+        plans[item.field.name] = StructuredFieldPlan(
+            field_name=item.field.name,
+            root=(
+                StructuredRoot.ARRAY
+                if item.field.type is UniversalType.ARRAY
+                else StructuredRoot.OBJECT
+            ),
+            carrier=carrier,
+            configured_action=data_type_action,  # type: ignore[arg-type]
+            apply_value_transforms=apply_value_transforms,
+            missing_values=missing_values,
+            null_fill=freeze_structured_value(item.field.null_fill),
+            declaration_fingerprint=declaration_fingerprint,
+            origin_node_id=origin_node_id,
+        )
+    return freeze_structured_field_plans(plans)
 
 
 def _source_root(source_name: str) -> str:
@@ -349,11 +433,47 @@ def resolve_conform_output(
 
     type_mismatches: list[TypeDrift] = []
     resolved: list[EmittedField] = []
+    has_non_native_structured_representation = False
     for em in emitted:
         if em.type_action == "null_fill":
             resolved.append(em)
             continue
         actual_shape = _shape_for(actual_shapes, em.source_name)
+        if (
+            apply_value_transforms
+            and actual_shapes is not None
+            and "." in em.source_name
+            and em.field.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            and actual_shape is not None
+            and actual_shape.canonical_type is None
+        ):
+            parent_shape = actual_shapes.get(_source_root(em.source_name))
+            if (
+                parent_shape is not None
+                and parent_shape.canonical_type is MountainashDtype.STRUCT
+            ):
+                raise UnresolvedSourceTypeError(
+                    field_name=em.field.name,
+                    requirement="source shape for typed operation",
+                )
+        if (
+            actual_shapes is not None
+            and actual_shape is not None
+            and actual_shape.canonical_type is not None
+            and em.field.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            and _structured_carrier(em.field, actual_shape) is None
+        ):
+            raise IncompatibleSourceTypeError(
+                field_name=em.field.name,
+                source_detail=_shape_detail(actual_shape) or "unknown",
+                requirement=f"{em.field.type.value} source",
+            )
+        if (
+            actual_shapes is not None
+            and em.field.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            and _structured_carrier(em.field, actual_shape) is not StructuredCarrier.NATIVE
+        ):
+            has_non_native_structured_representation = True
         if "." in em.source_name and actual_shape is None:
             resolved.append(em)
             continue
@@ -469,7 +589,15 @@ def resolve_conform_output(
         resolved.append(em)
     emitted = resolved
 
-    if apply_value_transforms and contract.data_type == "freeze" and any(item.reason != "unknown" for item in type_mismatches) and raise_on_freeze:
+    if (
+        apply_value_transforms
+        and contract.data_type == "freeze"
+        and (
+            has_non_native_structured_representation
+            or any(item.reason != "unknown" for item in type_mismatches)
+        )
+        and raise_on_freeze
+    ):
         _raise_drift(type_mismatches=type_mismatches, node_identity=node_identity)
 
     key_changes: list["KeyDrift"] | None = None
@@ -551,6 +679,11 @@ def _build_field_expr(
     shape_known = source_shape is not None
     shape = source_shape or SourceShape(None)
     canonical = shape.canonical_type
+    if _structured_carrier(fld, shape) in {
+        StructuredCarrier.JSON_TEXT,
+        StructuredCarrier.OPAQUE,
+    }:
+        return FieldBuildResult(expr.name.alias(fld.name))
     typed_shapes = {
         UniversalType.LIST,
         UniversalType.ARRAY,
@@ -924,17 +1057,26 @@ def _build_conform_exprs(
     apply_value_transforms: bool = True,
 ) -> ConformResult:
     schema_missing_values = spec.missing_values or []
+    resolved_contract = contract or resolve_contract(spec.fields_match)
     output_contract = resolve_conform_output(
         spec,
         available_columns,
         actual_dtypes=actual_dtypes,
         actual_shapes=actual_shapes,
-        contract=contract,
+        contract=resolved_contract,
         node_identity=node_identity,
         key_fks=key_fks,
         key_resource_name=key_resource_name,
         schema_of=schema_of,
         apply_value_transforms=apply_value_transforms,
+    )
+    structured_field_plans = _build_structured_field_plans(
+        output_contract.emitted,
+        schema_missing_values=schema_missing_values,
+        data_type_action=resolved_contract.data_type,
+        apply_value_transforms=apply_value_transforms,
+        declaration_fingerprint=declaration_fingerprint(freeze_typespec(spec)),
+        node_identity=node_identity,
     )
     exprs: list[Any] = []
     row_filters: list[Any] = []
@@ -980,4 +1122,5 @@ def _build_conform_exprs(
         output_contract.drift,
         row_filters,
         residue_checks,
+        structured_field_plans,
     )

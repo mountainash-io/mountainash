@@ -91,6 +91,53 @@ class TestCollectWithDriftBasics:
         assert collection.frame["n"].to_list() == [1, 2]
 
 
+class TestCollectWithDriftLogicalTerminalGuard:
+    """A structured field applying value transforms over a JSON-text carrier
+    cannot resolve through the native ``collect_with_drift()`` terminal --
+    it fails closed rather than returning the undecoded physical value
+    (spec Task 5 step 7)."""
+
+    def test_raises_logical_terminal_required(self):
+        from mountainash.relations import LogicalTerminalRequired
+
+        df = pl.DataFrame({"payload": ["[1]", "[2]"]})
+        spec = TypeSpec(
+            fields_match="open", fields=[FieldSpec(name="payload", type=U.ARRAY)]
+        )
+        rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
+
+        with pytest.raises(LogicalTerminalRequired) as exc_info:
+            rel.collect_with_drift()
+
+        assert exc_info.value.fields == ("payload",)
+        assert exc_info.value.roots == ("array",)
+
+    def test_native_materialization_never_runs(self, monkeypatch):
+        """The guard raises before any native materialization attempt."""
+        import mountainash.relations.core.materialization as materialization_module
+        from mountainash.relations import LogicalTerminalRequired
+
+        calls = []
+        original = materialization_module.materialize_native
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(materialization_module, "materialize_native", spy)
+
+        df = pl.DataFrame({"payload": ["[1]", "[2]"]})
+        spec = TypeSpec(
+            fields_match="open", fields=[FieldSpec(name="payload", type=U.ARRAY)]
+        )
+        rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
+
+        with pytest.raises(LogicalTerminalRequired):
+            rel.collect_with_drift()
+
+        assert calls == []
+
+
 # ---------------------------------------------------------------------------
 # Multi-conform ordering
 # ---------------------------------------------------------------------------

@@ -45,13 +45,18 @@ class MaterializationPurpose(Enum):
     NATIVE_COLLECT = auto()
     VALIDATION_SOURCE = auto()
     DAG_CANONICAL = auto()
+    LOGICAL_TERMINAL = auto()
     CONSUMER_COERCION = auto()
     DIAGNOSTIC_VIEW = auto()
     EXPLICIT_EGRESS = auto()
 
 
 _IBIS_FORCE_CACHE_PURPOSES = frozenset(
-    {MaterializationPurpose.VALIDATION_SOURCE, MaterializationPurpose.DAG_CANONICAL}
+    {
+        MaterializationPurpose.VALIDATION_SOURCE,
+        MaterializationPurpose.DAG_CANONICAL,
+        MaterializationPurpose.LOGICAL_TERMINAL,
+    }
 )
 
 

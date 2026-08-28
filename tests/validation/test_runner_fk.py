@@ -1,4 +1,5 @@
-"""ForeignKeyRule execution over a RelationDAG (anti-join, MATCH SIMPLE)."""
+"""ForeignKeyRule execution over a RelationDAG (canonical logical keys,
+MATCH SIMPLE; Task 9, spec 15.2)."""
 import polars as pl
 import pytest
 
@@ -116,3 +117,23 @@ class TestForeignKeyRule:
         result = ValidationRunner().validate_relation(ma.relation(df), [_fk()])
         assert result.check_summaries["status"][0] == "error"
         assert "DAG" in result.check_summaries["error"][0]
+
+    def test_no_backend_join_is_used(self, monkeypatch):
+        """Task 9 step 1: every FK comparison uses canonical logical keys,
+        never a backend join -- zero `Relation.join()` calls."""
+        from mountainash.relations import Relation
+
+        join_calls = 0
+        original_join = Relation.join
+
+        def counted_join(self, *args, **kwargs):
+            nonlocal join_calls
+            join_calls += 1
+            return original_join(self, *args, **kwargs)
+
+        monkeypatch.setattr(Relation, "join", counted_join)
+
+        dag = _dag({"customer_id": [1, 99]}, {"id": [1, 2]})
+        result = ValidationRunner().validate_dag(dag, {"orders": [_fk()]})
+        assert not result.passes
+        assert join_calls == 0

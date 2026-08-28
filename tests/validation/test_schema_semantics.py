@@ -20,6 +20,26 @@ from mountainash.typespec import (
 )
 from mountainash.validation import require_valid_typespec, validate_typespec_semantics
 
+def test_validation_implementation_registry_is_closed() -> None:
+    """An added field constraint needs one explicit disposition for every type."""
+    from dataclasses import fields
+
+    from mountainash.validation.schema import (
+        VALIDATION_IMPLEMENTATION_REGISTRY,
+        ValidationImplementationKind,
+    )
+
+    discovered = {
+        (field_type, constraint.name)
+        for field_type in UniversalType
+        for constraint in fields(FieldConstraints)
+    }
+
+    assert set(VALIDATION_IMPLEMENTATION_REGISTRY) == discovered
+    assert set(VALIDATION_IMPLEMENTATION_REGISTRY.values()) <= set(
+        ValidationImplementationKind
+    )
+
 
 def test_semantic_issues_are_complete_and_deterministically_ordered() -> None:
     """Removing deterministic aggregation would hide independent declaration faults."""

@@ -105,6 +105,7 @@ def constraint_checks(
                 expr=ma.col(col).is_not_null(),
                 severity=severity,
                 fields=[col],
+                metadata={"standard_constraint": "required", "field": col},
             )
         )
     bounds = {

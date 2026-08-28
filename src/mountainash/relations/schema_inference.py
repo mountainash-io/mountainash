@@ -45,7 +45,9 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
     if isinstance(expr_node, str):
         return expr_node
 
-    if hasattr(expr_node, "_node"):
+    from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
+
+    if isinstance(expr_node, BaseExpressionAPI):
         return infer_expression_name(expr_node._node)
 
     from mountainash.expressions.core.expression_nodes import (
