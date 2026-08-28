@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
+import mountainash as ma
+import polars as pl
 import pytest
-
 from mountainash.conform.errors import ConformTransformError
 from mountainash.conform.structured_transport import (
     StructuredCarrier,
@@ -20,6 +21,10 @@ from mountainash.relations.core.logical_snapshot import (
     resolved_snapshot_to_pandas,
     resolved_snapshot_to_polars,
 )
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.universal_types import UniversalType
+from mountainash.validation import ValidationRunner
+from mountainash.validation.identity import RowIdentity
 
 
 def plan(name: str, *, action: str = "coerce", root: StructuredRoot = StructuredRoot.ARRAY):
@@ -84,6 +89,32 @@ def test_discard_row_masks_combine_before_logical_output():
     assert resolved.keep_ordinals == (10,)
     assert resolved.logical_columns["left"] == ([1],)
     assert resolved.logical_columns["right"] == ({},)
+
+
+def test_discard_row_slices_ordinary_identity_columns_before_validation():
+    """Identity checks must ignore ordinary values from discarded rows."""
+    frame = ma.relation(
+        pl.DataFrame({"id": [1, 1, 2], "meta": ['{"a":1}', "{broken", '{"a":2}']})
+    )
+    spec = TypeSpec(
+        fields=[
+            FieldSpec(name="id", type=UniversalType.INTEGER),
+            FieldSpec(name="meta", type=UniversalType.OBJECT),
+        ]
+    )
+    relation = frame.conform(spec, contract={"data_type": "discard_row"})
+
+    result = ValidationRunner().validate_relation(
+        relation,
+        identity=RowIdentity("keyed", ("id",)),
+        allow_imperfect_key=True,
+    )
+
+    assert result.identity_diagnostics == {
+        "null_key_rows": 0,
+        "unknown_key_rows": 0,
+        "duplicate_key_tuples": 0,
+    }
 
 
 def test_coerce_error_is_selected_by_declaration_then_row_ordinal():

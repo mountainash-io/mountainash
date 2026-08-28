@@ -347,6 +347,7 @@ def logical_column_values(
     if column is not resolved.physical.columns.get(field_name):
         return tuple(column)
     family = resolved.physical.source_identity.family
+    column = _slice_native(family, column, _keep_positions(resolved))
     if family is CONST_BACKEND.PANDAS:
         import pandas as pd
 
