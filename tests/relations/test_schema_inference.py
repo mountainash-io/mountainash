@@ -84,6 +84,15 @@ class TestInferExpressionName:
         node = LiteralNode(value=42)
         assert infer_expression_name(node) is None
 
+    def test_native_ibis_deferred_does_not_recurse(self):
+        """A raw Ibis deferred's __getattr__ returns a new Deferred for any
+        attribute, including `_node` -- the hasattr(expr_node, "_node") probe
+        this function used to use recursed on it forever. Regression for the
+        same bug class as item 115 (structured_lineage._named_values)."""
+        import ibis
+
+        assert infer_expression_name(ibis._.score) is None
+
 
 class TestSchemaFromDataframe:
     def test_polars_lazyframe(self):
