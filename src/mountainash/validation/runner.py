@@ -798,9 +798,9 @@ class ValidationRunner:
         """
         from mountainash.relations import relation as as_relation
         from mountainash.relations.dag.materialization import DAGMaterializationSession
+        from mountainash.relations.dag.validation_context import DAGValidationContext
         from mountainash.validation.checks import ForeignKeyRule
         from mountainash.validation.plan import thaw_typespec
-        from mountainash.validation.prepared import prepare_validation_input_from_session
 
         identity_by_resource = identity_by_resource or {}
         plans_by_resource = plans_by_resource or {}
@@ -819,20 +819,19 @@ class ValidationRunner:
                 name: _plan_transform(plan) for name, plan in plans_by_resource.items()
             },
         )
-        prepared_by_name: "dict[str, PreparedValidationInput]" = {}
-
-        def _prepare(name: str) -> "PreparedValidationInput":
-            if name not in prepared_by_name:
-                prepared_by_name[name] = prepare_validation_input_from_session(session, name)
-            return prepared_by_name[name]
+        validation_context = DAGValidationContext(session)
 
         def _resolver(name: str) -> Any:
             # A planned (spec'd) resource reuses its own PreparedValidationInput's
             # relation; an execution-only dependency (Unit D's "identity
             # transform") is compiled plainly through the session -- no
             # PreparedValidationInput wrapper, since it was never itself
-            # validated.
-            prepared = prepared_by_name.get(name)
+            # validated. Peeks the context's own memo directly rather than
+            # calling prepare(name) here -- a ref reached before its own
+            # resource has been validated must still take the plain
+            # execution-only path, exactly as it did before this resolver
+            # existed.
+            prepared = validation_context._prepared.get(name)
             if prepared is not None:
                 return prepared.relation
             native, _visitor = session.compile_registered(name)
@@ -852,7 +851,7 @@ class ValidationRunner:
                 fk_rules.extend(c for c in local_checks if isinstance(c, ForeignKeyRule))
                 resource_identity = identity_by_resource.get(name) or RowIdentity("none")
                 try:
-                    prepared = _prepare(name)
+                    prepared = validation_context.prepare(name)
                 except Exception as exc:  # noqa: BLE001 — isolation is the contract
                     # A resource's own preparation failure (most commonly a
                     # conform cast failure) isolates to that resource's own

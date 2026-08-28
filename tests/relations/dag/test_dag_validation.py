@@ -474,7 +474,13 @@ class TestSharedMaterializationSession:
         original_resolve = DAGMaterializationSession.resolve
 
         def counted_compile(self, name, **kwargs):
-            compile_calls[name] += 1
+            # Task 8: `visit_ref` also queries `ref_resolver.structured_plans()`
+            # for a `StructuredPlanResolver`, a second (memoized, cache-hit)
+            # `_compile_named()` lookup that never re-runs `root.accept()`.
+            # Count actual compilation work only, matching this test's real
+            # intent: each resource's relation tree is walked exactly once.
+            if name not in self._canonical:
+                compile_calls[name] += 1
             return original_compile(self, name, **kwargs)
 
         def checked_resolve(self, name, family, dialect):

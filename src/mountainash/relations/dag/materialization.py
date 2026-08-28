@@ -25,6 +25,7 @@ from mountainash.relations.core.materialization import (
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
+    from mountainash.conform.structured_transport import StructuredFieldPlanMap
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.relations.core.materialization import DiagnosticFrameView
     from mountainash.relations.core.unified_visitor.relation_visitor import (
@@ -130,6 +131,35 @@ class CanonicalEntry:
     residue_checks: "tuple[Any, ...]"
     residue_check_nodes: "Mapping[str, str]"
     key_context: "KeyDriftContext | None"
+    structured_field_plans: "StructuredFieldPlanMap"
+
+
+class _SessionRefResolver:
+    """One compiled resource's ``ref_resolver`` callable, plus a structured
+    field plan side channel a downstream consumer can query without
+    widening the visitor's one-parameter ``ref_resolver(name) -> Any``
+    contract (Task 8, spec section 10).
+
+    ``__call__`` returns only the native value, exactly like the closure
+    it replaces -- ``structured_plans()`` is a SEPARATE method, never
+    routed through ``__call__()`` or returned to execution.
+    """
+
+    def __init__(
+        self,
+        session: "DAGMaterializationSession",
+        family: CONST_BACKEND,
+        dialect: "str | None",
+    ) -> None:
+        self._session = session
+        self._family = family
+        self._dialect = dialect
+
+    def __call__(self, name: str) -> Any:
+        return self._session.resolve(name, self._family, self._dialect)
+
+    def structured_plans(self, name: str) -> "StructuredFieldPlanMap":
+        return self._session._compile_named(name).structured_field_plans
 
 
 class DAGMaterializationSession:
@@ -264,8 +294,7 @@ class DAGMaterializationSession:
             schema_of=self.dag.schema,
         )
 
-        def ref_resolver(ref_name: str) -> Any:
-            return self.resolve(ref_name, resolved_backend, dialect)
+        ref_resolver = _SessionRefResolver(self, resolved_backend, dialect)
 
         visitor = UnifiedRelationVisitor(
             relation_system,
@@ -343,12 +372,15 @@ class DAGMaterializationSession:
 
         diagnostic_records = tuple(getattr(trace, "records", ()))
 
+        from mountainash.conform.structured_transport import freeze_structured_field_plans
+
         entry = CanonicalEntry(
             native=native,
             diagnostic_records=diagnostic_records,
             residue_checks=residue_checks_this,
             residue_check_nodes=dict(visitor.residue_check_nodes),
             key_context=key_context,
+            structured_field_plans=freeze_structured_field_plans(visitor.structured_field_plans),
         )
         self._canonical[name] = entry
         self._visitors[name] = visitor
