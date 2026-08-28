@@ -20,10 +20,16 @@ def test_lookup_and_unknown_id():
     assert divergence_by_id(some.id) is some
     with pytest.raises(KeyError, match="unknown divergence id"):
         divergence_by_id("XX-NOPE-99")
-def test_ma_conf_04_registered():
+def test_ma_conf_04_registered_for_native_ibis_sqlite_struct_construction():
     fact = divergence_by_id("MA-CONF-04")
     assert fact is not None
-    assert fact.backends == ("pandas", "narwhals-pandas", "ibis-sqlite")
+    assert fact.backends == ("ibis-sqlite",)
+
+
+def test_ma_conf_05_registered_for_temporary_portable_transport_gaps():
+    fact = divergence_by_id("MA-CONF-05")
+    assert fact is not None
+    assert fact.backends == ("pandas", "narwhals-pandas")
 
 
 def test_narwhals_pandas_titlecase_divergence_registered():

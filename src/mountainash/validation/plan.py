@@ -3,10 +3,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, is_dataclass, replace
-from enum import Enum
 from types import MappingProxyType
 from typing import Any, TYPE_CHECKING
-from mountainash.typespec._fingerprint import declaration_fingerprint
+from mountainash.typespec._fingerprint import (
+    declaration_fingerprint,
+    freeze_declaration as freeze_value,
+    freeze_typespec,
+)
 
 
 if TYPE_CHECKING:
@@ -78,35 +81,6 @@ class CompiledValidationPlan:
     declaration_fingerprint: str
 
 
-def freeze_value(value: Any) -> Any:
-    """Recursively replace mutable declaration values with immutable tagged data."""
-    if isinstance(value, Enum):
-        return ("__enum__", value.__class__.__module__, value.__class__.__qualname__, value.value)
-    if is_dataclass(value) and not isinstance(value, type):
-        return MappingProxyType(
-            {
-                "__dataclass__": f"{value.__class__.__module__}:{value.__class__.__qualname__}",
-                "fields": MappingProxyType(
-                    {item.name: freeze_value(getattr(value, item.name)) for item in fields(value)}
-                ),
-            }
-        )
-    if isinstance(value, Mapping):
-        return MappingProxyType({key: freeze_value(item) for key, item in value.items()})
-    if isinstance(value, (list, tuple)):
-        return tuple(freeze_value(item) for item in value)
-    if isinstance(value, (set, frozenset)):
-        return frozenset(freeze_value(item) for item in value)
-    return value
-
-
-
-
-def freeze_typespec(spec: TypeSpec) -> Mapping[str, Any]:
-    """Freeze every TypeSpec field before compiling any executable metadata."""
-    frozen = freeze_value(spec)
-    assert isinstance(frozen, Mapping)
-    return frozen
 
 
 def _foreign_key_declaration_key(

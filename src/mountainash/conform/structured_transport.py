@@ -85,6 +85,18 @@ def freeze_structured_field_plans(
     """Make one structured-field plan mapping immutable at its producer boundary."""
     return MappingProxyType(dict(plans))
 
+def freeze_structured_value(value: Any) -> Any:
+    """Freeze a null-fill value without changing its decoder-visible shape."""
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: freeze_structured_value(item) for key, item in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(freeze_structured_value(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(freeze_structured_value(item) for item in value)
+    return value
+
 
 def _reject_constant(token: str) -> NoReturn:
     raise ValueError(f"non-finite JSON number: {token}")

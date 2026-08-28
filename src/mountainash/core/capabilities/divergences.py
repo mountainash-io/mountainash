@@ -814,13 +814,24 @@ def _all() -> tuple[DivergenceFact, ...]:
         DivergenceFact(
             id="MA-CONF-04",
             kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(),  # typespec/conform struct materialization
-            backends=("pandas", "narwhals-pandas", "ibis-sqlite"),
-            summary="pandas/narwhals-pandas cannot strictly conform mapping-valued object columns, and ibis-sqlite cannot construct struct-typed tables",
-            impact="compiled OBJECT/ARRAY validation cannot receive a native structured source on pandas/narwhals-pandas (IntCastingNaNError) or ibis-sqlite (UnsupportedBackendType); polars, narwhals-polars, ibis-duckdb, and ibis-polars execute it",
-            workaround="Use a polars, narwhals-polars, ibis-duckdb, or ibis-polars backend until canonical JSON structured ingress is implemented",
+            operation_keys=(),  # native Ibis-SQLite Struct construction
+            backends=("ibis-sqlite",),
+            summary="ibis-sqlite cannot construct a native struct-typed table",
+            impact="conform() with a native OBJECT source raises UnsupportedBackendType on ibis-sqlite; other supported native structured backends execute it",
+            workaround="Use a non-SQLite Ibis backend or a Polars-backed backend for native struct conform",
             upstream_ref=None,
             since="2026-08-18",
+        ),
+        DivergenceFact(
+            id="MA-CONF-05",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # temporary portable JSON-text and opaque structured transport
+            backends=("pandas", "narwhals-pandas"),
+            summary="pandas and narwhals-pandas cannot yet materialize portable JSON-text or opaque ARRAY/OBJECT transport",
+            impact="portable structured validation and logical egress remain unavailable on pandas/narwhals-pandas until the transport matrix is complete",
+            workaround="Use Polars, narwhals-polars, or an Ibis DuckDB/Polars backend while portable transport support is completing",
+            upstream_ref=None,
+            since="2026-08-27",
         ),
         DivergenceFact(
             id="MA-TERN-01",
