@@ -441,6 +441,18 @@ def resolve_conform_output(
         actual_shape = _shape_for(actual_shapes, em.source_name)
         if (
             actual_shapes is not None
+            and actual_shape is not None
+            and actual_shape.canonical_type is not None
+            and em.field.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            and _structured_carrier(em.field, actual_shape) is None
+        ):
+            raise IncompatibleSourceTypeError(
+                field_name=em.field.name,
+                source_detail=_shape_detail(actual_shape) or "unknown",
+                requirement=f"{em.field.type.value} source",
+            )
+        if (
+            actual_shapes is not None
             and em.field.type in {UniversalType.ARRAY, UniversalType.OBJECT}
             and _structured_carrier(em.field, actual_shape) is not StructuredCarrier.NATIVE
         ):

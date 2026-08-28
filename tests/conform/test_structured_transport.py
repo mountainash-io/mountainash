@@ -76,6 +76,24 @@ def test_decode_structured_value_returns_identity_sentinel_for_invalid_values(va
     """Malformed, ambiguous, and non-finite values are never parsed permissively."""
     assert decode_structured_value(value, expected_root=root) is INVALID_STRUCTURED_VALUE
 
+class _ExplosiveEquality:
+    """Opaque carrier that must reach the decoder without sentinel comparison."""
+
+    def __eq__(self, other):
+        raise AssertionError("missing-value comparison inspected an opaque carrier")
+
+
+def test_opaque_value_with_non_scalar_equality_resolves_as_invalid():
+    """String missing sentinels must not compare arbitrary opaque physical values."""
+    resolution = resolve_structured_cell(
+        _ExplosiveEquality(),
+        plan=make_plan(),
+        consumer=StructuredActionConsumer.VALIDATION,
+    )
+
+    assert resolution.logical_value is INVALID_STRUCTURED_VALUE
+    assert resolution.keep is True
+
 
 def test_decode_structured_value_converts_parser_recursion_to_identity_sentinel(monkeypatch):
     """Parser recursion limits become data errors rather than terminal failures."""

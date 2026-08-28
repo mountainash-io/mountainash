@@ -152,7 +152,9 @@ def decode_structured_value(
 
 
 def _apply_missing_value(value: Any, plan: StructuredFieldPlan) -> tuple[Any, bool]:
-    post_missing = None if value is None or value in plan.missing_values else value
+    post_missing = None if value is None or (
+        isinstance(value, str) and value in plan.missing_values
+    ) else value
     return post_missing, post_missing is None
 
 

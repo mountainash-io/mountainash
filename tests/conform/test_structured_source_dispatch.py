@@ -62,7 +62,12 @@ def test_structured_source_schema_selects_a_carrier_without_decoding(
 
 
 @pytest.mark.parametrize("declared_type", [UniversalType.ARRAY, UniversalType.OBJECT])
-def test_known_incompatible_structured_source_is_rejected(declared_type):
+@pytest.mark.parametrize(
+    "action", ["coerce", "discard_value", "discard_row", "evolve", "freeze"]
+)
+def test_known_incompatible_structured_source_is_rejected_for_every_action(
+    declared_type, action
+):
     """A known scalar cannot be silently treated as portable structured text."""
     spec = TypeSpec(
         fields_match="open",
@@ -73,6 +78,7 @@ def test_known_incompatible_structured_source_is_rejected(declared_type):
         _build_conform_exprs(
             spec,
             actual_shapes={"payload": SourceShape(MountainashDtype.I64)},
+            contract=ConformContract(data_type=action, from_preset=False),
         )
 
 
