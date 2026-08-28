@@ -11,6 +11,7 @@ whole query plan once per consumer.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from mountainash.core.constants import CONST_BACKEND
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
 __all__ = [
     "CanonicalEntry",
     "DAGMaterializationSession",
+    "SessionMode",
 ]
 
 
@@ -162,6 +164,27 @@ class _SessionRefResolver:
         return self._session._compile_named(name).structured_field_plans
 
 
+class SessionMode(Enum):
+    """A session's purpose (Task 9, spec section 10/18).
+
+    ``NATIVE_COLLECTION`` (the default): the session backs
+    :meth:`RelationDAG.collect`/:meth:`RelationDAG.collect_with_drift`. The
+    requested resource's own compiled plans are inspected for an applied
+    structured transport that still needs logical resolution before any
+    physical result reaches the caller -- an intermediate dependency that
+    loses its transported field before the requested output is never
+    rejected.
+
+    ``VALIDATION``: the session backs a :class:`DAGValidationContext`. A
+    logical plan is expected and permitted; validation resolves it into a
+    :class:`~mountainash.validation.prepared.PreparedValidationInput`
+    rather than raising.
+    """
+
+    NATIVE_COLLECTION = "native_collection"
+    VALIDATION = "validation"
+
+
 class DAGMaterializationSession:
     """Compiles and caches every DAG resource required by one session.
 
@@ -186,10 +209,12 @@ class DAGMaterializationSession:
         backend: "str | None" = None,
         isolate_failures: bool = False,
         node_transforms: "Mapping[str, Callable[[Any], Any]] | None" = None,
+        mode: SessionMode = SessionMode.NATIVE_COLLECTION,
     ) -> None:
         self.dag = dag
         self.backend = backend
         self.isolate_failures = isolate_failures
+        self.mode = mode
         self._node_transforms = dict(node_transforms or {})
         self._canonical: "dict[str, CanonicalEntry]" = {}
         self._coerced: "dict[tuple[str, CONST_BACKEND, str | None], NativeExecutionValue]" = {}
@@ -226,11 +251,22 @@ class DAGMaterializationSession:
         backend = self.backend if honor_override else None
         return _resolve_backend_and_dialect(actual_family, actual_dialect, backend)
 
-    def _compile_named(self, name: str, *, honor_override: bool = False) -> CanonicalEntry:
+    def _compile_named(
+        self, name: str, *, honor_override: bool = False, guard_native_terminal: bool = False
+    ) -> CanonicalEntry:
         """Compile and cache *name*'s canonical materialization (spec 10.2).
 
         A no-op re-lookup when *name* is already canonical -- the session's
         entire value proposition is that this only actually compiles once.
+
+        *guard_native_terminal* (Task 9 step 6) raises
+        :class:`~mountainash.relations.core.errors.LogicalTerminalRequired`
+        immediately after compilation, before ANY native-forcing branch
+        below (including an Ibis DAG_CANONICAL ``.cache()``) -- set only
+        by the single top-level call compiling a
+        :meth:`RelationDAG.collect`/``collect_with_drift`` request's own
+        target, never for a transitively-required dependency reached
+        through this same method.
         """
         if name in self._canonical:
             return self._canonical[name]
@@ -308,6 +344,13 @@ class DAGMaterializationSession:
         compiled = root.accept(visitor)
         residue_checks_this = tuple(visitor.residue_checks[checks_start:])
         del visitor.residue_checks[checks_start:]
+
+        if guard_native_terminal:
+            from mountainash.relations.core.relation_api.relation import (
+                _guard_native_terminal,
+            )
+
+            _guard_native_terminal(visitor.structured_field_plans)
 
         from mountainash.core.backend_detection import identify_backend_identity
         from mountainash.core.capabilities.identity import BackendIdentity
@@ -392,6 +435,28 @@ class DAGMaterializationSession:
         """Compile a DAG-registered resource, materializing every
         transitively-required dependency exactly once along the way."""
         entry = self._compile_named(name, honor_override=True)
+        return entry.native, self._visitors[name]
+
+    def compile_requested_native(
+        self, name: str
+    ) -> "tuple[NativeExecutionValue, UnifiedRelationVisitor]":
+        """Compile *name* as the top-level target of a native collection
+        request (:meth:`RelationDAG.collect`/``collect_with_drift``, Task 9
+        step 6).
+
+        In :attr:`SessionMode.NATIVE_COLLECTION` mode, raises
+        :class:`~mountainash.relations.core.errors.LogicalTerminalRequired`
+        before any native-forcing step (including an Ibis DAG_CANONICAL
+        ``.cache()``) if *name*'s own compiled plans still need a logical
+        terminal -- zero ``materialize_native()`` calls for a request that
+        is going to fail closed regardless. A transitively-required
+        dependency reached while compiling *name* is never guarded here:
+        only *name*'s own visitor is checked.
+        """
+        entry = self._compile_named(
+            name, honor_override=True,
+            guard_native_terminal=self.mode is SessionMode.NATIVE_COLLECTION,
+        )
         return entry.native, self._visitors[name]
 
     def validation_native(

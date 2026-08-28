@@ -189,7 +189,9 @@ class RelationRule:
 
 @dataclass(frozen=True)
 class ForeignKeyRule:
-    """DAG-aware FK row-integrity check; compiled as a relation anti-join."""
+    """DAG-aware FK row-integrity check; evaluated via canonical logical-key
+    comparison over each side's prepared snapshot (spec 15.2), never a
+    relation join."""
 
     id: str
     child: str

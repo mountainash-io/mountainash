@@ -371,8 +371,13 @@ class RelationDAG:
                 # relation -- the session's own per-name compile handles
                 # it (and every dependency it transitively requires)
                 # directly; unwrap to the raw native value to preserve
-                # this method's existing contract.
-                native, visitor = session.compile_registered(key_target_name)
+                # this method's existing contract. compile_requested_native()
+                # guards the target's own plans before any native-forcing
+                # step (Task 9 step 6) when the session is
+                # NATIVE_COLLECTION-moded; an intermediate dependency that
+                # loses its transported field before this output is never
+                # rejected, since only the target's own visitor is checked.
+                native, visitor = session.compile_requested_native(key_target_name)
                 # Each named resource compiled with its own dedicated
                 # visitor (Task 7) -- collect_with_drift()'s caller reads
                 # ONE visitor.drift_reports list, so prepend every

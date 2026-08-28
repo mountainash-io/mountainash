@@ -1321,17 +1321,6 @@
   },
   {
     "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner._run_foreign_key_rule",
-    "callee": "to_polars",
-    "fingerprint": "cb0654ee8f6316f8",
-    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": false
-  },
-  {
-    "module": "mountainash.validation.runner",
     "owner": "ValidationRunner._run_relation_rule",
     "callee": "to_polars",
     "fingerprint": "cb0654ee8f6316f8",

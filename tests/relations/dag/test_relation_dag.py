@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import pytest
 import mountainash as ma
+from mountainash.relations import LogicalTerminalRequired
 from mountainash.relations.dag.dag import RelationDAG
+
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 def test_empty_dag():
@@ -90,3 +93,79 @@ def test_cycle_raises():
     # ("Cycle detected: ..."); match case-insensitively on the leading word.
     with pytest.raises(ValueError, match="[Cc]ycle detected"):
         dag.topological_order("b")
+
+
+# ---------------------------------------------------------------------------
+# Task 9 step 2/6: complete native DAG terminal matrix -- dag.collect() and
+# dag.collect_with_drift() fail closed for an applied structured transport
+# (spec 12.4's requires_logical_terminal), across the full backend matrix,
+# and never call materialize_native() for the failing requested resource.
+# ---------------------------------------------------------------------------
+
+
+def _json_dag(
+    backend_name, backend_factory, *, action: str = "coerce", apply_value_transforms: bool = True
+):
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    df = backend_factory.create({"payload": ["[1,2]", "[3]"]}, backend_name)
+    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    rel = ma.relation(df).conform(
+        spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms
+    )
+    dag = RelationDAG()
+    dag.add("resource", rel)
+    return dag
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestNativeDAGTerminalFailsClosed:
+    @pytest.mark.parametrize("terminal", ["collect", "collect_with_drift"])
+    def test_raises_logical_terminal_required(self, backend_name, backend_factory, terminal):
+        dag = _json_dag(backend_name, backend_factory)
+        with pytest.raises(LogicalTerminalRequired):
+            getattr(dag, terminal)("resource")
+
+    def test_zero_materialize_native_calls(self, backend_name, backend_factory, monkeypatch):
+        import mountainash.relations.core.materialization as materialization_module
+
+        dag = _json_dag(backend_name, backend_factory)
+        calls = []
+        original = materialization_module.materialize_native
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(materialization_module, "materialize_native", spy)
+
+        with pytest.raises(LogicalTerminalRequired):
+            dag.collect("resource")
+        assert calls == []
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestNativeDAGTerminalSuccess:
+    def test_dependent_that_drops_the_field_still_collects(self, backend_name, backend_factory):
+        """Task 9 step 6: only the REQUESTED resource's own plans are
+        guarded. ``resource`` still carries the un-decodable JSON field and
+        would itself raise if requested directly, but ``derived`` (which
+        depends on it) drops that field before its own output -- so
+        requesting ``derived`` collects natively without ever decoding."""
+        dag = _json_dag(backend_name, backend_factory)
+        dag.add("derived", dag.ref("resource").drop("payload").with_columns(ma.lit(1).alias("n")))
+        result = dag.collect("derived")
+        assert result is not None
+        with pytest.raises(LogicalTerminalRequired):
+            dag.collect("resource")
+
+    def test_evolve_collects_natively(self, backend_name, backend_factory):
+        dag = _json_dag(backend_name, backend_factory, action="evolve")
+        result = dag.collect("resource")
+        assert result is not None
+
+    def test_structural_only_collects_natively(self, backend_name, backend_factory):
+        dag = _json_dag(backend_name, backend_factory, apply_value_transforms=False)
+        result = dag.collect("resource")
+        assert result is not None

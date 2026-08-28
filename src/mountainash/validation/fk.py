@@ -6,13 +6,93 @@ into one deduplicated set. Invalid or unresolvable declarations become
 CheckSummary(status="error") entries: never raised mid-run, never silently
 skipped (closed-by-default-verification). dependency_edges are never read;
 constraint_edges alone never create checks (two-edge-graph-model).
+
+``_canonical_key_rows()`` (Task 9, spec 15.2) extracts one
+:class:`CanonicalKeyRow` per retained row from a prepared validation
+input's logical snapshot -- every foreign-key comparison uses
+``canonical_value_key()`` over decoded logical values, never a backend
+join. A JSON-text/opaque carrier's raw physical bytes can never define
+logical equality (whitespace and object-name order differ between
+structurally-equal values), so a backend anti-join is not merely
+inefficient here, it is incorrect.
 """
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal
 
 from mountainash.validation.checks import ForeignKeyRule
 from mountainash.validation.result import CheckSummary
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from mountainash.validation.prepared import PreparedValidationInput
+
+
+@dataclass(frozen=True)
+class CanonicalKeyRow:
+    """One retained row's composite key, canonicalized for equality.
+
+    ``outcome`` classifies the row before any parent-set comparison:
+
+    - ``"candidate"`` -- every component resolved to a real logical value;
+      ``key`` is the canonical tuple used for set membership.
+    - ``"excluded_null"`` -- at least one component is logical null. On
+      the child side this is SQL MATCH SIMPLE's any-null exclusion (spec
+      15.2); on the parent side a null-containing row never contributes a
+      target key either way, since no MATCH-SIMPLE-excluded child key
+      could ever need to find it.
+    - ``"unknown"`` -- at least one component is `INVALID_VALUE` (an
+      unresolved `coerce` decode). A child row in this state is neither
+      proven to match nor proven to be an orphan; a parent row in this
+      state never creates a target key (spec 15.2: "An invalid parent
+      component does not create a target key").
+    """
+
+    ordinal: int
+    key: "tuple[Any, ...] | None"
+    outcome: 'Literal["candidate", "excluded_null", "unknown"]'
+
+
+@dataclass(frozen=True)
+class CanonicalKeyRows:
+    """Every retained row's :class:`CanonicalKeyRow`, in logical-snapshot order."""
+
+    rows: "tuple[CanonicalKeyRow, ...]"
+
+
+def _canonical_key_rows(
+    prepared: "PreparedValidationInput", fields: "Sequence[str]", *, child: bool
+) -> CanonicalKeyRows:
+    """Extract one :class:`CanonicalKeyRow` per retained row of *prepared*'s
+    logical snapshot for the composite key named by *fields*.
+
+    *child* documents which side of the comparison the caller is building
+    -- the classification rule itself (null / invalid / candidate) is the
+    same for both sides; interpreting an ``"excluded_null"`` child row
+    under `ForeignKeyRule.exclude_null_child` is the caller's job, not
+    this function's.
+    """
+    from mountainash.relations.core.logical_snapshot import logical_column_values
+    from mountainash.validation.value import INVALID_VALUE, canonical_value_key
+
+    del child  # documents intent at the call site; the rule below is side-agnostic
+    snapshot = prepared.logical_snapshot
+    ordinals = snapshot.keep_ordinals
+    field_columns = [logical_column_values(snapshot, name) for name in fields]
+    rows: "list[CanonicalKeyRow]" = []
+    for index, values in enumerate(zip(*field_columns, strict=True)):
+        ordinal = ordinals[index]
+        if any(value is None for value in values):
+            rows.append(CanonicalKeyRow(ordinal=ordinal, key=None, outcome="excluded_null"))
+        elif any(value is INVALID_VALUE for value in values):
+            rows.append(CanonicalKeyRow(ordinal=ordinal, key=None, outcome="unknown"))
+        else:
+            key = tuple(canonical_value_key(value) for value in values)
+            rows.append(CanonicalKeyRow(ordinal=ordinal, key=key, outcome="candidate"))
+    return CanonicalKeyRows(rows=tuple(rows))
+
 
 
 def build_standalone_fk_checks(
