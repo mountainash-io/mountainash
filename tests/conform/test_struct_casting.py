@@ -9,6 +9,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.conform.errors import ConformTransformError
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
@@ -95,5 +96,8 @@ class TestStructCastingErrorHandling:
                       categories=["a", "b"], categories_ordered=False,
                       object_fields=[FieldSpec(name="never", type=UniversalType.STRING)]),
         ])
-        with pytest.raises(Exception, match="incompatible source type"):
+        with pytest.raises(
+            ConformTransformError,
+            match=r"invalid object value in field 'x' at row ordinal 0",
+        ):
             ma.relation(df).conform(spec).to_polars()

@@ -59,12 +59,14 @@ def test_unknown_list_and_default_geopoint_use_lexical_operations() -> None:
 
 
 def test_unknown_native_shapes_remain_unresolved() -> None:
-    with pytest.raises(UnresolvedSourceTypeError):
-        _build_conform_exprs(
-            _spec(FieldSpec(name="items", type=UniversalType.ARRAY)),
-            available_columns=("items",),
-            actual_shapes={"items": SourceShape(None)},
-        )
+    conformed = ma.relation(pd.DataFrame({"items": ["not-json"]})).conform(
+        _spec(FieldSpec(name="items", type=UniversalType.ARRAY))
+    )
+    with pytest.raises(
+        ConformTransformError,
+        match=r"invalid array value in field 'items' at row ordinal 0",
+    ):
+        conformed.to_polars()
     with pytest.raises(UnresolvedSourceTypeError):
         _build_conform_exprs(
             _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array")),
@@ -591,7 +593,6 @@ def test_unknown_lexical_duration_and_yearmonth_keep_dispatch(field_type: Univer
     )
     assert result.exprs[0].node.function_key.name == "ALIAS"
 
-
 @pytest.mark.parametrize(
     "field",
     [
@@ -602,13 +603,31 @@ def test_unknown_lexical_duration_and_yearmonth_keep_dispatch(field_type: Univer
     ],
     ids=["array", "object", "custom-date", "year"],
 )
-def test_absent_source_shape_evidence_is_unresolved(field: FieldSpec) -> None:
-    with pytest.raises(UnresolvedSourceTypeError):
-        _build_conform_exprs(
-            _spec(field),
-            available_columns=(field.name,),
-            actual_shapes={},
+def test_absent_source_shape_evidence_is_unresolved(
+    field: FieldSpec, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if field.type in {UniversalType.ARRAY, UniversalType.OBJECT}:
+        source_shape_module = __import__(
+            "mountainash.typespec.source_shape",
+            fromlist=["extract_source_shapes"],
         )
+        monkeypatch.setattr(source_shape_module, "extract_source_shapes", lambda _: {})
+        conformed = ma.relation(
+            pl.DataFrame({field.name: ["not-json"]})
+        ).conform(_spec(field))
+        expected_root = field.type.value
+        with pytest.raises(
+            ConformTransformError,
+            match=rf"invalid {expected_root} value in field '{field.name}' at row ordinal 0",
+        ):
+            conformed.to_polars()
+    else:
+        with pytest.raises(UnresolvedSourceTypeError):
+            _build_conform_exprs(
+                _spec(field),
+                available_columns=(field.name,),
+                actual_shapes={},
+            )
     evolved = _build_conform_exprs(
         _spec(field),
         available_columns=(field.name,),

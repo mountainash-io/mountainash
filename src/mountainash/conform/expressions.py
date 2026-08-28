@@ -440,6 +440,23 @@ def resolve_conform_output(
             continue
         actual_shape = _shape_for(actual_shapes, em.source_name)
         if (
+            apply_value_transforms
+            and actual_shapes is not None
+            and "." in em.source_name
+            and em.field.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            and actual_shape is not None
+            and actual_shape.canonical_type is None
+        ):
+            parent_shape = actual_shapes.get(_source_root(em.source_name))
+            if (
+                parent_shape is not None
+                and parent_shape.canonical_type is MountainashDtype.STRUCT
+            ):
+                raise UnresolvedSourceTypeError(
+                    field_name=em.field.name,
+                    requirement="source shape for typed operation",
+                )
+        if (
             actual_shapes is not None
             and actual_shape is not None
             and actual_shape.canonical_type is not None
