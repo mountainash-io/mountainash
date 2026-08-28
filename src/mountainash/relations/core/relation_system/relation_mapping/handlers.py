@@ -19,6 +19,7 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 def visit_join(node: Any, visitor: Any) -> Any:
     left = visitor.visit(node.left)
     right = visitor._visit_and_coerce_right(node.right, left)
+    visitor._prepare_transport_lineage(node)
     return visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
         lambda: visitor.backend.join(
@@ -33,6 +34,7 @@ def visit_join(node: Any, visitor: Any) -> Any:
 def visit_join_asof(node: Any, visitor: Any) -> Any:
     left = visitor.visit(node.left)
     right = visitor._visit_and_coerce_right(node.right, left)
+    visitor._prepare_transport_lineage(node)
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,
         lambda: visitor.backend.join_asof(
@@ -51,7 +53,12 @@ def visit_ref(node: Any, visitor: Any) -> Any:
             f"RefRelNode({node.name!r}) cannot be compiled standalone — "
             "use RelationDAG.collect() or supply ref_resolver explicitly"
         )
-    return visitor.ref_resolver(node.name)
+    resolved = visitor.ref_resolver(node.name)
+    from mountainash.relations.core.structured_lineage import StructuredPlanResolver
+
+    if isinstance(visitor.ref_resolver, StructuredPlanResolver):
+        visitor._ref_plans_by_node[id(node)] = visitor.ref_resolver.structured_plans(node.name)
+    return resolved
 
 
 def visit_resource_read(node: Any, visitor: Any) -> Any:
@@ -64,6 +71,7 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
                 spec,
                 empty_from_schema=True,
                 resource_name=node.resource.name,
+                owner_node=node,
             )
         return out
     return visitor._enrich_native_call(node, RKEY_MOUNTAINASH_REL.READ_RESOURCE, _read_and_conform)
@@ -87,6 +95,7 @@ def visit_conform(node: Any, visitor: Any) -> Any:
             native,
             node.spec,
             contract=node.contract,
+            owner_node=node,
             apply_value_transforms=node.apply_value_transforms,
         ),
     )

@@ -92,6 +92,22 @@ class IncompatibleSourceTypeError(ConformError):
             f"{source_detail!r}; requires {requirement}"
         )
 
+
+class UnsupportedStructuredTransportUse(ConformError):
+    """A transported structured physical carrier reached an unsafe relation use."""
+
+    def __init__(
+        self, *, field_name: str, root: str, node_type: str, consumer: str
+    ) -> None:
+        self.field_name = field_name
+        self.root = root
+        self.node_type = node_type
+        self.consumer = consumer
+        super().__init__(
+            f"Transported {root} field {field_name!r} cannot be used by "
+            f"{consumer} in {node_type} before logical decoding"
+        )
+
 class NoMatchingFieldsError(ConformError):
     """No overlap between spec fields and data source columns."""
 

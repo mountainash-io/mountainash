@@ -27,6 +27,7 @@ from mountainash.conform.errors import (
     SchemaDriftError,
     UnresolvedSourceTypeError,
     IncompatibleSourceTypeError,
+    UnsupportedStructuredTransportUse,
 )
 from mountainash.relations.core.errors import InvalidSampleArgumentsError
 from mountainash.relations.dag.errors import (
@@ -100,6 +101,7 @@ __all__ = [
     "SchemaDriftError",
     "UnresolvedSourceTypeError",
     "IncompatibleSourceTypeError",
+    "UnsupportedStructuredTransportUse",
     "DAGError",
     "RelationDAGRequired",
     "MissingResourceSchema",
