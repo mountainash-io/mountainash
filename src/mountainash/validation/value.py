@@ -297,7 +297,10 @@ def _membership_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
 
 def _type_format_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     if value is INVALID_VALUE:
-        return None
+        # Spec 12.2: an already-invalid decode fails TYPE_FORMAT outright --
+        # it can never satisfy any declared shape -- while every other
+        # value rule (LENGTH/RANGE/pattern/...) treats it as unknown.
+        return False
     if value is None:
         return True
     type_name = options.get("type")

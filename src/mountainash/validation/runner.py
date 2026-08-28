@@ -205,7 +205,7 @@ class ValidationRunner:
         identity_diagnostics: dict[str, Any] = {}
         if identity.kind == "keyed":
             identity_diagnostics = validate_keyed_identity(
-                rel, identity, allow_imperfect_key=allow_imperfect_key
+                prepared.logical_snapshot, identity, allow_imperfect_key=allow_imperfect_key
             )
         elif identity.kind == "row_number":
             rel = rel.with_row_index(name=ROW_ORDINAL)

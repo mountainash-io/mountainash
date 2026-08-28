@@ -181,3 +181,33 @@ class TestBackendOverride:
         )
         assert result.passes is False
         assert result.check_summaries["fail_count"][0] == 1  # -1 fails; None is unknown
+
+
+class TestStructuredFailurePolicyMechanics:
+    """Task 7 step 2/7: a `coerce`-action structured field with malformed
+    JSON reports through the check's own status -- it never degrades the
+    run to an unguarded `status="error"` crash (spec 12.2/12.3)."""
+
+    def test_coerce_malformed_json_fails_type_format_not_error(self):
+        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import UniversalType
+        from mountainash.validation.checks import ValueRule, ValueValidatorKey
+
+        df = pl.DataFrame({"payload": ['{"a": 1}', "{broken"]})
+        spec = TypeSpec(
+            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)]
+        )
+        rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
+        result = ValidationRunner().validate_relation(
+            rel,
+            checks=[
+                ValueRule(
+                    id="payload_shape", fields=["payload"],
+                    validator=ValueValidatorKey.TYPE_FORMAT, options={"type": "object"},
+                )
+            ],
+        )
+        summary = result.check_summaries.filter(pl.col("check_id") == "payload_shape")
+        assert summary["status"].item() == "failed"
+        assert summary["fail_count"].item() == 1
+        assert summary["pass_count"].item() == 1

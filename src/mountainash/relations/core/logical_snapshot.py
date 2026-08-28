@@ -271,9 +271,15 @@ def resolve_logical_snapshot(
         values: list[Any] = []
         for index, value in enumerate(physical):
             resolution = resolve_structured_cell(_python_value(value), plan=plan, consumer=consumer)
-            if resolution.logical_value is INVALID_STRUCTURED_VALUE:
-                if plan.configured_action == "coerce":
-                    raise _resolution_error(field_name, plan, snapshot.row_ordinals[index])
+            if (
+                resolution.logical_value is INVALID_STRUCTURED_VALUE
+                and plan.configured_action == "coerce"
+                and consumer is StructuredActionConsumer.LOGICAL_EGRESS
+            ):
+                # Spec 12.3: a logical egress raises for an invalid `coerce`
+                # value; validation reports the same invalid source through
+                # TYPE_FORMAT instead of raising out of check execution.
+                raise _resolution_error(field_name, plan, snapshot.row_ordinals[index])
             values.append(resolution.logical_value)
             keep[index] = keep[index] and resolution.keep
         resolved_transport[field_name] = tuple(values)
@@ -321,6 +327,35 @@ def resolved_snapshot_to_polars(resolved: ResolvedLogicalSnapshot) -> "pl.DataFr
     return transit_call(BoundaryKey.LOGICAL_SNAPSHOT_POLARS_DISPATCH, adapter.to_polars, resolved)
 
 
+def logical_column_values(
+    resolved: ResolvedLogicalSnapshot, field_name: str
+) -> "tuple[Any, ...]":
+    """One retained field's values as genuinely Python-native scalars:
+    ``None`` for every null representation (pandas NaN/NaT/pd.NA, PyArrow
+    null), PyArrow ``Scalar`` objects unwrapped via ``.as_py()`` (spec
+    section 15's identity/uniqueness consumers).
+
+    A transported field's logical column is already Python-native --
+    ``resolve_structured_cell()`` only ever receives and returns
+    normalized Python values. An untagged (passthrough) field keeps its
+    adapter-captured backend-native Series/ChunkedArray so the dtype-
+    preserving egress path (spec Task 4 step 6) can identity-check it
+    against the physical column; this accessor normalizes a READ of that
+    column without mutating ``ResolvedLogicalSnapshot`` itself.
+    """
+    column = resolved.logical_columns[field_name]
+    if column is not resolved.physical.columns.get(field_name):
+        return tuple(column)
+    family = resolved.physical.source_identity.family
+    if family is CONST_BACKEND.PANDAS:
+        import pandas as pd
+
+        return tuple(None if pd.isna(value) else value for value in column)
+    if family is CONST_BACKEND.POLARS:
+        return tuple(column)
+    return tuple(_python_value(value) for value in column)
+
+
 def resolved_snapshot_to_pandas(resolved: ResolvedLogicalSnapshot) -> Any:
     """Reconstruct a pandas frame from one resolved logical snapshot,
     retaining untagged-column dtypes and giving transported columns
@@ -333,6 +368,7 @@ __all__ = [
     "LogicalSnapshotAdapter",
     "LogicalTerminalSnapshot",
     "ResolvedLogicalSnapshot",
+    "logical_column_values",
     "logical_terminal_snapshot",
     "resolve_logical_snapshot",
     "resolved_snapshot_to_pandas",

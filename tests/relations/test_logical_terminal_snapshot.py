@@ -95,6 +95,32 @@ def test_coerce_error_is_selected_by_declaration_then_row_ordinal():
         )
 
 
+def test_coerce_raise_is_gated_to_logical_egress_not_validation():
+    """Task 7 spec 12.2/12.3: a logical egress raises `ConformTransformError`
+    for an invalid `coerce` value; validation never raises here -- it
+    reports the same invalid source through the `logical_value`, letting
+    TYPE_FORMAT fail the row instead of crashing check execution."""
+    from mountainash.conform.structured_transport import (
+        INVALID_STRUCTURED_VALUE,
+        StructuredActionConsumer,
+    )
+
+    with pytest.raises(ConformTransformError, match="left.*row ordinal 11"):
+        resolve_logical_snapshot(
+            snapshot({"left": ("[1]", "bad")}),
+            MappingProxyType({"left": plan("left")}),
+            consumer=StructuredActionConsumer.LOGICAL_EGRESS,
+        )
+
+    resolved = resolve_logical_snapshot(
+        snapshot({"left": ("[1]", "bad")}),
+        MappingProxyType({"left": plan("left")}),
+        consumer=StructuredActionConsumer.VALIDATION,
+    )
+    assert resolved.logical_columns["left"] == ([1], INVALID_STRUCTURED_VALUE)
+    assert resolved.keep_ordinals == (10, 11)
+
+
 def test_snapshot_registry_closes_over_backend_family_and_known_dialects():
     """Every supported family and declared dialect has exactly one adapter route."""
     from mountainash.core.capabilities.identity import KNOWN_DIALECTS

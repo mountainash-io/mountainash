@@ -84,6 +84,34 @@ def assert_prepared_identity(native: "NativeExecutionValue", value: Any) -> None
         )
 
 
+def _normalize_invalid_structured_values(
+    logical_snapshot: "ResolvedLogicalSnapshot",
+    structured_field_plans: "StructuredFieldPlanMap",
+) -> "ResolvedLogicalSnapshot":
+    """Map the conform layer's ``InvalidStructuredValue`` sentinel to
+    validation's own ``INVALID_VALUE`` sentinel (spec 12.2) -- the one
+    boundary crossing from the relations layer's structured-transport
+    domain into the validation layer's logical-value domain, so every
+    check, identity, and uniqueness consumer recognizes an unresolved
+    ``coerce`` value via a single ``is INVALID_VALUE`` check instead of
+    each learning the conform-layer sentinel too."""
+    import dataclasses
+    from types import MappingProxyType
+
+    from mountainash.conform.structured_transport import INVALID_STRUCTURED_VALUE
+    from mountainash.validation.value import INVALID_VALUE
+
+    normalized = dict(logical_snapshot.logical_columns)
+    for field_name in structured_field_plans:
+        column = normalized.get(field_name)
+        if column is None or INVALID_STRUCTURED_VALUE not in column:
+            continue
+        normalized[field_name] = tuple(
+            INVALID_VALUE if value is INVALID_STRUCTURED_VALUE else value for value in column
+        )
+    return dataclasses.replace(logical_snapshot, logical_columns=MappingProxyType(normalized))
+
+
 def _resolve_prepared_snapshot(
     native: "NativeExecutionValue",
     structured_field_plans: "StructuredFieldPlanMap",
@@ -104,6 +132,9 @@ def _resolve_prepared_snapshot(
     snapshot = logical_terminal_snapshot(native)
     logical_snapshot = resolve_logical_snapshot(
         snapshot, structured_field_plans, consumer=StructuredActionConsumer.VALIDATION
+    )
+    logical_snapshot = _normalize_invalid_structured_values(
+        logical_snapshot, structured_field_plans
     )
     return snapshot, logical_snapshot
 
