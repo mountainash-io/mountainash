@@ -323,6 +323,74 @@ def test_with_columns_overwrite_clears_stale_transport_lineage():
 
     assert result["payload"].to_list() == ["not-json"]
 
+def test_native_with_columns_overwrite_rejects_when_transport_is_active():
+    """Raw backend expressions fail closed while a transported field is carried."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+
+    with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+        relation.with_columns(pl.lit("not-json").alias("payload")).to_polars()
+
+
+def test_join_resolves_ref_left_output_names_for_suffix():
+    """A ref-backed left relation still participates in join suffix detection."""
+    import polars as pl
+
+    from mountainash.relations.dag import RelationDAG
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    dag = RelationDAG()
+    dag.add("left", ma.relation(pl.DataFrame({"id": [1], "payload": ["left"]})))
+    dag.add(
+        "right",
+        ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(
+            TypeSpec(
+                fields_match="open",
+                fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+            )
+        ),
+    )
+
+    result = dag.ref("left").join(dag.ref("right"), on="id").to_polars()
+
+    assert result["payload"].to_list() == ["left"]
+    assert result["payload_right"].to_list() == [[2]]
+
+
+def test_narwhals_right_join_tracks_original_right_as_base():
+    """Narwhals RIGHT joins keep the original right field unsuffixed."""
+    import narwhals as nw
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left = ma.relation(
+        nw.from_native(pl.DataFrame({"id": [1], "payload": ["[1]"]}))
+    )
+    right = ma.relation(
+        nw.from_native(pl.DataFrame({"id": [1], "payload": ["[2]"]}))
+    ).conform(
+        TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        )
+    )
+
+    result = left.join(right, on="id", how="right").to_dicts()
+
+    assert result == [
+        {"id": 1, "payload": [2], "payload_right": "[1]"},
+    ]
+
+
 def test_join_tracks_right_transport_under_backend_suffix():
     """A colliding right-side transported field is decoded under payload_right."""
     import polars as pl

@@ -5,6 +5,8 @@ Composes with the expression visitor for compiling embedded expression ASTs.
 """
 
 from __future__ import annotations
+
+from collections.abc import Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
@@ -350,6 +352,28 @@ class UnifiedRelationVisitor:
             for child in children
         ]
 
+    def _ref_output_names(self, node: RelationNode) -> set[str]:
+        """Return output names for a ref from its resolved native value."""
+        if self.ref_resolver is None:
+            return set()
+        try:
+            resolved = self.ref_resolver(node.name)
+            if isinstance(resolved, Mapping):
+                return set(resolved)
+            collect_schema = getattr(resolved, "collect_schema", None)
+            if callable(collect_schema):
+                schema = collect_schema()
+                names = getattr(schema, "names", None)
+                if callable(names):
+                    return set(names())
+            columns = getattr(resolved, "columns", None)
+            if columns is not None:
+                return set(columns)
+        except Exception:
+            pass
+        return set()
+
+
     def _prepare_transport_lineage(self, node: RelationNode, op: Any | None = None) -> None:
         """Reject unsafe transport consumers before expression or backend dispatch."""
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
@@ -365,6 +389,8 @@ class UnifiedRelationVisitor:
             node,
             self._transport_child_maps(node, operation),
             conform_plans,
+            output_names_resolver=self._ref_output_names,
+            backend=getattr(self.backend, "backend_type", None),
         )
 
     def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
@@ -385,6 +411,8 @@ class UnifiedRelationVisitor:
                 node,
                 child_maps,
                 MappingProxyType({}),
+                output_names_resolver=self._ref_output_names,
+                backend=getattr(self.backend, "backend_type", None),
             )
         elif metadata is not None and metadata[0]:
             _, overwritten, dropped = metadata

@@ -1,7 +1,7 @@
 """Closed relation-lineage rules for transported structured physical carriers."""
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -184,9 +184,19 @@ def _renamed(plan: StructuredFieldPlan, name: str) -> StructuredFieldPlan:
     return replace(plan, field_name=name)
 
 
-def _relation_output_names(node: Any) -> set[str]:
+def _relation_output_names(
+    node: Any,
+    output_names_resolver: Callable[[Any], set[str]] | None = None,
+) -> set[str]:
     """Best-effort names for a relation's physical output columns."""
     try:
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import (
+            RefRelNode,
+        )
+
+        if isinstance(node, RefRelNode) and output_names_resolver is not None:
+            return set(output_names_resolver(node))
+
         from mountainash.relations.schema_inference import infer_schema
 
         return set(infer_schema(node, None))
@@ -198,14 +208,39 @@ def _join_child_maps(
     node: Any,
     left: StructuredFieldPlanMap,
     right: StructuredFieldPlanMap,
+    *,
+    output_names_resolver: Callable[[Any], set[str]] | None = None,
+    backend: Any = None,
 ) -> Sequence[StructuredFieldPlanMap]:
-    """Rename right-side plans to the join backend's output names."""
+    """Rename joined-side plans to the backend's output names."""
     if getattr(getattr(node, "join_type", None), "name", None) in {"SEMI", "ANTI"}:
         return [left]
 
-    left_names = _relation_output_names(getattr(node, "left", None)) | set(left)
     shared_keys = set(getattr(node, "on", None) or ())
     suffix = getattr(node, "suffix", "_right") or "_right"
+    join_type = getattr(node, "join_type", None)
+    backend_name = getattr(backend, "backend_type", backend)
+    backend_name = getattr(backend_name, "value", backend_name)
+    is_narwhals_right = (
+        backend_name == "narwhals"
+        and getattr(join_type, "name", None) == "RIGHT"
+    )
+
+    if is_narwhals_right:
+        base_names = _relation_output_names(
+            getattr(node, "right", None), output_names_resolver
+        ) | set(right)
+        mapped_left: dict[str, StructuredFieldPlan] = {}
+        for name, plan in left.items():
+            if name in shared_keys:
+                continue
+            output = f"{name}{suffix}" if name in base_names else name
+            mapped_left[output] = _renamed(plan, output)
+        return [freeze_structured_field_plans(mapped_left), right]
+
+    left_names = _relation_output_names(
+        getattr(node, "left", None), output_names_resolver
+    ) | set(left)
     mapped_right: dict[str, StructuredFieldPlan] = {}
     for name, plan in right.items():
         if name in shared_keys:
@@ -254,6 +289,9 @@ def propagate_structured_plans(
     node: Any,
     child_maps: Sequence[StructuredFieldPlanMap],
     conform_plans: StructuredFieldPlanMap,
+    *,
+    output_names_resolver: Callable[[Any], set[str]] | None = None,
+    backend: Any = None,
 ) -> StructuredFieldPlanMap:
     """Validate one operation's transport use and derive its output field plans."""
     policy = TRANSPORT_LINEAGE_POLICIES.get(node.operation_key)
@@ -284,6 +322,7 @@ def propagate_structured_plans(
         return freeze_structured_field_plans(carried)
     if policy is _PROJECT_WITH_COLUMNS:
         carried = dict(incoming)
+        from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
         from mountainash.relations.schema_inference import infer_expression_name
 
         for expression in getattr(node, "expressions", ()):
@@ -294,6 +333,12 @@ def propagate_structured_plans(
                     carried[output] = _renamed(incoming[source], output)
                 elif output in incoming:
                     carried.pop(output, None)
+                continue
+            if not isinstance(expression, BaseExpressionAPI):
+                if incoming:
+                    _reject_consumed_fields(
+                        node, incoming, set(incoming), "a projection expression"
+                    )
                 continue
             output = infer_expression_name(expression)
             if output in incoming:
@@ -341,7 +386,17 @@ def propagate_structured_plans(
             [getattr(node, "on", ()), getattr(node, "right_on", ()), getattr(node, "by", ())],
             getattr(node.operation_key, "name", "join"),
         )
-        return _merged_inputs(node, _join_child_maps(node, left, right), require_equal=False)
+        return _merged_inputs(
+            node,
+            _join_child_maps(
+                node,
+                left,
+                right,
+                output_names_resolver=output_names_resolver,
+                backend=backend,
+            ),
+            require_equal=False,
+        )
     if policy is _UNPIVOT:
         options = getattr(node, "options", {}) or {}
         on = options.get("on", ())
