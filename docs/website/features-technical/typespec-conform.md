@@ -85,6 +85,31 @@ df = df[["id", "name", "amount", "ts", "region"]]
 
 `conform()` is cross-backend automatic. The only known limitation today is Ibis coalesce type strictness when `null_fill` mixes string columns with numeric literals — a tracked divergence, not a silent fault.
 
+### Structured (`array`/`object`) fields
+
+`array` and `object` fields ingress through portable JSON text on every backend, or
+through a no-round-trip native `list`/`struct` source column where the backend has
+one (Polars, its Narwhals wrappers, Ibis). Pandas and Narwhals-Pandas have no native
+list/struct dtype, so a structured field there is always opaque native Python
+containers, resolved through logical conversion rather than either path above.
+
+Decoding JSON text opens a **physical/logical boundary**. A decoding action
+(`coerce`, `discard_value`, `discard_row`) produces a column whose *logical* value —
+the decoded Python `list`/`dict` — drives validation and logical egress (`to_dicts()`,
+`to_dataclasses()`, `to_pydantic()`, …), but the *physical* column is a closed
+transport carrier for everything else. A transported field cannot be used as a
+filter, sort, join, grouping, aggregate, or distinct input before logical decoding.
+Calling a native terminal (`to_polars()`, `to_pandas()`, a bare `dag.collect()`) on a
+relation whose plan still needs that decode raises `LogicalTerminalRequired`,
+naming the affected fields and every terminal that does resolve them. `evolve`
+(preserve the physical source, decode only for validation) and a structural-only
+conform (no value transform) stay natively collectible — nothing to decode, nothing
+to fail closed on.
+
+`dag.validate(specs)` is always a logical terminal: JSON Schema, identity,
+uniqueness, and foreign-key checks compare decoded logical values, never raw
+transported text — whitespace and object-key order never change the outcome.
+
 ## DataPackage
 
 Frictionless `datapackage.json` is the multi-resource container format. mountainash supports it natively:

@@ -103,8 +103,8 @@ declared schema before returning the collected frame.
 The v2 conform path preserves nulls while it performs the declared conversions:
 
 - lexical `list` fields split with their declared `delimiter` and cast each item;
-- native `array` fields retain list shape and can cast nested struct items;
-- native `object` fields retain struct shape and cast declared members recursively;
+- `array` and `object` fields ingress through portable JSON text, or through a
+  no-round-trip native `list`/`struct` source column (see below);
 - `geopoint` supports default lexical text, lexical arrays, native numeric arrays, and
   native `lon`/`lat` objects according to its declared format;
 - lexical `geojson` and `topojson` values remain valid JSON text after parsing;
@@ -116,6 +116,56 @@ Conform diagnostics and internal marker columns are consumed at the collection
 boundary. Marker columns are not part of the returned public frame. Unsupported
 backend cells raise `BackendCapabilityError` with the declared operation key and
 capability fact attached to the exception.
+
+### Structured (`array`/`object`) fields
+
+A structured field's ingress route depends on the physical source column, not the
+declared type alone:
+
+- **JSON text** (a string-typed source column) is the portable ARRAY and OBJECT
+  vehicle — the only round-trippable ingress path, available on every backend. The
+  decoder recursively resolves nested `array`-of-`object` and `object`-of-`array`
+  structure from the declared schema and rejects a malformed payload or a
+  structurally wrong root (e.g. an `array`-declared field whose text decodes to an
+  object) as an invalid value under the field's configured action.
+- **Native `list`/`struct`** source columns (Polars, its Narwhals wrappers, Ibis) are
+  a no-round-trip path: schema evidence alone (`collect_schema()`/table schema, never
+  a decoded row) proves the shape, so no JSON parsing ever runs.
+- **Opaque native Python containers** (pandas, narwhals-pandas — no native list/struct
+  dtype) resolve through logical conversion: the cell already holds a real Python
+  list/dict, so the value normalizes directly without a text decode.
+
+A conform transform that decodes JSON text (`coerce`, `discard_value`, `discard_row`)
+produces a **physical/logical boundary**: the resulting column carries the *decoded
+logical value* for validation and logical egress, but the transported field is a
+closed transport carrier for every other relation operation. A transported field
+cannot be used as a filter, sort, join, grouping, aggregate, or distinct input before
+logical decoding — attempting to `.to_polars()`, `.to_pandas()`, or another native
+terminal on a relation whose plan still requires that decode raises
+`LogicalTerminalRequired`, naming the affected fields and the terminals that do
+resolve it (`validation`, `to_dicts`, `to_tuples`, `item`, `to_dataclasses`,
+`to_pydantic`, …). `evolve` (preserve the source, decode only for validation) and a
+structural-only conform (no value transform) are exempt — both remain natively
+collectible.
+
+`dag.validate(specs)` is itself a logical terminal: it always resolves every declared
+structured field's logical value, regardless of the DAG's native-collection intent,
+because JSON Schema, identity, uniqueness, and foreign-key checks all compare
+*logical* values (spec section 15's `canonical_value_key()` — whitespace and
+object-key order never change the outcome).
+
+One descriptor with both roots:
+
+```python
+import mountainash as ma
+
+spec = ma.TypeSpec.from_simple_dict({
+    "tags": "array",
+    "profile": "object",
+})
+
+result = ma.relation(frame).conform(spec).to_dicts()
+```
 
 ## Schema and dialect references
 
