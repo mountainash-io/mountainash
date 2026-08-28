@@ -121,6 +121,19 @@ def test_untagged_projection_expression_does_not_disrupt_transport_plans():
     assert result == plans
 
 
+def test_native_ibis_deferred_without_structured_plan_is_ignored():
+    """A raw Ibis deferred must not recurse during lineage inspection."""
+    import ibis
+
+    result = propagate_structured_plans(
+        node(RS.FILTER, predicate=ibis._.col > 1),
+        [MappingProxyType({})],
+        MappingProxyType({}),
+    )
+
+    assert result == {}
+
+
 @pytest.mark.parametrize(
     ("operation", "attrs"),
     [

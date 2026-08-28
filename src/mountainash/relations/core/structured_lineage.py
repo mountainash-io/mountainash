@@ -152,16 +152,21 @@ def _direct_projection(value: Any) -> tuple[str, str] | None:
 
 def _named_values(value: Any) -> set[str]:
     """Collect field-name literals from relation option and sort payloads."""
+    from mountainash.core.constants import SortField
+    from mountainash.expressions.core.expression_nodes.substrait.exn_field_reference import (
+        FieldReferenceNode,
+    )
+
     if isinstance(value, str):
         return {value}
     if isinstance(value, Mapping):
         return set().union(*(_named_values(item) for item in value.values()))
     if isinstance(value, (list, tuple, set, frozenset)):
         return set().union(*(_named_values(item) for item in value))
-    for attribute in ("field", "name", "by", "columns", "subset"):
-        candidate = getattr(value, attribute, None)
-        if candidate is not None:
-            return _named_values(candidate)
+    if isinstance(value, FieldReferenceNode):
+        return _named_values(value.field)
+    if isinstance(value, SortField):
+        return _named_values(value.column)
     return set()
 
 
