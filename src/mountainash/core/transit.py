@@ -63,6 +63,9 @@ class RouteKey(Enum):
     PYDATA_EGRESS = auto()
     RESULT_PROCESSING = auto()
     IBIS_SCALAR_TERMINAL = auto()
+    LOGICAL_SNAPSHOT_CAPTURE = auto()
+    LOGICAL_SNAPSHOT_POLARS_OUTPUT = auto()
+    LOGICAL_SNAPSHOT_PANDAS_OUTPUT = auto()
 
 
 class BoundaryKey(Enum):
@@ -107,6 +110,15 @@ class BoundaryKey(Enum):
     NARWHALS_SCHEMA_UNWRAP = auto()
     DIAGNOSTIC_VIEW_FROM_PANDAS = auto()
     DIAGNOSTIC_VIEW_FROM_ARROW = auto()
+    LOGICAL_SNAPSHOT_IBIS_TO_ARROW = auto()
+    LOGICAL_SNAPSHOT_NARWHALS_TO_ARROW = auto()
+    LOGICAL_SNAPSHOT_PANDAS_TO_POLARS = auto()
+    LOGICAL_SNAPSHOT_ARROW_TO_POLARS = auto()
+    LOGICAL_SNAPSHOT_POLARS_TO_PANDAS = auto()
+    LOGICAL_SNAPSHOT_ARROW_TO_PANDAS = auto()
+    LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY = auto()
+    LOGICAL_SNAPSHOT_POLARS_DISPATCH = auto()
+    LOGICAL_SNAPSHOT_PANDAS_DISPATCH = auto()
 
 
 @dataclass(frozen=True)
@@ -128,6 +140,7 @@ class BoundarySpec:
 
 _SINCE_2026_08_27 = date(2026, 8, 27)
 _MATERIALIZATION_OWNER = "mountainash.relations.core.materialization"
+_LOGICAL_SNAPSHOT_OWNER = "mountainash.relations.core.logical_snapshot"
 
 BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
     BoundaryKey.POLARS_LAZY_COLLECT: BoundarySpec(
@@ -688,6 +701,167 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
             "diagnostic_polars_view()'s Arrow-preserving fallback: whichever "
             "of to_pyarrow()/to_arrow() the native value declares, routed "
             "through pl.from_arrow(); never pandas."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_IBIS_TO_ARROW: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical terminal snapshot capture from Ibis",
+        route=RouteKey.LOGICAL_SNAPSHOT_CAPTURE,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"ibis"}),
+        source_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+        destination_families=frozenset({"pyarrow"}),
+        destination_dialects=frozenset({"pyarrow"}),
+        reason=(
+            "logical_terminal_snapshot()'s Ibis adapter reads the cached "
+            "table once via to_pyarrow() to build the shared physical "
+            "snapshot every logical structured consumer resolves against; "
+            "never to_pandas()."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_NARWHALS_TO_ARROW: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical terminal snapshot capture from Narwhals",
+        route=RouteKey.LOGICAL_SNAPSHOT_CAPTURE,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-polars", "narwhals-pandas", "narwhals-pyarrow"}),
+        destination_families=frozenset({"pyarrow"}),
+        destination_dialects=frozenset({"pyarrow"}),
+        reason=(
+            "logical_terminal_snapshot()'s Narwhals adapter normalizes "
+            "every supported dialect through its own to_arrow() so the "
+            "snapshot's physical columns are one uniform representation."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_POLARS_DISPATCH: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot Polars output family dispatch",
+        route=RouteKey.LOGICAL_SNAPSHOT_POLARS_OUTPUT,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars", "pandas", "pyarrow", "narwhals", "ibis"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "resolved_snapshot_to_polars() dispatches to the resolved "
+            "snapshot's own source-family adapter; the dispatch itself "
+            "never touches pandas -- only the per-family conversion legs "
+            "it calls into (LOGICAL_SNAPSHOT_PANDAS_TO_POLARS/"
+            "LOGICAL_SNAPSHOT_ARROW_TO_POLARS) may."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_TO_POLARS: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot Polars output from a pandas-selected source",
+        route=RouteKey.LOGICAL_SNAPSHOT_POLARS_OUTPUT,
+        step=2,
+        transit_class=TransitClass.EXPLICIT_PANDAS_INPUT,
+        source_families=frozenset({"pandas"}),
+        source_dialects=frozenset({"pandas"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "resolved_snapshot_to_polars() converts an untagged pandas "
+            "column via pl.from_pandas() when reconstructing Polars output "
+            "for a pandas-family logical snapshot; the source identity is "
+            "pandas, not an internal conversion detail."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_ARROW_TO_POLARS: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot Polars output from an Arrow-captured source",
+        route=RouteKey.LOGICAL_SNAPSHOT_POLARS_OUTPUT,
+        step=2,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"pyarrow"}),
+        source_dialects=frozenset({"pyarrow"}),
+        destination_families=frozenset({"polars"}),
+        destination_dialects=frozenset({"polars"}),
+        reason=(
+            "resolved_snapshot_to_polars() converts an untagged Arrow "
+            "column via pl.from_arrow() when reconstructing Polars output "
+            "for a PyArrow, Narwhals, or Ibis logical snapshot (all three "
+            "capture Arrow-native columns); never touches pandas."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_DISPATCH: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot pandas output family dispatch",
+        route=RouteKey.LOGICAL_SNAPSHOT_PANDAS_OUTPUT,
+        step=1,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"polars", "pandas", "pyarrow", "narwhals", "ibis"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason=(
+            "resolved_snapshot_to_pandas() dispatches to the resolved "
+            "snapshot's own source-family adapter; a declared, "
+            "user-visible pandas terminal regardless of which per-family "
+            "conversion leg the adapter calls into."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_POLARS_TO_PANDAS: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot pandas output from a Polars-selected source",
+        route=RouteKey.LOGICAL_SNAPSHOT_PANDAS_OUTPUT,
+        step=2,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"polars"}),
+        source_dialects=frozenset({"polars"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason=(
+            "resolved_snapshot_to_pandas() converts an untagged Polars "
+            "column via its own to_pandas() when reconstructing a declared "
+            "pandas terminal for a Polars logical snapshot."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_ARROW_TO_PANDAS: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot pandas output from an Arrow-captured source",
+        route=RouteKey.LOGICAL_SNAPSHOT_PANDAS_OUTPUT,
+        step=2,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"pyarrow"}),
+        source_dialects=frozenset({"pyarrow"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason=(
+            "resolved_snapshot_to_pandas() converts an untagged Arrow "
+            "column via its own to_pandas() when reconstructing a declared "
+            "pandas terminal for a PyArrow, Narwhals, or Ibis logical "
+            "snapshot."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY: BoundarySpec(
+        owner=_LOGICAL_SNAPSHOT_OWNER,
+        consumer="logical snapshot pandas output frame assembly",
+        route=RouteKey.LOGICAL_SNAPSHOT_PANDAS_OUTPUT,
+        step=3,
+        transit_class=TransitClass.EXPLICIT_PANDAS_EGRESS,
+        source_families=frozenset({"pandas"}),
+        source_dialects=frozenset({"pandas"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"pandas"}),
+        reason=(
+            "resolved_snapshot_to_pandas() builds each decoded transported "
+            "column as an object-dtype pandas Series and assembles the "
+            "final pandas DataFrame from already-pandas-native columns; a "
+            "declared, user-visible pandas terminal."
         ),
         since=_SINCE_2026_08_27,
     ),

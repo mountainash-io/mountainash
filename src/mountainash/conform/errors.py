@@ -153,6 +153,17 @@ class ConformTransformError(ConformError):
             detail = "no matching conform operation diagnostic"
         super().__init__(f"Conform transform failed: {original_error}; {detail}")
 
+    @classmethod
+    def structured(
+        cls, *, field_name: str, expected_root: str, row_ordinal: int
+    ) -> "ConformTransformError":
+        """Create a value-safe logical structured transport error."""
+        error = ValueError(
+            f"invalid {expected_root} value in field {field_name!r} "
+            f"at row ordinal {row_ordinal}"
+        )
+        return cls(original_error=error, candidates=())
+
 
 class SchemaDriftError(ConformError):
     """A freeze policy detected declared-vs-actual schema drift.

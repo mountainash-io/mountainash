@@ -1384,5 +1384,104 @@
     "reason": "A declared Polars-producing terminal or intermediate call; its result is never pandas by contract.",
     "since": "2026-08-27",
     "legacy_unwrapped": true
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_BaseSnapshotAdapter.to_pandas",
+    "callee": "DataFrame",
+    "fingerprint": "2d4d691ddb28d1d4",
+    "boundary_key": "LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY",
+    "transit_class": "EXPLICIT_PANDAS_EGRESS",
+    "reason": "Assembles the final pandas DataFrame from already-pandas-native untagged columns and object-dtype transported columns.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_BaseSnapshotAdapter.to_pandas",
+    "callee": "Series",
+    "fingerprint": "9994b5a897f0ce32",
+    "boundary_key": "LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY",
+    "transit_class": "EXPLICIT_PANDAS_EGRESS",
+    "reason": "Builds one decoded transported column as an object-dtype pandas Series before frame assembly.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_IbisSnapshotAdapter.snapshot",
+    "callee": "to_pyarrow",
+    "fingerprint": "36c164f73f20a01d",
+    "boundary_key": "LOGICAL_SNAPSHOT_IBIS_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Reads the cached Ibis table once via to_pyarrow() to build the shared physical logical-terminal snapshot.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_NarwhalsSnapshotAdapter.snapshot",
+    "callee": "to_arrow",
+    "fingerprint": "c7a3687d48e06f7c",
+    "boundary_key": "LOGICAL_SNAPSHOT_NARWHALS_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Normalizes a Narwhals frame through its own to_arrow() for uniform snapshot column capture.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_native_column_to_pandas",
+    "callee": "to_pandas",
+    "fingerprint": "37c36c15f0a53bc8",
+    "boundary_key": "LOGICAL_SNAPSHOT_POLARS_TO_PANDAS",
+    "transit_class": "EXPLICIT_PANDAS_EGRESS",
+    "reason": "Converts an untagged Polars column to pandas via its own to_pandas() for logical snapshot pandas output.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_native_column_to_pandas",
+    "callee": "to_pandas",
+    "fingerprint": "6dd282f397464e1c",
+    "boundary_key": "LOGICAL_SNAPSHOT_ARROW_TO_PANDAS",
+    "transit_class": "EXPLICIT_PANDAS_EGRESS",
+    "reason": "Converts an untagged Arrow-captured column to pandas via its own to_pandas() for logical snapshot pandas output.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "_native_column_to_polars",
+    "callee": "from_pandas",
+    "fingerprint": "6b6542ac4a0d5984",
+    "boundary_key": "LOGICAL_SNAPSHOT_PANDAS_TO_POLARS",
+    "transit_class": "EXPLICIT_PANDAS_INPUT",
+    "reason": "Converts an untagged pandas column to Polars via pl.from_pandas() for logical snapshot Polars output.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "resolved_snapshot_to_pandas",
+    "callee": "to_pandas",
+    "fingerprint": "a9fff947530ce1c5",
+    "boundary_key": "LOGICAL_SNAPSHOT_PANDAS_DISPATCH",
+    "transit_class": "EXPLICIT_PANDAS_EGRESS",
+    "reason": "Dispatches to the resolved snapshot's own source-family adapter for pandas output; a declared, user-visible pandas terminal.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.logical_snapshot",
+    "owner": "resolved_snapshot_to_polars",
+    "callee": "to_polars",
+    "fingerprint": "5f1e03fcb0811b08",
+    "boundary_key": "LOGICAL_SNAPSHOT_POLARS_DISPATCH",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Dispatches to the resolved snapshot's own source-family adapter for Polars output; never touches pandas itself.",
+    "since": "2026-08-28",
+    "legacy_unwrapped": false
   }
 ]
