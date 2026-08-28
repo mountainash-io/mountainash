@@ -4,9 +4,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, fields, is_dataclass, replace
 from enum import Enum
-import hashlib
 from types import MappingProxyType
 from typing import Any, TYPE_CHECKING
+from mountainash.typespec._fingerprint import declaration_fingerprint
 
 
 if TYPE_CHECKING:
@@ -100,32 +100,6 @@ def freeze_value(value: Any) -> Any:
     return value
 
 
-def _canonical_bytes(value: Any) -> bytes:
-    if value is None:
-        return b"n"
-    if type(value) is bool:  # noqa: E721 — bool has its own canonical tag
-        return b"b1" if value else b"b0"
-    if type(value) is int:  # noqa: E721 — bool must not become an integer
-        return f"i{value}".encode()
-    if type(value) is float:  # noqa: E721 — preserve exact float encoding
-        return f"f{value.hex()}".encode()
-    if isinstance(value, str):
-        encoded = value.encode("utf-8")
-        return b"s" + str(len(encoded)).encode() + b":" + encoded
-    if isinstance(value, bytes):
-        return b"y" + str(len(value)).encode() + b":" + value
-    if isinstance(value, Mapping):
-        parts = sorted(
-            (_canonical_bytes(key), _canonical_bytes(item)) for key, item in value.items()
-        )
-        return b"m" + b"".join(
-            str(len(key)).encode() + b":" + key + str(len(item)).encode() + b":" + item
-            for key, item in parts
-        )
-    if isinstance(value, (tuple, list, frozenset, set)):
-        parts = sorted(_canonical_bytes(item) for item in value) if isinstance(value, (frozenset, set)) else [_canonical_bytes(item) for item in value]
-        return b"q" + b"".join(str(len(item)).encode() + b":" + item for item in parts)
-    raise TypeError(f"unsupported frozen declaration value: {type(value)!r}")
 
 
 def freeze_typespec(spec: TypeSpec) -> Mapping[str, Any]:
@@ -138,7 +112,7 @@ def freeze_typespec(spec: TypeSpec) -> Mapping[str, Any]:
 def _foreign_key_declaration_key(
     child_fields: tuple[str, ...], parent_resource: str | None, parent_fields: tuple[str, ...]
 ) -> bytes:
-    return _canonical_bytes((child_fields, parent_resource, parent_fields))
+    return declaration_fingerprint((child_fields, parent_resource, parent_fields)).encode()
 
 def _freeze_check(check: Any) -> Any:
     """Copy check declarations into the immutable compiled-plan snapshot."""
@@ -176,7 +150,7 @@ def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValida
         )
         for index, foreign_key in enumerate(spec.foreign_keys or ())
     )
-    fingerprint = hashlib.sha256(_canonical_bytes(declaration)).hexdigest()
+    fingerprint = declaration_fingerprint(declaration)
     return CompiledValidationPlan(
         checks=tuple(_freeze_check(check) for check in checks),
         field_plan=field_plan,
