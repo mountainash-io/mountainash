@@ -169,3 +169,25 @@ class TestNativeDAGTerminalSuccess:
         dag = _json_dag(backend_name, backend_factory, apply_value_transforms=False)
         result = dag.collect("resource")
         assert result is not None
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestBareRefLogicalEgress:
+    """``dag.ref(name)`` used directly as a top-level target (no ``.filter()``/
+    ``.select()`` chaining) must decode a transported structured field through
+    the logical egress boundary exactly like the registered relation itself
+    does -- ``dag.ref(name)`` is documented as an interchangeable handle for
+    the same underlying relation, not a distinct, lesser access path."""
+
+    def test_to_dicts_decodes_transported_field(self, backend_name, backend_factory):
+        dag = _json_dag(backend_name, backend_factory)
+        direct = dag.relations["resource"].to_dicts()
+        via_ref = dag.ref("resource").to_dicts()
+        assert via_ref == direct
+        assert via_ref == [{"payload": [1, 2]}, {"payload": [3]}]
+
+    def test_to_polars_schema_matches_direct_access(self, backend_name, backend_factory):
+        dag = _json_dag(backend_name, backend_factory)
+        direct_schema = dag.relations["resource"].to_polars().schema
+        via_ref_schema = dag.ref("resource").to_polars().schema
+        assert via_ref_schema == direct_schema

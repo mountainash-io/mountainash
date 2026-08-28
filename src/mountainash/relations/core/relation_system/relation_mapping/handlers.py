@@ -57,7 +57,15 @@ def visit_ref(node: Any, visitor: Any) -> Any:
     from mountainash.relations.core.structured_lineage import StructuredPlanResolver
 
     if isinstance(visitor.ref_resolver, StructuredPlanResolver):
-        visitor._ref_plans_by_node[id(node)] = visitor.ref_resolver.structured_plans(node.name)
+        plans = visitor.ref_resolver.structured_plans(node.name)
+        visitor._ref_plans_by_node[id(node)] = plans
+        # A bare RefRelNode has no wrapping parent to merge this via
+        # _complete_transport_lineage (that mechanism only runs for nodes
+        # dispatched through _dispatch); when this ref IS the compile's own
+        # root -- e.g. dag.ref(name) used directly as a top-level target,
+        # not chained under .filter()/.select() -- its own egress boundary
+        # must see the referenced resource's transport state directly.
+        visitor.structured_field_plans = plans
     return resolved
 
 

@@ -362,6 +362,7 @@ class RelationDAG:
             DAGMaterializationSession,
             _is_lazy_narwhals,
             _resolve_backend_and_dialect,
+            _SessionRefResolver,
         )
 
         session = DAGMaterializationSession(self, backend=backend)
@@ -448,8 +449,7 @@ class RelationDAG:
                 get_expression_system(resolved_backend)(dialect=dialect)
             )
 
-            def ref_resolver(n: str) -> Any:
-                return session.resolve(n, resolved_backend, dialect)
+            ref_resolver = _SessionRefResolver(session, resolved_backend, dialect)
 
             visitor = UnifiedRelationVisitor(
                 relation_system,
