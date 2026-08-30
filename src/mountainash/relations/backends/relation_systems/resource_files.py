@@ -30,7 +30,11 @@ __all__ = [
 # express. This is the SEAM-supported set: anything outside it (plus ignored)
 # fails closed uniformly in ensure_dialect_supported.
 _MAPPABLE_DIALECT_FIELDS = frozenset(
-    {"delimiter", "header", "quote_char", "escape_char", "null_sequence"}
+    {
+        "delimiter", "line_terminator", "header", "quote_char", "double_quote",
+        "escape_char", "null_sequence", "skip_initial_space", "header_rows",
+        "header_join", "comment_char", "comment_rows",
+    }
 )
 # The STRICT subset a native Polars/Narwhals scan can represent *correctly* via
 # TableDialect.to_polars_read_csv_kwargs. escape_char is CsvSpec-mappable but has
@@ -100,13 +104,27 @@ def _csv_spec_from_dialect(dialect: Any):
     if dialect.delimiter is not None:
         kwargs["delimiter"] = dialect.delimiter
     if dialect.header is False:
-        kwargs["header_row"] = None  # autogenerate column names
+        kwargs["header"] = False
     if dialect.quote_char is not None:
         kwargs["quote_char"] = dialect.quote_char
+    if dialect.comment_char is not None:
+        kwargs["comment_char"] = dialect.comment_char
+    if dialect.comment_rows is not None:
+        kwargs["comment_rows"] = tuple(dialect.comment_rows)
+    if dialect.header_rows is not None:
+        kwargs["header_rows"] = tuple(dialect.header_rows)
+    if dialect.header_join is not None:
+        kwargs["header_join"] = dialect.header_join
+    if dialect.skip_initial_space is not None:
+        kwargs["skip_initial_space"] = dialect.skip_initial_space
+    if dialect.double_quote is not None:
+        kwargs["double_quote"] = dialect.double_quote
+    if dialect.line_terminator is not None:
+        kwargs["line_terminator"] = dialect.line_terminator
     if dialect.escape_char is not None:
         kwargs["escape_char"] = dialect.escape_char
     if dialect.null_sequence is not None:
-        kwargs["null_values"] = (dialect.null_sequence,)
+        kwargs["null_sequence"] = dialect.null_sequence
     return CsvSpec(**kwargs)
 
 

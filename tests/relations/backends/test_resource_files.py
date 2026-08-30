@@ -35,7 +35,7 @@ def _load_capabilities():
 def test_csv_spec_from_none_dialect_is_defaults():
     spec = rf._csv_spec_from_dialect(None)
     assert spec.delimiter == ","
-    assert spec.quote_char is None
+    assert spec.quote_char == '"'
 
 
 def test_csv_spec_maps_full_dialect():
@@ -43,18 +43,15 @@ def test_csv_spec_maps_full_dialect():
                      escape_char="\\", null_sequence="NA")
     spec = rf._csv_spec_from_dialect(d)
     assert spec.delimiter == ";"
-    assert spec.header_row is None            # header=False -> autogenerate
+    assert spec.header is False
     assert spec.quote_char == "|"
     assert spec.escape_char == "\\"
-    assert spec.null_values == ("NA",)
+    assert spec.null_sequence == "NA"
 
 
-def test_csv_spec_fails_closed_on_unmappable_field():
-    # comment_char has no CsvSpec counterpart in 26.7.1 -> fail-closed. This is
-    # a PURE check (no files import needed) so it holds even without the extra.
+def test_csv_spec_maps_comment_field():
     d = TableDialect(comment_char="#")
-    with pytest.raises(UnsupportedResourceFormat, match="comment_char"):
-        rf._csv_spec_from_dialect(d)
+    assert rf._csv_spec_from_dialect(d).comment_char == "#"
 
 
 def test_csv_spec_ignores_metadata_only_field():
