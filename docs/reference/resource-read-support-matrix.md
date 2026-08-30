@@ -4,6 +4,14 @@ How each relation backend reads a `DataResource`, and how it degrades when the
 optional `files` extra is absent. Native local scans stay lazy; the
 `mountainash-files` fallback is eager (full Arrow materialization).
 
+## Explicit provider bindings
+
+`ResourceReadRelNode.provider_binding` is runtime-only and excluded from descriptor
+serialization. An explicit provider instance or entry-point key plans and materializes
+one portable Arrow table, then the Polars, Narwhals, or Ibis reader adapts that same
+table to its native relation type. Provider packages are local sibling dependencies;
+they are not registry-distributed requirements.
+
 | Resource kind | Polars | Narwhals | Ibis | `files` extra absent |
 |---|---|---|---|---|
 | inline (`.data`) | PydataIngress | PydataIngress | PydataIngress | works (no files dep) |
