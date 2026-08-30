@@ -86,12 +86,12 @@ _RESOURCE_FIELDS = {
 }
 _DIALECT_DELIMITED = {
     "delimiter", "lineTerminator", "quoteChar", "doubleQuote", "escapeChar",
-    "nullSequence", "skipInitialSpace", "header", "headerRows", "headerJoin",
-    "commentChar", "commentRows",
+    "nullSequence", "skipInitialSpace",
 }
 _DIALECT_STRUCTURED = {"property", "itemType", "itemKeys"}
 _DIALECT_SPREADSHEET = {"sheetName", "sheetNumber"}
 _DIALECT_DATABASE = {"table"}
+_DIALECT_SHARED = {"header", "headerRows", "headerJoin", "commentChar", "commentRows"}
 
 
 class _ContributorDescriptor(BaseModel):
