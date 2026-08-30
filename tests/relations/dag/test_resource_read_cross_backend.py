@@ -500,20 +500,21 @@ class TestReaderTimingAndSchema:
         assert [r["a"] for r in rows] == [1, 2]
 
 
-class TestDialectFailClosed:
+class TestDialectFallback:
     @pytest.mark.parametrize("backend", _DAG_BACKENDS)
-    def test_unmappable_dialect_field_raises(self, backend, tmp_path):
-        from mountainash.relations.dag.errors import UnsupportedResourceFormat
+    def test_comment_dialect_field_routes_to_consistent_fallback(self, backend, tmp_path):
         from mountainash.typespec.datapackage import DataResource, TableDialect
-        p = tmp_path / "d.csv"; p.write_text("a\n1\n")
-        # comment_char has no CsvSpec target -> fail-closed UNIFORMLY: Polars/
-        # Narwhals raise at ensure_dialect_supported (before the native scan),
-        # Ibis raises inside the fallback's _csv_spec_from_dialect. All three
-        # raise -- never read-on-Polars / raise-on-Ibis (consistency-guarantees).
-        res = DataResource(name="d", path=str(p), format="csv",
-                           dialect=TableDialect(comment_char="#"))
-        with pytest.raises(UnsupportedResourceFormat, match="comment_char"):
-            _to_dict_list(_collect_via_dag(res, backend))
+
+        p = tmp_path / "d.csv"
+        p.write_text("# metadata\na\n1\n")
+        res = DataResource(
+            name="d",
+            path=str(p),
+            format="csv",
+            dialect=TableDialect(comment_char="#"),
+        )
+
+        assert _to_dict_list(_collect_via_dag(res, backend)) == [{"a": 1}]
 
 
 # ---------------------------------------------------------------------------

@@ -39,11 +39,10 @@ NARWHALS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
     CapabilityFact(
         operation_key=RKEY_MOUNTAINASH_REL.READ_RESOURCE, param="resource",
         level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
-        message="CSV dialect field 'escape_char' is not native-safe on this backend's "
-                "reader — routed to the CsvSpec fallback reader",
+        message="CSV dialect fields require the portable provider fallback reader",
         workaround="none needed — mountainash routes automatically",
-        since="2026-07-05",
-        condition="resource.dialect.escape_char is set",
+        since="2026-08-30",
+        condition="resource.dialect.escape_char or resource.dialect.line_terminator or resource.dialect.double_quote or resource.dialect.skip_initial_space or resource.dialect.header_rows or resource.dialect.header_join or resource.dialect.comment_char or resource.dialect.comment_rows",
         enforcement=Enforcement.ROUTER_METADATA,
         probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
     ),
