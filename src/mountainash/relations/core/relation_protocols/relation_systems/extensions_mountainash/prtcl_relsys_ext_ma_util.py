@@ -54,7 +54,7 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
 
     def unnest(self, relation: RelationT, /, *, columns: list[str], separator: str) -> RelationT: ...
 
-    def read_resource(self, resource: Any) -> RelationT:
+    def read_resource(self, resource: Any, *, provider_binding: object | str | None = None) -> RelationT:
         """Load a DataResource into the backend's native relation type.
 
         Called by the unified visitor for ResourceReadRelNode materialisation.

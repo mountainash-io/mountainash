@@ -137,9 +137,15 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
     # read_resource — load a DataResource into a Polars LazyFrame
     # ------------------------------------------------------------------
 
-    def read_resource(self, resource: Any) -> pl.LazyFrame:
+    def read_resource(self, resource: Any, *, provider_binding: object | str | None = None) -> pl.LazyFrame:
         """Load a DataResource into a Polars LazyFrame."""
         dialect = resource.to_dialect()
+        if provider_binding is not None:
+            from mountainash.relations.backends.relation_systems.resource_providers import (
+                read_provider_arrow,
+            )
+
+            return pl.from_arrow(read_provider_arrow(resource, provider_binding)).lazy()
         if resource.data is not None:
             return self._read_inline(resource)
         fmt = self._detect_format(resource)

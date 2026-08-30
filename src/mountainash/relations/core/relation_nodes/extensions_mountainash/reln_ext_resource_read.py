@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import ClassVar, Optional
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
@@ -26,4 +26,9 @@ class ResourceReadRelNode(RelationNode):
     _operation_key: ClassVar[Optional[Enum]] = RKEY_MOUNTAINASH_REL.READ_RESOURCE
 
     resource: DataResource
+    provider_binding: object | str | None = Field(
+        default=None,
+        exclude=True,
+        repr=False,
+    )
     apply_schema_conform: bool = True
