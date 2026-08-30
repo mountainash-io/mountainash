@@ -365,6 +365,21 @@ def test_mixed_dialect_families_are_rejected() -> None:
     with pytest.raises(UnsupportedResourceDialect):
         DataPackage.from_descriptor(raw)
 
+def test_spreadsheet_dialect_accepts_shared_header_properties() -> None:
+    package = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.xlsx",
+                    "dialect": {"sheetName": "Orders", "headerRows": [1, 2]},
+                }
+            ]
+        }
+    )
+
+    assert package.resources[0].dialect == {"sheetName": "Orders", "headerRows": [1, 2]}
+
 
 def test_unknown_foreign_key_target_is_rejected() -> None:
     schema = {

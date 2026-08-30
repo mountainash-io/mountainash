@@ -109,7 +109,7 @@ class MountainashNarwhalsExtensionRelationSystem(
             "Narwhals has no frame-level unnest — requires schema introspection synthesis (Phase 2)."
         )
 
-    def read_resource(self, resource: Any) -> Any:
+    def read_resource(self, resource: Any, *, provider_binding: object | str | None = None) -> Any:
         """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
         local plain CSV/Parquet; Arrow-coerced (lazy-wrapped) fallback for JSON,
         glob, archive, remote."""
@@ -118,6 +118,13 @@ class MountainashNarwhalsExtensionRelationSystem(
             MountainashPolarsExtensionRelationSystem,
         )
 
+        if provider_binding is not None:
+            import polars as pl
+            from mountainash.relations.backends.relation_systems.resource_providers import (
+                read_provider_arrow,
+            )
+
+            return nw.from_native(pl.from_arrow(read_provider_arrow(resource, provider_binding)).lazy())
         dialect = resource.to_dialect()
         if resource.data is not None:
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)

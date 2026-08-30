@@ -124,12 +124,18 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             result = result.drop(col)
         return result
 
-    def read_resource(self, resource: Any) -> ir.Table:
+    def read_resource(self, resource: Any, *, provider_binding: object | str | None = None) -> ir.Table:
         """Load a DataResource into an Ibis table. Native engine reads for local
         plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
         for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
         with the other backends (spec §A.6)."""
         dialect = resource.to_dialect()
+        if provider_binding is not None:
+            from mountainash.relations.backends.relation_systems.resource_providers import (
+                read_provider_arrow,
+            )
+
+            return ibis.memtable(read_provider_arrow(resource, provider_binding))
         if resource.data is not None:
             from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
                 MountainashPolarsExtensionRelationSystem,
