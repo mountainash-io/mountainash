@@ -74,6 +74,8 @@ dependencies = [
     "mountainash_settings @    {root:uri}/temp/mountainash-settings",
     "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
     "mountainash_secrets @     {root:uri}/temp/mountainash-secrets",
+    "mountainash_resource_provider @ {root:uri}/temp/mountainash-resource-provider",
+    "mountainash_data @        {root:uri}/temp/mountainash-data",
 ]
 [envs.test_github.scripts]
 test = "pytest"
@@ -125,6 +127,8 @@ dependencies = [
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
     "mountainash_secrets @     {root:uri}/../mountainash-secrets",
+    "mountainash_resource_provider @ {root:uri}/../mountainash-resource-provider",
+    "mountainash_data @        {root:uri}/../mountainash-data",
 ]
 [envs.test.scripts]
 # ===========================================
