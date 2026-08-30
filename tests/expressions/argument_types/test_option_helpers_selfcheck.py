@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 import polars as pl
-import _duckdb
+import duckdb as _duckdb
 
 import mountainash as ma
 from expressions.argument_types._option_helpers import (

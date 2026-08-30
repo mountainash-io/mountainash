@@ -5,7 +5,7 @@ import math
 
 import pytest
 import polars as pl
-import _duckdb
+import duckdb as _duckdb
 
 import mountainash as ma
 from mountainash.core.constants import CONST_BACKEND
