@@ -5,15 +5,16 @@ scalar values.  Codec and typed-model adapters use it to keep v1 marker
 recognition and error context identical across representation boundaries.
 """
 from __future__ import annotations
-
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+import json
 from typing import Any
 from urllib.parse import urlsplit
 
 from mountainash.typespec.errors import (
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
+    InvalidDescriptorSyntax,
     UnsupportedDescriptorVersion,
 )
 
@@ -225,11 +226,169 @@ def reject_typed_profile_at(
                 )
 
 
+def _is_remote_path(value: str) -> bool:
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return False
+    return bool(parts.scheme and (parts.netloc or parts.scheme.lower() not in {"", "file"}))
+
+
+def _validate_resource_path(value: object, *, location: InvariantLocation) -> None:
+    values = value if isinstance(value, list) else [value]
+    if isinstance(value, list) and not value:
+        raise _structure_at(
+            location,
+            ".path",
+            value,
+            "non-empty string or non-empty list of strings",
+        )
+    if not isinstance(value, (str, list)) or any(not isinstance(item, str) for item in values):
+        raise _structure_at(
+            location,
+            ".path",
+            value,
+            "string or non-empty list of strings",
+        )
+    if any(item == "" for item in values):
+        raise _structure_at(location, ".path", value, "non-empty path string")
+    for item in values:
+        if _is_remote_path(item):
+            continue
+        if item.startswith("/"):
+            raise _structure_at(location, ".path", value, "relative local path")
+        if any(segment in {".", ".."} or segment.startswith(".") for segment in item.split("/")):
+            raise _structure_at(
+                location,
+                ".path",
+                value,
+                "local path without hidden, ., or .. segments",
+            )
+
+
+def validate_resource_source_shape(
+    raw: Mapping[str, object], *, location: InvariantLocation
+) -> None:
+    """Validate the resource source declaration without Pydantic coercion."""
+    name = raw.get("name")
+    if not isinstance(name, str) or not name:
+        raise _structure_at(location, ".name", name, "non-empty string resource name")
+    has_path = "path" in raw and raw["path"] is not None
+    has_data = "data" in raw and raw["data"] is not None
+    if has_path == has_data:
+        raise _structure_at(location, "", raw, "exactly one of path or data")
+    if has_path:
+        _validate_resource_path(raw["path"], location=location)
+    if raw.get("type") is not None and raw.get("type") != "table":
+        raise _structure_at(location, ".type", raw["type"], "absent or 'table'")
+
+
+def parse_descriptor_json(text: str) -> object:
+    """Parse descriptor JSON and normalize syntax failures."""
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise InvalidDescriptorSyntax(
+            "descriptor text is not valid JSON",
+            descriptor_kind="package",
+            descriptor_path="$",
+            rejected_value=text,
+            required_form="valid JSON text",
+        ) from exc
+
+
+def require_package_mapping(raw: object) -> Mapping[str, object]:
+    """Require a package descriptor root mapping."""
+    if not isinstance(raw, Mapping):
+        raise InvalidDescriptorStructure(
+            "package descriptor must be a mapping",
+            descriptor_kind="package",
+            descriptor_path="$",
+            rejected_value=raw,
+            required_form="package descriptor mapping",
+        )
+    return raw
+
+
+def _pydantic_path(
+    location: object, *, base_path: str, aliases: Mapping[str, str]
+) -> str:
+    path = base_path
+    for part in location if isinstance(location, (tuple, list)) else (location,):
+        if isinstance(part, int):
+            path += f"[{part}]"
+        elif part != "__root__":
+            path += f".{aliases.get(str(part), str(part))}"
+    return path
+
+
+def pydantic_structure_error(
+    exc: Exception,
+    *,
+    descriptor_kind: str,
+    base_path: str,
+    resource_name: str | None,
+    reference: str | None,
+    aliases: Mapping[str, str],
+    required_forms: Mapping[str, str],
+) -> InvalidDescriptorStructure:
+    """Translate the first Pydantic field-shape error to a descriptor error."""
+    errors = getattr(exc, "errors", lambda: ())()
+    first = errors[0] if errors else {}
+    location = first.get("loc", ()) if isinstance(first, Mapping) else ()
+    descriptor_path = _pydantic_path(
+        location,
+        base_path=base_path,
+        aliases=aliases,
+    )
+    raw_property_name = next(
+        (
+            str(part)
+            for part in reversed(location)
+            if isinstance(part, str) and part != "__root__"
+        ),
+        None,
+    ) if isinstance(location, (tuple, list)) else None
+    property_name = (
+        aliases.get(raw_property_name, raw_property_name)
+        if raw_property_name is not None
+        else None
+    )
+    error_type = first.get("type") if isinstance(first, Mapping) else None
+    unknown_keyword = error_type == "extra_forbidden"
+    property_form = (
+        required_forms.get(property_name)
+        if property_name is not None
+        else None
+    )
+    if property_form is None and raw_property_name is not None:
+        property_form = required_forms.get(raw_property_name)
+    required_form = (
+        f"valid {_descriptor_kind(descriptor_kind)} property value"
+        if unknown_keyword or property_form is None
+        else property_form
+    )
+    rejected_value = first.get("input") if isinstance(first, Mapping) else None
+    return InvalidDescriptorStructure(
+        f"invalid {_descriptor_kind(descriptor_kind)} descriptor structure",
+        descriptor_kind=_descriptor_kind(descriptor_kind),
+        descriptor_path=descriptor_path,
+        resource_name=resource_name,
+        reference=reference,
+        rejected_value=rejected_value,
+        required_form=required_form,
+    )
+
+
 __all__ = [
     "InvariantLocation",
     "is_recognized_v1_profile",
     "reject_v1_markers_at",
     "reject_typed_profile_at",
+    "validate_resource_source_shape",
+    "parse_descriptor_json",
+    "require_package_mapping",
+    "pydantic_structure_error",
     "_structure_at",
     "_relationship_at",
 ]

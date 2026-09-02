@@ -39,6 +39,16 @@ def test_from_path_sets_parent_directory_base(tmp_path) -> None:
     assert package._descriptor_context.base_uri == tmp_path.resolve().as_uri() + "/"
 
 
+def test_from_path_keeps_utf8_error_distinct(tmp_path) -> None:
+    path = tmp_path / "datapackage.json"
+    path.write_bytes(b"\xff")
+    with pytest.raises(InvalidDescriptorSyntax) as caught:
+        DataPackage.from_path(path)
+    assert caught.value.descriptor_path == "$"
+    assert caught.value.rejected_value == path
+    assert caught.value.required_form == "UTF-8 JSON text"
+
+
 def test_decode_does_not_mutate_input() -> None:
     raw = minimal_descriptor()
     expected = deepcopy(raw)
@@ -333,7 +343,6 @@ def test_duplicate_resource_names_are_rejected() -> None:
         {"name": "orders", "path": "a.csv", "data": []},
         {"name": "orders", "path": []},
         {"name": "orders", "path": ["a.csv", 2]},
-        {"name": "orders", "path": ["a.csv", "b.csv"], "data": None},
     ],
 )
 def test_invalid_path_data_shapes_are_rejected(resource) -> None:
@@ -400,6 +409,48 @@ def test_malformed_json_is_rejected() -> None:
         DataPackage.from_json("{")
     assert caught.value.__cause__ is not None
 
+
+
+@pytest.mark.parametrize(
+    "decode",
+    [
+        lambda: DataPackage.from_json("{"),
+        lambda: DataPackage.model_validate_json("{"),
+    ],
+)
+def test_json_entrypoints_share_syntax_error(decode) -> None:
+    with pytest.raises(InvalidDescriptorSyntax) as caught:
+        decode()
+    assert caught.value.descriptor_path == "$"
+    assert caught.value.rejected_value == "{"
+    assert caught.value.required_form == "valid JSON text"
+
+
+@pytest.mark.parametrize(
+    "decode",
+    [
+        lambda: DataPackage.from_json("[]"),
+        lambda: DataPackage.model_validate_json("[]"),
+    ],
+)
+def test_json_entrypoints_share_package_root_error(decode) -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        decode()
+    assert caught.value.descriptor_path == "$"
+    assert caught.value.rejected_value == []
+    assert caught.value.required_form == "package descriptor mapping"
+
+
+@pytest.mark.parametrize("text", ['{}', '{"resources": []}'])
+def test_json_entrypoints_reject_missing_or_empty_resources(text) -> None:
+    for decode in (
+        lambda: DataPackage.from_json(text),
+        lambda: DataPackage.model_validate_json(text),
+    ):
+        with pytest.raises(InvalidDescriptorStructure) as caught:
+            decode()
+        assert caught.value.descriptor_path == "$.resources"
+        assert caught.value.required_form == "non-empty resource sequence"
 
 def test_resource_decoder_is_removed() -> None:
     from mountainash.typespec.datapackage import DataResource
@@ -584,8 +635,6 @@ def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None
                 path="orders.csv",
                 dialect={
                     "profile": {"name": "dialect-extension"},
-                    "caseSensitiveHeader": True,
-                    "csvddfVersion": "1.0",
                     "line_terminator": "\\n",
                     "lineTerminator": "\\r\\n",
                 },
@@ -597,5 +646,13 @@ def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None
     assert dialect["line_terminator"] == "\\n"
     assert dialect["lineTerminator"] == "\\r\\n"
     assert dialect["profile"] == {"name": "dialect-extension"}
-    assert "caseSensitiveHeader" not in dialect
-    assert "csvddfVersion" not in dialect
+
+
+@pytest.mark.parametrize("marker", ["caseSensitiveHeader", "csvddfVersion"])
+def test_direct_resource_dialect_v1_markers_are_rejected(marker) -> None:
+    with pytest.raises(UnsupportedDescriptorVersion):
+        DataResource(
+            name="orders",
+            path="orders.csv",
+            dialect={marker: True},
+        )

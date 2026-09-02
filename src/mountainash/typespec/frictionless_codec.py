@@ -8,12 +8,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import replace
-import json
+from enum import StrEnum
 from pathlib import Path
 import re
-from enum import StrEnum
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlsplit
+
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 if TYPE_CHECKING:
@@ -37,13 +36,13 @@ from mountainash.typespec.errors import (
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
     is_recognized_v1_profile,
+    parse_descriptor_json,
+    pydantic_structure_error,
     reject_typed_profile_at,
     reject_v1_markers_at,
+    require_package_mapping,
+    validate_resource_source_shape,
 )
-
-
-# The v2 Data Resource profile's hash property pattern.  It accepts an
-# unprefixed 32-character MD5 digest, an algorithm-prefixed hexadecimal digest,
 # or an empty hash value.
 V2_HASH_PATTERN = re.compile(r"^([^:]+:[a-fA-F0-9]+|[a-fA-F0-9]{32}|)$")
 _CREATED_ADAPTER = TypeAdapter(AwareDatetime)
@@ -56,6 +55,48 @@ _RESOURCE_FIELDS = {
     "name", "path", "data", "type", "dialect", "schema", "$schema", "homepage",
     "title", "description", "format", "mediatype", "encoding", "bytes", "hash",
     "sources", "licenses",
+}
+
+_RESOURCE_ALIASES = {
+    "table_schema": "schema",
+    "schema_url": "$schema",
+    "bytes_": "bytes",
+}
+_RESOURCE_REQUIRED_FORMS = {
+    "name": "non-empty string resource name",
+    "path": "string or non-empty list of strings",
+    "data": "resource data value",
+    "type": "absent or 'table'",
+    "dialect": "dialect mapping or reference string",
+    "schema": "Table Schema mapping or reference string",
+    "$schema": "profile URI string",
+    "homepage": "string",
+    "title": "string",
+    "description": "string",
+    "format": "string",
+    "mediatype": "string",
+    "encoding": "string",
+    "bytes": "integer",
+    "hash": "v2 hash string",
+    "sources": "list of objects",
+    "licenses": "list of objects",
+}
+_PACKAGE_ALIASES = {"dollar_schema": "$schema"}
+_PACKAGE_REQUIRED_FORMS = {
+    "$schema": "profile URI string",
+    "name": "string",
+    "id": "string",
+    "licenses": "list of objects",
+    "title": "string",
+    "description": "string",
+    "homepage": "string",
+    "version": "string",
+    "created": "RFC 3339 date-time string",
+    "keywords": "non-empty list of strings",
+    "contributors": "list of objects",
+    "sources": "list of objects",
+    "image": "string",
+    "resources": "non-empty resource sequence",
 }
 _DIALECT_DELIMITED = {
     "delimiter", "lineTerminator", "quoteChar", "doubleQuote", "escapeChar",
@@ -117,47 +158,12 @@ def _structure_error(
 
 
 
-def require_package_mapping(raw: Any) -> Mapping[str, Any]:
-    """Require the explicit descriptor input to be a mapping."""
-    if not isinstance(raw, Mapping):
-        raise _structure_error(
-            "package descriptor must have a mapping root",
-            descriptor_path="$",
-            rejected_value=raw,
-            required_form="mapping",
-            descriptor_kind="package",
-        )
-    return raw
-
-
-def parse_package_json(text: str) -> Any:
-    """Parse JSON text, translating syntax and decoding failures."""
-    try:
-        return json.loads(text)
-    except (json.JSONDecodeError, TypeError, UnicodeDecodeError) as exc:
-        raise InvalidDescriptorSyntax(
-            "package descriptor text is not valid JSON",
-            descriptor_kind="package",
-            descriptor_path="$",
-            rejected_value=text,
-            required_form="JSON text",
-        ) from exc
-
-
 def read_local_package_text(path: str | Path) -> tuple[Path, str]:
     """Read a local package descriptor and return its absolute path and text."""
     try:
         candidate = Path(path)
         absolute_path = candidate.resolve()
         text = absolute_path.read_text(encoding="utf-8")
-    except (TypeError, ValueError) as exc:
-        raise _structure_error(
-            "package descriptor path must be a local path",
-            descriptor_path="$path",
-            rejected_value=path,
-            required_form="local filesystem path",
-            descriptor_kind="package",
-        ) from exc
     except UnicodeDecodeError as exc:
         raise InvalidDescriptorSyntax(
             "package descriptor text is not valid UTF-8 JSON",
@@ -165,6 +171,14 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
             descriptor_path="$",
             rejected_value=path,
             required_form="UTF-8 JSON text",
+        ) from exc
+    except (TypeError, ValueError) as exc:
+        raise _structure_error(
+            "package descriptor path must be a local path",
+            descriptor_path="$path",
+            rejected_value=path,
+            required_form="local filesystem path",
+            descriptor_kind="package",
         ) from exc
     except (FileNotFoundError, OSError) as exc:
         raise DescriptorReferenceNotFound(
@@ -313,67 +327,6 @@ def _validate_metadata_models(
                 resource_name=resource_name,
             )
 
-
-def _is_remote_path(value: str) -> bool:
-    try:
-        parts = urlsplit(value)
-    except ValueError:
-        return False
-    return bool(parts.scheme and (parts.netloc or parts.scheme.lower() not in {"", "file"}))
-
-
-def _validate_resource_path(value: Any, *, path: str, resource_name: str | None) -> None:
-    values = value if isinstance(value, list) else [value]
-    if isinstance(value, list) and not value:
-        raise _structure_error(
-            "resource path list must not be empty",
-            descriptor_path=path,
-            rejected_value=value,
-            required_form="non-empty string or non-empty list of strings",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    if not isinstance(value, (str, list)) or any(not isinstance(item, str) for item in values):
-        raise _structure_error(
-            "resource path must be a string or list of strings",
-            descriptor_path=path,
-            rejected_value=value,
-            required_form="string or non-empty list of strings",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    if any(item == "" for item in values):
-        raise _structure_error(
-            "resource path must not be empty",
-            descriptor_path=path,
-            rejected_value=value,
-            required_form="non-empty path string",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    for item in values:
-        if _is_remote_path(item):
-            continue
-        if item.startswith("/"):
-            raise _structure_error(
-                "local resource paths must be relative",
-                descriptor_path=path,
-                rejected_value=value,
-                required_form="relative local path",
-                descriptor_kind="resource",
-                resource_name=resource_name,
-            )
-        segments = item.split("/")
-        for segment in segments:
-            if segment in {".", ".."} or segment.startswith("."):
-                raise _structure_error(
-                    "local resource paths must not contain hidden or traversal segments",
-                    descriptor_path=path,
-                    rejected_value=value,
-                    required_form="local path without hidden, ., or .. segments",
-                    descriptor_kind="resource",
-                    resource_name=resource_name,
-                )
 
 
 def _validate_dialect(value: Any, *, path: str, resource_name: str | None) -> None:
@@ -707,37 +660,11 @@ def validate_dialect_family(
 
 def _validate_resource(raw: Mapping[str, Any], *, path: str) -> None:
     resource_name = raw.get("name") if isinstance(raw.get("name"), str) else None
-    if "name" not in raw or not isinstance(raw["name"], str) or not raw["name"]:
-        raise _structure_error(
-            "resource must have a non-empty string name",
-            descriptor_path=f"{path}.name",
-            rejected_value=raw.get("name"),
-            required_form="non-empty string resource name",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    has_path = "path" in raw
-    has_data = "data" in raw
-    if has_path == has_data or (has_data and raw.get("data") is None):
-        raise _structure_error(
-            "resource must declare exactly one of path or data",
-            descriptor_path=path,
-            rejected_value={key: raw.get(key) for key in ("path", "data") if key in raw},
-            required_form="exactly one of path or data",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    if has_path:
-        _validate_resource_path(raw["path"], path=f"{path}.path", resource_name=resource_name)
-    if "type" in raw and raw["type"] not in ("table",):
-        raise _structure_error(
-            "resource type must be table when present",
-            descriptor_path=f"{path}.type",
-            rejected_value=raw["type"],
-            required_form="absent or 'table'",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
+    validate_resource_source_shape(
+        raw,
+        location=InvariantLocation(path, resource_name),
+    )
+    resource_name = raw["name"]
     for key in ("title", "description", "homepage", "format", "mediatype", "encoding", "hash"):
         _ensure_string(raw, key, path, kind="resource", resource_name=resource_name)
     _ensure_string(raw, "$schema", path, kind="resource", resource_name=resource_name)
@@ -774,7 +701,7 @@ def _validate_package(owned: Mapping[str, Any]) -> None:
             "package must declare resources",
             descriptor_path="$.resources",
             rejected_value=None,
-            required_form="non-empty list of resource mappings",
+            required_form="non-empty resource sequence",
             descriptor_kind="package",
         )
     resources = owned["resources"]
@@ -783,7 +710,7 @@ def _validate_package(owned: Mapping[str, Any]) -> None:
             "package resources must be a non-empty list",
             descriptor_path="$.resources",
             rejected_value=resources,
-            required_form="non-empty list of resource mappings",
+            required_form="non-empty resource sequence",
             descriptor_kind="package",
         )
     _ensure_string(owned, "$schema", "$", kind="package")
@@ -845,7 +772,6 @@ def _validate_package(owned: Mapping[str, Any]) -> None:
             seen_names.add(name)
         _validate_resource(resource, path=path)
 
-
 def _capture_package_kwargs(owned: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     kwargs = {key: value for key, value in owned.items() if key in _PACKAGE_FIELDS}
     extras = {key: value for key, value in owned.items() if key not in _PACKAGE_FIELDS and key != "profile"}
@@ -858,19 +784,11 @@ def _capture_resource_kwargs(raw: Mapping[str, Any]) -> dict[str, Any]:
     kwargs["extras"] = {key: value for key, value in raw.items() if key not in _RESOURCE_FIELDS and key != "profile"}
     return kwargs
 
-
 def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContext) -> DataPackage:
     """Decode an already-owned mapping without making another defensive copy."""
     from mountainash.typespec.datapackage import DataPackage, DataResource
     # 1. Confirm the required document kind.
-    if not isinstance(owned, Mapping):
-        raise _structure_error(
-            "package descriptor must have a mapping root",
-            descriptor_path="$",
-            rejected_value=owned,
-            required_form="mapping",
-            descriptor_kind="package",
-        )
+    owned = require_package_mapping(owned)
     # 2. Reject all recognized v1 markers.
     _reject_v1_markers(owned)
     # 3. Validate known property and container shapes.
@@ -883,13 +801,14 @@ def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContex
         try:
             resource_models.append(DataResource.model_validate(resource_kwargs))
         except ValidationError as exc:
-            raise _structure_error(
-                "resource model has an invalid shape",
-                descriptor_path=f"$.resources[{len(resource_models)}]",
-                rejected_value=raw_resource,
-                required_form="valid Data Resource mapping",
+            raise pydantic_structure_error(
+                exc,
                 descriptor_kind="resource",
+                base_path=f"$.resources[{len(resource_models)}]",
                 resource_name=raw_resource.get("name") if isinstance(raw_resource.get("name"), str) else None,
+                reference=None,
+                aliases=_RESOURCE_ALIASES,
+                required_forms=_RESOURCE_REQUIRED_FORMS,
             ) from exc
         except ValueError as exc:
             raise _structure_error(
@@ -904,12 +823,14 @@ def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContex
     try:
         package = DataPackage.model_validate(package_kwargs)
     except ValidationError as exc:
-        raise _structure_error(
-            "package model has an invalid shape",
-            descriptor_path="$",
-            rejected_value=owned,
-            required_form="valid Data Package mapping",
+        raise pydantic_structure_error(
+            exc,
             descriptor_kind="package",
+            base_path="$",
+            resource_name=None,
+            reference=None,
+            aliases=_PACKAGE_ALIASES,
+            required_forms=_PACKAGE_REQUIRED_FORMS,
         ) from exc
     except ValueError as exc:
         raise _structure_error(
@@ -1002,7 +923,7 @@ def decode_package_json(
     base_uri: str | Path | None = None,
     resolver: DescriptorResolver | None = None,
 ) -> DataPackage:
-    raw = parse_package_json(text)
+    raw = parse_descriptor_json(text)
     return decode_package_descriptor(raw, base_uri=base_uri, resolver=resolver)
 
 
@@ -1235,8 +1156,6 @@ __all__ = [
     "decode_package_descriptor",
     "decode_package_json",
     "decode_package_path",
-    "require_package_mapping",
-    "parse_package_json",
     "read_local_package_text",
     "V2_HASH_PATTERN",
 ]

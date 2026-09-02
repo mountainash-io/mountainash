@@ -88,10 +88,29 @@ def test_resource_with_inline_data():
 
 
 def test_must_have_exactly_one_of_path_or_data():
-    with pytest.raises(ValueError, match="exactly one of path or data"):
+    with pytest.raises(InvalidDescriptorStructure, match="invalid resource descriptor structure") as missing:
         DataResource(name="orders")
-    with pytest.raises(ValueError, match="exactly one of path or data"):
+    assert missing.value.descriptor_path == "$"
+    assert missing.value.required_form == "exactly one of path or data"
+    with pytest.raises(InvalidDescriptorStructure, match="invalid resource descriptor structure") as both:
         DataResource(name="orders", path="x.csv", data=[{"id": 1}])
+    assert both.value.descriptor_path == "$"
+    assert both.value.required_form == "exactly one of path or data"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"name": "orders"},
+        {"name": "orders", "path": "orders.csv", "data": []},
+        {"name": "orders", "path": []},
+    ],
+)
+def test_resource_model_validate_json_uses_source_shape_adapter(payload) -> None:
+    import json
+
+    with pytest.raises(InvalidDescriptorStructure):
+        DataResource.model_validate_json(json.dumps(payload))
 
 
 def test_multi_file_path_array():

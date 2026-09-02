@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from copy import deepcopy
 import json
 from typing import Any, Optional, TYPE_CHECKING
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     DescriptorKind,
@@ -21,8 +21,12 @@ from mountainash.typespec.errors import (
 )
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
+    parse_descriptor_json,
+    pydantic_structure_error,
     reject_typed_profile_at,
     reject_v1_markers_at,
+    require_package_mapping,
+    validate_resource_source_shape,
 )
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
@@ -40,6 +44,88 @@ def _default_descriptor_context() -> DescriptorContext:
         package_sources=(),
     )
 
+
+_RESOURCE_JSON_ALIASES = {
+    "table_schema": "schema",
+    "schema_url": "$schema",
+    "bytes_": "bytes",
+}
+_RESOURCE_JSON_REQUIRED_FORMS = {
+    "name": "non-empty string resource name",
+    "path": "string or non-empty list of strings",
+    "data": "resource data value",
+    "type": "absent or 'table'",
+    "dialect": "dialect mapping or reference string",
+    "schema": "Table Schema mapping or reference string",
+    "$schema": "profile URI string",
+    "homepage": "string",
+    "title": "string",
+    "description": "string",
+    "format": "string",
+    "mediatype": "string",
+    "encoding": "string",
+    "bytes": "integer",
+    "hash": "v2 hash string",
+    "sources": "list of objects",
+    "licenses": "list of objects",
+}
+_PACKAGE_JSON_ALIASES = {"dollar_schema": "$schema"}
+_PACKAGE_JSON_REQUIRED_FORMS = {
+    "$schema": "profile URI string",
+    "name": "string",
+    "id": "string",
+    "licenses": "list of objects",
+    "title": "string",
+    "description": "string",
+    "homepage": "string",
+    "version": "string",
+    "created": "RFC 3339 date-time string",
+    "keywords": "non-empty list of strings",
+    "contributors": "list of objects",
+    "sources": "list of objects",
+    "image": "string",
+    "resources": "non-empty resource sequence",
+}
+
+def _validate_resource_profile_input(
+    value: Mapping[str, Any], *, location: InvariantLocation
+) -> None:
+    raw = dict(value)
+    if "$schema" not in raw and "schema_url" in raw:
+        raw["$schema"] = raw["schema_url"]
+    reject_v1_markers_at(raw, descriptor_kind="resource", location=location)
+    schema = raw.get("schema", raw.get("table_schema"))
+    if isinstance(schema, Mapping):
+        reject_v1_markers_at(
+            schema,
+            descriptor_kind="schema",
+            location=location.child("schema"),
+        )
+    dialect = raw.get("dialect")
+    if isinstance(dialect, Mapping):
+        reject_v1_markers_at(
+            dialect,
+            descriptor_kind="dialect",
+            location=location.child("dialect"),
+        )
+
+def _validate_package_profile_input(value: Mapping[str, Any]) -> None:
+    reject_v1_markers_at(
+        value,
+        descriptor_kind="package",
+        location=InvariantLocation("$"),
+    )
+    resources = value.get("resources")
+    if not isinstance(resources, list):
+        return
+    for index, resource in enumerate(resources):
+        if not isinstance(resource, Mapping):
+            continue
+        location = InvariantLocation(
+            f"$.resources[{index}]",
+            resource.get("name") if isinstance(resource.get("name"), str) else None,
+        )
+        _validate_resource_profile_input(resource, location=location)
 
 class TableDialect(BaseModel):
     """Frictionless Table Dialect spec — closed schema, unknown keys are dropped."""
@@ -211,13 +297,46 @@ class DataResource(BaseModel):
     )
     _package_resource_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
 
-    def model_post_init(self, _ctx: Any) -> None:
-        has_path = self.path is not None
-        has_data = self.data is not None
-        if has_path == has_data:  # both true OR both false
-            raise ValueError(
-                f"DataResource '{self.name}' must declare exactly one of path or data"
+    def __init__(self, **data: Any) -> None:
+        location = InvariantLocation(
+            "$",
+            data.get("name") if isinstance(data.get("name"), str) else None,
+        )
+        _validate_resource_profile_input(data, location=location)
+        validate_resource_source_shape(data, location=location)
+        super().__init__(**data)
+
+    @classmethod
+    def model_validate_json(
+        cls,
+        json_data: str | bytes | bytearray,
+        **kwargs: Any,
+    ) -> "DataResource":
+        raw = parse_descriptor_json(json_data)
+        if not isinstance(raw, Mapping):
+            raise InvalidDescriptorStructure(
+                "resource descriptor must be a mapping",
+                descriptor_kind="resource",
+                descriptor_path="$",
+                rejected_value=raw,
+                required_form="resource mapping",
             )
+        resource_name = raw.get("name") if isinstance(raw.get("name"), str) else None
+        location = InvariantLocation("$", resource_name)
+        _validate_resource_profile_input(raw, location=location)
+        validate_resource_source_shape(raw, location=location)
+        try:
+            return super().model_validate_json(json_data, **kwargs)
+        except ValidationError as exc:
+            raise pydantic_structure_error(
+                exc,
+                descriptor_kind="resource",
+                base_path="$",
+                resource_name=resource_name,
+                reference=None,
+                aliases=_RESOURCE_JSON_ALIASES,
+                required_forms=_RESOURCE_JSON_REQUIRED_FORMS,
+            ) from exc
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, DataResource):
@@ -402,6 +521,58 @@ class DataPackage(BaseModel):
                     raise ValueError(
                         f"resource {r.name!r} foreignKey references unknown resource {ref_resource!r}"
                     )
+
+    @classmethod
+    def model_validate_json(
+        cls,
+        json_data: str | bytes | bytearray,
+        **kwargs: Any,
+    ) -> "DataPackage":
+        raw = require_package_mapping(parse_descriptor_json(json_data))
+        _validate_package_profile_input(raw)
+        if "resources" not in raw:
+            raise InvalidDescriptorStructure(
+                "package must declare resources",
+                descriptor_kind="package",
+                descriptor_path="$.resources",
+                rejected_value=None,
+                required_form="non-empty resource sequence",
+            )
+        resources = raw["resources"]
+        if not isinstance(resources, list) or not resources:
+            raise InvalidDescriptorStructure(
+                "package resources must be a non-empty list",
+                descriptor_kind="package",
+                descriptor_path="$.resources",
+                rejected_value=resources,
+                required_form="non-empty resource sequence",
+            )
+        for index, resource in enumerate(resources):
+            path = f"$.resources[{index}]"
+            if not isinstance(resource, Mapping):
+                raise InvalidDescriptorStructure(
+                    "resource must be a mapping",
+                    descriptor_kind="resource",
+                    descriptor_path=path,
+                    rejected_value=resource,
+                    required_form="resource mapping",
+                )
+            resource_name = resource.get("name") if isinstance(resource.get("name"), str) else None
+            location = InvariantLocation(path, resource_name)
+            _validate_resource_profile_input(resource, location=location)
+            validate_resource_source_shape(resource, location=location)
+        try:
+            return super().model_validate_json(json_data, **kwargs)
+        except ValidationError as exc:
+            raise pydantic_structure_error(
+                exc,
+                descriptor_kind="package",
+                base_path="$",
+                resource_name=None,
+                reference=None,
+                aliases=_PACKAGE_JSON_ALIASES,
+                required_forms=_PACKAGE_JSON_REQUIRED_FORMS,
+            ) from exc
 
     @classmethod
     def from_descriptor(
