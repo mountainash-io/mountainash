@@ -13,14 +13,136 @@ from mountainash.exceptions import (
     UnsupportedDescriptorVersion,
     UnsupportedResourceDialect,
 )
-from mountainash.typespec.datapackage import DataPackage, DataResource, TableDialect
+from mountainash.typespec.datapackage import (
+    DataPackage,
+    DataResource,
+    TableDialect,
+    _copy_resource_for_package,
+)
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     DescriptorKind,
     LocalDescriptorResolver,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.typespec.frictionless_invariants import InvariantLocation
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+
+def construct_resource(entrypoint: str, raw: dict[str, object]) -> DataResource:
+    if entrypoint == "init":
+        return DataResource(**raw)
+    if entrypoint == "model_validate":
+        return DataResource.model_validate(raw)
+    if entrypoint == "model_validate_json":
+        return DataResource.model_validate_json(json.dumps(raw))
+    raise AssertionError(f"unknown entrypoint: {entrypoint}")
+
+
+@pytest.mark.parametrize("entrypoint", ["init", "model_validate", "model_validate_json"])
+def test_resource_entrypoints_share_source_error(entrypoint: str) -> None:
+    raw = {"name": "", "path": "orders.csv"}
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        construct_resource(entrypoint, raw)
+    assert caught.value.descriptor_path == "$.name"
+    assert caught.value.required_form == "non-empty string resource name"
+
+
+def test_resource_model_copy_is_standalone_and_preserves_data_identity() -> None:
+    payload = object()
+    package = DataPackage(resources=[DataResource(name="r", data=payload)])
+    copied = package.resources[0].model_copy()
+    assert copied.data is payload
+    assert copied._package_resource_names == frozenset()
+    assert copied._descriptor_context.base_uri is None
+    assert copied._invariant_location.descriptor_path == "$"
+
+
+def test_resource_model_copy_rejects_deep_copy() -> None:
+    resource = DataResource(name="r", data=object())
+    with pytest.raises(ValueError, match="does not support deep=True"):
+        resource.model_copy(deep=True)
+
+
+def test_resource_model_copy_deep_copies_metadata() -> None:
+    schema = {"fields": [{"name": "id"}]}
+    dialect = {"delimiter": ";"}
+    extras = {"nested": [{"value": 1}]}
+    resource = DataResource(
+        name="r",
+        path="orders.csv",
+        schema=schema,
+        dialect=dialect,
+        extras=extras,
+        data=None,
+    )
+    copied = resource.model_copy()
+    assert copied.table_schema == schema
+    assert copied.table_schema is not resource.table_schema
+    assert copied.dialect == dialect
+    assert copied.dialect is not resource.dialect
+    assert copied.extras == extras
+    assert copied.extras is not resource.extras
+    copied.extras["nested"][0]["value"] = 2
+    assert resource.extras["nested"][0]["value"] == 1
+
+
+def test_resource_name_is_immutable_after_construction() -> None:
+    resource = DataResource(name="r", data=object())
+    with pytest.raises(TypeError, match="name is immutable"):
+        resource.name = "renamed"
+
+
+def test_resource_model_copy_normalizes_python_field_names() -> None:
+    resource = DataResource(name="r", data=object())
+    copied = resource.model_copy(
+        update={
+            "name": "renamed",
+            "table_schema": {"fields": [{"name": "id"}]},
+            "bytes_": 12,
+        }
+    )
+    assert copied.name == "renamed"
+    assert copied.table_schema == {"fields": [{"name": "id"}]}
+    assert copied.bytes_ == 12
+
+
+@pytest.mark.parametrize("entrypoint", ["init", "model_validate", "model_validate_json"])
+def test_resource_entrypoints_reject_malformed_inline_foreign_key(entrypoint: str) -> None:
+    raw = {
+        "name": "orders",
+        "data": [],
+        "schema": {
+            "fields": [{"name": "id"}],
+            "foreignKeys": [
+                {
+                    "fields": [],
+                    "reference": {"resource": "", "fields": ["id"]},
+                }
+            ],
+        },
+    }
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        construct_resource(entrypoint, raw)
+    assert caught.value.descriptor_path == "$.schema.foreignKeys[0].fields"
+    assert caught.value.required_form == "field name string or non-empty field name list"
+
+
+def test_resource_model_validate_preserves_data_identity() -> None:
+    payload = object()
+    resource = DataResource.model_validate({"name": "r", "data": payload})
+    assert resource.data is payload
+
+
+def test_copy_resource_for_package_binds_supplied_location() -> None:
+    payload = object()
+    source = DataResource(name="orders", data=payload)
+    copied = _copy_resource_for_package(
+        source,
+        location=InvariantLocation("$.resources[0]", "orders"),
+    )
+    assert copied is not source
+    assert copied.data is payload
+    assert copied._invariant_location.descriptor_path == "$.resources[0]"
 
 
 def test_resource_decoding_stays_at_package_boundary() -> None:
@@ -180,7 +302,10 @@ def test_to_typespec_none_when_no_schema():
 def test_to_typespec_passthrough_when_already_typespec():
     spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
     r = DataResource(name="t", path="t.csv", schema=spec)
-    assert r.to_typespec() is spec
+    assert r.to_typespec() == spec
+    assert r.to_typespec() is not spec
+
+
 
 
 def test_to_typespec_converts_raw_dict():
@@ -255,7 +380,8 @@ def test_to_dialect_none_when_no_dialect() -> None:
 def test_to_dialect_passthrough_when_already_table_dialect() -> None:
     dialect = TableDialect(delimiter=";")
     resource = DataResource(name="orders", path="orders.csv", dialect=dialect)
-    assert resource.to_dialect() is dialect
+    assert resource.to_dialect() == dialect
+    assert resource.to_dialect() is not dialect
 
 
 def test_to_dialect_converts_raw_mapping() -> None:

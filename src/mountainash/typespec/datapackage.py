@@ -25,7 +25,9 @@ from mountainash.typespec.frictionless_invariants import (
     _PACKAGE_REQUIRED_FORMS,
     _RESOURCE_ALIASES,
     _RESOURCE_REQUIRED_FORMS,
+    _structure_at,
     parse_descriptor_json,
+    parse_foreign_keys_at,
     pydantic_structure_error,
     reject_typed_profile_at,
     reject_v1_markers_at,
@@ -223,6 +225,100 @@ class TableDialect(BaseModel):
         return out
 
 
+def _resource_public_values(
+    value: Mapping[str, object] | DataResource,
+) -> dict[str, object]:
+    """Return resource values using descriptor-facing aliases."""
+    if isinstance(value, DataResource):
+        raw = value.model_dump(by_alias=True, exclude_none=True)
+    elif isinstance(value, Mapping):
+        raw = dict(value)
+    else:
+        raise TypeError("resource must be a mapping or DataResource")
+    for field_name, alias in _RESOURCE_ALIASES.items():
+        if field_name in raw:
+            if alias not in raw:
+                raw[alias] = raw[field_name]
+            del raw[field_name]
+    return raw
+
+
+def _owned_resource_values(
+    raw: Mapping[str, object],
+    *,
+    retain_data_identity: bool,
+) -> dict[str, object]:
+    """Copy descriptor metadata while optionally preserving resource data."""
+    return {
+        key: value
+        if key == "data" and retain_data_identity
+        else deepcopy(value)
+        for key, value in raw.items()
+    }
+
+
+def _validate_schema_storage(
+    value: object,
+    *,
+    location: InvariantLocation,
+) -> None:
+    if value is None or isinstance(value, TypeSpec):
+        return
+    if isinstance(value, str) and value:
+        return
+    if isinstance(value, Mapping):
+        parse_foreign_keys_at(value, location=location.child("schema"))
+        return
+    raise _structure_at(
+        location,
+        ".schema",
+        value,
+        "schema mapping, reference string, or TypeSpec",
+    )
+
+
+def _validate_dialect_storage(
+    value: object,
+    *,
+    location: InvariantLocation,
+) -> None:
+    if value is None or isinstance(value, TableDialect):
+        return
+    if isinstance(value, str) and value:
+        return
+    if isinstance(value, Mapping):
+        return
+    raise _structure_at(
+        location,
+        ".dialect",
+        value,
+        "dialect mapping, reference string, or TableDialect",
+    )
+
+
+def _prepare_resource_input(
+    value: Mapping[str, object] | DataResource,
+    *,
+    location: InvariantLocation,
+) -> dict[str, object]:
+    raw = _resource_public_values(value)
+    _validate_resource_profile_input(raw, location=location)
+    reject_v1_markers_at(raw, descriptor_kind="resource", location=location)
+    validate_resource_source_shape(raw, location=location)
+    _validate_schema_storage(raw.get("schema"), location=location)
+    _validate_dialect_storage(raw.get("dialect"), location=location)
+    return _owned_resource_values(raw, retain_data_identity=True)
+
+
+def _normalize_resource_update_names(
+    update: Mapping[str, object],
+) -> dict[str, object]:
+    return {
+        _RESOURCE_ALIASES.get(key, key): value
+        for key, value in update.items()
+    }
+
+
 
 class DataResource(BaseModel):
     """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
@@ -257,38 +353,25 @@ class DataResource(BaseModel):
     licenses: Optional[list[dict[str, Any]]] = None
     extras: dict[str, Any] = Field(default_factory=dict)
 
+    _invariant_location: InvariantLocation = PrivateAttr(
+        default_factory=lambda: InvariantLocation("$")
+    )
     _descriptor_context: DescriptorContext = PrivateAttr(
         default_factory=_default_descriptor_context
     )
     _package_resource_names: frozenset[str] = PrivateAttr(default_factory=frozenset)
 
-    def __init__(self, **data: Any) -> None:
-        location = InvariantLocation(
-            "$",
-            data.get("name") if isinstance(data.get("name"), str) else None,
-        )
-        _validate_resource_profile_input(data, location=location)
-        validate_resource_source_shape(data, location=location)
-        super().__init__(**data)
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "name" and "name" in self.__dict__:
+            raise TypeError("DataResource.name is immutable after construction")
+        super().__setattr__(name, value)
 
-    @classmethod
-    def model_validate(cls, obj: Any, **kwargs: Any) -> "DataResource":
-        raw = (
-            obj.model_dump(by_alias=True)
-            if isinstance(obj, cls)
-            else dict(obj)
-            if isinstance(obj, Mapping)
-            else None
-        )
-        resource_name = (
-            raw.get("name") if isinstance(raw, Mapping) and isinstance(raw.get("name"), str) else None
-        )
-        if raw is not None:
-            location = InvariantLocation("$", resource_name)
-            _validate_resource_profile_input(raw, location=location)
-            validate_resource_source_shape(raw, location=location)
+    def __init__(self, **data: Any) -> None:
+        resource_name = data.get("name") if isinstance(data.get("name"), str) else None
+        location = InvariantLocation("$", resource_name)
+        prepared = _prepare_resource_input(data, location=location)
         try:
-            return super().model_validate(obj, **kwargs)
+            super().__init__(**prepared)
         except ValidationError as exc:
             raise pydantic_structure_error(
                 exc,
@@ -299,6 +382,48 @@ class DataResource(BaseModel):
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
             ) from exc
+        self._invariant_location = location
+        self._package_resource_names = frozenset()
+
+    @classmethod
+    def model_validate(cls, obj: Any, **kwargs: Any) -> "DataResource":
+        raw = (
+            _resource_public_values(obj)
+            if isinstance(obj, cls)
+            else dict(obj)
+            if isinstance(obj, Mapping)
+            else None
+        )
+        resource_name = (
+            raw.get("name") if isinstance(raw, Mapping) and isinstance(raw.get("name"), str) else None
+        )
+        if raw is not None:
+            location = InvariantLocation("$", resource_name)
+            obj = _prepare_resource_input(raw, location=location)
+        try:
+            result = super().model_validate(obj, **kwargs)
+        except ValidationError as exc:
+            errors = exc.errors()
+            nested_error = (
+                errors[0].get("ctx", {}).get("error")
+                if errors and isinstance(errors[0], Mapping)
+                else None
+            )
+            if isinstance(nested_error, InvalidDescriptorStructure):
+                raise nested_error from exc
+            raise pydantic_structure_error(
+                exc,
+                descriptor_kind="resource",
+                base_path="$",
+                resource_name=resource_name,
+                reference=None,
+                aliases=_RESOURCE_ALIASES,
+                required_forms=_RESOURCE_REQUIRED_FORMS,
+            ) from exc
+        result._invariant_location = InvariantLocation("$", resource_name)
+        result._descriptor_context = _default_descriptor_context()
+        result._package_resource_names = frozenset()
+        return result
 
     @classmethod
     def model_validate_json(
@@ -317,11 +442,18 @@ class DataResource(BaseModel):
             )
         resource_name = raw.get("name") if isinstance(raw.get("name"), str) else None
         location = InvariantLocation("$", resource_name)
-        _validate_resource_profile_input(raw, location=location)
-        validate_resource_source_shape(raw, location=location)
+        _prepare_resource_input(raw, location=location)
         try:
-            return super().model_validate_json(json_data, **kwargs)
+            result = super().model_validate_json(json_data, **kwargs)
         except ValidationError as exc:
+            errors = exc.errors()
+            nested_error = (
+                errors[0].get("ctx", {}).get("error")
+                if errors and isinstance(errors[0], Mapping)
+                else None
+            )
+            if isinstance(nested_error, InvalidDescriptorStructure):
+                raise nested_error from exc
             raise pydantic_structure_error(
                 exc,
                 descriptor_kind="resource",
@@ -331,6 +463,23 @@ class DataResource(BaseModel):
                 aliases=_RESOURCE_ALIASES,
                 required_forms=_RESOURCE_REQUIRED_FORMS,
             ) from exc
+        result._invariant_location = location
+        result._descriptor_context = _default_descriptor_context()
+        result._package_resource_names = frozenset()
+        return result
+
+    def model_copy(
+        self,
+        *,
+        update: Mapping[str, object] | None = None,
+        deep: bool = False,
+    ) -> DataResource:
+        if deep:
+            raise ValueError("Mountainash model_copy does not support deep=True")
+        values = _resource_public_values(self)
+        if update:
+            values.update(_normalize_resource_update_names(update))
+        return type(self).model_validate(values)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, DataResource):
@@ -459,6 +608,17 @@ class DataResource(BaseModel):
         return spec.to_contract(name=name)
 
 
+
+
+def _copy_resource_for_package(
+    value: Mapping[str, object] | DataResource,
+    *,
+    location: InvariantLocation,
+) -> DataResource:
+    raw = _prepare_resource_input(value, location=location)
+    resource = DataResource.model_validate(raw)
+    resource._invariant_location = location
+    return resource
 
 
 class DataPackage(BaseModel):

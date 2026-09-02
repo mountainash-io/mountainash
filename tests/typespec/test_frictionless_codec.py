@@ -56,6 +56,27 @@ def test_decode_does_not_mutate_input() -> None:
     assert raw == expected
 
 
+def test_decoder_owns_descriptor_metadata() -> None:
+    payload = [{"id": 1}]
+    schema = {"fields": [{"name": "id"}]}
+    dialect = {"delimiter": ";"}
+    raw = {
+        "resources": [
+            {
+                "name": "orders",
+                "data": payload,
+                "schema": schema,
+                "dialect": dialect,
+            }
+        ]
+    }
+    resource = DataPackage.from_descriptor(raw).resources[0]
+    assert resource.data == payload
+    assert resource.table_schema == schema
+    assert resource.table_schema is not schema
+    assert resource.dialect == dialect
+    assert resource.dialect is not dialect
+
 @pytest.mark.parametrize(
     "contributors",
     [
