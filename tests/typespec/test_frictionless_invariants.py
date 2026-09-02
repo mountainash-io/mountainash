@@ -3,8 +3,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from mountainash.typespec.datapackage import TableDialect
 from mountainash.typespec.frictionless import typespec_to_frictionless
+from mountainash.typespec.datapackage import TableDialect
 from mountainash.typespec.errors import (
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -14,6 +14,7 @@ from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
     is_recognized_v1_profile,
     parse_descriptor_json,
+    parse_foreign_keys_at,
     pydantic_structure_error,
     reject_v1_markers_at,
     require_package_mapping,
@@ -22,6 +23,33 @@ from mountainash.typespec.frictionless_invariants import (
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
+@pytest.mark.parametrize(
+    ("foreign_keys", "suffix", "required_form"),
+    [
+        ({}, ".foreignKeys", "foreign-key list"),
+        ([1], ".foreignKeys[0]", "foreign-key mapping"),
+        (
+            [{"fields": [], "reference": {"fields": "id"}}],
+            ".foreignKeys[0].fields",
+            "field name string or non-empty field name list",
+        ),
+        ([{"fields": "id"}], ".foreignKeys[0].reference", "foreign-key reference mapping"),
+        (
+            [{"fields": "id", "reference": {"fields": "id", "resource": None}}],
+            ".foreignKeys[0].reference.resource",
+            "resource name string",
+        ),
+    ],
+)
+def test_raw_foreign_key_shape_is_location_aware(
+    foreign_keys, suffix, required_form
+) -> None:
+    raw = {"foreignKeys": foreign_keys}
+    location = InvariantLocation("$.resources[1].schema", "child", None)
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        parse_foreign_keys_at(raw, location=location)
+    assert caught.value.descriptor_path == f"$.resources[1].schema{suffix}"
+    assert caught.value.required_form == required_form
 
 def test_profile_identity_uses_normalized_host_and_exact_path() -> None:
     assert is_recognized_v1_profile(

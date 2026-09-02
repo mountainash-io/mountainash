@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from mountainash.typespec.errors import (
@@ -17,6 +17,9 @@ from mountainash.typespec.errors import (
     InvalidDescriptorSyntax,
     UnsupportedDescriptorVersion,
 )
+
+if TYPE_CHECKING:
+    from mountainash.typespec.spec import ForeignKey
 
 
 _V1_PROFILE_PATHS_BY_HOST: dict[str, frozenset[str]] = {
@@ -118,6 +121,103 @@ def _relationship_at(
         rejected_value=rejected_value,
         required_form=required_form,
     )
+
+
+def _foreign_key_location(
+    location: InvariantLocation, index: int
+) -> InvariantLocation:
+    """Return the location for one raw ``foreignKeys`` entry."""
+    return location.child(f"foreignKeys[{index}]")
+
+
+def _validate_raw_foreign_key(
+    value: object, *, location: InvariantLocation
+) -> None:
+    """Validate one raw foreign-key mapping before typed normalization."""
+    if not isinstance(value, Mapping):
+        raise _structure_at(
+            location,
+            "",
+            value,
+            "foreign-key mapping",
+            descriptor_kind="schema",
+        )
+
+    fields = value.get("fields")
+    if isinstance(fields, list) and not fields:
+        raise _structure_at(
+            location,
+            ".fields",
+            fields,
+            "field name string or non-empty field name list",
+            descriptor_kind="schema",
+        )
+
+    reference = value.get("reference")
+    if not isinstance(reference, Mapping):
+        raise _structure_at(
+            location,
+            ".reference",
+            reference,
+            "foreign-key reference mapping",
+            descriptor_kind="schema",
+        )
+
+    if "resource" in reference and not isinstance(reference["resource"], str):
+        raise _structure_at(
+            location,
+            ".reference.resource",
+            reference["resource"],
+            "resource name string",
+            descriptor_kind="schema",
+        )
+
+
+def parse_foreign_keys_at(
+    raw: Mapping[str, object], *, location: InvariantLocation
+) -> tuple[ForeignKey, ...]:
+    """Validate and normalize raw ``foreignKeys`` at a descriptor location."""
+    if "foreignKeys" not in raw:
+        return ()
+    value = raw["foreignKeys"]
+    if not isinstance(value, list):
+        raise _structure_at(
+            location,
+            ".foreignKeys",
+            value,
+            "foreign-key list",
+            descriptor_kind="schema",
+        )
+
+    from mountainash.typespec.frictionless import foreign_key_from_dict
+
+    parsed: list[ForeignKey] = []
+    for index, item in enumerate(value):
+        item_location = _foreign_key_location(location, index)
+        _validate_raw_foreign_key(item, location=item_location)
+        parsed.append(foreign_key_from_dict(item))
+    return tuple(parsed)
+
+
+def validate_foreign_key_targets(
+    foreign_keys: tuple[ForeignKey, ...],
+    *,
+    child_name: str,
+    resource_names: frozenset[str],
+    location: InvariantLocation,
+) -> None:
+    """Validate every explicit foreign-key target against package resources."""
+    for index, foreign_key in enumerate(foreign_keys):
+        target = foreign_key.reference.resource
+        if target is None:
+            continue
+        if target not in resource_names:
+            raise _relationship_at(
+                location,
+                index,
+                target,
+                "empty self-reference or package resource name",
+            )
 
 
 def is_recognized_v1_profile(value: object) -> bool:
@@ -422,6 +522,7 @@ _PACKAGE_REQUIRED_FORMS = {
     "resources": "non-empty resource sequence",
 }
 
+
 __all__ = [
     "InvariantLocation",
     "is_recognized_v1_profile",
@@ -431,6 +532,10 @@ __all__ = [
     "parse_descriptor_json",
     "require_package_mapping",
     "pydantic_structure_error",
+    "parse_foreign_keys_at",
+    "validate_foreign_key_targets",
     "_structure_at",
     "_relationship_at",
+    "_foreign_key_location",
+    "_validate_raw_foreign_key",
 ]

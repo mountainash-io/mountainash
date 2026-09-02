@@ -14,7 +14,12 @@ from mountainash.typespec.frictionless import (
     foreign_key_to_dict,
     typespec_from_frictionless,
 )
+from mountainash.typespec.frictionless_invariants import (
+    InvariantLocation,
+    validate_foreign_key_targets,
+)
 from mountainash.typespec.spec import ForeignKey, ForeignKeyReference
+
 
 RAW = {
     "fields": ["customer_id"],
@@ -128,3 +133,53 @@ def test_resolved_foreign_key_target_is_validated_by_typed_accessor() -> None:
     with pytest.raises(InvalidDescriptorRelationship):
         package.resources[0].to_typespec()
     assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
+
+
+def test_authored_none_reference_is_the_canonical_self_reference() -> None:
+    reference = ForeignKeyReference(None, ["id"])
+    assert reference.resource is None
+
+
+def test_authored_empty_reference_resource_is_invalid_relationship() -> None:
+    with pytest.raises(InvalidDescriptorRelationship) as caught:
+        ForeignKeyReference("", ["id"])
+    assert caught.value.descriptor_path == "foreign_key.reference.resource"
+    assert caught.value.required_form == "None or non-empty resource name string"
+
+
+def test_authored_non_string_reference_resource_is_invalid_relationship() -> None:
+    with pytest.raises(InvalidDescriptorRelationship) as caught:
+        ForeignKeyReference(1, ["id"])  # type: ignore[arg-type]
+    assert caught.value.rejected_value == 1
+    assert caught.value.required_form == "None or non-empty resource name string"
+
+
+def test_foreign_key_target_validation_rejects_unknown_package_resource() -> None:
+    foreign_keys = (foreign_key_from_dict(RAW),)
+    location = InvariantLocation("$.resources[1].schema", "orders", None)
+    with pytest.raises(InvalidDescriptorRelationship) as caught:
+        validate_foreign_key_targets(
+            foreign_keys,
+            child_name="orders",
+            resource_names=frozenset({"orders"}),
+            location=location,
+        )
+    assert caught.value.descriptor_path == (
+        "$.resources[1].schema.foreignKeys[0].reference.resource"
+    )
+    assert caught.value.rejected_value == "customers"
+
+
+def test_foreign_key_target_validation_allows_explicit_package_self_reference() -> None:
+    foreign_keys = (
+        ForeignKey(
+            fields=["parent_id"],
+            reference=ForeignKeyReference("orders", ["id"]),
+        ),
+    )
+    validate_foreign_key_targets(
+        foreign_keys,
+        child_name="orders",
+        resource_names=frozenset({"orders"}),
+        location=InvariantLocation("$.schema", "orders", None),
+    )

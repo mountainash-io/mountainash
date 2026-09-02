@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Union
 from mountainash.typespec.universal_types import UniversalType, parse_universal
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
+    InvalidDescriptorRelationship,
     InvalidKeyShapeError,
 )
 from mountainash.typespec.frictionless_invariants import (
@@ -84,13 +85,21 @@ class ForeignKeyReference:
         resource: Name of the referenced table. ``None`` for self-referencing.
         fields: Field name(s) in the referenced table.
     """
-    resource: Optional[str]  # None = self-reference
-    fields: List[str]
+    resource: str | None  # None = self-reference
+    fields: list[str]
 
     def __post_init__(self) -> None:
-        if self.resource == "":
-            raise ValueError("ForeignKeyReference.resource must be None or a non-empty string")
         _validate_key_shape(self.fields, "foreign_key.reference.fields")
+        if self.resource is not None and (
+            not isinstance(self.resource, str) or not self.resource
+        ):
+            raise InvalidDescriptorRelationship(
+                "typed foreign-key resource is invalid",
+                descriptor_kind="schema",
+                descriptor_path="foreign_key.reference.resource",
+                rejected_value=self.resource,
+                required_form="None or non-empty resource name string",
+            )
 
 
 @dataclass
