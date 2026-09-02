@@ -283,14 +283,14 @@ def validate_resource_source_shape(
         raise _structure_at(location, ".type", raw["type"], "absent or 'table'")
 
 
-def parse_descriptor_json(text: str) -> object:
+def parse_descriptor_json(text: str, *, descriptor_kind: str = "package") -> object:
     """Parse descriptor JSON and normalize syntax failures."""
     try:
         return json.loads(text)
-    except (json.JSONDecodeError, TypeError) as exc:
+    except (json.JSONDecodeError, TypeError, UnicodeDecodeError) as exc:
         raise InvalidDescriptorSyntax(
             "descriptor text is not valid JSON",
-            descriptor_kind="package",
+            descriptor_kind=_descriptor_kind(descriptor_kind),
             descriptor_path="$",
             rejected_value=text,
             required_form="valid JSON text",
@@ -379,6 +379,48 @@ def pydantic_structure_error(
         required_form=required_form,
     )
 
+
+_RESOURCE_ALIASES = {
+    "table_schema": "schema",
+    "schema_url": "$schema",
+    "bytes_": "bytes",
+}
+_RESOURCE_REQUIRED_FORMS = {
+    "name": "non-empty string resource name",
+    "path": "string or non-empty list of strings",
+    "data": "resource data value",
+    "type": "absent or 'table'",
+    "dialect": "dialect mapping or reference string",
+    "schema": "Table Schema mapping or reference string",
+    "$schema": "profile URI string",
+    "homepage": "string",
+    "title": "string",
+    "description": "string",
+    "format": "string",
+    "mediatype": "string",
+    "encoding": "string",
+    "bytes": "integer",
+    "hash": "v2 hash string",
+    "sources": "list of objects",
+    "licenses": "list of objects",
+}
+_PACKAGE_ALIASES = {"dollar_schema": "$schema"}
+_PACKAGE_REQUIRED_FORMS = {
+    "$schema": "profile URI string",
+    "name": "string",
+    "id": "string",
+    "licenses": "list of objects",
+    "title": "string",
+    "description": "string",
+    "homepage": "string",
+    "version": "string",
+    "created": "RFC 3339 date-time string",
+    "keywords": "non-empty list of strings",
+    "contributors": "list of objects",
+    "sources": "list of objects",
+    "image": "string",
+    "resources": "non-empty resource sequence",
+}
 
 __all__ = [
     "InvariantLocation",

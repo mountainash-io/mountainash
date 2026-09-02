@@ -21,6 +21,10 @@ from mountainash.typespec.errors import (
 )
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
+    _PACKAGE_ALIASES,
+    _PACKAGE_REQUIRED_FORMS,
+    _RESOURCE_ALIASES,
+    _RESOURCE_REQUIRED_FORMS,
     parse_descriptor_json,
     pydantic_structure_error,
     reject_typed_profile_at,
@@ -45,47 +49,6 @@ def _default_descriptor_context() -> DescriptorContext:
     )
 
 
-_RESOURCE_JSON_ALIASES = {
-    "table_schema": "schema",
-    "schema_url": "$schema",
-    "bytes_": "bytes",
-}
-_RESOURCE_JSON_REQUIRED_FORMS = {
-    "name": "non-empty string resource name",
-    "path": "string or non-empty list of strings",
-    "data": "resource data value",
-    "type": "absent or 'table'",
-    "dialect": "dialect mapping or reference string",
-    "schema": "Table Schema mapping or reference string",
-    "$schema": "profile URI string",
-    "homepage": "string",
-    "title": "string",
-    "description": "string",
-    "format": "string",
-    "mediatype": "string",
-    "encoding": "string",
-    "bytes": "integer",
-    "hash": "v2 hash string",
-    "sources": "list of objects",
-    "licenses": "list of objects",
-}
-_PACKAGE_JSON_ALIASES = {"dollar_schema": "$schema"}
-_PACKAGE_JSON_REQUIRED_FORMS = {
-    "$schema": "profile URI string",
-    "name": "string",
-    "id": "string",
-    "licenses": "list of objects",
-    "title": "string",
-    "description": "string",
-    "homepage": "string",
-    "version": "string",
-    "created": "RFC 3339 date-time string",
-    "keywords": "non-empty list of strings",
-    "contributors": "list of objects",
-    "sources": "list of objects",
-    "image": "string",
-    "resources": "non-empty resource sequence",
-}
 
 def _validate_resource_profile_input(
     value: Mapping[str, Any], *, location: InvariantLocation
@@ -109,6 +72,7 @@ def _validate_resource_profile_input(
             location=location.child("dialect"),
         )
 
+
 def _validate_package_profile_input(value: Mapping[str, Any]) -> None:
     reject_v1_markers_at(
         value,
@@ -126,6 +90,7 @@ def _validate_package_profile_input(value: Mapping[str, Any]) -> None:
             resource.get("name") if isinstance(resource.get("name"), str) else None,
         )
         _validate_resource_profile_input(resource, location=location)
+
 
 class TableDialect(BaseModel):
     """Frictionless Table Dialect spec — closed schema, unknown keys are dropped."""
@@ -307,12 +272,41 @@ class DataResource(BaseModel):
         super().__init__(**data)
 
     @classmethod
+    def model_validate(cls, obj: Any, **kwargs: Any) -> "DataResource":
+        raw = (
+            obj.model_dump(by_alias=True)
+            if isinstance(obj, cls)
+            else dict(obj)
+            if isinstance(obj, Mapping)
+            else None
+        )
+        resource_name = (
+            raw.get("name") if isinstance(raw, Mapping) and isinstance(raw.get("name"), str) else None
+        )
+        if raw is not None:
+            location = InvariantLocation("$", resource_name)
+            _validate_resource_profile_input(raw, location=location)
+            validate_resource_source_shape(raw, location=location)
+        try:
+            return super().model_validate(obj, **kwargs)
+        except ValidationError as exc:
+            raise pydantic_structure_error(
+                exc,
+                descriptor_kind="resource",
+                base_path="$",
+                resource_name=resource_name,
+                reference=None,
+                aliases=_RESOURCE_ALIASES,
+                required_forms=_RESOURCE_REQUIRED_FORMS,
+            ) from exc
+
+    @classmethod
     def model_validate_json(
         cls,
         json_data: str | bytes | bytearray,
         **kwargs: Any,
     ) -> "DataResource":
-        raw = parse_descriptor_json(json_data)
+        raw = parse_descriptor_json(json_data, descriptor_kind="resource")
         if not isinstance(raw, Mapping):
             raise InvalidDescriptorStructure(
                 "resource descriptor must be a mapping",
@@ -334,8 +328,8 @@ class DataResource(BaseModel):
                 base_path="$",
                 resource_name=resource_name,
                 reference=None,
-                aliases=_RESOURCE_JSON_ALIASES,
-                required_forms=_RESOURCE_JSON_REQUIRED_FORMS,
+                aliases=_RESOURCE_ALIASES,
+                required_forms=_RESOURCE_REQUIRED_FORMS,
             ) from exc
 
     def __eq__(self, other: object) -> bool:
@@ -528,6 +522,7 @@ class DataPackage(BaseModel):
         json_data: str | bytes | bytearray,
         **kwargs: Any,
     ) -> "DataPackage":
+        # Task 5 will unify full package-content parity with codec/from_json.
         raw = require_package_mapping(parse_descriptor_json(json_data))
         _validate_package_profile_input(raw)
         if "resources" not in raw:
@@ -570,8 +565,8 @@ class DataPackage(BaseModel):
                 base_path="$",
                 resource_name=None,
                 reference=None,
-                aliases=_PACKAGE_JSON_ALIASES,
-                required_forms=_PACKAGE_JSON_REQUIRED_FORMS,
+                aliases=_PACKAGE_ALIASES,
+                required_forms=_PACKAGE_REQUIRED_FORMS,
             ) from exc
 
     @classmethod

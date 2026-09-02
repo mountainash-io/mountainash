@@ -1,3 +1,4 @@
+import json
 from collections.abc import Mapping
 
 import pytest
@@ -97,21 +98,38 @@ def test_must_have_exactly_one_of_path_or_data():
     assert both.value.descriptor_path == "$"
     assert both.value.required_form == "exactly one of path or data"
 
-
 @pytest.mark.parametrize(
-    "payload",
+    ("payload", "descriptor_path", "required_form"),
     [
-        {"name": "orders"},
-        {"name": "orders", "path": "orders.csv", "data": []},
-        {"name": "orders", "path": []},
+        ({"name": "orders"}, "$", "exactly one of path or data"),
+        ({"name": "orders", "path": "orders.csv", "data": []}, "$", "exactly one of path or data"),
+        ({"name": "orders", "path": []}, "$.path", "non-empty string or non-empty list of strings"),
     ],
 )
-def test_resource_model_validate_json_uses_source_shape_adapter(payload) -> None:
-    import json
-
-    with pytest.raises(InvalidDescriptorStructure):
+def test_resource_model_validate_json_uses_source_shape_adapter(
+    payload, descriptor_path, required_form
+) -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
         DataResource.model_validate_json(json.dumps(payload))
+    assert caught.value.descriptor_path == descriptor_path
+    assert caught.value.required_form == required_form
 
+
+@pytest.mark.parametrize("marker", ["caseSensitiveHeader", "csvddfVersion"])
+def test_resource_model_validate_uses_profile_adapter(marker) -> None:
+    with pytest.raises(UnsupportedDescriptorVersion) as caught:
+        DataResource.model_validate(
+            {"name": "orders", "path": "orders.csv", "dialect": {marker: True}}
+        )
+    assert caught.value.descriptor_path == f"$.dialect.{marker}"
+
+
+
+def test_resource_model_validate_uses_source_shape_adapter() -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        DataResource.model_validate({"name": "orders", "path": []})
+    assert caught.value.descriptor_path == "$.path"
+    assert caught.value.required_form == "non-empty string or non-empty list of strings"
 
 def test_multi_file_path_array():
     r = DataResource(name="orders", path=["a.csv", "b.csv"])

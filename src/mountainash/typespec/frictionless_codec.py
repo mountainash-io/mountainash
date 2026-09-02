@@ -35,6 +35,10 @@ from mountainash.typespec.errors import (
 )
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
+    _PACKAGE_ALIASES,
+    _PACKAGE_REQUIRED_FORMS,
+    _RESOURCE_ALIASES,
+    _RESOURCE_REQUIRED_FORMS,
     is_recognized_v1_profile,
     parse_descriptor_json,
     pydantic_structure_error,
@@ -43,6 +47,8 @@ from mountainash.typespec.frictionless_invariants import (
     require_package_mapping,
     validate_resource_source_shape,
 )
+# The v2 Data Resource profile's hash property pattern.  It accepts an
+# unprefixed 32-character MD5 digest, an algorithm-prefixed hexadecimal digest,
 # or an empty hash value.
 V2_HASH_PATTERN = re.compile(r"^([^:]+:[a-fA-F0-9]+|[a-fA-F0-9]{32}|)$")
 _CREATED_ADAPTER = TypeAdapter(AwareDatetime)
@@ -57,47 +63,6 @@ _RESOURCE_FIELDS = {
     "sources", "licenses",
 }
 
-_RESOURCE_ALIASES = {
-    "table_schema": "schema",
-    "schema_url": "$schema",
-    "bytes_": "bytes",
-}
-_RESOURCE_REQUIRED_FORMS = {
-    "name": "non-empty string resource name",
-    "path": "string or non-empty list of strings",
-    "data": "resource data value",
-    "type": "absent or 'table'",
-    "dialect": "dialect mapping or reference string",
-    "schema": "Table Schema mapping or reference string",
-    "$schema": "profile URI string",
-    "homepage": "string",
-    "title": "string",
-    "description": "string",
-    "format": "string",
-    "mediatype": "string",
-    "encoding": "string",
-    "bytes": "integer",
-    "hash": "v2 hash string",
-    "sources": "list of objects",
-    "licenses": "list of objects",
-}
-_PACKAGE_ALIASES = {"dollar_schema": "$schema"}
-_PACKAGE_REQUIRED_FORMS = {
-    "$schema": "profile URI string",
-    "name": "string",
-    "id": "string",
-    "licenses": "list of objects",
-    "title": "string",
-    "description": "string",
-    "homepage": "string",
-    "version": "string",
-    "created": "RFC 3339 date-time string",
-    "keywords": "non-empty list of strings",
-    "contributors": "list of objects",
-    "sources": "list of objects",
-    "image": "string",
-    "resources": "non-empty resource sequence",
-}
 _DIALECT_DELIMITED = {
     "delimiter", "lineTerminator", "quoteChar", "doubleQuote", "escapeChar",
     "nullSequence", "skipInitialSpace",
@@ -772,6 +737,7 @@ def _validate_package(owned: Mapping[str, Any]) -> None:
             seen_names.add(name)
         _validate_resource(resource, path=path)
 
+
 def _capture_package_kwargs(owned: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     kwargs = {key: value for key, value in owned.items() if key in _PACKAGE_FIELDS}
     extras = {key: value for key, value in owned.items() if key not in _PACKAGE_FIELDS and key != "profile"}
@@ -783,6 +749,7 @@ def _capture_resource_kwargs(raw: Mapping[str, Any]) -> dict[str, Any]:
     kwargs = {key: value for key, value in raw.items() if key in _RESOURCE_FIELDS}
     kwargs["extras"] = {key: value for key, value in raw.items() if key not in _RESOURCE_FIELDS and key != "profile"}
     return kwargs
+
 
 def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContext) -> DataPackage:
     """Decode an already-owned mapping without making another defensive copy."""

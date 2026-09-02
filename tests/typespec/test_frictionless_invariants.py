@@ -152,6 +152,12 @@ def test_parse_descriptor_json_has_one_syntax_error(text):
     assert caught.value.required_form == "valid JSON text"
 
 
+
+def test_parse_descriptor_json_preserves_supplied_descriptor_kind():
+    with pytest.raises(InvalidDescriptorSyntax) as caught:
+        parse_descriptor_json("{", descriptor_kind="resource")
+    assert caught.value.descriptor_kind == "resource"
+
 def test_parse_descriptor_json_accepts_json_values():
     assert parse_descriptor_json('{"resources": []}') == {"resources": []}
 

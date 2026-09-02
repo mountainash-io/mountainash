@@ -412,17 +412,18 @@ def test_malformed_json_is_rejected() -> None:
 
 
 @pytest.mark.parametrize(
-    "decode",
+    ("decode", "rejected"),
     [
-        lambda: DataPackage.from_json("{"),
-        lambda: DataPackage.model_validate_json("{"),
+        (lambda: DataPackage.from_json("{"), "{"),
+        (lambda: DataPackage.model_validate_json("{"), "{"),
+        (lambda: DataPackage.model_validate_json(b"\xff"), b"\xff"),
     ],
 )
-def test_json_entrypoints_share_syntax_error(decode) -> None:
+def test_json_entrypoints_share_syntax_error(decode, rejected) -> None:
     with pytest.raises(InvalidDescriptorSyntax) as caught:
         decode()
     assert caught.value.descriptor_path == "$"
-    assert caught.value.rejected_value == "{"
+    assert caught.value.rejected_value == rejected
     assert caught.value.required_form == "valid JSON text"
 
 
