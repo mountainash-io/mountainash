@@ -117,6 +117,22 @@ def test_resource_model_copy_normalizes_python_field_names() -> None:
     assert copied.bytes_ == 12
 
 
+def test_resource_model_copy_renames_without_mutating_original() -> None:
+    payload = object()
+    resource = DataResource(
+        name="old_name",
+        data=payload,
+        schema={"fields": [{"name": "id"}]},
+    )
+    copied = resource.model_copy(update={"name": "new_name"})
+    assert copied is not resource
+    assert copied.name == "new_name"
+    assert copied.data is payload
+    assert copied.table_schema == resource.table_schema
+    with pytest.raises(TypeError, match="name is immutable"):
+        resource.name = "other_name"
+
+
 @pytest.mark.parametrize("entrypoint", ["init", "model_validate", "model_validate_json"])
 def test_resource_entrypoints_reject_malformed_inline_foreign_key(entrypoint: str) -> None:
     raw = {
