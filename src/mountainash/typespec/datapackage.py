@@ -102,29 +102,8 @@ class TableDialect(BaseModel):
         )
 
     @classmethod
-    def model_validate(
-        cls,
-        obj: Any,
-        *,
-        strict: bool | None = None,
-        extra: Any = None,
-        from_attributes: bool | None = None,
-        context: Any | None = None,
-        by_alias: bool | None = None,
-        by_name: bool | None = None,
-    ) -> "TableDialect":
+    def model_validate(cls, obj: Any, **kwargs: Any) -> "TableDialect":
         cls._validate_profile_input(obj)
-        kwargs: dict[str, Any] = {}
-        for key, value in (
-            ("strict", strict),
-            ("extra", extra),
-            ("from_attributes", from_attributes),
-            ("context", context),
-            ("by_alias", by_alias),
-            ("by_name", by_name),
-        ):
-            if value is not None:
-                kwargs[key] = value
         result = super().model_validate(obj, **kwargs)
         reject_typed_profile_at(
             result.schema_url,
@@ -138,12 +117,7 @@ class TableDialect(BaseModel):
     def model_validate_json(
         cls,
         json_data: str | bytes | bytearray,
-        *,
-        strict: bool | None = None,
-        extra: Any = None,
-        context: Any | None = None,
-        by_alias: bool | None = None,
-        by_name: bool | None = None,
+        **kwargs: Any,
     ) -> "TableDialect":
         try:
             parsed = json.loads(json_data)
@@ -151,16 +125,6 @@ class TableDialect(BaseModel):
             parsed = None
         if isinstance(parsed, Mapping):
             cls._validate_profile_input(parsed)
-        kwargs: dict[str, Any] = {}
-        for key, value in (
-            ("strict", strict),
-            ("extra", extra),
-            ("context", context),
-            ("by_alias", by_alias),
-            ("by_name", by_name),
-        ):
-            if value is not None:
-                kwargs[key] = value
         result = super().model_validate_json(json_data, **kwargs)
         reject_typed_profile_at(
             result.schema_url,
@@ -174,6 +138,7 @@ class TableDialect(BaseModel):
     @classmethod
     def from_descriptor(cls, raw: Mapping[str, Any]) -> "TableDialect":
         return cls.model_validate(dict(raw))
+
     def to_descriptor(self) -> dict[str, Any]:
         reject_typed_profile_at(
             self.schema_url,

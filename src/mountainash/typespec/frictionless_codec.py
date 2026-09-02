@@ -32,7 +32,6 @@ from mountainash.typespec.errors import (
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
-    UnsupportedDescriptorVersion,
     UnsupportedResourceDialect,
 )
 from mountainash.typespec.frictionless_invariants import (
@@ -116,23 +115,6 @@ def _structure_error(
     )
 
 
-def _unsupported_version(
-    message: str,
-    *,
-    descriptor_path: str,
-    rejected_value: Any,
-    required_form: str,
-    descriptor_kind: str,
-    resource_name: str | None = None,
-) -> UnsupportedDescriptorVersion:
-    return UnsupportedDescriptorVersion(
-        message,
-        descriptor_kind=descriptor_kind,
-        descriptor_path=descriptor_path,
-        resource_name=resource_name,
-        rejected_value=rejected_value,
-        required_form=required_form,
-    )
 
 
 def require_package_mapping(raw: Any) -> Mapping[str, Any]:

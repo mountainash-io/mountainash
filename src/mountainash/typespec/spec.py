@@ -192,13 +192,14 @@ class TypeSpec:
     fields_match: str = "exact"  # exact/equal/subset/superset/partial/open
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
+
+    contract: Optional[Dict[str, str]] = None  # item 48: reconciliation contract, layered
+                                                # under conform(contract=...) overrides
+
     def __setattr__(self, name: str, value: Any) -> None:
         if name == "schema_url" and getattr(self, "_schema_url_frozen", False):
             raise TypeError("TypeSpec.schema_url is immutable after construction")
         super().__setattr__(name, value)
-
-    contract: Optional[Dict[str, str]] = None  # item 48: reconciliation contract, layered
-                                                # under conform(contract=...) overrides
 
     def __post_init__(self) -> None:
         reject_typed_profile_at(

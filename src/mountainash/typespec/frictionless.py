@@ -316,6 +316,7 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
 
     return field_dict
 
+
 def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     """Convert a TypeSpec to a Frictionless Table Schema descriptor dict.
 
