@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from copy import deepcopy
+import json
 from typing import Any, Optional, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
@@ -17,11 +19,15 @@ from mountainash.typespec.errors import (
     InvalidDescriptorStructure,
     TypeSpecError,
 )
+from mountainash.typespec.frictionless_invariants import (
+    InvariantLocation,
+    reject_typed_profile_at,
+    reject_v1_markers_at,
+)
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
 
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
 
 """Frictionless Data Package types — TableDialect, DataResource, DataPackage."""
@@ -60,12 +66,121 @@ class TableDialect(BaseModel):
     sheet_number: Optional[int] = Field(default=None, alias="sheetNumber")
     table: Optional[str] = None
     extras: dict[str, Any] = Field(default_factory=dict)
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "schema_url" and "schema_url" in self.__dict__:
+            raise TypeError("TableDialect.schema_url is immutable after construction")
+        super().__setattr__(name, value)
+
+    @classmethod
+    def _validate_profile_input(cls, value: Any) -> None:
+        if isinstance(value, cls):
+            raw = value.model_dump(by_alias=True)
+        elif isinstance(value, Mapping):
+            raw = dict(value)
+        else:
+            return
+        reject_v1_markers_at(
+            raw,
+            descriptor_kind="dialect",
+            location=InvariantLocation("$"),
+        )
+        reject_typed_profile_at(
+            raw.get("$schema", raw.get("schema_url")),
+            descriptor_kind="dialect",
+            extras=raw.get("extras") if isinstance(raw.get("extras"), Mapping) else None,
+            location=InvariantLocation("$"),
+        )
+
+    def __init__(self, **data: Any) -> None:
+        self._validate_profile_input(data)
+        super().__init__(**data)
+        reject_typed_profile_at(
+            self.schema_url,
+            descriptor_kind="dialect",
+            extras=self.extras,
+            location=InvariantLocation("$"),
+        )
+
+    @classmethod
+    def model_validate(
+        cls,
+        obj: Any,
+        *,
+        strict: bool | None = None,
+        extra: Any = None,
+        from_attributes: bool | None = None,
+        context: Any | None = None,
+        by_alias: bool | None = None,
+        by_name: bool | None = None,
+    ) -> "TableDialect":
+        cls._validate_profile_input(obj)
+        kwargs: dict[str, Any] = {}
+        for key, value in (
+            ("strict", strict),
+            ("extra", extra),
+            ("from_attributes", from_attributes),
+            ("context", context),
+            ("by_alias", by_alias),
+            ("by_name", by_name),
+        ):
+            if value is not None:
+                kwargs[key] = value
+        result = super().model_validate(obj, **kwargs)
+        reject_typed_profile_at(
+            result.schema_url,
+            descriptor_kind="dialect",
+            extras=result.extras,
+            location=InvariantLocation("$"),
+        )
+        return result
+
+    @classmethod
+    def model_validate_json(
+        cls,
+        json_data: str | bytes | bytearray,
+        *,
+        strict: bool | None = None,
+        extra: Any = None,
+        context: Any | None = None,
+        by_alias: bool | None = None,
+        by_name: bool | None = None,
+    ) -> "TableDialect":
+        try:
+            parsed = json.loads(json_data)
+        except (TypeError, ValueError):
+            parsed = None
+        if isinstance(parsed, Mapping):
+            cls._validate_profile_input(parsed)
+        kwargs: dict[str, Any] = {}
+        for key, value in (
+            ("strict", strict),
+            ("extra", extra),
+            ("context", context),
+            ("by_alias", by_alias),
+            ("by_name", by_name),
+        ):
+            if value is not None:
+                kwargs[key] = value
+        result = super().model_validate_json(json_data, **kwargs)
+        reject_typed_profile_at(
+            result.schema_url,
+            descriptor_kind="dialect",
+            extras=result.extras,
+            location=InvariantLocation("$"),
+        )
+        return result
+
 
     @classmethod
     def from_descriptor(cls, raw: Mapping[str, Any]) -> "TableDialect":
         return cls.model_validate(dict(raw))
-
     def to_descriptor(self) -> dict[str, Any]:
+        reject_typed_profile_at(
+            self.schema_url,
+            descriptor_kind="dialect",
+            extras=self.extras,
+            location=InvariantLocation("$"),
+        )
         out = self.model_dump(by_alias=True, exclude_none=True)
         extras = out.pop("extras", None)
         if extras:

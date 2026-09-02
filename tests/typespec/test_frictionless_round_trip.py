@@ -97,7 +97,7 @@ GAP_FIXTURES = [
     # Gap 2: $schema not modelled in TypeSpec
     pytest.param(
         {
-            "$schema": "https://datapackage.org/profiles/1.0/tableschema.json",
+            "$schema": "https://datapackage.org/profiles/2.0/tableschema.json",
             "fields": [{"name": "x", "type": "string"}],
         },
         id="schema-url",
@@ -211,10 +211,10 @@ class TestFieldDictSerialization:
     def test_typespec_dict_emits_schema_url(self):
         ts = TypeSpec(
             fields=[FieldSpec(name="x", type=UniversalType.STRING)],
-            schema_url="https://datapackage.org/profiles/1.0/tableschema.json",
+            schema_url="https://datapackage.org/profiles/2.0/tableschema.json",
         )
         d = typespec_to_frictionless(ts)
-        assert d["$schema"] == "https://datapackage.org/profiles/1.0/tableschema.json"
+        assert d["$schema"] == "https://datapackage.org/profiles/2.0/tableschema.json"
 
     def test_typespec_dict_omits_none_schema_url(self):
         ts = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])

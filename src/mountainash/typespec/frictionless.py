@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 from mountainash.conform.contract import validate_contract_dict
 
 from .errors import InvalidFieldMatchDeclaration, InvalidKeyShapeError
+from .frictionless_invariants import InvariantLocation, reject_typed_profile_at
 from .spec import (
     FieldConstraints,
     FieldSpec,
@@ -315,7 +316,6 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
 
     return field_dict
 
-
 def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     """Convert a TypeSpec to a Frictionless Table Schema descriptor dict.
 
@@ -330,6 +330,12 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     Returns:
         A Frictionless Table Schema descriptor dict.
     """
+    reject_typed_profile_at(
+        spec.schema_url,
+        descriptor_kind="schema",
+        extras=None,
+        location=InvariantLocation("$"),
+    )
     descriptor: Dict[str, Any] = {}
 
     if spec.title:

@@ -35,6 +35,12 @@ from mountainash.typespec.errors import (
     UnsupportedDescriptorVersion,
     UnsupportedResourceDialect,
 )
+from mountainash.typespec.frictionless_invariants import (
+    InvariantLocation,
+    is_recognized_v1_profile,
+    reject_typed_profile_at,
+    reject_v1_markers_at,
+)
 
 
 # The v2 Data Resource profile's hash property pattern.  It accepts an
@@ -42,38 +48,6 @@ from mountainash.typespec.errors import (
 # or an empty hash value.
 V2_HASH_PATTERN = re.compile(r"^([^:]+:[a-fA-F0-9]+|[a-fA-F0-9]{32}|)$")
 _CREATED_ADAPTER = TypeAdapter(AwareDatetime)
-
-_V1_PROFILE_PATHS_BY_HOST = {
-    "datapackage.org": {
-        f"/profiles/1.0/{name}.json"
-        for name in ("datapackage", "dataresource", "tabledialect", "tableschema")
-    },
-    "specs.frictionlessdata.io": {
-        f"/schemas/{name}.json"
-        for name in (
-            "data-package",
-            "data-resource",
-            "tabular-data-resource",
-            "tabular-data-package",
-            "fiscal-data-package",
-            "table-schema",
-            "csv-dialect",
-        )
-    },
-    "frictionlessdata.io": {
-        f"/schemas/{name}.json"
-        for name in (
-            "data-package",
-            "data-resource",
-            "tabular-data-resource",
-            "tabular-data-package",
-            "fiscal-data-package",
-            "table-schema",
-            "csv-dialect",
-        )
-    },
-}
-_V1_PROFILE_HOSTS = set(_V1_PROFILE_PATHS_BY_HOST)
 
 _PACKAGE_FIELDS = {
     "name", "id", "licenses", "$schema", "title", "description", "homepage",
@@ -221,55 +195,13 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
     return absolute_path, text
 
 
-def _profile_identity(value: Any) -> tuple[str, str] | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        parts = urlsplit(value)
-    except ValueError:
-        return None
-    scheme = parts.scheme.lower()
-    raw_host = (parts.hostname or "").lower()
-    host = (
-        raw_host.removeprefix("www.")
-        if raw_host in {"www.specs.frictionlessdata.io", "www.frictionlessdata.io"}
-        else raw_host
-    )
-    if scheme not in {"http", "https"} or host not in _V1_PROFILE_HOSTS:
-        return None
-    return host, parts.path
-
-def _is_v1_profile_uri(value: Any) -> bool:
-    identity = _profile_identity(value)
-    if identity is None:
-        return False
-    host, path = identity
-    return path in _V1_PROFILE_PATHS_BY_HOST[host]
-
-
-def _reject_v1_schema(mapping: Mapping[str, Any], *, path: str, kind: str, resource_name: str | None = None) -> None:
-    if "$schema" in mapping and _is_v1_profile_uri(mapping["$schema"]):
-        raise _unsupported_version(
-            "recognized v1 profile URI is not supported",
-            descriptor_path=f"{path}.$schema",
-            rejected_value=mapping["$schema"],
-            required_form="v2 profile URI or omitted $schema",
-            descriptor_kind=kind,
-            resource_name=resource_name,
-        )
-
-
 def _reject_v1_markers(owned: Mapping[str, Any]) -> None:
     """Reject explicit v1 markers before any known-field validation."""
-    _reject_v1_schema(owned, path="$", kind="package")
-    if "profile" in owned:
-        raise _unsupported_version(
-            "the v1 profile property is not supported",
-            descriptor_path="$.profile",
-            rejected_value=owned["profile"],
-            required_form="$schema v2 profile URI or omitted $schema",
-            descriptor_kind="package",
-        )
+    reject_v1_markers_at(
+        owned,
+        descriptor_kind="package",
+        location=InvariantLocation("$"),
+    )
     resources = owned.get("resources")
     if not isinstance(resources, list):
         return
@@ -278,39 +210,22 @@ def _reject_v1_markers(owned: Mapping[str, Any]) -> None:
             continue
         resource_path = f"$.resources[{index}]"
         resource_name = resource.get("name") if isinstance(resource.get("name"), str) else None
-        _reject_v1_schema(resource, path=resource_path, kind="resource", resource_name=resource_name)
-        if "profile" in resource:
-            raise _unsupported_version(
-                "the v1 profile property is not supported",
-                descriptor_path=f"{resource_path}.profile",
-                rejected_value=resource["profile"],
-                required_form="$schema v2 profile URI or omitted $schema",
-                descriptor_kind="resource",
-                resource_name=resource_name,
-            )
+        resource_location = InvariantLocation(resource_path, resource_name)
+        reject_v1_markers_at(resource, descriptor_kind="resource", location=resource_location)
         schema = resource.get("schema")
         if isinstance(schema, Mapping):
-            _reject_v1_schema(
+            reject_v1_markers_at(
                 schema,
-                path=f"{resource_path}.schema",
-                kind="schema",
-                resource_name=resource_name,
+                descriptor_kind="schema",
+                location=resource_location.child("schema"),
             )
         dialect = resource.get("dialect")
         if isinstance(dialect, Mapping):
-            dialect_path = f"{resource_path}.dialect"
-            _reject_v1_schema(dialect, path=dialect_path, kind="dialect", resource_name=resource_name)
-            for marker in ("caseSensitiveHeader", "csvddfVersion"):
-                if marker in dialect:
-                    raise _unsupported_version(
-                        f"v1 dialect property {marker!r} is not supported",
-                        descriptor_path=f"{dialect_path}.{marker}",
-                        rejected_value=dialect[marker],
-                        required_form="v2 dialect properties",
-                        descriptor_kind="dialect",
-                        resource_name=resource_name,
-                    )
-
+            reject_v1_markers_at(
+                dialect,
+                descriptor_kind="dialect",
+                location=resource_location.child("dialect"),
+            )
 
 def _ensure_string(mapping: Mapping[str, Any], key: str, path: str, *, kind: str, resource_name: str | None = None) -> None:
     if key in mapping and not isinstance(mapping[key], str):
@@ -603,33 +518,11 @@ def _reject_resolved_v1_markers(
     descriptor_path: str,
     resource_name: str,
 ) -> None:
-    kind = expected_kind.value
-    _reject_v1_schema(
+    reject_v1_markers_at(
         raw,
-        path=descriptor_path,
-        kind=kind,
-        resource_name=resource_name,
+        descriptor_kind=expected_kind.value,
+        location=InvariantLocation(descriptor_path, resource_name),
     )
-    if "profile" in raw and _is_v1_profile_uri(raw["profile"]):
-        raise _unsupported_version(
-            "the v1 profile property is not supported",
-            descriptor_path=f"{descriptor_path}.profile",
-            rejected_value=raw["profile"],
-            required_form="$schema v2 profile URI or omitted $schema",
-            descriptor_kind=kind,
-            resource_name=resource_name,
-        )
-    if expected_kind is DescriptorKind.DIALECT:
-        for marker in ("caseSensitiveHeader", "csvddfVersion"):
-            if marker in raw:
-                raise _unsupported_version(
-                    f"v1 dialect property {marker!r} is not supported",
-                    descriptor_path=f"{descriptor_path}.{marker}",
-                    rejected_value=raw[marker],
-                    required_form="v2 dialect properties",
-                    descriptor_kind=kind,
-                    resource_name=resource_name,
-                )
 
 
 def validate_resolved_mapping(
@@ -1159,6 +1052,25 @@ def _encode_resource_preserve(resource: DataResource) -> dict[str, Any]:
     """Encode one resource while owning every value in the returned graph."""
     from mountainash.typespec.datapackage import TableDialect
     from mountainash.typespec.frictionless import typespec_to_frictionless
+    location = InvariantLocation("$", resource.name)
+    reject_typed_profile_at(
+        resource.schema_url,
+        descriptor_kind="resource",
+        extras=resource.extras,
+        location=location,
+    )
+    if isinstance(resource.dialect, Mapping):
+        reject_v1_markers_at(
+            resource.dialect,
+            descriptor_kind="dialect",
+            location=location.child("dialect"),
+        )
+    if isinstance(resource.table_schema, Mapping):
+        reject_v1_markers_at(
+            resource.table_schema,
+            descriptor_kind="schema",
+            location=location.child("schema"),
+        )
 
     out: dict[str, Any] = {"name": deepcopy(resource.name)}
     for field in (
@@ -1201,6 +1113,12 @@ def _encode_resource_preserve(resource: DataResource) -> dict[str, Any]:
 
 def _encode_package_preserve(package: DataPackage) -> dict[str, Any]:
     """Encode a package without normalizing authored consumer-facing forms."""
+    reject_typed_profile_at(
+        package.dollar_schema,
+        descriptor_kind="package",
+        extras=package.extras,
+        location=InvariantLocation("$"),
+    )
     out: dict[str, Any] = {}
     if package.dollar_schema is not None:
         out["$schema"] = deepcopy(package.dollar_schema)
@@ -1227,7 +1145,7 @@ def _encode_package_preserve(package: DataPackage) -> dict[str, Any]:
 
 
 def _canonical_profile(value: Any, standard: str) -> Any:
-    if value is None or value == standard or _is_v1_profile_uri(value):
+    if value is None or value == standard or is_recognized_v1_profile(value):
         return standard
     return deepcopy(value)
 
