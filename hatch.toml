@@ -255,7 +255,7 @@ dependencies = [
     # env-sync time like every other dependency. See backlog item 76.
     "pandas-stubs",
     # Runtime import-resolution set — mirrors [envs.test] so mypy can
-    # resolve every third-party import actually used in src/ and tests/
+    # resolve every third-party import actually used in src/
     # (mypy needs the real package installed, not just a stub, for
     # inline-typed / py.typed libraries). Kept independent of [envs.test]
     # rather than templated from it: mypy doesn't need the pytest-plugin
@@ -273,4 +273,4 @@ dependencies = [
     "mountainash_secrets @     {root:uri}/../mountainash-secrets",
 ]
 [envs.mypy.scripts]
-check = "mypy {args:src/mountainash tests}"
+check = "mypy {args:src}"
