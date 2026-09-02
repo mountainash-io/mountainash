@@ -231,6 +231,10 @@ def _resource_public_values(
     """Return resource values using descriptor-facing aliases."""
     if isinstance(value, DataResource):
         raw = value.model_dump(by_alias=True, exclude_none=True)
+        if isinstance(value.table_schema, TypeSpec):
+            raw["schema"] = value.table_schema
+        if isinstance(value.dialect, TableDialect):
+            raw["dialect"] = value.dialect
     elif isinstance(value, Mapping):
         raw = dict(value)
     else:
@@ -247,12 +251,17 @@ def _owned_resource_values(
     raw: Mapping[str, object],
     *,
     retain_data_identity: bool,
+    copy_typed_declarations: bool = False,
 ) -> dict[str, object]:
     """Copy descriptor metadata while optionally preserving resource data."""
     return {
-        key: value
-        if key == "data" and retain_data_identity
-        else deepcopy(value)
+        key: (
+            value
+            if key == "data" and retain_data_identity
+            else value
+            if not copy_typed_declarations and isinstance(value, (TypeSpec, TableDialect))
+            else deepcopy(value)
+        )
         for key, value in raw.items()
     }
 
@@ -300,6 +309,7 @@ def _prepare_resource_input(
     value: Mapping[str, object] | DataResource,
     *,
     location: InvariantLocation,
+    copy_typed_declarations: bool = False,
 ) -> dict[str, object]:
     raw = _resource_public_values(value)
     _validate_resource_profile_input(raw, location=location)
@@ -307,7 +317,11 @@ def _prepare_resource_input(
     validate_resource_source_shape(raw, location=location)
     _validate_schema_storage(raw.get("schema"), location=location)
     _validate_dialect_storage(raw.get("dialect"), location=location)
-    return _owned_resource_values(raw, retain_data_identity=True)
+    return _owned_resource_values(
+        raw,
+        retain_data_identity=True,
+        copy_typed_declarations=copy_typed_declarations,
+    )
 
 
 def _normalize_resource_update_names(
@@ -479,6 +493,11 @@ class DataResource(BaseModel):
         values = _resource_public_values(self)
         if update:
             values.update(_normalize_resource_update_names(update))
+        values = _owned_resource_values(
+            values,
+            retain_data_identity=True,
+            copy_typed_declarations=True,
+        )
         return type(self).model_validate(values)
 
     def __eq__(self, other: object) -> bool:
@@ -615,7 +634,11 @@ def _copy_resource_for_package(
     *,
     location: InvariantLocation,
 ) -> DataResource:
-    raw = _prepare_resource_input(value, location=location)
+    raw = _prepare_resource_input(
+        value,
+        location=location,
+        copy_typed_declarations=True,
+    )
     resource = DataResource.model_validate(raw)
     resource._invariant_location = location
     return resource

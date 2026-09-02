@@ -86,6 +86,17 @@ def test_resource_model_copy_deep_copies_metadata() -> None:
     assert resource.extras["nested"][0]["value"] == 1
 
 
+def test_resource_model_copy_deep_copies_typed_declarations() -> None:
+    schema = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    dialect = TableDialect(delimiter=";")
+    resource = DataResource(name="r", data=[], schema=schema, dialect=dialect)
+    copied = resource.model_copy()
+    assert copied.table_schema == schema
+    assert copied.table_schema is not schema
+    assert copied.dialect == dialect
+    assert copied.dialect is not dialect
+
+
 def test_resource_name_is_immutable_after_construction() -> None:
     resource = DataResource(name="r", data=object())
     with pytest.raises(TypeError, match="name is immutable"):
@@ -302,8 +313,7 @@ def test_to_typespec_none_when_no_schema():
 def test_to_typespec_passthrough_when_already_typespec():
     spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
     r = DataResource(name="t", path="t.csv", schema=spec)
-    assert r.to_typespec() == spec
-    assert r.to_typespec() is not spec
+    assert r.to_typespec() is spec
 
 
 
@@ -380,8 +390,7 @@ def test_to_dialect_none_when_no_dialect() -> None:
 def test_to_dialect_passthrough_when_already_table_dialect() -> None:
     dialect = TableDialect(delimiter=";")
     resource = DataResource(name="orders", path="orders.csv", dialect=dialect)
-    assert resource.to_dialect() == dialect
-    assert resource.to_dialect() is not dialect
+    assert resource.to_dialect() is dialect
 
 
 def test_to_dialect_converts_raw_mapping() -> None:
