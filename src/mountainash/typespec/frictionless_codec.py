@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import replace
 from enum import StrEnum
 from pathlib import Path
 import re
@@ -35,17 +34,11 @@ from mountainash.typespec.errors import (
 )
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
-    _PACKAGE_ALIASES,
-    _PACKAGE_REQUIRED_FORMS,
-    _RESOURCE_ALIASES,
-    _RESOURCE_REQUIRED_FORMS,
     is_recognized_v1_profile,
     parse_descriptor_json,
-    pydantic_structure_error,
     reject_typed_profile_at,
     reject_v1_markers_at,
     require_package_mapping,
-    validate_resource_source_shape,
 )
 # The v2 Data Resource profile's hash property pattern.  It accepts an
 # unprefixed 32-character MD5 digest, an algorithm-prefixed hexadecimal digest,
@@ -53,15 +46,6 @@ from mountainash.typespec.frictionless_invariants import (
 V2_HASH_PATTERN = re.compile(r"^([^:]+:[a-fA-F0-9]+|[a-fA-F0-9]{32}|)$")
 _CREATED_ADAPTER = TypeAdapter(AwareDatetime)
 
-_PACKAGE_FIELDS = {
-    "name", "id", "licenses", "$schema", "title", "description", "homepage",
-    "version", "created", "keywords", "contributors", "sources", "image", "resources",
-}
-_RESOURCE_FIELDS = {
-    "name", "path", "data", "type", "dialect", "schema", "$schema", "homepage",
-    "title", "description", "format", "mediatype", "encoding", "bytes", "hash",
-    "sources", "licenses",
-}
 
 _DIALECT_DELIMITED = {
     "delimiter", "lineTerminator", "quoteChar", "doubleQuote", "escapeChar",
@@ -156,37 +140,6 @@ def read_local_package_text(path: str | Path) -> tuple[Path, str]:
     return absolute_path, text
 
 
-def _reject_v1_markers(owned: Mapping[str, Any]) -> None:
-    """Reject explicit v1 markers before any known-field validation."""
-    reject_v1_markers_at(
-        owned,
-        descriptor_kind="package",
-        location=InvariantLocation("$"),
-    )
-    resources = owned.get("resources")
-    if not isinstance(resources, list):
-        return
-    for index, resource in enumerate(resources):
-        if not isinstance(resource, Mapping):
-            continue
-        resource_path = f"$.resources[{index}]"
-        resource_name = resource.get("name") if isinstance(resource.get("name"), str) else None
-        resource_location = InvariantLocation(resource_path, resource_name)
-        reject_v1_markers_at(resource, descriptor_kind="resource", location=resource_location)
-        schema = resource.get("schema")
-        if isinstance(schema, Mapping):
-            reject_v1_markers_at(
-                schema,
-                descriptor_kind="schema",
-                location=resource_location.child("schema"),
-            )
-        dialect = resource.get("dialect")
-        if isinstance(dialect, Mapping):
-            reject_v1_markers_at(
-                dialect,
-                descriptor_kind="dialect",
-                location=resource_location.child("dialect"),
-            )
 
 def _ensure_string(mapping: Mapping[str, Any], key: str, path: str, *, kind: str, resource_name: str | None = None) -> None:
     if key in mapping and not isinstance(mapping[key], str):
@@ -623,251 +576,14 @@ def validate_dialect_family(
 
 
 
-def _validate_resource(raw: Mapping[str, Any], *, path: str) -> None:
-    resource_name = raw.get("name") if isinstance(raw.get("name"), str) else None
-    validate_resource_source_shape(
-        raw,
-        location=InvariantLocation(path, resource_name),
-    )
-    resource_name = raw["name"]
-    for key in ("title", "description", "homepage", "format", "mediatype", "encoding", "hash"):
-        _ensure_string(raw, key, path, kind="resource", resource_name=resource_name)
-    _ensure_string(raw, "$schema", path, kind="resource", resource_name=resource_name)
-    if "bytes" in raw and (isinstance(raw["bytes"], bool) or not isinstance(raw["bytes"], int)):
-        raise _structure_error(
-            "resource bytes must be an integer",
-            descriptor_path=f"{path}.bytes",
-            rejected_value=raw["bytes"],
-            required_form="integer",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    if "hash" in raw and (not isinstance(raw["hash"], str) or V2_HASH_PATTERN.fullmatch(raw["hash"]) is None):
-        raise _structure_error(
-            "resource hash has an invalid shape",
-            descriptor_path=f"{path}.hash",
-            rejected_value=raw["hash"],
-            required_form="v2 hash string",
-            descriptor_kind="resource",
-            resource_name=resource_name,
-        )
-    for key, model in (("licenses", _LicenseDescriptor), ("sources", _SourceDescriptor)):
-        if key in raw:
-            _validate_metadata_models(raw[key], path=f"{path}.{key}", model=model, kind="resource", resource_name=resource_name)
-    if "schema" in raw:
-        _validate_schema(raw["schema"], path=f"{path}.schema", resource_name=resource_name)
-    if "dialect" in raw:
-        _validate_dialect(raw["dialect"], path=f"{path}.dialect", resource_name=resource_name)
 
-
-def _validate_package(owned: Mapping[str, Any]) -> None:
-    if "resources" not in owned:
-        raise _structure_error(
-            "package must declare resources",
-            descriptor_path="$.resources",
-            rejected_value=None,
-            required_form="non-empty resource sequence",
-            descriptor_kind="package",
-        )
-    resources = owned["resources"]
-    if not isinstance(resources, list) or not resources:
-        raise _structure_error(
-            "package resources must be a non-empty list",
-            descriptor_path="$.resources",
-            rejected_value=resources,
-            required_form="non-empty resource sequence",
-            descriptor_kind="package",
-        )
-    _ensure_string(owned, "$schema", "$", kind="package")
-    for key in ("name", "id", "title", "description", "homepage", "version", "image"):
-        _ensure_string(owned, key, "$", kind="package")
-    if "created" in owned:
-        if not isinstance(owned["created"], str):
-            raise _structure_error(
-                "package created must be an RFC 3339 date-time string",
-                descriptor_path="$.created",
-                rejected_value=owned["created"],
-                required_form="RFC 3339 date-time string",
-                descriptor_kind="package",
-            )
-        try:
-            _CREATED_ADAPTER.validate_python(owned["created"])
-        except ValidationError as exc:
-            raise _structure_error(
-                "package created must be an RFC 3339 date-time string",
-                descriptor_path="$.created",
-                rejected_value=owned["created"],
-                required_form="RFC 3339 date-time string",
-                descriptor_kind="package",
-            ) from exc
-    if "keywords" in owned:
-        if not isinstance(owned["keywords"], list) or not owned["keywords"] or any(not isinstance(item, str) for item in owned["keywords"]):
-            raise _structure_error(
-                "package keywords must be a non-empty list of strings",
-                descriptor_path="$.keywords",
-                rejected_value=owned["keywords"],
-                required_form="non-empty list of strings",
-                descriptor_kind="package",
-            )
-    for key, model in (("contributors", _ContributorDescriptor), ("licenses", _LicenseDescriptor), ("sources", _SourceDescriptor)):
-        if key in owned:
-            _validate_metadata_models(owned[key], path=f"$.{key}", model=model, kind="package")
-    seen_names: set[str] = set()
-    for index, resource in enumerate(resources):
-        path = f"$.resources[{index}]"
-        if not isinstance(resource, Mapping):
-            raise _structure_error(
-                "resource must be a mapping",
-                descriptor_path=path,
-                rejected_value=resource,
-                required_form="resource mapping",
-                descriptor_kind="package",
-            )
-        name = resource.get("name")
-        if isinstance(name, str) and name in seen_names:
-            raise _structure_error(
-                "resource names must be unique",
-                descriptor_path=f"{path}.name",
-                rejected_value=name,
-                required_form="unique resource name",
-                descriptor_kind="resource",
-                resource_name=name,
-            )
-        if isinstance(name, str):
-            seen_names.add(name)
-        _validate_resource(resource, path=path)
-
-
-def _capture_package_kwargs(owned: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    kwargs = {key: value for key, value in owned.items() if key in _PACKAGE_FIELDS}
-    extras = {key: value for key, value in owned.items() if key not in _PACKAGE_FIELDS and key != "profile"}
-    kwargs["extras"] = extras
-    return kwargs, extras
-
-
-def _capture_resource_kwargs(raw: Mapping[str, Any]) -> dict[str, Any]:
-    kwargs = {key: value for key, value in raw.items() if key in _RESOURCE_FIELDS}
-    kwargs["extras"] = {key: value for key, value in raw.items() if key not in _RESOURCE_FIELDS and key != "profile"}
-    return kwargs
 
 
 def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContext) -> DataPackage:
-    """Decode an already-owned mapping without making another defensive copy."""
-    from mountainash.typespec.datapackage import DataPackage, DataResource
-    # 1. Confirm the required document kind.
-    owned = require_package_mapping(owned)
-    # 2. Reject all recognized v1 markers.
-    _reject_v1_markers(owned)
-    # 3. Validate known property and container shapes.
-    _validate_package(owned)
-    # 4. Capture unknown extension properties.
-    package_kwargs, _ = _capture_package_kwargs(owned)
-    resource_models: list[DataResource] = []
-    for raw_resource in owned["resources"]:
-        resource_kwargs = _capture_resource_kwargs(raw_resource)
-        try:
-            resource_models.append(DataResource.model_validate(resource_kwargs))
-        except ValidationError as exc:
-            raise pydantic_structure_error(
-                exc,
-                descriptor_kind="resource",
-                base_path=f"$.resources[{len(resource_models)}]",
-                resource_name=raw_resource.get("name") if isinstance(raw_resource.get("name"), str) else None,
-                reference=None,
-                aliases=_RESOURCE_ALIASES,
-                required_forms=_RESOURCE_REQUIRED_FORMS,
-            ) from exc
-        except ValueError as exc:
-            raise _structure_error(
-                "resource model has an invalid shape",
-                descriptor_path=f"$.resources[{len(resource_models)}]",
-                rejected_value=raw_resource,
-                required_form="valid Data Resource mapping",
-                descriptor_kind="resource",
-                resource_name=raw_resource.get("name") if isinstance(raw_resource.get("name"), str) else None,
-            ) from exc
-    package_kwargs["resources"] = resource_models
-    try:
-        package = DataPackage.model_validate(package_kwargs)
-    except ValidationError as exc:
-        raise pydantic_structure_error(
-            exc,
-            descriptor_kind="package",
-            base_path="$",
-            resource_name=None,
-            reference=None,
-            aliases=_PACKAGE_ALIASES,
-            required_forms=_PACKAGE_REQUIRED_FORMS,
-        ) from exc
-    except ValueError as exc:
-        raise _structure_error(
-            "package model has an invalid shape",
-            descriptor_path="$",
-            rejected_value=owned,
-            required_form="valid Data Package mapping",
-            descriptor_kind="package",
-        ) from exc
-    # 6. Bind one shared final context with storage-owned package sources.
-    package_sources = tuple(owned.get("sources", ()))
-    final_context = replace(context, package_sources=package_sources)
-    package._descriptor_context = final_context
-    resource_names = frozenset(resource.name for resource in package.resources)
-    for resource in package.resources:
-        resource._descriptor_context = final_context
-        resource._package_resource_names = resource_names
-    # 7. Validate inline foreign-key resource targets.
-    _validate_inline_foreign_keys(owned["resources"], resource_names)
-    return package
+    """Delegate owned package construction to the package context owner."""
+    from mountainash.typespec.datapackage import DataPackage
 
-
-def _validate_inline_foreign_keys(resources: list[Any], resource_names: frozenset[str]) -> None:
-    for resource_index, resource in enumerate(resources):
-        if not isinstance(resource, Mapping):
-            continue
-        schema = resource.get("schema")
-        if not isinstance(schema, Mapping):
-            continue
-        foreign_keys = schema.get("foreignKeys") or []
-        for fk_index, foreign_key in enumerate(foreign_keys):
-            if not isinstance(foreign_key, Mapping):
-                raise _structure_error(
-                    "foreign key must be a mapping",
-                    descriptor_path=f"$.resources[{resource_index}].schema.foreignKeys[{fk_index}]",
-                    rejected_value=foreign_key,
-                    required_form="foreign-key mapping",
-                    descriptor_kind="schema",
-                    resource_name=resource.get("name"),
-                )
-            reference = foreign_key.get("reference")
-            if not isinstance(reference, Mapping):
-                raise _structure_error(
-                    "foreign key reference must be a mapping",
-                    descriptor_path=f"$.resources[{resource_index}].schema.foreignKeys[{fk_index}].reference",
-                    rejected_value=reference,
-                    required_form="foreign-key reference mapping",
-                    descriptor_kind="schema",
-                    resource_name=resource.get("name"),
-                )
-            target = reference.get("resource", "")
-            if not isinstance(target, str):
-                raise _structure_error(
-                    "foreign key reference resource must be a string",
-                    descriptor_path=f"$.resources[{resource_index}].schema.foreignKeys[{fk_index}].reference.resource",
-                    rejected_value=target,
-                    required_form="resource name string",
-                    descriptor_kind="schema",
-                    resource_name=resource.get("name"),
-                )
-            if target and target not in resource_names:
-                raise InvalidDescriptorRelationship(
-                    "foreign key references an unknown resource",
-                    descriptor_kind="schema",
-                    descriptor_path=f"$.resources[{resource_index}].schema.foreignKeys[{fk_index}].reference.resource",
-                    resource_name=resource.get("name"),
-                    rejected_value=target,
-                    required_form="empty self-reference or package resource name",
-                )
-
+    return DataPackage._from_owned_descriptor(owned, context=context)
 
 def decode_package_descriptor(
     raw: Mapping[str, Any],

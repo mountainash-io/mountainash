@@ -678,3 +678,52 @@ def test_direct_resource_dialect_v1_markers_are_rejected(marker) -> None:
             path="orders.csv",
             dialect={marker: True},
         )
+def test_model_validate_json_and_from_json_share_package_content_validation() -> None:
+    valid = {
+        "created": "2024-01-02T03:04:05Z",
+        "contributors": [{"title": "Author", "role": "author"}],
+        "futurePackage": {"enabled": True},
+        "resources": [{"name": "orders", "path": "orders.csv"}],
+    }
+    from_json = DataPackage.from_json(json.dumps(valid))
+    model_validate_json = DataPackage.model_validate_json(json.dumps(valid))
+    assert from_json.to_descriptor() == model_validate_json.to_descriptor() == valid
+
+    invalid_documents = (
+        {"created": "not-a-date", "resources": [{"name": "orders", "path": "orders.csv"}]},
+        {"contributors": [{}], "resources": [{"name": "orders", "path": "orders.csv"}]},
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "schema": {
+                        "fields": [{"name": "id"}],
+                        "foreignKeys": [
+                            {
+                                "fields": "id",
+                                "reference": {"resource": "missing", "fields": "id"},
+                            }
+                        ],
+                    },
+                }
+            ]
+        },
+    )
+    for raw in invalid_documents:
+        outcomes = []
+        for decode in (
+            lambda: DataPackage.from_json(json.dumps(raw)),
+            lambda: DataPackage.model_validate_json(json.dumps(raw)),
+        ):
+            with pytest.raises((InvalidDescriptorStructure, InvalidDescriptorRelationship)) as caught:
+                decode()
+            outcomes.append(
+                (
+                    type(caught.value),
+                    caught.value.descriptor_path,
+                    caught.value.rejected_value,
+                    caught.value.required_form,
+                )
+            )
+        assert outcomes[0] == outcomes[1]
