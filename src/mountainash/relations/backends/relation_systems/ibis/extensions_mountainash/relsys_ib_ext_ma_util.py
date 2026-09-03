@@ -238,12 +238,11 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         codebase, only caught because this plan's tests do full-row Polars-
         oracle equality).
 
-        Two DECLARED (not fixed) divergences from Polars on ibis-duckdb:
-        IB-REL-16 (duplicate-right-key ties under backward pick the FIRST row,
-        not the LAST) and IB-REL-17 (row order for interleaved `by` groups is
-        grouped-by-value, not left-input-preserving). Neither is a value-
-        correctness defect -- every matched row is a valid at-or-before match,
-        just not necessarily THE SAME one Polars happens to pick among equals.
+        One DECLARED (not fixed) divergence from Polars on ibis-duckdb:
+        IB-REL-17 (row order for interleaved `by` groups is grouped-by-value,
+        not left-input-preserving). Polars documents backward ASOF as selecting
+        the last right row whose key is less than or equal to the left key; this
+        native path matches that duplicate-right tie rule.
 
         One genuine bug IS fixed here, not declared: without an explicit
         secondary sort key, duplicate-LEFT-row order on ibis-duckdb is

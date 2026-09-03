@@ -735,17 +735,6 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-18",
         ),
         DivergenceFact(
-            id="IB-REL-16",
-            kind=DivergenceKind.ENGINE_LENIENCY,
-            operation_keys=(),  # relation op join_asof backward duplicate-key ties
-            backends=("ibis-duckdb",),
-            summary="ibis-duckdb's native asof_join picks the FIRST equal-key right row on a duplicate-right-key tie under backward; Polars picks the LAST (probe-confirmed on ibis 12.0.0). ibis-polars native (delegating to real Polars) and the Ibis emulation used everywhere else both already match Polars on this",
-            impact="Relation.join_asof(strategy='backward') on ibis-duckdb may select a different (but still equally-valid, at-or-before) right row than Polars when the right frame has duplicate keys at the matched value",
-            workaround="Use ibis-sqlite, ibis-polars, polars, or narwhals for exact duplicate-tie parity under backward",
-            upstream_ref=None,
-            since="2026-08-19",
-        ),
-        DivergenceFact(
             id="IB-REL-17",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation op join_asof by-grouped row order
