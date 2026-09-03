@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+import mountainash.core.capabilities.render_markdown as render_markdown_module
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     CoverageReport,
@@ -29,6 +30,7 @@ from mountainash.core.capabilities.render_markdown import (
     gather_coverage_inputs,
     render_json,
     render_markdown,
+    write_coverage_artifacts,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +44,31 @@ def inputs() -> dict:
 @pytest.fixture(scope="module")
 def report(inputs):
     return build_coverage_report(**inputs)
+
+
+def test_coverage_renders_all_outputs_before_first_write(tmp_path, monkeypatch):
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.write_text("old first")
+    second.write_text("old second")
+
+    def render_first(report):
+        return "new first"
+
+    def render_second(report):
+        raise RuntimeError("second renderer failed")
+
+    monkeypatch.setattr(
+        render_markdown_module,
+        "_ARTIFACT_RENDERERS",
+        (("first.txt", render_first), ("second.txt", render_second)),
+    )
+
+    with pytest.raises(RuntimeError, match="second renderer failed"):
+        write_coverage_artifacts(tmp_path, object())
+
+    assert first.read_text() == "old first"
+    assert second.read_text() == "old second"
 
 
 def _matrix_body(doc: str) -> str:

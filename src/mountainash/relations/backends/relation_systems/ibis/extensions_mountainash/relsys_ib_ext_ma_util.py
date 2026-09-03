@@ -135,7 +135,11 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
                 read_provider_arrow,
             )
 
-            return ibis.memtable(read_provider_arrow(resource, provider_binding))
+            return transit_call(
+                BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER,
+                ibis.memtable,
+                read_provider_arrow(resource, provider_binding),
+            )
         if resource.data is not None:
             from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
                 MountainashPolarsExtensionRelationSystem,

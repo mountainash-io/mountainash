@@ -13,10 +13,12 @@ from mountainash.core.capabilities import (
 )
 from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.backends.relation_systems.resource_files import (
+    IBIS_NON_DEFAULT_DIALECT_CONDITION,
+)
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
-
 
 IBIS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
     CapabilityFact(
@@ -38,7 +40,7 @@ IBIS_REL_CAPABILITIES: tuple[CapabilityFact, ...] = (
         message="CSV dialect fields require the portable provider fallback reader",
         workaround="none needed — mountainash routes automatically",
         since="2026-08-30",
-        condition="resource.dialect.escape_char or resource.dialect.line_terminator or resource.dialect.double_quote or resource.dialect.skip_initial_space or resource.dialect.header_rows or resource.dialect.header_join or resource.dialect.comment_char or resource.dialect.comment_rows",
+        condition=IBIS_NON_DEFAULT_DIALECT_CONDITION,
         enforcement=Enforcement.ROUTER_METADATA,
         probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
     ),
