@@ -1,5 +1,6 @@
 """Item 46 (c): structured FK metadata beside constraint_edges."""
 from __future__ import annotations
+
 from copy import deepcopy
 
 import polars as pl
@@ -126,6 +127,84 @@ def test_distinct_foreign_keys_share_edge_and_keep_order():
     edge = ("parent", "child")
     assert dag.constraint_edges == {edge}
     assert [fk.fields for fk in dag.constraint_metadata[edge]] == [["a"], ["b"]]
+
+
+def test_package_self_reference_normalizes_to_constraint_self_edge():
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="nodes",
+                path="nodes.csv",
+                type="table",
+                table_schema={
+                    "fields": [{"name": "parent_id", "type": "integer"}],
+                    "foreignKeys": [
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"fields": ["parent_id"]},
+                        }
+                    ],
+                },
+            )
+        ]
+    )
+    dag = package.to_relation_dag()
+    assert dag.constraint_edges == {("nodes", "nodes")}
+    assert dag.constraint_metadata[("nodes", "nodes")][0].reference.resource is None
+    assert dag.dependency_edges == set()
+
+
+def test_referenced_schema_without_foreign_keys_is_read_for_dag_constraints(tmp_path):
+    (tmp_path / "schema.json").write_text(
+        '{"fields": [{"name": "id", "type": "integer"}]}'
+    )
+    package = DataPackage.from_descriptor(
+        {
+            "resources": [
+                {
+                    "name": "rows",
+                    "path": "rows.csv",
+                    "type": "table",
+                    "schema": "schema.json",
+                }
+            ]
+        },
+        base_uri=tmp_path,
+    )
+    dag = package.to_relation_dag()
+    assert "rows" in dag.relations
+    assert dag.constraint_edges == set()
+    assert dag.constraint_metadata == {}
+
+
+def test_package_constraint_extraction_does_not_mutate_dependency_edges():
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="parent",
+                path="parent.csv",
+                type="table",
+                table_schema={"fields": [{"name": "id", "type": "integer"}]},
+            ),
+            DataResource(
+                name="child",
+                path="child.csv",
+                type="table",
+                table_schema={
+                    "fields": [{"name": "parent_id", "type": "integer"}],
+                    "foreignKeys": [
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"resource": "parent", "fields": ["id"]},
+                        }
+                    ],
+                },
+            ),
+        ]
+    )
+    dag = package.to_relation_dag()
+    assert ("parent", "child") in dag.constraint_edges
+    assert ("parent", "child") not in dag.dependency_edges
 
 
 def test_authored_typespec_foreign_keys_are_routed_to_dag():
