@@ -47549,11 +47549,11 @@
                   "level": "unsupported",
                   "enforcement": "router_metadata",
                   "boundary": "build",
-                  "condition": "resource.dialect.escape_char is set",
-                  "message": "CSV dialect field 'escape_char' is not native-safe on this backend's reader — routed to the CsvSpec fallback reader",
+                  "condition": "resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.skip_initial_space is set",
+                  "message": "CSV dialect fields require the portable provider fallback reader",
                   "workaround": "none needed — mountainash routes automatically",
                   "upstream_ref": null,
-                  "since": "2026-07-05",
+                  "since": "2026-08-30",
                   "native_errors": [],
                   "probe_exempt": "router, not gate — fallback handles it; behaviour covered by relations resource tests",
                   "predicate": null
@@ -47586,11 +47586,11 @@
                   "level": "unsupported",
                   "enforcement": "router_metadata",
                   "boundary": "build",
-                  "condition": "resource.dialect.escape_char is set",
-                  "message": "CSV dialect field 'escape_char' is not native-safe on this backend's reader — routed to the CsvSpec fallback reader",
+                  "condition": "resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.skip_initial_space is set",
+                  "message": "CSV dialect fields require the portable provider fallback reader",
                   "workaround": "none needed — mountainash routes automatically",
                   "upstream_ref": null,
-                  "since": "2026-07-05",
+                  "since": "2026-08-30",
                   "native_errors": [],
                   "probe_exempt": "router, not gate — fallback handles it; behaviour covered by relations resource tests",
                   "predicate": null
@@ -47623,11 +47623,11 @@
                   "level": "unsupported",
                   "enforcement": "router_metadata",
                   "boundary": "build",
-                  "condition": "resource.dialect.escape_char is set",
-                  "message": "CSV dialect field 'escape_char' is not native-safe on this backend's reader — routed to the CsvSpec fallback reader",
+                  "condition": "resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.delimiter is non-default or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header is false or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.null_sequence is set or resource.dialect.quote_char is set or resource.dialect.skip_initial_space is set",
+                  "message": "CSV dialect fields require the portable provider fallback reader",
                   "workaround": "none needed — mountainash routes automatically",
                   "upstream_ref": null,
-                  "since": "2026-07-05",
+                  "since": "2026-08-30",
                   "native_errors": [],
                   "probe_exempt": "router, not gate — fallback handles it; behaviour covered by relations resource tests",
                   "predicate": null
@@ -52115,11 +52115,11 @@
           "level": "unsupported",
           "enforcement": "router_metadata",
           "boundary": "build",
-          "condition": "resource.dialect.escape_char is set",
-          "message": "CSV dialect field 'escape_char' is not native-safe on this backend's reader — routed to the CsvSpec fallback reader",
+          "condition": "resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.delimiter is non-default or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header is false or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.null_sequence is set or resource.dialect.quote_char is set or resource.dialect.skip_initial_space is set",
+          "message": "CSV dialect fields require the portable provider fallback reader",
           "workaround": "none needed — mountainash routes automatically",
           "upstream_ref": null,
-          "since": "2026-07-05",
+          "since": "2026-08-30",
           "native_errors": [],
           "probe_exempt": "router, not gate — fallback handles it; behaviour covered by relations resource tests",
           "predicate": null
@@ -63538,11 +63538,11 @@
           "level": "unsupported",
           "enforcement": "router_metadata",
           "boundary": "build",
-          "condition": "resource.dialect.escape_char is set",
-          "message": "CSV dialect field 'escape_char' is not native-safe on this backend's reader — routed to the CsvSpec fallback reader",
+          "condition": "resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.skip_initial_space is set",
+          "message": "CSV dialect fields require the portable provider fallback reader",
           "workaround": "none needed — mountainash routes automatically",
           "upstream_ref": null,
-          "since": "2026-07-05",
+          "since": "2026-08-30",
           "native_errors": [],
           "probe_exempt": "router, not gate — fallback handles it; behaviour covered by relations resource tests",
           "predicate": null
@@ -73567,11 +73567,11 @@
           "level": "unsupported",
           "enforcement": "router_metadata",
           "boundary": "build",
-          "condition": "resource.dialect.escape_char is set",
-          "message": "CSV dialect field 'escape_char' is not native-safe on this backend's reader — routed to the CsvSpec fallback reader",
+          "condition": "resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.skip_initial_space is set",
+          "message": "CSV dialect fields require the portable provider fallback reader",
           "workaround": "none needed — mountainash routes automatically",
           "upstream_ref": null,
-          "since": "2026-07-05",
+          "since": "2026-08-30",
           "native_errors": [],
           "probe_exempt": "router, not gate — fallback handles it; behaviour covered by relations resource tests",
           "predicate": null
@@ -78879,19 +78879,6 @@
       "since": "2026-08-18"
     },
     {
-      "id": "IB-REL-16",
-      "kind": "engine_leniency",
-      "operation_keys": [],
-      "backends": [
-        "ibis-duckdb"
-      ],
-      "summary": "ibis-duckdb's native asof_join picks the FIRST equal-key right row on a duplicate-right-key tie under backward; Polars picks the LAST (probe-confirmed on ibis 12.0.0). ibis-polars native (delegating to real Polars) and the Ibis emulation used everywhere else both already match Polars on this",
-      "impact": "Relation.join_asof(strategy='backward') on ibis-duckdb may select a different (but still equally-valid, at-or-before) right row than Polars when the right frame has duplicate keys at the matched value",
-      "workaround": "Use ibis-sqlite, ibis-polars, polars, or narwhals for exact duplicate-tie parity under backward",
-      "upstream_ref": null,
-      "since": "2026-08-19"
-    },
-    {
       "id": "IB-REL-17",
       "kind": "engine_leniency",
       "operation_keys": [],
@@ -78904,6 +78891,19 @@
       "workaround": "Use ibis-polars, polars, or narwhals if exact left-input row order must be preserved for interleaved by-groups",
       "upstream_ref": null,
       "since": "2026-08-19"
+    },
+    {
+      "id": "IB-REL-18",
+      "kind": "engine_leniency",
+      "operation_keys": [],
+      "backends": [
+        "ibis-duckdb"
+      ],
+      "summary": "DuckDB does not guarantee physical row order for a filtered scan; some OR-of-AND boolean predicates compile to a query plan that reorders matching rows relative to the left input, even though polars/narwhals/ibis-polars/ibis-sqlite all preserve input row order through filter",
+      "impact": "Relation.filter() with certain compound boolean predicates may return rows in a different order than the input on ibis-duckdb; matched VALUES are always correct, only row position differs",
+      "workaround": "Use polars, narwhals, ibis-polars, or ibis-sqlite if exact input row order must be preserved through filter, or add an explicit .sort() after filter",
+      "upstream_ref": null,
+      "since": "2026-09-03"
     },
     {
       "id": "IB-STR-11",

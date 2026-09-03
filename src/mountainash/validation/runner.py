@@ -522,7 +522,7 @@ class ValidationRunner:
         frame = (
             self._materialized_value_frame
             if self._materialized_value_frame is not None
-            else rel.to_polars()
+            else transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, rel.to_polars)
         )
         missing_fields = set(check.fields) - set(frame.columns)
         if missing_fields:
@@ -557,7 +557,7 @@ class ValidationRunner:
                     )
                 ]
             else:
-                outcomes = [entry.execute(value, check.options) for value in values]
+                outcomes = [entry.evaluate(value, check.options) for value in values]
         else:
             raise ValueError(f"{check.validator.name.lower()} rules require exactly one field")
         failed_indices = [index for index, outcome in enumerate(outcomes) if outcome is False]

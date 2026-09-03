@@ -5,11 +5,13 @@ Pure over CoverageReport; input gathering + main() live at the bottom
 spec §4.6 — the machine-readable extract, the third committed artifact.
 """
 from __future__ import annotations
-
 import json
 from datetime import date, timedelta
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
+from mountainash.core.generated_artifacts import write_text_if_changed
+
 
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
@@ -1000,17 +1002,32 @@ _ARTIFACT_RENDERERS: tuple[tuple[str, Callable[[CoverageReport], str]], ...] = (
 )
 
 
-def main() -> None:
-    from pathlib import Path
+def write_coverage_artifacts(
+    base: Path, report: CoverageReport
+) -> tuple[Path, ...]:
+    rendered = tuple(
+        (base / rel_path, renderer(report))
+        for rel_path, renderer in _ARTIFACT_RENDERERS
+    )
+    changed: list[Path] = []
+    for path, content in rendered:
+        if write_text_if_changed(path, content):
+            changed.append(path)
+    return tuple(changed)
 
+
+def main() -> None:
     from mountainash.core.capabilities.coverage import build_coverage_report
 
     report = build_coverage_report(**gather_coverage_inputs())
     base = Path(__file__).resolve().parents[4]
-    for rel_path, renderer in _ARTIFACT_RENDERERS:
+    changed = write_coverage_artifacts(base, report)
+    for rel_path, _renderer in _ARTIFACT_RENDERERS:
         out = base / rel_path
-        out.write_text(renderer(report), encoding="utf-8")
-        print(f"wrote {out}")
+        if out in changed:
+            print(f"wrote {out}")
+        else:
+            print(f"unchanged {out}")
 
 
 if __name__ == "__main__":

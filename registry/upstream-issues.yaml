@@ -645,11 +645,11 @@ issues:
     strategy on ibis-sqlite now routes through an Ibis-relational-expression
     emulation (inner candidate join + windowed rank + left-keep join) instead
     of native asof_join, matching Polars on every value (scripts/probes/
-    probe_asof_emulation.py). Two narrower row-order/tie-winner divergences
-    from the emulation and the ibis-duckdb native path are tracked separately
-    as IB-REL-16/IB-REL-17. The DivergenceFact was removed from divergences.py
-    in the same change (Task 3); this entry stays as the historical record,
-    per the IB-REL-11 precedent above.'
+    probe_asof_emulation.py). IB-REL-16 was retired on 2026-09-03 as an
+    incorrect declaration. The committed probe did not exercise duplicate-right
+    backward ties, and the ordinary all-backend regression now matches Polars.
+    IB-REL-17 remains active for grouped output order. This entry stays as the
+    historical record, per the IB-REL-11 precedent above.'
   last_verified: '2026-08-19'
 - id: IB-REL-15
   project: ibis

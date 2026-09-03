@@ -18,11 +18,11 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, dataclass
+from pathlib import Path
 
-if TYPE_CHECKING:
-    from pathlib import Path
+from mountainash.core.transit import BOUNDARY_REGISTRY, BoundaryKey
 
 # Generic risky attribute names: flagged regardless of the base object's
 # statically-resolved type, since the base is usually not staticaly
@@ -88,6 +88,7 @@ class TransitCandidate:
     callee: str
     fingerprint: str
     wrapped: bool
+    boundary_key: str | None = None
 
     @property
     def identity(self) -> tuple[str, str, str, str]:
@@ -111,6 +112,23 @@ class InventoryEntry:
     @property
     def identity(self) -> tuple[str, str, str, str]:
         return self.module, self.owner, self.callee, self.fingerprint
+
+
+@dataclass(frozen=True)
+class LegacyDisposition:
+    """Explicit policy for a known direct (legacy) candidate."""
+
+    boundary_key: str
+    reason: str
+    since: str
+    owner: str
+
+
+LEGACY_UNWRAPPED: Mapping[tuple[str, str, str, str], LegacyDisposition] = {}
+
+
+class UnclassifiedCandidateError(RuntimeError):
+    """A discovered candidate could not be classified from declared policy."""
 
 
 def _fingerprint(node: ast.AST) -> str:
@@ -215,12 +233,8 @@ def _is_transit_call(node: ast.Call) -> bool:
 
 
 def _transit_fn_arg(node: ast.Call) -> ast.expr | None:
-    for keyword in node.keywords:
-        if keyword.arg == "fn":
-            return keyword.value
-    if len(node.args) >= 2:
-        return node.args[1]
-    return None
+    """Return positional argument one from the public transit_call signature."""
+    return node.args[1] if len(node.args) >= 2 else None
 
 
 def _iter_children(value: object) -> list[ast.AST]:
@@ -235,22 +249,18 @@ def _owner_for(function_name: str, class_name: str | None) -> str:
     return f"{class_name}.{function_name}" if class_name else function_name
 
 
-def _has_literal_boundary_key(node: ast.Call) -> bool:
-    """True only when `node.args[0]` is a literal `BoundaryKey.MEMBER`.
-
-    A computed key (a variable, a subscript, a call) never satisfies the
-    census's wrapping requirement (spec 13.1: "The census does not accept a
-    string key or computed key expression."), so the reference passed as
-    `fn` is left for the generic walk to record as an unwrapped candidate.
-    """
+def _literal_boundary_key(node: ast.Call) -> str | None:
+    """Return a literal ``BoundaryKey.MEMBER`` name, if present."""
     if not node.args:
-        return False
+        return None
     key_arg = node.args[0]
-    return (
+    if (
         isinstance(key_arg, ast.Attribute)
         and isinstance(key_arg.value, ast.Name)
         and key_arg.value.id == "BoundaryKey"
-    )
+    ):
+        return key_arg.attr
+    return None
 
 
 def _walk_dynamic_dispatch(
@@ -269,20 +279,26 @@ def _walk_dynamic_dispatch(
         if isinstance(target, ast.Constant) and isinstance(target.value, str):
             if target.value in RISKY_METHOD_NAMES:
                 out.append(
-                    TransitCandidate(module, owner, target.value, _fingerprint(node), wrapped=False)
+                    TransitCandidate(
+                        module, owner, target.value, _fingerprint(node), wrapped=False, boundary_key=None
+                    )
                 )
     elif name == "methodcaller" and node.args:
         target = node.args[0]
         if isinstance(target, ast.Constant) and isinstance(target.value, str):
             if target.value in RISKY_METHOD_NAMES:
                 out.append(
-                    TransitCandidate(module, owner, target.value, _fingerprint(node), wrapped=False)
+                    TransitCandidate(
+                        module, owner, target.value, _fingerprint(node), wrapped=False, boundary_key=None
+                    )
                 )
     elif name == "partial" and node.args:
         target = node.args[0]
         if isinstance(target, ast.Attribute) and target.attr in RISKY_METHOD_NAMES:
             out.append(
-                TransitCandidate(module, owner, target.attr, _fingerprint(node), wrapped=False)
+                TransitCandidate(
+                    module, owner, target.attr, _fingerprint(node), wrapped=False, boundary_key=None
+                )
             )
 
 
@@ -308,26 +324,40 @@ def _visit(
     if isinstance(node, ast.Attribute) and node.attr in RISKY_METHOD_NAMES:
         # A bare risky reference not reached via the ast.Call branch below
         # (stored bound method, callback argument, chained access, ...).
-        out.append(TransitCandidate(module, owner, node.attr, _fingerprint(node), wrapped=False))
+        out.append(
+            TransitCandidate(
+                module, owner, node.attr, _fingerprint(node), wrapped=False, boundary_key=None
+            )
+        )
         _visit(node.value, module, class_name, owner, aliases, out)
         return
 
     if isinstance(node, ast.Call):
         skip_ids: set[int] = set()
-        if _is_transit_call(node) and _has_literal_boundary_key(node):
+        boundary_key = _literal_boundary_key(node)
+        if _is_transit_call(node) and boundary_key is not None:
             fn_arg = _transit_fn_arg(node)
             if fn_arg is not None:
                 risky = _risky_callee(fn_arg, aliases)
                 if risky is not None:
                     out.append(
-                        TransitCandidate(module, owner, risky, _fingerprint(node), wrapped=True)
+                        TransitCandidate(
+                            module,
+                            owner,
+                            risky,
+                            _fingerprint(node),
+                            wrapped=True,
+                            boundary_key=boundary_key,
+                        )
                     )
                     skip_ids.add(id(fn_arg))
         else:
             risky = _risky_callee(node.func, aliases)
             if risky is not None:
                 out.append(
-                    TransitCandidate(module, owner, risky, _fingerprint(node), wrapped=False)
+                    TransitCandidate(
+                        module, owner, risky, _fingerprint(node), wrapped=False, boundary_key=None
+                    )
                 )
                 skip_ids.add(id(node.func))
             else:
@@ -358,7 +388,77 @@ def discover_transit_candidates(root: Path) -> tuple[TransitCandidate, ...]:
         aliases = _AliasMap()
         aliases.collect(tree)
         _visit(tree, module, None, "<module>", aliases, candidates)
-    return tuple(sorted(candidates))
+    return tuple(
+        sorted(
+            candidates,
+            key=lambda candidate: (
+                *candidate.identity,
+                candidate.wrapped,
+                candidate.boundary_key or "",
+            ),
+        )
+    )
+
+
+def _candidate_error(candidate: TransitCandidate) -> str:
+    observed_key = candidate.boundary_key if candidate.boundary_key is not None else "<none>"
+    disposition = "wrapped" if candidate.wrapped else "direct"
+    return (
+        f"Unclassified {disposition} candidate {candidate.module}.{candidate.owner} "
+        f"-> {candidate.callee}() [{candidate.fingerprint}], observed key "
+        f"{observed_key!r}. Add a literal transit_call boundary, correct the key, "
+        "or add an explicitly governed legacy exception."
+    )
+
+
+def build_inventory(root: Path) -> tuple[InventoryEntry, ...]:
+    """Discover and classify every risky call site from canonical policy."""
+    entries: list[InventoryEntry] = []
+    for candidate in discover_transit_candidates(root):
+        if candidate.wrapped:
+            try:
+                key = BoundaryKey[candidate.boundary_key]
+                spec = BOUNDARY_REGISTRY[key]
+            except (KeyError, TypeError) as exc:
+                raise UnclassifiedCandidateError(_candidate_error(candidate)) from exc
+            entry = InventoryEntry(
+                module=candidate.module,
+                owner=candidate.owner,
+                callee=candidate.callee,
+                fingerprint=candidate.fingerprint,
+                boundary_key=key.name,
+                transit_class=spec.transit_class.name,
+                reason=spec.reason,
+                since=spec.since.isoformat(),
+                legacy_unwrapped=False,
+            )
+        else:
+            disposition = LEGACY_UNWRAPPED.get(candidate.identity)
+            if disposition is None:
+                raise UnclassifiedCandidateError(_candidate_error(candidate))
+            try:
+                key = BoundaryKey[disposition.boundary_key]
+                spec = BOUNDARY_REGISTRY[key]
+            except (KeyError, TypeError) as exc:
+                raise UnclassifiedCandidateError(_candidate_error(candidate)) from exc
+            entry = InventoryEntry(
+                module=candidate.module,
+                owner=candidate.owner,
+                callee=candidate.callee,
+                fingerprint=candidate.fingerprint,
+                boundary_key=key.name,
+                transit_class=spec.transit_class.name,
+                reason=disposition.reason,
+                since=disposition.since,
+                legacy_unwrapped=True,
+            )
+        entries.append(entry)
+    return tuple(sorted(entries, key=lambda entry: entry.identity))
+
+
+def render_inventory(entries: Sequence[InventoryEntry]) -> str:
+    """Serialize inventory entries deterministically as JSON."""
+    return json.dumps([asdict(entry) for entry in entries], indent=2) + "\n"
 
 
 def load_inventory(path: Path) -> tuple[InventoryEntry, ...]:

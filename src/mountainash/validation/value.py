@@ -249,7 +249,7 @@ class ValueRuleRegistryEntry:
     """Closed declaration and execution ownership for one logical validator."""
 
     validate_options: OptionValidator
-    execute: ValueExecutor
+    evaluate: ValueExecutor
     diagnostic_prefix: str
     scope: ValueScope
 
@@ -626,11 +626,11 @@ def _unavailable_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
 
 def _entry(
     validator: OptionValidator,
-    execute: ValueExecutor,
+    evaluate: ValueExecutor,
     prefix: str,
     scope: ValueScope,
 ) -> ValueRuleRegistryEntry:
-    return ValueRuleRegistryEntry(validator, execute, prefix, scope)
+    return ValueRuleRegistryEntry(validator, evaluate, prefix, scope)
 
 
 VALUE_RULE_REGISTRY = MappingProxyType(

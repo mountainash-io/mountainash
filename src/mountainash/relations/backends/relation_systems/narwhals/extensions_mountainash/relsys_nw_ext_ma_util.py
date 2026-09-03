@@ -124,7 +124,11 @@ class MountainashNarwhalsExtensionRelationSystem(
                 read_provider_arrow,
             )
 
-            return nw.from_native(pl.from_arrow(read_provider_arrow(resource, provider_binding)).lazy())
+            return transit_call(
+                BoundaryKey.NARWHALS_NATIVE_WRAP,
+                nw.from_native,
+                pl.from_arrow(read_provider_arrow(resource, provider_binding)).lazy(),
+            )
         dialect = resource.to_dialect()
         if resource.data is not None:
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
