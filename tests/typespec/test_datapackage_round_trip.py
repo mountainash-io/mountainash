@@ -21,6 +21,18 @@ def test_write_defaults_to_preserve(tmp_path):
     assert json.loads(path.read_text()) == raw
 
 
+def test_preserve_serialization_reads_public_package_sources() -> None:
+    package = DataPackage(
+        sources=[{"title": "catalog", "meta": {"tags": ["a"]}}],
+        resources=[{"name": "orders", "path": "orders.csv"}],
+    )
+    package.sources[0]["meta"]["tags"].append("model-change")
+
+    assert package.to_descriptor()["sources"] == [
+        {"title": "catalog", "meta": {"tags": ["a", "model-change"]}}
+    ]
+
+
 def test_write_accepts_explicit_canonical_mode(tmp_path):
     raw = {
         "contributors": [{"title": "Author", "role": "author"}],

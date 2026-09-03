@@ -74,8 +74,8 @@ class RelationDAG:
         # set(constraint_metadata.keys()) ⊆ constraint_edges always. An edge
         # with no metadata entry is a topology-only relationship (consumers
         # needing field-level detail MUST read constraint_metadata; absent
-        # means non-actionable, not "fields = empty"). Sole supported
-        # writers: add_constraint() and DataPackage.to_relation_dag().
+        # means non-actionable, not "fields = empty"). The shared helper
+        # ``_record_constraint`` is the sole metadata mutation path.
         self.constraint_metadata: dict[tuple[str, str], list["ForeignKey"]] = {}
 
     def add(self, name: str, relation: Relation) -> None:
@@ -112,6 +112,18 @@ class RelationDAG:
         self.add(name, relation(data))
         return self.ref(name)
 
+    def _record_constraint(
+        self,
+        edge: tuple[str, str],
+        fk: "ForeignKey",
+    ) -> None:
+        """Record one constraint edge and its equality-deduplicated metadata."""
+        self.constraint_edges.add(edge)
+        bucket = self.constraint_metadata.setdefault(edge, [])
+        if fk not in bucket:  # equality dedup; ForeignKey is unhashable
+            bucket.append(fk)
+
+
     def add_constraint(self, child: str, fk: "ForeignKey") -> None:
         """Declare a foreign-key constraint on a *derived* relation.
 
@@ -146,11 +158,7 @@ class RelationDAG:
         target = ref_resource if ref_resource else child
         if target != child and target not in self.relations:
             raise ValueError(f"unknown foreign-key target {target!r}")
-        edge = (target, child)
-        self.constraint_edges.add(edge)
-        bucket = self.constraint_metadata.setdefault(edge, [])
-        if fk not in bucket:  # equality dedup; ForeignKey is unhashable
-            bucket.append(fk)
+        self._record_constraint((target, child), fk)
 
     def constraints_for(self, child: str) -> "list[ForeignKey]":
         """All declared foreign keys whose child side is ``child``.

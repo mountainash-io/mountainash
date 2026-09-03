@@ -21,11 +21,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
+from mountainash.typespec.universal_types import UniversalType, parse_universal
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
+    InvalidDescriptorRelationship,
     InvalidKeyShapeError,
 )
-from mountainash.typespec.universal_types import UniversalType, parse_universal
+from mountainash.typespec.frictionless_invariants import (
+    InvariantLocation,
+    reject_typed_profile_at,
+)
 
 
 @dataclass
@@ -80,13 +85,21 @@ class ForeignKeyReference:
         resource: Name of the referenced table. ``None`` for self-referencing.
         fields: Field name(s) in the referenced table.
     """
-    resource: Optional[str]  # None = self-reference
-    fields: List[str]
+    resource: str | None  # None = self-reference
+    fields: list[str]
 
     def __post_init__(self) -> None:
-        if self.resource == "":
-            raise ValueError("ForeignKeyReference.resource must be None or a non-empty string")
         _validate_key_shape(self.fields, "foreign_key.reference.fields")
+        if self.resource is not None and (
+            not isinstance(self.resource, str) or not self.resource
+        ):
+            raise InvalidDescriptorRelationship(
+                "typed foreign-key resource is invalid",
+                descriptor_kind="schema",
+                descriptor_path="foreign_key.reference.resource",
+                rejected_value=self.resource,
+                required_form="None or non-empty resource name string",
+            )
 
 
 @dataclass
@@ -188,10 +201,22 @@ class TypeSpec:
     fields_match: str = "exact"  # exact/equal/subset/superset/partial/open
     unique_keys: Optional[List[List[str]]] = None  # Gap 4: composite unique-key constraints
     schema_url: Optional[str] = None
+
     contract: Optional[Dict[str, str]] = None  # item 48: reconciliation contract, layered
                                                 # under conform(contract=...) overrides
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "schema_url" and getattr(self, "_schema_url_frozen", False):
+            raise TypeError("TypeSpec.schema_url is immutable after construction")
+        super().__setattr__(name, value)
+
     def __post_init__(self) -> None:
+        reject_typed_profile_at(
+            self.schema_url,
+            descriptor_kind="schema",
+            extras=None,
+            location=InvariantLocation("$"),
+        )
         # An explicitly-empty dict carries no dimensions and must never be
         # mistaken for an explicit layer downstream (resolve_contract flips
         # `from_preset=False` on any non-None contract) — normalise to None.
@@ -202,6 +227,7 @@ class TypeSpec:
         if self.unique_keys is not None:
             for i, uk in enumerate(self.unique_keys):
                 _validate_key_shape(uk, f"unique_keys[{i}]")
+        object.__setattr__(self, "_schema_url_frozen", True)
 
     @classmethod
     def from_simple_dict(cls, columns: Dict[str, str], **metadata: Any) -> TypeSpec:

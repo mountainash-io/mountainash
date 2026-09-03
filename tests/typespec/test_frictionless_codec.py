@@ -39,12 +39,43 @@ def test_from_path_sets_parent_directory_base(tmp_path) -> None:
     assert package._descriptor_context.base_uri == tmp_path.resolve().as_uri() + "/"
 
 
+def test_from_path_keeps_utf8_error_distinct(tmp_path) -> None:
+    path = tmp_path / "datapackage.json"
+    path.write_bytes(b"\xff")
+    with pytest.raises(InvalidDescriptorSyntax) as caught:
+        DataPackage.from_path(path)
+    assert caught.value.descriptor_path == "$"
+    assert caught.value.rejected_value == path
+    assert caught.value.required_form == "UTF-8 JSON text"
+
+
 def test_decode_does_not_mutate_input() -> None:
     raw = minimal_descriptor()
     expected = deepcopy(raw)
     DataPackage.from_descriptor(raw)
     assert raw == expected
 
+
+def test_decoder_owns_descriptor_metadata() -> None:
+    payload = [{"id": 1}]
+    schema = {"fields": [{"name": "id"}]}
+    dialect = {"delimiter": ";"}
+    raw = {
+        "resources": [
+            {
+                "name": "orders",
+                "data": payload,
+                "schema": schema,
+                "dialect": dialect,
+            }
+        ]
+    }
+    resource = DataPackage.from_descriptor(raw).resources[0]
+    assert resource.data == payload
+    assert resource.table_schema == schema
+    assert resource.table_schema is not schema
+    assert resource.dialect == dialect
+    assert resource.dialect is not dialect
 
 @pytest.mark.parametrize(
     "contributors",
@@ -333,7 +364,6 @@ def test_duplicate_resource_names_are_rejected() -> None:
         {"name": "orders", "path": "a.csv", "data": []},
         {"name": "orders", "path": []},
         {"name": "orders", "path": ["a.csv", 2]},
-        {"name": "orders", "path": ["a.csv", "b.csv"], "data": None},
     ],
 )
 def test_invalid_path_data_shapes_are_rejected(resource) -> None:
@@ -400,6 +430,49 @@ def test_malformed_json_is_rejected() -> None:
         DataPackage.from_json("{")
     assert caught.value.__cause__ is not None
 
+
+
+@pytest.mark.parametrize(
+    ("decode", "rejected"),
+    [
+        (lambda: DataPackage.from_json("{"), "{"),
+        (lambda: DataPackage.model_validate_json("{"), "{"),
+        (lambda: DataPackage.model_validate_json(b"\xff"), b"\xff"),
+    ],
+)
+def test_json_entrypoints_share_syntax_error(decode, rejected) -> None:
+    with pytest.raises(InvalidDescriptorSyntax) as caught:
+        decode()
+    assert caught.value.descriptor_path == "$"
+    assert caught.value.rejected_value == rejected
+    assert caught.value.required_form == "valid JSON text"
+
+
+@pytest.mark.parametrize(
+    "decode",
+    [
+        lambda: DataPackage.from_json("[]"),
+        lambda: DataPackage.model_validate_json("[]"),
+    ],
+)
+def test_json_entrypoints_share_package_root_error(decode) -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        decode()
+    assert caught.value.descriptor_path == "$"
+    assert caught.value.rejected_value == []
+    assert caught.value.required_form == "package descriptor mapping"
+
+
+@pytest.mark.parametrize("text", ['{}', '{"resources": []}'])
+def test_json_entrypoints_reject_missing_or_empty_resources(text) -> None:
+    for decode in (
+        lambda: DataPackage.from_json(text),
+        lambda: DataPackage.model_validate_json(text),
+    ):
+        with pytest.raises(InvalidDescriptorStructure) as caught:
+            decode()
+        assert caught.value.descriptor_path == "$.resources"
+        assert caught.value.required_form == "non-empty resource sequence"
 
 def test_resource_decoder_is_removed() -> None:
     from mountainash.typespec.datapackage import DataResource
@@ -584,8 +657,6 @@ def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None
                 path="orders.csv",
                 dialect={
                     "profile": {"name": "dialect-extension"},
-                    "caseSensitiveHeader": True,
-                    "csvddfVersion": "1.0",
                     "line_terminator": "\\n",
                     "lineTerminator": "\\r\\n",
                 },
@@ -597,5 +668,62 @@ def test_canonical_preserves_raw_dialect_extension_keys_and_collisions() -> None
     assert dialect["line_terminator"] == "\\n"
     assert dialect["lineTerminator"] == "\\r\\n"
     assert dialect["profile"] == {"name": "dialect-extension"}
-    assert "caseSensitiveHeader" not in dialect
-    assert "csvddfVersion" not in dialect
+
+
+@pytest.mark.parametrize("marker", ["caseSensitiveHeader", "csvddfVersion"])
+def test_direct_resource_dialect_v1_markers_are_rejected(marker) -> None:
+    with pytest.raises(UnsupportedDescriptorVersion):
+        DataResource(
+            name="orders",
+            path="orders.csv",
+            dialect={marker: True},
+        )
+def test_model_validate_json_and_from_json_share_package_content_validation() -> None:
+    valid = {
+        "created": "2024-01-02T03:04:05Z",
+        "contributors": [{"title": "Author", "role": "author"}],
+        "futurePackage": {"enabled": True},
+        "resources": [{"name": "orders", "path": "orders.csv"}],
+    }
+    from_json = DataPackage.from_json(json.dumps(valid))
+    model_validate_json = DataPackage.model_validate_json(json.dumps(valid))
+    assert from_json.to_descriptor() == model_validate_json.to_descriptor() == valid
+
+    invalid_documents = (
+        {"created": "not-a-date", "resources": [{"name": "orders", "path": "orders.csv"}]},
+        {"contributors": [{}], "resources": [{"name": "orders", "path": "orders.csv"}]},
+        {
+            "resources": [
+                {
+                    "name": "orders",
+                    "path": "orders.csv",
+                    "schema": {
+                        "fields": [{"name": "id"}],
+                        "foreignKeys": [
+                            {
+                                "fields": "id",
+                                "reference": {"resource": "missing", "fields": "id"},
+                            }
+                        ],
+                    },
+                }
+            ]
+        },
+    )
+    for raw in invalid_documents:
+        outcomes = []
+        for decode in (
+            lambda: DataPackage.from_json(json.dumps(raw)),
+            lambda: DataPackage.model_validate_json(json.dumps(raw)),
+        ):
+            with pytest.raises((InvalidDescriptorStructure, InvalidDescriptorRelationship)) as caught:
+                decode()
+            outcomes.append(
+                (
+                    type(caught.value),
+                    caught.value.descriptor_path,
+                    caught.value.rejected_value,
+                    caught.value.required_form,
+                )
+            )
+        assert outcomes[0] == outcomes[1]

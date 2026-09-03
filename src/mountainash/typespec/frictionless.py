@@ -19,6 +19,11 @@ from typing import Any, Dict, List, Optional
 from mountainash.conform.contract import validate_contract_dict
 
 from .errors import InvalidFieldMatchDeclaration, InvalidKeyShapeError
+from .frictionless_invariants import (
+    InvariantLocation,
+    parse_foreign_keys_at,
+    reject_typed_profile_at,
+)
 from .spec import (
     FieldConstraints,
     FieldSpec,
@@ -330,6 +335,12 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
     Returns:
         A Frictionless Table Schema descriptor dict.
     """
+    reject_typed_profile_at(
+        spec.schema_url,
+        descriptor_kind="schema",
+        extras=None,
+        location=InvariantLocation("$"),
+    )
     descriptor: Dict[str, Any] = {}
 
     if spec.title:
@@ -525,12 +536,12 @@ def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
     contract: Optional[Dict[str, str]] = spec_ext.get("contract") or None
     if contract is not None:
         validate_contract_dict(contract)
-
     # Foreign keys
-    raw_fks = descriptor.get("foreignKeys")
-    foreign_keys: Optional[List[ForeignKey]] = None
-    if raw_fks:
-        foreign_keys = [foreign_key_from_dict(raw_fk) for raw_fk in raw_fks]
+    foreign_keys: Optional[List[ForeignKey]] = (
+        list(parse_foreign_keys_at(descriptor, location=InvariantLocation("$")))
+        if "foreignKeys" in descriptor
+        else None
+    )
 
     # -- Fields --
     fields: List[FieldSpec] = [

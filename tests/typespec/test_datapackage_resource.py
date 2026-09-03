@@ -1,9 +1,11 @@
+import json
 from collections.abc import Mapping
 
 import pytest
 
 from mountainash.exceptions import (
     DescriptorReferenceInvalid,
+    InvalidDescriptorRelationship,
     IncompatibleFieldPropertiesError,
     InvalidDescriptorStructure,
     InvalidFieldMatchDeclaration,
@@ -12,14 +14,174 @@ from mountainash.exceptions import (
     UnsupportedDescriptorVersion,
     UnsupportedResourceDialect,
 )
-from mountainash.typespec.datapackage import DataPackage, DataResource, TableDialect
+from mountainash.typespec.datapackage import (
+    DataPackage,
+    DataResource,
+    TableDialect,
+    _copy_resource_for_package,
+)
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
     DescriptorKind,
     LocalDescriptorResolver,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.typespec.frictionless_invariants import InvariantLocation
+from mountainash.typespec.spec import FieldSpec, TypeSpec
+
+VALID_SCHEMA = {"fields": [{"name": "id", "type": "integer"}]}
+EXTERNAL_FK_SCHEMA = {
+    "fields": [{"name": "customer_id"}],
+    "foreignKeys": [
+        {
+            "fields": ["customer_id"],
+            "reference": {"resource": "customers", "fields": ["id"]},
+        }
+    ],
+}
+
+def construct_resource(entrypoint: str, raw: dict[str, object]) -> DataResource:
+    if entrypoint == "init":
+        return DataResource(**raw)
+    if entrypoint == "model_validate":
+        return DataResource.model_validate(raw)
+    if entrypoint == "model_validate_json":
+        return DataResource.model_validate_json(json.dumps(raw))
+    raise AssertionError(f"unknown entrypoint: {entrypoint}")
+
+
+@pytest.mark.parametrize("entrypoint", ["init", "model_validate", "model_validate_json"])
+def test_resource_entrypoints_share_source_error(entrypoint: str) -> None:
+    raw = {"name": "", "path": "orders.csv"}
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        construct_resource(entrypoint, raw)
+    assert caught.value.descriptor_path == "$.name"
+    assert caught.value.required_form == "non-empty string resource name"
+
+
+def test_resource_model_copy_is_standalone_and_preserves_data_identity() -> None:
+    payload = object()
+    package = DataPackage(resources=[DataResource(name="r", data=payload)])
+    copied = package.resources[0].model_copy()
+    assert copied.data is payload
+    assert copied._package_resource_names == frozenset()
+    assert copied._descriptor_context.base_uri is None
+    assert copied._invariant_location.descriptor_path == "$"
+
+
+def test_resource_model_copy_rejects_deep_copy() -> None:
+    resource = DataResource(name="r", data=object())
+    with pytest.raises(ValueError, match="does not support deep=True"):
+        resource.model_copy(deep=True)
+
+
+def test_resource_model_copy_deep_copies_metadata() -> None:
+    schema = {"fields": [{"name": "id"}]}
+    dialect = {"delimiter": ";"}
+    extras = {"nested": [{"value": 1}]}
+    resource = DataResource(
+        name="r",
+        path="orders.csv",
+        schema=schema,
+        dialect=dialect,
+        extras=extras,
+        data=None,
+    )
+    copied = resource.model_copy()
+    assert copied.table_schema == schema
+    assert copied.table_schema is not resource.table_schema
+    assert copied.dialect == dialect
+    assert copied.dialect is not resource.dialect
+    assert copied.extras == extras
+    assert copied.extras is not resource.extras
+    copied.extras["nested"][0]["value"] = 2
+    assert resource.extras["nested"][0]["value"] == 1
+
+
+def test_resource_model_copy_deep_copies_typed_declarations() -> None:
+    schema = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    dialect = TableDialect(delimiter=";")
+    resource = DataResource(name="r", data=[], schema=schema, dialect=dialect)
+    copied = resource.model_copy()
+    assert copied.table_schema == schema
+    assert copied.table_schema is not schema
+    assert copied.dialect == dialect
+    assert copied.dialect is not dialect
+
+
+def test_resource_name_is_immutable_after_construction() -> None:
+    resource = DataResource(name="r", data=object())
+    with pytest.raises(TypeError, match="name is immutable"):
+        resource.name = "renamed"
+
+
+def test_resource_model_copy_normalizes_python_field_names() -> None:
+    resource = DataResource(name="r", data=object())
+    copied = resource.model_copy(
+        update={
+            "name": "renamed",
+            "table_schema": {"fields": [{"name": "id"}]},
+            "bytes_": 12,
+        }
+    )
+    assert copied.name == "renamed"
+    assert copied.table_schema == {"fields": [{"name": "id"}]}
+    assert copied.bytes_ == 12
+
+
+def test_resource_model_copy_renames_without_mutating_original() -> None:
+    payload = object()
+    resource = DataResource(
+        name="old_name",
+        data=payload,
+        schema={"fields": [{"name": "id"}]},
+    )
+    copied = resource.model_copy(update={"name": "new_name"})
+    assert copied is not resource
+    assert copied.name == "new_name"
+    assert copied.data is payload
+    assert copied.table_schema == resource.table_schema
+    with pytest.raises(TypeError, match="name is immutable"):
+        resource.name = "other_name"
+
+
+@pytest.mark.parametrize("entrypoint", ["init", "model_validate", "model_validate_json"])
+def test_resource_entrypoints_reject_malformed_inline_foreign_key(entrypoint: str) -> None:
+    raw = {
+        "name": "orders",
+        "data": [],
+        "schema": {
+            "fields": [{"name": "id"}],
+            "foreignKeys": [
+                {
+                    "fields": [],
+                    "reference": {"resource": "", "fields": ["id"]},
+                }
+            ],
+        },
+    }
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        construct_resource(entrypoint, raw)
+    assert caught.value.descriptor_path == "$.schema.foreignKeys[0].fields"
+    assert caught.value.required_form == "field name string or non-empty field name list"
+
+
+def test_resource_model_validate_preserves_data_identity() -> None:
+    payload = object()
+    resource = DataResource.model_validate({"name": "r", "data": payload})
+    assert resource.data is payload
+
+
+def test_copy_resource_for_package_binds_supplied_location() -> None:
+    payload = object()
+    source = DataResource(name="orders", data=payload)
+    copied = _copy_resource_for_package(
+        source,
+        location=InvariantLocation("$.resources[0]", "orders"),
+    )
+    assert copied is not source
+    assert copied.data is payload
+    assert copied._invariant_location.descriptor_path == "$.resources[0]"
 
 
 def test_resource_decoding_stays_at_package_boundary() -> None:
@@ -73,6 +235,43 @@ def test_effective_sources_returns_a_fresh_list() -> None:
     first[0]["title"] = "changed"
     assert resource.effective_sources == [{"title": "catalog"}]
 
+def test_context_snapshots_nested_package_sources() -> None:
+    source = {"title": "catalog", "meta": {"tags": ["a"]}}
+    package = DataPackage(
+        sources=[source], resources=[DataResource(name="r", path="r.csv")]
+    )
+    source["meta"]["tags"].append("changed")
+    package.sources[0]["meta"]["tags"].append("model-change")
+    assert package.resources[0].effective_sources == [
+        {"title": "catalog", "meta": {"tags": ["a"]}}
+    ]
+
+
+def test_effective_sources_result_has_no_nested_alias() -> None:
+    package = DataPackage(
+        sources=[{"meta": {"tags": ["a"]}}],
+        resources=[DataResource(name="r", path="r.csv")],
+    )
+    result = package.resources[0].effective_sources
+    result[0]["meta"]["tags"].append("changed")
+    assert package.resources[0].effective_sources[0]["meta"]["tags"] == ["a"]
+
+
+def test_package_model_copy_update_owns_nested_sources() -> None:
+    package = DataPackage(
+        sources=[{"title": "catalog", "meta": {"tags": ["a"]}}],
+        resources=[DataResource(name="r", path="r.csv")],
+    )
+    update_sources = [{"title": "updated", "meta": {"tags": ["b"]}}]
+    copied = package.model_copy(update={"sources": update_sources})
+    update_sources[0]["meta"]["tags"].append("caller-change")
+    copied.sources[0]["meta"]["tags"].append("model-change")
+    assert copied.resources[0].effective_sources == [
+        {"title": "updated", "meta": {"tags": ["b"]}}
+    ]
+    assert package.resources[0].effective_sources == [
+        {"title": "catalog", "meta": {"tags": ["a"]}}
+    ]
 
 def test_minimal_resource_with_path():
     r = DataResource(name="orders", path="orders.csv")
@@ -88,11 +287,47 @@ def test_resource_with_inline_data():
 
 
 def test_must_have_exactly_one_of_path_or_data():
-    with pytest.raises(ValueError, match="exactly one of path or data"):
+    with pytest.raises(InvalidDescriptorStructure, match="invalid resource descriptor structure") as missing:
         DataResource(name="orders")
-    with pytest.raises(ValueError, match="exactly one of path or data"):
+    assert missing.value.descriptor_path == "$"
+    assert missing.value.required_form == "exactly one of path or data"
+    with pytest.raises(InvalidDescriptorStructure, match="invalid resource descriptor structure") as both:
         DataResource(name="orders", path="x.csv", data=[{"id": 1}])
+    assert both.value.descriptor_path == "$"
+    assert both.value.required_form == "exactly one of path or data"
 
+@pytest.mark.parametrize(
+    ("payload", "descriptor_path", "required_form"),
+    [
+        ({"name": "orders"}, "$", "exactly one of path or data"),
+        ({"name": "orders", "path": "orders.csv", "data": []}, "$", "exactly one of path or data"),
+        ({"name": "orders", "path": []}, "$.path", "non-empty string or non-empty list of strings"),
+    ],
+)
+def test_resource_model_validate_json_uses_source_shape_adapter(
+    payload, descriptor_path, required_form
+) -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        DataResource.model_validate_json(json.dumps(payload))
+    assert caught.value.descriptor_path == descriptor_path
+    assert caught.value.required_form == required_form
+
+
+@pytest.mark.parametrize("marker", ["caseSensitiveHeader", "csvddfVersion"])
+def test_resource_model_validate_uses_profile_adapter(marker) -> None:
+    with pytest.raises(UnsupportedDescriptorVersion) as caught:
+        DataResource.model_validate(
+            {"name": "orders", "path": "orders.csv", "dialect": {marker: True}}
+        )
+    assert caught.value.descriptor_path == f"$.dialect.{marker}"
+
+
+
+def test_resource_model_validate_uses_source_shape_adapter() -> None:
+    with pytest.raises(InvalidDescriptorStructure) as caught:
+        DataResource.model_validate({"name": "orders", "path": []})
+    assert caught.value.descriptor_path == "$.path"
+    assert caught.value.required_form == "non-empty string or non-empty list of strings"
 
 def test_multi_file_path_array():
     r = DataResource(name="orders", path=["a.csv", "b.csv"])
@@ -144,6 +379,8 @@ def test_to_typespec_passthrough_when_already_typespec():
     spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
     r = DataResource(name="t", path="t.csv", schema=spec)
     assert r.to_typespec() is spec
+
+
 
 
 def test_to_typespec_converts_raw_dict():
@@ -288,6 +525,35 @@ class SingleDocumentResolver:
 class RaisingResolver:
     def resolve(self, reference, *, base_uri, expected_kind):
         raise PermissionError(reference)
+
+
+def test_referenced_schema_is_resolved_once_per_relationship_access():
+    resolver = RecordingResolver({"schema.json": VALID_SCHEMA})
+    resource = DataPackage.from_descriptor(
+        {"resources": [{"name": "orders", "path": "orders.csv", "schema": "schema.json"}]},
+        base_uri="file:///tmp/",
+        resolver=resolver,
+    ).resources[0]
+    assert resource._validated_foreign_keys() == ()
+    assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
+
+
+def test_to_typespec_resolves_referenced_schema_once():
+    resolver = RecordingResolver({"schema.json": VALID_SCHEMA})
+    resource = DataPackage.from_descriptor(
+        {"resources": [{"name": "orders", "path": "orders.csv", "schema": "schema.json"}]},
+        base_uri="file:///tmp/",
+        resolver=resolver,
+    ).resources[0]
+    assert resource.to_typespec().field_names == ["id"]
+    assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
+
+
+def test_standalone_external_target_fails_at_schema_location():
+    resource = DataResource(name="child", data=[], schema=EXTERNAL_FK_SCHEMA)
+    with pytest.raises(InvalidDescriptorRelationship) as caught:
+        resource.to_typespec()
+    assert caught.value.descriptor_path == "$.schema.foreignKeys[0].reference.resource"
 
 
 def test_resolver_transport_failure_is_typed_with_cause() -> None:
