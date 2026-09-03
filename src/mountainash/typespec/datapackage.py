@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 import json
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -13,7 +13,7 @@ from mountainash.typespec.descriptor_context import (
     DescriptorResolver,
     LocalDescriptorResolver,
 )
-from mountainash.typespec.spec import TypeSpec
+from mountainash.typespec.spec import ForeignKey, TypeSpec
 from mountainash.typespec.errors import (
     DescriptorError,
     DescriptorReferenceInvalid,
@@ -398,6 +398,12 @@ def _normalize_resource_update_names(
 
 
 
+@dataclass(frozen=True)
+class _ValidatedSchemaDeclaration:
+    value: Mapping[str, object] | TypeSpec | None
+    foreign_keys: tuple[ForeignKey, ...]
+
+
 class DataResource(BaseModel):
     """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
 
@@ -585,30 +591,58 @@ class DataResource(BaseModel):
 
         return _encode_resource_preserve(self)
 
-    def to_typespec(self) -> TypeSpec | None:
-        if self.table_schema is None:
-            return None
-        if isinstance(self.table_schema, TypeSpec):
-            return self.table_schema
-        from mountainash.typespec.frictionless import typespec_from_frictionless
-        from mountainash.typespec.frictionless_codec import (
-            resolve_descriptor_mapping,
-            validate_foreign_key_relationships,
+    def _validated_schema_declaration(self) -> _ValidatedSchemaDeclaration:
+        source = self.table_schema
+        if source is None:
+            return _ValidatedSchemaDeclaration(None, ())
+
+        source_location = self._invariant_location.child("schema")
+        if isinstance(source, TypeSpec):
+            value: Mapping[str, object] | TypeSpec = source
+            foreign_keys = tuple(source.foreign_keys or ())
+            policy_location = source_location
+        else:
+            from mountainash.typespec.frictionless_resolution import (
+                resolve_descriptor_mapping,
+            )
+
+            value = resolve_descriptor_mapping(
+                source,
+                context=self._descriptor_context,
+                expected_kind=DescriptorKind.SCHEMA,
+                location=source_location,
+            )
+            policy_location = (
+                InvariantLocation("$", self.name, source)
+                if isinstance(source, str)
+                else source_location
+            )
+            foreign_keys = parse_foreign_keys_at(value, location=policy_location)
+
+        validate_foreign_key_targets(
+            foreign_keys,
+            child_name=self.name,
+            resource_names=self._package_resource_names,
+            location=policy_location,
         )
+        return _ValidatedSchemaDeclaration(value, foreign_keys)
+
+    def _validated_foreign_keys(self) -> tuple[ForeignKey, ...]:
+        return self._validated_schema_declaration().foreign_keys
+
+    def to_typespec(self) -> TypeSpec | None:
+        declaration = self._validated_schema_declaration()
+        if declaration.value is None:
+            return None
+        if isinstance(declaration.value, TypeSpec):
+            return declaration.value
+
+        from mountainash.typespec.frictionless import typespec_from_frictionless
 
         source = self.table_schema
-        raw = resolve_descriptor_mapping(
-            source,
-            context=self._descriptor_context,
-            expected_kind=DescriptorKind.SCHEMA,
-            descriptor_path="$.schema",
-            resource_name=self.name,
-        )
+        source_location = self._invariant_location.child("schema")
+        raw = declaration.value
         try:
-            validate_foreign_key_relationships(
-                raw,
-                resource_names=self._package_resource_names,
-            )
             return typespec_from_frictionless(raw)
         except InvalidDescriptorStructure as exc:
             if not isinstance(source, str):
@@ -616,7 +650,7 @@ class DataResource(BaseModel):
             raise DescriptorReferenceInvalid(
                 "resolved schema has an invalid structure",
                 descriptor_kind=DescriptorKind.SCHEMA.value,
-                descriptor_path="$.schema",
+                descriptor_path=source_location.descriptor_path,
                 resource_name=self.name,
                 reference=source,
                 expected_kind=DescriptorKind.SCHEMA.value,
@@ -638,7 +672,7 @@ class DataResource(BaseModel):
             raise error_type(
                 "schema mapping could not be converted",
                 descriptor_kind=DescriptorKind.SCHEMA.value,
-                descriptor_path="$.schema",
+                descriptor_path=source_location.descriptor_path,
                 resource_name=self.name,
                 rejected_value=raw,
                 required_form="valid Table Schema mapping",
@@ -649,18 +683,18 @@ class DataResource(BaseModel):
             return None
         if isinstance(self.dialect, TableDialect):
             return self.dialect
-        from mountainash.typespec.frictionless_codec import (
+        from mountainash.typespec.frictionless_codec import validate_dialect_family
+        from mountainash.typespec.frictionless_resolution import (
             resolve_descriptor_mapping,
-            validate_dialect_family,
         )
 
         source = self.dialect
+        source_location = self._invariant_location.child("dialect")
         raw = resolve_descriptor_mapping(
             source,
             context=self._descriptor_context,
             expected_kind=DescriptorKind.DIALECT,
-            descriptor_path="$.dialect",
-            resource_name=self.name,
+            location=source_location,
         )
         try:
             validate_dialect_family(raw, resource_format=self.format)
@@ -676,7 +710,7 @@ class DataResource(BaseModel):
             raise error_type(
                 "dialect mapping could not be converted",
                 descriptor_kind=DescriptorKind.DIALECT.value,
-                descriptor_path="$.dialect",
+                descriptor_path=source_location.descriptor_path,
                 resource_name=self.name,
                 rejected_value=raw,
                 required_form="valid Table Dialect mapping",
@@ -931,29 +965,6 @@ def _bind_resource(
     resource._package_resource_names = resource_names
 
 
-def _validate_package_resource_relationships(
-    resource: DataResource,
-    *,
-    resource_names: frozenset[str],
-) -> None:
-    schema = resource.table_schema
-    if schema is None or isinstance(schema, str):
-        return
-    location = resource._invariant_location.child("schema")
-    if isinstance(schema, Mapping):
-        foreign_keys = parse_foreign_keys_at(schema, location=location)
-    elif isinstance(schema, TypeSpec):
-        foreign_keys = tuple(schema.foreign_keys or ())
-    else:
-        return
-    validate_foreign_key_targets(
-        foreign_keys,
-        child_name=resource.name,
-        resource_names=resource_names,
-        location=location,
-    )
-
-
 def _finalize_package_resources(
     values: Sequence[Mapping[str, object] | DataResource],
     *,
@@ -984,10 +995,10 @@ def _finalize_package_resources(
             resource_names=resource_names,
         )
     for resource in owned_tuple:
-        _validate_package_resource_relationships(
-            resource,
-            resource_names=resource_names,
-        )
+        # Referenced schemas remain lazy; inline and authored declarations
+        # validate their relationship targets after package context binding.
+        if not isinstance(resource.table_schema, str):
+            resource._validated_schema_declaration()
     return owned_tuple
 
 

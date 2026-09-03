@@ -18,16 +18,12 @@ if TYPE_CHECKING:
     from mountainash.typespec.datapackage import DataPackage, DataResource
 from mountainash.typespec.descriptor_context import (
     DescriptorContext,
-    DescriptorKind,
     build_descriptor_context,
     DescriptorResolver,
 )
 from mountainash.typespec.spec import TypeSpec
 from mountainash.typespec.errors import (
-    DescriptorError,
-    DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
-    InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
     UnsupportedResourceDialect,
@@ -351,6 +347,7 @@ def _validate_schema(value: Any, *, path: str, resource_name: str | None) -> Non
             resource_name=resource_name,
         )
 
+
 def _dialect_family_names(value: Mapping[str, Any]) -> list[str]:
     families: list[str] = []
     for family, triggers in (
@@ -362,168 +359,6 @@ def _dialect_family_names(value: Mapping[str, Any]) -> list[str]:
         if any(key in value for key in triggers):
             families.append(family)
     return families
-
-
-def _reject_resolved_v1_markers(
-    raw: Mapping[str, Any],
-    *,
-    expected_kind: DescriptorKind,
-    descriptor_path: str,
-    resource_name: str,
-) -> None:
-    reject_v1_markers_at(
-        raw,
-        descriptor_kind=expected_kind.value,
-        location=InvariantLocation(descriptor_path, resource_name),
-    )
-
-
-def validate_resolved_mapping(
-    raw: Mapping[str, Any],
-    *,
-    expected_kind: DescriptorKind,
-    descriptor_path: str,
-    resource_name: str,
-) -> None:
-    """Validate one resolved standalone schema or dialect document."""
-    if not isinstance(raw, Mapping):
-        raise _structure_error(
-            "resolved descriptor must have a mapping root",
-            descriptor_path=descriptor_path,
-            rejected_value=raw,
-            required_form=f"{expected_kind.value} mapping",
-            descriptor_kind=expected_kind.value,
-            resource_name=resource_name,
-        )
-    _reject_resolved_v1_markers(
-        raw,
-        expected_kind=expected_kind,
-        descriptor_path=descriptor_path,
-        resource_name=resource_name,
-    )
-    nested_key = expected_kind.value
-    if isinstance(raw.get(nested_key), str):
-        raise _structure_error(
-            f"resolved {nested_key} must not be another reference",
-            descriptor_path=f"{descriptor_path}.{nested_key}",
-            rejected_value=raw[nested_key],
-            required_form=f"inline {nested_key} mapping",
-            descriptor_kind=expected_kind.value,
-            resource_name=resource_name,
-        )
-    if expected_kind is DescriptorKind.SCHEMA:
-        _validate_schema(raw, path=descriptor_path, resource_name=resource_name)
-    else:
-        if not raw:
-            raise _structure_error(
-                "resolved dialect mapping must not be empty",
-                descriptor_path=descriptor_path,
-                rejected_value=raw,
-                required_form="non-empty Table Dialect mapping",
-                descriptor_kind="dialect",
-                resource_name=resource_name,
-            )
-        _validate_dialect(raw, path=descriptor_path, resource_name=resource_name)
-
-
-def resolve_descriptor_mapping(
-    value: Mapping[str, Any] | str,
-    *,
-    context: DescriptorContext,
-    expected_kind: DescriptorKind,
-    descriptor_path: str,
-    resource_name: str,
-) -> Mapping[str, Any]:
-    is_reference = isinstance(value, str)
-    if is_reference:
-        try:
-            raw = context.resolver.resolve(
-                value,
-                base_uri=context.base_uri,
-                expected_kind=expected_kind,
-            )
-        except DescriptorError:
-            raise
-        except Exception as exc:
-            raise DescriptorReferenceInvalid(
-                "descriptor reference could not be resolved",
-                descriptor_kind=expected_kind.value,
-                descriptor_path=descriptor_path,
-                resource_name=resource_name,
-                reference=value,
-                expected_kind=expected_kind.value,
-                rejected_value=value,
-                required_form=f"resolvable {expected_kind.value} JSON reference",
-            ) from exc
-    else:
-        raw = value
-
-    try:
-        validate_resolved_mapping(
-            raw,
-            expected_kind=expected_kind,
-            descriptor_path=descriptor_path,
-            resource_name=resource_name,
-        )
-    except InvalidDescriptorStructure as exc:
-        if not is_reference:
-            raise
-        raise DescriptorReferenceInvalid(
-            "resolved descriptor has an invalid structure",
-            descriptor_kind=expected_kind.value,
-            descriptor_path=descriptor_path,
-            resource_name=resource_name,
-            reference=value,
-            expected_kind=expected_kind.value,
-            rejected_value=exc.rejected_value,
-            required_form=exc.required_form,
-        ) from exc
-    return raw
-
-
-def validate_foreign_key_relationships(
-    raw: Mapping[str, Any],
-    *,
-    resource_names: frozenset[str],
-) -> None:
-    """Validate resolved schema foreign-key targets against package resources."""
-    foreign_keys = raw.get("foreignKeys") or []
-    for fk_index, foreign_key in enumerate(foreign_keys):
-        path = f"$.foreignKeys[{fk_index}]"
-        if not isinstance(foreign_key, Mapping):
-            raise _structure_error(
-                "foreign key must be a mapping",
-                descriptor_path=path,
-                rejected_value=foreign_key,
-                required_form="foreign-key mapping",
-                descriptor_kind="schema",
-            )
-        reference = foreign_key.get("reference")
-        if not isinstance(reference, Mapping):
-            raise _structure_error(
-                "foreign key reference must be a mapping",
-                descriptor_path=f"{path}.reference",
-                rejected_value=reference,
-                required_form="foreign-key reference mapping",
-                descriptor_kind="schema",
-            )
-        target = reference.get("resource", "")
-        if not isinstance(target, str):
-            raise _structure_error(
-                "foreign key reference resource must be a string",
-                descriptor_path=f"{path}.reference.resource",
-                rejected_value=target,
-                required_form="resource name string",
-                descriptor_kind="schema",
-            )
-        if target and target not in resource_names:
-            raise InvalidDescriptorRelationship(
-                "foreign key references an unknown resource",
-                descriptor_kind="schema",
-                descriptor_path=f"{path}.reference.resource",
-                rejected_value=target,
-                required_form="empty self-reference or package resource name",
-            )
 
 
 def validate_dialect_family(
@@ -575,15 +410,12 @@ def validate_dialect_family(
         )
 
 
-
-
-
-
 def _decode_owned_package(owned: Mapping[str, Any], *, context: DescriptorContext) -> DataPackage:
     """Delegate owned package construction to the package context owner."""
     from mountainash.typespec.datapackage import DataPackage
 
     return DataPackage._from_owned_descriptor(owned, context=context)
+
 
 def decode_package_descriptor(
     raw: Mapping[str, Any],

@@ -98,6 +98,27 @@ def test_inline_foreign_key_target_is_validated_during_package_construction() ->
         )
 
 
+def test_inline_package_unknown_target_reports_package_indexed_path() -> None:
+    with pytest.raises(InvalidDescriptorRelationship) as caught:
+        DataPackage.from_descriptor(
+            {
+                "resources": [
+                    {
+                        "name": "orders",
+                        "path": "orders.csv",
+                        "schema": {
+                            "fields": [{"name": "customer_id"}],
+                            "foreignKeys": [RAW],
+                        },
+                    }
+                ]
+            }
+        )
+    assert caught.value.descriptor_path == (
+        "$.resources[0].schema.foreignKeys[0].reference.resource"
+    )
+
+
 class _RecordingResolver:
     def __init__(self, document: dict[str, Any]) -> None:
         self.document = document

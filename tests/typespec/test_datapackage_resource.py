@@ -5,6 +5,7 @@ import pytest
 
 from mountainash.exceptions import (
     DescriptorReferenceInvalid,
+    InvalidDescriptorRelationship,
     IncompatibleFieldPropertiesError,
     InvalidDescriptorStructure,
     InvalidFieldMatchDeclaration,
@@ -27,6 +28,17 @@ from mountainash.typespec.descriptor_context import (
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.frictionless_invariants import InvariantLocation
 from mountainash.typespec.spec import FieldSpec, TypeSpec
+
+VALID_SCHEMA = {"fields": [{"name": "id", "type": "integer"}]}
+EXTERNAL_FK_SCHEMA = {
+    "fields": [{"name": "customer_id"}],
+    "foreignKeys": [
+        {
+            "fields": ["customer_id"],
+            "reference": {"resource": "customers", "fields": ["id"]},
+        }
+    ],
+}
 
 def construct_resource(entrypoint: str, raw: dict[str, object]) -> DataResource:
     if entrypoint == "init":
@@ -476,6 +488,35 @@ class SingleDocumentResolver:
 class RaisingResolver:
     def resolve(self, reference, *, base_uri, expected_kind):
         raise PermissionError(reference)
+
+
+def test_referenced_schema_is_resolved_once_per_relationship_access():
+    resolver = RecordingResolver({"schema.json": VALID_SCHEMA})
+    resource = DataPackage.from_descriptor(
+        {"resources": [{"name": "orders", "path": "orders.csv", "schema": "schema.json"}]},
+        base_uri="file:///tmp/",
+        resolver=resolver,
+    ).resources[0]
+    assert resource._validated_foreign_keys() == ()
+    assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
+
+
+def test_to_typespec_resolves_referenced_schema_once():
+    resolver = RecordingResolver({"schema.json": VALID_SCHEMA})
+    resource = DataPackage.from_descriptor(
+        {"resources": [{"name": "orders", "path": "orders.csv", "schema": "schema.json"}]},
+        base_uri="file:///tmp/",
+        resolver=resolver,
+    ).resources[0]
+    assert resource.to_typespec().field_names == ["id"]
+    assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
+
+
+def test_standalone_external_target_fails_at_schema_location():
+    resource = DataResource(name="child", data=[], schema=EXTERNAL_FK_SCHEMA)
+    with pytest.raises(InvalidDescriptorRelationship) as caught:
+        resource.to_typespec()
+    assert caught.value.descriptor_path == "$.schema.foreignKeys[0].reference.resource"
 
 
 def test_resolver_transport_failure_is_typed_with_cause() -> None:
