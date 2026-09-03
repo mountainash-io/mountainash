@@ -24,6 +24,8 @@ __all__ = [
     "dialect_is_default",
     "dialect_native_safe",
     "ensure_dialect_supported",
+    "NATIVE_UNSAFE_DIALECT_CONDITION",
+    "IBIS_NON_DEFAULT_DIALECT_CONDITION",
 ]
 
 # TableDialect fields the CsvSpec fallback (mountainash-files >=26.7.1) can
@@ -166,6 +168,29 @@ def dialect_native_safe(dialect: Any) -> bool:
         if getattr(dialect, name) is not None:
             return False
     return True
+
+
+_PORTABLE_ONLY_DIALECT_FIELDS = tuple(sorted(
+    _MAPPABLE_DIALECT_FIELDS - _NATIVE_SAFE_DIALECT_FIELDS
+))
+
+
+NATIVE_UNSAFE_DIALECT_CONDITION = " or ".join(
+    f"resource.dialect.{field} is set"
+    for field in _PORTABLE_ONLY_DIALECT_FIELDS
+)
+
+
+IBIS_NON_DEFAULT_DIALECT_CONDITION = " or ".join(
+    (
+        "resource.dialect.delimiter is non-default"
+        if field == "delimiter"
+        else "resource.dialect.header is false"
+        if field == "header"
+        else f"resource.dialect.{field} is set"
+    )
+    for field in sorted(_MAPPABLE_DIALECT_FIELDS)
+)
 
 
 def _normalise_format(resource: Any, path_for_suffix: str) -> str | None:

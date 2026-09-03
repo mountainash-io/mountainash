@@ -6,6 +6,7 @@ import gzip
 import pyarrow as pa
 import pytest
 
+from mountainash.core.capabilities import CapabilityRegistry, Enforcement
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.dag.errors import (
     MissingFilesDependency,
@@ -16,6 +17,26 @@ from mountainash.relations.backends.relation_systems import resource_files as rf
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
+
+
+NON_DEFAULT_DIALECT_VALUES = {
+    "delimiter": ";",
+    "line_terminator": "\r\n",
+    "quote_char": "'",
+    "double_quote": False,
+    "escape_char": "\\",
+    "null_sequence": "NULL",
+    "skip_initial_space": True,
+    "header": False,
+    "header_rows": [2],
+    "header_join": " / ",
+    "comment_char": "#",
+    "comment_rows": [2],
+}
+
+
+def _dialect_for_field(field: str) -> TableDialect:
+    return TableDialect(**{field: NON_DEFAULT_DIALECT_VALUES[field]})
 
 
 def _parse(resource):
@@ -95,6 +116,45 @@ def test_dialect_native_safe_semantics(dialect, expected):
     # no correct pl.scan_csv target, so it must route to the fallback on every
     # backend rather than be read natively-and-wrong on Polars/Narwhals.
     assert rf.dialect_native_safe(dialect) is expected
+
+
+@pytest.mark.parametrize("field", sorted(NON_DEFAULT_DIALECT_VALUES))
+def test_dialect_native_safe_rejects_exactly_portable_only_fields(field):
+    dialect = _dialect_for_field(field)
+    assert rf.dialect_native_safe(dialect) is (
+        field in rf._NATIVE_SAFE_DIALECT_FIELDS
+    )
+
+
+@pytest.mark.parametrize("field", sorted(NON_DEFAULT_DIALECT_VALUES))
+def test_dialect_is_default_rejects_every_supported_non_default_setting(field):
+    assert rf.dialect_is_default(_dialect_for_field(field)) is False
+
+
+def test_ibis_default_dialect_semantics_remain_default():
+    assert rf.dialect_is_default(TableDialect(delimiter=",")) is True
+    assert rf.dialect_is_default(TableDialect(header=True)) is True
+
+
+@pytest.mark.parametrize(
+    ("backend", "condition_name"),
+    [
+        (CONST_BACKEND.POLARS, "NATIVE_UNSAFE_DIALECT_CONDITION"),
+        (CONST_BACKEND.NARWHALS, "NATIVE_UNSAFE_DIALECT_CONDITION"),
+        (CONST_BACKEND.IBIS, "IBIS_NON_DEFAULT_DIALECT_CONDITION"),
+    ],
+)
+def test_router_facts_use_generated_csv_dialect_conditions(
+    backend, condition_name
+):
+    fact = next(
+        fact
+        for fact in CapabilityRegistry.router_facts(
+            RKEY_MOUNTAINASH_REL.READ_RESOURCE, backend
+        )
+        if fact.param == "resource"
+    )
+    assert fact.condition == getattr(rf, condition_name)
 
 
 # ---- parse_resource_to_arrow (real local reads) ---------------------------
