@@ -235,6 +235,43 @@ def test_effective_sources_returns_a_fresh_list() -> None:
     first[0]["title"] = "changed"
     assert resource.effective_sources == [{"title": "catalog"}]
 
+def test_context_snapshots_nested_package_sources() -> None:
+    source = {"title": "catalog", "meta": {"tags": ["a"]}}
+    package = DataPackage(
+        sources=[source], resources=[DataResource(name="r", path="r.csv")]
+    )
+    source["meta"]["tags"].append("changed")
+    package.sources[0]["meta"]["tags"].append("model-change")
+    assert package.resources[0].effective_sources == [
+        {"title": "catalog", "meta": {"tags": ["a"]}}
+    ]
+
+
+def test_effective_sources_result_has_no_nested_alias() -> None:
+    package = DataPackage(
+        sources=[{"meta": {"tags": ["a"]}}],
+        resources=[DataResource(name="r", path="r.csv")],
+    )
+    result = package.resources[0].effective_sources
+    result[0]["meta"]["tags"].append("changed")
+    assert package.resources[0].effective_sources[0]["meta"]["tags"] == ["a"]
+
+
+def test_package_model_copy_update_owns_nested_sources() -> None:
+    package = DataPackage(
+        sources=[{"title": "catalog", "meta": {"tags": ["a"]}}],
+        resources=[DataResource(name="r", path="r.csv")],
+    )
+    update_sources = [{"title": "updated", "meta": {"tags": ["b"]}}]
+    copied = package.model_copy(update={"sources": update_sources})
+    update_sources[0]["meta"]["tags"].append("caller-change")
+    copied.sources[0]["meta"]["tags"].append("model-change")
+    assert copied.resources[0].effective_sources == [
+        {"title": "updated", "meta": {"tags": ["b"]}}
+    ]
+    assert package.resources[0].effective_sources == [
+        {"title": "catalog", "meta": {"tags": ["a"]}}
+    ]
 
 def test_minimal_resource_with_path():
     r = DataResource(name="orders", path="orders.csv")

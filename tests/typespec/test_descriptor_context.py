@@ -317,10 +317,12 @@ def test_caching_resolver_delegates_equivalent_references_once(tmp_path: Path) -
 
 
 def test_build_descriptor_context_defaults_and_freezes_sources() -> None:
-    sources = [{"name": "catalog"}]
+    sources = [{"name": "catalog", "meta": {"tags": ["a"]}}]
+    resolver = LocalDescriptorResolver()
     context = build_descriptor_context(
-        base_uri=None, resolver=None, package_sources=sources
+        base_uri=None, resolver=resolver, package_sources=sources
     )
     sources.append({"name": "later"})
-    assert isinstance(context.resolver, LocalDescriptorResolver)
-    assert context.package_sources == ({"name": "catalog"},)
+    sources[0]["meta"]["tags"].append("changed")
+    assert context.resolver is resolver
+    assert context.package_sources == ({"name": "catalog", "meta": {"tags": ["a"]}},)

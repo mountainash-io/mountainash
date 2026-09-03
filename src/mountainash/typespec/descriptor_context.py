@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -404,7 +405,7 @@ def build_descriptor_context(
     package_sources: Iterable[Mapping[str, Any]] = (),
 ) -> DescriptorContext:
     """Build a context with canonical base and owned package-source storage."""
-    frozen_sources = tuple(dict(source) for source in package_sources)
+    frozen_sources = tuple(deepcopy(dict(source)) for source in package_sources)
     return DescriptorContext(
         base_uri=normalize_base_uri(base_uri),
         resolver=resolver if resolver is not None else LocalDescriptorResolver(),

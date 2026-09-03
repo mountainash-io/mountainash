@@ -1082,7 +1082,9 @@ def _copy_context_for_package(
     return replace(
         context,
         package_sources=tuple(
-            dict(source) for source in source_values if isinstance(source, Mapping)
+            deepcopy(dict(source))
+            for source in source_values
+            if isinstance(source, Mapping)
         ),
     )
 
