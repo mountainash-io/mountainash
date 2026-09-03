@@ -63,9 +63,6 @@ _ASOF_TEMPORAL_TOLERANCE = [
 _ASOF_NULL = [
     pytest.param(b, marks=xfail_divergence("NW-REL-04", backend=b)) for b in ALL_BACKENDS
 ]
-_ASOF_DUP_RIGHT_BACKWARD = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-16", backend=b)) for b in ALL_BACKENDS
-]
 _ASOF_NEAREST_DUP = [
     pytest.param(
         b,
@@ -342,9 +339,7 @@ class TestJoinAsof:
         assert result[3]["score"] == 60
 
     def test_asof_duplicate_left_rows(self, backend_name, backend_factory):
-        """Duplicate LEFT rows (not duplicate right keys — see
-        test_asof_duplicate_right_keys for that, which DOES diverge on
-        ibis-duckdb). This case has no ambiguity in which right row matches
+        """Duplicate LEFT rows have no ambiguity in which right row matches
         each left row, only in output ORDER among the two left rows sharing a
         key — which Task 3's determinism fix pins deterministically and
         correctly everywhere."""
@@ -378,13 +373,14 @@ class TestJoinAsofGatedCells:
     def _oracle(self, left_data, right_data, **kwargs):
         return pl.DataFrame(left_data).join_asof(pl.DataFrame(right_data), **kwargs).to_dicts()
 
-    @pytest.mark.parametrize("backend_name", _ASOF_DUP_RIGHT_BACKWARD)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_duplicate_right_keys(self, backend_name, backend_factory):
-        """Backward keeps the LAST equal-key right row (Polars-probed).
-        ibis-duckdb's NATIVE asof_join picks the FIRST — declared as
-        IB-REL-16 rather than fixed, since the emulation (used everywhere
-        else) and ibis-polars native (delegating to real Polars) both
-        already match Polars on this."""
+        """Backward keeps the last equal-key right row on every backend.
+
+        Polars documents backward ASOF as the last right row whose key is less
+        than or equal to the left key. This case keeps duplicate order
+        discriminating so a first-row implementation fails.
+        """
         left_data = {"t": [5], "val": ["x"]}
         right_data = {"t": [4, 4, 6], "score": [41, 42, 60]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="backward")

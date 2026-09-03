@@ -4,10 +4,15 @@ Run: hatch run test:python scripts/probes/probe_asof_emulation.py
 from __future__ import annotations
 from datetime import datetime, timedelta
 
+import duckdb
 import ibis
 import polars as pl
+import pyarrow
 
-print(f"polars {pl.__version__} | ibis {ibis.__version__}")
+print(
+    f"polars {pl.__version__} | ibis {ibis.__version__} | "
+    f"duckdb {duckdb.__version__} | pyarrow {pyarrow.__version__}"
+)
 
 
 def native_asof(left, right, *, on, by, tolerance, dialect):
@@ -134,11 +139,32 @@ for name, left_d, right_d, on, by, strategy, tolerance in EMULATION_CASES:
         failures += 0 if ok else 1
         print(f"{name} [{dialect}] {'OK' if ok else 'MISMATCH: got=' + str(got) + ' oracle=' + str(oracle)}")
 
-# native path: determinism + Polars-parity outside the declared IB-REL-16/17 cells
+# native path: determinism + Polars-parity outside the declared IB-REL-17 cells
 for name, left_d, right_d, by, dialect in (
     ("native_dup_left", {"t": [5, 5], "val": ["r1", "r2"]}, {"t": [4, 6], "score": [40, 60]}, None, "ibis-duckdb"),
     ("native_temporal_tol", {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]},
      {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}, None, "ibis-duckdb"),
+    (
+        "native_dup_right_ascending",
+        {"t": [5], "val": ["x"]},
+        {"t": [4, 4, 6], "score": [41, 42, 60]},
+        None,
+        "ibis-duckdb",
+    ),
+    (
+        "native_dup_right_descending",
+        {"t": [5], "val": ["x"]},
+        {"t": [4, 4, 6], "score": [42, 41, 60]},
+        None,
+        "ibis-duckdb",
+    ),
+    (
+        "native_dup_right_exact",
+        {"t": [5], "val": ["x"]},
+        {"t": [5, 5, 7], "score": [51, 52, 70]},
+        None,
+        "ibis-duckdb",
+    ),
 ):
     left_pl, right_pl = pl.DataFrame(left_d), pl.DataFrame(right_d)
     tol = timedelta(minutes=2) if "tol" in name else None

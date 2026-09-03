@@ -17,7 +17,11 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
+_ELIGIBILITY_BACKENDS = [
+    pytest.param(b, marks=xfail_divergence("IB-REL-18", backend=b)) for b in ALL_BACKENDS
+]
 
 # =============================================================================
 # Cross-Backend Tests - Comparison Operators
@@ -509,6 +513,13 @@ class TestComplexBooleanExpressions:
         assert actual == expected, (
             f"[{backend_name}] Expected {expected}, got {actual}"
         )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("backend_name", _ELIGIBILITY_BACKENDS)
+class TestComplexEligibilityCheck:
+    """OR-of-AND eligibility predicate — xfail-gated on ibis-duckdb (IB-REL-18):
+    DuckDB does not guarantee filtered-scan row order for this predicate shape."""
 
     def test_complex_eligibility_check(self, backend_name, backend_factory):
         """Test complex eligibility criteria."""
