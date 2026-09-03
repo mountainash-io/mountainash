@@ -355,8 +355,6 @@ def _validate_resource_path(value: object, *, location: InvariantLocation) -> No
     for item in values:
         if _is_remote_path(item):
             continue
-        if item.startswith("/"):
-            raise _structure_at(location, ".path", value, "relative local path")
         if any(segment in {".", ".."} or segment.startswith(".") for segment in item.split("/")):
             raise _structure_at(
                 location,

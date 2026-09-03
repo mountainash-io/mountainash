@@ -21,6 +21,7 @@ from mountainash.typespec.frictionless_invariants import (
     validate_resource_source_shape,
 )
 from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.datapackage import DataResource
 from mountainash.typespec.universal_types import UniversalType
 
 @pytest.mark.parametrize(
@@ -158,7 +159,6 @@ def test_serializers_revalidate_mutated_typed_profile_fields() -> None:
         ({"name": "r", "path": []}, ".path", "non-empty string or non-empty list of strings"),
         ({"name": "r", "path": ["a.csv", 1]}, ".path", "string or non-empty list of strings"),
         ({"name": "r", "path": ""}, ".path", "non-empty path string"),
-        ({"name": "r", "path": "/tmp/a.csv"}, ".path", "relative local path"),
         ({"name": "r", "path": "../a.csv"}, ".path", "local path without hidden, ., or .. segments"),
         ({"name": "r", "path": "a.csv", "type": "file"}, ".type", "absent or 'table'"),
     ],
@@ -169,6 +169,14 @@ def test_resource_source_shape_has_exact_public_form(raw, suffix, required_form)
         validate_resource_source_shape(raw, location=location)
     assert caught.value.descriptor_path == f"$.resources[3]{suffix}"
     assert caught.value.required_form == required_form
+
+def test_absolute_local_resource_path_is_accepted() -> None:
+    raw = {"name": "r", "path": "/tmp/a.csv"}
+    location = InvariantLocation("$.resources[3]", "r", None)
+
+    validate_resource_source_shape(raw, location=location)
+    resource = DataResource(name="r", path="/tmp/a.csv")
+    assert resource.path == "/tmp/a.csv"
 
 
 @pytest.mark.parametrize("text", ["{", "", "not-json"])
