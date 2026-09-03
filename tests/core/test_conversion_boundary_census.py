@@ -13,11 +13,13 @@ from pathlib import Path
 import pytest
 
 from tests.core._transit_census import (
+    LEGACY_UNWRAPPED,
     RISKY_METHOD_NAMES,
     UnclassifiedCandidateError,
     build_inventory,
     discover_transit_candidates,
     load_inventory,
+    render_inventory,
 )
 from mountainash.core.transit import BOUNDARY_REGISTRY, BoundaryKey, TransitClass
 
@@ -31,11 +33,10 @@ _BOUNDARY_KEY_REF = re.compile(r"BoundaryKey\.([A-Z_][A-Z0-9_]*)")
 
 
 def test_current_transit_inventory_is_complete():
-    discovered = discover_transit_candidates(_SRC_ROOT)
-    inventoried = load_inventory(_INVENTORY_PATH)
-    assert {item.identity for item in discovered} == {
-        item.identity for item in inventoried
-    }
+    generated = render_inventory(build_inventory(_SRC_ROOT))
+    assert generated == _INVENTORY_PATH.read_text(encoding="utf-8")
+    assert LEGACY_UNWRAPPED == {}
+    assert all(entry.legacy_unwrapped is False for entry in load_inventory(_INVENTORY_PATH))
 
 
 def test_inventory_entries_have_policy_reason_and_date():
@@ -293,12 +294,6 @@ _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
         "explicit_pandas_egress() Ibis-source assertions.",
         "2026-08-27",
     ),
-    "IBIS_CONSTRUCTOR_ADAPTER": (
-        "Exercised functionally by tests/relations/test_resource_transit_boundaries.py's "
-        "Ibis reader trace tests and tests/relations/test_conversion_adapters.py's "
-        "coerce_to_ibis() tests.",
-        "2026-08-27",
-    ),
     "IBIS_SCALAR_EXECUTE": (
         "Exercised functionally by tests/relations/test_resource_transit_boundaries.py's "
         "test_ibis_fetch_from_end_records_scalar_execute and cross-backend sample()/"
@@ -405,12 +400,6 @@ _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
     "PYDATA_EXPLICIT_PANDAS_EGRESS": (
         "Exercised functionally by tests/pydata/test_egress_all.py's "
         "test_to_pandas/test_to_dictionary_of_series_pandas.",
-        "2026-08-27",
-    ),
-    "RELATION_TO_POLARS_TERMINAL": (
-        "Exercised functionally across essentially every test in tests/relations/, "
-        "tests/pydata/, tests/validation/, and tests/datacontracts/ that calls a "
-        "Relation egress terminal or ValidationRunner rule.",
         "2026-08-27",
     ),
     "LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY": (

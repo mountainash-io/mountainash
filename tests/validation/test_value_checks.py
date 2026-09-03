@@ -3,6 +3,7 @@
 from decimal import Decimal
 from types import MappingProxyType
 
+from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.validation import ValueRule, ValueValidatorKey, check_kind
 from mountainash.validation.value import VALUE_RULE_REGISTRY, canonical_value_key
 
@@ -29,6 +30,39 @@ def test_value_rule_defensively_freezes_nested_inputs() -> None:
 def test_value_rule_registry_is_closed() -> None:
     """Adding a validator without execution ownership must fail closed."""
     assert set(VALUE_RULE_REGISTRY) == set(ValueValidatorKey)
+
+
+def test_value_rule_registry_entries_expose_evaluate_only() -> None:
+    for entry in VALUE_RULE_REGISTRY.values():
+        assert callable(entry.evaluate)
+        assert not hasattr(entry, "execute")
+
+
+def test_value_rule_fallback_materialization_records_terminal_boundary() -> None:
+    import polars as pl
+
+    import mountainash as ma
+    from mountainash.validation import RowIdentity, ValidationRunner
+
+    relation = ma.relation(pl.DataFrame({"state": ["open"]}))
+    check = ValueRule(
+        id="state_membership",
+        fields=["state"],
+        validator=ValueValidatorKey.MEMBERSHIP,
+        options={"allowed": ["open"]},
+    )
+    runner = ValidationRunner()
+    with capture_conversion_trace() as trace:
+        runner._materialized_value_frame = None
+        summary, failures = runner._run_value_rule(
+            relation, check, RowIdentity("none"), failure_sample=None
+        )
+    assert summary.status == "passed"
+    assert failures.height == 0
+    assert any(
+        record.boundary_key is BoundaryKey.RELATION_TO_POLARS_TERMINAL
+        for record in trace.records
+    )
 
 
 def test_canonical_keys_do_not_collapse_bool_and_integer() -> None:
