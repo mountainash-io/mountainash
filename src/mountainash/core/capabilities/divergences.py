@@ -746,6 +746,17 @@ def _all() -> tuple[DivergenceFact, ...]:
             since="2026-08-19",
         ),
         DivergenceFact(
+            id="IB-REL-18",
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            operation_keys=(),  # relation op filter row order
+            backends=("ibis-duckdb",),
+            summary="DuckDB does not guarantee physical row order for a filtered scan; some OR-of-AND boolean predicates compile to a query plan that reorders matching rows relative to the left input, even though polars/narwhals/ibis-polars/ibis-sqlite all preserve input row order through filter",
+            impact="Relation.filter() with certain compound boolean predicates may return rows in a different order than the input on ibis-duckdb; matched VALUES are always correct, only row position differs",
+            workaround="Use polars, narwhals, ibis-polars, or ibis-sqlite if exact input row order must be preserved through filter, or add an explicit .sort() after filter",
+            upstream_ref=None,
+            since="2026-09-03",
+        ),
+        DivergenceFact(
             id="IB-REL-12",
             kind=DivergenceKind.ENGINE_LENIENCY,
             operation_keys=(),  # relation op cross_join
