@@ -10,8 +10,12 @@ import re
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from tests.core._transit_census import (
     RISKY_METHOD_NAMES,
+    UnclassifiedCandidateError,
+    build_inventory,
     discover_transit_candidates,
     load_inventory,
 )
@@ -132,6 +136,79 @@ def test_every_wrapped_candidate_uses_a_literal_boundary_key(tmp_path):
     assert len(discovered) == 1
     assert discovered[0].wrapped is True
     assert discovered[0].callee == "execute"
+
+def test_wrapped_candidate_retains_literal_boundary_key(tmp_path):
+    (tmp_path / "wrapped.py").write_text(
+        "from mountainash.core.transit import BoundaryKey, transit_call\n"
+        "def convert(value):\n"
+        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+    )
+    candidate, = discover_transit_candidates(tmp_path)
+    assert candidate.wrapped is True
+    assert candidate.boundary_key == "IBIS_NATIVE_CACHE"
+
+
+def test_repeated_wrapped_candidates_preserve_multiplicity(tmp_path):
+    (tmp_path / "repeated.py").write_text(
+        "from mountainash.core.transit import BoundaryKey, transit_call\n"
+        "def convert(value):\n"
+        "    transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+    )
+    discovered = discover_transit_candidates(tmp_path)
+    assert len(discovered) == 2
+    entries = build_inventory(tmp_path)
+    assert len(entries) == 2
+
+
+def test_direct_candidate_fails_inventory_generation(tmp_path):
+    (tmp_path / "direct.py").write_text(
+        "def convert(value):\n    return value.to_pandas()\n"
+    )
+    with pytest.raises(UnclassifiedCandidateError) as exc_info:
+        build_inventory(tmp_path)
+    message = str(exc_info.value)
+    for expected in ("direct", "convert", "to_pandas"):
+        assert expected in message
+
+
+def test_unknown_literal_boundary_key_fails(tmp_path):
+    (tmp_path / "unknown.py").write_text(
+        "from mountainash.core.transit import transit_call\n"
+        "class BoundaryKey:\n    UNKNOWN = object()\n"
+        "def convert(value):\n"
+        "    return transit_call(BoundaryKey.UNKNOWN, value.execute)\n"
+    )
+    with pytest.raises(UnclassifiedCandidateError, match="UNKNOWN"):
+        build_inventory(tmp_path)
+
+
+def test_computed_boundary_key_is_unwrapped_and_fails_inventory_generation(tmp_path):
+    (tmp_path / "computed.py").write_text(
+        "from mountainash.core.transit import BoundaryKey, transit_call\n"
+        "def convert(value):\n"
+        "    key = BoundaryKey.IBIS_NATIVE_CACHE\n"
+        "    return transit_call(key, value.execute)\n"
+    )
+    candidate, = discover_transit_candidates(tmp_path)
+    assert candidate.boundary_key is None
+    with pytest.raises(UnclassifiedCandidateError):
+        build_inventory(tmp_path)
+
+
+def test_registry_derivation_matches_boundary_spec(tmp_path):
+    (tmp_path / "wrapped.py").write_text(
+        "from mountainash.core.transit import BoundaryKey, transit_call\n"
+        "def convert(value):\n"
+        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+    )
+    entry, = build_inventory(tmp_path)
+    spec = BOUNDARY_REGISTRY[BoundaryKey.IBIS_NATIVE_CACHE]
+    assert entry.boundary_key == BoundaryKey.IBIS_NATIVE_CACHE.name
+    assert entry.transit_class == spec.transit_class.name
+    assert entry.reason == spec.reason
+    assert entry.since == spec.since.isoformat()
+    assert entry.legacy_unwrapped is False
 
 
 def test_risky_method_names_cover_the_documented_generic_set():
