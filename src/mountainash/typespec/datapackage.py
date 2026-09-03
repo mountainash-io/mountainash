@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, replace
 import json
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING, cast
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError
 from mountainash.typespec.descriptor_context import (
@@ -19,6 +19,7 @@ from mountainash.typespec.errors import (
     DescriptorReferenceInvalid,
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
+    InvalidDescriptorSyntax,
     TypeSpecError,
 )
 from mountainash.typespec.frictionless_invariants import (
@@ -52,6 +53,27 @@ def _default_descriptor_context() -> DescriptorContext:
         resolver=LocalDescriptorResolver(),
         package_sources=(),
     )
+
+
+def _parse_descriptor_json_input(
+    json_data: str | bytes | bytearray,
+    *,
+    descriptor_kind: str,
+) -> object:
+    """Parse Pydantic's text-or-bytes input without widening the parser API."""
+    if isinstance(json_data, str):
+        return parse_descriptor_json(json_data, descriptor_kind=descriptor_kind)
+    try:
+        text = json_data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise InvalidDescriptorSyntax(
+            "descriptor text is not valid JSON",
+            descriptor_kind=descriptor_kind,
+            descriptor_path="$",
+            rejected_value=json_data,
+            required_form="valid JSON text",
+        ) from exc
+    return parse_descriptor_json(text, descriptor_kind=descriptor_kind)
 
 
 
@@ -479,9 +501,11 @@ class DataResource(BaseModel):
             if isinstance(obj, Mapping)
             else None
         )
-        resource_name = (
-            raw.get("name") if isinstance(raw, Mapping) and isinstance(raw.get("name"), str) else None
-        )
+        resource_name: str | None = None
+        if isinstance(raw, Mapping):
+            candidate_name = raw.get("name")
+            if isinstance(candidate_name, str):
+                resource_name = candidate_name
         if raw is not None:
             location = InvariantLocation("$", resource_name)
             obj = _prepare_resource_input(raw, location=location)
@@ -516,7 +540,7 @@ class DataResource(BaseModel):
         json_data: str | bytes | bytearray,
         **kwargs: Any,
     ) -> "DataResource":
-        raw = parse_descriptor_json(json_data, descriptor_kind="resource")
+        raw = _parse_descriptor_json_input(json_data, descriptor_kind="resource")
         if not isinstance(raw, Mapping):
             raise InvalidDescriptorStructure(
                 "resource descriptor must be a mapping",
@@ -575,14 +599,15 @@ class DataResource(BaseModel):
         if isinstance(other, DataResource):
             return self.model_dump() == other.model_dump()
         return super().__eq__(other)
-
     @property
     def effective_sources(self) -> list[dict[str, Any]]:
         """Return independently owned resource or package source metadata."""
         source_values = (
             self.sources
             if self.sources is not None
-            else self._descriptor_context.package_sources
+            else tuple(
+                dict(source) for source in self._descriptor_context.package_sources
+            )
         )
         return deepcopy(list(source_values))
 
@@ -861,6 +886,25 @@ def _validate_package_resource_container(raw: Mapping[str, object]) -> Sequence[
     return resources
 
 
+def _validated_package_resource_values(
+    values: Sequence[object],
+) -> list[Mapping[str, object] | DataResource]:
+    """Narrow validated package entries before resource finalization."""
+    typed_values: list[Mapping[str, object] | DataResource] = []
+    for index, value in enumerate(values):
+        if not isinstance(value, (Mapping, DataResource)):
+            location = InvariantLocation(f"$.resources[{index}]")
+            raise InvalidDescriptorStructure(
+                "resource must be a mapping",
+                descriptor_kind="resource",
+                descriptor_path=location.descriptor_path,
+                rejected_value=value,
+                required_form="resource mapping",
+            )
+        typed_values.append(value)
+    return typed_values
+
+
 def _validate_package_metadata(raw: Mapping[str, object]) -> None:
     from mountainash.typespec.frictionless_codec import (
         _CREATED_ADAPTER,
@@ -917,7 +961,7 @@ def _validate_package_metadata(raw: Mapping[str, object]) -> None:
             _validate_metadata_models(
                 raw[key],
                 path=f"$.{key}",
-                model=model,
+                model=cast(type[BaseModel], model),
                 kind="package",
             )
 
@@ -1123,10 +1167,11 @@ def _prepare_package_input(
                     _resource_name(resource),
                 ),
             )
+    typed_resources = _validated_package_resource_values(resources)
     final_context = _copy_context_for_package(context, raw.get("sources"))
     prepared = _capture_package_values(raw)
     prepared["resources"] = _finalize_package_resources(
-        resources,
+        typed_resources,
         context=final_context,
     )
     return prepared, final_context
@@ -1218,7 +1263,9 @@ class DataPackage(BaseModel):
         json_data: str | bytes | bytearray,
         **kwargs: Any,
     ) -> "DataPackage":
-        raw = require_package_mapping(parse_descriptor_json(json_data))
+        raw = require_package_mapping(
+            _parse_descriptor_json_input(json_data, descriptor_kind="package")
+        )
         prepared, context = _prepare_package_input(
             raw,
             context=_default_descriptor_context(),
