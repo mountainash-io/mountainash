@@ -28,8 +28,10 @@ def test_must_have_at_least_one_resource():
 
 
 def test_resource_names_must_be_unique():
-    with pytest.raises(ValueError, match="duplicate resource name"):
+    with pytest.raises(InvalidDescriptorStructure) as caught:
         DataPackage(resources=[_r("orders"), _r("orders")])
+    assert caught.value.descriptor_path == "$.resources[1].name"
+    assert caught.value.required_form == "unique resource name"
 
 
 def test_extras_preserved():

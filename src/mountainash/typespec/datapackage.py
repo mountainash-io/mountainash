@@ -231,15 +231,13 @@ _RESOURCE_PUBLIC_FIELDS = frozenset(
 )
 
 
-def _resource_marker_values(raw: Mapping[str, object]) -> dict[str, object]:
+def _marker_values(raw: Mapping[str, object]) -> dict[str, object]:
     marker_values = dict(raw)
     extras = marker_values.pop("extras", None)
     if isinstance(extras, Mapping):
         for key, value in extras.items():
             marker_values.setdefault(key, value)
     return marker_values
-
-
 def _capture_resource_values(raw: Mapping[str, object]) -> dict[str, object]:
     extras_value = raw.get("extras")
     extras = dict(extras_value) if isinstance(extras_value, Mapping) else {}
@@ -255,14 +253,6 @@ def _capture_resource_values(raw: Mapping[str, object]) -> dict[str, object]:
         values["extras"] = extras
     return values
 
-
-def _package_marker_values(raw: Mapping[str, object]) -> dict[str, object]:
-    marker_values = dict(raw)
-    extras = marker_values.pop("extras", None)
-    if isinstance(extras, Mapping):
-        for key, value in extras.items():
-            marker_values.setdefault(key, value)
-    return marker_values
 
 
 _PACKAGE_PUBLIC_FIELDS = frozenset(
@@ -386,7 +376,7 @@ def _prepare_resource_input(
     copy_typed_declarations: bool = False,
 ) -> dict[str, object]:
     raw = _resource_public_values(value)
-    marker_values = _resource_marker_values(raw)
+    marker_values = _marker_values(raw)
     _validate_resource_profile_input(marker_values, location=location)
     reject_v1_markers_at(marker_values, descriptor_kind="resource", location=location)
     validate_resource_source_shape(marker_values, location=location)
@@ -726,7 +716,7 @@ def _resource_name(value: Mapping[str, object] | DataResource) -> str | None:
 
 
 def _scan_package_markers(raw: Mapping[str, object]) -> None:
-    package_values = _package_marker_values(raw)
+    package_values = _marker_values(raw)
     reject_v1_markers_at(
         package_values,
         descriptor_kind="package",
@@ -738,7 +728,7 @@ def _scan_package_markers(raw: Mapping[str, object]) -> None:
     for index, resource in enumerate(resources):
         if not isinstance(resource, (Mapping, DataResource)):
             continue
-        resource_values = _resource_marker_values(_resource_public_values(resource))
+        resource_values = _marker_values(_resource_public_values(resource))
         location = InvariantLocation(
             f"$.resources[{index}]",
             _resource_name(resource),
