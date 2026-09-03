@@ -7,7 +7,10 @@ from mountainash.typespec.descriptor_context import DescriptorContext, Descripto
 from mountainash.typespec.errors import (
     DescriptorError,
     DescriptorReferenceInvalid,
+    DescriptorReferenceNotFound,
+    DescriptorReferenceSchemeDenied,
     InvalidDescriptorStructure,
+    MissingDescriptorBase,
 )
 from mountainash.typespec.frictionless_codec import (
     _structure_error,
@@ -87,6 +90,40 @@ def resolve_descriptor_mapping(
                 base_uri=context.base_uri,
                 expected_kind=expected_kind,
             )
+        except MissingDescriptorBase as exc:
+            raise MissingDescriptorBase(
+                str(exc),
+                descriptor_kind=expected_kind.value,
+                descriptor_path=location.descriptor_path,
+                resource_name=location.resource_name,
+                reference=exc.reference,
+                rejected_value=value,
+                required_form="absolute URI or relative reference with base URI",
+            ) from exc
+        except DescriptorReferenceNotFound as exc:
+            raise DescriptorReferenceNotFound(
+                str(exc),
+                descriptor_kind=expected_kind.value,
+                descriptor_path=location.descriptor_path,
+                resource_name=location.resource_name,
+                reference=exc.reference,
+                normalized_reference=exc.normalized_reference,
+                expected_kind=exc.expected_kind,
+                rejected_value=value,
+                required_form="existing descriptor document",
+            ) from exc
+        except DescriptorReferenceSchemeDenied as exc:
+            raise DescriptorReferenceSchemeDenied(
+                str(exc),
+                descriptor_kind=expected_kind.value,
+                descriptor_path=location.descriptor_path,
+                resource_name=location.resource_name,
+                reference=exc.reference,
+                normalized_reference=exc.normalized_reference,
+                expected_kind=exc.expected_kind,
+                rejected_value=value,
+                required_form="approved descriptor reference scheme",
+            ) from exc
         except DescriptorError:
             raise
         except Exception as exc:

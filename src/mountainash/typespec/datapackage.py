@@ -871,11 +871,15 @@ def _validate_package_resource_container(raw: Mapping[str, object]) -> Sequence[
             required_form="non-empty resource sequence",
         )
     resources = raw["resources"]
-    if (
-        not isinstance(resources, Sequence)
-        or isinstance(resources, (str, bytes, bytearray))
-        or not resources
-    ):
+    if not isinstance(resources, Sequence) or isinstance(resources, (str, bytes, bytearray)):
+        raise InvalidDescriptorStructure(
+            "package resources must be a resource sequence",
+            descriptor_kind="package",
+            descriptor_path="$.resources",
+            rejected_value=resources,
+            required_form="resource sequence",
+        )
+    if not resources:
         raise InvalidDescriptorStructure(
             "package resources must contain at least one resource",
             descriptor_kind="package",

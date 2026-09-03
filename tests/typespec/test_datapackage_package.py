@@ -86,8 +86,8 @@ def test_two_packages_do_not_rebind_the_same_input_resource():
     [
         (lambda: DataPackage(), "$.resources", "non-empty resource sequence"),
         (lambda: DataPackage(resources=[]), "$.resources", "non-empty resource sequence"),
-        (lambda: DataPackage(resources=None), "$.resources", "non-empty resource sequence"),
-        (lambda: DataPackage(resources="orders.csv"), "$.resources", "non-empty resource sequence"),
+        (lambda: DataPackage(resources=None), "$.resources", "resource sequence"),
+        (lambda: DataPackage(resources="orders.csv"), "$.resources", "resource sequence"),
         (lambda: DataPackage(resources=[1]), "$.resources[0]", "resource mapping"),
     ],
 )
