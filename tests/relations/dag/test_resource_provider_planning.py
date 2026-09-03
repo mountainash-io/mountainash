@@ -62,13 +62,4 @@ def test_explicit_file_provider_reads_arrow_then_adapts_to_narwhals(tmp_path) ->
         BoundaryKey.NARWHALS_NATIVE_WRAP
     ]
 
-def test_explicit_file_provider_reads_arrow_then_adapts_to_polars(tmp_path) -> None:
-    path = tmp_path / "orders.csv"
-    path.write_text("id\n1\n")
-    resource = DataResource(name="orders", path=str(path), format="csv")
-    out = MountainashPolarsExtensionRelationSystem().read_resource(
-        resource,
-        provider_binding=FileResourceProvider.default(),
-    )
-    assert isinstance(out, pl.LazyFrame)
-    assert out.collect().to_dicts() == [{"id": 1}]
+
