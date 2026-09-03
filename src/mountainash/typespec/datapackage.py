@@ -17,6 +17,7 @@ from mountainash.typespec.spec import ForeignKey, TypeSpec
 from mountainash.typespec.errors import (
     DescriptorError,
     DescriptorReferenceInvalid,
+    InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     TypeSpecError,
 )
@@ -725,6 +726,53 @@ class DataResource(BaseModel):
         return spec.to_contract(name=name)
 
 
+def _dag_constraint_edge(
+    resource: DataResource,
+    foreign_key: ForeignKey,
+    *,
+    index: int,
+    relation_names: frozenset[str],
+) -> tuple[str, str]:
+    """Return the tabular DAG edge for one validated foreign key.
+
+    Package validation guarantees that an explicit target names a package
+    resource.  DAG extraction adds the stronger requirement that both
+    endpoints are tabular relations rather than assets.
+    """
+    child = resource.name
+    target = foreign_key.reference.resource or child
+    schema_reference = (
+        resource.table_schema
+        if isinstance(resource.table_schema, str)
+        else resource._invariant_location.reference
+    )
+    if child not in relation_names:
+        raise InvalidDescriptorRelationship(
+            "foreign key between tabular package resources",
+            descriptor_kind="schema",
+            descriptor_path=(
+                f"{resource._invariant_location.descriptor_path}"
+                f".schema.foreignKeys[{index}]"
+            ),
+            resource_name=child,
+            reference=schema_reference,
+            rejected_value=child,
+            required_form="foreign key between tabular package resources",
+        )
+    if target not in relation_names:
+        raise InvalidDescriptorRelationship(
+            "foreign key between tabular package resources",
+            descriptor_kind="schema",
+            descriptor_path=(
+                f"{resource._invariant_location.descriptor_path}"
+                f".schema.foreignKeys[{index}].reference.resource"
+            ),
+            resource_name=child,
+            reference=schema_reference,
+            rejected_value=target,
+            required_form="foreign key between tabular package resources",
+        )
+    return target, child
 
 
 def _copy_resource_for_package(
@@ -1315,31 +1363,15 @@ class DataPackage(BaseModel):
             else:
                 dag.add(r.name, resource_to_relation(r))
 
-        # Constraint edges from foreignKeys (parsed straight out of the raw
-        # schema dict — no need to round-trip through TypeSpec).
-        valid_names = set(dag.relations.keys())
-        for r in self.resources:
-            schema = r.table_schema
-            if not isinstance(schema, dict):
-                continue
-            for fk in schema.get("foreignKeys", []) or []:
-                ref_resource = (fk.get("reference") or {}).get("resource", "")
-                # Empty string means self-referencing; use the resource's own name
-                target = ref_resource if ref_resource else r.name
-                if target in valid_names and r.name in valid_names:
-                    from mountainash.typespec.frictionless import foreign_key_from_dict
-
-                    edge = (target, r.name)
-                    dag.constraint_edges.add(edge)
-                    # Preserve field-level FK detail beside the edge. For a
-                    # pass-through resource this duplicates what its lossless
-                    # table_schema already carries — benign and
-                    # export-invisible (export never reads metadata for
-                    # pass-through resources); it exists as the uniform FK
-                    # store for validation / drift tooling.
-                    structured = foreign_key_from_dict(fk)
-                    bucket = dag.constraint_metadata.setdefault(edge, [])
-                    if structured not in bucket:
-                        bucket.append(structured)
+        relation_names = frozenset(dag.relations)
+        for resource in self.resources:
+            for index, foreign_key in enumerate(resource._validated_foreign_keys()):
+                edge = _dag_constraint_edge(
+                    resource,
+                    foreign_key,
+                    index=index,
+                    relation_names=relation_names,
+                )
+                dag._record_constraint(edge, foreign_key)
 
         return dag

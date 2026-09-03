@@ -1,5 +1,6 @@
 """Item 46 (c): structured FK metadata beside constraint_edges."""
 from __future__ import annotations
+from copy import deepcopy
 
 import polars as pl
 import pytest
@@ -7,7 +8,7 @@ import pytest
 import mountainash as ma
 from mountainash.relations.dag.dag import RelationDAG
 from mountainash.relations.dag.packaging import resource_to_relation
-from mountainash.typespec.datapackage import DataResource
+from mountainash.typespec.datapackage import DataPackage, DataResource
 from mountainash.typespec.spec import ForeignKey, ForeignKeyReference
 
 
@@ -87,6 +88,192 @@ class TestConstraintsFor:
         dag = _dag_two_relations()
         dag.constraint_edges.add(("customers", "orders"))
         assert dag.constraints_for("orders") == []
+
+
+def test_distinct_foreign_keys_share_edge_and_keep_order():
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="parent",
+                path="parent.csv",
+                type="table",
+                table_schema={"fields": [{"name": "id", "type": "integer"}]},
+            ),
+            DataResource(
+                name="child",
+                path="child.csv",
+                type="table",
+                table_schema={
+                    "fields": [
+                        {"name": "a", "type": "integer"},
+                        {"name": "b", "type": "integer"},
+                    ],
+                    "foreignKeys": [
+                        {
+                            "fields": ["a"],
+                            "reference": {"resource": "parent", "fields": ["id"]},
+                        },
+                        {
+                            "fields": ["b"],
+                            "reference": {"resource": "parent", "fields": ["id"]},
+                        },
+                    ],
+                },
+            ),
+        ]
+    )
+    dag = package.to_relation_dag()
+    edge = ("parent", "child")
+    assert dag.constraint_edges == {edge}
+    assert [fk.fields for fk in dag.constraint_metadata[edge]] == [["a"], ["b"]]
+
+
+def test_authored_typespec_foreign_keys_are_routed_to_dag():
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="parent",
+                path="parent.csv",
+                type="table",
+                table_schema=TypeSpec(
+                    fields=[FieldSpec(name="id", type="integer")]
+                ),
+            ),
+            DataResource(
+                name="child",
+                path="child.csv",
+                type="table",
+                table_schema=TypeSpec(
+                    fields=[
+                        FieldSpec(name="parent_id", type="integer"),
+                    ],
+                    foreign_keys=[
+                        _fk(["parent_id"], "parent", ["id"]),
+                    ],
+                ),
+            ),
+        ]
+    )
+    dag = package.to_relation_dag()
+    assert ("parent", "child") in dag.constraint_edges
+    assert dag.constraints_for("child")[0].fields == ["parent_id"]
+
+
+def test_non_tabular_target_raises_without_phantom_constraint():
+    from mountainash.typespec.errors import InvalidDescriptorRelationship
+
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="asset",
+                path="asset.png",
+                format="png",
+            ),
+            DataResource(
+                name="child",
+                path="child.csv",
+                type="table",
+                table_schema={
+                    "fields": [{"name": "asset_id", "type": "integer"}],
+                    "foreignKeys": [
+                        {
+                            "fields": ["asset_id"],
+                            "reference": {"resource": "asset", "fields": ["id"]},
+                        }
+                    ],
+                },
+            ),
+        ]
+    )
+    with pytest.raises(
+        InvalidDescriptorRelationship,
+        match="foreign key between tabular package resources",
+    ) as exc_info:
+        package.to_relation_dag()
+    assert (
+        exc_info.value.descriptor_path
+        == "$.resources[1].schema.foreignKeys[0].reference.resource"
+    )
+    assert exc_info.value.required_form == "foreign key between tabular package resources"
+    assert exc_info.value.rejected_value == "asset"
+
+
+
+def test_equal_raw_foreign_key_declarations_deduplicate_operational_metadata():
+    raw = {
+        "resources": [
+            {
+                "name": "parent",
+                "path": "parent.csv",
+                "type": "table",
+                "schema": {"fields": [{"name": "id", "type": "integer"}]},
+            },
+            {
+                "name": "child",
+                "path": "child.csv",
+                "type": "table",
+                "schema": {
+                    "fields": [{"name": "parent_id", "type": "integer"}],
+                    "foreignKeys": [
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"resource": "parent", "fields": ["id"]},
+                        },
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"resource": "parent", "fields": ["id"]},
+                        },
+                    ],
+                },
+            },
+        ]
+    }
+    package = DataPackage.from_descriptor(deepcopy(raw))
+    dag = package.to_relation_dag()
+    assert len(dag.constraint_metadata[("parent", "child")]) == 1
+    assert package.to_descriptor() == raw
+
+
+def test_non_tabular_child_raises_without_phantom_constraint():
+    from mountainash.typespec.errors import InvalidDescriptorRelationship
+
+    package = DataPackage(
+        resources=[
+            DataResource(
+                name="parent",
+                path="parent.csv",
+                type="table",
+                table_schema={"fields": [{"name": "id", "type": "integer"}]},
+            ),
+            DataResource(
+                name="asset",
+                path="asset.png",
+                format="png",
+                table_schema={
+                    "fields": [{"name": "parent_id", "type": "integer"}],
+                    "foreignKeys": [
+                        {
+                            "fields": ["parent_id"],
+                            "reference": {"resource": "parent", "fields": ["id"]},
+                        }
+                    ],
+                },
+            ),
+        ]
+    )
+    with pytest.raises(
+        InvalidDescriptorRelationship,
+        match="foreign key between tabular package resources",
+    ) as exc_info:
+        package.to_relation_dag()
+    assert (
+        exc_info.value.descriptor_path
+        == "$.resources[1].schema.foreignKeys[0]"
+    )
+    assert exc_info.value.required_form == "foreign key between tabular package resources"
+    assert exc_info.value.rejected_value == "asset"
 
 
 class TestTwoEdgeModelGuard:
