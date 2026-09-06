@@ -24,8 +24,6 @@ dependencies:
     org-name: mountainash-io
   - name: mountainash-files
     org-name: mountainash-io
-  - name: mountainash-resource-provider
-    org-name: mountainash-io
   - name: mountainash-data
     org-name: mountainash-io
   # transport's runtime import chain (files -> transport -> connections ->
