@@ -44,7 +44,7 @@ Never save specs or plans under `docs/superpowers/` in this repo. The central re
 This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
 
 **Principles location:**
-`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash/`
+`../mountainash-central/01.principles/mountainash/`
 
 See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
 
@@ -130,10 +130,7 @@ See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.
 
 ### h. Backlog
 
-| Document | Summary |
-|----------|---------|
-| polars-alignment-deferred.md | Deferred work from Polars API alignment batches 1–7 |
-| frictionless-typespec-gaps-deferred.md | 5 Low-severity FieldSpec round-trip gaps deferred from the 2026-04-07 DataPackage work (`$schema`, `example`, `rdfType`, `categoriesOrdered`, type-specific number/integer/list parsing properties) |
+See [BACKLOG_INDEX.md](../mountainash-central/04.planning/mountainash/a.backlog/BACKLOG_INDEX.md) for prioritized items — full update history in that directory's `indexes/history.md`. Items organized into `active/`, `deferred/`, and `archive/` subdirectories.
 
 ### i. Competitor Analysis
 

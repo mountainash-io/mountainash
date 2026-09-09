@@ -24,7 +24,7 @@ Never save specs or plans under `docs/superpowers/` in this repo. The central re
 This is not advisory. Do not rely on summaries, memory, or assumptions — read the actual principle document.
 
 **Principles location:**
-`/home/nathanielramm/git/mountainash-io/mountainash/mountainash-central/01.principles/mountainash/`
+`../mountainash-central/01.principles/mountainash/`
 
 See [PRINCIPLES.md](../mountainash-central/01.principles/mountainash/PRINCIPLES.md) for governance: statuses, category precedence, how to add new principles.
 
@@ -111,7 +111,7 @@ Each category has `core/` (cross-cutting) and module-specific subdirectories. Se
 
 ### h. Backlog
 
-See [BACKLOG_INDEX.md](../mountainash-central/01.principles/mountainash/h.backlog/BACKLOG_INDEX.md) for prioritized items. Items organized into `active/`, `deferred/`, and `archive/` subdirectories.
+See [BACKLOG_INDEX.md](../mountainash-central/04.planning/mountainash/a.backlog/BACKLOG_INDEX.md) for prioritized items — full update history in that directory's `indexes/history.md`. Items organized into `active/`, `deferred/`, and `archive/` subdirectories.
 
 ### i. Competitor Analysis
 
