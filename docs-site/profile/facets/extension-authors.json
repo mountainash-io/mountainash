@@ -1,0 +1,64 @@
+{
+  "audience": "extension-authors",
+  "summary": "Mountainash is built to be extended. Clear extension points, registry patterns, and protocol contracts let you add new operations, backends, custom types, relation nodes, and pipeline executors — all without modifying core code.",
+  "concepts": [
+    {
+      "name": "Adding Operations",
+      "module_ids": ["expressions.core.expression_system", "expressions.core.expression_protocols"],
+      "description": "Extend the expression engine with new operations by defining a function key, adding a protocol interface method, implementing backend mixins, and wiring the function definition. Your new operation automatically participates in the full compilation pipeline — cross-backend dispatch, visitor traversal, and optimization — just like built-in operations.",
+      "stories": [
+        "Building a domain-specific string function: you need a specialized text normalization operation for your industry. Define the function key in the mountainash extensions namespace, implement it for the backends your users care about, and it's available via the same fluent API as any built-in operation.",
+        "Wrapping a backend-native function: your team uses a Polars-specific function heavily. You create a mountainash operation that maps to the native Polars call on Polars and provides a compatible implementation on other backends, giving your pipelines portability without sacrificing performance."
+      ]
+    },
+    {
+      "name": "Backend Registration",
+      "module_ids": ["expressions.core.expression_system", "relations.core.relation_protocols"],
+      "description": "Register entirely new backends using the @register_expression_system and @register_relation_system decorators. ExpressionSystem and RelationSystem base classes provide the scaffolding — you implement the protocol contracts for your target engine, register, and mountainash handles dispatch and composition automatically.",
+      "stories": [
+        "Adding DuckDB as a native backend: you implement the expression and relation system classes for DuckDB, register them, and existing mountainash pipelines can target DuckDB without any changes to user code.",
+        "Building an in-house backend: your organization has a proprietary query engine. You implement the mountainash protocols for it, and your data team gets the full mountainash API surface on top of your engine."
+      ]
+    },
+    {
+      "name": "Relation Visit Registry",
+      "module_ids": ["relations.core.unified_visitor"],
+      "description": "The RelationVisitRegistry lets you register custom relation node types that participate in the compilation pipeline. Your custom nodes are visited and compiled just like built-in nodes. PipelineStepRelNode demonstrates how external packages register their own node types — use it as a pattern for your extensions.",
+      "stories": [
+        "Adding a custom sampling node: you define a SampleRelNode that implements reservoir sampling, register it with the visit registry, and it compiles to the most efficient sampling mechanism available on each backend.",
+        "Building a caching layer: you create a CacheRelNode that checks a cache before executing, register it with the visitor, and existing pipelines can insert caching at any point in the relation graph."
+      ]
+    },
+    {
+      "name": "Custom Types",
+      "module_ids": ["typespec"],
+      "description": "The CustomTypeRegistry lets you register new data types with dual-mode converters — a Python row-by-row converter for compatibility and a Narwhals vectorized converter for performance. TypeConverterSpec defines the conversion contract, and registered types participate fully in the TypeSpec system, including schema extraction, conform, and validation.",
+      "stories": [
+        "Adding a Money type: you register a Money type with a vectorized converter that handles currency-aware arithmetic and a Python converter for edge cases. TypeSpec schemas can now declare Money fields, and the conform pipeline knows how to parse and validate them.",
+        "Domain-specific enums: you register a custom enum type that maps string labels to domain-specific categories, with validation rules that reject unknown values during conformance."
+      ]
+    },
+    {
+      "name": "Relation Extensions",
+      "module_ids": ["relations.core.relation_nodes"],
+      "description": "ExtensionRelNode provides a structured way to add new relation operations with the ExtensionRelOperation enum. For operations that need column-level metadata to compile (like conform), the ConformRelNode pattern demonstrates compile-time deferral — the node captures intent, and the visitor resolves it to concrete operations when full schema information is available.",
+      "stories": [
+        "Building a data profiling node: you define a ProfileRelNode that generates summary statistics for each column. At compile time, the visitor resolves it to the most efficient profiling operations available on the active backend.",
+        "Implementing a custom join strategy: you extend ExtensionRelNode with a fuzzy-match join that compiles to different algorithms depending on the backend — trigram matching on SQL, hash-based matching on Polars."
+      ]
+    },
+    {
+      "name": "Pipeline Extensions",
+      "module_ids": ["pipelines"],
+      "description": "The pipeline framework exposes three extension points: PipelineExecutor for custom execution backends (distributed, streaming, or batch), PipelineStorage for custom checkpoint and caching mechanisms, and OptimisationRegistry for AST rewriting passes that optimize pipeline graphs before execution.",
+      "stories": [
+        "Distributed execution: you implement a PipelineExecutor that distributes pipeline steps across a Ray cluster, letting users scale existing mountainash pipelines without rewriting them.",
+        "Custom caching: you implement a PipelineStorage backed by your organization's object store, giving pipelines transparent checkpointing to S3/GCS/Azure Blob.",
+        "Query optimization: you register an optimisation pass that fuses adjacent filter operations into a single predicate, reducing the number of backend calls in complex pipelines."
+      ]
+    }
+  ],
+  "featured_modules": ["expressions.core.expression_system", "expressions.core.expression_protocols", "relations.core.relation_protocols", "relations.core.unified_visitor", "typespec", "relations.core.relation_nodes"],
+  "hidden_or_internal_modules": ["pydata.ingress", "pydata.egress", "graph"],
+  "open_questions": []
+}

@@ -1,0 +1,44 @@
+{
+  "id": "expressions.core.expression_protocols",
+  "path": "src/mountainash/expressions/core/expression_protocols/",
+  "summary": "Protocol classes defining backend obligations: two parallel hierarchies — api_builders/ (27 protocols for fluent API layer) and expression_systems/ (30 protocols for backend implementations). Substrait-aligned and Mountainash extension protocols physically separated. 57 protocol files (~7500 lines).",
+  "role": "protocol",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "extension-authors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "SubstraitScalarComparisonExpressionSystemProtocol",
+    "SubstraitScalarStringExpressionSystemProtocol",
+    "MountainAshScalarTernaryExpressionSystemProtocol"
+  ],
+  "key_classes": [
+    {"name": "SubstraitScalarComparisonExpressionSystemProtocol", "purpose": "Protocol for comparison operations: equal, not_equal, lt, gt, coalesce, greatest, least, etc."},
+    {"name": "MountainAshScalarTernaryExpressionSystemProtocol", "purpose": "Protocol for ternary logic: t_eq, t_gt, t_and, t_is_true, always_true, etc."},
+    {"name": "SubstraitScalarStringExpressionSystemProtocol", "purpose": "Protocol for string operations: upper, lower, concat, replace, substring, etc."}
+  ],
+  "key_functions": [],
+  "dependencies": ["core.types"],
+  "dependents": ["expressions.core.expression_system", "all backend modules"],
+  "extension_points": ["New protocol for new operation category", "New method on existing protocol"],
+  "lifecycle_notes": [
+    "Per protocol-as-contract principle: protocols are source of truth for backend obligations",
+    "Physical separation: substrait/ vs extensions_mountainash/ at both api_builders/ and expression_systems/ levels"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_protocols/", "detail": "57 protocol files (~7500 lines)"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

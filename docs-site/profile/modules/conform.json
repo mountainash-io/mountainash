@@ -1,0 +1,61 @@
+{
+  "id": "conform",
+  "path": "src/mountainash/conform/",
+  "summary": "TypeSpec conformance engine with Frictionless-aligned transform pipeline. Builds column-level expressions for missingValues null sentinels, trueValues/falseValues boolean casting, numeric parsing (decimalChar/groupChar/bareNumber), temporal format parsing (strptime), categories casting, list delimiter parsing, and type coercion. Enforces fieldsMatch modes (exact/equal/subset/superset/partial/open). Returns ConformResult with expressions, renamed sources, and metadata. Used by ConformRelNode at compile time.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "evolving",
+  "audiences": ["maintainers", "backend-architecture", "users"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "ConformResult",
+    "_build_conform_exprs",
+    "ConformError",
+    "MissingFieldsError",
+    "ExtraFieldsError",
+    "ExactFieldCountError",
+    "NoMatchingFieldsError",
+    "ConformTransformError"
+  ],
+  "key_classes": [
+    {"name": "ConformResult", "purpose": "Dataclass holding conform expressions, renamed sources, and metadata"},
+    {"name": "ConformError", "purpose": "Base exception for fieldsMatch enforcement failures"},
+    {"name": "MissingFieldsError", "purpose": "Raised when required fields are absent from source"},
+    {"name": "ExtraFieldsError", "purpose": "Raised when source has fields not in spec (exact/equal modes)"},
+    {"name": "ConformTransformError", "purpose": "Raised when a transform stage fails"}
+  ],
+  "key_functions": [
+    {"name": "_build_conform_exprs", "purpose": "Build Mountainash expressions from TypeSpec fields with full Frictionless transform pipeline"}
+  ],
+  "dependencies": ["typespec", "expressions.core.expression_api", "core.constants"],
+  "dependents": ["relations.core.relation_nodes.extensions_mountainash.reln_ext_conform", "relations.core.unified_visitor"],
+  "extension_points": ["Transform pipeline stages are composable — new Frictionless constraints map to new pipeline stages"],
+  "lifecycle_notes": [
+    "2026-05 major rearchitecture: Relation.conform() now defers to ConformRelNode, which calls apply_conform() at compile time",
+    "Full Frictionless transform pipeline added: missingValues, trueValues/falseValues, numeric parsing, temporal parsing, categories, list delimiters",
+    "fieldsMatch enforcement with 6 modes: exact, equal, subset, superset, partial, open",
+    "fieldsMatch defaults to 'open' when unset (matching Frictionless spec)"
+  ],
+  "documentation_hooks": ["ConformRelNode compile-time dispatch", "Transform pipeline stage ordering"],
+  "examples": [],
+  "tests": [],
+  "risks": [
+    "Transform pipeline ordering matters — missingValues must run before type casting",
+    "Ibis backend has known limitation with coalesce type strictness in null_fill scenarios"
+  ],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/conform/__init__.py", "detail": "Exports ConformResult, _build_conform_exprs, and 5 error classes"},
+    {"kind": "symbol", "path": "src/mountainash/conform/expressions.py", "detail": "Single-function module: _build_conform_exprs with ConformResult dataclass"},
+    {"kind": "symbol", "path": "src/mountainash/conform/errors.py", "detail": "ConformError hierarchy with 5 specific error types"},
+    {"kind": "import", "path": "src/mountainash/relations/core/unified_visitor/_core_handlers.py", "detail": "_visit_conform_rel handler delegates to apply_conform()"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

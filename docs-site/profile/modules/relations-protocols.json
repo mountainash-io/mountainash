@@ -1,0 +1,47 @@
+{
+  "id": "relations.core.relation_protocols",
+  "path": "src/mountainash/relations/core/relation_protocols/",
+  "summary": "Protocol classes defining relation backend obligations: 8 Substrait relation system protocols, 1 Mountainash extension protocol (including unnest), RelationAPIProtocol with 18 terminal method signatures (updated 2026-05), GroupedRelationAPIProtocol, RelationProjectionBuilderProtocol.",
+  "role": "protocol",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "extension-authors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "RelationAPIProtocol", "GroupedRelationAPIProtocol",
+    "RelationProjectionBuilderProtocol", "RelationSystemBase"
+  ],
+  "key_classes": [
+    {"name": "RelationAPIProtocol", "purpose": "Contract for Relation: all plan-building methods + 18 terminal method signatures"},
+    {"name": "RelationSystemBase", "purpose": "Base for backend relation system implementations"},
+    {"name": "SubstraitRelSysReadProtocol", "purpose": "Protocol for ReadRelNode compilation"},
+    {"name": "SubstraitRelSysProjectProtocol", "purpose": "Protocol for ProjectRelNode compilation"},
+    {"name": "MountainAshRelSysExtUtilProtocol", "purpose": "Protocol for extension operations (unnest, etc.)"}
+  ],
+  "key_functions": [],
+  "dependencies": ["core.constants"],
+  "dependents": ["relations.backends", "relations.core.unified_visitor"],
+  "extension_points": ["New protocol for new relation system operation"],
+  "lifecycle_notes": [
+    "2026-05: RelationAPIProtocol updated with 18 terminal method signatures (was 7)",
+    "Per protocol-as-contract principle: protocol classes are the source of truth for backend obligations"
+  ],
+  "documentation_hooks": ["Protocol method signatures define backend contract"],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_protocols/prtcl_relation_api.py", "detail": "18 terminal method signatures in RelationAPIProtocol"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_protocols/relation_systems/", "detail": "8 Substrait + 1 extension protocol files"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_protocols/relsys_base.py", "detail": "RelationSystemBase composing all protocols"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

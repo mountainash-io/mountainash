@@ -1,0 +1,38 @@
+{
+  "id": "relations.backends.narwhals",
+  "path": "src/mountainash/relations/backends/relation_systems/narwhals/",
+  "summary": "Narwhals relation backend: compiles relational AST to Narwhals operations for pandas/PyArrow portability. unnest() not yet supported (NotImplementedError). Acts as bridge backend for non-Polars, non-Ibis DataFrames.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["NarwhalsRelationSystem"],
+  "key_classes": [
+    {"name": "NarwhalsRelationSystem", "purpose": "Composed backend implementing relation protocols via Narwhals operations"}
+  ],
+  "key_functions": [],
+  "dependencies": ["narwhals", "relations.core.relation_protocols"],
+  "dependents": ["relations.core.unified_visitor"],
+  "extension_points": [],
+  "lifecycle_notes": [
+    "Fallback backend for pandas, PyArrow, and other narwhals-compatible DataFrames",
+    "unnest() not yet supported — requires schema introspection synthesis"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Narwhals API surface narrower than Polars — some operations may not be available"],
+  "open_questions": ["When will unnest() be supported?"],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/narwhals/", "detail": "Relation system implementation files"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "audience": "broader-hype",
+  "summary": "The expression engine and data platform at the heart of the mountainash ecosystem — write data logic once, run it on every backend.",
+
+  "the_vision": "Mountainash is the foundation of a composable data engineering ecosystem. At its core is an expression and relation engine that compiles to Polars, pandas, DuckDB, Snowflake, BigQuery, and every backend that Ibis and Narwhals reach. Everything built on these expressions — rules, validation, conformance, pipelines — inherits that portability automatically.",
+
+  "what_it_makes_possible": [
+    {
+      "capability": "Expressions that compile everywhere",
+      "essence": "Write col, lit, when — Polars-compatible syntax that compiles natively to Polars for performance, through Narwhals for any compatible DataFrame library, and through Ibis for any SQL or analytical engine. The same expression runs in a notebook and in production. The backend is a deployment decision, not a code decision."
+    },
+    {
+      "capability": "Pipelines that get data out your way",
+      "essence": "The relation builder wraps expressions in a fluent pipeline API. When results are ready, choose how to get them out — Polars DataFrames, pandas, dicts, dataclasses, Pydantic models, PyArrow, Narwhals, Ibis tables, and more. Cross-type joins work transparently: combine data from different sources without converting first."
+    },
+    {
+      "capability": "Schemas that conform messy data",
+      "essence": "TypeSpec defines what your data should look like — aligned with the Frictionless Data standard. The conform pipeline handles the messy realities: sentinel values, multi-format dates, string-encoded booleans, missing value conventions that differ by source. Data arrives messy. It leaves typed, validated, and conformant."
+    },
+    {
+      "capability": "Data quality woven into the pipeline",
+      "essence": "Data contracts validate both physical structure (columns, types, constraints) and logical business rules (expression-backed invariants). Both compile to the same expression engine and run on any backend. Quality results feed dashboards that track trends over time. Validation isn't a separate tool — it's part of how data flows."
+    },
+    {
+      "capability": "Three-valued logic for real-world data",
+      "essence": "Real data has unknowns — not just nulls, but sentinel values, unreported fields, and the gap between 'zero' and 'missing.' The ternary expression layer (TRUE, FALSE, UNKNOWN) handles all of this. Declare which values are sentinels, and every comparison, aggregation, and rule evaluation handles UNKNOWN correctly. Essential for databases like ClickHouse that recommend sentinel values over NULLs."
+    },
+    {
+      "capability": "Frictionless Data as a first-class citizen",
+      "essence": "TypeSpec aligns with Frictionless Table Schema. DataPackages and Resources work natively. The conform pipeline implements Frictionless type coercion semantics. Multi-resource DAGs validate foreign key integrity across tables. The open schema standard travels with your data."
+    }
+  ],
+
+  "use_cases": [
+    {
+      "title": "The portable analytics team",
+      "story": "A data team writes analysis logic against DuckDB during development. The same expressions deploy to Snowflake in staging and BigQuery in production — no rewrite, no translation layer. When the organisation adopts a new backend, the logic moves with a config change."
+    },
+    {
+      "title": "The data quality programme",
+      "story": "TypeSpec schemas define the physical contract for every dataset. Data contracts add business rules as expressions. The same contracts validate local test data during development and production tables in Snowflake. Violation results accumulate into governance dashboards."
+    },
+    {
+      "title": "The data scientist handover",
+      "story": "A data scientist builds feature engineering in Polars on their laptop. An ML engineer deploys to Snowflake. No rewrite — the expressions compile through Ibis to whatever backend production requires. Six months later, the model updates flow from notebook to production without a translation cycle."
+    },
+    {
+      "title": "The conformed logic library",
+      "story": "A central team publishes business definitions — revenue calculations, segment definitions, churn measures — as a versioned library of named expressions. Analysts import the library and get expressions that compile to whatever backend they're connected to. The SQL views become materialisation targets, not the source of truth."
+    }
+  ],
+
+  "featured_modules": ["expressions.core.expression_api", "relations.core.relation_api", "typespec", "conform", "datacontracts", "pipelines", "relations.dag"],
+  "hidden_or_internal_modules": ["All backend, protocol, visitor, and node modules"],
+  "open_questions": []
+}

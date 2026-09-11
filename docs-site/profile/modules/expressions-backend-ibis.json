@@ -1,0 +1,38 @@
+{
+  "id": "expressions.backends.ibis",
+  "path": "src/mountainash/expressions/backends/expression_systems/ibis/",
+  "summary": "Ibis backend expression system: IbisExpressionSystem mirrors Polars/Narwhals structure for SQL backends (DuckDB, SQLite, PostgreSQL). 34 files, ~6400 lines. Uses local Ibis fork with Polars calendar interval fix.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["IbisExpressionSystem"],
+  "key_classes": [
+    {"name": "IbisExpressionSystem", "purpose": "Composed backend registered for IBIS; enables SQL backend analytics via Ibis deferred expressions"}
+  ],
+  "key_functions": [],
+  "dependencies": ["ibis-framework (local fork)", "expressions.core.expression_protocols", "expressions.core.expression_system"],
+  "dependents": ["expressions.core.unified_visitor"],
+  "extension_points": ["New mixin for new protocol"],
+  "lifecycle_notes": [
+    "Uses local Ibis fork with Polars calendar interval fix",
+    "Known: Ibis coalesce type strictness with conform null_fill"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Local Ibis fork dependency", "SQL backend type strictness divergences"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/backends/expression_systems/ibis/", "detail": "34 Python files, ~6400 lines"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
