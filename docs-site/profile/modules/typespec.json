@@ -1,0 +1,67 @@
+{
+  "id": "typespec",
+  "path": "src/mountainash/typespec/",
+  "summary": "Universal type system providing TypeSpec/FieldSpec for schema metadata, UniversalType enum for cross-backend type mapping, extraction from DataFrames/dataclasses/Pydantic, validation, Frictionless Table Schema import/export, DataPackage/DataResource/TableDialect container types, and custom type registry.",
+  "role": "model",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "contributors", "extension-authors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "TypeSpec", "FieldSpec", "FieldConstraints", "UniversalType",
+    "ForeignKey", "ForeignKeyReference",
+    "CustomTypeRegistry",
+    "DataPackage", "DataResource", "TableDialect",
+    "SchemaValidationError",
+    "extract_from_dataframe", "extract_from_dataclass", "extract_from_pydantic",
+    "validate_match", "assert_match",
+    "to_polars_schema", "to_pandas_dtypes", "to_arrow_schema", "to_ibis_schema",
+    "typespec_from_frictionless", "compare_specs"
+  ],
+  "key_classes": [
+    {"name": "TypeSpec", "purpose": "Backend-agnostic schema specification with fields, constraints, primary keys"},
+    {"name": "FieldSpec", "purpose": "Per-field metadata: name, type, constraints, Frictionless properties"},
+    {"name": "FieldConstraints", "purpose": "Field-level constraints: required, unique, enum, min/max"},
+    {"name": "UniversalType", "purpose": "Enum bridging Mountainash types to Polars/Pandas/Arrow/Ibis native types"},
+    {"name": "DataPackage", "purpose": "Frictionless Data Package multi-resource container"},
+    {"name": "DataResource", "purpose": "Frictionless Data Resource with path, schema, dialect, format"},
+    {"name": "TableDialect", "purpose": "CSV/tabular parsing configuration (delimiter, header, etc.)"},
+    {"name": "CustomTypeRegistry", "purpose": "Registry for semantic type converters beyond built-in types"}
+  ],
+  "key_functions": [
+    {"name": "extract_from_dataframe", "purpose": "Infer TypeSpec from a DataFrame's column types"},
+    {"name": "extract_from_dataclass", "purpose": "Build TypeSpec from Python dataclass fields"},
+    {"name": "extract_from_pydantic", "purpose": "Build TypeSpec from Pydantic model fields"},
+    {"name": "validate_match", "purpose": "Check if a DataFrame conforms to a TypeSpec (returns bool)"},
+    {"name": "typespec_from_frictionless", "purpose": "Import TypeSpec from Frictionless Table Schema dict"},
+    {"name": "compare_specs", "purpose": "Diff two TypeSpecs to find added/removed/changed fields"}
+  ],
+  "dependencies": ["core"],
+  "dependents": ["conform", "relations.dag", "datacontracts", "toplevel-api"],
+  "extension_points": ["CustomTypeRegistry for adding semantic types", "UniversalType enum for new type mappings"],
+  "lifecycle_notes": [
+    "DataResource.table_schema stores raw Frictionless dict for lossless round-trip (lazy TypeSpec conversion)",
+    "fieldsMatch defaults to 'exact' per Frictionless spec (2026-05)",
+    "Frictionless structural fidelity principle: TypeSpec mirrors Table Schema flat field layout"
+  ],
+  "documentation_hooks": ["TypeSpec creation patterns", "Frictionless interop", "DataPackage loading"],
+  "examples": [],
+  "tests": [],
+  "risks": ["UniversalType additions must be wired to all backend converters"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/typespec/spec.py", "detail": "TypeSpec, FieldSpec, FieldConstraints classes"},
+    {"kind": "symbol", "path": "src/mountainash/typespec/universal_types.py", "detail": "UniversalType enum with backend mapping methods"},
+    {"kind": "symbol", "path": "src/mountainash/typespec/datapackage.py", "detail": "DataPackage, DataResource, TableDialect"},
+    {"kind": "symbol", "path": "src/mountainash/typespec/frictionless.py", "detail": "typespec_from_frictionless import function"},
+    {"kind": "symbol", "path": "src/mountainash/typespec/custom_types.py", "detail": "CustomTypeRegistry for semantic type converters"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

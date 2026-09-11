@@ -1,0 +1,39 @@
+{
+  "id": "relations.backends.ibis",
+  "path": "src/mountainash/relations/backends/relation_systems/ibis/",
+  "summary": "Ibis relation backend: compiles relational AST to Ibis table expressions for SQL-backed analytics. Supports unnest() via struct field expansion (mutate + drop). Uses local Ibis fork with Polars calendar interval fix.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["IbisRelationSystem"],
+  "key_classes": [
+    {"name": "IbisRelationSystem", "purpose": "Composed backend implementing relation protocols via Ibis table expressions"}
+  ],
+  "key_functions": [],
+  "dependencies": ["ibis-framework (local fork)", "relations.core.relation_protocols"],
+  "dependents": ["relations.core.unified_visitor"],
+  "extension_points": [],
+  "lifecycle_notes": [
+    "Uses local Ibis fork with Polars calendar interval fix",
+    "Known limitation: coalesce type strictness when null_fill mixes string columns with numeric literals",
+    "Enables SQL backends: DuckDB, SQLite, PostgreSQL"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Local Ibis fork dependency — must track upstream changes"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/ibis/", "detail": "Relation system implementation files including extension util operations"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "relations.dag",
+  "path": "src/mountainash/relations/dag/",
+  "summary": "RelationDAG orchestrator: manages named relations with dependency_edges and constraint_edges (two-edge-graph-model). Supports topological collection, FK validation, and DataPackage interop. Pure orchestration over existing visitor (+1 ref_resolver param, +2 leaf nodes).",
+  "role": "orchestration",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "maintainers", "backend-architecture"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": ["RelationDAG", "ResourceRef"],
+  "key_classes": [
+    {"name": "RelationDAG", "purpose": "Named relation container with dependency/constraint edge sets; collect() walks dependencies topologically"},
+    {"name": "ResourceRef", "purpose": "Wrapper for tabular + non-tabular resource references in DataPackage context"}
+  ],
+  "key_functions": [
+    {"name": "RelationDAG.add(name, relation)", "purpose": "Register a named relation; auto-discovers dependency edges from RefRelNodes"},
+    {"name": "RelationDAG.ref(name)", "purpose": "Create RefRelNode pointing to a named relation"},
+    {"name": "RelationDAG.collect(name)", "purpose": "Topologically walk dependencies, materialise each upstream once, compile target"},
+    {"name": "RelationDAG.to_package()", "purpose": "Export DAG back to Frictionless DataPackage descriptor"}
+  ],
+  "dependencies": ["relations.core.relation_nodes", "relations.core.unified_visitor", "typespec.datapackage"],
+  "dependents": ["toplevel-api", "typespec (DataPackage.to_relation_dag)"],
+  "extension_points": ["ResourceRef for non-tabular resources", "overrides parameter on DataPackage.to_relation_dag()"],
+  "lifecycle_notes": [
+    "Two-edge-graph-model: dependency_edges drive collect() execution, constraint_edges are FK metadata only",
+    "DataPackage from disk yields N nodes with zero dependency edges — every resource independently loadable"
+  ],
+  "documentation_hooks": ["DAG collect() with ref_resolver", "DataPackage to/from DAG round-trip"],
+  "examples": [],
+  "tests": [],
+  "risks": ["ResourceReadRelNode requires DataResource with valid path or data"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/dag/dag.py", "detail": "RelationDAG with dependency_edges, constraint_edges, collect()"},
+    {"kind": "symbol", "path": "src/mountainash/relations/dag/resource_ref.py", "detail": "ResourceRef wrapper"},
+    {"kind": "symbol", "path": "src/mountainash/relations/dag/errors.py", "detail": "RelationDAGRequired, MissingResourceSchema, UnsupportedResourceFormat"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
