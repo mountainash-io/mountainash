@@ -1,0 +1,38 @@
+{
+  "id": "expressions.backends.narwhals",
+  "path": "src/mountainash/expressions/backends/expression_systems/narwhals/",
+  "summary": "Narwhals backend expression system: NarwhalsExpressionSystem mirrors Polars backend structure with identical 30+ mixin composition. Provides cross-backend support for pandas/PyArrow. 34 files, ~6500 lines. Recent fixes for cross-backend matrix clusters 2-8.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["NarwhalsExpressionSystem"],
+  "key_classes": [
+    {"name": "NarwhalsExpressionSystem", "purpose": "Composed backend registered for NARWHALS; mirrors Polars structure for pandas/PyArrow portability"}
+  ],
+  "key_functions": [],
+  "dependencies": ["narwhals", "expressions.core.expression_protocols", "expressions.core.expression_system"],
+  "dependents": ["expressions.core.unified_visitor"],
+  "extension_points": ["New mixin for new protocol"],
+  "lifecycle_notes": [
+    "2026-05: Fixed cross-backend matrix clusters 2-8 (narwhals expression-system gaps)",
+    "Fallback backend for pandas, PyArrow, and other narwhals-compatible DataFrames"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Narwhals API narrower than Polars — some operations limited"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/backends/expression_systems/narwhals/", "detail": "34 Python files, ~6500 lines"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

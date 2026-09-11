@@ -1,0 +1,45 @@
+{
+  "id": "relations.core.unified_visitor",
+  "path": "src/mountainash/relations/core/unified_visitor/",
+  "summary": "UnifiedRelationVisitor walks the relational AST and compiles to native backend operations. Composes with UnifiedExpressionVisitor for embedded expressions. Handles cross-type join coercion, ConformRelNode apply_conform dispatch, and optional ref_resolver kwarg for DAG named-relation resolution. Uses _core_handlers module for extensible node dispatch.",
+  "role": "orchestration",
+  "visibility": "internal",
+  "stability": "evolving",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": ["UnifiedRelationVisitor"],
+  "key_classes": [
+    {"name": "UnifiedRelationVisitor", "purpose": "Dispatches visit_* methods per node type, delegates to backend RelationSystem implementations"}
+  ],
+  "key_functions": [
+    {"name": "visit(node)", "purpose": "Entry point: dispatches to type-specific visit_* methods via _core_handlers"},
+    {"name": "apply_conform(native, schema)", "purpose": "Compile-time conform: calls _build_conform_exprs with backend column info, dispatches select/with_columns based on fieldsMatch"},
+    {"name": "compile_expression(expr)", "purpose": "Compiles embedded mountainash expressions to native backend expressions"},
+    {"name": "_visit_and_coerce_right(right_node, left_result)", "purpose": "Cross-type join: coerces right-side DataFrame to match left-side backend"}
+  ],
+  "dependencies": ["relations.core.relation_nodes", "expressions.core.unified_visitor", "conform", "relations.backends"],
+  "dependents": ["relations.core.relation_api", "relations.dag"],
+  "extension_points": ["_core_handlers module for registering new node type handlers", "ref_resolver kwarg for DAG integration"],
+  "lifecycle_notes": [
+    "2026-05: Added _visit_conform_rel handler in _core_handlers.py for ConformRelNode",
+    "2026-05: apply_conform method bridges conform pipeline to backend-native operations",
+    "ref_resolver parameter for DAG support (closes over per-call materialisation cache)"
+  ],
+  "documentation_hooks": ["Visitor composition with expression visitor", "Cross-type join coercion", "apply_conform dispatch"],
+  "examples": [],
+  "tests": [],
+  "risks": ["apply_conform creates tight coupling between visitor and conform module"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/core/unified_visitor/relation_visitor.py", "detail": "UnifiedRelationVisitor with visit_*, apply_conform, compile_expression"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/unified_visitor/_core_handlers.py", "detail": "_visit_conform_rel handler for ConformRelNode dispatch"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

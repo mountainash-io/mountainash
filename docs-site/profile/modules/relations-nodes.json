@@ -1,0 +1,54 @@
+{
+  "id": "relations.core.relation_nodes",
+  "path": "src/mountainash/relations/core/relation_nodes/",
+  "summary": "Pydantic-based relational AST: 8 Substrait-aligned node types (Read, Project, Filter, Sort, Fetch, Join, Aggregate, Set) plus 5 Mountainash extensions (ExtensionRelNode, SourceRelNode, RefRelNode, ResourceReadRelNode, ConformRelNode). Each node carries metadata and an accept() method for visitor dispatch.",
+  "role": "model",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "contributors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "RelationNode", "ReadRelNode", "ProjectRelNode", "FilterRelNode",
+    "SortRelNode", "FetchRelNode", "JoinRelNode", "AggregateRelNode", "SetRelNode",
+    "SourceRelNode", "ExtensionRelNode", "RefRelNode", "ResourceReadRelNode", "ConformRelNode"
+  ],
+  "key_classes": [
+    {"name": "RelationNode", "purpose": "Abstract Pydantic base with accept() for visitor dispatch"},
+    {"name": "ReadRelNode", "purpose": "Leaf node wrapping a raw DataFrame input"},
+    {"name": "ProjectRelNode", "purpose": "Column selection/rename/expression projection (4 modes via ProjectOperation)"},
+    {"name": "FilterRelNode", "purpose": "Row filtering with boolean expression predicate"},
+    {"name": "JoinRelNode", "purpose": "Two-input join with type (inner/left/right/full/cross/semi/anti)"},
+    {"name": "AggregateRelNode", "purpose": "Group-by aggregation with expression measures"},
+    {"name": "ConformRelNode", "purpose": "Schema conformance node storing TypeSpec; defers transform to compile time when column info available"},
+    {"name": "RefRelNode", "purpose": "DAG reference to another named relation"},
+    {"name": "ResourceReadRelNode", "purpose": "DAG resource read from DataPackage path"},
+    {"name": "ExtensionRelNode", "purpose": "Parameterised by ExtensionRelOperation enum for utility operations (unnest, etc.)"}
+  ],
+  "key_functions": [],
+  "dependencies": ["core.constants"],
+  "dependents": ["relations.core.relation_api", "relations.core.unified_visitor", "relations.dag"],
+  "extension_points": ["New node types for new relation operations", "ExtensionRelOperation enum for new extension operations"],
+  "lifecycle_notes": [
+    "ConformRelNode added 2026-05 — enables compile-time schema conformance with column information",
+    "13 total node types: 8 Substrait + 5 Mountainash extension",
+    "Physical directory separation: substrait/ vs extensions_mountainash/"
+  ],
+  "documentation_hooks": ["Node type to Substrait spec mapping", "accept() visitor pattern"],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_nodes/substrait/", "detail": "8 Substrait-aligned node files"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_nodes/extensions_mountainash/", "detail": "5 extension node files including reln_ext_conform.py (new)"},
+    {"kind": "symbol", "path": "src/mountainash/relations/core/relation_nodes/__init__.py", "detail": "Re-exports all 13 node types"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

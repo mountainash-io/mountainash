@@ -1,0 +1,50 @@
+{
+  "id": "core",
+  "path": "src/mountainash/core/",
+  "summary": "Shared infrastructure: backend/dtype/operation enums (CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation), type guards (is_polars_dataframe, detect_dataframe_backend_type), factory base classes, lazy imports, and remote I/O facade via mountainash-transport.",
+  "role": "orchestration",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [],
+  "key_classes": [
+    {"name": "MountainashDtype", "purpose": "Cross-backend dtype enum with mapping to native types"},
+    {"name": "BaseFactoryMixin", "purpose": "Factory pattern base for backend strategy dispatch"},
+    {"name": "BaseStrategyFactory", "purpose": "Strategy factory with backend registration decorator"},
+    {"name": "DataFrameTypeFactoryMixin", "purpose": "DataFrame-type-aware factory dispatch"}
+  ],
+  "key_functions": [
+    {"name": "resolve_dtype", "purpose": "Map MountainashDtype to native backend dtype"},
+    {"name": "is_available", "purpose": "Check if optional backend module is importable"},
+    {"name": "require_module", "purpose": "Import-or-raise for optional backend modules"},
+    {"name": "detect_dataframe_backend_type", "purpose": "Detect CONST_BACKEND from a DataFrame object"},
+    {"name": "is_remote", "purpose": "Check if a path requires StorageFacade (S3, GCS, etc.)"},
+    {"name": "facade_read_bytes", "purpose": "Read remote path bytes via StorageFacade"}
+  ],
+  "dependencies": [],
+  "dependents": ["expressions", "relations", "typespec", "conform", "pydata.ingress", "pydata.egress"],
+  "extension_points": ["Backend registration decorator", "ExtensionRelOperation enum for new extension operations"],
+  "lifecycle_notes": [
+    "ExtensionRelOperation.UNNEST added for struct column expansion (2026-05)",
+    "Stable shared infrastructure layer — changes infrequent"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Enum additions propagate to all backends — must wire through all three"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/core/constants.py", "detail": "CONST_BACKEND, CONST_BACKEND_SYSTEM, JoinType, SetType, ExtensionRelOperation enums"},
+    {"kind": "symbol", "path": "src/mountainash/core/io.py", "detail": "is_remote() and facade_read_bytes() for StorageFacade integration"},
+    {"kind": "import", "path": "src/mountainash/core/lazy_imports.py", "detail": "Lazy import helpers for optional backends"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "expressions.core.expression_system",
+  "path": "src/mountainash/expressions/core/expression_system/",
+  "summary": "Function key ENUMs (84 FKEY_* entries across 26 Substrait + 12 Mountainash groups), function definition registry mapping keys to Substrait metadata and backend method references, ExpressionSystem base class composing all protocol interfaces via multiple inheritance, and backend detection/registration. Central wiring hub for all expression operations.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture", "contributors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": [
+    "ExpressionSystem", "register_expression_system", "get_expression_system",
+    "identify_backend", "ExpressionFunctionDef", "ExpressionFunctionRegistry"
+  ],
+  "key_classes": [
+    {"name": "ExpressionSystem", "purpose": "Abstract base composing all protocol interfaces; registered per-backend via decorator"},
+    {"name": "ExpressionFunctionDef", "purpose": "Frozen dataclass mapping function_key to Substrait URI/name and protocol method reference"},
+    {"name": "ExpressionFunctionRegistry", "purpose": "Central registry mapping function keys to FunctionDefs for visitor resolution"}
+  ],
+  "key_functions": [
+    {"name": "register_expression_system(backend)", "purpose": "Decorator to register ExpressionSystem subclass for a backend"},
+    {"name": "get_expression_system(backend)", "purpose": "Look up registered ExpressionSystem by backend enum"},
+    {"name": "identify_backend(df_or_backend)", "purpose": "Auto-detect backend from DataFrame type or string identifier"}
+  ],
+  "dependencies": ["expressions.core.expression_protocols", "core.constants"],
+  "dependents": ["expressions.core.unified_visitor", "expressions.core.expression_api", "all backend modules"],
+  "extension_points": ["New function key enum member", "New backend registration via decorator", "New FunctionDef in definitions.py"],
+  "lifecycle_notes": [
+    "enums.py: 833 lines, 84 function key entries across 38 enum groups",
+    "definitions.py: 2458 lines — central wiring of all operations",
+    "Function key enums enforce substrait-vs-mountainash separation: FKEY_SUBSTRAIT_* vs FKEY_MOUNTAINASH_*"
+  ],
+  "documentation_hooks": ["Function key enum catalogue", "Backend registration pattern"],
+  "examples": [],
+  "tests": [],
+  "risks": ["definitions.py (2458 lines) is a maintenance-heavy single file"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_system/function_keys/enums.py", "detail": "833 lines, 84 FKEY_* entries"},
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/expression_system/function_mapping/definitions.py", "detail": "2458 lines — all operation wiring"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

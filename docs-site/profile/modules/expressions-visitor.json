@@ -1,0 +1,42 @@
+{
+  "id": "expressions.core.unified_visitor",
+  "path": "src/mountainash/expressions/core/unified_visitor/",
+  "summary": "Single UnifiedExpressionVisitor dispatching all expression node types via function registry lookup. Detects backend, resolves function definitions, recursively visits child nodes, and calls appropriate backend methods with protocol-aware argument resolution.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": ["UnifiedExpressionVisitor"],
+  "key_classes": [
+    {"name": "UnifiedExpressionVisitor", "purpose": "Single visitor replacing 12+ category-specific visitors; handles all node types via visit_* methods; uses FunctionRegistry for method resolution"}
+  ],
+  "key_functions": [
+    {"name": "visit(node)", "purpose": "Main entry point dispatching to node.accept(self)"},
+    {"name": "visit_scalar_function(node)", "purpose": "Core dispatch: resolves function_key via registry, introspects protocol signature, calls backend method"},
+    {"name": "_resolve_argument(arg, param)", "purpose": "Protocol-aware argument resolution: visits SubstraitNodes recursively, wraps raw values via lit()"}
+  ],
+  "dependencies": ["expressions.core.expression_nodes", "expressions.core.expression_system"],
+  "dependents": ["relations.core.unified_visitor", "BaseExpressionAPI.compile()"],
+  "extension_points": ["New node types require new visit_* methods", "New function keys auto-resolved through registry"],
+  "lifecycle_notes": [
+    "Per unified-visitor principle: single visitor dispatches all expression node types",
+    "Relation visitor composes with expression visitor for embedded expressions"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": ["Protocol introspection via inspect.signature() at visit time could have performance implications"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/expressions/core/unified_visitor/visitor.py", "detail": "571 lines; single class with visit_* methods"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
