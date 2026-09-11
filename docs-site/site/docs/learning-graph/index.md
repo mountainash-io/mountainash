@@ -16,7 +16,7 @@ must understand all the concepts that they point to.
 
 ## Course Description
 
-We use the [Course Description](./course-description.md) as
+We use the [Course Description](../course-description.md) as
 the source document for the concepts that are included in this package.
 The course description uses the 2001 Bloom taxonomy to order learning objectives.
 
