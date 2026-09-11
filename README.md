@@ -187,3 +187,48 @@ Publish a supported distribution only when installation, dependency resolution, 
 ## License
 
 mountainash is released under the [MIT License](LICENSE).
+
+## Textbook
+
+The [production textbook](https://docs.mountainash.io/mountainash/) is
+built from `main`; the [development textbook](https://docs.mountainash.io/mountainash/dev/)
+is built from `develop`. Each push to either branch builds both snapshots and
+publishes them together. A failed build leaves the previous paired site live.
+
+For initial activation, merge the textbook changes into both branches and
+configure Pages, its environment, and the shared custom domain first. Then set
+the repository Actions variable `TEXTBOOK_PUBLISHING_ENABLED` to `true` and
+manually dispatch `deploy-textbook.yml`. Until enabled, publishing runs are
+skipped; a one-sided bootstrap cannot deploy an incomplete site.
+
+The source artifacts live together in this repository:
+
+- `docs-site/profile/`: package profile and source provenance.
+- `docs-site/learning-graph/`: canonical graph and FAQ artifacts.
+- `docs-site/site/`: MkDocs configuration, textbook Markdown, and refresh state.
+
+Preview locally without installing the source package or sibling repositories:
+
+```bash
+uv run --no-project --with-requirements docs-site/requirements.txt \
+  python -m mkdocs serve --config-file docs-site/site/mkdocs.yml
+```
+
+Refreshes are manual. Load `textbook-refresh` from the central
+`hiivmind-documentation-profile` tooling project and supply this repository's
+absolute root as `source_repo`, starting with `mode: check`. For a separate
+profile update, supply `docs-site/profile/` as the profiler's explicit output.
+Do not regenerate content merely to publish it or advance source baselines on
+a directory move. Preserve the existing FAQ format; the marker-only FAQ
+exporter does not support it and must not overwrite its JSON.
+
+A strict `mkdocs build` currently surfaces one pre-existing content gap
+inherited from the central repository, not introduced by this migration: the
+Learning Graph introduction links to `./course-description.md`, but that file
+was never copied into `docs-site/site/docs/learning-graph/` (it only exists
+under `docs-site/learning-graph/`), so the link 404s. Five other Learning
+Graph artifact pages (`concept-list.md`, `concept-taxonomy.md`, `faq.md`,
+`quality-metrics.md`, `taxonomy-distribution.md`) also exist under
+`docs-site/site/docs/learning-graph/` but are not wired into the site `nav`.
+Neither gap is fixed here; both predate the per-repo split.
+
