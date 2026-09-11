@@ -1,0 +1,37 @@
+{
+  "id": "graph",
+  "path": "src/mountainash/graph/",
+  "summary": "Pure graph algorithms: topological ordering (Kahn's algorithm), ancestor discovery (BFS), and parallel layer computation for DAG scheduling. Zero external dependencies. Used by PipelineSpec for step ordering.",
+  "role": "orchestration",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["maintainers", "contributors"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["topological_order", "ancestors", "parallel_layers"],
+  "key_classes": [],
+  "key_functions": [
+    {"name": "topological_order(nodes, edges, target=None)", "purpose": "Kahn's algorithm with optional target-ancestor filtering; raises on cycles"},
+    {"name": "ancestors(edges, target)", "purpose": "BFS backward from target; returns all ancestor nodes"},
+    {"name": "parallel_layers(edges, order)", "purpose": "Groups topologically-ordered nodes into concurrent execution layers"}
+  ],
+  "dependencies": [],
+  "dependents": ["pipelines.core.spec"],
+  "extension_points": [],
+  "lifecycle_notes": ["Minimal, stable, pure-function module with stdlib-only dependencies"],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/graph/algorithms.py", "detail": "Three pure functions; stdlib-only"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

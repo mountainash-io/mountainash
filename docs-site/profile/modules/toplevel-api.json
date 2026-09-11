@@ -1,0 +1,53 @@
+{
+  "id": "toplevel",
+  "path": "src/mountainash/__init__.py",
+  "summary": "Top-level package API re-exporting all user-facing symbols: expression entry points (col, lit, when, coalesce, today, now, etc.), relation constructors (relation, concat), TypeSpec/DataPackage types, RelationDAG/ResourceRef, and convenience factories (typespec(), datacontract()). Single import entry point via 'import mountainash as ma'.",
+  "role": "public-api",
+  "visibility": "public",
+  "stability": "stable",
+  "audiences": ["users", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "col", "lit", "duration", "native", "coalesce", "greatest", "least",
+    "min_horizontal", "max_horizontal", "all_horizontal", "any_horizontal",
+    "len", "sum_horizontal", "count_records", "corr", "median", "quantile",
+    "when", "t_col", "always_true", "always_false", "always_unknown",
+    "today", "now",
+    "relation", "concat",
+    "TypeSpec", "DataPackage", "DataResource", "TableDialect",
+    "RelationDAG", "ResourceRef",
+    "typespec", "datacontract",
+    "BaseExpressionAPI", "BooleanExpressionAPI",
+    "__version__"
+  ],
+  "key_classes": [],
+  "key_functions": [
+    {"name": "typespec(columns, **metadata)", "purpose": "Convenience factory creating TypeSpec from simple {name: type_string} dict"},
+    {"name": "datacontract(source)", "purpose": "Universal factory creating BaseDataContract from TypeSpec, dict, Pydantic, pandera, Frictionless, or simple dict"}
+  ],
+  "dependencies": ["expressions", "relations", "typespec", "relations.dag", "datacontracts"],
+  "dependents": ["every user-facing code path"],
+  "extension_points": ["datacontract() factory accepts multiple source types"],
+  "lifecycle_notes": [
+    "today() and now() added to re-exports 2026-05",
+    "datacontract() has lazy imports to avoid hard pandera/pydantic dependency",
+    "No __all__ defined — all re-exports are implicit"
+  ],
+  "documentation_hooks": ["Primary API surface — every user tutorial starts here"],
+  "examples": [],
+  "tests": [],
+  "risks": ["No explicit __all__ may affect IDE completions"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/__init__.py", "detail": "Re-exports ~35 symbols from expressions, relations, typespec, dag"},
+    {"kind": "symbol", "path": "src/mountainash/expressions/__init__.py", "detail": "Registers backends; re-exports 30+ expression entry points"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

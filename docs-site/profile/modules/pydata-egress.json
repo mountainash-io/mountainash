@@ -1,0 +1,46 @@
+{
+  "id": "pydata.egress",
+  "path": "src/mountainash/pydata/egress/",
+  "summary": "DataFrame egress: converts DataFrames to Python collections (tuples, dicts, named tuples, dataclasses, Pydantic models) and cross-framework formats (Pandas, PyArrow, Narwhals, Ibis) via strategy pattern with three-tier hybrid conversion. Now used by Relation terminal methods via delegation.",
+  "role": "io",
+  "visibility": "semi-public",
+  "stability": "stable",
+  "audiences": ["users", "contributors"],
+  "doc_priority": "useful",
+  "confidence": "high",
+  "public_api": ["DataFrameEgressFactory", "EgressPydataFromPolars", "EgressToPythonData", "EgressHelpers"],
+  "key_classes": [
+    {"name": "EgressPydataFromPolars", "purpose": "All Polars-native conversions including schema-aware dataclass/Pydantic conversion"},
+    {"name": "EgressToPythonData", "purpose": "Backend-agnostic mixin delegating through Polars for Python collection conversion"},
+    {"name": "DataFrameEgressFactory", "purpose": "Strategy factory selecting egress strategy by DataFrame type"}
+  ],
+  "key_functions": [
+    {"name": "apply_native_conversions_for_egress", "purpose": "Tier 1: vectorized type conversions in DataFrame before extraction"},
+    {"name": "apply_custom_converters_to_python_data", "purpose": "Tier 3: Python-layer custom converters on extracted data"},
+    {"name": "_sanitize_namedtuple_fields", "purpose": "Sanitize column names to valid Python identifiers for namedtuple fields"}
+  ],
+  "dependencies": ["core.factories", "pydata.ingress (custom_type_helpers)", "typespec", "polars"],
+  "dependents": ["relations.core.relation_api (terminal methods delegate here)", "pipelines"],
+  "extension_points": ["BaseEgressDataFrame ABC for new backend strategies"],
+  "lifecycle_notes": [
+    "2026-05: Relation terminal methods now delegate to egress module",
+    "2026-05: Column name sanitization added for namedtuple extraction",
+    "All DataFrame types currently route through EgressPydataFromPolars — no direct Ibis/Narwhals egress"
+  ],
+  "documentation_hooks": ["Three-tier hybrid egress architecture", "Schema-aware conversion"],
+  "examples": [],
+  "tests": [],
+  "risks": ["All egress routes through Polars eager — performance bottleneck for large non-Polars DataFrames"],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/pydata/egress/egress_pydata_from_polars.py", "detail": "EgressFromPolars with 20+ conversion methods"},
+    {"kind": "symbol", "path": "src/mountainash/pydata/egress/egress_helpers.py", "detail": "Tier 1 and Tier 3 helpers including column name sanitization (updated)"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

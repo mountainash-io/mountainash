@@ -1,0 +1,52 @@
+{
+  "id": "datacontracts",
+  "path": "src/mountainash/datacontracts/",
+  "summary": "Data contract validation framework built on pandera. Compiles TypeSpec into pandera DataFrameModel subclasses (BaseDataContract), adds expression-backed validation rules (Rule, RuleRegistry), orchestrates validation (Validator), processes failure cases into structured results. Includes reusable constraint constants and expression combinators.",
+  "role": "integration",
+  "visibility": "public",
+  "stability": "evolving",
+  "audiences": ["users", "contributors"],
+  "doc_priority": "essential",
+  "confidence": "high",
+  "public_api": [
+    "BaseDataContract", "compile_datacontract",
+    "Rule", "guarded", "RuleRegistry",
+    "Validator", "ValidationResult", "ValidationResultProcessor",
+    "constraints", "expressions"
+  ],
+  "key_classes": [
+    {"name": "BaseDataContract", "purpose": "pandera DataFrameModel subclass accepting any DataFrame backend; validates via Polars"},
+    {"name": "Validator", "purpose": "Unified orchestrator binding contract + rules + data; compiles ephemeral pandera subclass with expression checks"},
+    {"name": "RuleRegistry", "purpose": "Composable collection of Rules with context-aware exclusions and + operator merging"},
+    {"name": "ValidationResultProcessor", "purpose": "Processes pandera failure cases using mountainash relations; enriches with natural keys"}
+  ],
+  "key_functions": [
+    {"name": "compile_datacontract(spec)", "purpose": "Generates BaseDataContract from TypeSpec mapping UniversalType to pandera types"},
+    {"name": "guarded(precondition, test)", "purpose": "Returns (~precondition) | test — skips test when precondition is false"}
+  ],
+  "dependencies": ["pandera.polars", "polars", "typespec", "expressions", "relations"],
+  "dependents": ["toplevel-api (ma.datacontract() factory)", "relations.dag (validation)"],
+  "extension_points": ["RuleRegistry for custom validation rules", "Validator.prepare callback", "constraints/expressions modules for reusable combinators"],
+  "lifecycle_notes": [
+    "Evolving — relatively new module (2026-05)",
+    "Bridges mountainash expressions into pandera validation",
+    "ValidationResultProcessor dogfoods the relation API for failure case analysis"
+  ],
+  "documentation_hooks": ["TypeSpec to BaseDataContract pipeline", "Rule and RuleRegistry", "Context-aware exclusions"],
+  "examples": [],
+  "tests": [],
+  "risks": ["Hard dependency on pandera", "Date/Datetime/Time mapped to str in pandera — may cause false positives"],
+  "open_questions": ["Should pandera be lazy/optional dependency?"],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/datacontracts/compiler.py", "detail": "compile_datacontract maps TypeSpec to pandera Field kwargs"},
+    {"kind": "symbol", "path": "src/mountainash/datacontracts/validator.py", "detail": "Validator with _compile_contract_with_rules creating ephemeral pandera subclasses"},
+    {"kind": "symbol", "path": "src/mountainash/datacontracts/registry.py", "detail": "RuleRegistry with context-aware exclusions and + composition"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}

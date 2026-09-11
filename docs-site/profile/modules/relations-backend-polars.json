@@ -1,0 +1,38 @@
+{
+  "id": "relations.backends.polars",
+  "path": "src/mountainash/relations/backends/relation_systems/polars/",
+  "summary": "Polars relation backend: compiles relational AST to Polars LazyFrame operations. 8 Substrait + 1 extension implementation files. Supports unnest() for struct column expansion. Primary/reference backend for relations.",
+  "role": "backend",
+  "visibility": "internal",
+  "stability": "stable",
+  "audiences": ["maintainers", "backend-architecture"],
+  "doc_priority": "reference-only",
+  "confidence": "high",
+  "public_api": ["PolarsRelationSystem"],
+  "key_classes": [
+    {"name": "PolarsRelationSystem", "purpose": "Composed backend class implementing all relation protocols via LazyFrame operations"}
+  ],
+  "key_functions": [],
+  "dependencies": ["polars", "relations.core.relation_protocols"],
+  "dependents": ["relations.core.unified_visitor"],
+  "extension_points": ["New protocol implementation for new relation operation"],
+  "lifecycle_notes": [
+    "Primary/reference backend — most complete implementation",
+    "LazyFrame-based throughout for optimal query planning"
+  ],
+  "documentation_hooks": [],
+  "examples": [],
+  "tests": [],
+  "risks": [],
+  "open_questions": [],
+  "evidence": [
+    {"kind": "symbol", "path": "src/mountainash/relations/backends/relation_systems/polars/", "detail": "9 implementation files covering all relation operations"}
+  ],
+  "source_hash": "00e99834097053e30395b1943913b8b4a74a6e28",
+  "manual": {
+    "notes": "",
+    "editorial_status": "",
+    "owner": "",
+    "manual_summary": ""
+  }
+}
