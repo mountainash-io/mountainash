@@ -1,0 +1,13 @@
+{
+  "FOUND": "SteelBlue",
+  "INFRA": "DarkSlateBlue",
+  "EXAPI": "DarkGreen",
+  "EXAST": "LimeGreen",
+  "EXBAK": "Gold",
+  "RLAPI": "Teal",
+  "RLAST": "DodgerBlue",
+  "RLBAK": "Crimson",
+  "TYPES": "MediumPurple",
+  "DAG": "Orange",
+  "PIPE": "DarkOrchid"
+}
