@@ -4,7 +4,7 @@ description: 'A guided manual for the mountainash cross-backend data expression 
 ---
 
 
-[← Back to Ecosystem](../)
+[← Back to Ecosystem](https://docs.mountainash.io/)
 # Mountainash Core
 
 Write data logic once. Run it on Polars, pandas, PyArrow, DuckDB, Snowflake, BigQuery, and every backend that Ibis and Narwhals reach.
