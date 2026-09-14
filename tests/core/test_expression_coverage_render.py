@@ -29,8 +29,8 @@ from mountainash.core.capabilities.render_markdown import (
 )
 from mountainash.core.capabilities.retired import RetiredFact
 from mountainash.core.capabilities.schema import (
-    Boundary, CapabilityFact, CapabilityLevel, DivergenceFact, DivergenceKind,
-    Enforcement, GapKind, KnownGap, WILDCARD_PARAM,
+    Boundary, CapabilityFact, CapabilityLevel, Clause, ClauseOp, DivergenceFact,
+    DivergenceKind, Enforcement, GapKind, KnownGap, Predicate, WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
 
@@ -143,7 +143,7 @@ def test_cell_texts():
     scoped = _fact(param="values", option_value="strict",
                    level=CapabilityLevel.UNSUPPORTED)
     out = render_markdown(_report([whole, scoped]))
-    assert "poly + ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects)" in out
+    assert "poly + ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects)" in out
 
     # Clean default-capable (IMPLEMENTED + clean + no audit) -> `✓` (U+2713).
     clean = render_markdown(_report([], decls=(), impls=_impls()))
@@ -348,6 +348,41 @@ def test_option_collapse_rule():
     # collapse — all four render per-fact (the defined handling, Task 4 code).
     mixed = same + [_fact(param="fmt", level=CapabilityLevel.UNSUPPORTED)]
     assert len(_collapse_groups(tuple(mixed))) == 4
+
+
+def test_scoped_report_keeps_same_message_metadata_predicates_distinguishable():
+    """Consumers receive every executable metadata selector, not a collapsed label."""
+    facts = (
+        _fact(
+            param="x",
+            predicate=Predicate((
+                Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),
+            )),
+        ),
+        _fact(
+            param="x",
+            predicate=Predicate((
+                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+            )),
+        ),
+    )
+
+    scoped = render_scoped(_report(facts))
+
+    assert scoped.count("| * | x |") == 2
+    assert "__operand_types__.x.storage_kind == 'polars_object'" in scoped
+    assert "__operand_types__.x.logical_kind == 'float'" in scoped
+
+
+def test_scoped_report_keeps_option_constraints_in_their_dialects():
+    facts = tuple(
+        _fact(param="mode", option_value=value, dialect=dialect)
+        for dialect in ("ibis-duckdb", "ibis-sqlite")
+        for value in ("a", "b", "c")
+    )
+    scoped = render_scoped(_report(facts))
+    for dialect in ("ibis-duckdb", "ibis-sqlite"):
+        assert f"| {dialect} | mode | a, b, c |" in scoped
 
 
 def test_legend_has_by_exception_rows_and_footnotes():
@@ -681,7 +716,7 @@ def test_json_shape_lock():
             or target_cell["whole_op"] in {lv.value for lv in CapabilityLevel})
     # selector_counts shape.
     assert set(target_cell["selector_counts"].keys()) == {
-        "params", "option_selectors", "value_classes", "dialects",
+        "params", "option_selectors", "metadata_selectors", "value_classes", "dialects",
     }
     for v in target_cell["selector_counts"].values():
         assert isinstance(v, int)
@@ -1001,7 +1036,7 @@ def test_scoped_only_cell_no_main_doc_section():
     # But the matrix cell is still there with the partial annotation.
     matrix = main.split("## Per-family coverage", 1)[1].split(
         "## Unmapped families", 1)[0]
-    assert "◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects)" in matrix
+    assert "◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects)" in matrix
     # Scoped doc has the detail.
     scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
     assert "### `OP_A` × polars" in scoped_detail

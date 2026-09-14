@@ -12,8 +12,11 @@ The registry enables:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Callable, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, TYPE_CHECKING, get_type_hints
+
 import inspect
+
+from mountainash.core.dtypes.metadata import FixedResultType, PreserveResultType
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     SubstraitExtension,
@@ -41,6 +44,20 @@ if TYPE_CHECKING:
 #     MOUNTAINASH = "https://mountainash.io/extensions/functions.yaml"
 
 
+
+_RESERVED_OPERAND_TYPES = "__operand_types__"
+
+
+def _expression_parameter_names(method: Callable) -> frozenset[str]:
+    signature = inspect.signature(method)
+    annotations = get_type_hints(method)
+    return frozenset(
+        name
+        for name, parameter in signature.parameters.items()
+        if name != "self"
+        and "ExpressionT" in str(annotations.get(name, parameter.annotation))
+    )
+
 @dataclass(frozen=True)
 class ExpressionFunctionDef:
     """Definition of a function with Substrait mapping and protocol reference.
@@ -66,23 +83,62 @@ class ExpressionFunctionDef:
     is_extension: bool = False
     # n_args: Optional[int] = None
     options: tuple[str, ...] = field(default_factory=tuple)
-    # Protocol reference for type introspection (Phase B)
-    # protocol: Optional[Type] = None
     protocol_method: Optional[Callable] = None
+    result_type: FixedResultType | PreserveResultType | None = None
+    type_arguments: tuple[str, ...] = field(default_factory=tuple)
 
-    # @property
-    # def protocol_method(self) -> Optional[Callable]:
-    #     """Get the protocol method for signature introspection.
+    def __post_init__(self) -> None:
+        if self.result_type is not None and not isinstance(
+            self.result_type, (FixedResultType, PreserveResultType)
+        ):
+            raise TypeError(
+                "result_type must be FixedResultType, PreserveResultType, or None"
+            )
+        if not isinstance(self.type_arguments, tuple):
+            raise TypeError("type_arguments must be a tuple of protocol parameter names")
+        if len(set(self.type_arguments)) != len(self.type_arguments):
+            raise ValueError("type_arguments must not contain duplicates")
+        if _RESERVED_OPERAND_TYPES in self.options:
+            raise ValueError(
+                f"{_RESERVED_OPERAND_TYPES!r} is reserved for compiler operand metadata"
+            )
 
-    #     Returns the method from the protocol class, not a bound method.
-    #     This can be used with inspect.signature() for type introspection.
+        method = self.protocol_method
+        if method is None:
+            if self.type_arguments or isinstance(self.result_type, PreserveResultType):
+                raise ValueError("metadata rules requiring operands need a protocol method")
+            return
 
-    #     Returns:
-    #         Protocol method callable, or None if no protocol is defined.
-    #     """
-    #     if self.protocol is None or self.protocol_method_name is None:
-    #         return None
-        # return getattr(self.protocol, self.protocol_method_name, None)
+        signature = inspect.signature(method)
+        if _RESERVED_OPERAND_TYPES in signature.parameters:
+            raise ValueError(
+                f"{_RESERVED_OPERAND_TYPES!r} is reserved for compiler operand metadata"
+            )
+        if not self.type_arguments and not isinstance(
+            self.result_type, PreserveResultType
+        ):
+            return
+
+
+        expression_parameters = _expression_parameter_names(method)
+        for argument in self.type_arguments:
+            if argument not in signature.parameters:
+                raise ValueError(
+                    f"type_argument {argument!r} does not name a protocol parameter"
+                )
+            if argument not in expression_parameters:
+                raise ValueError(
+                    f"type_argument {argument!r} must name an expression parameter"
+                )
+
+        if (
+            isinstance(self.result_type, PreserveResultType)
+            and self.result_type.argument not in expression_parameters
+        ):
+            raise ValueError(
+                f"result_type argument {self.result_type.argument!r} "
+                "must name an expression parameter"
+            )
 
     def get_signature(self) -> Optional[inspect.Signature]:
         """Get the method signature from the protocol for type introspection.

@@ -456,17 +456,15 @@ def test_implementation_via_handler_live_baseline_pin(inputs):
 # ---------------------------------------------------------------------------
 
 
-def test_json_byte_identity_under_hash_seed():
-    """Plan-review I2: two-process PYTHONHASHSEED byte-identity check on
-    the JSON output. Each subprocess runs the full
-    gather_coverage_inputs → build_coverage_report → render_json pipeline
-    to stdout; the test asserts the two stdout captures are byte-equal."""
+@pytest.mark.parametrize("renderer", ["render_json", "render_scoped"])
+def test_artifact_byte_identity_under_hash_seed(renderer):
+    """Artifact bytes must not depend on Python set iteration order."""
     driver = (
         "import sys; "
         "from mountainash.core.capabilities.render_markdown import "
-        "gather_coverage_inputs, render_json; "
+        f"gather_coverage_inputs, {renderer}; "
         "from mountainash.core.capabilities.coverage import build_coverage_report; "
-        "sys.stdout.write(render_json(build_coverage_report(**gather_coverage_inputs())))"
+        f"sys.stdout.write({renderer}(build_coverage_report(**gather_coverage_inputs())))"
     )
     captured: list[bytes] = []
     for seed in ("0", "1"):

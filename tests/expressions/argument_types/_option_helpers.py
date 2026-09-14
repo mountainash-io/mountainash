@@ -138,8 +138,11 @@ def _materialize_native_values(df: Any, expr: Any, backend: str) -> list[Any]:
     """Compile and extract through the raw native path with the gate disabled."""
     system_cls = get_expression_system(_FIXTURE_FAMILY[backend])
     system = system_cls(dialect=_FIXTURE_DIALECT[backend])
-    visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False)
-    compiled = visitor.visit(expr._node)
+    visitor = UnifiedExpressionVisitor(
+        system, enforce_capabilities=False, input_data=df
+    )
+    with visitor.input_scope(df):
+        compiled = visitor.visit(expr._node)
     return _extract_values(df, compiled, backend)
 
 

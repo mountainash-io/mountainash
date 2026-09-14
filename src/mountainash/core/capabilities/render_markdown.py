@@ -27,6 +27,7 @@ from mountainash.core.capabilities.coverage import (
 from mountainash.core.capabilities.schema import (
     CapabilityFact,
     CapabilityLevel,
+    ClauseOp,
     Enforcement,  # summary stats
     ValueClass,
 )
@@ -89,6 +90,7 @@ def _collapse_identity(f: CapabilityFact) -> tuple:
         f.boundary,
         f.dialect,
         f.value_class,
+        f.predicate,
         f.condition,
         f.message,
         f.workaround,
@@ -145,10 +147,14 @@ def _cell_text(oc: OpCoverage) -> str:
         elif oc.whole_op is CapabilityLevel.POLYMORPHIC:
             status.append("poly")
         sc = oc.selector_counts
-        if any((sc.params, sc.option_selectors, sc.value_classes, sc.dialects)):
+        if any((
+            sc.params, sc.option_selectors, sc.metadata_selectors,
+            sc.value_classes, sc.dialects,
+        )):
             partial = (
                 f"◐ partial ({sc.params} params, {sc.option_selectors} option-selectors, "
-                f"{sc.value_classes} value-classes, {sc.dialects} dialects)"
+                f"{sc.metadata_selectors} metadata-selectors, {sc.value_classes} value-classes, "
+                f"{sc.dialects} dialects)"
             )
             # I-2b (spec §4.3 rev 6): a dialect-scoped whole-op gate names its
             # level+dialect in the matrix cell, so a whole-op-for-a-dialect
@@ -199,7 +205,7 @@ def _header(report: CoverageReport) -> list[str]:
         f"· Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
         "",
-        "Scoped deviations (dialect/param/option/value-class) live in "
+        "Scoped deviations (dialect/param/option/metadata/value-class) live in "
         "[`expression-coverage-scoped.md`](expression-coverage-scoped.md).",
         "",
         "Parquet recipe: flatten `families[].ops[].cells` from "
@@ -335,6 +341,30 @@ def _unmapped_families(report: CoverageReport) -> list[str]:
     return lines
 
 
+def _predicate_text(fact: CapabilityFact) -> str:
+    """Render a fact's executable predicate conjunction for report consumers."""
+    if fact.predicate is None:
+        return "—"
+
+    def clause_text(clause: Any) -> str:
+        if clause.op is ClauseOp.EQ:
+            return f"{clause.path} == {clause.operand!r}"
+        if clause.op is ClauseOp.IN:
+            values = ", ".join(sorted(map(repr, clause.operand)))
+            return f"{clause.path} in {{{values}}}"
+        if clause.op is ClauseOp.IS_SET:
+            return f"{clause.path} is set"
+        if clause.op is ClauseOp.IS_NULL:
+            return f"{clause.path} is null"
+        if clause.op is ClauseOp.IS_LITERAL:
+            return f"{clause.path} is literal"
+        if clause.op is ClauseOp.MATCHES_CLASS:
+            return f"{clause.path} matches {clause.operand!r}"
+        raise ValueError(f"unknown clause operator {clause.op!r}")
+
+    return " AND ".join(clause_text(clause) for clause in fact.predicate.clauses)
+
+
 def _fact_detail_row(f: CapabilityFact, values: list[str]) -> str:
     option = _escape(", ".join(values)) if values else "—"  # values are escaped, no code spans
     native = ", ".join(e.__name__ for e in f.native_errors) or "—"
@@ -342,18 +372,19 @@ def _fact_detail_row(f: CapabilityFact, values: list[str]) -> str:
         f"| {f.dialect or '*'} | {_escape(f.param)} | {option} "
         f"| {f.value_class.value if f.value_class else '—'} "
         f"| {f.level.value} | {f.enforcement.value} | {f.boundary.value} "
-        f"| {_escape(f.condition or '—')} | {_escape(f.message or '—')} "
-        f"| {_escape(f.workaround or '—')} | {f.upstream_ref or '—'} "
-        f"| {f.since or '—'} | {native} | {_escape(f.probe_exempt or '—')} |"
+        f"| {_escape(f.condition or '—')} | {_escape(_predicate_text(f))} "
+        f"| {_escape(f.message or '—')} | {_escape(f.workaround or '—')} "
+        f"| {f.upstream_ref or '—'} | {f.since or '—'} | {native} "
+        f"| {_escape(f.probe_exempt or '—')} |"
     )
 
 
 _DETAIL_HEADER = (
     "| Dialect | Param | Option values | Value class | Level | Enforcement "
-    "| Boundary | Condition | Message | Workaround | Upstream | Since "
+    "| Boundary | Condition | Predicate | Message | Workaround | Upstream | Since "
     "| Native errors | Probe-exempt |"
 )
-_DETAIL_RULE = "| " + " | ".join(["---"] * 14) + " |"
+_DETAIL_RULE = "| " + " | ".join(["---"] * 15) + " |"
 
 
 def _detail_sections(report: CoverageReport) -> list[str]:
@@ -365,8 +396,8 @@ def _detail_sections(report: CoverageReport) -> list[str]:
     lines = ["## Per-op detail", ""]
     lines.append(
         "Cells whose facts are all scoped (dialect / parameter / option / "
-        "value-class) have no section here — see "
-        "[`expression-coverage-scoped.md`](expression-coverage-scoped.md) "
+        "metadata / value-class) have no section here — see "
+        "[Scoped Deviations](expression-coverage-scoped.md) "
         "for the scoped detail. `refinements` (EXPR_CAPABLE + dialect) are "
         "scoped by construction; `dialect-scoped whole-op` facts appear "
         "under that doc's `Dialect-scoped whole-op` subheading."
@@ -476,8 +507,8 @@ Legend — scoped deviations:
 
 - The main doc (`expression-coverage.md`) carries matrices, function-level
   coverage, and the by-exception render map. This doc carries the per-op
-  detail for every fact with a dialect, parameter, option, or value-class
-  selector. The two are byte-disjoint on detail bodies — every input fact
+  detail for every fact with a dialect, parameter, option, metadata, or
+  value-class selector. The two are byte-disjoint on detail bodies — every input fact
   appears in exactly one artifact's detail body (§4.5 M-3).
 - **Dialect-scoped whole-op facts** (wildcard param + a dialect, no
   option_value or value_class) render FIRST under a `Dialect-scoped
@@ -504,7 +535,7 @@ def _scoped_header(report: CoverageReport) -> list[str]:
         "<!-- GENERATED FILE — do not edit by hand. -->",
         f"<!-- Regenerate: {_REGEN_CMD} -->",
         "",
-        "Scoped deviations — dialect, parameter, option, value-class; "
+        "Scoped deviations — dialect, parameter, option, metadata, value-class; "
         "function-level coverage and matrices live in "
         "[`expression-coverage.md`](expression-coverage.md).",
         "",
@@ -659,6 +690,7 @@ def _cell_dict(oc: OpCoverage) -> dict[str, Any]:
         "selector_counts": {
             "params": oc.selector_counts.params,
             "option_selectors": oc.selector_counts.option_selectors,
+            "metadata_selectors": oc.selector_counts.metadata_selectors,
             "value_classes": oc.selector_counts.value_classes,
             "dialects": oc.selector_counts.dialects,
         },

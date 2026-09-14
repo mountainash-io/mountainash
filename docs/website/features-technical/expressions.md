@@ -92,6 +92,81 @@ print(expr._node)
 
 This is the foundation for later work — see the [vision](../vision.md) page on stored, versioned query plans.
 
+## Classifying values before Boolean conversion
+
+Use the original value's domain, not Python truthiness or a string cast:
+
+| Primitive | Scalar API | Expression API |
+|---|---|---|
+| Classification | `ma.value_kind(value)` → `ma.ValueKind` | `ma.col("x").value_kind()` → non-null string labels |
+| Boolean candidate | `ma.boolean_value(value, source="boolean")` | `ma.col("x").boolean_value(source="boolean")` |
+| Actual text | `ma.text_value(value)` | `ma.col("x").text_value()` |
+
+Classification distinguishes `absent`, `boolean`, `integer`, `float`, `text`,
+and `unsupported`. Boolean identity takes precedence over numeric identity:
+`True` is not numeric `1`, and text `"1"` is not numeric `1`. Arbitrary objects
+and unsupported scalar subclasses are not inspected through their truthiness,
+comparison, or conversion hooks.
+
+`boolean_value` selects one original domain:
+
+- `source="boolean"` preserves actual Booleans.
+- `source="binary_number"` accepts only finite numeric zero and one.
+- `source="finite_number"` accepts finite integers/floats, mapping zero to
+  False and other values to True.
+
+Other values produce a null candidate, not False. `text_value` preserves
+actual text and returns null for other domains; it does not stringify, trim,
+lowercase, or parse. Compose it with existing string operations and
+`parse_boolean(..., failure_behavior=ma.CaseFailureBehaviour.NULL)` when
+the consuming application explicitly permits text conversion.
+
+A null candidate alone cannot distinguish absence from rejection. Keep a
+validity expression beside the candidate:
+
+```python
+original = ma.col("x")
+candidate = ma.coalesce(
+    original.boolean_value(),
+    original.boolean_value(source="binary_number"),
+)
+invalid = original.value_kind().ne(ma.ValueKind.ABSENT.value) & candidate.is_null()
+```
+
+Here Booleans and numeric zero/one are accepted; actual absence stays null;
+text `"1"` and numeric `2` are invalid. Aggregate validity over the original
+relation before filtering or routing, rather than collecting the full input
+into a Python validation loop. Conversion permissions and rejection errors
+remain the application's responsibility.
+
+Classification observes values **as received**. It cannot recover distinctions
+already erased by a DataFrame constructor. Native validity matters: Pandas
+floating NaNs recognized as missing are absent, whereas a concrete NaN
+preserved by Arrow validity or Polars is floating and supplies no finite
+Boolean candidate. Infinity likewise supplies no finite candidate.
+
+Typed columns use native execution. Mixed Pandas/Polars object columns use
+backend-owned value inspection; the consumer does not traverse objects.
+Pandas compositions with incompatible integer carriers may use temporary
+object storage to avoid narrowing before classification. Floating compositions
+use a lossless common native width and retain Arrow validity when present;
+unrepresentable nullable precision fails metadata resolution rather than
+silently rounding or underflowing.
+Compilation resolves operand metadata from the current frame or relation
+stage, without evaluating rows. Unresolvable computed metadata raises
+`BackendCapabilityError`, distinct from an unsupported value classification.
+The fixed-result, cast, alias, parser/trim, and homogeneous branch/coalesce
+compositions are supported; this is not a general inference engine for every
+computed expression.
+
+Keep the AST for reuse across inputs. A native expression returned by
+`compile(df)` is specialized to that input's schema/storage; recompile it for
+a different representation. Lazy object paths defer their backend-owned
+elementwise work until execution, not until metadata discovery.
+
+These operations do not change ternary sentinels, automatic ternary
+Booleanization, or the existing token parser's conversion policy.
+
 ## What you can't (yet) do
 
 - **Direct Substrait emit/consume.** The AST is Substrait-aligned but the wire format isn't there yet. Roadmap item.

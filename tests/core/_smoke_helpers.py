@@ -51,6 +51,7 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
                 "true_values": ("true",),
                 "false_values": ("false",),
                 "field_name": "c",
+                "failure_behavior": ma.CaseFailureBehaviour.NULL,
             },
         ),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: (

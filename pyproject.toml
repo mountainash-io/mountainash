@@ -51,7 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.2.0"]
-ibis = ["ibis-framework>=9.0.0"]
+ibis = ["ibis-framework>=11.0.0"]
 storage = ["mountainash-transport"]
 files = ["mountainash-files>=26.7.0,<27"]
 dbos = ["dbos>=1.0.0"]

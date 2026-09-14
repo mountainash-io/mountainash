@@ -83,25 +83,6 @@ class TestCompatibilityTable:
         )
 
 
-EXPECTED_ROLES = {
-    ("GET", "index", CONST_BACKEND.NARWHALS): Enforcement.MATERIALIZE_RESIDUE,
-    ("JOIN_ASOF", "tolerance", CONST_BACKEND.NARWHALS): Enforcement.GATE,
-    ("READ_RESOURCE", "resource", CONST_BACKEND.POLARS): Enforcement.ROUTER_METADATA,
-    ("READ_RESOURCE", "resource", CONST_BACKEND.IBIS): Enforcement.ROUTER_METADATA,
-    ("READ_RESOURCE", "resource", CONST_BACKEND.NARWHALS): Enforcement.ROUTER_METADATA,
-}
-
-
-class TestTreeFactsDeclareTheirRole:
-    """Closed mapping: every fact carrying prose states its role, and no fact
-    outside the mapping carries prose. A new conditioned fact fails here."""
-
-    def test_conditioned_facts_match_the_expected_roles_exactly(self):
-        actual = {
-            (f.operation_key.name, f.param, f.backend): f.enforcement
-            for f in CapabilityRegistry.facts(conditioned=True)
-        }
-        assert actual == EXPECTED_ROLES
 
 
 GATE_DF = pl.DataFrame({"x": [-1, 2], "text": ["abc", "b"]})

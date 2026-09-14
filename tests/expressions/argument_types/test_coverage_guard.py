@@ -51,6 +51,7 @@ _CATEGORY_MODULES = [
     "test_arg_types_misc",
     "test_arg_types_list",
     "test_arg_types_struct",
+    "test_arg_types_value",
 ]
 
 
@@ -1124,6 +1125,18 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
     }
 )
 
+_KNOWN_UNTESTED_OPTION_PARAMS[
+    ("SubstraitLiteralExpressionSystemProtocol", "lit", "dtype")
+] = KnownGap(
+    gap_kind=GapKind.OTHER,
+    reason=(
+        "LiteralNode dtype is structural metadata, not a scalar-registry option; "
+        "native dtype and null behavior are covered by "
+        "test_value_classification.py::test_declared_literal_dtype_controls_native_value_kind"
+    ),
+    since="2026-09-14",
+)
+
 
 _KNOWN_UNWIRED_TESTED_OPS: dict[tuple[str, str], KnownGap] = {
     ("SubstraitFieldReferenceExpressionSystemProtocol", "col"): KnownGap(
@@ -1915,6 +1928,16 @@ def test_untested_option_param_custom_reasons_still_hold():
         elif "operation not implemented (no FKEY)" in r:
             if (proto, op) in registry_ops:
                 reason_false.append(((proto, op, param), "op HAS a registered FKEY"))
+        elif "structural metadata, not a scalar-registry option" in r:
+            structural = _KNOWN_UNWIRED_TESTED_OPS.get((proto, op))
+            if (
+                (proto, op) in registry_ops
+                or structural is None
+                or "Special node type" not in structural.reason
+            ):
+                reason_false.append(
+                    ((proto, op, param), "operation is not an unregistered structural node")
+                )
         elif "declares only options=('format',)" in r:
             if param in options_by_op.get((proto, op), ()):
                 reason_false.append(((proto, op, param), f"{param!r} now reaches the backend (in FKEY options)"))

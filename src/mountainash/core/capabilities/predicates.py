@@ -11,9 +11,14 @@ import inspect
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, TYPE_CHECKING, cast
 
 from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes.metadata import OperandType
+
+OPERAND_TYPES_ROOT = "__operand_types__"
 
 
 @dataclass(frozen=True)
@@ -24,6 +29,11 @@ class BoundCall:
     dialect: str | None
     bindings: Mapping[str, Any]        # param name -> bound value or AST node
     supplied: frozenset[str]           # params the caller actually passed
+    operand_types: Mapping[str, OperandType] | None = None
+
+    def __post_init__(self) -> None:
+        if OPERAND_TYPES_ROOT in self.bindings or OPERAND_TYPES_ROOT in self.supplied:
+            raise ValueError(f"{OPERAND_TYPES_ROOT} is reserved compiler metadata")
 
 
 def _unwrap_literal(value: Any) -> Any:
@@ -101,9 +111,20 @@ def _resolve_segment(value: Any, seg: str, path: str) -> Any:
     )
 
 
-def resolve_path(bindings: Mapping[str, Any], path: str) -> Any:
+def resolve_path(bindings: Mapping[str, Any], path: str, *,
+                 operand_types: Mapping[str, OperandType] | None = None) -> Any:
     segments = path.split(".")
     head = segments[0]
+    if head == OPERAND_TYPES_ROOT:
+        from mountainash.core.dtypes.metadata import OperandType
+
+        operand, field = _metadata_path(path)
+        if operand_types is None or operand not in operand_types:
+            raise ValueError(f"predicate path {path!r}: operand metadata is unresolved")
+        descriptor = operand_types[operand]
+        if type(descriptor) is not OperandType:
+            raise ValueError(f"predicate path {path!r}: expected OperandType")
+        return getattr(descriptor, field)
     if head not in bindings:
         raise ValueError(f"predicate path {path!r}: parameter {head!r} is not bound")
     value = _unwrap_literal(bindings[head])  # unwrap LiteralNode at the root
@@ -117,13 +138,14 @@ def resolve_path(bindings: Mapping[str, Any], path: str) -> Any:
 
 
 def evaluate_clause(clause: Clause, bindings: Mapping[str, Any],
-                    supplied: frozenset[str]) -> bool:
+                    supplied: frozenset[str], *,
+                    operand_types: Mapping[str, OperandType] | None = None) -> bool:
     from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 
     root = clause.path.split(".")[0]
     if clause.op is ClauseOp.IS_LITERAL:
         return isinstance(bindings.get(root), LiteralNode)
-    value = resolve_path(bindings, clause.path)  # LiteralNode already unwrapped at root
+    value = resolve_path(bindings, clause.path, operand_types=operand_types)
     if clause.op is ClauseOp.IS_NULL:
         return value is None
     if clause.op is ClauseOp.IS_SET:
@@ -142,8 +164,60 @@ def evaluate_clause(clause: Clause, bindings: Mapping[str, Any],
 
 
 def predicate_holds(predicate: Predicate, bindings: Mapping[str, Any],
-                    supplied: frozenset[str]) -> bool:
-    return all(evaluate_clause(c, bindings, supplied) for c in predicate.clauses)
+                    supplied: frozenset[str], *,
+                    operand_types: Mapping[str, OperandType] | None = None) -> bool:
+    # Validate every referenced descriptor before a false raw clause can short-circuit.
+    for clause in predicate.clauses:
+        if clause.path.split(".")[0] == OPERAND_TYPES_ROOT:
+            resolve_path(bindings, clause.path, operand_types=operand_types)
+    return all(evaluate_clause(c, bindings, supplied, operand_types=operand_types)
+               for c in predicate.clauses)
+
+
+def _metadata_path(path: str) -> tuple[str, str]:
+    parts = path.split(".")
+    if (len(parts) != 3 or parts[0] != OPERAND_TYPES_ROOT or not parts[1]
+            or parts[2] not in ("logical_kind", "storage_kind", "nullable")):
+        raise ValueError(f"invalid operand metadata predicate path {path!r}")
+    return parts[1], parts[2]
+
+
+def metadata_arguments(predicate: Predicate) -> frozenset[str]:
+    return frozenset(
+        _metadata_path(c.path)[0] for c in predicate.clauses
+        if c.path.split(".")[0] == OPERAND_TYPES_ROOT
+    )
+
+
+def validate_metadata_predicate(predicate: Predicate, protocol_method: Any) -> None:
+    from mountainash.core.dtypes.metadata import LOGICAL_KINDS, STORAGE_KINDS
+
+    parameters = inspect.signature(protocol_method).parameters if protocol_method else {}
+    for clause in predicate.clauses:
+        if clause.path.split(".")[0] != OPERAND_TYPES_ROOT:
+            continue
+        operand, field = _metadata_path(clause.path)
+        parameter = parameters.get(operand)
+        if parameter is None or "ExpressionT" not in str(parameter.annotation):
+            raise ValueError(f"metadata operand {operand!r} is not an expression parameter")
+        if clause.op in (ClauseOp.IS_NULL, ClauseOp.IS_SET):
+            continue
+        if clause.op not in (ClauseOp.EQ, ClauseOp.IN):
+            raise ValueError(f"unsupported metadata selector {clause.op}")
+        values = (
+            cast(frozenset[str | int], clause.operand)
+            if clause.op is ClauseOp.IN
+            else (clause.operand,)
+        )
+        for value in values:
+            value_type = type(value)
+            if field == "nullable":
+                valid = value is None or value_type is bool
+            else:
+                choices = LOGICAL_KINDS if field == "logical_kind" else STORAGE_KINDS
+                valid = value_type is str and value in choices
+            if not valid:
+                raise ValueError(f"invalid metadata selector {clause.path!r}: {value!r}")
 
 
 def clause_implies(a: Clause, b: Clause) -> bool:

@@ -316,6 +316,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     # MountainAshScalarAggregateExpressionSystemProtocol,
     MountainashExtensionAggregateExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
+    MountainAshScalarValueExpressionSystemProtocol,
 )
 
 # =============================================================================
@@ -345,6 +346,7 @@ from mountainash.expressions.backends.expression_systems.polars.extensions_mount
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_comparison import MountainAshPolarsScalarComparisonExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_geospatial import MountainAshPolarsScalarGeospatialExpressionSystem
+from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_value import MountainAshPolarsScalarValueExpressionSystem
 
 # =============================================================================
 # Ibis Backend Implementation Imports
@@ -373,6 +375,7 @@ from mountainash.expressions.backends.expression_systems.ibis.extensions_mountai
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_comparison import MountainAshIbisScalarComparisonExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_geospatial import MountainAshIbisScalarGeospatialExpressionSystem
 from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_ternary import MountainAshIbisScalarTernaryExpressionSystem
+from mountainash.expressions.backends.expression_systems.ibis.extensions_mountainash.expsys_ib_ext_ma_scalar_value import MountainAshIbisScalarValueExpressionSystem
 
 # =============================================================================
 # Narwhals Backend Implementation Imports
@@ -401,6 +404,7 @@ from mountainash.expressions.backends.expression_systems.narwhals.extensions_mou
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_geospatial import MountainAshNarwhalsScalarGeospatialExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_datetime import MountainAshNarwhalsScalarDatetimeExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_ternary import MountainAshNarwhalsScalarTernaryExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import MountainAshNarwhalsScalarValueExpressionSystem
 
 # Composed backend classes (for wiring audit)
 from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem
@@ -441,6 +445,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
     MountainAshScalarBooleanAPIBuilderProtocol,
     MountainAshScalarGeospatialAPIBuilderProtocol,
     MountainAshScalarTernaryAPIBuilderProtocol,
+    MountainAshScalarValueAPIBuilderProtocol,
 )
 
 # =============================================================================
@@ -475,6 +480,7 @@ from mountainash.expressions.core.expression_api.api_builders.extensions_mountai
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_boolean import MountainAshScalarBooleanAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_value import MountainAshScalarValueAPIBuilder
 
 
 # =============================================================================
@@ -571,6 +577,7 @@ POLARS_MOUNTAINASH_IMPLEMENTATIONS = {
     "scalar_comparison": MountainAshPolarsScalarComparisonExpressionSystem,
     "scalar_datetime": MountainAshPolarsScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshPolarsScalarTernaryExpressionSystem,
+    "scalar_value": MountainAshPolarsScalarValueExpressionSystem,
 }
 
 IBIS_MOUNTAINASH_IMPLEMENTATIONS = {
@@ -582,6 +589,7 @@ IBIS_MOUNTAINASH_IMPLEMENTATIONS = {
     "scalar_comparison": MountainAshIbisScalarComparisonExpressionSystem,
     "scalar_datetime": MountainAshIbisScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshIbisScalarTernaryExpressionSystem,
+    "scalar_value": MountainAshIbisScalarValueExpressionSystem,
 }
 
 NARWHALS_MOUNTAINASH_IMPLEMENTATIONS = {
@@ -593,6 +601,7 @@ NARWHALS_MOUNTAINASH_IMPLEMENTATIONS = {
     "scalar_comparison": MountainAshNarwhalsScalarComparisonExpressionSystem,
     "scalar_datetime": MountainAshNarwhalsScalarDatetimeExpressionSystem,
     "scalar_ternary": MountainAshNarwhalsScalarTernaryExpressionSystem,
+    "scalar_value": MountainAshNarwhalsScalarValueExpressionSystem,
 }
 
 # =============================================================================
@@ -642,6 +651,7 @@ MOUNTAINASH_API_BUILDER_PROTOCOLS = [
     (MountainAshScalarGeospatialAPIBuilderProtocol, "scalar_geospatial"),
     (MountainAshScalarBooleanAPIBuilderProtocol, "scalar_boolean"),
     (MountainAshScalarTernaryAPIBuilderProtocol, "scalar_ternary"),
+    (MountainAshScalarValueAPIBuilderProtocol, "scalar_value"),
 ]
 
 MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
@@ -653,6 +663,7 @@ MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
     "scalar_boolean": MountainAshScalarBooleanAPIBuilder,
     "scalar_geospatial": MountainAshScalarGeospatialAPIBuilder,
     "scalar_ternary": MountainAshScalarTernaryAPIBuilder,
+    "scalar_value": MountainAshScalarValueAPIBuilder,
 }
 
 
@@ -696,6 +707,7 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainAshScalarStructExpressionSystemProtocol: "mountainash_scalar_struct",
     MountainAshScalarGeospatialExpressionSystemProtocol: "mountainash_scalar_geospatial",
     MountainashWindowExpressionSystemProtocol: "mountainash_window",
+    MountainAshScalarValueExpressionSystemProtocol: "mountainash_scalar_value",
 }
 
 

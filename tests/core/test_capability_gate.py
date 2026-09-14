@@ -268,3 +268,37 @@ def test_predicate_fact_does_not_fire_when_predicate_false():
     ])
     compiled = ma.lit(9).abs().compile(DF)  # [x EQ 7] does not hold
     assert compiled is not None
+
+def test_metadata_predicate_is_evaluated_after_scope_resolution():
+    """A metadata fact defers in raw phase, then blocks only its matching type."""
+    from mountainash.core.capabilities.schema import (
+        CapabilityFact,
+        CapabilityLevel,
+        Clause,
+        ClauseOp,
+        Predicate,
+    )
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+    )
+
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
+        CapabilityFact(
+            operation_key=FK_ARITH.ABS,
+            param="x",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.POLARS,
+            dialect="polars",
+            message="float abs blocked after metadata resolution",
+            since="2026-09-14",
+            predicate=Predicate((
+                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+            )),
+        ),
+    ])
+
+    with pytest.raises(BackendCapabilityError, match="float abs blocked"):
+        ma.col("value").abs().compile(pl.DataFrame({"value": [1.0]}))
+
+    compiled = ma.col("value").abs().compile(pl.DataFrame({"value": [1]}))
+    assert compiled is not None

@@ -43,6 +43,7 @@ from .extensions_mountainash.expsys_pl_ext_ma_scalar_arithmetic import MountainA
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_datetime import MountainAshPolarsScalarDatetimeExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_set import SubstraitPolarsScalarSetExpressionSystem as MountainAshPolarsScalarSetExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_boolean import MountainAshPolarsScalarBooleanExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_scalar_value import MountainAshPolarsScalarValueExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_comparison import MountainAshPolarsScalarComparisonExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_string import SubstraitPolarsScalarStringExpressionSystem as MountainAshPolarsScalarStringExpressionSystem
 from .extensions_mountainash.expsys_pl_ext_ma_scalar_ternary import MountainAshPolarsScalarTernaryExpressionSystem
@@ -86,6 +87,7 @@ class PolarsExpressionSystem(
     MountainAshPolarsScalarArithmeticExpressionSystem,
     MountainAshPolarsScalarDatetimeExpressionSystem,
     MountainAshPolarsScalarBooleanExpressionSystem,
+    MountainAshPolarsScalarValueExpressionSystem,
     MountainAshPolarsScalarComparisonExpressionSystem,
     MountainAshPolarsScalarStringExpressionSystem,
     MountainAshPolarsScalarSetExpressionSystem,
@@ -137,6 +139,7 @@ __all__ = [
     "MountainAshPolarsScalarArithmeticExpressionSystem",
     "MountainAshPolarsScalarDatetimeExpressionSystem",
     "MountainAshPolarsScalarComparisonExpressionSystem",
+    "MountainAshPolarsScalarValueExpressionSystem",
     "MountainAshPolarsScalarTernaryExpressionSystem",
     "MountainAshPolarsScalarGeospatialExpressionSystem",
 ]

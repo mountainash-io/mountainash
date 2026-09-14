@@ -53,6 +53,7 @@ _CATEGORY_MAP = {
     "MountainAshScalarArithmeticExpressionSystemProtocol": "arithmetic",
     "MountainAshScalarBooleanExpressionSystemProtocol": "boolean",
     "MountainAshScalarTernaryExpressionSystemProtocol": "boolean",
+    "MountainAshScalarValueExpressionSystemProtocol": "value",
     "MountainAshScalarSetExpressionSystemProtocol": "set",
     "MountainAshScalarStringExpressionSystemProtocol": "string",
     "MountainAshScalarListExpressionSystemProtocol": "list",

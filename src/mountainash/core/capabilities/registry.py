@@ -144,6 +144,18 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
                 "value-class facts require an expression operation"
             )
     method = definition.protocol_method
+    from mountainash.core.capabilities.predicates import (
+        OPERAND_TYPES_ROOT, metadata_arguments, validate_metadata_predicate,
+    )
+    if OPERAND_TYPES_ROOT in definition.options or (
+        method is not None and OPERAND_TYPES_ROOT in inspect.signature(method).parameters
+    ):
+        raise ValueError(f"{OPERAND_TYPES_ROOT} is reserved compiler metadata")
+    if fact.predicate is not None and metadata_arguments(fact.predicate):
+        if (kind != "expression" or fact.level is not CapabilityLevel.UNSUPPORTED
+                or fact.enforcement is not Enforcement.GATE or fact.boundary is not Boundary.BUILD):
+            raise ValueError("operand metadata facts require expression UNSUPPORTED/GATE/BUILD")
+        validate_metadata_predicate(fact.predicate, method)
     if fact.param != WILDCARD_PARAM and method is not None:
         sig = inspect.signature(method)
         params = set(sig.parameters) - {"self"}
@@ -561,10 +573,12 @@ class CapabilityRegistry:
             )
 
     @classmethod
-    def violations_for(cls, bound_call: "BoundCall") -> frozenset[CapabilityFact]:
-        """Collecting call-level API (§3): every blocking predicate fact that
-        holds for this bound call. `capability_for` is unchanged."""
-        from mountainash.core.capabilities.predicates import predicate_holds
+    def violations_for(cls, bound_call: "BoundCall", *, phase: str = "complete") -> frozenset[CapabilityFact]:
+        """Collect blockers; raw phase deliberately defers metadata-dependent facts."""
+        from mountainash.core.capabilities.predicates import metadata_arguments, predicate_holds
+
+        if phase not in ("raw", "complete"):
+            raise ValueError(f"unknown capability evaluation phase {phase!r}")
 
         cls.ensure_loaded()
         out = set()
@@ -579,7 +593,13 @@ class CapabilityRegistry:
                 continue
             if fact.level is not CapabilityLevel.UNSUPPORTED:
                 continue
-            if predicate_holds(fact.predicate, bound_call.bindings, bound_call.supplied):
+            assert fact.predicate is not None
+            if phase == "raw" and metadata_arguments(fact.predicate):
+                continue
+            if predicate_holds(
+                fact.predicate, bound_call.bindings, bound_call.supplied,
+                operand_types=bound_call.operand_types,
+            ):
                 out.add(fact)
         return frozenset(out)
 

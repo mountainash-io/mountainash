@@ -40,6 +40,11 @@ def import_pandas() -> Any:
     return require_module("pandas", "pip install 'mountainash[pandas]'")
 
 
+def import_numpy() -> Any:
+    """Lazy import of NumPy."""
+    return require_module("numpy", "pip install numpy")
+
+
 def import_polars() -> Any:
     """Lazy import of polars."""
     return require_module("polars", "pip install polars>=1.35.1")

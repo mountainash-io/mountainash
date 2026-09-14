@@ -3,9 +3,9 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Declarations: 69 · Facts: 1558 · Registered operations: 338 · Implementation records: 1014
+Declarations: 72 · Facts: 1558 · Registered operations: 341 · Implementation records: 1023
 
-Scoped deviations (dialect/param/option/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
+Scoped deviations (dialect/param/option/metadata/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
 Parquet recipe: flatten `families[].ops[].cells` from [`expression-coverage.json`](expression-coverage.json) into rows, then `pl.DataFrame(rows).write_parquet(...)`.
 
@@ -50,9 +50,9 @@ Legend — cell states (by exception):
 
 | Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |
 | --- | --- | --- | --- | --- | --- | --- |
-| polars | 152 | 134 | 52 | 0 | 0 | 338 |
-| narwhals | 86 | 161 | 91 | 0 | 0 | 338 |
-| ibis | 86 | 161 | 91 | 0 | 0 | 338 |
+| polars | 152 | 137 | 52 | 0 | 0 | 341 |
+| narwhals | 86 | 164 | 91 | 0 | 0 | 341 |
+| ibis | 86 | 164 | 91 | 0 | 0 | 341 |
 
 contradictions: 0
 audited_unknown: 0
@@ -88,6 +88,7 @@ audited_unknown: 0
 | ibis | mountainash | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
 | ibis | mountainash | ternary | — | — | — |
+| ibis | mountainash | value | 2026-09-14 | narwhals 2.26.0, polars 1.44.2, pandas 3.0.5, numpy 2.5.3, ibis-framework 12.0.0, pyarrow 25.0.1 | normal-mountainash-item228-consumer-smoke, normal-mountainash-item228-lazy-object-smoke |
 | ibis | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | ibis | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
@@ -117,6 +118,7 @@ audited_unknown: 0
 | narwhals | mountainash | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
 | narwhals | mountainash | ternary | — | — | — |
+| narwhals | mountainash | value | 2026-09-14 | narwhals 2.26.0, polars 1.44.2, pandas 3.0.5, numpy 2.5.3, ibis-framework 12.0.0, pyarrow 25.0.1 | normal-mountainash-item228-consumer-smoke, normal-mountainash-item228-lazy-object-smoke |
 | narwhals | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | narwhals | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
@@ -134,6 +136,7 @@ audited_unknown: 0
 | polars | mountainash | set | — | — | — |
 | polars | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
 | polars | mountainash | ternary | — | — | — |
+| polars | mountainash | value | 2026-09-14 | narwhals 2.26.0, polars 1.44.2, pandas 3.0.5, numpy 2.5.3, ibis-framework 12.0.0, pyarrow 25.0.1 | normal-mountainash-item228-consumer-smoke, normal-mountainash-item228-lazy-object-smoke |
 | polars | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
 | polars | substrait | string | 2026-07-05 |  | polars |
@@ -153,28 +156,28 @@ audited_unknown: 0
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `PARSE_TOKENS` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `PARSE_TOKENS` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 | `XOR_PARITY` | ✓ audited | ✓ audited | ✓ audited |
 
 ### `FKEY_MOUNTAINASH_SCALAR_CATEGORICAL` (mountainash / categorical)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `CAST` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `CAST` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_DATETIME` (mountainash / datetime)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `ADD_DAYS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_HOURS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MICROSECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MILLISECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MINUTES` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_MONTHS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_SECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `ADD_YEARS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `CEIL` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 1 value-classes, 2 dialects) |
+| `ADD_DAYS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_HOURS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MICROSECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MILLISECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MINUTES` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_MONTHS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_SECONDS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `ADD_YEARS` | ✓ | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `CEIL` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 0 metadata-selectors, 1 value-classes, 2 dialects) |
 | `DATE` | ✓ | ✓ audited | ✓ audited |
 | `DAYS_IN_MONTH` | ✓ | ✓ audited | ✓ audited |
 | `DIFF_DAYS` | ✓ | ✓ audited | ✓ audited |
@@ -200,8 +203,8 @@ audited_unknown: 0
 | `EXTRACT_WEEK` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_WEEKDAY` | ✓ | ✓ audited | ✓ audited |
 | `EXTRACT_YEAR` | ✓ | ✓ audited | ✓ audited |
-| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 1 value-classes, 1 dialects) |
-| `IS_DST` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
+| `FLOOR` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
+| `IS_DST` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
 | `IS_LEAP_YEAR` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_END` | ✓ | ✓ audited | ✓ audited |
 | `MONTH_START` | ✓ | ✓ audited | ✓ audited |
@@ -209,9 +212,9 @@ audited_unknown: 0
 | `OFFSET_BY` | ✓ | ✓ audited | ✓ audited |
 | `PARSE_DEFAULT` | ✓ | ✗ unsupported | ✗ unsupported |
 | `PARSE_TEMPORAL_ANY` | ✓ | ✗ unsupported | ✗ unsupported |
-| `PARSE_XSD_DURATION` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 2 dialects) ⚠ runtime | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ⚠ runtime |
-| `PARSE_XSD_PARTIAL_DATE` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 2 dialects) ⚠ runtime | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ⚠ runtime |
-| `ROUND` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 1 value-classes, 2 dialects) |
+| `PARSE_XSD_DURATION` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ⚠ runtime | ◐ partial (0 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ⚠ runtime |
+| `PARSE_XSD_PARTIAL_DATE` | ✓ | ◐ partial (0 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ⚠ runtime | ◐ partial (0 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ⚠ runtime |
+| `ROUND` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 16 option-selectors, 0 metadata-selectors, 1 value-classes, 2 dialects) |
 | `TIME` | ✓ | ✓ audited | ✓ audited |
 | `TODAY` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_DAYS` | ✓ | ✓ audited | ✓ audited |
@@ -221,15 +224,15 @@ audited_unknown: 0
 | `TOTAL_MINUTES` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_NANOSECONDS` | ✓ | ✓ audited | ✓ audited |
 | `TOTAL_SECONDS` | ✓ | ✓ audited | ✓ audited |
-| `TO_TIMEZONE` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 1 value-classes, 1 dialects) |
+| `TO_TIMEZONE` | ✓ | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
+| `TRUNCATE` | ✓ | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 12 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL` (mountainash / geospatial)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
 | `PARSE_GEOJSON` | ✓ audited | ✗ unsupported | ✗ unsupported |
-| `PARSE_GEOPOINT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `PARSE_GEOPOINT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 | `SERIALIZE_GEOJSON` | ✓ audited | ✗ unsupported | ✗ unsupported |
 
 ### `FKEY_MOUNTAINASH_SCALAR_LIST` (mountainash / list)
@@ -241,9 +244,9 @@ audited_unknown: 0
 | `ANY` | ✓ audited | ✓ audited | ✓ audited |
 | `ARG_MAX` | ✓ audited | ✓ audited | ✓ audited |
 | `ARG_MIN` | ✓ audited | ✓ audited | ✓ audited |
-| `CAST_ITEMS` | ✓ audited | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 3 dialects) |
+| `CAST_ITEMS` | ✓ audited | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) |
 | `CONCAT` | ✓ audited | ✓ audited | ✓ audited |
-| `CONTAINS` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
+| `CONTAINS` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
 | `COUNT_MATCHES` | ✓ audited | ✓ audited | ✓ audited |
 | `DIFF` | ✓ audited | ✓ audited | ✓ audited |
 | `DROP_NULLS` | ✓ audited | ✓ audited | ✓ audited |
@@ -251,7 +254,7 @@ audited_unknown: 0
 | `FILTER` | ✓ audited | ✓ audited | ✓ audited |
 | `GATHER` | ✓ audited | ✓ audited | ✓ audited |
 | `GATHER_EVERY` | ✓ audited | ✓ audited | ✓ audited |
-| `GET` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
+| `GET` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
 | `HEAD` | ✓ audited | ✓ audited | ✓ audited |
 | `ITEM` | ✓ audited | ✓ audited | ✓ audited |
 | `JOIN` | ✓ audited | ✓ audited | ✓ audited |
@@ -261,7 +264,7 @@ audited_unknown: 0
 | `MEDIAN` | ✓ audited | ✓ audited | ✓ audited |
 | `MIN` | ✓ audited | ✓ audited | ✓ audited |
 | `N_UNIQUE` | ✓ audited | ✓ audited | ✓ audited |
-| `PARSE` | ✓ audited | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 3 dialects) ⚠ runtime | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite |
+| `PARSE` | ✓ audited | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) ⚠ runtime | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite |
 | `REVERSE` | ✓ audited | ✓ audited | ✓ audited |
 | `SAMPLE` | ✓ audited | ✓ audited | ✓ audited |
 | `SET_DIFFERENCE` | ✓ audited | ✓ audited | ✓ audited |
@@ -276,7 +279,7 @@ audited_unknown: 0
 | `TAIL` | ✓ audited | ✓ audited | ✓ audited |
 | `TO_ARRAY` | ✓ audited | ✓ audited | ✓ audited |
 | `TO_STRUCT` | ✓ audited | ✓ audited | ✓ audited |
-| `T_CONTAINS` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
+| `T_CONTAINS` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ✓ audited |
 | `UNIQUE` | ✓ audited | ✓ audited | ✓ audited |
 | `VAR` | ✓ audited | ✓ audited | ✓ audited |
 
@@ -284,8 +287,8 @@ audited_unknown: 0
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `IS_IN` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `IS_NOT_IN` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `IS_IN` | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `IS_NOT_IN` | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_STRING` (mountainash / string)
 
@@ -299,13 +302,13 @@ audited_unknown: 0
 | `REGEX_CONTAINS` | ✓ | ✓ audited | ✓ audited |
 | `STRIP_SUFFIX` | ✓ | ✓ audited | ✓ audited |
 | `TO_INTEGER` | ✓ | ✓ audited | ✓ audited |
-| `TO_TIME` | ✓ | ✗ unsupported + ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects) | ✗ unsupported + ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects) |
+| `TO_TIME` | ✓ | ✗ unsupported + ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✗ unsupported + ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
 
 ### `FKEY_MOUNTAINASH_SCALAR_STRUCT` (mountainash / struct)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `CAST` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 3 dialects) |
+| `CAST` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) |
 | `FIELD` | ✓ audited | ✓ audited | ✓ audited |
 
 ### `FKEY_MOUNTAINASH_SCALAR_TERNARY` (mountainash / ternary)
@@ -337,43 +340,51 @@ audited_unknown: 0
 | `T_XOR` | ✓ audited | ✓ audited | ✓ audited |
 | `T_XOR_PARITY` | ✓ audited | ✓ audited | ✓ audited |
 
+### `FKEY_MOUNTAINASH_SCALAR_VALUE` (mountainash / value)
+
+| Operation | polars | narwhals | ibis |
+| --- | --- | --- | --- |
+| `BOOLEAN_VALUE` | ✓ audited | ✓ audited | ✓ audited |
+| `TEXT_VALUE` | ✓ audited | ✓ audited | ✓ audited |
+| `VALUE_KIND` | ✓ audited | ✓ audited | ✓ audited |
+
 ### `FKEY_SUBSTRAIT_SCALAR_ARITHMETIC` (substrait / arithmetic)
 
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
-| `ABS` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ACOS` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ACOSH` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) |
-| `ADD` | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 8 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ASIN` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ASINH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `ATAN` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `ATAN2` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) |
-| `ATANH` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) |
+| `ABS` | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `ACOS` | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `ACOSH` | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `ADD` | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 8 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `ASIN` | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `ASINH` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `ATAN` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `ATAN2` | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `ATANH` | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 | `BITWISE_AND` | ✓ audited | ✓ audited | ✓ audited |
 | `BITWISE_NOT` | ✓ audited | ✓ audited | ✓ audited |
 | `BITWISE_OR` | ✓ audited | ✓ audited | ✓ audited |
 | `BITWISE_XOR` | ✓ audited | ✓ audited | ✓ audited |
-| `COS` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `COSH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `DEGREES` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `DIVIDE` | ◐ partial (4 params, 13 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 15 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (4 params, 15 option-selectors, 0 value-classes, 1 dialects) |
-| `EXP` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `MODULO` | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 4 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `MULTIPLY` | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 8 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `NEGATE` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `POWER` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 value-classes, 1 dialects) |
-| `RADIANS` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
+| `COS` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `COSH` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `DEGREES` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `DIVIDE` | ◐ partial (4 params, 13 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 15 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (4 params, 15 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `EXP` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `MODULO` | ◐ partial (3 params, 4 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 4 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (3 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `MULTIPLY` | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 8 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `NEGATE` | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `POWER` | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 3 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `RADIANS` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 | `SHIFT_LEFT` | ✓ audited | ✓ audited | ✓ audited |
 | `SHIFT_RIGHT` | ✓ audited | ✓ audited | ✓ audited |
 | `SHIFT_RIGHT_UNSIGNED` | ✓ audited | ✓ audited | ✓ audited |
 | `SIGN` | ✓ audited | ✓ audited | ✓ audited |
-| `SIN` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `SINH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `SQRT` | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `SUBTRACT` | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 8 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `TAN` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
-| `TANH` | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 value-classes, 1 dialects) |
+| `SIN` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `SINH` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `SQRT` | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `SUBTRACT` | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 8 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `TAN` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `TANH` | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 
 ### `FKEY_SUBSTRAIT_SCALAR_BOOLEAN` (substrait / boolean)
 
@@ -390,15 +401,15 @@ audited_unknown: 0
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
 | `ADD_INTERVALS` | ✓ audited | ✓ audited | ✓ audited |
-| `ASSUME_TIMEZONE` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `EXTRACT` | ◐ partial (1 params, 6 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 1 value-classes, 1 dialects) |
-| `EXTRACT_BOOLEAN` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 1 option-selectors, 1 value-classes, 1 dialects) |
-| `LOCAL_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 1 value-classes, 1 dialects) |
-| `ROUND_CALENDAR` | ✓ audited | ✓ audited | ◐ partial (2 params, 8 option-selectors, 0 value-classes, 2 dialects) |
-| `ROUND_TEMPORAL` | ✓ audited | ✓ audited | ◐ partial (2 params, 6 option-selectors, 0 value-classes, 1 dialects) |
+| `ASSUME_TIMEZONE` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 1 value-classes, 2 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
+| `EXTRACT` | ◐ partial (1 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 9 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 7 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
+| `EXTRACT_BOOLEAN` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (2 params, 1 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
+| `LOCAL_TIMESTAMP` | ✓ audited | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 1 value-classes, 1 dialects) |
+| `ROUND_CALENDAR` | ✓ audited | ✓ audited | ◐ partial (2 params, 8 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) |
+| `ROUND_TEMPORAL` | ✓ audited | ✓ audited | ◐ partial (2 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 | `STRFTIME` | ✓ audited | ✓ audited | ✓ audited |
-| `STRPTIME_DATE` | ✓ audited | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
-| `STRPTIME_TIMESTAMP` | ✓ audited | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 1 option-selectors, 1 value-classes, 2 dialects) · unsupported on ibis-sqlite |
+| `STRPTIME_DATE` | ✓ audited | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) · unsupported on narwhals-pandas | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-sqlite |
+| `STRPTIME_TIMESTAMP` | ✓ audited | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 1 option-selectors, 0 metadata-selectors, 1 value-classes, 2 dialects) · unsupported on ibis-sqlite |
 
 ### `FKEY_SUBSTRAIT_SCALAR_SET` (substrait / set)
 
@@ -411,42 +422,42 @@ audited_unknown: 0
 | Operation | polars | narwhals | ibis |
 | --- | --- | --- | --- |
 | `BIT_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
-| `CAPITALIZE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `CENTER` | ◐ partial (3 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (3 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `CAPITALIZE` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `CENTER` | ◐ partial (3 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (3 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 | `CHAR_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
 | `CONCAT` | ✓ audited | ✓ audited | ✓ audited |
 | `CONCAT_WS` | ✓ audited | ✓ audited | ✓ audited |
-| `CONTAINS` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `COUNT_SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `ENDS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `INITCAP` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
-| `LEFT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
-| `LIKE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) · unsupported on ibis-polars ✓ dialect-verified: ibis-duckdb |
-| `LOWER` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `LPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
-| `LTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `CONTAINS` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `COUNT_SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `ENDS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `INITCAP` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `LEFT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `LIKE` | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) · unsupported on ibis-polars ✓ dialect-verified: ibis-duckdb |
+| `LOWER` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `LPAD` | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `LTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
 | `OCTET_LENGTH` | ✓ audited | ✓ audited | ✓ audited |
-| `REGEXP_COUNT` | ◐ partial (4 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 8 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 8 option-selectors, 0 value-classes, 1 dialects) |
-| `REGEXP_MATCH` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 7 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_MATCH_ALL` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
-| `REGEXP_REPLACE` | ◐ partial (5 params, 5 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_SPLIT` | ◐ partial (4 params, 4 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (3 params, 7 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 4 option-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ✓ dialect-verified: ibis-duckdb |
-| `REGEXP_STRPOS` | ◐ partial (5 params, 6 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 value-classes, 1 dialects) |
-| `REPEAT` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ✓ audited |
-| `REPLACE` | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (2 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `REPLACE_SLICE` | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited | ◐ partial (3 params, 0 option-selectors, 0 value-classes, 0 dialects) |
+| `REGEXP_COUNT` | ◐ partial (4 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (4 params, 8 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 8 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `REGEXP_MATCH` | ◐ partial (5 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (6 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_MATCH_ALL` | ◐ partial (5 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `REGEXP_REPLACE` | ◐ partial (5 params, 5 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (7 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (6 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_SPLIT` | ◐ partial (4 params, 4 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (3 params, 7 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (4 params, 4 option-selectors, 0 metadata-selectors, 0 value-classes, 3 dialects) · unsupported on ibis-sqlite ✓ dialect-verified: ibis-duckdb |
+| `REGEXP_STRPOS` | ◐ partial (5 params, 6 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (5 params, 9 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ◐ partial (5 params, 9 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `REPEAT` | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✓ audited | ✓ audited |
+| `REPLACE` | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (2 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `REPLACE_SLICE` | ◐ partial (3 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✓ audited | ◐ partial (3 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
 | `REVERSE` | ✓ audited | ✓ audited | ✓ audited |
-| `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
-| `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 value-classes, 0 dialects) | ✓ audited |
-| `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `SPLIT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
-| `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
-| `STRPOS` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
-| `SWAPCASE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 2 dialects) | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
-| `TITLE` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 value-classes, 1 dialects) |
-| `TRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) |
-| `UPPER` | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `RIGHT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `RPAD` | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (2 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ✓ audited |
+| `RTRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `SPLIT` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ⚠ runtime | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `STARTS_WITH` | ✓ audited ✓ dialect-verified: polars | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) ✓ dialect-verified: narwhals-lazy, narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: ibis-duckdb |
+| `STRPOS` | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `SUBSTRING` | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (3 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
+| `SWAPCASE` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `TITLE` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ✗ unsupported + ◐ partial (1 params, 2 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
+| `TRIM` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) |
+| `UPPER` | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: polars | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 2 dialects) ✓ dialect-verified: narwhals-pandas, narwhals-polars | ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) ✓ dialect-verified: ibis-duckdb |
 
 ### `RKEY_MOUNTAINASH_REL` (mountainash / relation)
 
@@ -458,7 +469,7 @@ audited_unknown: 0
 | `EMPTY_FRAME` | ✓ audited | ✓ audited | ✓ audited |
 | `EXPLODE` | ✓ audited | ✓ audited | ✓ audited |
 | `FETCH_FROM_END` | ✓ audited | ✓ audited | ✓ audited |
-| `JOIN_ASOF` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 value-classes, 1 dialects) |
+| `JOIN_ASOF` | ✓ audited | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects) | ◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) |
 | `PIVOT` | ✓ audited | ✓ audited | ✓ audited |
 | `READ_RESOURCE` | ✓ audited ↻ routed | ✓ audited ↻ routed | ✓ audited ↻ routed |
 | `REF` | ✓ᴴ audited | ✓ᴴ audited | ✓ᴴ audited |
@@ -467,7 +478,7 @@ audited_unknown: 0
 | `TOP_K` | ✓ audited | ✓ audited | ✓ audited |
 | `UNNEST` | ✓ audited | ✗ unsupported | ✓ audited |
 | `UNPIVOT` | ✓ audited | ✓ audited | ✓ audited |
-| `WITH_ROW_INDEX` | ✓ audited | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-polars |
+| `WITH_ROW_INDEX` | ✓ audited | ✓ audited | ◐ partial (0 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 1 dialects) · unsupported on ibis-polars |
 
 ### `RKEY_SUBSTRAIT_REL` (mountainash / relation)
 
@@ -506,133 +517,133 @@ No declaration domain exists for these enum classes yet; no audit applies (every
 
 ## Per-op detail
 
-Cells whose facts are all scoped (dialect / parameter / option / value-class) have no section here — see [`expression-coverage-scoped.md`](expression-coverage-scoped.md) for the scoped detail. `refinements` (EXPR_CAPABLE + dialect) are scoped by construction; `dialect-scoped whole-op` facts appear under that doc's `Dialect-scoped whole-op` subheading.
+Cells whose facts are all scoped (dialect / parameter / option / metadata / value-class) have no section here — see [Scoped Deviations](expression-coverage-scoped.md) for the scoped detail. `refinements` (EXPR_CAPABLE + dialect) are scoped by construction; `dialect-scoped whole-op` facts appear under that doc's `Dialect-scoped whole-op` subheading.
 
 ### `PARSE_DEFAULT` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | default datetime parsing requires the Polars native parser | — | — | 2026-08-25 | — | Default datetime parsing is covered by conform temporal contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | default datetime parsing requires the Polars native parser | — | — | 2026-08-25 | — | Default datetime parsing is covered by conform temporal contract tests |
 
 ### `PARSE_DEFAULT` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | default datetime parsing requires the Polars native parser | — | — | 2026-08-25 | — | Default datetime parsing is covered by conform temporal contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | default datetime parsing requires the Polars native parser | — | — | 2026-08-25 | — | Default datetime parsing is covered by conform temporal contract tests |
 
 ### `PARSE_TEMPORAL_ANY` × narwhals (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | temporal-any parsing requires a row-wise native parser | — | — | 2026-08-25 | — | Temporal-any parsing is covered by conform temporal contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | temporal-any parsing requires a row-wise native parser | — | — | 2026-08-25 | — | Temporal-any parsing is covered by conform temporal contract tests |
 
 ### `PARSE_TEMPORAL_ANY` × ibis (FKEY_MOUNTAINASH_SCALAR_DATETIME)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | temporal-any parsing requires a row-wise native parser | — | — | 2026-08-25 | — | Temporal-any parsing is covered by conform temporal contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | temporal-any parsing requires a row-wise native parser | — | — | 2026-08-25 | — | Temporal-any parsing is covered by conform temporal contract tests |
 
 ### `PARSE_GEOJSON` × narwhals (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
 
 ### `PARSE_GEOJSON` × ibis (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
 
 ### `SERIALIZE_GEOJSON` × narwhals (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
 
 ### `SERIALIZE_GEOJSON` × ibis (FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This backend cannot execute the requested geospatial operation cell | — | — | 2026-08-21 | — | GeoJSON parse/serialize is covered by conform geospatial contract tests |
 
 ### `TO_TIME` × narwhals (FKEY_MOUNTAINASH_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | Custom time parsing is covered by conform temporal contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | Custom time parsing is covered by conform temporal contract tests |
 
 ### `TO_TIME` × ibis (FKEY_MOUNTAINASH_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | Custom time parsing is covered by conform temporal contract tests |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | custom time parsing is supported only by Polars | — | — | 2026-08-21 | — | Custom time parsing is covered by conform temporal contract tests |
 
 ### `COLLECT_VALUES` × polars (FKEY_MOUNTAINASH_SCALAR_TERNARY)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | polymorphic | gate | build | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | polymorphic | gate | build | — | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
 
 ### `COLLECT_VALUES` × narwhals (FKEY_MOUNTAINASH_SCALAR_TERNARY)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | polymorphic | gate | build | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | polymorphic | gate | build | — | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
 
 ### `COLLECT_VALUES` × ibis (FKEY_MOUNTAINASH_SCALAR_TERNARY)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | polymorphic | gate | build | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | polymorphic | gate | build | — | — | literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker) | — | — | 2026-07-05 | — | polymorphic — both paths supported by design |
 
 ### `CAPITALIZE` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
 ### `CENTER` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
 ### `INITCAP` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
 ### `REGEXP_SPLIT` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | Narwhals has no regex-split primitive at the pinned version -- ExprStringNamespace.split(by) is literal-substring-only, no other method performs regex splitting on any narwhals dialect | Use a Polars or ibis-duckdb/ibis-polars(literal) backend for regex split | NW-STR-20 | 2026-08-13 | — | whole-op gate on a family-wide WILDCARD_PARAM fact; no OpSpec exists since narwhals genuinely has no candidate method to probe -- verified by a dedicated native-API-surface self-healing probe (not a re-invocation of the mountainash wrapper's own hard-coded raise) |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | Narwhals has no regex-split primitive at the pinned version -- ExprStringNamespace.split(by) is literal-substring-only, no other method performs regex splitting on any narwhals dialect | Use a Polars or ibis-duckdb/ibis-polars(literal) backend for regex split | NW-STR-20 | 2026-08-13 | — | whole-op gate on a family-wide WILDCARD_PARAM fact; no OpSpec exists since narwhals genuinely has no candidate method to probe -- verified by a dedicated native-API-surface self-healing probe (not a re-invocation of the mountainash wrapper's own hard-coded raise) |
 
 ### `SWAPCASE` × narwhals (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
 ### `SWAPCASE` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
 ### `TITLE` × ibis (FKEY_SUBSTRAIT_SCALAR_STRING)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data | — | — | 2026-07-23 | — | whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param |
 
 ### `UNNEST` × narwhals (RKEY_MOUNTAINASH_REL)
 
-| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| * | * | — | — | unsupported | gate | build | — | unnest() is not supported by the Narwhals backend | Use the Polars backend for unnest. | — | 2026-07-05 | — | — |
+| Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| * | * | — | — | unsupported | gate | build | — | — | unnest() is not supported by the Narwhals backend | Use the Polars backend for unnest. | — | 2026-07-05 | — | — |
 
 ## Divergence register
 

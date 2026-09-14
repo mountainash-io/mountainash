@@ -66,6 +66,7 @@ class RouteKey(Enum):
     LOGICAL_SNAPSHOT_CAPTURE = auto()
     LOGICAL_SNAPSHOT_POLARS_OUTPUT = auto()
     LOGICAL_SNAPSHOT_PANDAS_OUTPUT = auto()
+    EXPRESSION_OBJECT_ADAPTER = auto()
 
 
 class BoundaryKey(Enum):
@@ -108,6 +109,9 @@ class BoundaryKey(Enum):
     PIPELINE_STEP_EXECUTOR = auto()
     RESULT_PROCESSOR_POLARS_MATERIALIZE = auto()
     NARWHALS_SCHEMA_UNWRAP = auto()
+    EXPRESSION_NARWHALS_SCHEMA_UNWRAP = auto()
+    EXPRESSION_NARWHALS_OBJECT_NATIVE_CALLBACK = auto()
+    EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK = auto()
     DIAGNOSTIC_VIEW_FROM_PANDAS = auto()
     DIAGNOSTIC_VIEW_FROM_ARROW = auto()
     LOGICAL_SNAPSHOT_IBIS_TO_ARROW = auto()
@@ -666,6 +670,63 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
             "inspection only; the unwrapped value (including a pandas "
             "DataFrame when the source is pandas-backed) never escapes as "
             "data, only as SourceShape metadata."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.EXPRESSION_NARWHALS_SCHEMA_UNWRAP: BoundarySpec(
+        owner="mountainash.expressions.core.unified_visitor.type_context",
+        consumer="narwhals expression operand schema inspection",
+        route=RouteKey.SCHEMA_INSPECTION,
+        step=1,
+        transit_class=TransitClass.RESULT_DIAGNOSTIC_VIEW,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pandas", "polars", "narwhals", "pyarrow"}),
+        destination_dialects=frozenset({None}),
+        reason=(
+            "Unwraps a Narwhals frame only to preserve native schema and dtype "
+            "metadata for expression compilation; the native frame never escapes "
+            "as execution data."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.EXPRESSION_NARWHALS_OBJECT_NATIVE_CALLBACK: BoundarySpec(
+        owner=(
+            "mountainash.expressions.backends.expression_systems.narwhals."
+            "extensions_mountainash.expsys_nw_ext_ma_scalar_value"
+        ),
+        consumer="narwhals-pandas object scalar classification callback",
+        route=RouteKey.EXPRESSION_OBJECT_ADAPTER,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-pandas"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"narwhals-pandas"}),
+        reason=(
+            "Unwraps only a Narwhals-Pandas object Series for the backend-owned "
+            "scalar classifier and immediately rewraps its index-preserving "
+            "nullable result; no native frame or object values escape as data."
+        ),
+        since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK: BoundarySpec(
+        owner=(
+            "mountainash.expressions.backends.expression_systems.narwhals."
+            "extensions_mountainash.expsys_nw_ext_ma_scalar_value"
+        ),
+        consumer="narwhals-pandas typed nullable projection callback",
+        route=RouteKey.EXPRESSION_OBJECT_ADAPTER,
+        step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"narwhals"}),
+        source_dialects=frozenset({"narwhals-pandas"}),
+        destination_families=frozenset({"pandas"}),
+        destination_dialects=frozenset({"narwhals-pandas"}),
+        reason=(
+            "Unwraps a compliant Narwhals-Pandas Series only for a vectorized "
+            "nullable Boolean/String projection and immediately rewraps the "
+            "same-index result; no native values escape as execution data."
         ),
         since=_SINCE_2026_08_27,
     ),

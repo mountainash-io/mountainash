@@ -16,12 +16,14 @@ from mountainash.core.capabilities import CapabilityRegistry
 from mountainash.core.capabilities.predicates import BoundCall
 from mountainash.core.capabilities.schema import ClauseOp, Enforcement
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.dtypes.metadata import OperandType
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT,
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
     FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT,
+    FKEY_MOUNTAINASH_SCALAR_VALUE as FK_VALUE,
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 from mountainash.relations.core.relation_system.relation_keys.enums import (
@@ -115,6 +117,7 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
         | set(FK_DT)
         | set(FK_GEO)
         | set(FK_LIST)
+        | set(FK_VALUE)
         | set(FK_STRUCT)
         | {
             FK_DT.PARSE_DEFAULT,
@@ -142,6 +145,7 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
             continue
         if fact.predicate is not None:
             bindings = {}
+            operand_fields: dict[str, dict[str, object]] = {}
             predicate_facts = (
                 fact,
                 *CapabilityRegistry.facts(backend=fact.backend),
@@ -157,6 +161,25 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
                 ):
                     continue
                 for clause in candidate.predicate.clauses:
+                    if clause.path.startswith("__operand_types__."):
+                        _, operand, field = clause.path.split(".")
+                        fields = operand_fields.setdefault(
+                            operand,
+                            {
+                                "logical_kind": "unknown",
+                                "storage_kind": "polars_object",
+                                "nullable": None,
+                            },
+                        )
+                        if clause.op is ClauseOp.EQ:
+                            fields[field] = clause.operand
+                        elif clause.op is ClauseOp.IN:
+                            fields[field] = sorted(clause.operand, key=str)[0]
+                        else:
+                            raise AssertionError(
+                                f"unhandled metadata selector: {clause.op}"
+                            )
+                        continue
                     if clause.path in bindings:
                         continue
                     if clause.op is ClauseOp.EQ:
@@ -169,6 +192,10 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
                         bindings[clause.path] = None
                     else:
                         raise AssertionError(f"unhandled Unit C selector: {clause.op}")
+            operand_types = {
+                operand: OperandType(**fields)
+                for operand, fields in operand_fields.items()
+            }
             winners = CapabilityRegistry.violations_for(
                 BoundCall(
                     fact.operation_key,
@@ -176,6 +203,7 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
                     fact.dialect,
                     bindings,
                     frozenset(bindings),
+                    operand_types=operand_types or None,
                 )
             )
             winners = {

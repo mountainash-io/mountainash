@@ -354,6 +354,10 @@ class CapabilityFact:
                     "refinement) — LITERAL_ONLY/POLYMORPHIC have no predicate enforcement path"
                 )
             roots = {c.path.split(".")[0] for c in self.predicate.clauses}
+            roots.update(
+                c.path.split(".")[1] for c in self.predicate.clauses
+                if c.path.startswith("__operand_types__.") and len(c.path.split(".")) == 3
+            )
             if self.param not in roots:
                 raise ValueError(
                     f"CapabilityFact({self.operation_key}, {self.param!r}): param must "

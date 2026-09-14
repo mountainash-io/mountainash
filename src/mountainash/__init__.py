@@ -7,69 +7,66 @@ if TYPE_CHECKING:
 
     from mountainash.datacontracts.contract import BaseDataContract
 
-# Re-export the full expressions public API at the top level
-# so that `import mountainash as ma; ma.col("x")` works
-from mountainash.__version__ import __version__  # noqa: F401
-
-# MountainashDtype — canonical type vocabulary (accepted by cast/schema APIs)
-from mountainash.core.dtypes import MountainashDtype  # noqa: F401
-
-# MountainashError — root of the typed error hierarchy.
-# NOTE: import ONLY the root here. Do NOT import mountainash.exceptions (the
-# façade), whose transitive imports would run at package-init time and re-expose
-# circular-import risk. The façade is imported only on explicit `import
-# mountainash.exceptions`.
-from mountainash.core.errors import MountainashError  # noqa: F401
-
-# RelationDAG — orchestrator for named, interconnected Relations
-from mountainash.core.resource_ref import ResourceRef  # noqa: F401
+# Lightweight eager exports: no dataframe backend is imported at package init.
+from mountainash.__version__ import __version__
+from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.errors import MountainashError
+from mountainash.core.resource_ref import ResourceRef
 from mountainash.core.types import DataFrameT
-from mountainash.expressions import (
-    CONST_EXPRESSION_NODE_TYPES,
-    CONST_LOGIC_TYPES,
-    BaseExpressionAPI,
-    BooleanExpressionAPI,
-    all_horizontal,
-    always_false,
-    always_true,
-    always_unknown,
-    any_horizontal,
-    coalesce,
-    col,
-    corr,
-    count_records,
-    duration,
-    greatest,
-    least,
-    len,
-    lit,
-    max_horizontal,
-    median,
-    min_horizontal,
-    native,
-    now,
-    quantile,
-    sum_horizontal,
-    t_col,
-    today,
-    when,
-)  # noqa: F401
-from mountainash.pydata.ingress import PydataIngress
-
-# Relations - Substrait-aligned relational AST
-from mountainash.relations import concat, relation  # noqa: F401
-from mountainash.relations.dag import RelationDAG  # noqa: F401
-
-# DataPackage / DataResource / TableDialect — Frictionless Data Package support
-from mountainash.typespec.datapackage import (  # noqa: F401
-    DataPackage,
-    DataResource,
-    TableDialect,
+from mountainash.core.value_classification import (
+    ValueKind,
+    boolean_value,
+    text_value,
+    value_kind,
 )
-from mountainash.typespec.frictionless_codec import DescriptorWriteMode  # noqa: F401
+from mountainash.typespec.datapackage import DataPackage, DataResource, TableDialect
+from mountainash.typespec.frictionless_codec import DescriptorWriteMode
+from mountainash.typespec.spec import TypeSpec
 
-# TypeSpec - backend-agnostic type specification
-from mountainash.typespec.spec import TypeSpec  # noqa: F401
+import lazy_loader
+
+
+__getattr__, _lazy_dir, _LAZY_EXPORTS = lazy_loader.attach(
+    __name__,
+    submod_attrs={
+        "expressions": [
+            "CONST_EXPRESSION_NODE_TYPES",
+            "CONST_LOGIC_TYPES",
+            "BaseExpressionAPI",
+            "BooleanExpressionAPI",
+            "all_horizontal",
+            "always_false",
+            "always_true",
+            "always_unknown",
+            "any_horizontal",
+            "coalesce",
+            "col",
+            "corr",
+            "count_records",
+            "duration",
+            "greatest",
+            "least",
+            "len",
+            "lit",
+            "max_horizontal",
+            "median",
+            "min_horizontal",
+            "native",
+            "now",
+            "quantile",
+            "sum_horizontal",
+            "t_col",
+            "today",
+            "when",
+        ],
+        "expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast": [
+            "CaseFailureBehaviour",
+        ],
+        "pydata.ingress": ["PydataIngress"],
+        "relations": ["concat", "relation"],
+        "relations.dag": ["RelationDAG"],
+    },
+)
 
 
 def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
@@ -155,3 +152,59 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
 
 
 """Mountainash - Unified cross-backend DataFrame expression system."""
+
+__all__ = [
+    "__version__",
+    "MountainashDtype",
+    "MountainashError",
+    "ResourceRef",
+    "DataFrameT",
+    "ValueKind",
+    "value_kind",
+    "boolean_value",
+    "text_value",
+    "DataPackage",
+    "DataResource",
+    "TableDialect",
+    "DescriptorWriteMode",
+    "TypeSpec",
+    "typespec",
+    "datacontract",
+    "CONST_EXPRESSION_NODE_TYPES",
+    "CONST_LOGIC_TYPES",
+    "BaseExpressionAPI",
+    "BooleanExpressionAPI",
+    "all_horizontal",
+    "always_false",
+    "always_true",
+    "always_unknown",
+    "any_horizontal",
+    "coalesce",
+    "col",
+    "corr",
+    "count_records",
+    "duration",
+    "greatest",
+    "least",
+    "len",
+    "lit",
+    "max_horizontal",
+    "median",
+    "min_horizontal",
+    "native",
+    "now",
+    "quantile",
+    "sum_horizontal",
+    "t_col",
+    "today",
+    "when",
+    "CaseFailureBehaviour",
+    "PydataIngress",
+    "concat",
+    "relation",
+    "RelationDAG",
+]
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
