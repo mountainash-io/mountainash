@@ -83,3 +83,17 @@ class TestCollectIndependentCalls:
             == _extract_column(rc, "x")
             == [1]
         ), f"[{backend_name}]"
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_value_metadata_isolated_between_named_and_adhoc_resources(backend_name, backend_factory):
+    numbers = backend_factory.create({"x": [0, 1]}, backend_name)
+    text = backend_factory.create({"x": ["0", "1"]}, backend_name)
+    dag = RelationDAG()
+    dag.add("numbers", ma.relation(numbers))
+    dag.add("text", ma.relation(text))
+    expression = ma.col("x").value_kind().name.alias("kind")
+    dag.add("numeric_kinds", dag.ref("numbers").select(expression))
+    assert _extract_column(dag.collect("numeric_kinds"), "kind") == ["integer", "integer"]
+    assert dag.ref("text").select(expression).to_dict() == {"kind": ["text", "text"]}
+    assert _extract_column(dag.collect("numeric_kinds"), "kind") == ["integer", "integer"]

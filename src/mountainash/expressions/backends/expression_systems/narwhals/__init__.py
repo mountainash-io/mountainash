@@ -51,6 +51,7 @@ from .extensions_mountainash.expsys_nw_ext_ma_scalar_struct import MountainAshNa
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_list import MountainAshNarwhalsScalarListExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_categorical import MountainAshNarwhalsScalarCategoricalExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_aggregate import MountainAshNarwhalsScalarAggregateExpressionSystem
+from .extensions_mountainash.expsys_nw_ext_ma_scalar_value import MountainAshNarwhalsScalarValueExpressionSystem
 from .extensions_mountainash.expsys_nw_ext_ma_scalar_geospatial import MountainAshNarwhalsScalarGeospatialExpressionSystem
 
 
@@ -96,6 +97,7 @@ class NarwhalsExpressionSystem(
     MountainAshNarwhalsScalarCategoricalExpressionSystem,
     MountainAshNarwhalsScalarGeospatialExpressionSystem,
     MountainAshNarwhalsScalarAggregateExpressionSystem,
+    MountainAshNarwhalsScalarValueExpressionSystem,
 
 ):
     """Complete Narwhals backend expression system.
@@ -138,5 +140,6 @@ __all__ = [
     "MountainAshNarwhalsScalarDatetimeExpressionSystem",
     "MountainAshNarwhalsScalarSetExpressionSystem",
     "MountainAshNarwhalsScalarComparisonExpressionSystem",
-    "MountainAshNarwhalsScalarTernaryExpressionSystem"
+    "MountainAshNarwhalsScalarTernaryExpressionSystem",
+    "MountainAshNarwhalsScalarValueExpressionSystem",
 ]

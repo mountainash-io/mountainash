@@ -173,3 +173,19 @@ class TestConformFromFrictionless:
         spec.fields_match = "open"
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_value_domains_follow_conform_cast_and_rename(backend_name, backend_factory):
+    frame = backend_factory.create({"raw": ["0", "1", "2"]}, backend_name)
+    spec = TypeSpec(fields_match="open", fields=[
+        FieldSpec(name="number", type=UniversalType.INTEGER, rename_from="raw"),
+    ])
+    result = (
+        ma.relation(frame).conform(spec)
+        .select(
+            ma.col("number").value_kind().name.alias("kind"),
+            ma.col("number").boolean_value(source="binary_number").name.alias("candidate"),
+        ).to_dict()
+    )
+    assert result == {"kind": ["integer"] * 3, "candidate": [False, True, None]}

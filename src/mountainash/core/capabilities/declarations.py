@@ -37,6 +37,7 @@ class Domain(Enum):
     GEOSPATIAL = "geospatial"
     SET = "set"
     TERNARY = "ternary"
+    VALUE = "value"
     RELATION = "relation"
 
 # Enum-class-name suffix -> Domain. Extended only when a new FKEY/RKEY
@@ -53,6 +54,7 @@ _DOMAIN_SUFFIXES: dict[str, Domain] = {
     "SET": Domain.SET,
     "GEOSPATIAL": Domain.GEOSPATIAL,
     "TERNARY": Domain.TERNARY,
+    "VALUE": Domain.VALUE,
 }
 
 

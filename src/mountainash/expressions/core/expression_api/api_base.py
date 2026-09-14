@@ -194,7 +194,7 @@ class BaseExpressionAPI(ABC):
         if isinstance(node_to_compile, ExpressionNode):
             # Use unified visitor for all expression nodes
             from ..unified_visitor import UnifiedExpressionVisitor
-            visitor = UnifiedExpressionVisitor(expression_system)
+            visitor = UnifiedExpressionVisitor(expression_system, input_data=dataframe)
             return visitor.visit(node_to_compile)
 
         # Handle raw values (should not normally reach here)
@@ -202,7 +202,7 @@ class BaseExpressionAPI(ABC):
         from ..expression_nodes import LiteralNode
         lit_node = LiteralNode(value=node_to_compile)
         from ..unified_visitor import UnifiedExpressionVisitor
-        visitor = UnifiedExpressionVisitor(expression_system)
+        visitor = UnifiedExpressionVisitor(expression_system, input_data=dataframe)
         return visitor.visit(lit_node)
 
     def _maybe_booleanize(

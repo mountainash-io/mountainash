@@ -70,3 +70,5 @@ def test_fact_sort_key_is_total_over_predicate_facts():
         )
 
     assert fact_sort_key(_make("WEEK")) != fact_sort_key(_make("MONTH"))
+
+

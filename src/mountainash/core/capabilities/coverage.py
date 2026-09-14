@@ -196,9 +196,9 @@ class ImplementationRecord:
 class SelectorCounts:
     params: int
     option_selectors: int
+    metadata_selectors: int
     value_classes: int
     dialects: int
-
 
 @dataclass(frozen=True)
 class OpCoverage:
@@ -494,15 +494,25 @@ def is_dialect_scoped_whole_op(fact: CapabilityFact) -> bool:
 
 def _selector_counts(scoped: tuple[CapabilityFact, ...]) -> SelectorCounts:
     """Exact distinct-key sets (spec §3.5)."""
+    from mountainash.core.capabilities.predicates import OPERAND_TYPES_ROOT
+
     params = {f.param for f in scoped if f.param != WILDCARD_PARAM}
     option_selectors = {
         (f.param, f.option_value) for f in scoped if f.option_value is not None
+    }
+    metadata_selectors = {
+        _clause_key(clause)
+        for fact in scoped
+        if fact.predicate is not None
+        for clause in fact.predicate.clauses
+        if clause.path.split(".", 1)[0] == OPERAND_TYPES_ROOT
     }
     value_classes = {f.value_class for f in scoped if f.value_class is not None}
     dialects = {f.dialect for f in scoped if f.dialect is not None}
     return SelectorCounts(
         params=len(params),
         option_selectors=len(option_selectors),
+        metadata_selectors=len(metadata_selectors),
         value_classes=len(value_classes),
         dialects=len(dialects),
     )

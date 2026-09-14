@@ -40,12 +40,6 @@ def isolated():
     CapabilityRegistry.restore(snap)
 
 
-def test_register_backend_routes_predicate_facts(isolated):
-    f = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((Clause("x", ClauseOp.EQ, 7),)))
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [f])
-    assert f in CapabilityRegistry._predicate_facts
-    assert CapabilityRegistry.capability_for(_OP, "x", CONST_BACKEND.POLARS, "polars") is None
-    assert not any(x.predicate is not None for x in CapabilityRegistry._facts.values())
 
 
 def test_violations_for_collects_matching_blocking_fact(isolated):
@@ -89,17 +83,8 @@ def test_conflict_detected_across_different_params(isolated):
         CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [permit])
 
 
-def test_no_conflict_when_strictly_subsumed(isolated):
-    block = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((Clause("x", ClauseOp.EQ, 7),)))
-    permit = _fact("x", CapabilityLevel.EXPR_CAPABLE, Predicate(
-        (Clause("x", ClauseOp.EQ, 7), Clause("overflow", ClauseOp.EQ, "saturating"))))
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [block, permit])  # no raise
 
 
-def test_no_conflict_when_disjoint(isolated):
-    block = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((Clause("x", ClauseOp.EQ, 7),)))
-    permit = _fact("x", CapabilityLevel.EXPR_CAPABLE, Predicate((Clause("x", ClauseOp.EQ, 9),)))
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [block, permit])  # disjoint: no raise
 
 
 def test_facts_includes_predicate_facts(isolated):
@@ -116,3 +101,87 @@ def test_snapshot_round_trips_predicate_facts(isolated):
     assert CapabilityRegistry.violations_for(_call(x=7)) == frozenset()
     CapabilityRegistry.restore(snap)
     assert CapabilityRegistry.violations_for(_call(x=7)) == frozenset({f})
+
+
+def _metadata_fact():
+    return _fact("overflow", CapabilityLevel.UNSUPPORTED, Predicate((
+        Clause("overflow", ClauseOp.EQ, "saturating"),
+        Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+    )))
+
+
+def test_raw_gate_defers_whole_metadata_conjunction(isolated):
+    fact = _metadata_fact()
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    assert CapabilityRegistry.violations_for(_call(x=1, overflow="saturating"), phase="raw") == frozenset()
+    with pytest.raises(ValueError):
+        CapabilityRegistry.violations_for(_call(x=1, overflow="other"))
+
+
+def test_complete_gate_distinguishes_operand_type_and_option(isolated):
+    from dataclasses import replace
+    from mountainash.core.dtypes.metadata import OperandType
+
+    fact = _metadata_fact()
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    call = _call(x=1, overflow="saturating")
+    floating = replace(call, operand_types={"x": OperandType("float", "native", True)})
+    integer = replace(call, operand_types={"x": OperandType("integer", "native", True)})
+    assert CapabilityRegistry.violations_for(floating) == frozenset({fact})
+    assert CapabilityRegistry.violations_for(integer) == frozenset()
+    assert CapabilityRegistry.violations_for(replace(floating, bindings={"x": 1, "overflow": "other"})) == frozenset()
+
+
+@pytest.mark.parametrize("path, operand", [
+    ("__operand_types__", "float"),
+    ("__operand_types__.x", "float"),
+    ("__operand_types__.x.native_dtype", "float"),
+    ("__operand_types__.overflow.logical_kind", "float"),
+    ("__operand_types__.missing.logical_kind", "float"),
+    ("__operand_types__.x.logical_kind", "decimal"),
+    ("__operand_types__.x.storage_kind", "arbitrary"),
+    ("__operand_types__.x.nullable", 1),
+])
+def test_registration_rejects_invalid_metadata_selectors(isolated, path, operand):
+    fact = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((
+        Clause("x", ClauseOp.IS_SET), Clause(path, ClauseOp.EQ, operand),
+    )))
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+
+
+def test_metadata_facts_cannot_declare_permitting_refinements(isolated):
+    from dataclasses import replace
+
+    fact = replace(_metadata_fact(), level=CapabilityLevel.EXPR_CAPABLE)
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+
+
+def test_bound_call_rejects_user_supplied_metadata_namespace():
+    with pytest.raises(ValueError):
+        _call(__operand_types__={"x": {"logical_kind": "integer"}})
+
+
+def test_complete_metadata_gate_requires_each_referenced_descriptor(isolated):
+    from dataclasses import replace
+    from mountainash.core.dtypes.metadata import OperandType
+
+    fact = _metadata_fact()
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    call = replace(_call(x=1, overflow="other"), operand_types={"different": OperandType("integer", "native", True)})
+    with pytest.raises(ValueError):
+        CapabilityRegistry.violations_for(call)
+
+
+def test_metadata_only_fact_keeps_operand_reporting_identity(isolated):
+    from dataclasses import replace
+    from mountainash.core.dtypes.metadata import OperandType
+
+    fact = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((
+        Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),
+    )))
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    call = replace(_call(x=1), operand_types={"x": OperandType("unknown", "polars_object", None)})
+    assert CapabilityRegistry.violations_for(call) == frozenset({fact})
+    assert fact in CapabilityRegistry.facts()

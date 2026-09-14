@@ -47,6 +47,7 @@ EXPECTED_DECLARATION_MODULES = (
     "mountainash.expressions.backends.capabilities.polymorphic",
     "mountainash.expressions.backends.capabilities.string",
     "mountainash.expressions.backends.capabilities.struct",
+    "mountainash.expressions.backends.capabilities.value",
     # relations/backends/capabilities/
     "mountainash.relations.backends.capabilities.ibis",
     "mountainash.relations.backends.capabilities.narwhals",
@@ -137,6 +138,7 @@ def _domain_predicate(leaf: str):
         "geospatial": Domain.GEOSPATIAL,
         "list": Domain.LIST,
         "struct": Domain.STRUCT,
+        "value": Domain.VALUE,
         "string": Domain.STRING, "arithmetic": Domain.ARITHMETIC,
         "any": Domain.DATETIME, "default": Domain.DATETIME,
         "xsd": Domain.DATETIME, "options": Domain.DATETIME,

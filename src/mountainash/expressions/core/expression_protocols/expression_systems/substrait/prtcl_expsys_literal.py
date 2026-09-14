@@ -18,7 +18,7 @@ class SubstraitLiteralExpressionSystemProtocol(Protocol[ExpressionT]):
     Auto-generated from Substrait rounding extension.
     """
 
-    def lit(self, x: object, /) -> ExpressionT:
+    def lit(self, x: object, /, *, dtype: object = None) -> ExpressionT:
         """Literal Value.
 
         Substrait: lit

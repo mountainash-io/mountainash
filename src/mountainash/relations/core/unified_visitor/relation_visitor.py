@@ -252,7 +252,7 @@ class UnifiedRelationVisitor:
         fact = CapabilityRegistry.capability_for(
             op.operation_key, WILDCARD_PARAM, family, dialect
         )
-        if fact is not None and fact.enforcement is Enforcement.GATE \
+        if fact is not None and fact.predicate is None and fact.enforcement is Enforcement.GATE \
                 and fact.level is CapabilityLevel.UNSUPPORTED:
             _raise(fact)
 
@@ -283,7 +283,7 @@ class UnifiedRelationVisitor:
 
         for param in param_names:
             fact = CapabilityRegistry.capability_for(op.operation_key, param, family, dialect)
-            if fact is None or fact.level is not CapabilityLevel.UNSUPPORTED:
+            if fact is None or fact.predicate is not None or fact.level is not CapabilityLevel.UNSUPPORTED:
                 continue
             if fact.enforcement is not Enforcement.GATE:
                 continue
@@ -449,13 +449,16 @@ class UnifiedRelationVisitor:
         }
         self._prepare_transport_lineage(node, op)
         method = getattr(self.backend, op.protocol_method.__name__)
-        args = [
-            prepared_inputs[binding.field]
-            if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}
-            else self._bind(node, binding)
-            for binding in op.args
-        ]
-        kwargs = self._bind_options(node, op)
+        # Generic expression bindings belong to the operation's immediate input,
+        # not the root source (projection and join may have changed its schema).
+        with self.expr_visitor.input_scope(prepared_inputs.get("input")):
+            args = [
+                prepared_inputs[binding.field]
+                if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}
+                else self._bind(node, binding)
+                for binding in op.args
+            ]
+            kwargs = self._bind_options(node, op)
         prefer = _present_operation_keys(node, op)
         d = self._authoritative_dialect(node, op)
         dialect = getattr(self.backend, "dialect", None) if d is _UNRESOLVED else d
@@ -718,37 +721,38 @@ class UnifiedRelationVisitor:
         self.expr_visitor.conform_node_id = node_id
         self.expr_visitor.raising_diagnostic = None
         try:
-            compiled_exprs = [
-                self.compile_expression(expr) for expr in conform_result.exprs
-            ]
-            compiled_filters = [
-                self.compile_expression(keep) for keep in conform_result.row_filters
-            ]
-            occupied = set(available or ())
-            occupied.update(getattr(field, "name", "") for field in schema.fields)
-            marker_exprs = []
-            import dataclasses
-            from mountainash.core.capabilities import CapabilityRegistry, ResidueSignal
-            residue_checks = []
-            marker_trace = self.expr_visitor.diagnostic_trace
-            self.expr_visitor.diagnostic_trace = None
-            try:
-                for index, check in enumerate(conform_result.residue_checks):
-                    facts = CapabilityRegistry.residue_candidates(
-                        self.backend.backend_type,
-                        getattr(self.backend, "dialect", None),
-                        operation_key=check.function_key,
-                    )
-                    if not any(fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL for fact in facts):
-                        continue
-                    alias = self._marker_alias(node_id, index, occupied)
-                    marker_expr = self.compile_expression(check.marker).alias(alias)
-                    marker_exprs.append(marker_expr)
-                    residue_checks.append(dataclasses.replace(check, marker=alias))
-                    self.residue_check_nodes[alias] = node_id
-            finally:
-                self.expr_visitor.diagnostic_trace = marker_trace
-            self.residue_checks.extend(residue_checks)
+            with self.expr_visitor.input_scope(native):
+                compiled_exprs = [
+                    self.compile_expression(expr) for expr in conform_result.exprs
+                ]
+                compiled_filters = [
+                    self.compile_expression(keep) for keep in conform_result.row_filters
+                ]
+                occupied = set(available or ())
+                occupied.update(getattr(field, "name", "") for field in schema.fields)
+                marker_exprs = []
+                import dataclasses
+                from mountainash.core.capabilities import CapabilityRegistry, ResidueSignal
+                residue_checks = []
+                marker_trace = self.expr_visitor.diagnostic_trace
+                self.expr_visitor.diagnostic_trace = None
+                try:
+                    for index, check in enumerate(conform_result.residue_checks):
+                        facts = CapabilityRegistry.residue_candidates(
+                            self.backend.backend_type,
+                            getattr(self.backend, "dialect", None),
+                            operation_key=check.function_key,
+                        )
+                        if not any(fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL for fact in facts):
+                            continue
+                        alias = self._marker_alias(node_id, index, occupied)
+                        marker_expr = self.compile_expression(check.marker).alias(alias)
+                        marker_exprs.append(marker_expr)
+                        residue_checks.append(dataclasses.replace(check, marker=alias))
+                        self.residue_check_nodes[alias] = node_id
+                finally:
+                    self.expr_visitor.diagnostic_trace = marker_trace
+                self.residue_checks.extend(residue_checks)
         except (BackendCapabilityError, ConformError):
             raise
         except Exception as e:

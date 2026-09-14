@@ -34,9 +34,12 @@ from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
+    Clause,
+    ClauseOp,
     DivergenceFact,
     DivergenceKind,
     Enforcement,
+    Predicate,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -346,6 +349,31 @@ def test_selector_counts_value_classes_and_dialects():
                CONST_BACKEND.POLARS).selector_counts
     assert sc.value_classes == 1          # deduplicated ValueClass set
     assert sc.dialects == 2               # {duckdb, sqlite}
+
+
+def test_selector_counts_keep_metadata_clauses_out_of_option_selectors():
+    metadata = (
+        _fact(
+            param="x",
+            predicate=Predicate((
+                Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),
+            )),
+        ),
+        _fact(
+            param="x",
+            predicate=Predicate((
+                Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),
+                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+            )),
+        ),
+    )
+    report = build_coverage_report(
+        _universe(), metadata, (_decl(facts=metadata),), (), (), (), _impls()
+    )
+
+    counts = _cell(report, FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS).selector_counts
+    assert counts.metadata_selectors == 2
+    assert counts.option_selectors == 0
 
 
 def test_constraining_fact_without_declaration_raises():

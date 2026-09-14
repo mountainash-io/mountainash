@@ -46,6 +46,7 @@ from .api_builders.extensions_mountainash import (
     MountainAshScalarStructAPIBuilder,
     MountainAshScalarCategoricalAPIBuilder,
     MountainAshScalarTernaryAPIBuilder,
+    MountainAshScalarValueAPIBuilder,
 )
 
 # Import descriptor for explicit namespaces
@@ -141,6 +142,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         MountainAshScalarComparisonAPIBuilder,
         MountainAshNativeAPIBuilder,
         MountainAshScalarSetAPIBuilder,
+        MountainAshScalarValueAPIBuilder,
         # Substrait core
         SubstraitCastAPIBuilder,
         SubstraitFieldReferenceAPIBuilder,

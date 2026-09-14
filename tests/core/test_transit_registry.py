@@ -89,6 +89,82 @@ def test_permitted_pandas_result_does_not_raise():
     assert isinstance(result, pd.DataFrame)
 
 
+def test_narwhals_pandas_typed_boolean_projection_records_native_callback():
+    import narwhals as nw
+    import pandas as pd
+
+    import mountainash as ma
+
+    native = pd.DataFrame(
+        {"x": pd.Series([0, 1, 2, None], dtype="Int64", index=[9, 2, 9, -1])}
+    )
+    frame = nw.from_native(native, eager_only=True)
+
+    with capture_conversion_trace() as trace:
+        expression = ma.col("x").boolean_value(source="binary_number").compile(frame)
+        result = frame.select(expression.alias("result")).to_native()
+
+    output = result["result"]
+    assert result.index.equals(native.index)
+    assert output.dtype == pd.BooleanDtype()
+    assert [None if value is pd.NA else value for value in output.tolist()] == [
+        False,
+        True,
+        None,
+        None,
+    ]
+    assert any(
+        record.boundary_key is BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK
+        for record in trace.records
+    )
+    assert any(
+        record.boundary_key is BoundaryKey.EXPRESSION_NARWHALS_SCHEMA_UNWRAP
+        for record in trace.records
+    )
+
+
+def test_narwhals_pandas_object_projection_records_native_callback():
+    import narwhals as nw
+    import pandas as pd
+
+    import mountainash as ma
+
+    native = pd.DataFrame(
+        {"x": pd.Series([True, "yes", None], dtype=object, index=[4, -1, 4])}
+    )
+    frame = nw.from_native(native, eager_only=True)
+
+    with capture_conversion_trace() as trace:
+        expression = ma.col("x").value_kind().compile(frame)
+        result = frame.select(expression.alias("result")).to_native()
+
+    output = result["result"]
+    assert result.index.equals(native.index)
+    assert output.dtype == pd.StringDtype()
+    assert output.tolist() == ["boolean", "text", "absent"]
+    assert any(
+        record.boundary_key is BoundaryKey.EXPRESSION_NARWHALS_OBJECT_NATIVE_CALLBACK
+        for record in trace.records
+    )
+
+
+def test_ibis_constructor_adapter_records_pandas_coercion():
+    import ibis
+    import pandas as pd
+
+    from mountainash.relations.core.materialization import coerce_to_ibis
+
+    target = ibis.memtable({"id": [1]})
+    with capture_conversion_trace() as trace:
+        result = coerce_to_ibis(target, pd.DataFrame({"id": [2, 3]}))
+
+    assert result.to_pyarrow()["id"].to_pylist() == [2, 3]
+    assert any(
+        record.boundary_key is BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER
+        for record in trace.records
+    )
+
+
 def test_boundary_registry_entries_use_frozensets_for_families_and_dialects():
     for key, spec in BOUNDARY_REGISTRY.items():
         assert isinstance(spec.source_families, frozenset), key

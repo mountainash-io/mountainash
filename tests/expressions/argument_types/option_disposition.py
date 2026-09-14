@@ -303,6 +303,7 @@ OPTION_DTYPES: dict[tuple[str, str], tuple[str, ...]] = {
     ("extract", "timezone"): ("datetime",),
     ("extract_boolean", "component"): ("datetime",),
     ("extract_boolean", "timezone"): ("datetime",),
+    ("boolean_value", "source"): ("float64",),
 }
 
 # Representative legal values for open-integer options that have NO finite
@@ -325,6 +326,7 @@ OPTION_VALUE_DOMAINS: dict[tuple[str, str], tuple[str, ...]] = {
     ("regexp_replace", "position"): ("2",),
     ("regexp_strpos", "occurrence"): ("2",),
     ("regexp_strpos", "position"): ("2",),
+    ("boolean_value", "source"): ("boolean", "binary_number", "finite_number"),
 }
 
 # Representative legal values for open-string and value-class option params.

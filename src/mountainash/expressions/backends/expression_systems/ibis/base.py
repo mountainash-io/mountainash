@@ -5,7 +5,7 @@ Provides the base ExpressionSystem class for the Ibis backend.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import ibis.expr.types as ir
 
@@ -15,6 +15,9 @@ from mountainash.expressions.backends.capabilities.ibis import (
     IBIS_EXPR_CAPABILITIES,
 )
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
 
 
 class IbisBaseExpressionSystem(BaseExpressionSystem):
@@ -43,6 +46,88 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
             True if expr is an Ibis expression type.
         """
         return isinstance(expr, (ir.Column, ir.Scalar, ir.Expr))
+    def fixed_result_type(
+        self,
+        logical_kind: LogicalKind,
+        nullable: bool | None,
+        input_type: Any = None,
+        node: Any = None,
+    ) -> Any:
+        """Associate declared fixed results with their emitted Ibis dtype."""
+        import ibis.expr.datatypes as dt
+
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        native = dt.boolean if logical_kind == "boolean" else dt.string if logical_kind == "text" else None
+        return ResolvedOperand(OperandType(logical_kind, "native", nullable), native)
+
+    def field_operand_type(self, input_data: Any, field: str) -> Any:
+        """Resolve Ibis table schema metadata without executing the table."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        schema = input_data.schema()
+        try:
+            dtype = schema[field]
+        except KeyError as error:
+            raise BackendCapabilityError(
+                f"operand metadata is unresolved: field {field!r} is absent",
+                backend=self.BACKEND_NAME,
+                function_key=None,
+            ) from error
+        name = str(dtype).lstrip("!").split("(", 1)[0].split("<", 1)[0]
+        logical: LogicalKind
+        if name in {"bool", "boolean"}:
+            logical = "boolean"
+        elif name.startswith(("int", "uint")):
+            logical = "integer"
+        elif name.startswith("float"):
+            logical = "float"
+        elif name == "string":
+            logical = "text"
+        elif name == "null":
+            logical = "null"
+        else:
+            logical = "other"
+        storage: StorageKind = "sql_dynamic" if self.dialect == "ibis-sqlite" else "native"
+        if storage == "sql_dynamic" and name in {"null", "binary"}:
+            logical = "unknown"
+        return ResolvedOperand(
+            OperandType(logical, storage, getattr(dtype, "nullable", None)), dtype
+        )
+
+    def infer_expression_operand_type(self, input_data: Any, expression: Any) -> Any:
+        """Infer an Ibis computed expression from its deferred type metadata."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        from ibis.common.deferred import Deferred
+
+        if isinstance(expression, Deferred):
+            expression = expression.resolve(input_data)
+        dtype = expression.type()
+        name = str(dtype).lstrip("!").split("(", 1)[0].split("<", 1)[0]
+        logical: LogicalKind
+        if name in {"bool", "boolean"}:
+            logical = "boolean"
+        elif name.startswith(("int", "uint")):
+            logical = "integer"
+        elif name.startswith("float"):
+            logical = "float"
+        elif name == "string":
+            logical = "text"
+        elif name == "null":
+            logical = "null"
+        else:
+            logical = "other"
+        storage: StorageKind = "sql_dynamic" if self.dialect == "ibis-sqlite" else "native"
+        if storage == "sql_dynamic" and name in {"null", "binary"}:
+            logical = "unknown"
+        return ResolvedOperand(
+            OperandType(logical, storage, getattr(dtype, "nullable", None)), dtype
+        )
 
     def _lift_deferred(self, x: Any, y: Any) -> tuple[Any, Any]:
         """Fix the one broken operand ordering: concrete-left ∘ Deferred-right.

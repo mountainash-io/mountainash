@@ -54,6 +54,7 @@ class MountainashExtension:
     AGGREGATE = "file://extensions/functions_aggregate.yaml"
     CATEGORICAL = "file://extensions/functions_categorical.yaml"
     BOOLEAN = "file://extensions/functions_boolean.yaml"
+    VALUE = "file://extensions/functions_value.yaml"
 
 
     GEOSPATIAL = "file://extensions/functions_geospatial.yaml"
@@ -588,6 +589,13 @@ class FKEY_MOUNTAINASH_SCALAR_BOOLEAN(Enum):
     XOR_PARITY = "xor_parity"
     PARSE_TOKENS = "parse_tokens"
 
+class FKEY_MOUNTAINASH_SCALAR_VALUE(Enum):
+    """Mountainash scalar-domain classification and projection functions."""
+
+    VALUE_KIND = "value_kind"
+    BOOLEAN_VALUE = "boolean_value"
+    TEXT_VALUE = "text_value"
+
 
 class FKEY_MOUNTAINASH_SCALAR_AGGREGATE(Enum):
     """Mountainash aggregate extensions not in Substrait."""
@@ -815,6 +823,7 @@ MountainashFunction = Union[
     FKEY_MOUNTAINASH_SCALAR_AGGREGATE,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_VALUE,
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_TERNARY,
@@ -859,6 +868,7 @@ __all__ = [
     "FKEY_MOUNTAINASH_SCALAR_AGGREGATE",
     "FKEY_MOUNTAINASH_SCALAR_ARITHMETIC",
     "FKEY_MOUNTAINASH_SCALAR_BOOLEAN",
+    "FKEY_MOUNTAINASH_SCALAR_VALUE",
     "FKEY_MOUNTAINASH_SCALAR_STRING",
     "FKEY_MOUNTAINASH_SCALAR_COMPARISON",
     "FKEY_MOUNTAINASH_SCALAR_DATETIME",

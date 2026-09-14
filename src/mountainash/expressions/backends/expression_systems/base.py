@@ -7,10 +7,13 @@ implementations.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, TYPE_CHECKING
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Mapping
     from mountainash.expressions.core.constants import CONST_BACKEND
+    from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
 
 
 class BaseExpressionSystem(ABC):
@@ -42,6 +45,202 @@ class BaseExpressionSystem(ABC):
 
     def __init__(self, dialect: str | None = None) -> None:
         self.dialect = dialect
+        self._operand_type_stack: list[Mapping[str, Any]] = []
+
+    @contextmanager
+    def operand_types(self, named_operands: Mapping[str, Any]) -> Iterator[None]:
+        """Expose resolved descriptors to one backend dispatch and restore nesting."""
+        self._operand_type_stack.append(named_operands)
+        try:
+            yield
+        finally:
+            self._operand_type_stack.pop()
+
+    def operand_type(self, name: str) -> Any:
+        """Return the current dispatch operand descriptor by protocol parameter name."""
+        from mountainash.core.types import BackendCapabilityError
+
+        if self._operand_type_stack and name in self._operand_type_stack[-1]:
+            return self._operand_type_stack[-1][name]
+        raise BackendCapabilityError(
+            f"operand metadata is unresolved for {name!r}",
+            backend=self.BACKEND_NAME,
+            function_key=None,
+        )
+
+    def field_operand_type(self, input_data: Any, field: str) -> Any:
+        """Resolve a direct field through the backend's metadata-only adapter."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not provide field metadata resolution"
+        )
+
+
+    def infer_expression_operand_type(self, input_data: Any, expression: Any) -> Any:
+        """Infer a computed result only through backend metadata, never data evaluation."""
+        from mountainash.core.types import BackendCapabilityError
+
+        raise BackendCapabilityError(
+            "operand metadata is unresolved for this computed expression",
+            backend=self.BACKEND_NAME,
+            function_key=None,
+        )
+    def literal_operand_type(self, value: Any, dtype: Any = None) -> Any:
+        """Resolve only literals whose representation is explicit or safely known."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+        if dtype is not None:
+            return self.cast_operand_type(dtype, None)
+
+        if value is None:
+            return ResolvedOperand(OperandType("null", "native", True))
+        from mountainash.core.value_classification import ValueKind, value_kind
+
+        classified = value_kind(value)
+        if classified is ValueKind.ABSENT:
+            return ResolvedOperand(OperandType("null", "native", True))
+        kinds: dict[ValueKind, LogicalKind] = {
+            ValueKind.BOOLEAN: "boolean",
+            ValueKind.INTEGER: "integer",
+            ValueKind.FLOAT: "float",
+            ValueKind.TEXT: "text",
+        }
+        logical_kind = kinds.get(classified)
+        if logical_kind is not None:
+            return ResolvedOperand(OperandType(logical_kind, "native", False))
+        raise self._unresolvable_literal(value)
+
+    def cast_operand_type(self, target_type: Any, input_type: Any) -> Any:
+        """Resolve a cast from its declared target without evaluating a sample."""
+        from mountainash.core.dtypes import MountainashDtype, NativeDtype, TypeTarget, registry
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+        native_dtype = (
+            target_type.value
+            if isinstance(target_type, NativeDtype)
+            else registry.to_native_cast(target_type, TypeTarget(self.BACKEND_NAME))
+        )
+        dtype = getattr(target_type, "value", target_type)
+        target = getattr(target_type, "target", None)
+        if target is not None:
+            dtype = registry.from_native(dtype, target=target)
+        if isinstance(dtype, MountainashDtype):
+            dtype = dtype.value
+        name = str(dtype).split("(", 1)[0]
+        kinds: dict[str, LogicalKind] = {
+            "bool": "boolean", "boolean": "boolean", "Boolean": "boolean",
+            "i8": "integer", "i16": "integer", "i32": "integer", "i64": "integer",
+            "u8": "integer", "u16": "integer", "u32": "integer", "u64": "integer",
+            "integer": "integer", "Int8": "integer", "Int16": "integer",
+            "Int32": "integer", "Int64": "integer", "UInt8": "integer",
+            "UInt16": "integer", "UInt32": "integer", "UInt64": "integer",
+            "fp32": "float", "fp64": "float", "float": "float", "number": "float",
+            "Float32": "float", "Float64": "float",
+            "string": "text", "str": "text", "text": "text", "String": "text",
+        }
+        kind = kinds.get(name)
+        storage: StorageKind = (
+            input_type.storage_kind
+            if input_type is not None and input_type.storage_kind != "native"
+            else "native"
+        )
+        if kind is None:
+            return ResolvedOperand(OperandType("other", storage, True), native_dtype)
+        return ResolvedOperand(OperandType(kind, storage, True), native_dtype)
+    def fixed_result_type(
+        self,
+        logical_kind: LogicalKind,
+        nullable: bool | None,
+        input_type: Any = None,
+        node: Any = None,
+    ) -> Any:
+        """Describe a backend result promised by a declarative fixed result rule."""
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        return ResolvedOperand(OperandType(logical_kind, "native", nullable))
+
+    def preserve_result_type(self, resolved: Any) -> Any:
+        """Preserving operations retain the input representation exactly."""
+        return resolved
+
+    def common_result_type(
+        self,
+        operands: list[Any],
+        nullable: bool,
+        *,
+        composition: str,
+        concrete_nodes: list[Any],
+        has_literal_null: bool,
+        has_nullable_storage: bool,
+    ) -> Any:
+        """Combine matching logical operands without guessing storage promotion."""
+        first = operands[0]
+        storages = {operand.descriptor.storage_kind for operand in operands}
+        non_native = storages.difference({"native"})
+        storage: StorageKind
+        if "sql_dynamic" in non_native:
+            storage = "sql_dynamic"
+        elif len(non_native) == 1:
+            storage = next(iter(non_native))
+        elif non_native and all(item.startswith("pandas_") for item in non_native):
+            storage = first.descriptor.storage_kind
+            if storage == "native":
+                storage = "pandas_numpy"
+        elif not non_native:
+            storage = "native"
+        else:
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "operand metadata is unresolved: branches have incompatible storage",
+                backend=self.BACKEND_NAME,
+                function_key=None,
+            )
+        native = first.native_dtype
+        if any(operand.native_dtype != native for operand in operands[1:]):
+            # Logical agreement does not establish a native width or precision.
+            native = None
+        from mountainash.core.dtypes.metadata import OperandType
+        from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
+
+        return ResolvedOperand(
+            OperandType(first.descriptor.logical_kind, storage, nullable), native
+        )
+
+    def prepare_coalesce_arguments(
+        self,
+        arguments: list[Any],
+        null_scalars: list[bool],
+        result_type: Any = None,
+    ) -> list[Any]:
+        """Apply a backend-local coalesce lowering adjustment."""
+        return arguments
+
+    def normalize_conditional_branch(
+        self,
+        expression: Any,
+        branch_type: Any,
+        result_type: Any,
+        *,
+        requires_null_carrier: bool,
+    ) -> Any:
+        """Prepare one conditional result branch for its backend storage."""
+        return expression
+
+    def normalize_conditional_result(
+        self, expression: Any, result_type: Any, *, requires_null_carrier: bool
+    ) -> Any:
+        """Return a backend-normalized conditional result when required."""
+        return expression
+
+    def _unresolvable_literal(self, value: Any) -> Exception:
+        from mountainash.core.types import BackendCapabilityError
+
+        return BackendCapabilityError(
+            f"operand metadata is unresolved for literal {type(value).__name__}",
+            backend=self.BACKEND_NAME,
+            function_key=None,
+        )
 
     def _call_with_expr_support(
         self,

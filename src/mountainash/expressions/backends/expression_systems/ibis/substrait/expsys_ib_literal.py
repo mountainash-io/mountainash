@@ -20,13 +20,12 @@ if TYPE_CHECKING:
 class SubstraitIbisLiteralExpressionSystem(IbisBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol["IbisScalarExpr"]):
     """Ibis implementation of LiteralExpressionProtocol."""
 
-    def lit(self, x: Any, /) -> IbisScalarExpr:
-        """Create a literal value expression.
+    def lit(self, x: Any, /, *, dtype: Any = None) -> IbisScalarExpr:
+        """Create a literal value expression with its declared native dtype."""
+        if dtype is None:
+            return ibis.literal(x)
+        from mountainash.core.dtypes import TypeTarget, registry
 
-        Args:
-            x: The constant value to wrap as an expression.
-
-        Returns:
-            An Ibis expression containing the literal value.
-        """
-        return ibis.literal(x)
+        return ibis.literal(
+            x, type=registry.to_native_cast(dtype, TypeTarget.IBIS)
+        )

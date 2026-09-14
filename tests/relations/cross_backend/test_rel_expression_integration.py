@@ -534,3 +534,57 @@ class TestNarwhalsBackendExpressions:
             .to_pandas()
         )
         assert "tier" in result.columns
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_relation_metadata_gate_uses_prepared_input(backend_name, backend_factory):
+    from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate
+    from mountainash.core.constants import CONST_BACKEND
+    from tests.fixtures.capability_gating import assert_predicate_capability_gated
+    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        for family in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS, CONST_BACKEND.IBIS):
+            CapabilityRegistry.register_backend(family, [CapabilityFact(
+                operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                param="x", level=CapabilityLevel.UNSUPPORTED, backend=family,
+                message="float operand blocked", since="2026-09-14",
+                predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
+            )])
+        frame = backend_factory.create({"x": [-1, 2]}, backend_name)
+        assert relation(frame).select(col("x").abs().name.alias("x")).to_dict() == {"x": [1, 2]}
+        changed = relation(frame).select(col("x").cast(float).name.alias("renamed"))
+        error = assert_predicate_capability_gated(
+            lambda: changed.select(col("renamed").abs()).collect()
+        )
+        assert error.limitation.predicate.clauses[0].operand == "float"
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_value_domains_follow_projection_and_join_scope(backend_name, backend_factory):
+    left, right = backend_factory.create_pair(
+        {"id": [1, 2], "x": [0, 1]},
+        {"id": [1, 2], "flag": [False, True]},
+        backend_name,
+    )
+    result = (
+        relation(left).select(col("id"), col("x").cast(str).name.alias("renamed"))
+        .join(relation(right), on="id").sort("id")
+        .select(col("renamed").value_kind().name.alias("kind"),
+                col("flag").boolean_value().name.alias("candidate"))
+        .to_dict()
+    )
+    assert result == {"kind": ["text", "text"], "candidate": [False, True]}
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_value_validity_aggregates_before_later_no_match_filter(backend_name, backend_factory):
+    frame = backend_factory.create({"x": [0, 1, 2]}, backend_name)
+    original = relation(frame)
+    invalid = col("x").value_kind().ne("absent") & col("x").boolean_value(source="binary_number").is_null()
+    assert original.group_by().agg(invalid.any().name.alias("invalid")).to_dict() == {"invalid": [True]}
+    assert original.filter(col("x").eq(99)).count_rows() == 0

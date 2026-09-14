@@ -19,13 +19,10 @@ if TYPE_CHECKING:
 class SubstraitPolarsLiteralExpressionSystem(PolarsBaseExpressionSystem, SubstraitLiteralExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of LiteralExpressionProtocol."""
 
-    def lit(self, x: Any, /) -> PolarsExpr:
-        """Create a literal value expression.
+    def lit(self, x: Any, /, *, dtype: Any = None) -> PolarsExpr:
+        """Create a literal value expression with its declared native dtype."""
+        if dtype is None:
+            return pl.lit(x)
+        from mountainash.core.dtypes import TypeTarget, registry
 
-        Args:
-            x: The constant value to wrap as an expression.
-
-        Returns:
-            A Polars expression containing the literal value.
-        """
-        return pl.lit(x)
+        return pl.lit(x, dtype=registry.to_native_cast(dtype, TypeTarget.POLARS))

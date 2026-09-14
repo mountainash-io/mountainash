@@ -437,9 +437,9 @@ def _fkey_scalar_node(
 
 
 def _derive_smoke_selector(
-    fkey: Enum, fdef: object, family, dialect, expr: object
+    fkey: Enum, fdef: object, family, dialect, expr: object, frame: object
 ) -> tuple[str, str | None, CapabilityFact | None]:
-    """Replay the production gate order and retain the selected gate fact."""
+    """Select gates from the complete, input-aware capability decision."""
     node = _fkey_scalar_node(_root_node(expr), fkey)
     if node is None:
         return (WILDCARD_PARAM, None, None)
@@ -454,7 +454,15 @@ def _derive_smoke_selector(
 
     protocol_method = getattr(fdef, "protocol_method", None)
     if protocol_method is not None:
-        from mountainash.core.capabilities.predicates import bind_expression_call
+        from mountainash.core.capabilities.predicates import (
+            BoundCall,
+            bind_expression_call,
+            metadata_arguments,
+        )
+        from mountainash.expressions.core.expression_system.expsys_base import (
+            get_expression_system,
+        )
+        from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 
         bound_call = bind_expression_call(
             operation_key=fkey,
@@ -464,6 +472,30 @@ def _derive_smoke_selector(
             arguments=getattr(node, "arguments", None) or [],
             options=getattr(node, "options", None) or {},
         )
+        required_operands = frozenset(
+            name
+            for fact in CapabilityRegistry.facts(backend=family)
+            if fact.operation_key == fkey
+            and fact.predicate is not None
+            and (fact.dialect is None or fact.dialect == dialect)
+            for name in metadata_arguments(fact.predicate)
+        )
+        if required_operands:
+            expression_system = get_expression_system(family)(dialect=dialect)
+            visitor = UnifiedExpressionVisitor(expression_system, input_data=frame)
+            with visitor.input_scope(frame):
+                operand_types = {
+                    name: visitor.resolve_operand_type(bound_call.bindings[name])
+                    for name in required_operands
+                }
+            bound_call = BoundCall(
+                operation_key=bound_call.operation_key,
+                backend=bound_call.backend,
+                dialect=bound_call.dialect,
+                bindings=bound_call.bindings,
+                supplied=bound_call.supplied,
+                operand_types=operand_types,
+            )
         violations = CapabilityRegistry.violations_for(bound_call)
         if violations:
             fact = min(violations, key=lambda candidate: candidate.fact_key)
@@ -534,6 +566,7 @@ def test_selector_carries_the_full_compound_predicate_fact() -> None:
         CONST_BACKEND.NARWHALS,
         "narwhals-polars",
         expr,
+        object(),
     )
     assert selector[:2] == ("format", "array")
     assert selector[2] is expected
@@ -569,7 +602,7 @@ def _prepare_smoke_case(fkey_str: str, frame: object) -> PreparedSmokeCase:
 
     def _prepared(expr: object) -> PreparedSmokeCase:
         param, option_value, gate_fact = _derive_smoke_selector(
-            fkey, fdef, idn.family, idn.dialect, expr
+            fkey, fdef, idn.family, idn.dialect, expr, frame
         )
         return PreparedSmokeCase(
             compile=lambda: expr.compile(frame),

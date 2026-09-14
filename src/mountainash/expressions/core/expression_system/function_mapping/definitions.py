@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from .registry import ExpressionFunctionRegistry as FunctionRegistry, ExpressionFunctionDef
 
+from mountainash.core.dtypes.metadata import FixedResultType, PreserveResultType
+
 from ..function_keys.enums import (
 
     SubstraitExtension,
@@ -38,6 +40,7 @@ from ..function_keys.enums import (
     FKEY_MOUNTAINASH_NULL,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC,
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+    FKEY_MOUNTAINASH_SCALAR_VALUE,
     FKEY_MOUNTAINASH_SCALAR_COMPARISON,
     FKEY_MOUNTAINASH_SCALAR_STRING,
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
@@ -87,6 +90,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarGeospatialExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
+    MountainAshScalarValueExpressionSystemProtocol,
 )
 
 
@@ -309,6 +313,7 @@ def register_all_functions() -> None:
             is_extension=True,
             options=("true_values", "false_values", "failure_behavior"),
             protocol_method=MountainAshScalarBooleanExpressionSystemProtocol.parse_boolean,
+            result_type=FixedResultType("boolean", True),
         ),
     ]
 
@@ -557,18 +562,21 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="trim",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.trim,
+            result_type=PreserveResultType("input", require_kind="text"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="ltrim",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.ltrim,
+            result_type=PreserveResultType("input", require_kind="text"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="rtrim",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.rtrim,
+            result_type=PreserveResultType("input", require_kind="text"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
@@ -772,6 +780,7 @@ def register_all_functions() -> None:
             is_extension=True,
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.strip_suffix,
             options=("suffix",),
+            result_type=PreserveResultType("x", require_kind="text"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
@@ -1623,6 +1632,40 @@ def register_all_functions() -> None:
     ]
 
     # ========================================
+    # Mountainash Value Extensions
+    # ========================================
+    MOUNTAINASH_VALUE_FUNCTIONS = [
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.VALUE_KIND,
+            substrait_uri=MountainashExtension.VALUE,
+            substrait_name="value_kind",
+            is_extension=True,
+            protocol_method=MountainAshScalarValueExpressionSystemProtocol.value_kind,
+            result_type=FixedResultType("text", False),
+            type_arguments=("x",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.BOOLEAN_VALUE,
+            substrait_uri=MountainashExtension.VALUE,
+            substrait_name="boolean_value",
+            is_extension=True,
+            options=("source",),
+            protocol_method=MountainAshScalarValueExpressionSystemProtocol.boolean_value,
+            result_type=FixedResultType("boolean", True),
+            type_arguments=("x",),
+        ),
+        ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.TEXT_VALUE,
+            substrait_uri=MountainashExtension.VALUE,
+            substrait_name="text_value",
+            is_extension=True,
+            protocol_method=MountainAshScalarValueExpressionSystemProtocol.text_value,
+            result_type=FixedResultType("text", True),
+            type_arguments=("x",),
+        ),
+    ]
+
+    # ========================================
     # Mountainash Null Extensions
     # ========================================
 
@@ -1661,6 +1704,7 @@ def register_all_functions() -> None:
             substrait_name="alias",
             is_extension=True,
             protocol_method=MountainAshNameExpressionSystemProtocol.alias,
+            result_type=PreserveResultType("input"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.PREFIX,
@@ -1668,6 +1712,7 @@ def register_all_functions() -> None:
             substrait_name="prefix",
             is_extension=True,
             protocol_method=MountainAshNameExpressionSystemProtocol.prefix,
+            result_type=PreserveResultType("input"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.SUFFIX,
@@ -1675,6 +1720,7 @@ def register_all_functions() -> None:
             substrait_name="suffix",
             is_extension=True,
             protocol_method=MountainAshNameExpressionSystemProtocol.suffix,
+            result_type=PreserveResultType("input"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.NAME_TO_UPPER,
@@ -1682,6 +1728,7 @@ def register_all_functions() -> None:
             substrait_name="name_to_upper",
             is_extension=True,
             protocol_method=MountainAshNameExpressionSystemProtocol.name_to_upper,
+            result_type=PreserveResultType("input"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.NAME_TO_LOWER,
@@ -1689,6 +1736,7 @@ def register_all_functions() -> None:
             substrait_name="name_to_lower",
             is_extension=True,
             protocol_method=MountainAshNameExpressionSystemProtocol.name_to_lower,
+            result_type=PreserveResultType("input"),
         ),
     ]
 
@@ -2620,6 +2668,7 @@ def register_all_functions() -> None:
         # + CONSTANT_FUNCTIONS
         + TERNARY_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_ARITHMETIC_FUNCTIONS  # Mountainash extension
+        + MOUNTAINASH_VALUE_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_DATETIME_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
         + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension

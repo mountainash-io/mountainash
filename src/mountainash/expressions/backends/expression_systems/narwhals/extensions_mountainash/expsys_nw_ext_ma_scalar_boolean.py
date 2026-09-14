@@ -30,17 +30,32 @@ class MountainAshNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSys
     ) -> NarwhalsExpr:
         text = x.cast(nw.String)
         if failure_behavior == "null":
-            return (
+            result = (
                 nw.when(text.is_in(true_values)).then(nw.lit(True))
                 .when(text.is_in(false_values)).then(nw.lit(False))
                 .otherwise(nw.lit(None))
             )
+            if self.dialect == "narwhals-pandas":
+                from mountainash.core.lazy_imports import import_pandas
+
+                return self._pandas_nullable_expression(
+                    result, import_pandas().BooleanDtype()
+                )
+            return result
         mapped = (
             nw.when(text.is_in(true_values)).then(nw.lit(1))
             .when(text.is_in(false_values)).then(nw.lit(0))
             .when(text.is_null()).then(nw.lit(None))
             .otherwise(nw.lit("__invalid_boolean_token__"))
         )
+        if self.dialect == "narwhals-pandas":
+            from mountainash.core.lazy_imports import import_pandas
+
+            pandas = import_pandas()
+            result = self._pandas_nullable_expression(mapped, pandas.Int8Dtype())
+            return self._pandas_nullable_expression(
+                result, pandas.BooleanDtype()
+            )
         return mapped.cast(nw.Int8).cast(nw.Boolean)
 
 
