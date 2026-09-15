@@ -71,6 +71,7 @@ The old automatic GitHub release/SBOM/wheels-repository upload path is replaced,
 ## Failures and recovery
 
 - Missing public dependencies block parent verification. Local sibling wheels may help diagnose compatibility but are not final public-resolution evidence.
+- If full verification fails after building the candidate, the workflow retains the distribution and evidence artifacts so ARM64 can still verify the exact same files. The full gate remains failed; neither artifact retention nor an ARM64 pass permits publication.
 - Changed source, versions or hashes require a new candidate verification and approval.
 - Version collisions, partial uploads and unexpected hashes stop for explicit reconciliation. Check what is already public before selecting a new version or another recovery action.
 - Never weaken extraction safety to accept repository-local symlinks in an sdist; fix its build contents.
