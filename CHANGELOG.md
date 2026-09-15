@@ -6,6 +6,7 @@
 - Require Python 3.12 or later and align optional files dependencies with the supported 26.8 release line.
 - Restrict source distributions to portable build inputs.
 - Replace the legacy release upload path with isolated candidate verification and separately approved PyPI Trusted Publishing of the exact verified artifacts.
+- Retain failed candidates for independent same-artifact ARM64 verification without weakening full public-extra or publication gates.
 
 ### Added
 - Installed wheel/sdist and advertised-extra verification, source-provenance checks, Python-policy enforcement, and retained failed verification evidence.
