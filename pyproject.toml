@@ -7,7 +7,7 @@ name = "mountainash"
 dynamic = ["version"]
 description = "Unified cross-backend DataFrame expressions, relations, and schema management"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 authors = [
     { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
@@ -17,8 +17,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Scientific/Engineering",
@@ -39,26 +37,18 @@ dependencies = [
     "elementpath==5.1.1",
     "email-validator>=2.2,<3",
     "rfc3986>=2,<3",
-    # mountainash-files is provided the same way as every other mountainash-*
-    # sibling in this monorepo: via the CI dependency-checkout mechanism
-    # (.github/config/mountainash_dependencies.yml -> temp/) and the hatch env
-    # sibling pins (../ locally, temp/ in CI), NOT as a resolvable core dep —
-    # the siblings are not on a reachable package index. Declare it via the
-    # opt-in `files` extra below (mirrors `storage = mountainash-transport`).
-    # Promote to a core dep once the packages publish to the shared index.
-    # "mountainash-files>=26.7.0,<27",
 ]
 
 [project.optional-dependencies]
 pandas = ["pandas>=2.2.0"]
 ibis = ["ibis-framework>=11.0.0"]
-storage = ["mountainash-transport"]
-files = ["mountainash-files>=26.7.0,<27"]
+storage = ["mountainash-transport>=26.7.0"]
+files = ["mountainash-files>=26.8.0,<27"]
 dbos = ["dbos>=1.0.0"]
-s3 = ["mountainash-files[s3]>=26.7.0"]
-gcs = ["mountainash-files[gcs]>=26.7.0"]
-azure = ["mountainash-files[azure]>=26.7.0"]
-sftp = ["mountainash-files[sftp]>=26.7.0"]
+s3 = ["mountainash-files[s3]>=26.8.0,<27"]
+gcs = ["mountainash-files[gcs]>=26.8.0,<27"]
+azure = ["mountainash-files[azure]>=26.8.0,<27"]
+sftp = ["mountainash-files[sftp]>=26.8.0,<27"]
 all = ["mountainash[pandas,ibis,storage,files,dbos,s3,gcs,azure,sftp]"]
 
 [project.urls]
@@ -92,7 +82,7 @@ exclude_lines = ["no cov", "if __name__ == .__main__:", "if TYPE_CHECKING:"]
 # ============================================================================
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]

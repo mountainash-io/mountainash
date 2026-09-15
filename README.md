@@ -10,7 +10,7 @@ The package keeps the semantic model separate from backend code. It uses a small
 
 ## Source development
 
-Install Python 3.10 or later and Hatch. Start from the `develop` branch:
+Install Python 3.12 or later and Hatch. Start from the `develop` branch:
 
 ```bash
 git clone https://github.com/mountainash-io/mountainash.git
@@ -28,6 +28,30 @@ hatch run mypy:check
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch rules, pull requests, and coding standards. See [TESTING.md](TESTING.md) for test tiers and backend test commands.
+
+## Installed-artifact hello world
+
+There is not yet a supported public PyPI release. Build a candidate with [RELEASE.md](RELEASE.md), then install its wheel into a fresh Python 3.12 environment outside the checkout. Dependencies must come from public PyPI, not sibling checkouts. Files/storage/cloud extras also require their sibling releases to be public; a working base example does not establish those extras.
+
+The candidate verification command runs this transformation and checks the expected rows:
+
+```python
+import mountainash as ma
+import polars as pl
+
+df = pl.DataFrame({"name": ["Ada", "Lin", "Sam"], "age": [37, 22, None]})
+rows = (
+    ma.relation(df)
+    .filter(ma.col("age").gt(30))
+    .sort("name")
+    .to_polars()
+    .to_dicts()
+)
+print(rows)
+# [{'name': 'Ada', 'age': 37}]
+```
+
+`scripts/verify_release.py` checks the wheel, the sdist-derived wheel, dependency consistency and advertised extras. Its `--base-only` mode is diagnostic, not full release acceptance.
 
 ## Quick examples
 

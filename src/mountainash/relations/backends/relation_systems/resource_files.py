@@ -28,7 +28,7 @@ __all__ = [
     "IBIS_NON_DEFAULT_DIALECT_CONDITION",
 ]
 
-# TableDialect fields the CsvSpec fallback (mountainash-files >=26.7.1) can
+# TableDialect fields the CsvSpec fallback (mountainash-files >=26.8.0) can
 # express. This is the SEAM-supported set: anything outside it (plus ignored)
 # fails closed uniformly in ensure_dialect_supported.
 _MAPPABLE_DIALECT_FIELDS = frozenset(
@@ -96,7 +96,7 @@ def ensure_dialect_supported(dialect: Any) -> None:
 
 
 def _csv_spec_from_dialect(dialect: Any):
-    """Map a Frictionless TableDialect onto a mountainash-files CsvSpec (>=26.7.1).
+    """Map a Frictionless TableDialect onto the supported mountainash-files CsvSpec.
     Fail-closed on unmappable fields via ensure_dialect_supported (spec §A.3.1)."""
     ensure_dialect_supported(dialect)
     _parse, _FileSourceSpec, CsvSpec, _Gzip, _Zip = _require_files()

@@ -81,9 +81,7 @@ There is also an ecosystem cost. Some operations are not yet supported on every 
 - **Read a feature page** — start with [cross-backend execution](features/cross-backend.md), [expressions](features/expressions.md), or [relations](features/relations.md).
 - **Check the alpha status** — what's stable, what's still moving.
 
-```bash
-pip install mountainash
-```
+Mountainash requires **Python 3.12+**. There is not yet a supported public PyPI release. Use the [repository's candidate release procedure](https://github.com/mountainash-io/mountainash/blob/develop/RELEASE.md) and [installed-artifact hello world](https://github.com/mountainash-io/mountainash/blob/develop/README.md#installed-artifact-hello-world) rather than assuming `pip install mountainash` is currently supported. The example filters a small Polars-backed relation to `[{'name': 'Ada', 'age': 37}]`; files/storage/cloud extras additionally require public sibling releases.
 
 ---
 

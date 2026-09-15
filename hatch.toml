@@ -7,6 +7,9 @@ path = "src/mountainash/__version__.py"
 [build.targets.wheel]
 packages = ["src/mountainash"]
 
+[build.targets.sdist]
+include = ["/src", "/pyproject.toml", "/hatch.toml", "/README.md", "/LICENSE"]
+
 
 #================
 # Env: dev
@@ -92,7 +95,7 @@ test-cov-full = "pytest --cov --junitxml=junit.xml -o junit_family=legacy --cov-
 # Env: test
 #================
 [[envs.test.matrix]]
-python = ["3.12"] #,  "3.11",, "3.10" ] # "3.8", "3.9","3.9",
+python = ["3.12"]
 
 [envs.test]
 type = "virtual"
