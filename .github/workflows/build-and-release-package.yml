@@ -41,11 +41,14 @@ jobs:
             python -I -m build --wheel --sdist --outdir "$RUNNER_TEMP/dist"
           python -I -m twine check "$RUNNER_TEMP/dist"/*
       - name: Verify wheel, sdist, and every advertised extra
+        id: verify
         run: |
           python -I scripts/verify_release.py --dist-dir "$RUNNER_TEMP/dist" \
             --output-dir "$RUNNER_TEMP/release-evidence"
       - uses: actions/upload-artifact@v4
         id: dist
+        # Keep the candidate available for ARM64 even when public extras cannot resolve.
+        if: ${{ !cancelled() && (success() || steps.verify.outcome == 'failure') }}
         with:
           name: release-dist-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dist/*
@@ -62,6 +65,7 @@ jobs:
 
   verify-arm64:
     needs: build-and-verify
+    if: ${{ !cancelled() && needs.build-and-verify.outputs.dist-artifact-id != '' && needs.build-and-verify.outputs.evidence-artifact-id != '' }}
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
