@@ -56,7 +56,7 @@ See [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/adding-a-
 
 ## Build, approve, publish, confirm
 
-`.github/workflows/build-and-release-package.yml` runs candidate checks for PRs targeting `main` or `develop`. Manual runs default to `publish=false`.
+`.github/workflows/build-and-release-package.yml` runs distribution checks automatically only for PRs targeting `main`. PRs targeting `develop` do not run this workflow. Manual dispatch remains available on `develop` and `main`, defaults to `publish=false`, and runs the full verification path. Publication is permitted only from `main` with explicit opt-in and all existing approval/verification gates satisfied.
 
 After separately authorized release preparation:
 

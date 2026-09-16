@@ -7,6 +7,7 @@
 - Restrict source distributions to portable build inputs.
 - Replace the legacy release upload path with isolated candidate verification and separately approved PyPI Trusted Publishing of the exact verified artifacts.
 - Retain failed candidates for independent same-artifact ARM64 verification without weakening full public-extra or publication gates.
+- Run distribution checks automatically only for PRs targeting `main`; retain manually dispatched checks on `develop` without granting publication authority.
 
 ### Added
 - Installed wheel/sdist and advertised-extra verification, source-provenance checks, Python-policy enforcement, and retained failed verification evidence.
