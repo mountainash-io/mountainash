@@ -1,258 +1,79 @@
 # Release Procedure
 
-This document outlines the process for creating a new release of the mountainash package.
+Mountainash requires Python 3.12 or later. A verified candidate is not a published release. Required sibling versions must be available on public PyPI before the full candidate check can pass.
 
-## Prerequisites
+## Prepare the source
 
-- You have push access to the main repository.
-- You have the necessary permissions to create releases on GitHub.
-- You have [Hatch](https://hatch.pypa.io/) installed locally.
+1. Prepare release changes on `release/*` from `develop`, or a scoped `hotfix/*`, following [CONTRIBUTING.md](CONTRIBUTING.md). Required CI and code-owner review still apply; do not push directly to protected branches.
+2. Select the final, unused version in `src/mountainash/__version__.py` under the repository's version policy. The publishing workflow does not rewrite versions or generate a suffix after verification.
+3. Record compatibility changes, including the Python 3.12 floor, and reconcile dependency bounds. Files/cloud extras currently require `mountainash-files>=26.8.0,<27`; storage requires `mountainash-transport>=26.7.0`. Publication does not make these optional dependencies mandatory.
+4. Release dependencies in order: settings and secrets → auth-client → transport → files. Each repository owns its release authorization. `mountainash-data` is not a prerequisite merely because source tests provision it.
 
-## Release Process
+## Verify a local candidate
 
-1. **Update Version**
-   - Navigate to `src/mountainash/__version__.py`
-   - Update the `__version__` variable with the new version number
-   - Ensure the version number follows the specified CalVer format:
-     - Year and month: `YYYYMM`
-     - Release candidate: `YYYYMM.0.0`
-     - Prod release: `YYYYMM.1.0`
-     - Updates to candidate or prod release: `YYYYMM.1.x`
-   - Commit this change to the `main` branch
+Use a complete Python 3.12 installation with `venv`/`ensurepip`. On minimal Linux installations, install the distribution's Python venv support or use a complete managed interpreter; do not reuse the development environment as release proof.
 
-2. **Prepare Release Notes**
-   - Document new features, bug fixes, and breaking changes
-   - Include examples of new expression system functionality
-   - Note any changes to supported backends or logic operations
-   - Update CHANGELOG.md if it exists
-
-3. **Run Pre-release Checks**
-   ```bash
-   # Run full test suite
-   hatch run test:test
-   
-   # Check code quality
-   hatch run ruff:check
-   hatch run mypy:check
-   
-   # Validate build
-   hatch build
-   ```
-
-4. **Push Changes**
-   - Push your changes to the `main` branch on GitHub
-   - This will trigger the release workflow
-
-5. **Monitor Workflow**
-   - Go to the "Actions" tab in the GitHub repository
-   - You should see the "Release with SBOMs" workflow running
-   - Monitor the workflow for any errors
-
-6. **Verify Release**
-   - Once the workflow completes successfully, go to the "Releases" section of the repository
-   - You should see a new release created with the version number you specified
-   - Verify that the following assets are attached to the release:
-     - Wheel file (`mountainash-{version}-py3-none-any.whl`)
-     - Source distribution (`mountainash-{version}.tar.gz`)
-     - Full SBOM (`mountainash-{version}-sbom-full.xml`)
-     - Direct dependencies SBOM (`mountainash-{version}-sbom-direct.xml`)
-
-7. **Release Branch**
-   - The workflow will create a new `release-{version}` branch
-   - This branch can be used for any hotfixes if needed
-
-## Hotfix Process
-
-If you need to create a hotfix for an existing release:
-
-1. Check out the release branch for the version you want to hotfix:
-   ```bash
-   git checkout release-YYYY.MM.1.0
-   ```
-
-2. Create a new branch for your hotfix:
-   ```bash
-   git checkout -b hotfix-YYYY.MM.1.1
-   ```
-
-3. Make your changes and update the version in `__version__.py` to `YYYY.MM.1.1`
-
-4. Run targeted tests to validate the fix:
-   ```bash
-   # Test the specific functionality
-   hatch run test:test-target tests/path/to/affected/tests.py
-   
-   # Run critical expression system tests
-   hatch run test:test-target tests/ternary/test_gold_standard_api.py
-   ```
-
-5. Commit your changes and push the hotfix branch
-
-6. Create a pull request to merge the hotfix branch into the release branch
-
-7. Once the pull request is merged, the release workflow will be triggered automatically
-
-## Expression System Release Considerations
-
-When releasing changes to the expression system, pay special attention to:
-
-### Breaking Changes
-- Changes to public API methods (`eval_is_true`, `eval_is_false`, etc.)
-- Modifications to visitor interfaces
-- Changes to mathematical logic or truth tables
-- Backend compatibility modifications
-
-### Testing Requirements
-Before release, ensure comprehensive testing of:
+From the source checkout, with fresh output paths:
 
 ```bash
-# Cross-backend compatibility
-hatch run test:test-integration
+python3.12 -m venv /tmp/mountainash-release-tools
 
-# Mathematical correctness
-hatch run test:test-target tests/ternary/test_ternary_mathematics.py
+env -i PATH="$PATH" HOME=/tmp/mountainash-release-home PIP_CONFIG_FILE=/dev/null \
+  /tmp/mountainash-release-tools/bin/python -I -m pip install \
+  --index-url https://pypi.org/simple build twine
 
-# Performance regression testing
-hatch run test:test-performance
+env -i PATH="$PATH" HOME=/tmp/mountainash-release-home PIP_CONFIG_FILE=/dev/null \
+  PIP_INDEX_URL=https://pypi.org/simple \
+  /tmp/mountainash-release-tools/bin/python -I -m build \
+  --wheel --sdist --outdir /tmp/mountainash-release-dist
 
-# Gold standard API validation
-hatch run test:test-target tests/ternary/test_gold_standard_api.py
+/tmp/mountainash-release-tools/bin/python -I -m twine check /tmp/mountainash-release-dist/*
+
+/tmp/mountainash-release-tools/bin/python -I scripts/verify_release.py \
+  --dist-dir /tmp/mountainash-release-dist \
+  --output-dir /tmp/mountainash-release-evidence
 ```
 
-### Documentation Updates
-- Update README.md with new features and examples
-- Ensure CLAUDE.md reflects any architectural changes
-- Update docstrings for modified public methods
-- Include migration guides for breaking changes
+The distribution directory must contain exactly the wheel and sdist, with no other files. Use the PyPA build command above: some other build tools add repository-control files to their output directory.
 
-## Version Numbering
+The verifier installs from outside all checkouts in fresh environments, removes index/source/Python overrides, checks installation provenance and dependency consistency, rebuilds from the sdist, and executes the README hello world. It discovers extras from the candidate's metadata and checks each extra plus `all`. Cloud credentials and live cloud services are not required.
 
-We use [CalVer](https://calver.org/) versioning: `YYYY.MM.MICRO`
+`--base-only` checks the wheel and sdist hello world without extras. It is useful for the ARM64 lane and early diagnosis, but **does not establish full release readiness**. `--public` confirms the candidate's exact public PyPI file hashes and installs its public version.
 
-### Version Types
-- **Release Candidates**: `2025.01.0.0` - Pre-release versions for testing
-- **Production Releases**: `2025.01.1.0` - Stable releases for production use
-- **Patch Releases**: `2025.01.1.1` - Bug fixes and minor updates
+Evidence includes `release.json`, `SHA256SUMS`, pip installation reports, command logs, module origins and actual example results. Failed checks retain a failed disposition. Keep this evidence separate from uploadable distributions.
 
-### Version Increment Rules
-- **Major Expression Changes**: New month, reset micro (`2025.02.1.0`)
-- **Minor Features**: Increment micro (`2025.01.1.1`)
-- **Bug Fixes**: Increment micro (`2025.01.1.2`)
-- **Hotfixes**: Increment micro on release branch
+## Configure publishing — separate authorization required
 
-## Release Notes Template
+For this repository:
 
-```markdown
-## Mountain Ash Expressions vYYYY.MM.1.0
+- Create the existing GitHub environment named **`pypi`** with required human reviewers.
+- Configure a custom deployment policy allowing **only the `main` branch**. A missing environment, missing reviewers or broader policy fails preflight.
+- Configure a PyPI Trusted Publisher for the exact GitHub owner/repository, workflow filename **`build-and-release-package.yml`**, and environment **`pypi`**.
+- For a new PyPI project, a pending publisher can create the project on first publication; it does **not** reserve the name.
+- No long-lived PyPI token or broad GitHub App token is a fallback for missing setup.
 
-### New Features
-- Added new ternary logic operations
-- Enhanced backend compatibility
-- Improved expression builder methods
+See [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/adding-a-publisher/) and [first-publication setup](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
 
-### Bug Fixes  
-- Fixed UNKNOWN value handling in edge cases
-- Corrected visitor selection for specific backends
-- Resolved performance issues in mathematical operations
+## Build, approve, publish, confirm
 
-### Breaking Changes
-- **API Change**: Modified signature of `eval_method()`
-- **Backend**: Deprecated support for legacy visitor pattern
+`.github/workflows/build-and-release-package.yml` runs distribution checks automatically only for PRs targeting `main`. PRs targeting `develop` do not run this workflow. Manual dispatch remains available on `develop` and `main`, defaults to `publish=false`, and runs the full verification path. Publication is permitted only from `main` with explicit opt-in and all existing approval/verification gates satisfied.
 
-### Performance Improvements
-- 15% faster expression evaluation
-- Reduced memory usage for large expressions
-- Optimized cross-backend conversion
+After separately authorized release preparation:
 
-### Documentation
-- Updated usage examples
-- Added new real-world scenarios
-- Improved API documentation
+1. Dispatch **Build, Verify, and Publish Package** on `main` with `publish=true`.
+2. The pinned source commit builds one wheel and sdist. Linux x86-64 checks the wheel, sdist and advertised extras. Linux ARM64 checks the same candidate's wheel/sdist hello world.
+3. Inspect the source/version, artifacts, hashes and verification evidence before approving the protected `pypi` environment.
+4. The publisher downloads the exact same-run artifact IDs, rechecks the approved set/hashes and uploads with short-lived OIDC authority. It never rebuilds, rewrites the version or uses `skip-existing`.
+5. Public confirmation compares PyPI's file set/hashes with the candidate and runs the public-index hello world on both platforms. Upload success alone is not confirmation.
 
-### Dependencies
-- Updated ibis-framework to 10.4.0
-- Added support for polars 1.16.0
-- Removed deprecated dependencies
-```
+The old automatic GitHub release/SBOM/wheels-repository upload path is replaced, not retained as a second unverified release path. Historical releases remain untouched. This workflow does not create release branches or publish merely because a PR merged.
 
-## Post-Release Tasks
+## Failures and recovery
 
-After a successful release:
-
-1. **Update Documentation**
-   - Ensure online documentation reflects the new version
-   - Update any external references to the package
-
-2. **Announce Release**
-   - Update project websites or internal documentation
-   - Notify users of any breaking changes
-
-3. **Monitor Issues**
-   - Watch for bug reports related to the new release
-   - Respond promptly to user feedback
-
-4. **Plan Next Release**
-   - Review feature requests and bug reports
-   - Plan development priorities for the next version
-
-## Rollback Procedure
-
-If a release needs to be rolled back:
-
-1. **Immediate Action**
-   - Mark the problematic release as pre-release on GitHub
-   - Document the issues in release notes
-
-2. **Assessment**
-   - Determine if the issues can be fixed with a hotfix
-   - Or if a full rollback is necessary
-
-3. **Hotfix Path** (preferred)
-   - Follow the hotfix process above
-   - Release a patch version quickly
-
-4. **Full Rollback** (if necessary)
-   - Revert to the previous stable version
-   - Create a new release with reverted changes
-   - Communicate clearly with users about the rollback
-
-## Notes
-
-- The workflow checks for existing tags and releases. If a tag or release already exists for the version you're trying to release, the workflow will fail.
-- The workflow generates two types of Software Bill of Materials (SBOM):
-  - Full SBOM: Includes all dependencies (direct and transitive)
-  - Direct SBOM: Includes only direct dependencies
-- The workflow uses Hatch to manage the build environment and dependencies
-- The release process includes checking out several related Mountain Ash repositories for dependency validation
-
-## Troubleshooting
-
-If the release workflow fails:
-
-1. **Check Version Conflicts**
-   - Ensure the version number in `__version__.py` is unique and has not been used before
-   - Verify no existing tags match the new version
-
-2. **Dependency Issues**
-   - Check that all Mountain Ash dependencies are accessible
-   - Verify that dependency branches exist or fallback branches are available
-
-3. **Build Failures**
-   ```bash
-   # Test the build locally
-   hatch build
-   
-   # Check for import issues
-   hatch run python -c "import mountainash; print('Success')"
-   ```
-
-4. **Permission Issues**
-   - Verify that the necessary secrets and permissions are correctly set up in repository settings
-   - Check GitHub Actions permissions for token access
-
-5. **Expression System Issues**
-   - Run comprehensive tests to identify system-specific problems
-   - Check cross-backend compatibility
-   - Validate mathematical operations
-
-For any other issues, please contact the maintainers or create an issue in the repository.
+- Missing public dependencies block parent verification. Local sibling wheels may help diagnose compatibility but are not final public-resolution evidence.
+- If full verification fails after building the candidate, the workflow retains the distribution and evidence artifacts so ARM64 can still verify the exact same files. The full gate remains failed; neither artifact retention nor an ARM64 pass permits publication.
+- Changed source, versions or hashes require a new candidate verification and approval.
+- Version collisions, partial uploads and unexpected hashes stop for explicit reconciliation. Check what is already public before selecting a new version or another recovery action.
+- Never weaken extraction safety to accept repository-local symlinks in an sdist; fix its build contents.
+- Do not equate a GitHub asset, source-tree test, base-only result or successful import with full release readiness.
+- Update README/site publication wording only after public confirmation succeeds. An unpublished candidate remains labelled unpublished.
