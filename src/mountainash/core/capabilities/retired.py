@@ -5,6 +5,7 @@ declared limitation, the CapabilityFact leaves its declaration module and a
 RetiredFact is appended here. Like ``divergences.py``, this catalog is
 core-owned audit data — never registered into the registry, never gates.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,11 +28,11 @@ class RetiredFact:
     backend: "CONST_BACKEND"
     dialect: str | None
     option_value: str | None
-    value_class: ValueClass | None   # mirrors CapabilityFact; value-class
-                                     # retirements are NOT squeezed into
-                                     # option_value (disjoint keyspaces)
+    value_class: ValueClass | None  # mirrors CapabilityFact; value-class
+    # retirements are NOT squeezed into
+    # option_value (disjoint keyspaces)
     level: CapabilityLevel
-    since: str                       # original declaration date
+    since: str  # original declaration date
     retired_on: str
     fixed_in_versions: tuple[tuple[str, str], ...]  # (("narwhals","2.19.0"),)
     upstream_ref: str | None
@@ -57,23 +58,19 @@ RETIRED_FACTS: tuple[RetiredFact, ...] = ()
 def assert_no_active_retired_overlap(registry: Any) -> None:
     """Guard: no fact key is simultaneously active and retired.
 
-    Checks BOTH active keyspaces (spec §4): option-value facts against
-    ``_facts`` and value-class facts against ``_value_class_facts``.
+    Captures both active keyspaces without triggering production autoload.
     """
-    active_option = set(registry._facts)
+    state = registry.snapshot()
+    active_option = set(state.facts)
     active_vclass = {
         (f.operation_key, f.param, f.backend, f.dialect, f.value_class)
-        for bucket in registry._value_class_facts.values()
-        for f in (bucket if isinstance(bucket, tuple) else (bucket,))
+        for bucket in state.value_class_facts.values()
+        for f in bucket
     }
     for r in RETIRED_FACTS:
         if r.value_class is not None:
             key_vclass = (r.operation_key, r.param, r.backend, r.dialect, r.value_class)
-            assert key_vclass not in active_vclass, (
-                f"{key_vclass} is simultaneously active and retired"
-            )
+            assert key_vclass not in active_vclass, f"{key_vclass} is simultaneously active and retired"
         else:
             key_option = (r.operation_key, r.param, r.backend, r.dialect, r.option_value)
-            assert key_option not in active_option, (
-                f"{key_option} is simultaneously active and retired"
-            )
+            assert key_option not in active_option, f"{key_option} is simultaneously active and retired"

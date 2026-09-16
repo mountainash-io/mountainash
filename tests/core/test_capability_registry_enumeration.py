@@ -1,4 +1,5 @@
 """Deterministic enumeration + bucketed value-class index (spec rev 3, §2/§6)."""
+
 from __future__ import annotations
 
 import pytest
@@ -29,17 +30,26 @@ def isolated():
 
 def _vc_fact(op, dialect=None, vc=ValueClass.DURATION_MULTIPLIER, param="unit"):
     return CapabilityFact(
-        operation_key=op, param=param, level=CapabilityLevel.UNSUPPORTED,
-        backend=CONST_BACKEND.IBIS, dialect=dialect, value_class=vc,
-        message="t", since="2026-08-07", probe_exempt="test",
+        operation_key=op,
+        param=param,
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect=dialect,
+        value_class=vc,
+        message="t",
+        since="2026-08-07",
+        probe_exempt="test",
     )
 
 
 def test_value_class_lookup_still_resolves(isolated):
     CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, [_vc_fact(FK_DT.TRUNCATE)])
     fact = CapabilityRegistry.capability_for(
-        FK_DT.TRUNCATE, "unit", CONST_BACKEND.IBIS,
-        dialect="ibis-duckdb", option_value="2d",
+        FK_DT.TRUNCATE,
+        "unit",
+        CONST_BACKEND.IBIS,
+        dialect="ibis-duckdb",
+        option_value="2d",
     )
     assert fact is not None and fact.value_class is ValueClass.DURATION_MULTIPLIER
 
@@ -47,9 +57,7 @@ def test_value_class_lookup_still_resolves(isolated):
 def test_duplicate_value_class_key_rejected(isolated):
     CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, [_vc_fact(FK_DT.TRUNCATE)])
     with pytest.raises(ValueError, match="duplicate"):
-        CapabilityRegistry.register_backend(
-            CONST_BACKEND.IBIS, [_vc_fact(FK_DT.TRUNCATE)]
-        )
+        CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, [_vc_fact(FK_DT.TRUNCATE)])
 
 
 def test_facts_enumeration_is_sorted_and_total(isolated):
@@ -59,10 +67,10 @@ def test_facts_enumeration_is_sorted_and_total(isolated):
         return [
             _vc_fact(FK_DT.TRUNCATE, vc=ValueClass.DURATION_MULTIPLIER),
             _vc_fact(FK_DT.TRUNCATE, vc=ValueClass.POLARS_OFFSET),
-            _vc_fact(FK_DT.TRUNCATE, dialect="ibis-duckdb",
-                     vc=ValueClass.DURATION_MULTIPLIER),
+            _vc_fact(FK_DT.TRUNCATE, dialect="ibis-duckdb", vc=ValueClass.DURATION_MULTIPLIER),
             _vc_fact(FK_DT.ADD_DAYS, vc=ValueClass.DURATION_MULTIPLIER, param="days"),
         ]
+
     CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, _facts())
     out = CapabilityRegistry.facts()
     # Explicit expected order pins op (ADD_DAYS < TRUNCATE), dialect
@@ -82,11 +90,18 @@ def test_facts_enumeration_is_sorted_and_total(isolated):
 
 def _residue_fact(op, option_value):
     return CapabilityFact(
-        operation_key=op, param="length", level=CapabilityLevel.UNSUPPORTED,
-        backend=CONST_BACKEND.IBIS, dialect=None, option_value=option_value,
-        boundary=Boundary.MATERIALIZE, native_errors=(ValueError,),
+        operation_key=op,
+        param="length",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect=None,
+        option_value=option_value,
+        boundary=Boundary.MATERIALIZE,
+        native_errors=(ValueError,),
         enforcement=Enforcement.MATERIALIZE_RESIDUE,
-        message="t", since="2026-08-07", probe_exempt="test",
+        message="t",
+        since="2026-08-07",
+        probe_exempt="test",
     )
 
 
@@ -97,11 +112,21 @@ def test_residue_for_rejects_equal_specificity_collision(isolated):
     # "value-scoped => BUILD boundary" rule make this state unreachable via the
     # public path, so we seed the two facts directly into the internal index to
     # exercise the defensive guard (implemented at T3, untested — final M-5).
-    CapabilityRegistry._facts[
-        (FK_DT.TRUNCATE, "length", CONST_BACKEND.IBIS, None, "a")] = _residue_fact(
-            FK_DT.TRUNCATE, "a")
-    CapabilityRegistry._facts[
-        (FK_DT.TRUNCATE, "length", CONST_BACKEND.IBIS, None, "b")] = _residue_fact(
-            FK_DT.TRUNCATE, "b")
+    from mountainash.core.capabilities.registry import _LoadState, _prepare_state
+
+    facts = {
+        (FK_DT.TRUNCATE, "length", CONST_BACKEND.IBIS, None, value): _residue_fact(FK_DT.TRUNCATE, value)
+        for value in ("a", "b")
+    }
+    CapabilityRegistry.restore(
+        _prepare_state(
+            facts=facts,
+            kinds={},
+            value_class_facts={},
+            predicate_facts=(),
+            declarations=(),
+            load_state=_LoadState.ISOLATED,
+        )
+    )
     with pytest.raises(ValueError, match="ambiguous MATERIALIZE_RESIDUE"):
         CapabilityRegistry.residue_for(CONST_BACKEND.IBIS)

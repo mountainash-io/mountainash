@@ -1,4 +1,5 @@
 """Registry integration for predicate facts (backlog 66b)."""
+
 from __future__ import annotations
 
 import pytest
@@ -6,7 +7,11 @@ import pytest
 from mountainash.core.capabilities import CapabilityRegistry
 from mountainash.core.capabilities.predicates import BoundCall
 from mountainash.core.capabilities.schema import (
-    CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate,
+    CapabilityFact,
+    CapabilityLevel,
+    Clause,
+    ClauseOp,
+    Predicate,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -19,16 +24,24 @@ _OP = FK_ARITH.ABS
 
 def _fact(param, level, predicate, *, backend=CONST_BACKEND.POLARS, dialect="polars"):
     return CapabilityFact(
-        operation_key=_OP, param=param, level=level, backend=backend,
-        dialect=dialect, message=f"{param} limitation", since="2026-08-15",
+        operation_key=_OP,
+        param=param,
+        level=level,
+        backend=backend,
+        dialect=dialect,
+        message=f"{param} limitation",
+        since="2026-08-15",
         predicate=predicate,
     )
 
 
 def _call(**bindings):
     return BoundCall(
-        operation_key=_OP, backend=CONST_BACKEND.POLARS, dialect="polars",
-        bindings=bindings, supplied=frozenset(bindings),
+        operation_key=_OP,
+        backend=CONST_BACKEND.POLARS,
+        dialect="polars",
+        bindings=bindings,
+        supplied=frozenset(bindings),
     )
 
 
@@ -38,8 +51,6 @@ def isolated():
     CapabilityRegistry.reset()
     yield
     CapabilityRegistry.restore(snap)
-
-
 
 
 def test_violations_for_collects_matching_blocking_fact(isolated):
@@ -67,7 +78,9 @@ def test_violations_for_skips_non_blocking(isolated):
 
 def test_conflict_raise_on_incomparable_block_and_permit(isolated):
     block = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((Clause("x", ClauseOp.EQ, 7),)))
-    permit = _fact("overflow", CapabilityLevel.EXPR_CAPABLE, Predicate((Clause("overflow", ClauseOp.EQ, "saturating"),)))
+    permit = _fact(
+        "overflow", CapabilityLevel.EXPR_CAPABLE, Predicate((Clause("overflow", ClauseOp.EQ, "saturating"),))
+    )
     CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [block])
     with pytest.raises(ValueError, match="conflict"):
         CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [permit])
@@ -81,10 +94,6 @@ def test_conflict_detected_across_different_params(isolated):
     CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [block])
     with pytest.raises(ValueError, match="conflict"):
         CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [permit])
-
-
-
-
 
 
 def test_facts_includes_predicate_facts(isolated):
@@ -104,10 +113,16 @@ def test_snapshot_round_trips_predicate_facts(isolated):
 
 
 def _metadata_fact():
-    return _fact("overflow", CapabilityLevel.UNSUPPORTED, Predicate((
-        Clause("overflow", ClauseOp.EQ, "saturating"),
-        Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-    )))
+    return _fact(
+        "overflow",
+        CapabilityLevel.UNSUPPORTED,
+        Predicate(
+            (
+                Clause("overflow", ClauseOp.EQ, "saturating"),
+                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+            )
+        ),
+    )
 
 
 def test_raw_gate_defers_whole_metadata_conjunction(isolated):
@@ -132,20 +147,30 @@ def test_complete_gate_distinguishes_operand_type_and_option(isolated):
     assert CapabilityRegistry.violations_for(replace(floating, bindings={"x": 1, "overflow": "other"})) == frozenset()
 
 
-@pytest.mark.parametrize("path, operand", [
-    ("__operand_types__", "float"),
-    ("__operand_types__.x", "float"),
-    ("__operand_types__.x.native_dtype", "float"),
-    ("__operand_types__.overflow.logical_kind", "float"),
-    ("__operand_types__.missing.logical_kind", "float"),
-    ("__operand_types__.x.logical_kind", "decimal"),
-    ("__operand_types__.x.storage_kind", "arbitrary"),
-    ("__operand_types__.x.nullable", 1),
-])
+@pytest.mark.parametrize(
+    "path, operand",
+    [
+        ("__operand_types__", "float"),
+        ("__operand_types__.x", "float"),
+        ("__operand_types__.x.native_dtype", "float"),
+        ("__operand_types__.overflow.logical_kind", "float"),
+        ("__operand_types__.missing.logical_kind", "float"),
+        ("__operand_types__.x.logical_kind", "decimal"),
+        ("__operand_types__.x.storage_kind", "arbitrary"),
+        ("__operand_types__.x.nullable", 1),
+    ],
+)
 def test_registration_rejects_invalid_metadata_selectors(isolated, path, operand):
-    fact = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((
-        Clause("x", ClauseOp.IS_SET), Clause(path, ClauseOp.EQ, operand),
-    )))
+    fact = _fact(
+        "x",
+        CapabilityLevel.UNSUPPORTED,
+        Predicate(
+            (
+                Clause("x", ClauseOp.IS_SET),
+                Clause(path, ClauseOp.EQ, operand),
+            )
+        ),
+    )
     with pytest.raises(ValueError):
         CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
 
@@ -178,10 +203,61 @@ def test_metadata_only_fact_keeps_operand_reporting_identity(isolated):
     from dataclasses import replace
     from mountainash.core.dtypes.metadata import OperandType
 
-    fact = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((
-        Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),
-    )))
+    fact = _fact(
+        "x",
+        CapabilityLevel.UNSUPPORTED,
+        Predicate((Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),)),
+    )
     CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
     call = replace(_call(x=1), operand_types={"x": OperandType("unknown", "polars_object", None)})
     assert CapabilityRegistry.violations_for(call) == frozenset({fact})
     assert fact in CapabilityRegistry.facts()
+
+
+def test_metadata_names_follow_scope_and_dynamic_registration(isolated):
+    from dataclasses import replace
+
+    family = replace(_metadata_fact(), dialect=None, backend=CONST_BACKEND.IBIS)
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.IBIS) == frozenset()
+    CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, [family])
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.IBIS, "unknown") == frozenset({"x"})
+    assert CapabilityRegistry.metadata_operand_names(FK_ARITH.ADD, CONST_BACKEND.IBIS) == frozenset()
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.POLARS) == frozenset()
+    snapshot = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.IBIS) == frozenset()
+    CapabilityRegistry.restore(snapshot)
+    assert CapabilityRegistry.metadata_operand_names(_OP, CONST_BACKEND.IBIS) == frozenset({"x"})
+
+
+def test_metadata_names_union_only_family_and_matching_dialect(isolated):
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+    )
+
+    def field(name, dialect):
+        return CapabilityFact(
+            operation_key=FK_STR.LPAD,
+            param=name,
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.IBIS,
+            dialect=dialect,
+            since="2026-09-15",
+            predicate=Predicate((Clause(f"__operand_types__.{name}.logical_kind", ClauseOp.EQ, "float"),)),
+        )
+
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.IBIS,
+        [
+            field("input", None),
+            field("length", "ibis-duckdb"),
+            field("characters", "ibis-sqlite"),
+        ],
+    )
+    assert CapabilityRegistry.metadata_operand_names(FK_STR.LPAD, CONST_BACKEND.IBIS, "ibis-duckdb") == frozenset(
+        {"input", "length"}
+    )
+    assert CapabilityRegistry.metadata_operand_names(FK_STR.LPAD, CONST_BACKEND.IBIS, "ibis-sqlite") == frozenset(
+        {"input", "characters"}
+    )
+    assert CapabilityRegistry.metadata_operand_names(FK_STR.LPAD, CONST_BACKEND.IBIS, "unknown") == frozenset({"input"})

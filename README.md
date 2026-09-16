@@ -132,6 +132,27 @@ ma.relation(data)     -> capability facts     -> native plan         -> collect 
 
 Backend systems register with the expression and relation registries. This keeps backend selection out of API builders and makes capability differences explicit.
 
+Capability declarations are prepared once per registry publication. Compilation
+looks up operand names and operation/backend predicate candidates without
+enumerating the complete capability report; operand type descriptors are still
+resolved freshly in the current input scope, never cached across frames.
+
+`CapabilityRegistry.register_backend()` and `register_declaration()` publish
+whole batches or leave the previous data unchanged. Initial loading is likewise
+transactional; a failed load retains its original exception until reset/restore.
+Registered facts, predicates, declarations, and evidence must use their exact
+supported dataclass types and immutable tuple/frozenset payloads. Enum operands
+must use homogeneous built-in scalar values (finite floats only); container
+values, mixed scalar domains, and scalar subclasses are rejected.
+
+Each registry accessor reads one immutable generation, not an entire
+compilation-wide transaction. Finish registration before compiling if the whole
+compilation must use one configuration. Same-thread recursive mutations and
+recursive first-load queries raise `RuntimeError`; warm reads remain available
+during registration. Snapshot tokens are opaque and must only be passed back to
+`restore()`. `reset()` enters isolated mode, which allows local queries but
+refuses production reporting.
+
 ## Top-level package map
 
 | Module | Responsibility and boundary |

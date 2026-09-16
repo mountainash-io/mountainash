@@ -1,4 +1,5 @@
 """Compile-time capability gate at the expression visitor (spec Section 2)."""
+
 import polars as pl
 import pytest
 
@@ -13,6 +14,16 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
+from mountainash.core.capabilities import (
+    Boundary,
+    WILDCARD_PARAM,
+    Enforcement,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
+)
+from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
+from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 
 
 @pytest.fixture(autouse=True)
@@ -25,13 +36,19 @@ def _isolated_registry():
 def _register(level, param="substring", condition=None, **kw):
     CapabilityRegistry.register_backend(
         CONST_BACKEND.POLARS,
-        [CapabilityFact(
-            operation_key=FK_STR.CONTAINS, param=param, level=level,
-            backend=CONST_BACKEND.POLARS,
-            message="test-fact: contains substring gated",
-            workaround="use a literal",
-            since="2026-07-05", condition=condition, **kw,
-        )],
+        [
+            CapabilityFact(
+                operation_key=FK_STR.CONTAINS,
+                param=param,
+                level=level,
+                backend=CONST_BACKEND.POLARS,
+                message="test-fact: contains substring gated",
+                workaround="use a literal",
+                since="2026-07-05",
+                condition=condition,
+                **kw,
+            )
+        ],
     )
 
 
@@ -99,9 +116,7 @@ class TestGateBypass:
         )
         from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 
-        visitor = UnifiedExpressionVisitor(
-            PolarsExpressionSystem(), enforce_capabilities=False
-        )
+        visitor = UnifiedExpressionVisitor(PolarsExpressionSystem(), enforce_capabilities=False)
         node = ma.col("text").str.contains(ma.col("pat"))._node
         assert visitor.visit(node) is not None  # native polars accepts Expr here
 
@@ -119,18 +134,6 @@ class TestPolymorphicPreserved:
         assert expr_path is not None
 
 
-from mountainash.core.capabilities import (
-    Boundary,
-    WILDCARD_PARAM,
-    Enforcement,
-)
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
-)
-from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
-from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
-
-
 def _compile_polars(expr):
     system = get_expression_system(CONST_BACKEND.POLARS)(dialect="polars")
     return UnifiedExpressionVisitor(system, enforce_capabilities=True).visit(expr._node)
@@ -146,51 +149,80 @@ def isolated_registry():
 
 
 def test_op_level_gate_raises_for_zero_arg_op(isolated_registry):
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
-            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
-            dialect=None, message="today unsupported (test)", since="2026-07-29",
-        )
-    ])
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_DT.TODAY,
+                param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.POLARS,
+                dialect=None,
+                message="today unsupported (test)",
+                since="2026-07-29",
+            )
+        ],
+    )
     with pytest.raises(BackendCapabilityError):
         _compile_polars(ma.today())
 
 
 def test_op_level_gate_ignores_dialect_scoped_expr_capable(isolated_registry):
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
-            level=CapabilityLevel.EXPR_CAPABLE, backend=CONST_BACKEND.POLARS,
-            dialect="polars", message="refinement (test)", since="2026-07-29",
-            probe_exempt="refinement",
-        )
-    ])
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_DT.TODAY,
+                param=WILDCARD_PARAM,
+                level=CapabilityLevel.EXPR_CAPABLE,
+                backend=CONST_BACKEND.POLARS,
+                dialect="polars",
+                message="refinement (test)",
+                since="2026-07-29",
+                probe_exempt="refinement",
+            )
+        ],
+    )
     _compile_polars(ma.today())  # no raise
 
 
 def test_op_level_gate_ignores_router_metadata(isolated_registry):
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
-            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
-            dialect=None, message="router only (test)", since="2026-07-29",
-            enforcement=Enforcement.ROUTER_METADATA,  # boundary defaults to BUILD (legal)
-        )
-    ])
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_DT.TODAY,
+                param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.POLARS,
+                dialect=None,
+                message="router only (test)",
+                since="2026-07-29",
+                enforcement=Enforcement.ROUTER_METADATA,  # boundary defaults to BUILD (legal)
+            )
+        ],
+    )
     _compile_polars(ma.today())  # no raise
 
 
 def test_op_level_gate_ignores_materialize_residue(isolated_registry):
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_DT.TODAY, param=WILDCARD_PARAM,
-            level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
-            dialect=None, message="residue only (test)", since="2026-07-29",
-            enforcement=Enforcement.MATERIALIZE_RESIDUE,
-            boundary=Boundary.MATERIALIZE, native_errors=(ValueError,),  # required for MATERIALIZE
-        )
-    ])
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_DT.TODAY,
+                param=WILDCARD_PARAM,
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.POLARS,
+                dialect=None,
+                message="residue only (test)",
+                since="2026-07-29",
+                enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                boundary=Boundary.MATERIALIZE,
+                native_errors=(ValueError,),  # required for MATERIALIZE
+            )
+        ],
+    )
     _compile_polars(ma.today())  # no raise
 
 
@@ -199,15 +231,7 @@ def test_op_level_gate_no_fact_compiles():
 
 
 def test_enforced_visitor_construction_bootstraps_declarations():
-    """Cold-path regression guard: a gating consumer must load the capability
-    declaration modules before it can gate. Constructing an enforce_capabilities
-    visitor triggers load_all_capability_declarations(), so gates fire even on a
-    cold path where nothing else imported the declaration module. Runs in a fresh
-    interpreter because the registry's _load_state is already LOADED in-process.
-    Asserts CapabilityRegistry._load_state is _LoadState.UNINITIALIZED / LOADED
-    (spec §2 state machine) — not a derived boolean — so a regression where
-    _load_state gains a fifth state (e.g. PARTIAL) cannot silently collapse to
-    a True/False check."""
+    """An enforcing visitor loads declarations; imports and disabled mode do not."""
     import subprocess
     import sys
 
@@ -217,20 +241,19 @@ def test_enforced_visitor_construction_bootstraps_declarations():
         "from mountainash.core.capabilities.registry import (\n"
         "    CapabilityRegistry, _LoadState,\n"
         ")\n"
-        "assert CapabilityRegistry._load_state is _LoadState.UNINITIALIZED, (\n"
+        "assert CapabilityRegistry.snapshot().load_state is _LoadState.UNINITIALIZED, (\n"
         "    'importing the visitor must not bootstrap by itself'\n"
         ")\n"
         "UnifiedExpressionVisitor(object(), enforce_capabilities=False)\n"
-        "assert CapabilityRegistry._load_state is _LoadState.UNINITIALIZED, (\n"
+        "assert CapabilityRegistry.snapshot().load_state is _LoadState.UNINITIALIZED, (\n"
         "    'a non-enforcing visitor must not bootstrap'\n"
         ")\n"
         "UnifiedExpressionVisitor(object(), enforce_capabilities=True)\n"
-        "assert CapabilityRegistry._load_state is _LoadState.LOADED, (\n"
+        "assert CapabilityRegistry.snapshot().load_state is _LoadState.LOADED, (\n"
         "    'enforced visitor construction did not bootstrap declarations'\n"
         ")\n"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
-
 
 
 def test_predicate_fact_gates_expression_call():
@@ -238,15 +261,23 @@ def test_predicate_fact_gates_expression_call():
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     )
+
     # ABS protocol: def abs(self, x, /, overflow=None) — the literal arg maps to param "x".
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_ARITH.ABS, param="x", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.POLARS, dialect="polars",
-            message="abs blocked when x==7", since="2026-08-15",
-            predicate=Predicate((Clause("x", ClauseOp.EQ, 7),)),
-        ),
-    ])
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_ARITH.ABS,
+                param="x",
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.POLARS,
+                dialect="polars",
+                message="abs blocked when x==7",
+                since="2026-08-15",
+                predicate=Predicate((Clause("x", ClauseOp.EQ, 7),)),
+            ),
+        ],
+    )
     with pytest.raises(BackendCapabilityError) as exc_info:
         ma.lit(7).abs().compile(DF)
     assert exc_info.value.limitation.predicate is not None
@@ -258,16 +289,25 @@ def test_predicate_fact_does_not_fire_when_predicate_false():
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     )
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_ARITH.ABS, param="x", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.POLARS, dialect="polars",
-            message="abs blocked when x==7", since="2026-08-15",
-            predicate=Predicate((Clause("x", ClauseOp.EQ, 7),)),
-        ),
-    ])
+
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_ARITH.ABS,
+                param="x",
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.POLARS,
+                dialect="polars",
+                message="abs blocked when x==7",
+                since="2026-08-15",
+                predicate=Predicate((Clause("x", ClauseOp.EQ, 7),)),
+            ),
+        ],
+    )
     compiled = ma.lit(9).abs().compile(DF)  # [x EQ 7] does not hold
     assert compiled is not None
+
 
 def test_metadata_predicate_is_evaluated_after_scope_resolution():
     """A metadata fact defers in raw phase, then blocks only its matching type."""
@@ -282,20 +322,21 @@ def test_metadata_predicate_is_evaluated_after_scope_resolution():
         FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     )
 
-    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [
-        CapabilityFact(
-            operation_key=FK_ARITH.ABS,
-            param="x",
-            level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.POLARS,
-            dialect="polars",
-            message="float abs blocked after metadata resolution",
-            since="2026-09-14",
-            predicate=Predicate((
-                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-            )),
-        ),
-    ])
+    CapabilityRegistry.register_backend(
+        CONST_BACKEND.POLARS,
+        [
+            CapabilityFact(
+                operation_key=FK_ARITH.ABS,
+                param="x",
+                level=CapabilityLevel.UNSUPPORTED,
+                backend=CONST_BACKEND.POLARS,
+                dialect="polars",
+                message="float abs blocked after metadata resolution",
+                since="2026-09-14",
+                predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
+            ),
+        ],
+    )
 
     with pytest.raises(BackendCapabilityError, match="float abs blocked"):
         ma.col("value").abs().compile(pl.DataFrame({"value": [1.0]}))
