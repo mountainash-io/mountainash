@@ -2,7 +2,7 @@ name: Build, Verify, and Publish Package
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
     inputs:
       publish:
