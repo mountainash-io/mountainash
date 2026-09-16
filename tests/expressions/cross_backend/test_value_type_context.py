@@ -1,4 +1,5 @@
 """Scope-bound operand metadata regressions for type-sensitive expressions."""
+
 from __future__ import annotations
 
 import polars as pl
@@ -26,9 +27,7 @@ def test_input_scope_resolves_field_metadata_without_selection(monkeypatch: pyte
 
     monkeypatch.setattr(frame, "select", fail_select)
     with visitor.input_scope(frame):
-        assert visitor.resolve_operand_type(ma.col("amount").node) == OperandType(
-            "integer", "native", None
-        )
+        assert visitor.resolve_operand_type(ma.col("amount").node) == OperandType("integer", "native", None)
 
 
 def test_polars_computed_metadata_uses_lazy_schema_without_selection(
@@ -42,14 +41,10 @@ def test_polars_computed_metadata_uses_lazy_schema_without_selection(
     monkeypatch.setattr(
         frame,
         "select",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("computed type resolution must not select data")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("computed type resolution must not select data")),
     )
     with visitor.input_scope(frame):
-        assert visitor.resolve_operand_type(expression.node) == OperandType(
-            "integer", "native", None
-        )
+        assert visitor.resolve_operand_type(expression.node) == OperandType("integer", "native", None)
 
 
 def test_input_scope_restores_metadata_after_an_exception() -> None:
@@ -70,21 +65,20 @@ def test_declared_and_preserved_result_types_compose_without_selection(
     """Fixed parser output and naming preservation require metadata, not evaluation."""
     frame = pl.DataFrame({"text": ["true", "false"]})
     visitor = _visitor()
-    expression = ma.col("text").parse_boolean(
-        true_values=("true",), false_values=("false",), field_name="text"
-    ).name.alias("parsed")
+    expression = (
+        ma.col("text")
+        .parse_boolean(true_values=("true",), false_values=("false",), field_name="text")
+        .name.alias("parsed")
+    )
 
     monkeypatch.setattr(
         frame,
         "select",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("type resolution must not select data")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("type resolution must not select data")),
     )
     with visitor.input_scope(frame):
-        assert visitor.resolve_operand_type(expression.node) == OperandType(
-            "boolean", "native", True
-        )
+        assert visitor.resolve_operand_type(expression.node) == OperandType("boolean", "native", True)
+
 
 def test_fixed_value_result_composes_without_selecting_data(
     monkeypatch: pytest.MonkeyPatch,
@@ -97,27 +91,18 @@ def test_fixed_value_result_composes_without_selecting_data(
     monkeypatch.setattr(
         frame,
         "select",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
-            AssertionError("type resolution must not select data")
-        ),
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("type resolution must not select data")),
     )
     with visitor.input_scope(frame):
-        assert visitor.resolve_operand_type(expression.node) == OperandType(
-            "text", "native", True
-        )
-
+        assert visitor.resolve_operand_type(expression.node) == OperandType("text", "native", True)
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_fixed_value_result_compiles_in_every_backend_scope(
-    backend_name: str, backend_factory: object
-) -> None:
+def test_fixed_value_result_compiles_in_every_backend_scope(backend_name: str, backend_factory: object) -> None:
     """A nested consumer receives the fixed text output in every backend."""
     frame = backend_factory.create({"value": [1, 2]}, backend_name)
-    result = ma.relation(frame).select(
-        ma.col("value").value_kind().text_value().name.alias("kind")
-    ).to_dict()
+    result = ma.relation(frame).select(ma.col("value").value_kind().text_value().name.alias("kind")).to_dict()
     assert result == {"kind": ["integer", "integer"]}
 
 
@@ -129,9 +114,18 @@ def test_null_branches_do_not_make_homogeneous_result_ambiguous() -> None:
     coalesced = ma.coalesce(conditional, ma.lit(None))
 
     with visitor.input_scope(frame):
-        assert visitor.resolve_operand_type(conditional.node) == OperandType(
-            "text", "native", True
-        )
-        assert visitor.resolve_operand_type(coalesced.node) == OperandType(
-            "text", "native", True
-        )
+        assert visitor.resolve_operand_type(conditional.node) == OperandType("text", "native", True)
+        assert visitor.resolve_operand_type(coalesced.node) == OperandType("text", "native", True)
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_declared_type_arguments_resolve_when_enforcement_disabled(backend_name, backend_factory, select_and_extract):
+    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
+
+    frame = backend_factory.create({"value": [1, 2]}, backend_name)
+    identity = identify_backend_identity(frame)
+    backend = get_expression_system(identity.family)(dialect=identity.dialect)
+    visitor = UnifiedExpressionVisitor(backend, enforce_capabilities=False, input_data=frame)
+    compiled = visitor.visit(ma.col("value").value_kind().node)
+    assert select_and_extract(frame, compiled, "kind", backend_name) == ["integer", "integer"]

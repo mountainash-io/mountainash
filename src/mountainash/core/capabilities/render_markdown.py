@@ -4,6 +4,7 @@ Pure over CoverageReport; input gathering + main() live at the bottom
 (Task 5). No wall-clock reads anywhere (spec §4.4). The JSON renderer is
 spec §4.6 — the machine-readable extract, the third committed artifact.
 """
+
 from __future__ import annotations
 import json
 from datetime import date, timedelta
@@ -147,10 +148,15 @@ def _cell_text(oc: OpCoverage) -> str:
         elif oc.whole_op is CapabilityLevel.POLYMORPHIC:
             status.append("poly")
         sc = oc.selector_counts
-        if any((
-            sc.params, sc.option_selectors, sc.metadata_selectors,
-            sc.value_classes, sc.dialects,
-        )):
+        if any(
+            (
+                sc.params,
+                sc.option_selectors,
+                sc.metadata_selectors,
+                sc.value_classes,
+                sc.dialects,
+            )
+        ):
             partial = (
                 f"◐ partial ({sc.params} params, {sc.option_selectors} option-selectors, "
                 f"{sc.metadata_selectors} metadata-selectors, {sc.value_classes} value-classes, "
@@ -168,10 +174,7 @@ def _cell_text(oc: OpCoverage) -> str:
                 by_level: dict[str, set[str]] = {}
                 for f in dsw:
                     by_level.setdefault(f.level.value, set()).add(f.dialect or "")
-                parts = [
-                    f"{lv} on {','.join(sorted(dialects))}"
-                    for lv, dialects in sorted(by_level.items())
-                ]
+                parts = [f"{lv} on {','.join(sorted(dialects))}" for lv, dialects in sorted(by_level.items())]
                 partial = f"{partial} · {' · '.join(parts)}"
             status.append(partial)
         text = " + ".join(status)  # spec §3.5: `poly + ◐ partial (…)`
@@ -221,8 +224,7 @@ def _summary(report: CoverageReport) -> list[str]:
     lines.append("### Per-backend counts")
     lines.append("")
     lines.append(
-        "| Backend | default_capable | audited_clean | constrained "
-        "| NOT_IMPLEMENTED | UNKNOWN | ops_total |"
+        "| Backend | default_capable | audited_clean | constrained " "| NOT_IMPLEMENTED | UNKNOWN | ops_total |"
     )
     lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for b in RENDERED_BACKENDS:
@@ -237,24 +239,22 @@ def _summary(report: CoverageReport) -> list[str]:
     # line. Spec §3.3 / §4.1.
     lines.append("")
     lines.append(f"contradictions: {report.stats.contradictions}")
-    lines.append(f"audited_unknown: "
-                 f"{sum(report.stats.audited_unknown.values())}")
+    lines.append(f"audited_unknown: " f"{sum(report.stats.audited_unknown.values())}")
     lines.append("")
     lines.append("### Fact statistics")
     lines.append("")
     lines.append("| Axis | Breakdown |")
     lines.append("| --- | --- |")
     level_bits = ", ".join(
-        f"{lv.value} {report.stats.facts_by_level[lv]}"
-        for lv in CapabilityLevel if lv in report.stats.facts_by_level
+        f"{lv.value} {report.stats.facts_by_level[lv]}" for lv in CapabilityLevel if lv in report.stats.facts_by_level
     )
     enf_bits = ", ".join(
         f"{e.value} {report.stats.facts_by_enforcement[e]}"
-        for e in Enforcement if e in report.stats.facts_by_enforcement
+        for e in Enforcement
+        if e in report.stats.facts_by_enforcement
     )
     backend_bits = ", ".join(
-        f"{b.value} {report.stats.facts_by_backend[b]}"
-        for b in RENDERED_BACKENDS if b in report.stats.facts_by_backend
+        f"{b.value} {report.stats.facts_by_backend[b]}" for b in RENDERED_BACKENDS if b in report.stats.facts_by_backend
     )
     lines.append(f"| Level | {level_bits or '—'} |")
     lines.append(f"| Enforcement | {enf_bits or '—'} |")
@@ -267,9 +267,7 @@ def _summary(report: CoverageReport) -> list[str]:
     lines.append("")
     lines.append("### Audited pairs")
     lines.append("")
-    lines.append(
-        "| Backend | Source | Domain | Probe date | Library versions | Fixtures |"
-    )
+    lines.append("| Backend | Source | Domain | Probe date | Library versions | Fixtures |")
     lines.append("| --- | --- | --- | --- | --- | --- |")
     for d in report.declarations:
         if d.evidence is None:
@@ -301,9 +299,7 @@ def _family_matrices(report: CoverageReport) -> list[str]:
         for oc in fam.ops:
             by_op.setdefault(oc.op.operation_key.name, {})[oc.backend] = oc
         for op_name in sorted(by_op):
-            cells = " | ".join(
-                _cell_text(by_op[op_name][b]) for b in RENDERED_BACKENDS
-            )
+            cells = " | ".join(_cell_text(by_op[op_name][b]) for b in RENDERED_BACKENDS)
             lines.append(f"| `{op_name}` | {cells} |")
         lines.append("")
     return lines
@@ -313,11 +309,15 @@ def _unmapped_families(report: CoverageReport) -> list[str]:
     unmapped = [f for f in report.families if f.audit_domain is None]
     if not unmapped:
         return []
-    lines = ["## Unmapped families", "",
-             "No declaration domain exists for these enum classes yet; no audit "
-             "applies (every cell carries only the implementation axis). "
-             "Extending coverage here starts at `classify_domain`/"
-             "`_DOMAIN_SUFFIXES` (spec §3.2).", ""]
+    lines = [
+        "## Unmapped families",
+        "",
+        "No declaration domain exists for these enum classes yet; no audit "
+        "applies (every cell carries only the implementation axis). "
+        "Extending coverage here starts at `classify_domain`/"
+        "`_DOMAIN_SUFFIXES` (spec §3.2).",
+        "",
+    ]
     for fam in unmapped:
         names = sorted({oc.op.operation_key.name for oc in fam.ops})
         n_ops = len(names)
@@ -330,13 +330,10 @@ def _unmapped_families(report: CoverageReport) -> list[str]:
             if oc.impl in {ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER}:
                 by_backend[oc.backend] += 1
         if all(by_backend[b] == n_ops for b in RENDERED_BACKENDS):
-            stamp = (f"{n_ops} ops — all implemented on "
-                     f"{len(RENDERED_BACKENDS)}/{len(RENDERED_BACKENDS)} backends")
+            stamp = f"{n_ops} ops — all implemented on " f"{len(RENDERED_BACKENDS)}/{len(RENDERED_BACKENDS)} backends"
         else:
-            stamp = (f"{n_ops} ops — " + " · ".join(
-                f"{by_backend[b]}/{n_ops} {b.value}" for b in RENDERED_BACKENDS))
-        lines.append(f"- `{fam.family}` ({stamp}): "
-                     + ", ".join(f"`{n}`" for n in names))
+            stamp = f"{n_ops} ops — " + " · ".join(f"{by_backend[b]}/{n_ops} {b.value}" for b in RENDERED_BACKENDS)
+        lines.append(f"- `{fam.family}` ({stamp}): " + ", ".join(f"`{n}`" for n in names))
     lines.append("")
     return lines
 
@@ -410,10 +407,7 @@ def _detail_sections(report: CoverageReport) -> list[str]:
             if not function_level:
                 continue
             wrote_any = True
-            lines.append(
-                f"### `{oc.op.operation_key.name}` × {oc.backend.value} "
-                f"({oc.op.family})"
-            )
+            lines.append(f"### `{oc.op.operation_key.name}` × {oc.backend.value} " f"({oc.op.family})")
             lines.append("")
             lines.append(_DETAIL_HEADER)
             lines.append(_DETAIL_RULE)
@@ -430,8 +424,7 @@ def _divergences_section(report: CoverageReport) -> list[str]:
     lines = ["## Divergence register", ""]
     if not report.divergences:
         return lines + ["None recorded.", ""]
-    lines.append("| Id | Kind | Backends | Operations | Summary | Impact "
-                 "| Workaround | Upstream | Since |")
+    lines.append("| Id | Kind | Backends | Operations | Summary | Impact " "| Workaround | Upstream | Since |")
     lines.append("| " + " | ".join(["---"] * 9) + " |")
     for dv in report.divergences:
         ops = ", ".join(f"`{k.name}`" for k in dv.operation_keys) or "—"
@@ -453,9 +446,7 @@ def _gaps_section(report: CoverageReport) -> list[str]:
     lines.append("| --- | --- | --- | --- |")
     for g in report.gaps:
         due = (date.fromisoformat(g.since) + timedelta(days=183)).isoformat()
-        lines.append(
-            f"| {g.gap_kind.value} | {_escape(g.reason)} | {g.since} | {due} |"
-        )
+        lines.append(f"| {g.gap_kind.value} | {_escape(g.reason)} | {g.since} | {due} |")
     lines.append("")
     return lines
 
@@ -464,9 +455,11 @@ def _retirements_section(report: CoverageReport) -> list[str]:
     lines = ["## Retirement changelog", ""]
     if not report.retired:
         return lines + ["None recorded.", ""]
-    lines.append("| Retired on | Operation | Param | Backend | Dialect "
-                 "| Option value | Value class | Level | Since | Fixed in "
-                 "| Upstream | Note |")
+    lines.append(
+        "| Retired on | Operation | Param | Backend | Dialect "
+        "| Option value | Value class | Level | Since | Fixed in "
+        "| Upstream | Note |"
+    )
     lines.append("| " + " | ".join(["---"] * 12) + " |")
     for r in reversed(report.retired):  # model sorts ascending; render newest-first
         fixed = ", ".join(f"{n} {v}" for n, v in r.fixed_in_versions) or "—"
@@ -560,15 +553,10 @@ def _scoped_detail_sections(report: CoverageReport) -> list[str]:
             if not scoped:
                 continue
             wrote_any = True
-            lines.append(
-                f"### `{oc.op.operation_key.name}` × {oc.backend.value} "
-                f"({oc.op.family})"
-            )
+            lines.append(f"### `{oc.op.operation_key.name}` × {oc.backend.value} " f"({oc.op.family})")
             lines.append("")
             dsw = tuple(f for f in scoped if is_dialect_scoped_whole_op(f))
-            remaining = tuple(
-                f for f in scoped if not is_dialect_scoped_whole_op(f)
-            )
+            remaining = tuple(f for f in scoped if not is_dialect_scoped_whole_op(f))
             if dsw:
                 lines.append("#### Dialect-scoped whole-op")
                 lines.append("")
@@ -819,9 +807,7 @@ def _stats_dict(report: CoverageReport) -> dict[str, Any]:
     not the universe of all enum values — empty is empty, not zero-padded)."""
     backends: dict[str, dict[str, Any]] = {}
     for b in RENDERED_BACKENDS:
-        by_impl_nested = {
-            s.value: report.stats.by_impl.get((b, s), 0) for s in ImplState
-        }
+        by_impl_nested = {s.value: report.stats.by_impl.get((b, s), 0) for s in ImplState}
         backends[b.value] = {
             "by_impl": by_impl_nested,
             "default_capable": report.stats.default_capable[b],
@@ -835,15 +821,18 @@ def _stats_dict(report: CoverageReport) -> dict[str, Any]:
         "ops_total": report.stats.ops_total,
         "facts_by_level": {
             lv.value: report.stats.facts_by_level.get(lv, 0)
-            for lv in CapabilityLevel if lv in report.stats.facts_by_level
+            for lv in CapabilityLevel
+            if lv in report.stats.facts_by_level
         },
         "facts_by_enforcement": {
             e.value: report.stats.facts_by_enforcement.get(e, 0)
-            for e in Enforcement if e in report.stats.facts_by_enforcement
+            for e in Enforcement
+            if e in report.stats.facts_by_enforcement
         },
         "facts_by_backend": {
             b.value: report.stats.facts_by_backend.get(b, 0)
-            for b in RENDERED_BACKENDS if b in report.stats.facts_by_backend
+            for b in RENDERED_BACKENDS
+            if b in report.stats.facts_by_backend
         },
         "facts_total": report.stats.facts_total,
     }
@@ -873,11 +862,10 @@ def render_json(report: CoverageReport) -> str:
 def gather_coverage_inputs() -> dict:
     """Impure input gathering — the only registry-touching code (spec §4).
 
-    Universe is built first (spec §3.1 / §4.3) and the implementation records
-    are derived from it (`gather_implementation_records` is the spec §3.6
-    derivation; the model receives them as an explicit input and stays pure).
+    Universe and implementation records are derived from their operation
+    registries; the immutable facts and declarations share one captured
+    enumeration state.
     """
-    from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
     from mountainash.core.capabilities.coverage import OpRecord
     from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
     from mountainash.core.capabilities.gaps import KNOWN_GAPS
@@ -890,10 +878,8 @@ def gather_coverage_inputs() -> dict:
         RelationOperationRegistry,
     )
 
-    load_all_capability_declarations()
-    keys = list(ExpressionFunctionRegistry.list_all()) + list(
-        RelationOperationRegistry.list_all()
-    )
+    facts, declarations = CapabilityRegistry._report_inputs()
+    keys = list(ExpressionFunctionRegistry.list_all()) + list(RelationOperationRegistry.list_all())
     universe = tuple(
         sorted(
             (OpRecord(k, type(k).__name__) for k in keys),
@@ -902,8 +888,8 @@ def gather_coverage_inputs() -> dict:
     )
     inputs = dict(
         universe=universe,
-        facts=tuple(CapabilityRegistry.facts()),
-        declarations=tuple(CapabilityRegistry.declarations()),
+        facts=facts,
+        declarations=declarations,
         divergences=KNOWN_DIVERGENCES,
         gaps=KNOWN_GAPS,
         retired=RETIRED_FACTS,
@@ -989,37 +975,45 @@ def gather_implementation_records(
                 method_name = protocol_method.__name__
                 owner = _resolve_concrete_owner(leaf, method_name)
                 if owner is not None:
-                    records.append(ImplementationRecord(
-                        operation_key=op.operation_key,
-                        backend=backend,
-                        state=ImplState.IMPLEMENTED,
-                        method_name=method_name,
-                        protocol_name=owner.__qualname__,
-                    ))
+                    records.append(
+                        ImplementationRecord(
+                            operation_key=op.operation_key,
+                            backend=backend,
+                            state=ImplState.IMPLEMENTED,
+                            method_name=method_name,
+                            protocol_name=owner.__qualname__,
+                        )
+                    )
                 else:
-                    records.append(ImplementationRecord(
+                    records.append(
+                        ImplementationRecord(
+                            operation_key=op.operation_key,
+                            backend=backend,
+                            state=ImplState.NOT_IMPLEMENTED,
+                            method_name=method_name,
+                            protocol_name=protocol_method.__qualname__.rsplit(".", 1)[0],
+                        )
+                    )
+            elif handler is not None:
+                records.append(
+                    ImplementationRecord(
                         operation_key=op.operation_key,
                         backend=backend,
-                        state=ImplState.NOT_IMPLEMENTED,
-                        method_name=method_name,
-                        protocol_name=protocol_method.__qualname__.rsplit(".", 1)[0],
-                    ))
-            elif handler is not None:
-                records.append(ImplementationRecord(
-                    operation_key=op.operation_key,
-                    backend=backend,
-                    state=ImplState.IMPLEMENTED_VIA_HANDLER,
-                    method_name=handler.__qualname__,
-                    protocol_name="handler",
-                ))
+                        state=ImplState.IMPLEMENTED_VIA_HANDLER,
+                        method_name=handler.__qualname__,
+                        protocol_name="handler",
+                    )
+                )
             else:
-                records.append(ImplementationRecord(
-                    operation_key=op.operation_key,
-                    backend=backend,
-                    state=ImplState.UNKNOWN,
-                    method_name=None,
-                    protocol_name=None,
-                ))
+                records.append(
+                    ImplementationRecord(
+                        operation_key=op.operation_key,
+                        backend=backend,
+                        state=ImplState.UNKNOWN,
+                        method_name=None,
+                        protocol_name=None,
+                    )
+                )
     return tuple(records)
 
 
@@ -1034,13 +1028,8 @@ _ARTIFACT_RENDERERS: tuple[tuple[str, Callable[[CoverageReport], str]], ...] = (
 )
 
 
-def write_coverage_artifacts(
-    base: Path, report: CoverageReport
-) -> tuple[Path, ...]:
-    rendered = tuple(
-        (base / rel_path, renderer(report))
-        for rel_path, renderer in _ARTIFACT_RENDERERS
-    )
+def write_coverage_artifacts(base: Path, report: CoverageReport) -> tuple[Path, ...]:
+    rendered = tuple((base / rel_path, renderer(report)) for rel_path, renderer in _ARTIFACT_RENDERERS)
     changed: list[Path] = []
     for path, content in rendered:
         if write_text_if_changed(path, content):

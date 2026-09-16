@@ -1,4 +1,5 @@
 """CapabilityRegistry — registration validation, resolution order, queries."""
+
 import pytest
 
 from mountainash.core.capabilities import (
@@ -41,9 +42,7 @@ def _fact(**overrides):
 class TestRegistrationValidation:
     def test_unknown_param_rejected(self):
         with pytest.raises(ValueError, match="no parameter 'nope'"):
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.POLARS, [_fact(param="nope")]
-            )
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact(param="nope")])
 
     def test_wildcard_param_accepted(self):
         CapabilityRegistry.register_backend(
@@ -53,23 +52,18 @@ class TestRegistrationValidation:
 
     def test_unknown_dialect_rejected(self):
         with pytest.raises(ValueError, match="dialect"):
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.POLARS, [_fact(dialect="polars-quantum")]
-            )
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact(dialect="polars-quantum")])
 
     def test_backend_mismatch_rejected(self):
         with pytest.raises(ValueError, match="backend"):
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.IBIS, [_fact(backend=CONST_BACKEND.POLARS)]
-            )
+            CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, [_fact(backend=CONST_BACKEND.POLARS)])
 
     def test_unknown_operation_key_rejected(self):
         class FakeKey:  # not in any registry
             name = "BOGUS"
+
         with pytest.raises(ValueError, match="operation_key"):
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.POLARS, [_fact(operation_key=FakeKey())]
-            )
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact(operation_key=FakeKey())])
 
     def test_duplicate_key_rejected(self):
         CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact()])
@@ -92,8 +86,7 @@ class TestRegistrationValidation:
         # classifier, so this must register (Task 8 declares exactly this).
         CapabilityRegistry.register_backend(
             CONST_BACKEND.NARWHALS,
-            [_fact(backend=CONST_BACKEND.NARWHALS,
-                   operation_key=FK_STR.SUBSTRING, param="start")],
+            [_fact(backend=CONST_BACKEND.NARWHALS, operation_key=FK_STR.SUBSTRING, param="start")],
         )
 
     def test_str_backend_rejected_on_register_backend(self):
@@ -102,31 +95,23 @@ class TestRegistrationValidation:
         # path the family-identity check rejects them — "polars" == the
         # StrEnum member but is not it.
         with pytest.raises(ValueError, match="backend"):
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.POLARS, [_fact(backend="polars")]
-            )
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact(backend="polars")])
 
     def test_fidelity_on_execute_fact_rejected(self):
         # fidelity is reserved for SERIALIZE-target facts (spec 2026-07-06);
         # register_backend is the EXECUTE path and must reject it.
         with pytest.raises(ValueError, match="fidelity"):
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.POLARS, [_fact(fidelity=Fidelity.NATIVE)]
-            )
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact(fidelity=Fidelity.NATIVE)])
 
     def test_serialize_family_namespace_disjoint(self):
-        # A SERIALIZE identity may never collide with CONST_BACKEND, and a
-        # family may not change kind (spec 2026-07-06). register_target()
-        # arrives with the serialization workstream; the identity helper is
-        # the forward-compat surface it will call.
+        from mountainash.core.capabilities.registry import _register_identity
+
+        kinds = {}
         with pytest.raises(ValueError, match="collides"):
-            CapabilityRegistry._register_identity("polars", TargetKind.SERIALIZE)
-        try:
-            CapabilityRegistry._register_identity("substrait", TargetKind.SERIALIZE)
-            with pytest.raises(ValueError, match="already registered"):
-                CapabilityRegistry._register_identity("substrait", TargetKind.EXECUTE)
-        finally:
-            CapabilityRegistry._kinds.pop("substrait", None)
+            _register_identity(kinds, "polars", TargetKind.SERIALIZE)
+        _register_identity(kinds, "substrait", TargetKind.SERIALIZE)
+        with pytest.raises(ValueError, match="already registered"):
+            _register_identity(kinds, "substrait", TargetKind.EXECUTE)
 
     def test_non_protocol_param_rejected(self):
         # JOIN_ASOF is handler-routed; a param outside gate_params can never
@@ -134,12 +119,18 @@ class TestRegistrationValidation:
         from mountainash.relations.core.relation_system.relation_keys.enums import (
             RKEY_MOUNTAINASH_REL,
         )
+
         with pytest.raises(ValueError):
             CapabilityRegistry.register_backend(
                 CONST_BACKEND.NARWHALS,
-                [_fact(backend=CONST_BACKEND.NARWHALS,
-                       operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
-                       param="nonsense", level=CapabilityLevel.UNSUPPORTED)],
+                [
+                    _fact(
+                        backend=CONST_BACKEND.NARWHALS,
+                        operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+                        param="nonsense",
+                        level=CapabilityLevel.UNSUPPORTED,
+                    )
+                ],
             )
 
     def test_strategy_param_now_gateable(self):
@@ -147,28 +138,33 @@ class TestRegistrationValidation:
         from mountainash.relations.core.relation_system.relation_keys.enums import (
             RKEY_MOUNTAINASH_REL,
         )
+
         CapabilityRegistry.register_backend(
             CONST_BACKEND.NARWHALS,
-            [_fact(backend=CONST_BACKEND.NARWHALS,
-                   operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
-                   param="strategy", level=CapabilityLevel.UNSUPPORTED)],
+            [
+                _fact(
+                    backend=CONST_BACKEND.NARWHALS,
+                    operation_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+                    param="strategy",
+                    level=CapabilityLevel.UNSUPPORTED,
+                )
+            ],
         )
 
 
 class TestResolutionOrder:
     def test_dialect_exact_beats_family(self):
-        family = _fact(backend=CONST_BACKEND.NARWHALS,
-                       operation_key=FK_STR.CONTAINS, param="substring")
+        family = _fact(backend=CONST_BACKEND.NARWHALS, operation_key=FK_STR.CONTAINS, param="substring")
         refinement = _fact(
-            backend=CONST_BACKEND.NARWHALS, operation_key=FK_STR.CONTAINS,
-            param="substring", dialect="narwhals-polars",
+            backend=CONST_BACKEND.NARWHALS,
+            operation_key=FK_STR.CONTAINS,
+            param="substring",
+            dialect="narwhals-polars",
             level=CapabilityLevel.EXPR_CAPABLE,
             message="fixed upstream at narwhals 2.19.0",
         )
         CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, [family, refinement])
-        got = CapabilityRegistry.capability_for(
-            FK_STR.CONTAINS, "substring", CONST_BACKEND.NARWHALS, "narwhals-polars"
-        )
+        got = CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.NARWHALS, "narwhals-polars")
         assert got.level is CapabilityLevel.EXPR_CAPABLE
         got_pd = CapabilityRegistry.capability_for(
             FK_STR.CONTAINS, "substring", CONST_BACKEND.NARWHALS, "narwhals-pandas"
@@ -178,27 +174,28 @@ class TestResolutionOrder:
     def test_param_beats_wildcard(self):
         CapabilityRegistry.register_backend(
             CONST_BACKEND.POLARS,
-            [_fact(),
-             _fact(param=WILDCARD_PARAM, level=CapabilityLevel.UNSUPPORTED)],
+            [_fact(), _fact(param=WILDCARD_PARAM, level=CapabilityLevel.UNSUPPORTED)],
         )
-        got = CapabilityRegistry.capability_for(
-            FK_STR.LPAD, "characters", CONST_BACKEND.POLARS, "polars"
-        )
+        got = CapabilityRegistry.capability_for(FK_STR.LPAD, "characters", CONST_BACKEND.POLARS, "polars")
         assert got.level is CapabilityLevel.LITERAL_ONLY
 
     def test_no_fact_returns_none(self):
-        assert CapabilityRegistry.capability_for(
-            FK_STR.LOWER, "input", CONST_BACKEND.POLARS, "polars"
-        ) is None
+        assert CapabilityRegistry.capability_for(FK_STR.LOWER, "input", CONST_BACKEND.POLARS, "polars") is None
 
 
 class TestQueries:
     def test_facts_filters_and_residue(self):
         CapabilityRegistry.register_backend(
             CONST_BACKEND.POLARS,
-            [_fact(),
-             _fact(param="length", enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                   boundary=Boundary.MATERIALIZE, native_errors=(TypeError,))],
+            [
+                _fact(),
+                _fact(
+                    param="length",
+                    enforcement=Enforcement.MATERIALIZE_RESIDUE,
+                    boundary=Boundary.MATERIALIZE,
+                    native_errors=(TypeError,),
+                ),
+            ],
         )
         assert len(CapabilityRegistry.facts(backend=CONST_BACKEND.POLARS)) == 2
         assert len(CapabilityRegistry.facts(boundary=Boundary.MATERIALIZE)) == 1
@@ -216,11 +213,215 @@ class TestQueries:
         assert len(violations) == 1
         assert violations[0].operation_key is FK_STR.LPAD
 
-    def test_snapshot_restore_round_trips_kinds(self):
-        # snapshot/restore must cover _kinds too (symmetric with reset), else a
-        # test that registers a SERIALIZE identity leaks into the next module.
+    def test_snapshot_restore_round_trips_queries(self):
+        fact = _fact()
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
         snap = CapabilityRegistry.snapshot()
-        CapabilityRegistry._register_identity("substrait", TargetKind.SERIALIZE)
-        assert CapabilityRegistry._kinds.get("substrait") is TargetKind.SERIALIZE
+        CapabilityRegistry.reset()
+        assert CapabilityRegistry.facts() == []
         CapabilityRegistry.restore(snap)
-        assert "substrait" not in CapabilityRegistry._kinds
+        assert CapabilityRegistry.capability_for(FK_STR.LPAD, "characters", CONST_BACKEND.POLARS) is fact
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"native_errors": []},
+        {"message": ["mutable"]},
+    ],
+)
+def test_registration_rejects_mutable_payload_without_changing_queries(overrides):
+    prior = _fact(param="length")
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [prior])
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact(**overrides)])
+    assert CapabilityRegistry.facts() == [prior]
+
+
+def test_registration_iterable_cannot_reset_registry():
+    prior = _fact(param="length")
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [prior])
+
+    def incoming():
+        yield _fact()
+        CapabilityRegistry.reset()
+
+    with pytest.raises(RuntimeError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, incoming())
+    assert CapabilityRegistry.facts() == [prior]
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"A": (1,)},
+        {"A": frozenset({1})},
+        {"A": [1]},
+        {"A": {"x": 1}},
+        {"A": float("inf")},
+        {"A": float("nan")},
+        {"A": 1, "B": "two"},
+    ],
+)
+def test_registration_rejects_unsafe_enum_domains(values):
+    from enum import Enum
+    from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
+
+    operand = Enum("Unsafe", values).A
+    fact = _fact(
+        level=CapabilityLevel.UNSUPPORTED,
+        predicate=Predicate((Clause("characters", ClauseOp.EQ, operand),)),
+    )
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    assert CapabilityRegistry.facts() == []
+
+
+def test_registration_rejects_same_named_enum_mixed_sort_domains():
+    from enum import Enum
+    from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
+
+    boolean = Enum("SameName", {"A": True})
+    integer = Enum("SameName", {"A": 2})
+    fact = _fact(
+        level=CapabilityLevel.UNSUPPORTED,
+        predicate=Predicate(
+            (Clause("characters", ClauseOp.EQ, boolean.A), Clause("characters", ClauseOp.EQ, integer.A))
+        ),
+    )
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    assert CapabilityRegistry.facts() == []
+
+
+def test_registration_rejects_fact_and_scalar_subclasses():
+    from dataclasses import asdict
+    from enum import Enum
+    from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
+
+    class DerivedFact(CapabilityFact):
+        pass
+
+    class DerivedString(str):
+        pass
+
+    enum = Enum("UnsafeScalar", {"A": DerivedString("value")})
+    candidates = [
+        DerivedFact(**asdict(_fact())),
+        _fact(message=DerivedString("message")),
+        _fact(level=CapabilityLevel.UNSUPPORTED, predicate=Predicate((Clause("characters", ClauseOp.EQ, enum.A),))),
+    ]
+    for fact in candidates:
+        with pytest.raises(ValueError):
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    assert CapabilityRegistry.facts() == []
+
+
+def test_facts_returns_owned_list_and_identity_filters_backend():
+    fact = _fact()
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
+    result = CapabilityRegistry.facts()
+    result.clear()
+    assert CapabilityRegistry.facts() == [fact]
+    assert CapabilityRegistry.facts(backend="polars") == []
+
+
+def test_plan_validation_keeps_one_generation_across_operation_iterator():
+    blocked = _fact(param=WILDCARD_PARAM, level=CapabilityLevel.UNSUPPORTED)
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [blocked])
+
+    def operations():
+        yield FK_STR.LOWER
+        CapabilityRegistry.reset()
+        yield FK_STR.LPAD
+
+    violations = CapabilityRegistry.validate_plan_capabilities(operations(), CONST_BACKEND.POLARS)
+    assert [v.fact for v in violations] == [blocked]
+
+
+def test_failed_preparation_and_raising_iterator_leave_no_prefix(monkeypatch):
+    import mountainash.core.capabilities.registry as registry
+
+    prior = _fact(param="length")
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [prior])
+
+    def broken():
+        yield _fact()
+        raise RuntimeError("iterator failed")
+
+    with pytest.raises(RuntimeError):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, broken())
+    assert CapabilityRegistry.facts() == [prior]
+
+    def fail_prepare(**kwargs):
+        raise RuntimeError("preparation failed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(registry, "_prepare_state", fail_prepare)
+        with pytest.raises(RuntimeError):
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [_fact()])
+    assert CapabilityRegistry.facts() == [prior]
+
+
+def test_accepted_enum_keys_are_stable_across_clause_order_and_hash_seeds():
+    import os
+    import subprocess
+    import sys
+    import textwrap
+
+    code = textwrap.dedent("""
+        import json
+        from enum import Enum
+        from mountainash.core.capabilities import CapabilityRegistry, CapabilityFact, CapabilityLevel
+        from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK
+        CapabilityRegistry.reset()
+        keys = []
+        for value in ("text", 2, True, 1.5, None):
+            scalar = Enum("Scalar", {"A": value})
+            clauses = (Clause("characters", ClauseOp.EQ, scalar.A), Clause("length", ClauseOp.IS_SET))
+            facts = [CapabilityFact(
+                operation_key=FK.LPAD, param="characters",
+                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
+                since="2026-09-15", predicate=Predicate(order),
+            ) for order in (clauses, tuple(reversed(clauses)))]
+            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, facts)
+            assert facts[0].fact_key == facts[1].fact_key
+            keys.append(facts[0].fact_key)
+        print(json.dumps(keys))
+    """)
+    outputs = [
+        subprocess.check_output(
+            [sys.executable, "-c", code],
+            text=True,
+            env={**os.environ, "PYTHONHASHSEED": seed},
+        )
+        for seed in ("0", "1", "42")
+    ]
+    assert outputs[0] == outputs[1] == outputs[2]
+
+
+@pytest.mark.parametrize("unsafe_field", ["facts", "fixtures", "versions", "pair"])
+def test_registration_rejects_nested_mutable_declaration_payload(unsafe_field):
+    from dataclasses import replace
+    from mountainash.core.capabilities import CapabilityDeclaration, Domain, FactSource, ProbeEvidence
+
+    evidence = ProbeEvidence("2026-09-15", (("library", "1"),), ("fixture",))
+    if unsafe_field == "fixtures":
+        evidence = replace(evidence, fixtures=["fixture"])
+    elif unsafe_field == "versions":
+        evidence = replace(evidence, library_versions=[("library", "1")])
+    elif unsafe_field == "pair":
+        evidence = replace(evidence, library_versions=(["library", "1"],))
+    declaration = CapabilityDeclaration(
+        backend=CONST_BACKEND.POLARS,
+        domain=Domain.STRING,
+        source=FactSource.SUBSTRAIT,
+        facts=[_fact()] if unsafe_field == "facts" else (_fact(),),
+        evidence=evidence,
+    )
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_declaration(declaration)
+    assert CapabilityRegistry.facts() == []
+    assert CapabilityRegistry.declarations() == ()
