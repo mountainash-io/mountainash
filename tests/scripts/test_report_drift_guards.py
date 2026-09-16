@@ -1,12 +1,16 @@
 """Smoke tests for the drift guards report script."""
+
 import importlib.util
 from pathlib import Path
+
+import pytest
 
 _SCRIPT = Path(__file__).parent.parent.parent / "scripts" / "report_drift_guards.py"
 
 
 def _load():
     import sys
+
     mod_name = "report_drift_guards"
     if mod_name in sys.modules:
         return sys.modules[mod_name]
@@ -41,6 +45,71 @@ def test_collect_kel_entries_returns_entries_for_each_backend():
     assert e.param_name
     assert e.message
     assert e.est_cases > 0
+
+
+def test_collect_kel_entries_refuses_isolated_registry():
+    from mountainash.core.capabilities import CapabilityRegistry
+
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        with pytest.raises(RuntimeError):
+            _load().collect_kel_entries()
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+@pytest.mark.parametrize("before", [False, True])
+@pytest.mark.parametrize("mutation", ["reset", "restore"])
+def test_collect_kel_entries_keeps_captured_generation_after_reset_restore(
+    monkeypatch,
+    before,
+    mutation,
+):
+    from mountainash.core.capabilities import CapabilityRegistry
+
+    mod = _load()
+    expected = mod.collect_kel_entries()
+    snapshot = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
+    isolated = CapabilityRegistry.snapshot()
+    CapabilityRegistry.restore(snapshot)
+    acquire = CapabilityRegistry._acquire_state
+
+    def change():
+        if mutation == "reset":
+            CapabilityRegistry.reset()
+        else:
+            CapabilityRegistry.restore(isolated)
+
+    def acquire_with_change(cls, *, enumeration=False):
+        if before:
+            change()
+        state = acquire(enumeration=enumeration)
+        if not before:
+            change()
+        return state
+
+    monkeypatch.setattr(CapabilityRegistry, "_acquire_state", classmethod(acquire_with_change))
+    try:
+        if before:
+            with pytest.raises(RuntimeError, match="ISOLATED"):
+                mod.collect_kel_entries()
+        else:
+            entries = mod.collect_kel_entries()
+            assert entries == expected
+            assert (
+                mod.KelGap(
+                    backend="polars",
+                    op_name="replace",
+                    param_name="substring",
+                    message="Polars does not support dynamic column patterns in str.replace",
+                    est_cases=2,
+                )
+                in entries
+            )
+    finally:
+        CapabilityRegistry.restore(snapshot)
 
 
 def test_collect_fully_unsupported_finds_string_ops():

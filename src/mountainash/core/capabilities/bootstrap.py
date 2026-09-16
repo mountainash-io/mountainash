@@ -4,11 +4,16 @@ Declaration modules are DISCOVERED under the two capability package roots —
 there is no manifest to forget. Exempt from the DECLARATIONS requirement:
 __init__.py and ``_``-prefixed helper modules.
 """
+
 from __future__ import annotations
 
 import importlib
 import pkgutil
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.declarations import CapabilityDeclaration
 _ROOTS = (
     "mountainash.expressions.backends.capabilities",
     "mountainash.relations.backends.capabilities",
@@ -28,10 +33,9 @@ def discover_declaration_modules() -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
-def _load_into_registry() -> None:
-    """Registry-internal hook; called ONLY under the registry load lock."""
-    from mountainash.core.capabilities.registry import CapabilityRegistry
-
+def _load_declarations() -> tuple[CapabilityDeclaration, ...]:
+    """Collect sorted import-safe declarations without mutating the registry."""
+    collected: list[CapabilityDeclaration] = []
     for name in discover_declaration_modules():
         module = importlib.import_module(name)
         declarations = getattr(module, "DECLARATIONS", None)
@@ -41,26 +45,18 @@ def _load_into_registry() -> None:
                 "DECLARATIONS tuple (spec 2026-08-07 §1); helper modules "
                 "must be _-prefixed"
             )
-        for declaration in declarations:
-            CapabilityRegistry.register_declaration(declaration)
+        if type(declarations) is not tuple:
+            raise ValueError(f"capability module {name!r} requires an exact DECLARATIONS tuple")
+        collected.extend(declarations)
+    return tuple(collected)
 
 
 def load_all_capability_declarations() -> None:
-    """Enumerating load entry: consumers that walk the *whole* declaration set
-    call this. Unlike the query-path CapabilityRegistry.ensure_loaded() — which
-    silently no-ops in ISOLATED so queries see an isolated registry's own facts
-    — this refuses to run in ISOLATED (raises RuntimeError), so an enumerator
-    never certifies a partial/isolated registry as complete. Queries autoload;
-    enumeration demands a production load. From LOADED it is a no-op; otherwise
-    it delegates to ensure_loaded()."""
-    from mountainash.core.capabilities.registry import CapabilityRegistry, _LoadState
+    """Require a complete production load; refuse ISOLATED enumeration.
 
-    state = CapabilityRegistry._load_state
-    if state is _LoadState.LOADED:
-        return
-    if state is _LoadState.ISOLATED:
-        raise RuntimeError(
-            "registry is ISOLATED (reset() without restore()); refusing to "
-            "load production declarations into an isolated registry"
-        )
-    CapabilityRegistry.ensure_loaded()
+    Eligibility and data are acquired from one generation. Failed loads retain
+    pre-attempt data and rethrow their original exception without retry.
+    """
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+
+    CapabilityRegistry._acquire_state(enumeration=True)

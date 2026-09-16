@@ -1,4 +1,5 @@
 """Closed-by-default guards for the declaration protocol (spec rev 3, §7)."""
+
 from __future__ import annotations
 
 import importlib
@@ -6,7 +7,6 @@ import subprocess
 import sys
 import textwrap
 
-import pytest
 
 from mountainash.core.capabilities import (
     CapabilityDeclaration,
@@ -74,8 +74,7 @@ def test_same_key_declarations_have_distinct_evidence():
             seen.setdefault((d.backend, d.source, d.domain), []).append(d.evidence)
         for key, evidences in seen.items():
             assert len(evidences) == len(set(evidences)), (
-                f"{name}: same-key declarations {key} share evidence — "
-                "one declaration per probe wave"
+                f"{name}: same-key declarations {key} share evidence — " "one declaration per probe wave"
             )
 
 
@@ -109,7 +108,8 @@ def _backend_predicate(leaf: str):
     return lambda f: (
         f.backend.value == leaf
         and f.value_class is None
-        and f.level in (
+        and f.level
+        in (
             CapabilityLevel.LITERAL_ONLY,
             CapabilityLevel.EXPR_CAPABLE,
             CapabilityLevel.UNSUPPORTED,
@@ -139,10 +139,14 @@ def _domain_predicate(leaf: str):
         "list": Domain.LIST,
         "struct": Domain.STRUCT,
         "value": Domain.VALUE,
-        "string": Domain.STRING, "arithmetic": Domain.ARITHMETIC,
-        "any": Domain.DATETIME, "default": Domain.DATETIME,
-        "xsd": Domain.DATETIME, "options": Domain.DATETIME,
-        "strptime": Domain.DATETIME, "extract": Domain.DATETIME,
+        "string": Domain.STRING,
+        "arithmetic": Domain.ARITHMETIC,
+        "any": Domain.DATETIME,
+        "default": Domain.DATETIME,
+        "xsd": Domain.DATETIME,
+        "options": Domain.DATETIME,
+        "strptime": Domain.DATETIME,
+        "extract": Domain.DATETIME,
         "rounding": Domain.DATETIME,
     }
     want = domains[leaf]
@@ -169,14 +173,10 @@ def test_placement_decision_table():
             # test pins only the OWNER column (Domain.RELATION) here. The
             # backend and grain rows above also apply transitively, but this
             # branch is the spec's own row for RKEY_ facts.
-            assert all(
-                classify_domain(f.operation_key) is Domain.RELATION for f in facts
-            ), name
+            assert all(classify_domain(f.operation_key) is Domain.RELATION for f in facts), name
         elif name.endswith(".polymorphic"):
             assert all(_polymorphic_predicate()(f) for f in facts), name
-        elif any(name.endswith(s) for s in (
-            ".value_classes_ma", ".value_classes_substrait"
-        )):
+        elif any(name.endswith(s) for s in (".value_classes_ma", ".value_classes_substrait")):
             assert all(_value_class_predicate()(f) for f in facts), name
         elif any(name.endswith(s) for s in (".ibis", ".narwhals", ".polars")):
             leaf = name.rsplit(".", 1)[1]
@@ -214,9 +214,7 @@ def test_import_safety_without_optional_backends():
             total += len(module.DECLARATIONS)
         print("OK", total)
     """)
-    out = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, timeout=180
-    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=180)
     assert out.returncode == 0, out.stderr
     assert out.stdout.startswith("OK "), out.stdout
 
@@ -230,15 +228,14 @@ def test_no_registration_side_effects_on_import():
         from mountainash.core.capabilities.registry import CapabilityRegistry
         for name in discover_declaration_modules():
             importlib.import_module(name)
-        assert CapabilityRegistry._facts == {}, "import side-effect registration"
-        assert CapabilityRegistry._value_class_facts == {}
-        assert CapabilityRegistry._predicate_facts == []
-        assert CapabilityRegistry._kinds == {}
+        state = CapabilityRegistry.snapshot()
+        assert not state.facts, "import side-effect registration"
+        assert not state.value_class_facts
+        assert not state.predicate_facts
+        assert not state.kinds
         print("OK")
     """)
-    out = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True, timeout=180
-    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=180)
     assert out.returncode == 0, out.stderr
 
 

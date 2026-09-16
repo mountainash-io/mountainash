@@ -42,6 +42,7 @@ def git_sha() -> str:
 # Task 2: Protocol Alignment Collection
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class AspirationalGap:
     protocol_name: str
@@ -51,11 +52,7 @@ class AspirationalGap:
 
 
 def _extract_known_gap_kwargs(call_node: ast.Call) -> dict[str, str]:
-    return {
-        kw.arg: kw.value.value
-        for kw in call_node.keywords
-        if isinstance(kw.value, ast.Constant)
-    }
+    return {kw.arg: kw.value.value for kw in call_node.keywords if isinstance(kw.value, ast.Constant)}
 
 
 def collect_protocol_alignment() -> list[AspirationalGap]:
@@ -74,10 +71,7 @@ def collect_protocol_alignment() -> list[AspirationalGap]:
             value = node.value
         else:
             continue
-        if not any(
-            isinstance(t, ast.Name) and t.id == "KNOWN_ASPIRATIONAL"
-            for t in targets
-        ):
+        if not any(isinstance(t, ast.Name) and t.id == "KNOWN_ASPIRATIONAL" for t in targets):
             continue
         if not isinstance(value, ast.Dict):
             continue
@@ -92,12 +86,14 @@ def collect_protocol_alignment() -> list[AspirationalGap]:
             if not isinstance(val, ast.Call):
                 continue
             kwargs = _extract_known_gap_kwargs(val)
-            gaps.append(AspirationalGap(
-                protocol_name=proto_node.id,
-                method_name=str(method_node.value),
-                reason=kwargs.get("reason", ""),
-                since=kwargs.get("since", ""),
-            ))
+            gaps.append(
+                AspirationalGap(
+                    protocol_name=proto_node.id,
+                    method_name=str(method_node.value),
+                    reason=kwargs.get("reason", ""),
+                    since=kwargs.get("since", ""),
+                )
+            )
         break  # Only the first KNOWN_ASPIRATIONAL assignment
 
     return sorted(gaps, key=lambda g: (g.protocol_name, g.method_name))
@@ -106,6 +102,7 @@ def collect_protocol_alignment() -> list[AspirationalGap]:
 # ---------------------------------------------------------------------------
 # Task 3: KEL Entries Collection
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class KelGap:
@@ -160,10 +157,7 @@ def _parse_kel_from_class_body(source: str, backend: str, est_cases: int) -> lis
                 targets, value = [item.target], item.value
             else:
                 continue
-            if not any(
-                isinstance(t, ast.Name) and t.id == "KNOWN_EXPR_LIMITATIONS"
-                for t in targets
-            ):
+            if not any(isinstance(t, ast.Name) and t.id == "KNOWN_EXPR_LIMITATIONS" for t in targets):
                 continue
             if not isinstance(value, ast.Dict):
                 continue
@@ -181,13 +175,15 @@ def _parse_kel_from_class_body(source: str, backend: str, est_cases: int) -> lis
                     message = class_var_messages.get(val.id, "")
                 else:
                     message = ""
-                gaps.append(KelGap(
-                    backend=backend,
-                    op_name=op_name,
-                    param_name=str(param_node.value),
-                    message=message,
-                    est_cases=est_cases,
-                ))
+                gaps.append(
+                    KelGap(
+                        backend=backend,
+                        op_name=op_name,
+                        param_name=str(param_node.value),
+                        message=message,
+                        est_cases=est_cases,
+                    )
+                )
     return gaps
 
 
@@ -209,17 +205,16 @@ def collect_kel_entries() -> list[KelGap]:
     from mountainash.core.capabilities import (
         CapabilityLevel,
         CapabilityRegistry,
-        load_all_capability_declarations,
     )
     from mountainash.expressions.core.expression_system.function_mapping.registry import (
         ExpressionFunctionRegistry,
     )
 
-    load_all_capability_declarations()
+    facts, _ = CapabilityRegistry._report_inputs()
     backend_est = {"polars": 2, "narwhals": 4, "ibis": 2}
     gating = (CapabilityLevel.LITERAL_ONLY, CapabilityLevel.UNSUPPORTED)
     gaps: list[KelGap] = []
-    for fact in CapabilityRegistry.facts():
+    for fact in facts:
         if fact.level not in gating:
             continue
         backend = getattr(fact.backend, "value", fact.backend)
@@ -230,19 +225,22 @@ def collect_kel_entries() -> list[KelGap]:
             ExpressionFunctionRegistry.get(fact.operation_key)
         except KeyError:
             continue
-        gaps.append(KelGap(
-            backend=backend,
-            op_name=fact.operation_key.name.lower(),
-            param_name=fact.param,
-            message=fact.message,
-            est_cases=backend_est[backend],
-        ))
+        gaps.append(
+            KelGap(
+                backend=backend,
+                op_name=fact.operation_key.name.lower(),
+                param_name=fact.param,
+                message=fact.message,
+                est_cases=backend_est[backend],
+            )
+        )
     return sorted(gaps, key=lambda g: (g.backend, g.op_name, g.param_name))
 
 
 # ---------------------------------------------------------------------------
 # Task 4: Fully-Unsupported Ops Collection
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class FullyUnsupportedGap:
@@ -310,18 +308,21 @@ def collect_fully_unsupported() -> list[FullyUnsupportedGap]:
         if (op, param) in ibis_set:
             backends.append("ibis")
         sub_backend_count = sum(_FULLY_UNSUP_BACKEND_WEIGHT.get(b, 1) for b in backends)
-        gaps.append(FullyUnsupportedGap(
-            op_name=op,
-            param_name=param,
-            backends=tuple(backends),
-            est_cases=sub_backend_count * 4,
-        ))
+        gaps.append(
+            FullyUnsupportedGap(
+                op_name=op,
+                param_name=param,
+                backends=tuple(backends),
+                est_cases=sub_backend_count * 4,
+            )
+        )
     return gaps
 
 
 # ---------------------------------------------------------------------------
 # Task 5: Manual xfail Block Detection
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class ManualXfailBlock:
@@ -371,11 +372,7 @@ def _collect_xfail_vars_from_file(path: Path) -> list[ManualXfailBlock]:
     if params_func is None:
         return []
 
-    params_refs: set[str] = {
-        child.id
-        for child in ast.walk(params_func)
-        if isinstance(child, ast.Name)
-    }
+    params_refs: set[str] = {child.id for child in ast.walk(params_func) if isinstance(child, ast.Name)}
 
     return [
         ManualXfailBlock(

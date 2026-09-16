@@ -1,4 +1,5 @@
 """Cross-backend integration tests: mountainash expressions inside relational operations."""
+
 from __future__ import annotations
 
 import polars as pl
@@ -11,6 +12,7 @@ from mountainash import col, lit, when, coalesce, greatest, least
 from mountainash.relations import relation
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.capability_gating import xfail_divergence
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -36,11 +38,9 @@ SAMPLE_DATA = {
 # 1. Filter with mountainash expressions
 # ===========================================================================
 
-from fixtures.capability_gating import xfail_divergence
 
-_HORIZ = [
-    pytest.param(b, marks=xfail_divergence("MA-REL-02", backend=b)) for b in ALL_BACKENDS
-]
+_HORIZ = [pytest.param(b, marks=xfail_divergence("MA-REL-02", backend=b)) for b in ALL_BACKENDS]
+
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -71,53 +71,27 @@ class TestFilterWithExpressions:
 
     def test_ge_le(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .filter(col("score").ge(85))
-            .filter(col("score").le(92))
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).filter(col("score").ge(85)).filter(col("score").le(92)).sort("name").to_dict()
         assert set(result["name"]) == {"Alice", "Bob", "Eve"}, f"[{backend_name}]"
 
     def test_compound_predicate_and(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .filter(col("score").gt(80).and_(col("active").eq(True)))
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).filter(col("score").gt(80).and_(col("active").eq(True))).sort("name").to_dict()
         assert set(result["name"]) == {"Alice", "Diana"}, f"[{backend_name}]"
 
     def test_compound_predicate_or(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .filter(col("score").gt(90).or_(col("value").lt(150)))
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).filter(col("score").gt(90).or_(col("value").lt(150))).sort("name").to_dict()
         assert set(result["name"]) == {"Alice", "Bob", "Diana"}, f"[{backend_name}]"
 
     def test_multiple_filter_predicates(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .filter(col("score").ge(80), col("active").eq(True))
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).filter(col("score").ge(80), col("active").eq(True)).sort("name").to_dict()
         assert set(result["name"]) == {"Alice", "Diana"}, f"[{backend_name}]"
 
     def test_filter_with_literal(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .filter(col("score").gt(lit(90)))
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).filter(col("score").gt(lit(90))).sort("name").to_dict()
         assert set(result["name"]) == {"Bob", "Diana"}, f"[{backend_name}]"
 
 
@@ -134,54 +108,31 @@ class TestWithColumnsExpressions:
 
     def test_arithmetic_mul(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .with_columns(col("value").mul(2).name.alias("double_value"))
-            .sort("id")
-            .to_dict()
-        )
+        result = relation(df).with_columns(col("value").mul(2).name.alias("double_value")).sort("id").to_dict()
         assert "double_value" in result, f"[{backend_name}]"
         expected = [v * 2 for v in [100.5, 200.7, 300.9, 400.2, 500.8]]
         assert result["double_value"] == pytest.approx(expected, rel=1e-6), f"[{backend_name}]"
 
     def test_arithmetic_add(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .with_columns(col("score").add(10).name.alias("score_plus_10"))
-            .sort("id")
-            .to_dict()
-        )
+        result = relation(df).with_columns(col("score").add(10).name.alias("score_plus_10")).sort("id").to_dict()
         assert result["score_plus_10"] == [95, 102, 88, 105, 98], f"[{backend_name}]"
 
     def test_arithmetic_sub(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         result = (
-            relation(df)
-            .with_columns(col("score").sub(col("id")).name.alias("score_minus_id"))
-            .sort("id")
-            .to_dict()
+            relation(df).with_columns(col("score").sub(col("id")).name.alias("score_minus_id")).sort("id").to_dict()
         )
         assert result["score_minus_id"] == [84, 90, 75, 91, 83], f"[{backend_name}]"
 
     def test_string_upper(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .with_columns(col("name").str.upper().name.alias("upper_name"))
-            .sort("id")
-            .to_dict()
-        )
+        result = relation(df).with_columns(col("name").str.upper().name.alias("upper_name")).sort("id").to_dict()
         assert result["upper_name"] == ["ALICE", "BOB", "CHARLIE", "DIANA", "EVE"], f"[{backend_name}]"
 
     def test_string_lower(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .with_columns(col("name").str.lower().name.alias("lower_name"))
-            .sort("id")
-            .to_dict()
-        )
+        result = relation(df).with_columns(col("name").str.lower().name.alias("lower_name")).sort("id").to_dict()
         assert result["lower_name"] == ["alice", "bob", "charlie", "diana", "eve"], f"[{backend_name}]"
 
     def test_multiple_expressions(self, backend_name, backend_factory):
@@ -211,23 +162,13 @@ class TestSelectWithExpressions:
 
     def test_select_with_computed(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .select(col("name"), col("value").mul(2).name.alias("double_val"))
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).select(col("name"), col("value").mul(2).name.alias("double_val")).sort("name").to_dict()
         assert set(result.keys()) == {"name", "double_val"}, f"[{backend_name}]"
         assert len(result["name"]) == 5, f"[{backend_name}]"
 
     def test_select_mixed_string_and_ma(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .select("id", col("name").str.upper().name.alias("upper_name"))
-            .sort("id")
-            .to_dict()
-        )
+        result = relation(df).select("id", col("name").str.upper().name.alias("upper_name")).sort("id").to_dict()
         assert result["id"] == [1, 2, 3, 4, 5], f"[{backend_name}]"
         assert result["upper_name"] == ["ALICE", "BOB", "CHARLIE", "DIANA", "EVE"], f"[{backend_name}]"
 
@@ -247,12 +188,7 @@ class TestWhenThenOtherwise:
         df = self._df(backend_name, backend_factory)
         result = (
             relation(df)
-            .with_columns(
-                when(col("score").gt(90))
-                .then(lit("high"))
-                .otherwise(lit("low"))
-                .name.alias("tier")
-            )
+            .with_columns(when(col("score").gt(90)).then(lit("high")).otherwise(lit("low")).name.alias("tier"))
             .sort("id")
             .to_dict()
         )
@@ -263,8 +199,10 @@ class TestWhenThenOtherwise:
         result = (
             relation(df)
             .with_columns(
-                when(col("score").gt(90)).then(lit("A"))
-                .when(col("score").gt(80)).then(lit("B"))
+                when(col("score").gt(90))
+                .then(lit("A"))
+                .when(col("score").gt(80))
+                .then(lit("B"))
                 .otherwise(lit("C"))
                 .name.alias("grade")
             )
@@ -288,26 +226,14 @@ class TestHorizontalFunctions:
     def test_greatest(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         result = (
-            relation(df)
-            .with_columns(
-                greatest(col("score"), lit(90)).name.alias("at_least_90")
-            )
-            .sort("id")
-            .to_dict()
+            relation(df).with_columns(greatest(col("score"), lit(90)).name.alias("at_least_90")).sort("id").to_dict()
         )
         assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", _HORIZ)
     def test_least(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df)
-            .with_columns(
-                least(col("score"), lit(90)).name.alias("capped_at_90")
-            )
-            .sort("id")
-            .to_dict()
-        )
+        result = relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()
         assert result["capped_at_90"] == [85, 90, 78, 90, 88], f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -319,9 +245,7 @@ class TestHorizontalFunctions:
         df = backend_factory.create(data, backend_name)
         result = (
             relation(df)
-            .with_columns(
-                coalesce(col("name"), lit("Unknown")).name.alias("name_or_default")
-            )
+            .with_columns(coalesce(col("name"), lit("Unknown")).name.alias("name_or_default"))
             .sort("id")
             .to_dict()
         )
@@ -432,13 +356,7 @@ class TestMixedNativeAndMa:
     def test_ma_filter_native_with_columns(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         native_upper = _native_upper(backend_name, "name", "upper_name")
-        result = (
-            relation(df)
-            .filter(col("score").gt(80))
-            .with_columns(native_upper)
-            .sort("name")
-            .to_dict()
-        )
+        result = relation(df).filter(col("score").gt(80)).with_columns(native_upper).sort("name").to_dict()
         assert "upper_name" in result, f"[{backend_name}]"
         assert len(result["name"]) == 4, f"[{backend_name}]"
 
@@ -491,46 +409,32 @@ class TestNarwhalsBackendExpressions:
         assert set(result["name"].to_list()) == {"Bob", "Diana", "Eve"}
 
     def test_with_columns_arithmetic(self, pandas_df):
-        result = (
-            relation(pandas_df)
-            .with_columns(col("value").mul(2).name.alias("double_value"))
-            .to_pandas()
-        )
+        result = relation(pandas_df).with_columns(col("value").mul(2).name.alias("double_value")).to_pandas()
         assert "double_value" in result.columns
         expected = [v * 2 for v in [100.5, 200.7, 300.9, 400.2, 500.8]]
         actual = result["double_value"].to_list()
         assert actual == pytest.approx(expected, rel=1e-6)
 
     def test_with_columns_string_upper(self, pandas_df):
-        result = (
-            relation(pandas_df)
-            .with_columns(col("name").str.upper().name.alias("upper_name"))
-            .to_pandas()
-        )
+        result = relation(pandas_df).with_columns(col("name").str.upper().name.alias("upper_name")).to_pandas()
         assert "upper_name" in result.columns
         assert result["upper_name"].to_list() == [
-            "ALICE", "BOB", "CHARLIE", "DIANA", "EVE",
+            "ALICE",
+            "BOB",
+            "CHARLIE",
+            "DIANA",
+            "EVE",
         ]
 
     def test_filter_and_select(self, pandas_df):
-        result = (
-            relation(pandas_df)
-            .filter(col("active").eq(True))
-            .select("name", "score")
-            .to_pandas()
-        )
+        result = relation(pandas_df).filter(col("active").eq(True)).select("name", "score").to_pandas()
         assert list(result.columns) == ["name", "score"]
         assert len(result) == 3
 
     def test_when_then_otherwise(self, pandas_df):
         result = (
             relation(pandas_df)
-            .with_columns(
-                when(col("score").gt(90))
-                .then(lit("high"))
-                .otherwise(lit("low"))
-                .name.alias("tier")
-            )
+            .with_columns(when(col("score").gt(90)).then(lit("high")).otherwise(lit("low")).name.alias("tier"))
             .to_pandas()
         )
         assert "tier" in result.columns
@@ -546,20 +450,36 @@ def test_relation_metadata_gate_uses_prepared_input(backend_name, backend_factor
 
     snapshot = CapabilityRegistry.snapshot()
     try:
+        expression = col("x").abs().name.alias("x")
+        floating = backend_factory.create({"x": [-1.5, 2.5]}, backend_name)
+        assert relation(floating).select(expression).to_dict() == {"x": [1.5, 2.5]}
         for family in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS, CONST_BACKEND.IBIS):
-            CapabilityRegistry.register_backend(family, [CapabilityFact(
-                operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-                param="x", level=CapabilityLevel.UNSUPPORTED, backend=family,
-                message="float operand blocked", since="2026-09-14",
-                predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
-            )])
+            CapabilityRegistry.register_backend(
+                family,
+                [
+                    CapabilityFact(
+                        operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                        param="x",
+                        level=CapabilityLevel.UNSUPPORTED,
+                        backend=family,
+                        message="float operand blocked",
+                        since="2026-09-14",
+                        predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
+                    )
+                ],
+            )
+        registered = CapabilityRegistry.snapshot()
+        assert_predicate_capability_gated(lambda: relation(floating).select(expression).collect())
         frame = backend_factory.create({"x": [-1, 2]}, backend_name)
-        assert relation(frame).select(col("x").abs().name.alias("x")).to_dict() == {"x": [1, 2]}
+        assert relation(frame).select(expression).to_dict() == {"x": [1, 2]}
         changed = relation(frame).select(col("x").cast(float).name.alias("renamed"))
-        error = assert_predicate_capability_gated(
-            lambda: changed.select(col("renamed").abs()).collect()
-        )
+        error = assert_predicate_capability_gated(lambda: changed.select(col("renamed").abs()).collect())
         assert error.limitation.predicate.clauses[0].operand == "float"
+        CapabilityRegistry.reset()
+        assert relation(floating).select(expression).to_dict() == {"x": [1.5, 2.5]}
+        CapabilityRegistry.restore(registered)
+        assert_predicate_capability_gated(lambda: relation(floating).select(expression).collect())
+        assert relation(frame).select(expression).to_dict() == {"x": [1, 2]}
     finally:
         CapabilityRegistry.restore(snapshot)
 
@@ -572,10 +492,11 @@ def test_value_domains_follow_projection_and_join_scope(backend_name, backend_fa
         backend_name,
     )
     result = (
-        relation(left).select(col("id"), col("x").cast(str).name.alias("renamed"))
-        .join(relation(right), on="id").sort("id")
-        .select(col("renamed").value_kind().name.alias("kind"),
-                col("flag").boolean_value().name.alias("candidate"))
+        relation(left)
+        .select(col("id"), col("x").cast(str).name.alias("renamed"))
+        .join(relation(right), on="id")
+        .sort("id")
+        .select(col("renamed").value_kind().name.alias("kind"), col("flag").boolean_value().name.alias("candidate"))
         .to_dict()
     )
     assert result == {"kind": ["text", "text"], "candidate": [False, True]}

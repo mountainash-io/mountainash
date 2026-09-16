@@ -45,10 +45,8 @@ def _protocol_sig_params(protocol_method: Any) -> tuple:
     resolves the same method object on every dispatch. Caching here avoids
     re-running ``inspect.signature`` on every ``_gate_and_resolve_args`` call.
     """
-    return tuple(
-        p for p in inspect.signature(protocol_method).parameters.values()
-        if p.name != "self"
-    )
+    return tuple(p for p in inspect.signature(protocol_method).parameters.values() if p.name != "self")
+
 
 def _param_name_for(sig_params: tuple, index: int) -> str | None:
     """Map an emitted argument's position to its protocol parameter name.
@@ -71,6 +69,7 @@ def _param_name_for(sig_params: tuple, index: int) -> str | None:
     if index < len(sig_params):
         return sig_params[index].name
     return None
+
 
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
@@ -120,6 +119,7 @@ class UnifiedExpressionVisitor:
             # in LOADED and ISOLATED states, so test fixtures that reset()
             # into ISOLATED do not break the visitor.
             from mountainash.core.capabilities.registry import CapabilityRegistry
+
             CapabilityRegistry.ensure_loaded()
 
     @contextmanager
@@ -146,12 +146,12 @@ class UnifiedExpressionVisitor:
         """
         # Check common expression type names
         type_name = type(value).__name__
-        if type_name == 'Expr':
+        if type_name == "Expr":
             return True
 
         # Check module paths for known backends
         module = type(value).__module__
-        if module and any(backend in module for backend in ('polars', 'narwhals', 'ibis')):
+        if module and any(backend in module for backend in ("polars", "narwhals", "ibis")):
             return True
 
         return False
@@ -167,12 +167,12 @@ class UnifiedExpressionVisitor:
         """
         module = type(value).__module__
 
-        if 'polars' in module:
-            return 'polars'
-        elif 'ibis' in module:
-            return 'ibis'
-        elif 'narwhals' in module:
-            return 'narwhals'
+        if "polars" in module:
+            return "polars"
+        elif "ibis" in module:
+            return "ibis"
+        elif "narwhals" in module:
+            return "narwhals"
         else:
             return type(value).__name__
 
@@ -214,8 +214,7 @@ class UnifiedExpressionVisitor:
                 source_backend = self._detect_expression_backend(node.value)
                 target_backend = self.backend.backend_type.value
                 raise TypeError(
-                    f"Backend mismatch: {source_backend} expression cannot be used "
-                    f"with {target_backend} backend"
+                    f"Backend mismatch: {source_backend} expression cannot be used " f"with {target_backend} backend"
                 )
             return node.value
 
@@ -273,19 +272,11 @@ class UnifiedExpressionVisitor:
         for i, arg in enumerate(arguments):
             param_name = _param_name_for(sig_params, i)
             fact = (
-                CapabilityRegistry.capability_for(
-                    function_key, param_name, backend_family, dialect
-                )
+                CapabilityRegistry.capability_for(function_key, param_name, backend_family, dialect)
                 if param_name is not None
                 else None
             )
-            if (
-                fact is not None
-                and (
-                    fact.enforcement is not Enforcement.GATE
-                    or fact.predicate is not None
-                )
-            ):
+            if fact is not None and (fact.enforcement is not Enforcement.GATE or fact.predicate is not None):
                 fact = None  # conditional facts gate only through the collecting path
 
             level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
@@ -319,9 +310,7 @@ class UnifiedExpressionVisitor:
                 else:
                     resolved.append(arg)
             else:
-                resolved.append(
-                    self.visit(arg) if isinstance(arg, ExpressionNode) else arg
-                )
+                resolved.append(self.visit(arg) if isinstance(arg, ExpressionNode) else arg)
         return resolved
 
     def _bound_call(self, function_key, protocol_method, arguments, options):
@@ -355,24 +344,18 @@ class UnifiedExpressionVisitor:
             )
 
     def _required_operand_types(self, func_def, protocol_method, arguments) -> dict[str, Any]:
-        """Resolve declarative operands and all metadata predicate operands first."""
-        required = set(func_def.type_arguments)
+        """Resolve function-declared and capability metadata operands."""
+        required = func_def.type_arguments
         if self.enforce_capabilities:
-            from mountainash.core.capabilities import CapabilityRegistry, Enforcement
-            from mountainash.core.capabilities.predicates import metadata_arguments
+            from mountainash.core.capabilities import CapabilityRegistry
 
-            for fact in CapabilityRegistry.facts(
-                backend=self.backend.backend_type, enforcement=Enforcement.GATE
-            ):
-                if (
-                    fact.operation_key == func_def.function_key
-                    and fact.predicate is not None
-                    and (
-                        fact.dialect is None
-                        or fact.dialect == getattr(self.backend, "dialect", None)
-                    )
-                ):
-                    required.update(metadata_arguments(fact.predicate))
+            capability_names = CapabilityRegistry.metadata_operand_names(
+                func_def.function_key,
+                self.backend.backend_type,
+                getattr(self.backend, "dialect", None),
+            )
+            if capability_names:
+                required = capability_names if not required else capability_names.union(required)
         if not required:
             return {}
 
@@ -381,14 +364,13 @@ class UnifiedExpressionVisitor:
             name = _param_name_for(_protocol_sig_params(protocol_method), index)
             if name is not None and name in required and isinstance(argument, ExpressionNode):
                 resolved[name] = self.type_context.resolve(argument)
-        missing = required.difference(resolved)
+        missing = set(required).difference(resolved)
         if missing:
             raise self.type_context._unresolved(
                 func_def.function_key,
                 f"required operands are not bound: {', '.join(sorted(missing))}",
             )
         return resolved
-
 
     def visit_scalar_function(self, node: ScalarFunctionNode) -> SupportedExpressions:
         """Compile a scalar function call to backend expression.
@@ -408,27 +390,28 @@ class UnifiedExpressionVisitor:
         # Get the protocol method from the function definition
         protocol_method = func_def.protocol_method
         if protocol_method is None:
-            raise ValueError(
-                f"Function {node.function_key} has no protocol_method defined"
-            )
+            raise ValueError(f"Function {node.function_key} has no protocol_method defined")
 
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
-        bound = self._bound_call(
-            node.function_key, protocol_method, node.arguments, node.options
-        )
+        bound = self._bound_call(node.function_key, protocol_method, node.arguments, node.options)
         self._gate_predicate_violations(bound, phase="raw")
 
         if self.enforce_capabilities:
             from mountainash.core.capabilities import (
-                CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
+                CapabilityLevel,
+                CapabilityRegistry,
+                Enforcement,
+                WILDCARD_PARAM,
             )
             from mountainash.core.types import BackendCapabilityError
 
             op_fact = CapabilityRegistry.capability_for(
-                node.function_key, WILDCARD_PARAM,
-                self.backend.backend_type, getattr(self.backend, "dialect", None),
+                node.function_key,
+                WILDCARD_PARAM,
+                self.backend.backend_type,
+                getattr(self.backend, "dialect", None),
             )
             if (
                 op_fact is not None
@@ -437,28 +420,25 @@ class UnifiedExpressionVisitor:
                 and op_fact.level is CapabilityLevel.UNSUPPORTED
             ):
                 raise BackendCapabilityError(
-                    op_fact.message, backend=self.backend.BACKEND_NAME,
-                    function_key=node.function_key, limitation=op_fact,
+                    op_fact.message,
+                    backend=self.backend.BACKEND_NAME,
+                    function_key=node.function_key,
+                    limitation=op_fact,
                 )
 
-        operand_types = self._required_operand_types(
-            func_def, protocol_method, node.arguments
-        )
-        args = self._gate_and_resolve_args(
-            node.function_key, node.arguments, protocol_method
-        )
+        operand_types = self._required_operand_types(func_def, protocol_method, node.arguments)
+        args = self._gate_and_resolve_args(node.function_key, node.arguments, protocol_method)
         from ..expression_system.function_keys.enums import (
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
         )
+
         if node.function_key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
             args = self.backend.prepare_coalesce_arguments(
                 args,
                 [self.type_context.is_null_scalar(argument) for argument in node.arguments],
                 self.type_context.cached_native(node),
             )
-        self._gate_predicate_violations(
-            replace(bound, operand_types=operand_types), phase="complete"
-        )
+        self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
 
         # Get the backend method
         if not hasattr(self.backend, method_name):
@@ -492,10 +472,7 @@ class UnifiedExpressionVisitor:
                     and fact.enforcement is Enforcement.GATE
                     and (
                         fact.level is CapabilityLevel.UNSUPPORTED
-                        or (
-                            fact.level is CapabilityLevel.LITERAL_ONLY
-                            and isinstance(option_value, ExpressionNode)
-                        )
+                        or (fact.level is CapabilityLevel.LITERAL_ONLY and isinstance(option_value, ExpressionNode))
                     )
                 )
                 if blocks_option:
@@ -561,9 +538,7 @@ class UnifiedExpressionVisitor:
         if len(node.conditions) == 1:
             # Simple case: one condition
             result = self.backend.if_then_else(cond_expr, result_expr, else_expr)
-            return self._normalize_if_then_result(
-                result, result_type, requires_null_carrier
-            )
+            return self._normalize_if_then_result(result, result_type, requires_null_carrier)
 
         # Multiple conditions: chain them together
         # Start from the end and work backwards
@@ -579,40 +554,27 @@ class UnifiedExpressionVisitor:
             )
             current = self.backend.if_then_else(cond_expr, result_expr, current)
 
-        return self._normalize_if_then_result(
-            current, result_type, requires_null_carrier
-        )
+        return self._normalize_if_then_result(current, result_type, requires_null_carrier)
 
     def _conditional_result_metadata(self, node: IfThenNode) -> tuple[Any, bool]:
         """Read only metadata an enclosing type-sensitive call already required."""
         result_type = self.type_context.cached_native(node)
         branches = [result for _, result in node.conditions] + [node.else_clause]
-        branch_types = [
-            self.type_context.cached_native(branch) for branch in branches
-        ]
+        branch_types = [self.type_context.cached_native(branch) for branch in branches]
         has_literal_null = any(
-            branch_type is not None and branch_type.descriptor.logical_kind == "null"
-            for branch_type in branch_types
+            branch_type is not None and branch_type.descriptor.logical_kind == "null" for branch_type in branch_types
         )
-        storages = {
-            branch_type.descriptor.storage_kind
-            for branch_type in branch_types
-            if branch_type is not None
-        }
-        has_nullable_storage = bool(
-            {"pandas_nullable", "pandas_arrow"}.intersection(storages)
-        )
+        storages = {branch_type.descriptor.storage_kind for branch_type in branch_types if branch_type is not None}
+        has_nullable_storage = bool({"pandas_nullable", "pandas_arrow"}.intersection(storages))
         concrete = [
-            branch_type for branch_type in branch_types
+            branch_type
+            for branch_type in branch_types
             if branch_type is not None and branch_type.descriptor.logical_kind != "null"
         ]
         different_dtypes = bool(concrete) and any(
-            branch_type.native_dtype != concrete[0].native_dtype
-            for branch_type in concrete[1:]
+            branch_type.native_dtype != concrete[0].native_dtype for branch_type in concrete[1:]
         )
-        requires_null_carrier = has_literal_null or different_dtypes or (
-            has_nullable_storage and len(storages) > 1
-        )
+        requires_null_carrier = has_literal_null or different_dtypes or (has_nullable_storage and len(storages) > 1)
         return result_type, requires_null_carrier
 
     def _normalize_conditional_branch(
@@ -662,14 +624,19 @@ class UnifiedExpressionVisitor:
         input_expr = self.visit(node.input)
         if self.enforce_capabilities:
             from mountainash.core.capabilities import (
-                CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
+                CapabilityLevel,
+                CapabilityRegistry,
+                Enforcement,
+                WILDCARD_PARAM,
             )
             from mountainash.core.types import BackendCapabilityError
             from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
 
             fact = CapabilityRegistry.capability_for(
-                FKEY_SUBSTRAIT_CAST.CAST, WILDCARD_PARAM,
-                self.backend.backend_type, getattr(self.backend, "dialect", None),
+                FKEY_SUBSTRAIT_CAST.CAST,
+                WILDCARD_PARAM,
+                self.backend.backend_type,
+                getattr(self.backend, "dialect", None),
             )
             if (
                 fact is not None
@@ -678,12 +645,12 @@ class UnifiedExpressionVisitor:
                 and fact.level is CapabilityLevel.UNSUPPORTED
             ):
                 raise BackendCapabilityError(
-                    fact.message, backend=self.backend.BACKEND_NAME,
-                    function_key=FKEY_SUBSTRAIT_CAST.CAST, limitation=fact,
+                    fact.message,
+                    backend=self.backend.BACKEND_NAME,
+                    function_key=FKEY_SUBSTRAIT_CAST.CAST,
+                    limitation=fact,
                 )
-        return self.backend.cast(
-            input_expr, node.target_type, failure_behavior=node.failure_behavior
-        )
+        return self.backend.cast(input_expr, node.target_type, failure_behavior=node.failure_behavior)
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
         """Compile a membership test (IN operator) to backend expression."""
@@ -694,9 +661,7 @@ class UnifiedExpressionVisitor:
             ExpressionFunctionRegistry,
         )
 
-        protocol_method = ExpressionFunctionRegistry.get_protocol_method(
-            FKEY_MOUNTAINASH_SCALAR_SET.IS_IN
-        )
+        protocol_method = ExpressionFunctionRegistry.get_protocol_method(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
         # needle maps to param 0; every options member maps to *haystack
         # (VAR_POSITIONAL) via _param_name_for's trailing-varargs rule.
         value_expr, *options = self._gate_and_resolve_args(
@@ -731,15 +696,11 @@ class UnifiedExpressionVisitor:
         func_def = FunctionRegistry.get(node.function_key)
         protocol_method = func_def.protocol_method
         if protocol_method is None:
-            raise ValueError(
-                f"Window function {node.function_key} has no protocol_method defined"
-            )
+            raise ValueError(f"Window function {node.function_key} has no protocol_method defined")
         method_name = protocol_method.__name__
 
         # Resolve arguments
-        compiled_args = self._gate_and_resolve_args(
-            node.function_key, node.arguments, protocol_method
-        )
+        compiled_args = self._gate_and_resolve_args(node.function_key, node.arguments, protocol_method)
 
         # Call backend method
         method = getattr(self.backend, method_name)

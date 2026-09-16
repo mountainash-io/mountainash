@@ -2,6 +2,7 @@
 "what does the capability spine say about (op, family, dialect)?".
 Nothing here is hand-maintained; see spec 2026-08-01-spine-derived-test-expectations.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -79,11 +80,10 @@ _GATING = {
 }
 
 
-def capability_gate(operation_key, family, *, dialect=None,
-                    param=WILDCARD_PARAM, option_value=None) -> CapabilityFact | None:
-    fact = CapabilityRegistry.capability_for(
-        operation_key, param, family, dialect=dialect, option_value=option_value
-    )
+def capability_gate(
+    operation_key, family, *, dialect=None, param=WILDCARD_PARAM, option_value=None
+) -> CapabilityFact | None:
+    fact = CapabilityRegistry.capability_for(operation_key, param, family, dialect=dialect, option_value=option_value)
     if fact is None or fact.level is not CapabilityLevel.UNSUPPORTED:
         return None
     if (fact.enforcement, fact.boundary) not in _GATING:
@@ -91,8 +91,9 @@ def capability_gate(operation_key, family, *, dialect=None,
     return fact
 
 
-def assert_capability_gated(operation_key, family, *, dialect=None, build,
-                            materialize=None, param=WILDCARD_PARAM, option_value=None):
+def assert_capability_gated(
+    operation_key, family, *, dialect=None, build, materialize=None, param=WILDCARD_PARAM, option_value=None
+):
     """Assert the spine's gate fact is enforced at the right site.
 
     Consults :func:`capability_gate`; then, depending on the fact's boundary:
@@ -113,7 +114,8 @@ def assert_capability_gated(operation_key, family, *, dialect=None, build,
             build()
         assert ei.value.limitation is fact, (
             f"expected error.limitation to be the gate fact for {operation_key} "
-            f"on {dialect or family}, got {ei.value.limitation!r}")
+            f"on {dialect or family}, got {ei.value.limitation!r}"
+        )
         assert ei.value.function_key == operation_key
         return None
 
@@ -125,11 +127,12 @@ def assert_capability_gated(operation_key, family, *, dialect=None, build,
     err = ei.value
     assert err.limitation is fact, (
         f"expected enriched error.limitation to be the residue fact for {operation_key} "
-        f"on {dialect or family}, got {err.limitation!r}")
+        f"on {dialect or family}, got {err.limitation!r}"
+    )
     assert err.function_key == operation_key
     assert isinstance(err.__cause__, fact.native_errors), (
-        f"enriched error should chain the declared native cause {fact.native_errors}, "
-        f"got {type(err.__cause__)!r}")
+        f"enriched error should chain the declared native cause {fact.native_errors}, " f"got {type(err.__cause__)!r}"
+    )
     return None
 
 
@@ -139,9 +142,9 @@ def assert_predicate_capability_gated(build) -> BackendCapabilityError:
     join_asof ``strategy`` gate).
 
     Not a case ``assert_capability_gated`` can express: ``capability_gate()``
-    resolves a fact via ``CapabilityRegistry.capability_for``, which reads only
-    ``_facts``/``_value_class_facts`` — never ``_predicate_facts``. A predicate
-    fact's applicability depends on the ACTUAL bound call values (e.g.
+    resolves a single exact/value-class fact via ``CapabilityRegistry.capability_for``.
+    Predicate gates instead collect matching blockers for the bound call. A
+    predicate fact's applicability depends on the ACTUAL bound call values (e.g.
     ``strategy="forward"`` vs ``"backward"``), which only exist once ``build()``
     actually runs through the real dispatch and its predicate is evaluated —
     there is no static ``(operation_key, family, dialect, param)`` tuple to
@@ -157,8 +160,7 @@ def assert_predicate_capability_gated(build) -> BackendCapabilityError:
     with pytest.raises(BackendCapabilityError) as ei:
         build()
     assert ei.value.limitation.predicate is not None, (
-        f"expected a predicate-gated BackendCapabilityError, got "
-        f"limitation={ei.value.limitation!r}"
+        f"expected a predicate-gated BackendCapabilityError, got " f"limitation={ei.value.limitation!r}"
     )
     return ei.value
 
@@ -170,23 +172,14 @@ def assert_predicate_clauses(fact: CapabilityFact, **expected: object) -> None:
     (the schema forces ``option_value`` to ``None`` whenever a predicate is
     present). Assertions on predicate-gated limitations must inspect clauses.
     """
-    assert fact.predicate is not None, (
-        f"expected predicate clauses on {fact.operation_key} fact, got {fact!r}"
-    )
+    assert fact.predicate is not None, f"expected predicate clauses on {fact.operation_key} fact, got {fact!r}"
     actual = {
         clause.path: getattr(clause.operand, "value", clause.operand)
         for clause in fact.predicate.clauses
         if clause.op is ClauseOp.EQ
     }
-    missing = {
-        name: value
-        for name, value in expected.items()
-        if actual.get(name) != getattr(value, "value", value)
-    }
-    assert not missing, (
-        f"expected EQ clauses {missing} on {fact.operation_key} predicate; "
-        f"actual clauses: {actual}"
-    )
+    missing = {name: value for name, value in expected.items() if actual.get(name) != getattr(value, "value", value)}
+    assert not missing, f"expected EQ clauses {missing} on {fact.operation_key} predicate; " f"actual clauses: {actual}"
 
 
 def xfail_divergence(divergence_id, *, backend, strict=True) -> pytest.MarkDecorator:
@@ -234,9 +227,7 @@ def build_gate_fact(
     return fact
 
 
-def first_scalar_build_gate(
-    node: "ScalarFunctionNode", identity: BackendIdentity
-) -> CapabilityFact | None:
+def first_scalar_build_gate(node: "ScalarFunctionNode", identity: BackendIdentity) -> CapabilityFact | None:
     """The first actual ``GATE``/``BUILD`` blocker for a bound ``ScalarFunctionNode``,
     in production visitor order: whole-op WILDCARD fact (UNSUPPORTED only, mirroring
     ``visit_scalar_function``'s op-wide check), then arguments in protocol-signature
@@ -271,17 +262,12 @@ def first_scalar_build_gate(
         fact = build_gate_fact(node.function_key, identity, param=param_name)
         if fact is not None and (
             fact.level is CapabilityLevel.UNSUPPORTED
-            or (
-                fact.level is CapabilityLevel.LITERAL_ONLY
-                and not isinstance(argument, LiteralNode)
-            )
+            or (fact.level is CapabilityLevel.LITERAL_ONLY and not isinstance(argument, LiteralNode))
         ):
             return fact
 
     for option_name, option_value in (node.options or {}).items():
-        fact = build_gate_fact(
-            node.function_key, identity, param=option_name, option_value=str(option_value)
-        )
+        fact = build_gate_fact(node.function_key, identity, param=option_name, option_value=str(option_value))
         if fact is not None and fact.level is CapabilityLevel.UNSUPPORTED:
             return fact
 

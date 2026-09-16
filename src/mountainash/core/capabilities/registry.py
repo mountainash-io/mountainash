@@ -1,31 +1,42 @@
 """CapabilityRegistry — the spine's single lookup surface (spec Section 1).
 
-Registration is validated at import time (fail-at-import, not at use):
+Registration validates each complete batch before publishing it:
 unknown op keys, params, dialects, or duplicate keys raise ValueError.
 Lookup is a chain of at most six dictionary hits: value-specific dialect and
 family facts, value-agnostic dialect and family facts, then dialect and family
 wildcards.
 """
+
 from __future__ import annotations
 
 import inspect
+import math
+from contextlib import contextmanager
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum as _Enum
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS
 from mountainash.core.capabilities.schema import (
     Boundary,
+    Clause,
+    ClauseOp,
     CapabilityFact,
     CapabilityLevel,
     Enforcement,
+    Fidelity,
+    Predicate,
+    ResidueSignal,
     TargetKind,
     WILDCARD_PARAM,
+    ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from mountainash.core.capabilities.declarations import CapabilityDeclaration
     from mountainash.core.capabilities.predicates import BoundCall
 
@@ -114,13 +125,11 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
     if fact.option_value is not None:
         if fact.param == WILDCARD_PARAM:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): "
-                "value-scoped facts cannot use WILDCARD_PARAM"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-scoped facts cannot use WILDCARD_PARAM"
             )
         if fact.boundary is not Boundary.BUILD:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): "
-                "value-scoped facts must use the BUILD boundary"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-scoped facts must use the BUILD boundary"
             )
         if kind != "expression":
             raise ValueError(
@@ -130,13 +139,11 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
     if fact.value_class is not None:
         if fact.param == WILDCARD_PARAM:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): "
-                "value-class facts cannot use WILDCARD_PARAM"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-class facts cannot use WILDCARD_PARAM"
             )
         if fact.boundary is not Boundary.BUILD:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): "
-                "value-class facts must use the BUILD boundary"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-class facts must use the BUILD boundary"
             )
         if kind != "expression":
             raise ValueError(
@@ -145,15 +152,22 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
             )
     method = definition.protocol_method
     from mountainash.core.capabilities.predicates import (
-        OPERAND_TYPES_ROOT, metadata_arguments, validate_metadata_predicate,
+        OPERAND_TYPES_ROOT,
+        metadata_arguments,
+        validate_metadata_predicate,
     )
+
     if OPERAND_TYPES_ROOT in definition.options or (
         method is not None and OPERAND_TYPES_ROOT in inspect.signature(method).parameters
     ):
         raise ValueError(f"{OPERAND_TYPES_ROOT} is reserved compiler metadata")
     if fact.predicate is not None and metadata_arguments(fact.predicate):
-        if (kind != "expression" or fact.level is not CapabilityLevel.UNSUPPORTED
-                or fact.enforcement is not Enforcement.GATE or fact.boundary is not Boundary.BUILD):
+        if (
+            kind != "expression"
+            or fact.level is not CapabilityLevel.UNSUPPORTED
+            or fact.enforcement is not Enforcement.GATE
+            or fact.boundary is not Boundary.BUILD
+        ):
             raise ValueError("operand metadata facts require expression UNSUPPORTED/GATE/BUILD")
         validate_metadata_predicate(fact.predicate, method)
     if fact.param != WILDCARD_PARAM and method is not None:
@@ -232,161 +246,414 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
         )
 
 
-class CapabilityRegistry:
-    """Class-level registry, mirroring ExpressionFunctionRegistry's pattern."""
+_EMPTY_NAMES: frozenset[str] = frozenset()
 
-    _facts: Dict[_Key, CapabilityFact] = {}
-    _kinds: Dict[str, TargetKind] = {}  # family name -> kind (spec 2026-07-06)
-    _value_class_facts: Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]] = {}
-    _predicate_facts: List[CapabilityFact] = []
-    _declarations: Tuple["CapabilityDeclaration", ...] = ()
-    _load_state: _LoadState = _LoadState.UNINITIALIZED
-    _load_error: BaseException | None = None
+
+@dataclass(frozen=True)
+class _RegistryState:
+    facts: Mapping[_Key, CapabilityFact]
+    kinds: Mapping[str, TargetKind]
+    value_class_facts: Mapping[_ValueClassBucketKey, tuple[CapabilityFact, ...]]
+    predicate_facts: tuple[CapabilityFact, ...]
+    declarations: tuple[CapabilityDeclaration, ...]
+    load_state: _LoadState
+    load_error: BaseException | None
+    predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, bool], ...]]
+    metadata_names: Mapping[tuple[Any, CONST_BACKEND, str | None], frozenset[str]]
+    views: Mapping[tuple[CONST_BACKEND | None, Enforcement | None], tuple[CapabilityFact, ...]]
+
+
+def _prepare_state(
+    *, facts, kinds, value_class_facts, predicate_facts, declarations, load_state, load_error=None
+) -> _RegistryState:
+    """Own all backing maps and prepare finite declaration-derived views once."""
+    from mountainash.core.capabilities.predicates import metadata_arguments
+
+    buckets: dict[tuple[Any, CONST_BACKEND], list[tuple[CapabilityFact, bool]]] = {}
+    names: dict[tuple[Any, CONST_BACKEND, str | None], set[str]] = {}
+    for fact in predicate_facts:
+        metadata = metadata_arguments(fact.predicate)
+        buckets.setdefault((fact.operation_key, fact.backend), []).append((fact, bool(metadata)))
+        key = (fact.operation_key, fact.backend, fact.dialect)
+        names.setdefault(key, set()).update(metadata)
+    frozen_names: dict[tuple[Any, CONST_BACKEND, str | None], frozenset[str]] = {}
+    for (op, backend, dialect), required in names.items():
+        if dialect is not None:
+            required.update(names.get((op, backend, None), ()))
+        frozen_names[op, backend, dialect] = frozenset(required) if required else _EMPTY_NAMES
+    ordered = tuple(
+        sorted(
+            (*facts.values(), *(f for bucket in value_class_facts.values() for f in bucket), *predicate_facts),
+            key=_enum_key,
+        )
+    )
+    views: dict[tuple[CONST_BACKEND | None, Enforcement | None], tuple[CapabilityFact, ...]] = {(None, None): ordered}
+    groups: dict[tuple[CONST_BACKEND | None, Enforcement | None], list[CapabilityFact]] = {}
+    for fact in ordered:
+        for view_key in ((fact.backend, None), (None, fact.enforcement), (fact.backend, fact.enforcement)):
+            groups.setdefault(view_key, []).append(fact)
+    views.update((key, tuple(value)) for key, value in groups.items())
+    return _RegistryState(
+        MappingProxyType(dict(facts)),
+        MappingProxyType(dict(kinds)),
+        MappingProxyType(dict(value_class_facts)),
+        tuple(predicate_facts),
+        tuple(declarations),
+        load_state,
+        load_error,
+        MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
+        MappingProxyType(frozen_names),
+        MappingProxyType(views),
+    )
+
+
+def _empty_state(load_state=_LoadState.UNINITIALIZED) -> _RegistryState:
+    return _prepare_state(
+        facts={}, kinds={}, value_class_facts={}, predicate_facts=(), declarations=(), load_state=load_state
+    )
+
+
+def _require_type(value, expected, field):
+    if type(value) is not expected:
+        raise ValueError(f"{field} must have exact type {expected.__name__}")
+
+
+def _enum_domain(value):
+    domain = type(value.value)
+    if domain not in (str, int, bool, float, type(None)):
+        raise ValueError("Enum operands require homogeneous scalar values")
+    for member in type(value).__members__.values():
+        if type(member.value) is not domain or (domain is float and not math.isfinite(member.value)):
+            raise ValueError("Enum operands require homogeneous finite scalar values")
+    return domain
+
+
+def _validate_payload(fact):
+    _require_type(fact, CapabilityFact, "fact")
+    if not isinstance(fact.operation_key, _Enum):
+        raise ValueError("operation_key must be a recognized operation Enum member")
+    _enum_domain(fact.operation_key)
+    for name in ("param", "message", "since"):
+        _require_type(getattr(fact, name), str, name)
+    for name in ("dialect", "workaround", "upstream_ref", "condition", "option_value", "probe_exempt"):
+        value = getattr(fact, name)
+        if value is not None:
+            _require_type(value, str, name)
+    for name, expected in (
+        ("backend", CONST_BACKEND),
+        ("level", CapabilityLevel),
+        ("boundary", Boundary),
+        ("enforcement", Enforcement),
+        ("residue_signal", ResidueSignal),
+    ):
+        _require_type(getattr(fact, name), expected, name)
+    for name, expected in (("fidelity", Fidelity), ("value_class", ValueClass)):
+        value = getattr(fact, name)
+        if value is not None:
+            _require_type(value, expected, name)
+    _require_type(fact.native_errors, tuple, "native_errors")
+    if any(not isinstance(error, type) or not issubclass(error, Exception) for error in fact.native_errors):
+        raise ValueError("native_errors must contain exception classes")
+    if fact.predicate is not None:
+        _require_type(fact.predicate, Predicate, "predicate")
+        _require_type(fact.predicate.clauses, tuple, "clauses")
+        domains = {}
+        for clause in fact.predicate.clauses:
+            _require_type(clause, Clause, "clause")
+            _require_type(clause.path, str, "clause.path")
+            _require_type(clause.op, ClauseOp, "clause.op")
+            operand = clause.operand
+            if isinstance(operand, _Enum):
+                domain = _enum_domain(operand)
+                group = (clause.path, clause.op, type(operand).__name__)
+                if domains.setdefault(group, domain) is not domain:
+                    raise ValueError("mixed Enum scalar domains in predicate sort group")
+            elif type(operand) is frozenset:
+                if any(type(member) not in (str, int, bool) for member in operand):
+                    raise ValueError("clause IN requires exact scalar members")
+            elif operand is not None and type(operand) not in (str, int, bool):
+                raise ValueError("clause operand must have an immutable supported shape")
+
+
+def _validate_declaration_payload(declaration):
+    from mountainash.core.capabilities.declarations import (
+        CapabilityDeclaration,
+        Domain,
+        FactSource,
+        ProbeEvidence,
+    )
+
+    _require_type(declaration, CapabilityDeclaration, "declaration")
+    _require_type(declaration.backend, CONST_BACKEND, "backend")
+    _require_type(declaration.domain, Domain, "domain")
+    _require_type(declaration.source, FactSource, "source")
+    _require_type(declaration.facts, tuple, "declaration.facts")
+    for fact in declaration.facts:
+        _validate_payload(fact)
+    evidence = declaration.evidence
+    if evidence is not None:
+        _require_type(evidence, ProbeEvidence, "evidence")
+        _require_type(evidence.probe_date, str, "probe_date")
+        _require_type(evidence.library_versions, tuple, "library_versions")
+        _require_type(evidence.fixtures, tuple, "fixtures")
+        for pair in evidence.library_versions:
+            _require_type(pair, tuple, "library_versions pair")
+            if len(pair) != 2:
+                raise ValueError("library_versions requires string pairs")
+            for value in pair:
+                _require_type(value, str, "library_versions value")
+        for fixture in evidence.fixtures:
+            _require_type(fixture, str, "fixture")
+    declaration.__post_init__()
+
+
+def _register_identity(kinds, name: str, kind: TargetKind) -> None:
+    if kind is TargetKind.SERIALIZE and name in {b.value for b in CONST_BACKEND}:
+        raise ValueError(f"SERIALIZE family {name!r} collides with executing backend namespace")
+    existing = kinds.get(name)
+    if existing is not None and existing is not kind:
+        raise ValueError(f"family {name!r} already registered as {existing.value}")
+    kinds[name] = kind
+
+
+def _check_predicate_conflicts(fact: CapabilityFact, predicates: Iterable[CapabilityFact]) -> None:
+    from mountainash.core.capabilities.predicates import predicate_implies, predicates_overlap
+
+    blocking = fact.level is CapabilityLevel.UNSUPPORTED
+    for other in predicates:
+        if other.operation_key != fact.operation_key or other.backend is not fact.backend:
+            continue
+        if other.dialect is not None and fact.dialect is not None and other.dialect != fact.dialect:
+            continue
+        if (other.level is CapabilityLevel.UNSUPPORTED) == blocking:
+            continue
+        if not predicates_overlap(fact.predicate, other.predicate):
+            continue
+        if predicate_implies(fact.predicate, other.predicate) != predicate_implies(other.predicate, fact.predicate):
+            continue
+        raise ValueError(
+            f"conflicting predicate facts for ({fact.operation_key}, {fact.backend}, "
+            f"{fact.dialect!r}): one blocks and one permits the same call, "
+            "and neither strictly subsumes the other"
+        )
+
+
+def _stage_batch(family, incoming, facts, kinds, value_class_facts, predicate_facts):
+    _register_identity(kinds, family.value, TargetKind.EXECUTE)
+    for fact in incoming:
+        _validate_fact(family, fact)
+        if fact.predicate is not None:
+            _check_predicate_conflicts(fact, predicate_facts)
+            predicate_facts.append(fact)
+        elif fact.value_class is not None:
+            key = (fact.operation_key, fact.param, fact.backend, fact.dialect)
+            bucket = value_class_facts.get(key, ())
+            if any(f.value_class is fact.value_class for f in bucket):
+                raise ValueError(f"duplicate value-class CapabilityFact key: {key}")
+            value_class_facts[key] = bucket + (fact,)
+        else:
+            key = (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.option_value)
+            if key in facts:
+                raise ValueError(f"duplicate CapabilityFact key: {key}")
+            facts[key] = fact
+
+
+class CapabilityRegistry:
+    """Transactional declarations with accessor-level immutable snapshots.
+
+    Registration accepts exact, immutable declaration payloads and publishes
+    whole batches. Queries capture one generation, not an entire compilation.
+    Operand descriptors remain input-scoped and are never cached here.
+    """
+
+    _state = _empty_state()
     _load_lock = threading.RLock()
+    _guards = threading.local()
+
+    @classmethod
+    @contextmanager
+    def _mutation(cls):
+        if getattr(cls._guards, "mutation", False) or getattr(cls._guards, "loading", False):
+            raise RuntimeError("reentrant capability registry mutation")
+        cls._guards.mutation = True
+        try:
+            yield
+        finally:
+            cls._guards.mutation = False
+
+    @staticmethod
+    def _ready(state, enumeration):
+        if state.load_state is _LoadState.LOADED:
+            return True
+        if state.load_state is _LoadState.ISOLATED:
+            if enumeration:
+                raise RuntimeError("registry is ISOLATED; refusing production enumeration")
+            return True
+        if state.load_state is _LoadState.FAILED:
+            assert state.load_error is not None
+            raise state.load_error
+        return False
+
+    @classmethod
+    def _acquire_state(cls, *, enumeration=False):
+        if getattr(cls._guards, "loading", False):
+            raise RuntimeError("recursive capability registry first-load query")
+        state = cls._state
+        if cls._ready(state, enumeration):
+            return state
+        if getattr(cls._guards, "mutation", False):
+            raise RuntimeError("cannot autoload during capability registry mutation")
+        with cls._load_lock:
+            state = cls._state
+            if cls._ready(state, enumeration):
+                return state
+            from mountainash.core.capabilities.bootstrap import _load_declarations
+
+            cls._guards.loading = True
+            try:
+                declarations = _load_declarations()
+                facts = dict(state.facts)
+                kinds = dict(state.kinds)
+                vclass = dict(state.value_class_facts)
+                predicates = list(state.predicate_facts)
+                for declaration in declarations:
+                    _validate_declaration_payload(declaration)
+                    _stage_batch(declaration.backend, declaration.facts, facts, kinds, vclass, predicates)
+                candidate = _prepare_state(
+                    facts=facts,
+                    kinds=kinds,
+                    value_class_facts=vclass,
+                    predicate_facts=predicates,
+                    declarations=state.declarations + declarations,
+                    load_state=_LoadState.LOADED,
+                )
+            except BaseException as exc:
+                cls._state = replace(state, load_state=_LoadState.FAILED, load_error=exc)
+                raise
+            finally:
+                cls._guards.loading = False
+            cls._state = candidate
+            return candidate
 
     @classmethod
     def ensure_loaded(cls) -> None:
-        """Query-path load entry (spec rev 3, §2): idempotently autoload the
-        declaration modules on first access.
+        """Autoload only from UNINITIALIZED; isolated queries stay isolated.
 
-        Semantics: autoload from UNINITIALIZED only; no-op in LOADED and
-        ISOLATED (a reset() registry keeps its isolated facts, never
-        repopulates production ones); re-raise the cached error in FAILED.
-        This is the sanctioned hook every cross-package query consumer (the
-        two unified visitors, any third-party backend integration) reaches
-        for — the underscore-free name, not a private one.
-
-        Contrast ``bootstrap.load_all_capability_declarations()``, the
-        *enumerating* entry: it refuses to run in ISOLATED (raises
-        RuntimeError) so a consumer that walks the full declaration set never
-        silently reads an isolated registry. Queries autoload; enumeration
-        demands a production load.
+        Load failures retain pre-attempt data and rethrow the original error.
+        Recursive first-load queries and public mutations are rejected.
         """
-        # Lock asymmetry (intentional): LOADED and ISOLATED short-circuit
-        # WITHOUT the lock — both are sticky states whose "no-op" answer cannot
-        # change under a concurrent load, and a single class-attr read is
-        # atomic. FAILED is re-raised INSIDE the lock below because its cached
-        # _load_error is written under the lock, so the (state, error) pair
-        # must be read together; it cannot ride the lockless fast path.
-        if cls._load_state is _LoadState.LOADED or cls._load_state is _LoadState.ISOLATED:
-            return
+        cls._acquire_state()
+
+    @classmethod
+    def _publish_batch(cls, family, incoming, declaration=None):
         with cls._load_lock:
-            if cls._load_state is _LoadState.FAILED:
-                error = cls._load_error
-                assert error is not None, "FAILED registry state must cache its load error"
-                raise error
-            if cls._load_state is not _LoadState.UNINITIALIZED:
+            state = cls._state
+            if not incoming and declaration is None and family.value in state.kinds:
                 return
-            from mountainash.core.capabilities.bootstrap import _load_into_registry
-            try:
-                _load_into_registry()
-            except BaseException as exc:
-                cls._load_state = _LoadState.FAILED
-                cls._load_error = exc
-                raise
-            cls._load_state = _LoadState.LOADED
+            facts = dict(state.facts)
+            kinds = dict(state.kinds)
+            vclass = dict(state.value_class_facts)
+            predicates = list(state.predicate_facts)
+            _stage_batch(family, incoming, facts, kinds, vclass, predicates)
+            cls._state = _prepare_state(
+                facts=facts,
+                kinds=kinds,
+                value_class_facts=vclass,
+                predicate_facts=predicates,
+                declarations=state.declarations + (() if declaration is None else (declaration,)),
+                load_state=state.load_state,
+                load_error=state.load_error,
+            )
+
+    @classmethod
+    def register_backend(cls, family: CONST_BACKEND, facts: Iterable[CapabilityFact]) -> None:
+        """Publish all facts or none; caller iteration runs outside the writer lock."""
+        with cls._mutation():
+            _require_type(family, CONST_BACKEND, "backend")
+            incoming = tuple(facts)
+            for fact in incoming:
+                _validate_payload(fact)
+            cls._publish_batch(family, incoming)
 
     @classmethod
     def register_declaration(cls, declaration) -> None:
-        # Lock so a concurrent ensure_loaded()/reset() sees an all-or-nothing
-        # mutation (spec §2 hardening). RLock is reentrant, so the load hook —
-        # which calls this under the lock via _load_into_registry — is fine.
-        with cls._load_lock:
-            cls.register_backend(declaration.backend, declaration.facts)
-            cls._declarations = cls._declarations + (declaration,)
+        """Atomically retain facts and evidence, including empty declarations."""
+        with cls._mutation():
+            _validate_declaration_payload(declaration)
+            cls._publish_batch(declaration.backend, declaration.facts, declaration)
 
     @classmethod
     def declarations(cls):
-        cls.ensure_loaded()
-        return cls._declarations
+        return cls._acquire_state().declarations
 
     @classmethod
-    def _register_identity(cls, name: str, kind: TargetKind) -> None:
-        """Record a family's kind; enforce EXECUTE/SERIALIZE namespace disjointness.
-
-        Phase 1 only ever passes EXECUTE (via register_backend); the SERIALIZE
-        branch is exercised when the serialization workstream adds
-        register_target(). Idempotent for a repeated same-kind registration.
-        """
-        if kind is TargetKind.SERIALIZE and name in {b.value for b in CONST_BACKEND}:
-            raise ValueError(
-                f"SERIALIZE family {name!r} collides with executing backend "
-                "namespace CONST_BACKEND"
-            )
-        existing = cls._kinds.get(name)
-        if existing is not None and existing is not kind:
-            raise ValueError(
-                f"family {name!r} already registered as {existing.value}; "
-                f"cannot re-register as {kind.value}"
-            )
-        cls._kinds[name] = kind
+    def _report_inputs(cls):
+        state = cls._acquire_state(enumeration=True)
+        return state.views[None, None], state.declarations
 
     @classmethod
-    def register_backend(
-        cls, family: CONST_BACKEND, facts: Iterable[CapabilityFact]
-    ) -> None:
-        cls._register_identity(family.value, TargetKind.EXECUTE)
-        for fact in facts:
-            _validate_fact(family, fact)
-            if fact.predicate is not None:
-                cls._check_predicate_conflicts(fact)
-                cls._predicate_facts.append(fact)
-                continue
-            if fact.value_class is not None:
-                bkey: _ValueClassBucketKey = (
-                    fact.operation_key,
-                    fact.param,
-                    fact.backend,
-                    fact.dialect,
-                )
-                bucket = cls._value_class_facts.get(bkey, ())
-                if any(f.value_class is fact.value_class for f in bucket):
-                    raise ValueError(
-                        f"duplicate value-class CapabilityFact key: {bkey + (fact.value_class,)}"
-                    )
-                cls._value_class_facts[bkey] = bucket + (fact,)
-                continue
-            key: _Key = (
-                fact.operation_key,
-                fact.param,
-                fact.backend,
-                fact.dialect,
-                fact.option_value,
-            )
-            if key in cls._facts:
-                raise ValueError(f"duplicate CapabilityFact key: {key}")
-            cls._facts[key] = fact
+    def metadata_operand_names(cls, operation_key, backend, dialect=None) -> frozenset[str]:
+        """Return declaration-derived names, never input-dependent descriptors."""
+        state = cls._acquire_state()
+        if type(backend) is not CONST_BACKEND:
+            return _EMPTY_NAMES
+        result = state.metadata_names.get((operation_key, backend, dialect))
+        if result is not None:
+            return result
+        return state.metadata_names.get((operation_key, backend, None), _EMPTY_NAMES)
 
-    @classmethod
-    def _value_class_fact(
-        cls,
-        operation_key: Any,
-        param: str,
-        backend: CONST_BACKEND,
-        dialect: str | None,
-        value: str,
-    ) -> CapabilityFact | None:
+    @staticmethod
+    def _value_class_fact(state, operation_key, param, backend, dialect, value):
         from mountainash.core.capabilities.value_classes import matches
 
-        for scope in (dialect, None):  # dialect slice before family slice
-            bucket = cls._value_class_facts.get(
-                (operation_key, param, backend, scope), ()
-            )
+        for scope in (dialect, None):
             hits = [
                 f
-                for f in bucket
+                for f in state.value_class_facts.get((operation_key, param, backend, scope), ())
                 if f.value_class is not None and matches(f.value_class, value)
             ]
             if len(hits) > 1:
-                classes = sorted(
-                    f.value_class.value for f in hits if f.value_class is not None
-                )
+                classes = sorted(f.value_class.value for f in hits if f.value_class is not None)
                 raise ValueError(
                     f"two distinct value classes match {value!r} at "
                     f"({operation_key}, {param}, {backend}, {scope}): {classes}"
                 )
             if hits:
                 return hits[0]
+        return None
+
+    @classmethod
+    def _capability_for(cls, state, operation_key, param, backend, dialect, option_value=None):
+        for key in (
+            (operation_key, param, backend, dialect, option_value),
+            (operation_key, param, backend, None, option_value),
+        ):
+            fact = state.facts.get(key)
+            if fact is not None:
+                return fact
+        if option_value is not None:
+            fact = cls._value_class_fact(state, operation_key, param, backend, dialect, option_value)
+            if fact is not None:
+                return fact
+            conditioned = [
+                fact
+                for fact, _ in state.predicate_buckets.get((operation_key, backend), ())
+                if fact.param == param
+                and fact.option_value == option_value
+                and fact.backend is backend
+                and (fact.dialect is None or fact.dialect == dialect)
+            ]
+            if conditioned:
+                return min(conditioned, key=lambda fact: fact.fact_key)
+        for key in (
+            (operation_key, param, backend, dialect, None),
+            (operation_key, param, backend, None, None),
+            (operation_key, WILDCARD_PARAM, backend, dialect, None),
+            (operation_key, WILDCARD_PARAM, backend, None, None),
+        ):
+            fact = state.facts.get(key)
+            if fact is not None:
+                return fact
         return None
 
     @classmethod
@@ -398,44 +665,16 @@ class CapabilityRegistry:
         dialect: str | None = None,
         option_value: str | None = None,
     ) -> CapabilityFact | None:
-        cls.ensure_loaded()
-        for key in (
-            (operation_key, param, backend, dialect, option_value),
-            (operation_key, param, backend, None, option_value),
-        ):
-            fact = cls._facts.get(key)
-            if fact is not None:
-                return fact
-        if option_value is not None:
-            vc_fact = cls._value_class_fact(
-                operation_key, param, backend, dialect, option_value
-            )
-            if vc_fact is not None:
-                return vc_fact
-            conditioned = sorted(
-                (
-                    fact
-                    for fact in cls._predicate_facts
-                    if fact.operation_key == operation_key
-                    and fact.param == param
-                    and fact.option_value == option_value
-                    and fact.backend is backend
-                    and (fact.dialect is None or fact.dialect == dialect)
-                ),
-                key=lambda fact: fact.fact_key,
-            )
-            if conditioned:
-                return conditioned[0]
-        for key in (
-            (operation_key, param, backend, dialect, None),
-            (operation_key, param, backend, None, None),
-            (operation_key, WILDCARD_PARAM, backend, dialect, None),
-            (operation_key, WILDCARD_PARAM, backend, None, None),
-        ):
-            fact = cls._facts.get(key)
-            if fact is not None:
-                return fact
-        return None
+        return cls._capability_for(cls._acquire_state(), operation_key, param, backend, dialect, option_value)
+
+    @staticmethod
+    def _view(state, backend=None, enforcement=None):
+        # StrEnum equality must not relax the original identity-based filter.
+        if backend is not None and type(backend) is not CONST_BACKEND:
+            return ()
+        if enforcement is not None and type(enforcement) is not Enforcement:
+            return ()
+        return state.views.get((backend, enforcement), ())
 
     @classmethod
     def facts(
@@ -447,44 +686,27 @@ class CapabilityRegistry:
         conditioned: bool | None = None,
         enforcement: Enforcement | None = None,
     ) -> List[CapabilityFact]:
-        cls.ensure_loaded()
-        out = []
-        for fact in (
-            *cls._facts.values(),
-            *(f for bucket in cls._value_class_facts.values() for f in bucket),
-            *cls._predicate_facts,
-        ):
-            if level is not None and fact.level is not level:
-                continue
-            if backend is not None and fact.backend is not backend:
-                continue
-            if boundary is not None and fact.boundary is not boundary:
-                continue
-            if conditioned is not None and (fact.condition is not None) != conditioned:
-                continue
-            if enforcement is not None and fact.enforcement is not enforcement:
-                continue
-            out.append(fact)
-        return sorted(out, key=_enum_key)
+        state = cls._acquire_state()
+        return [
+            fact
+            for fact in cls._view(state, backend, enforcement)
+            if (level is None or fact.level is level)
+            and (boundary is None or fact.boundary is boundary)
+            and (conditioned is None or (fact.condition is not None) == conditioned)
+        ]
 
     @classmethod
-    def residue_for(
-        cls, backend: CONST_BACKEND, dialect: str | None = None
-    ) -> Dict[Tuple[Any, str], CapabilityFact]:
-        """MATERIALIZE-boundary facts as an enrichment mapping (op, param) -> fact."""
-        cls.ensure_loaded()
-        out: Dict[Tuple[Any, str], CapabilityFact] = {}
-        for fact in cls.facts(
-            backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
-        ):
+    def residue_for(cls, backend: CONST_BACKEND, dialect: str | None = None) -> Dict[Tuple[Any, str], CapabilityFact]:
+        """Fresh enrichment mapping with dialect-over-family precedence."""
+        state = cls._acquire_state()
+        out: dict[tuple[Any, str], CapabilityFact] = {}
+        for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE):
             if fact.dialect is None or fact.dialect == dialect:
                 key = (fact.operation_key, fact.param)
                 existing = out.get(key)
                 if existing is not None:
                     if (existing.dialect is None) == (fact.dialect is None):
-                        raise ValueError(
-                            f"ambiguous MATERIALIZE_RESIDUE facts for {key}"
-                        )
+                        raise ValueError(f"ambiguous MATERIALIZE_RESIDUE facts for {key}")
                     if existing.dialect is not None:
                         continue
                 out[key] = fact
@@ -492,195 +714,80 @@ class CapabilityRegistry:
 
     @classmethod
     def residue_candidates(
-        cls,
-        backend: CONST_BACKEND,
-        dialect: str | None = None,
-        *,
-        operation_key: Any | None = None,
+        cls, backend: CONST_BACKEND, dialect: str | None = None, *, operation_key: Any | None = None
     ) -> tuple[CapabilityFact, ...]:
-        """Return all applicable residue facts in deterministic order."""
-        facts = cls.facts(
-            backend=backend, enforcement=Enforcement.MATERIALIZE_RESIDUE
-        )
+        state = cls._acquire_state()
         return tuple(
             fact
-            for fact in facts
+            for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE)
             if (fact.dialect is None or fact.dialect == dialect)
             and (operation_key is None or fact.operation_key == operation_key)
         )
 
     @classmethod
     def router_facts(
-        cls,
-        operation_key: Any,
-        backend: CONST_BACKEND,
-        dialect: str | None = None,
+        cls, operation_key: Any, backend: CONST_BACKEND, dialect: str | None = None
     ) -> Tuple[CapabilityFact, ...]:
-        """ROUTER_METADATA facts for an op on a backend, in deterministic sorted order.
-
-        These never gate. They document WHY a backend takes a non-native
-        path; the routing decision itself stays in the router, and no
-        production router calls this accessor yet. On polars/narwhals the
-        declared condition matches their routing predicate exactly; ibis
-        routes more broadly, which is why routing is not derived from facts
-        (see the 66a plan's spec-deviation note). The bridge test in
-        tests/relations/backends/test_resource_files.py fails on any router
-        fact with no registered probe, so a declaration cannot go unexercised.
-        """
-        cls.ensure_loaded()
+        """Canonical routing metadata; these facts never gate."""
+        state = cls._acquire_state()
         return tuple(
-            sorted(
-                (
-                    fact
-                    for fact in cls.facts(
-                        backend=backend, enforcement=Enforcement.ROUTER_METADATA
-                    )
-                    if fact.operation_key == operation_key
-                    and (fact.dialect is None or fact.dialect == dialect)
-                ),
-                key=_enum_key,
-            )
+            fact
+            for fact in cls._view(state, backend, Enforcement.ROUTER_METADATA)
+            if fact.operation_key == operation_key and (fact.dialect is None or fact.dialect == dialect)
         )
 
     @classmethod
-    def _check_predicate_conflicts(cls, fact: CapabilityFact) -> None:
-        from mountainash.core.capabilities.predicates import (
-            predicate_implies, predicates_overlap,
-        )
-        blocking = fact.level is CapabilityLevel.UNSUPPORTED
-        for other in cls._predicate_facts:
-            if other.operation_key != fact.operation_key or other.backend is not fact.backend:
-                continue
-            # Compatible dialect scope: only skip when BOTH are dialect-scoped and DIFFER.
-            if (
-                other.dialect is not None
-                and fact.dialect is not None
-                and other.dialect != fact.dialect
-            ):
-                continue
-            if (other.level is CapabilityLevel.UNSUPPORTED) == blocking:
-                continue  # same disposition: two blockers or two refinements — no conflict
-            if not predicates_overlap(fact.predicate, other.predicate):
-                continue  # disjoint predicates: no shared call
-            a_implies_b = predicate_implies(fact.predicate, other.predicate)
-            b_implies_a = predicate_implies(other.predicate, fact.predicate)
-            if a_implies_b != b_implies_a:
-                continue  # exactly one strictly more specific — subsumption resolves
-            raise ValueError(
-                f"conflicting predicate facts for ({fact.operation_key}, "
-                f"{fact.backend}, {fact.dialect!r}): one blocks and one permits the "
-                "same call, and neither strictly subsumes the other"
-            )
-
-    @classmethod
-    def violations_for(cls, bound_call: "BoundCall", *, phase: str = "complete") -> frozenset[CapabilityFact]:
-        """Collect blockers; raw phase deliberately defers metadata-dependent facts."""
-        from mountainash.core.capabilities.predicates import metadata_arguments, predicate_holds
+    def violations_for(cls, bound_call: BoundCall, *, phase: str = "complete") -> frozenset[CapabilityFact]:
+        from mountainash.core.capabilities.predicates import predicate_holds
 
         if phase not in ("raw", "complete"):
             raise ValueError(f"unknown capability evaluation phase {phase!r}")
-
-        cls.ensure_loaded()
+        state = cls._acquire_state()
         out = set()
-        for fact in cls._predicate_facts:
-            if fact.operation_key != bound_call.operation_key:
-                continue
+        for fact, needs_metadata in state.predicate_buckets.get((bound_call.operation_key, bound_call.backend), ()):
             if fact.backend is not bound_call.backend:
                 continue
             if fact.dialect is not None and fact.dialect != bound_call.dialect:
                 continue
-            if fact.enforcement is not Enforcement.GATE:
+            if fact.enforcement is not Enforcement.GATE or fact.level is not CapabilityLevel.UNSUPPORTED:
                 continue
-            if fact.level is not CapabilityLevel.UNSUPPORTED:
+            if phase == "raw" and needs_metadata:
                 continue
             assert fact.predicate is not None
-            if phase == "raw" and metadata_arguments(fact.predicate):
-                continue
             if predicate_holds(
-                fact.predicate, bound_call.bindings, bound_call.supplied,
-                operand_types=bound_call.operand_types,
+                fact.predicate, bound_call.bindings, bound_call.supplied, operand_types=bound_call.operand_types
             ):
                 out.add(fact)
         return frozenset(out)
 
-
     @classmethod
     def validate_plan_capabilities(
-        cls,
-        operation_keys: Iterable[Any],
-        backend: CONST_BACKEND,
-        dialect: str | None = None,
+        cls, operation_keys: Iterable[Any], backend: CONST_BACKEND, dialect: str | None = None
     ) -> List[CapabilityViolation]:
-        """Substrait-interop hook (spec Section 1): op-level violations only."""
-        cls.ensure_loaded()
+        state = cls._acquire_state()
         violations = []
         for op_key in operation_keys:
-            fact = cls.capability_for(op_key, WILDCARD_PARAM, backend, dialect)
-            if (
-                fact is not None
-                and fact.enforcement is Enforcement.GATE
-                and fact.level is CapabilityLevel.UNSUPPORTED
-            ):
-                violations.append(
-                    CapabilityViolation(operation_key=op_key, param=fact.param, fact=fact)
-                )
+            fact = cls._capability_for(state, op_key, WILDCARD_PARAM, backend, dialect)
+            if fact is not None and fact.enforcement is Enforcement.GATE and fact.level is CapabilityLevel.UNSUPPORTED:
+                violations.append(CapabilityViolation(operation_key=op_key, param=fact.param, fact=fact))
         return violations
 
-    # -- test isolation -----------------------------------------------------
     @classmethod
-    def snapshot(
-        cls,
-    ) -> Tuple[
-        Dict[_Key, CapabilityFact],
-        Dict[str, TargetKind],
-        Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]],
-        Tuple["CapabilityDeclaration", ...],
-        _LoadState,
-        Optional[BaseException],
-        Tuple[CapabilityFact, ...],
-    ]:
-        """Opaque round-trip token for test isolation — captures BOTH _facts
-        and _kinds so restore() is symmetric with reset(). Callers must treat
-        the return value as opaque (feed it only to restore())."""
-        return (
-            dict(cls._facts), dict(cls._kinds), dict(cls._value_class_facts),
-            cls._declarations, cls._load_state, cls._load_error,
-            tuple(cls._predicate_facts),
-        )
+    def snapshot(cls) -> _RegistryState:
+        """Capture an opaque round-trip token without triggering loading."""
+        return cls._state
 
     @classmethod
-    def restore(
-        cls,
-        snapshot: Tuple[
-            Dict[_Key, CapabilityFact],
-            Dict[str, TargetKind],
-            Dict[_ValueClassBucketKey, Tuple[CapabilityFact, ...]],
-            Tuple["CapabilityDeclaration", ...],
-            _LoadState,
-            Optional[BaseException],
-            Tuple[CapabilityFact, ...],
-        ],
-    ) -> None:
-        facts, kinds, vclass, decls, state, err, pred = snapshot
-        cls._facts = dict(facts)
-        cls._kinds = dict(kinds)
-        cls._value_class_facts = dict(vclass)
-        cls._predicate_facts = list(pred)
-        cls._declarations = decls
-        cls._load_state = state
-        cls._load_error = err
+    def restore(cls, snapshot: _RegistryState) -> None:
+        """Publish an opaque token, including its original load status/error."""
+        with cls._mutation():
+            _require_type(snapshot, _RegistryState, "snapshot")
+            with cls._load_lock:
+                cls._state = snapshot
 
     @classmethod
     def reset(cls) -> None:
-        """Test-only. Enters ISOLATED (autoload disabled). Snapshot FIRST —
-        without a restore there is no way back to autoload in this process.
-        Takes _load_lock so the reset is atomic w.r.t. a concurrent
-        ensure_loaded()/register_declaration() (spec §2 hardening)."""
-        with cls._load_lock:
-            cls._facts = {}
-            cls._kinds = {}
-            cls._value_class_facts = {}
-            cls._predicate_facts = []
-            cls._declarations = ()
-            cls._load_state = _LoadState.ISOLATED
-            cls._load_error = None
+        """Enter empty ISOLATED state; snapshot first to retain production state."""
+        with cls._mutation():
+            with cls._load_lock:
+                cls._state = _empty_state(_LoadState.ISOLATED)
