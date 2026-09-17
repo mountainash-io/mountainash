@@ -2,7 +2,6 @@
 
 Leaves export SEGMENT without registration side effects. BoundSegment validates
 the enclosing scope, namespace and domain, then qualifies runtime facts once.
-Historical ProbeEvidence belongs to separately addressed captured bundles.
 """
 
 from __future__ import annotations
@@ -231,20 +230,10 @@ class QualifiedManifestation:
 
 
 @dataclass(frozen=True)
-class LocalOrigin:
-    entry: str
-
-    def __post_init__(self) -> None:
-        if type(self.entry) is not str or not self.entry:
-            raise ValueError("local origin requires a nonempty entry locator")
-
-
-@dataclass(frozen=True)
 class CapabilityAssertion:
     key: CapabilityKey
     level: CapabilityLevel
     since: str
-    origins: tuple[LocalOrigin | SourceOrigin, ...]
     message: str = ""
     workaround: str | None = None
     issue: str | None = None
@@ -258,17 +247,7 @@ class CapabilityAssertion:
     def __post_init__(self) -> None:
         if type(self.key) is not CapabilityKey:
             raise TypeError("assertion key requires CapabilityKey")
-        if type(self.origins) is not tuple or not self.origins:
-            raise ValueError("assertion origins require a nonempty immutable tuple")
-        for origin in self.origins:
-            if type(origin) is SourceOrigin:
-                if origin.captured is None:
-                    raise ValueError("imported prior origin requires a durable capture")
-            elif type(origin) is not LocalOrigin:
-                raise TypeError("assertion origins require local locators or captured prior origins")
         _validate_since(self.since, "CapabilityAssertion")
-        if not any(type(origin) is LocalOrigin for origin in self.origins):
-            raise ValueError("active assertion origins require a current local origin")
         _validate_issue_reference(self.issue)
         require_immutable(self)
 
@@ -407,10 +386,8 @@ class DivergenceManifestation:
     observed: CaptureValue
     impact: str
     since: str
-    origins: tuple[LocalOrigin | SourceOrigin, ...]
     workaround: str | None = None
     issue: str | None = None
-    legacy_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.key) is not ManifestationKey or type(self.kind) is not DivergenceKind:
@@ -420,19 +397,7 @@ class DivergenceManifestation:
         if type(self.impact) is not str or not self.impact:
             raise ValueError("manifestation requires an impact")
         _validate_since(self.since, "DivergenceManifestation")
-        if type(self.origins) is not tuple or not self.origins:
-            raise ValueError("manifestation requires nonempty immutable origins")
-        for origin in self.origins:
-            if type(origin) is SourceOrigin:
-                if origin.captured is None:
-                    raise ValueError("imported prior origin requires durable capture")
-            elif type(origin) is not LocalOrigin:
-                raise TypeError("manifestation origins require local or captured source origins")
-        if not any(type(origin) is LocalOrigin for origin in self.origins):
-            raise ValueError("active manifestation origins require a current local origin")
         _validate_issue_reference(self.issue)
-        if type(self.legacy_refs) is not tuple or any(type(ref) is not str for ref in self.legacy_refs):
-            raise TypeError("legacy provenance requires immutable text references")
         require_immutable(self)
 
 
@@ -441,7 +406,6 @@ class CapabilitySegment:
     domain: Domain
     capabilities: tuple[CapabilityAssertion, ...] = ()
     manifestations: tuple[DivergenceManifestation, ...] = ()
-    evidence_refs: tuple[CapturedAddress, ...] = ()
     changes: tuple[AssertionChange, ...] = ()
 
     def __post_init__(self) -> None:
@@ -449,36 +413,35 @@ class CapabilitySegment:
 
         if type(self.domain) is not Domain:
             raise TypeError("segment domain requires Domain")
-        for name in ("capabilities", "manifestations", "evidence_refs", "changes"):
+        for name in ("capabilities", "manifestations", "changes"):
             if type(getattr(self, name)) is not tuple:
                 raise TypeError(f"segment {name} requires an immutable tuple")
-        keys: dict[CapabilityKey, tuple[LocalOrigin | SourceOrigin, ...]] = {}
-        for assertion in self.capabilities:
+        keys: dict[CapabilityKey, int] = {}
+        for ordinal, assertion in enumerate(self.capabilities):
             if type(assertion) is not CapabilityAssertion:
                 raise TypeError("segment capabilities require local assertions")
             if classify_domain(assertion.key.operation) is not self.domain:
                 raise ValueError(f"segment domain disagrees with {assertion.key.operation}")
             if assertion.key in keys:
                 raise ValueError(
-                    f"duplicate capability key {assertion.key!r}: " f"{keys[assertion.key]!r}, {assertion.origins!r}"
+                    f"duplicate capability key {assertion.key!r}: "
+                    f"capabilities[{keys[assertion.key]}], capabilities[{ordinal}]"
                 )
-            keys[assertion.key] = assertion.origins
-        if any(type(ref) is not CapturedAddress for ref in self.evidence_refs):
-            raise TypeError("segment evidence references require captured addresses")
+            keys[assertion.key] = ordinal
         if any(type(change) is not AssertionChange for change in self.changes):
             raise TypeError("segment changes require AssertionChange records")
-        manifestation_keys: dict[ManifestationKey, tuple[LocalOrigin | SourceOrigin, ...]] = {}
-        for manifestation in self.manifestations:
+        manifestation_keys: dict[ManifestationKey, int] = {}
+        for ordinal, manifestation in enumerate(self.manifestations):
             if type(manifestation) is not DivergenceManifestation:
                 raise TypeError("segment manifestations require local typed records")
             if target_home(manifestation.key.target)[2] is not self.domain:
                 raise ValueError("manifestation home disagrees with segment domain")
             if manifestation.key in manifestation_keys:
                 raise ValueError(
-                    f"duplicate manifestation key: {manifestation_keys[manifestation.key]!r}, "
-                    f"{manifestation.origins!r}"
+                    f"duplicate manifestation key: manifestations[{manifestation_keys[manifestation.key]}], "
+                    f"manifestations[{ordinal}]"
                 )
-            manifestation_keys[manifestation.key] = manifestation.origins
+            manifestation_keys[manifestation.key] = ordinal
         require_immutable(self)
 
 
@@ -540,21 +503,6 @@ class BoundSegment:
     def source(self) -> FactSource:
         index = 6 if self.scope.dialect is None else 7
         return FactSource.SUBSTRAIT if self.module.split(".")[index] == "substrait" else FactSource.MOUNTAINASH
-
-
-@dataclass(frozen=True)
-class ProbeEvidence:
-    """Structured empirical basis for ONE probe wave."""
-
-    probe_date: str
-    library_versions: tuple[tuple[str, str], ...]
-    fixtures: tuple[str, ...]
-
-    def __post_init__(self) -> None:
-        try:
-            _validate_since(self.probe_date, "ProbeEvidence")
-        except ValueError:
-            raise ValueError(f"ProbeEvidence: probe_date must be YYYY-MM-DD, got " f"{self.probe_date!r}") from None
 
 
 @runtime_checkable

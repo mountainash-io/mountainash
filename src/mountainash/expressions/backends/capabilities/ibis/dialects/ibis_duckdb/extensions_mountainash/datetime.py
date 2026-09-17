@@ -1,4 +1,5 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
@@ -7,17 +8,54 @@ from mountainash.core.capabilities.schema import ValueClass
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import Dialect
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.schema import Boundary
 from mountainash.core.capabilities.schema import Enforcement
 from mountainash.core.capabilities.schema import ResidueSignal
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.DATETIME, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-07-29', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_ma', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py', entry='DECLARATIONS[0].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_ma', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py', entry='DECLARATIONS[0].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.xsd', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/xsd.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='invalid XSD lexical values are converted to null by the residue policy', boundary=Boundary.MATERIALIZE, enforcement=Enforcement.MATERIALIZE_RESIDUE, signal=ResidueSignal.NON_NULL_TO_NULL), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.xsd', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/xsd.py', entry='DECLARATIONS[0].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='invalid XSD lexical values are converted to null by the residue policy', boundary=Boundary.MATERIALIZE, enforcement=Enforcement.MATERIALIZE_RESIDUE, signal=ResidueSignal.NON_NULL_TO_NULL),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/xsd.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.DATETIME,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-29",
+            message="to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="invalid XSD lexical values are converted to null by the residue policy",
+            boundary=Boundary.MATERIALIZE,
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            signal=ResidueSignal.NON_NULL_TO_NULL,
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="invalid XSD lexical values are converted to null by the residue policy",
+            boundary=Boundary.MATERIALIZE,
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            signal=ResidueSignal.NON_NULL_TO_NULL,
+        ),
+    ),
+)

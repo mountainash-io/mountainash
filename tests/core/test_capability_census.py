@@ -1,6 +1,7 @@
 """Closed migration census — every capability-encoding expectation site is
 discovered and classified into a valid bucket with an explicit reason
 (spec 2026-08-01-spine-derived-test-expectations §3, Task 5)."""
+
 import ast
 from pathlib import Path
 
@@ -26,9 +27,6 @@ def test_whole_operation_source_rows_use_physical_origin_addresses():
         assert entry.path.startswith("mountainash."), entry.path
         assert isinstance(entry.line, str) and entry.line, (
             f"{entry.path} must carry its segment-local origin, not a source line"
-        )
-        assert "historical capture" in entry.current_reason, (
-            f"{entry.path}:{entry.line} lost its historical capture status"
         )
 
 
@@ -94,10 +92,13 @@ def test_no_migrated_site_carries_a_raw_capability_form():
     offenders: list[str] = []
     for rel in test_files:
         tree = ast.parse((_REPO_ROOT / rel).read_text(), filename=rel)
-        offenders += [f"{rel}:{ln} raw imperative pytest.xfail() at a migrated site"
-                      for ln in _imperative_xfail_lines(tree)]
-        offenders += [f"{rel}:{ln} hand-coded pytest.raises(BackendCapabilityError) at a migrated site"
-                      for ln in _handcoded_gate_raises_lines(tree)]
+        offenders += [
+            f"{rel}:{ln} raw imperative pytest.xfail() at a migrated site" for ln in _imperative_xfail_lines(tree)
+        ]
+        offenders += [
+            f"{rel}:{ln} hand-coded pytest.raises(BackendCapabilityError) at a migrated site"
+            for ln in _handcoded_gate_raises_lines(tree)
+        ]
     assert not offenders, "raw capability forms remain at migrated sites:\n" + "\n".join(offenders)
 
 
@@ -123,6 +124,5 @@ def test_handcoded_gate_raises_scanner_catches_tuple_form():
     tree = ast.parse(src)
     flagged = _handcoded_gate_raises_lines(tree)
     assert flagged == [3, 6, 9], (
-        f"expected single(3), tuple(6), attr-in-tuple(9) flagged, not the "
-        f"ValueError-only site; got {flagged}"
+        f"expected single(3), tuple(6), attr-in-tuple(9) flagged, not the ValueError-only site; got {flagged}"
     )

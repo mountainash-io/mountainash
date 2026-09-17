@@ -8,7 +8,6 @@ from mountainash.core.capabilities import CapabilityFact, CapabilityLevel
 from mountainash.core.capabilities.declarations import (
     Domain,
     FactSource,
-    ProbeEvidence,
     classify_domain,
     classify_source,
 )
@@ -65,10 +64,9 @@ def test_substrait_relation_keeps_standard_operation_home():
     [
         {"changes": ({},)},
         {"changes": ("change",)},
-        {"evidence_refs": ("unresolved-address",)},
     ],
 )
-def test_segment_rejects_untyped_history_and_evidence(payload):
+def test_segment_rejects_untyped_history(payload):
     from mountainash.core.capabilities.declarations import CapabilitySegment
 
     with pytest.raises(TypeError):
@@ -80,7 +78,6 @@ def test_segment_keeps_type_distinct_predicate_operands():
         CapabilityAssertion,
         CapabilityKey,
         CapabilitySegment,
-        LocalOrigin,
         Selector,
     )
     from mountainash.core.capabilities.schema import Clause, ClauseOp, Predicate
@@ -97,7 +94,6 @@ def test_segment_keeps_type_distinct_predicate_operands():
             ),
             CapabilityLevel.UNSUPPORTED,
             "2026-08-07",
-            (LocalOrigin(str(value)),),
         )
         for value in (True, 1)
     )
@@ -133,7 +129,6 @@ def test_local_assertion_qualification_preserves_runtime_identity():
     from mountainash.core.capabilities.declarations import (
         CapabilityAssertion,
         CapabilityKey,
-        LocalOrigin,
         Selector,
     )
     from mountainash.core.capabilities.identity import Dialect, Scope
@@ -144,7 +139,6 @@ def test_local_assertion_qualification_preserves_runtime_identity():
         message="t",
         since="2026-08-07",
         probe_exempt="test fact",
-        origins=(LocalOrigin("center"),),
     )
     duckdb = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
     sqlite = Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite"))
@@ -158,7 +152,6 @@ def test_local_assertion_qualification_preserves_runtime_identity():
             key=CapabilityKey(FK_STR.CENTER, "missing", Selector()),
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-07",
-            origins=(LocalOrigin("bad"),),
         ).qualify(duckdb)
 
 
@@ -168,7 +161,6 @@ def test_segment_context_rejects_reinterpretation_and_duplicate_keys():
         CapabilityAssertion,
         CapabilityKey,
         CapabilitySegment,
-        LocalOrigin,
     )
     from mountainash.core.capabilities.identity import Dialect, Scope
 
@@ -176,7 +168,6 @@ def test_segment_context_rejects_reinterpretation_and_duplicate_keys():
         key=CapabilityKey(FK_STR.CENTER, "*"),
         level=CapabilityLevel.UNSUPPORTED,
         since="2026-08-07",
-        origins=(LocalOrigin("center"),),
     )
     segment = CapabilitySegment(domain=Domain.STRING, capabilities=(assertion,))
     module = "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string"
@@ -189,7 +180,7 @@ def test_segment_context_rejects_reinterpretation_and_duplicate_keys():
         BoundSegment(module.replace(".substrait.", ".extensions_mountainash."), scope, segment)
     with pytest.raises(ValueError, match="domain"):
         CapabilitySegment(domain=Domain.DATETIME, capabilities=(assertion,))
-    with pytest.raises(ValueError, match="duplicate"):
+    with pytest.raises(ValueError, match=r"capabilities\[0\].*capabilities\[1\]"):
         CapabilitySegment(domain=Domain.STRING, capabilities=(assertion, assertion))
 
 
@@ -199,7 +190,6 @@ def test_manifestation_key_is_scenario_not_observed_outcome():
         BoundSegment,
         CapabilitySegment,
         DivergenceManifestation,
-        LocalOrigin,
         ManifestationKey,
     )
     from mountainash.core.capabilities.identity import Dialect, Scope
@@ -216,11 +206,10 @@ def test_manifestation_key_is_scenario_not_observed_outcome():
         CaptureValue.of("abc"),
         "padding ignored",
         "2026-09-15",
-        (LocalOrigin("center-padding"),),
     )
     revised = replace(claim, observed=CaptureValue.of(" abc"))
     assert claim.key == revised.key
-    with pytest.raises(ValueError, match="duplicate"):
+    with pytest.raises(ValueError, match=r"manifestations\[0\].*manifestations\[1\]"):
         CapabilitySegment(Domain.STRING, manifestations=(claim, revised))
     segment = CapabilitySegment(Domain.STRING, manifestations=(claim,))
     module = "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string"
@@ -285,18 +274,15 @@ def test_protocol_scenario_uses_captured_callable_after_export_replacement():
         assert ManifestationKey(target, scenario) == expected
 
 
-def test_active_declarations_require_current_origin_and_valid_issue():
-    from mountainash.core.capabilities.capture import CapturedAddress, SourceOrigin
+def test_declarations_validate_issue_references():
+    from dataclasses import replace
+
     from mountainash.core.capabilities.declarations import (
         CapabilityAssertion,
         CapabilityKey,
         DivergenceManifestation,
-        FactSource,
-        LocalOrigin,
         ManifestationKey,
     )
-    from mountainash.core.capabilities.identity import FamilyWide, Scope
-    from mountainash.core.constants import CONST_BACKEND
     from mountainash.core.capabilities.schema import (
         CaptureValue,
         DivergenceKind,
@@ -304,12 +290,10 @@ def test_active_declarations_require_current_origin_and_valid_issue():
         Scenario,
     )
 
-    origins = (LocalOrigin("current"),)
     assertion = CapabilityAssertion(
         CapabilityKey(FK_STR.CENTER, "length"),
         CapabilityLevel.UNSUPPORTED,
         "2026-09-15",
-        origins,
     )
     manifestation = DivergenceManifestation(
         ManifestationKey(OperationTarget(FK_STR.CENTER), Scenario()),
@@ -318,44 +302,11 @@ def test_active_declarations_require_current_origin_and_valid_issue():
         CaptureValue.of(1),
         "fixture",
         "2026-09-15",
-        origins,
     )
-    prior = SourceOrigin(
-        "mountainash.legacy",
-        Scope(CONST_BACKEND.IBIS, FamilyWide()),
-        FactSource.SUBSTRAIT,
-        Domain.STRING,
-        "old",
-        CapturedAddress("mountainash", "old.py", "old", artifact=b"old"),
-    )
-    with pytest.raises(ValueError, match="current"):
-        CapabilityAssertion(
-            assertion.key,
-            assertion.level,
-            assertion.since,
-            (prior,),
-        )
-    with pytest.raises(ValueError, match="current"):
-        DivergenceManifestation(
-            manifestation.key,
-            manifestation.kind,
-            manifestation.expected,
-            manifestation.observed,
-            manifestation.impact,
-            manifestation.since,
-            (prior,),
-        )
     with pytest.raises(ValueError, match="issue"):
-        DivergenceManifestation(
-            manifestation.key,
-            manifestation.kind,
-            manifestation.expected,
-            manifestation.observed,
-            manifestation.impact,
-            manifestation.since,
-            origins,
-            issue="malformed",
-        )
+        replace(assertion, issue="malformed")
+    with pytest.raises(ValueError, match="issue"):
+        replace(manifestation, issue="malformed")
 
 
 def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
@@ -467,11 +418,6 @@ def test_every_unit_c_matrix_cell_has_one_winning_fact() -> None:
         assert winner is fact, fact.fact_key
 
 
-def test_probe_evidence_validates_date():
-    with pytest.raises(ValueError, match="probe_date"):
-        ProbeEvidence(probe_date="not-a-date", library_versions=(), fixtures=())
-
-
 def test_narwhals_lazy_categorical_gate_is_declared_once() -> None:
     facts = [
         fact
@@ -513,7 +459,6 @@ def test_external_manifestations_cannot_claim_mountainash_execution(dialect, dat
         BoundSegment,
         CapabilitySegment,
         DivergenceManifestation,
-        LocalOrigin,
         ManifestationKey,
         QualifiedManifestationKey,
     )
@@ -546,7 +491,6 @@ def test_external_manifestations_cannot_claim_mountainash_execution(dialect, dat
         CaptureValue.of({"historical_claim": "native input construction rejected"}),
         "Native construction prevents the later Mountainash call",
         "2026-09-15",
-        (LocalOrigin("native construction"),),
     )
     segment = CapabilitySegment(Domain.NATIVE_INPUT, manifestations=(assertion,))
     module = (

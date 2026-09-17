@@ -134,11 +134,11 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
     if fact.option_value is not None:
         if fact.param == WILDCARD_PARAM:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-scoped facts cannot use WILDCARD_PARAM"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): value-scoped facts cannot use WILDCARD_PARAM"
             )
         if fact.boundary is not Boundary.BUILD:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-scoped facts must use the BUILD boundary"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): value-scoped facts must use the BUILD boundary"
             )
         if kind != "expression":
             raise ValueError(
@@ -148,16 +148,15 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
     if fact.value_class is not None:
         if fact.param == WILDCARD_PARAM:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-class facts cannot use WILDCARD_PARAM"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): value-class facts cannot use WILDCARD_PARAM"
             )
         if fact.boundary is not Boundary.BUILD:
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): " "value-class facts must use the BUILD boundary"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): value-class facts must use the BUILD boundary"
             )
         if kind != "expression":
             raise ValueError(
-                f"CapabilityFact({fact.operation_key}, {fact.param}): "
-                "value-class facts require an expression operation"
+                f"CapabilityFact({fact.operation_key}, {fact.param}): value-class facts require an expression operation"
             )
     method = definition.protocol_method
     from mountainash.core.capabilities.predicates import (
@@ -276,8 +275,17 @@ class _RegistryState:
 
 
 def _prepare_state(
-    *, facts, kinds, value_class_facts, predicate_facts, segments, stored, origins,
-    manifestations=None, load_state, load_error=None,
+    *,
+    facts,
+    kinds,
+    value_class_facts,
+    predicate_facts,
+    segments,
+    stored,
+    origins,
+    manifestations=None,
+    load_state,
+    load_error=None,
 ) -> _RegistryState:
     """Own all backing maps and prepare finite declaration-derived views once."""
     from mountainash.core.capabilities.predicates import metadata_arguments
@@ -325,15 +333,22 @@ def _prepare_state(
 
 def _empty_state(load_state=_LoadState.UNINITIALIZED) -> _RegistryState:
     return _prepare_state(
-        facts={}, kinds={}, value_class_facts={}, predicate_facts=(), segments=(),
-        stored={}, origins={}, manifestations={}, load_state=load_state
+        facts={},
+        kinds={},
+        value_class_facts={},
+        predicate_facts=(),
+        segments=(),
+        stored={},
+        origins={},
+        manifestations={},
+        load_state=load_state,
     )
-
 
 
 def _require_type(value, expected, field):
     if type(value) is not expected:
         raise ValueError(f"{field} must have exact type {expected.__name__}")
+
 
 def _enum_domain(value):
     domain = type(value.value)
@@ -392,7 +407,6 @@ def _validate_payload(fact):
                 raise ValueError("clause operand must have an immutable supported shape")
 
 
-
 def _register_identity(kinds, name: str, kind: TargetKind) -> None:
     if kind is TargetKind.SERIALIZE and name in {b.value for b in CONST_BACKEND}:
         raise ValueError(f"SERIALIZE family {name!r} collides with executing backend namespace")
@@ -424,18 +438,19 @@ def _check_predicate_conflicts(fact: CapabilityFact, predicates: Iterable[Capabi
         )
 
 
-
-def _source_origins(segment, origins):
+def _source_origins(segment, family, ordinal):
     from mountainash.core.capabilities.capture import SourceOrigin
-    from mountainash.core.capabilities.declarations import LocalOrigin
 
-    return tuple(
+    entry = f"{family}[{ordinal}]"
+    return (
         SourceOrigin(
-            segment.module, segment.scope, segment.source, segment.segment.domain, origin.entry,
-            replace(segment.source_capture, entry=origin.entry) if segment.source_capture is not None else None,
-        )
-        if type(origin) is LocalOrigin else origin
-        for origin in origins
+            segment.module,
+            segment.scope,
+            segment.source,
+            segment.segment.domain,
+            entry,
+            replace(segment.source_capture, entry=entry) if segment.source_capture is not None else None,
+        ),
     )
 
 
@@ -443,15 +458,25 @@ def _origin_labels(origins):
     from mountainash.core.capabilities.capture import SourceOrigin
 
     return tuple(
-        f"{origin.module}:{origin.entry}" if type(origin) is SourceOrigin
+        f"{origin.module}:{origin.entry}"
+        if type(origin) is SourceOrigin
         else f"runtime:{origin.generation}:{origin.batch}:{origin.ordinal}"
         for origin in origins
     )
 
 
 def _stage_batch(
-    family, incoming, facts, kinds, value_class_facts, predicate_facts,
-    stored, origins, manifestations, generation, segment=None,
+    family,
+    incoming,
+    facts,
+    kinds,
+    value_class_facts,
+    predicate_facts,
+    stored,
+    origins,
+    manifestations,
+    generation,
+    segment=None,
 ):
     from mountainash.core.capabilities.capture import RuntimeOrigin
     from mountainash.core.capabilities.declarations import (
@@ -465,15 +490,20 @@ def _stage_batch(
     _register_identity(kinds, family.value, TargetKind.EXECUTE)
     for ordinal, fact in enumerate(incoming):
         _validate_fact(family, fact)
-        scope = segment.scope if segment is not None else Scope(
-            family, FamilyWide() if fact.dialect is None else Dialect(fact.dialect),
+        scope = (
+            segment.scope
+            if segment is not None
+            else Scope(
+                family,
+                FamilyWide() if fact.dialect is None else Dialect(fact.dialect),
+            )
         )
         local = segment.segment.capabilities[ordinal].key if segment is not None else CapabilityKey.from_fact(fact)
         qualified = QualifiedCapabilityKey(scope, local)
         if segment is None:
             fact_origins = (RuntimeOrigin(generation, 0, ordinal),)
         else:
-            fact_origins = _source_origins(segment, segment.segment.capabilities[ordinal].origins)
+            fact_origins = _source_origins(segment, "capabilities", ordinal)
         if qualified in stored:
             raise ValueError(
                 f"duplicate capability key: {qualified!r}; "
@@ -492,18 +522,17 @@ def _stage_batch(
         stored[qualified] = fact
         origins[qualified] = fact_origins
     if segment is not None:
-        for manifestation in segment.segment.manifestations:
+        for ordinal, manifestation in enumerate(segment.segment.manifestations):
             key = QualifiedManifestationKey(segment.scope, manifestation.key)
-            manifestation_origins = _source_origins(segment, manifestation.origins)
+            manifestation_origins = _source_origins(segment, "manifestations", ordinal)
             if key in manifestations:
                 raise ValueError(
                     f"duplicate manifestation key: {key!r}; "
                     f"existing origins={_origin_labels(manifestations[key].origins)!r}; "
                     f"incoming origins={_origin_labels(manifestation_origins)!r}"
                 )
-            manifestations[key] = QualifiedManifestation(
-                key, manifestation, manifestation_origins
-            )
+            manifestations[key] = QualifiedManifestation(key, manifestation, manifestation_origins)
+
 
 class CapabilityRegistry:
     """Transactional declarations with accessor-level immutable snapshots.
@@ -517,6 +546,7 @@ class CapabilityRegistry:
     _load_lock = threading.RLock()
     _guards = threading.local()
     _generation = 0
+
     @classmethod
     @contextmanager
     def _mutation(cls):
@@ -563,17 +593,24 @@ class CapabilityRegistry:
                 kinds = dict(state.kinds)
                 vclass = dict(state.value_class_facts)
                 predicates = list(state.predicate_facts)
-                stored, origins, manifestations = (
-                    dict(state.stored), dict(state.origins), dict(state.manifestations)
-                )
+                stored, origins, manifestations = (dict(state.stored), dict(state.origins), dict(state.manifestations))
                 addresses = {segment.module for segment in state.segments}
                 for segment in segments:
                     if segment.module in addresses:
                         raise ValueError(f"duplicate segment address: {segment.module}")
                     addresses.add(segment.module)
                     _stage_batch(
-                        segment.scope.backend, segment.facts, facts, kinds, vclass, predicates,
-                        stored, origins, manifestations, cls._generation + 1, segment,
+                        segment.scope.backend,
+                        segment.facts,
+                        facts,
+                        kinds,
+                        vclass,
+                        predicates,
+                        stored,
+                        origins,
+                        manifestations,
+                        cls._generation + 1,
+                        segment,
                     )
                 candidate = _prepare_state(
                     facts=facts,
@@ -616,12 +653,19 @@ class CapabilityRegistry:
             kinds = dict(state.kinds)
             vclass = dict(state.value_class_facts)
             predicates = list(state.predicate_facts)
-            stored, origins, manifestations = (
-                dict(state.stored), dict(state.origins), dict(state.manifestations)
-            )
+            stored, origins, manifestations = (dict(state.stored), dict(state.origins), dict(state.manifestations))
             _stage_batch(
-                family, incoming, facts, kinds, vclass, predicates,
-                stored, origins, manifestations, cls._generation + 1, segment,
+                family,
+                incoming,
+                facts,
+                kinds,
+                vclass,
+                predicates,
+                stored,
+                origins,
+                manifestations,
+                cls._generation + 1,
+                segment,
             )
             candidate = _prepare_state(
                 facts=facts,
@@ -768,7 +812,9 @@ class CapabilityRegistry:
 
     @classmethod
     def capture(
-        cls, *, scopes: frozenset[Scope] | None = None,
+        cls,
+        *,
+        scopes: frozenset[Scope] | None = None,
         verification: VerificationSnapshot | None = None,
         issues: IssueSnapshot | None = None,
         evidence: tuple[EvidenceCapture, ...] | None = None,
@@ -783,8 +829,14 @@ class CapabilityRegistry:
             )
         segments = tuple(segment for segment in state.segments if segment.scope in scopes)
         return CatalogueCapture(
-            scopes, segments, state.stored, state.origins, state.manifestations,
-            verification, issues, evidence,
+            scopes,
+            segments,
+            state.stored,
+            state.origins,
+            state.manifestations,
+            verification,
+            issues,
+            evidence,
         )
 
     @classmethod

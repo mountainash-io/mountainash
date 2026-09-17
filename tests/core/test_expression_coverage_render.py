@@ -22,7 +22,6 @@ from mountainash.core.capabilities.declarations import (
     CapabilityKey,
     CapabilitySegment,
     Domain,
-    LocalOrigin,
 )
 from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
 from mountainash.core.capabilities.render_markdown import (
@@ -61,8 +60,6 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 
 
-
-
 # _impls, _fact, _segment, and _universe are local fixture builders over
 # registered Substrait string operations.
 
@@ -85,7 +82,6 @@ def _assertion(fact: CapabilityFact) -> CapabilityAssertion:
         CapabilityKey.from_fact(fact),
         fact.level,
         fact.since,
-        (LocalOrigin("fixture"),),
         message=fact.message,
         workaround=fact.workaround,
         issue=fact.upstream_ref,
@@ -104,17 +100,10 @@ def _segment(
     facts=(),
     module_suffix="",
 ):
-    if any(
-        fact.backend is not backend or fact.dialect != dialect
-        for fact in facts
-    ):
+    if any(fact.backend is not backend or fact.dialect != dialect for fact in facts):
         raise ValueError("fixture segment facts must match its scope")
     scope = Scope(backend, FamilyWide() if dialect is None else Dialect(dialect))
-    physical_scope = (
-        "family"
-        if dialect is None
-        else f"dialects.{dialect.replace('-', '_')}"
-    )
+    physical_scope = "family" if dialect is None else f"dialects.{dialect.replace('-', '_')}"
     return BoundSegment(
         f"mountainash.expressions.backends.capabilities.{backend.value}."
         f"{physical_scope}.substrait.string{module_suffix}",
@@ -127,10 +116,7 @@ def _segments(facts: tuple[CapabilityFact, ...]) -> tuple[BoundSegment, ...]:
     grouped: dict[tuple[CONST_BACKEND, str | None], list[CapabilityFact]] = {}
     for fact in facts:
         grouped.setdefault((fact.backend, fact.dialect), []).append(fact)
-    return tuple(
-        _segment(backend, dialect, tuple(group))
-        for (backend, dialect), group in grouped.items()
-    )
+    return tuple(_segment(backend, dialect, tuple(group)) for (backend, dialect), group in grouped.items())
 
 
 def _universe():
@@ -305,7 +291,6 @@ def test_unknown_cell_never_carries_audited_badge():
     # The audited_unknown stat IS rendered (symmetric with contradictions).
     assert "audited_unknown: 2" in out  # both ops on POLARS
 
-
     # With no active segments, no cell in the matrix may carry the audit badge.
     out = render_markdown(_report([], segments=(), impls=_impls()))
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
@@ -313,8 +298,6 @@ def test_unknown_cell_never_carries_audited_badge():
     # And the U+2705 green-tick glyph is RETIRED — the marker is U+2713 only.
     assert "✓" in matrix
     assert "✅" not in out
-
-
 
 
 def test_residue_and_routed_annotations():
@@ -374,9 +357,7 @@ def test_summary_per_backend_table_consistency():
         (FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, CONST_BACKEND.POLARS): ImplState.UNKNOWN,
     }
     impls = _impls(overrides=overrides)
-    out = render_markdown(
-        _report([residue, routed], segments=_segments((residue, routed)), impls=impls)
-    )
+    out = render_markdown(_report([residue, routed], segments=_segments((residue, routed)), impls=impls))
     # Per-backend columns: default_capable / audited_clean / constrained / NOT_IMPLEMENTED / UNKNOWN / ops_total.
     assert "| Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |" in out
     # LPAD×POLARS is a contradiction; RPAD×POLARS is audited unknown.
@@ -400,7 +381,9 @@ def test_option_collapse_rule():
     two = _collapse_groups(tuple(same[:2]))
     assert len(two) == 2  # <3 renders per-fact
 
-    split = same[:2] + [_fact(param="characters", option_value="c", message="different", level=CapabilityLevel.UNSUPPORTED)]
+    split = same[:2] + [
+        _fact(param="characters", option_value="c", message="different", level=CapabilityLevel.UNSUPPORTED)
+    ]
     assert len(_collapse_groups(tuple(split))) == 3  # metadata splits groups
 
     # Mixed group: a value-agnostic fact sharing the remaining identity blocks
@@ -443,7 +426,6 @@ def test_scoped_report_keeps_option_constraints_in_their_dialects():
     scoped = render_scoped(_report(facts))
     for dialect in ("ibis-duckdb", "ibis-sqlite"):
         assert f"| {dialect} | characters | a, b, c |" in scoped
-
 
 
 def _change(
@@ -500,10 +482,12 @@ def test_nonempty_gaps_divergences_and_changes_render():
     )
     change = _change(
         successors=(successor,),
-        fixed_versions=Environment((
-            EnvironmentCoordinate("package", "ibis", "13.0.0"),
-            EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
-        )),
+        fixed_versions=Environment(
+            (
+                EnvironmentCoordinate("package", "ibis", "13.0.0"),
+                EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
+            )
+        ),
     )
     report = _report(
         [],
@@ -517,10 +501,12 @@ def test_nonempty_gaps_divergences_and_changes_render():
     change_json = rendered["changes"][0]
     assert out.count("SY-TEST-01") == 1 and out.count("SY-TEST-02") == 1
     assert "2027-01-31" in out
-    assert rendered["divergences"][0]["operation_keys"] == [{
-        "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
-        "op": "LPAD",
-    }]
+    assert rendered["divergences"][0]["operation_keys"] == [
+        {
+            "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+            "op": "LPAD",
+        }
+    ]
     assert list(change_json) == [
         "change_ref",
         "prior",
@@ -539,6 +525,7 @@ def test_nonempty_gaps_divergences_and_changes_render():
     assert change_json["successors"][0]["address"]["entry"] == "successor"
     assert change_json["evidence_refs"][0]["entry"] == "cases[0]"
     assert change_json["fixed_versions"]["coordinates"][0]["kind"] == "engine"
+
 
 def test_report_rejects_duplicate_change_capture_address():
     with pytest.raises(ValueError, match="duplicate change_ref"):
@@ -632,9 +619,7 @@ def test_gather_coverage_inputs_keeps_fact_and_segment_capture_coherent(
     expected_facts, expected_segments = CapabilityRegistry._report_inputs()
     snapshot = CapabilityRegistry.snapshot()
     assert sorted(fact.fact_key for fact in expected_facts) == sorted(
-        fact.fact_key
-        for segment in expected_segments
-        for fact in segment.facts
+        fact.fact_key for segment in expected_segments for fact in segment.facts
     )
     late_segment = BoundSegment(
         "mountainash.expressions.backends.capabilities.polars.family.substrait.string.late",
@@ -655,9 +640,7 @@ def test_gather_coverage_inputs_keeps_fact_and_segment_capture_coherent(
         assert inputs["segments"] == expected_segments
         assert late_segment in CapabilityRegistry.segments()
         rendered_segments = json.loads(render_json(_report_from_inputs(inputs)))["segments"]
-        assert late_segment.module not in {
-            segment["module"] for segment in rendered_segments
-        }
+        assert late_segment.module not in {segment["module"] for segment in rendered_segments}
     finally:
         CapabilityRegistry.restore(snapshot)
 
@@ -669,7 +652,6 @@ def test_gather_coverage_inputs_keeps_fact_and_segment_capture_coherent(
 
 class TestDerivation:
     """_resolve_concrete_owner() excludes protocol stub carriers."""
-
 
     def test_resolve_concrete_owner_skips_protocol_stubs(self):
         """Spec §3.6 / review C-2: a bare Protocol subclass is a stub carrier,
@@ -710,7 +692,6 @@ _TOP_LEVEL_KEYS = [
     "stats",
     "families",
     "segments",
-    "historical_bundles",
     "divergences",
     "gaps",
     "changes",
@@ -791,7 +772,7 @@ def _model_fact_multiset(report: CoverageReport) -> list:
 
 
 def test_json_shape_lock():
-    """The report serializes current segments separately from historical capture."""
+    """The report serializes current segments and diagnostic projections."""
     fs = [_fact(param="length", option_value=value, level=CapabilityLevel.UNSUPPORTED) for value in ("x", "y", "z")] + [
         _fact(param="characters", dialect="polars", level=CapabilityLevel.LITERAL_ONLY)
     ]
@@ -806,7 +787,6 @@ def test_json_shape_lock():
     # Stamp counts are deliberately timeless.
     assert set(obj["stamp"].keys()) == {
         "segments",
-        "historical_bundles",
         "facts",
         "operations",
         "implementation_records",
@@ -891,19 +871,21 @@ def test_json_shape_lock():
     assert len(segment_rows) == len(segments)
     for row in segment_rows:
         assert set(row) == {
-            "module", "scope", "source", "domain", "facts", "evidence_refs", "changes",
+            "module",
+            "scope",
+            "source",
+            "domain",
+            "facts",
+            "changes",
         }
         assert row["module"].endswith(".substrait.string")
         assert row["source"] == "substrait"
         assert row["domain"] == "string"
     assert {row["scope"]["dialect"] for row in segment_rows} == {None, "polars"}
-    assert obj["historical_bundles"] == []
+
 
 def test_json_round_trip():
-    fs = [
-        _fact(param="length", option_value=value, level=CapabilityLevel.UNSUPPORTED)
-        for value in ("x", "y", "z")
-    ] + [
+    fs = [_fact(param="length", option_value=value, level=CapabilityLevel.UNSUPPORTED) for value in ("x", "y", "z")] + [
         _fact(param="characters", dialect="polars", level=CapabilityLevel.LITERAL_ONLY),
         _fact(
             param="input",
@@ -938,14 +920,9 @@ def test_json_round_trip():
     obj = json.loads(render_json(report))
 
     expected_ops = {(record.family, record.operation_key.name) for record in universe}
-    actual_ops = {
-        (entry["op"]["family"], entry["op"]["op"])
-        for family in obj["families"]
-        for entry in family["ops"]
-    }
+    actual_ops = {(entry["op"]["family"], entry["op"]["op"]) for family in obj["families"] for entry in family["ops"]}
     assert actual_ops == expected_ops
     assert len(obj["segments"]) == len(report.segments)
-    assert len(obj["historical_bundles"]) == len(report.bundles)
     assert len(obj["divergences"]) == len(report.divergences)
     assert len(obj["gaps"]) == len(report.gaps)
     assert len(obj["changes"]) == len(report.changes)
@@ -979,9 +956,7 @@ def test_json_no_collapse():
     for fam in obj["families"]:
         for op_entry in fam["ops"]:
             for cell in op_entry["cells"].values():
-                character_facts.extend(
-                    f for f in cell["constraints"] if f["param"] == "characters"
-                )
+                character_facts.extend(f for f in cell["constraints"] if f["param"] == "characters")
     assert len(character_facts) == 3
     assert sorted(f["option_value"] for f in character_facts) == ["a", "b", "c"]
     # And the identity is distinct per row (the model never collapsed).
@@ -1005,26 +980,12 @@ def test_json_null_vs_empty():
                 for f in cell["constraints"]:
                     found = True
                     assert f["option_value"] is None, (
-                        f"option_value=None must serialize as JSON null, " f"got {f['option_value']!r}"
+                        f"option_value=None must serialize as JSON null, got {f['option_value']!r}"
                     )
                     assert f["native_errors"] == [], (
-                        f"native_errors=() must serialize as JSON [], " f"got {f['native_errors']!r}"
+                        f"native_errors=() must serialize as JSON [], got {f['native_errors']!r}"
                     )
     assert found, "test setup must produce a constraint cell"
-
-
-
-def test_historical_bundles_preserve_empty_wave_provenance():
-    from mountainash.core.capabilities.evidence.legacy_bundles import BUNDLES
-
-    report = build_coverage_report(
-        _universe(), (), (), (), (), (), _impls(), bundles=BUNDLES
-    )
-    historical = json.loads(render_json(report))["historical_bundles"]
-    assert len(BUNDLES) == 72
-    assert sum(not bundle.members for bundle in BUNDLES) == 10
-    assert len(historical) == len(BUNDLES)
-    assert sum(not bundle["members"] for bundle in historical) == 10
 
 
 def test_json_is_deterministic_under_input_shuffle():
@@ -1033,12 +994,10 @@ def test_json_is_deterministic_under_input_shuffle():
     ]
     segments = _segments(tuple(fs))
     impls = _impls()
-    out1 = render_json(build_coverage_report(
-        _universe(), tuple(fs), segments, (), (), (), impls
-    ))
-    out2 = render_json(build_coverage_report(
-        _universe(), tuple(reversed(fs)), segments, (), (), (), tuple(reversed(impls))
-    ))
+    out1 = render_json(build_coverage_report(_universe(), tuple(fs), segments, (), (), (), impls))
+    out2 = render_json(
+        build_coverage_report(_universe(), tuple(reversed(fs)), segments, (), (), (), tuple(reversed(impls)))
+    )
     assert out1 == out2
 
 
@@ -1153,16 +1112,16 @@ def test_refinements_never_in_main_doc_detail():
     assert _fact_detail_row(refinement, []) in scoped_detail
 
 
-
-
 def _gap(reason):
     from mountainash.core.capabilities.gaps import GapKey, InventoryGap, InventoryWide
     from mountainash.core.capabilities.schema import OperationTarget
 
     return InventoryGap(
         GapKey(
-            "fixture.options", OperationTarget(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD),
-            "option behavior coverage:length", InventoryWide(),
+            "fixture.options",
+            OperationTarget(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD),
+            "option behavior coverage:length",
+            InventoryWide(),
         ),
         ("SubstraitScalarStringExpressionSystemProtocol", "lpad", "length"),
         KnownGap(gap_kind=GapKind.UNTESTED_OPTION, reason=reason, since="2026-08-01"),

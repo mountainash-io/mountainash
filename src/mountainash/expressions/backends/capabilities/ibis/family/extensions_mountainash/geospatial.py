@@ -1,17 +1,13 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import FamilyWide
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.schema import ClauseOp
 from mountainash.core.capabilities.schema import Clause
@@ -19,4 +15,78 @@ from mountainash.core.capabilities.schema import Predicate
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.GEOSPATIAL, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.geospatial', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.GEOSPATIAL, entry='DECLARATIONS[2].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/geospatial.py', entry='DECLARATIONS[2].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='This backend cannot execute the requested geospatial operation cell', probe_exempt='GeoJSON parse/serialize is covered by conform geospatial contract tests'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.geospatial', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.GEOSPATIAL, entry='DECLARATIONS[2].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/geospatial.py', entry='DECLARATIONS[2].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='This backend cannot execute the requested geospatial operation cell', probe_exempt='GeoJSON parse/serialize is covered by conform geospatial contract tests'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT, subject='format', selector=Selector(kind='predicate', value=Predicate(clauses=(Clause(path='format', op=ClauseOp.EQ, operand='array'), Clause(path='source_representation', op=ClauseOp.EQ, operand='lexical'),)))), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.geospatial', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.GEOSPATIAL, entry='DECLARATIONS[2].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/geospatial.py', entry='DECLARATIONS[2].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='This backend cannot execute the requested geospatial operation cell'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT, subject='format', selector=Selector(kind='predicate', value=Predicate(clauses=(Clause(path='failure_behavior', op=ClauseOp.EQ, operand='null'), Clause(path='format', op=ClauseOp.EQ, operand='array'), Clause(path='source_representation', op=ClauseOp.EQ, operand='native'),)))), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.geospatial', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.GEOSPATIAL, entry='DECLARATIONS[2].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/geospatial.py', entry='DECLARATIONS[2].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='This backend cannot execute the requested geospatial operation cell'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT, subject='format', selector=Selector(kind='predicate', value=Predicate(clauses=(Clause(path='failure_behavior', op=ClauseOp.EQ, operand='null'), Clause(path='format', op=ClauseOp.EQ, operand='object'), Clause(path='source_representation', op=ClauseOp.EQ, operand='native'),)))), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.geospatial', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.GEOSPATIAL, entry='DECLARATIONS[2].facts[4]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/geospatial.py', entry='DECLARATIONS[2].facts[4]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='This backend cannot execute the requested geospatial operation cell'),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/geospatial.py', entry='DECLARATIONS[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.GEOSPATIAL,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="This backend cannot execute the requested geospatial operation cell",
+            probe_exempt="GeoJSON parse/serialize is covered by conform geospatial contract tests",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="This backend cannot execute the requested geospatial operation cell",
+            probe_exempt="GeoJSON parse/serialize is covered by conform geospatial contract tests",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+                subject="format",
+                selector=Selector(
+                    kind="predicate",
+                    value=Predicate(
+                        clauses=(
+                            Clause(path="format", op=ClauseOp.EQ, operand="array"),
+                            Clause(path="source_representation", op=ClauseOp.EQ, operand="lexical"),
+                        )
+                    ),
+                ),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="This backend cannot execute the requested geospatial operation cell",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+                subject="format",
+                selector=Selector(
+                    kind="predicate",
+                    value=Predicate(
+                        clauses=(
+                            Clause(path="failure_behavior", op=ClauseOp.EQ, operand="null"),
+                            Clause(path="format", op=ClauseOp.EQ, operand="array"),
+                            Clause(path="source_representation", op=ClauseOp.EQ, operand="native"),
+                        )
+                    ),
+                ),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="This backend cannot execute the requested geospatial operation cell",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+                subject="format",
+                selector=Selector(
+                    kind="predicate",
+                    value=Predicate(
+                        clauses=(
+                            Clause(path="failure_behavior", op=ClauseOp.EQ, operand="null"),
+                            Clause(path="format", op=ClauseOp.EQ, operand="object"),
+                            Clause(path="source_representation", op=ClauseOp.EQ, operand="native"),
+                        )
+                    ),
+                ),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="This backend cannot execute the requested geospatial operation cell",
+        ),
+    ),
+)

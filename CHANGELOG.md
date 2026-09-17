@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 2026-09-17
+
+### Changed
+- Capability declarations now author semantics only; publication derives current source locations from validated ownership and collection position while retaining immutable source captures.
+- Remove the authored `CapabilityAssertion.origins`, `DivergenceManifestation.origins`/`legacy_refs`, `CapabilitySegment.evidence_refs`, and `VerificationBinding.legacy_sites` constructor fields, with no compatibility aliases.
+- Remove `LocalOrigin`, `ProbeEvidence` (including its public capability re-export), `AuthoringBundle`, and the packaged retired-declaration archive. Historical sources remain in Git; live probes and genuine evidence/change capture remain supported.
+- Remove the coverage report's `bundles` input/field, JSON `historical_bundles` and its stamp count, segment JSON `evidence_refs`, and historical-wave Markdown output. Existing current-data reports remain available; the new auditing/report-to-site integration is separate backlog work.
+
 ## Unreleased — 2026-09-15
 
 ### Changed

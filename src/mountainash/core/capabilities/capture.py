@@ -104,7 +104,6 @@ class VerificationBinding:
     scope: Scope
     oracle: CapturedAddress
     stage: str
-    legacy_sites: tuple[CapturedAddress, ...] = ()
 
     def __post_init__(self) -> None:
         if type(self.captured_claim) is not CapturedAssertion:
@@ -123,8 +122,6 @@ class VerificationBinding:
             raise TypeError("verification binding stage requires text")
         if self.stage not in {"construction", "compilation", "materialization"}:
             raise ValueError("unknown verification binding stage")
-        if type(self.legacy_sites) is not tuple or any(type(site) is not CapturedAddress for site in self.legacy_sites):
-            raise TypeError("verification binding legacy sites require captured addresses")
 
         from mountainash.core.capabilities.declarations import (
             DivergenceManifestation,
@@ -238,32 +235,6 @@ class Environment:
 
 
 @dataclass(frozen=True)
-class AuthoringBundle:
-    address: CapturedAddress
-    backend: Any
-    source: Any
-    domain: Any
-    members: tuple[CapturedAssertion, ...]
-    evidence: Any
-
-    def __post_init__(self) -> None:
-        from mountainash.core.capabilities.declarations import Domain, FactSource, ProbeEvidence
-        from mountainash.core.constants import CONST_BACKEND
-
-        if type(self.address) is not CapturedAddress:
-            raise TypeError("bundle requires a captured address")
-        if type(self.backend) is not CONST_BACKEND:
-            raise TypeError("bundle backend requires CONST_BACKEND")
-        if type(self.source) is not FactSource or type(self.domain) is not Domain:
-            raise TypeError("bundle requires canonical source and domain")
-        if type(self.members) is not tuple or any(type(member) is not CapturedAssertion for member in self.members):
-            raise TypeError("bundle members require ordered captured assertions")
-        if self.evidence is not None and type(self.evidence) is not ProbeEvidence:
-            raise TypeError("bundle requires original probe evidence or explicit absence")
-        require_immutable(self.evidence)
-
-
-@dataclass(frozen=True)
 class SourceOrigin:
     module: str
     scope: Any
@@ -316,7 +287,7 @@ class EvidenceCapture:
             or not self.subjects
             or any(type(subject) is not CapturedAssertion for subject in self.subjects)
         ):
-            raise ValueError("evidence requires nonempty captured subjects; empty waves belong to bundle manifests")
+            raise ValueError("evidence requires nonempty captured subjects")
         if self.observed_at is not None:
             datetime.fromisoformat(self.observed_at)
         if type(self.environment) is not Environment:

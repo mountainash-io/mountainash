@@ -148,9 +148,16 @@ def test_exact_scope_reader_has_no_fallback_and_retains_old_view(isolated):
     with pytest.raises(KeyError):
         old.get(key)
     assert old.search(CapabilityQuery(operation=FK_DT.TRUNCATE)) == ()
-    assert CapabilityRegistry.capability_for(
-        FK_DT.TRUNCATE, "unit", CONST_BACKEND.IBIS, "ibis-duckdb", "2d",
-    ) is family
+    assert (
+        CapabilityRegistry.capability_for(
+            FK_DT.TRUNCATE,
+            "unit",
+            CONST_BACKEND.IBIS,
+            "ibis-duckdb",
+            "2d",
+        )
+        is family
+    )
 
     dialect = _vc_fact(FK_DT.TRUNCATE, dialect="ibis-duckdb")
     CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, (dialect,))
@@ -162,16 +169,16 @@ def test_exact_scope_reader_has_no_fallback_and_retains_old_view(isolated):
 
 def test_catalogue_distinguishes_unrequested_empty_and_uncaptured_scopes():
     from mountainash.core.capabilities.catalogue import (
-        CapabilityQuery, CatalogueQuery, UncapturedScopeError,
+        CapabilityQuery,
+        CatalogueQuery,
+        UncapturedScopeError,
     )
     from mountainash.core.capabilities.identity import FamilyWide, Scope
 
     scope = Scope(CONST_BACKEND.IBIS, FamilyWide())
     capture = CapabilityRegistry.capture(scopes=frozenset({scope}))
     assert capture.search(CatalogueQuery()).capabilities is None
-    assert capture.search(
-        CatalogueQuery(capabilities=CapabilityQuery(), scopes=frozenset())
-    ).capabilities == ()
+    assert capture.search(CatalogueQuery(capabilities=CapabilityQuery(), scopes=frozenset())).capabilities == ()
     records = capture.search(CatalogueQuery(capabilities=CapabilityQuery())).capabilities
     assert records == capture.reader(scope).search(CapabilityQuery())
     assert all(fact.backend is CONST_BACKEND.IBIS and fact.dialect is None for fact in records)
@@ -189,8 +196,10 @@ def test_issue_capture_retains_old_source_and_distinguishes_missing_namespace():
 
     row = {"id": "IB-STR-01", "status": "needs_filing", "affected_backends": ["ibis-duckdb"]}
     source = CapturedAddress(
-        "mountainash", "registry/upstream-issues.yaml", "issues",
-        artifact=b'issues: [{id: IB-STR-01, status: needs_filing, affected_backends: [ibis-duckdb]}]',
+        "mountainash",
+        "registry/upstream-issues.yaml",
+        "issues",
+        artifact=b"issues: [{id: IB-STR-01, status: needs_filing, affected_backends: [ibis-duckdb]}]",
     )
     snapshot = IssueSnapshot(source, (("IB-STR-01", CaptureValue.of(row)),))
     old = CapabilityRegistry.capture(issues=snapshot)
@@ -198,17 +207,17 @@ def test_issue_capture_retains_old_source_and_distinguishes_missing_namespace():
     row["affected_backends"].append("ibis-sqlite")
     updated = IssueSnapshot(
         CapturedAddress(
-            "mountainash", "registry/upstream-issues.yaml", "issues",
-            artifact=b'issues: [{id: IB-STR-01, status: resolved, affected_backends: [ibis-duckdb, ibis-sqlite]}]',
+            "mountainash",
+            "registry/upstream-issues.yaml",
+            "issues",
+            artifact=b"issues: [{id: IB-STR-01, status: resolved, affected_backends: [ibis-duckdb, ibis-sqlite]}]",
         ),
         (("IB-STR-01", CaptureValue.of(row)),),
     )
     current = CapabilityRegistry.capture(issues=updated)
     old_fields = dict(old.issue("IB-STR-01").value)
     assert old_fields["status"] == CaptureValue("text", "needs_filing")
-    assert old_fields["affected_backends"] == CaptureValue(
-        "sequence", (CaptureValue("text", "ibis-duckdb"),)
-    )
+    assert old_fields["affected_backends"] == CaptureValue("sequence", (CaptureValue("text", "ibis-duckdb"),))
     assert dict(current.issue("IB-STR-01").value)["status"] == CaptureValue("text", "resolved")
     assert old.issues.source.artifact == source.artifact
     with pytest.raises(KeyError):
@@ -238,11 +247,18 @@ def test_evidence_and_bindings_do_not_follow_same_key_payload_edits():
     from pathlib import Path
 
     from mountainash.core.capabilities.capture import (
-        BindingRole, CapturedAddress, CapturedAssertion, Environment,
-        EvidenceCapture, VerificationBinding,
+        BindingRole,
+        CapturedAddress,
+        CapturedAssertion,
+        Environment,
+        EvidenceCapture,
+        VerificationBinding,
     )
     from mountainash.core.capabilities.catalogue import (
-        BindingQuery, CatalogueQuery, EvidenceQuery, UncapturedNamespaceError,
+        BindingQuery,
+        CatalogueQuery,
+        EvidenceQuery,
+        UncapturedNamespaceError,
     )
     from mountainash.core.capabilities.declarations import CapabilityKey, QualifiedCapabilityKey
     from mountainash.core.capabilities.gaps import VerificationSnapshot
@@ -252,34 +268,51 @@ def test_evidence_and_bindings_do_not_follow_same_key_payload_edits():
     fact = CapabilityRegistry.facts()[0]
     scope = Scope(fact.backend, FamilyWide() if fact.dialect is None else Dialect(fact.dialect))
     source = CapturedAddress(
-        "mountainash", "tests/core/test_capability_registry_enumeration.py",
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
         "test_evidence_and_bindings_do_not_follow_same_key_payload_edits",
         artifact=Path(__file__).read_bytes(),
     )
-    claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)), fact, source
-    )
+    claim = CapturedAssertion("capability", QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)), fact, source)
     changed = replace(claim, payload=replace(fact, message="different captured claim"))
     evidence = EvidenceCapture(
-        source, (claim,), None, Environment(), (source,), "structural",
-        ("immutable claim identity",), (source,),
+        source,
+        (claim,),
+        None,
+        Environment(),
+        (source,),
+        "structural",
+        ("immutable claim identity",),
+        (source,),
     )
     oracle = replace(source, entry="independent oracle")
     binding = VerificationBinding(
-        claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE, source, scope,
-        oracle, "compilation",
+        claim,
+        Scenario(),
+        BindingRole.STRUCTURAL_EVIDENCE,
+        source,
+        scope,
+        oracle,
+        "compilation",
     )
     capture = CapabilityRegistry.capture(
-        verification=VerificationSnapshot((), bindings=(binding,)), evidence=(evidence,),
+        verification=VerificationSnapshot((), bindings=(binding,)),
+        evidence=(evidence,),
     )
-    original = capture.search(CatalogueQuery(
-        evidence=EvidenceQuery(subject=claim), bindings=BindingQuery(captured_claim=claim),
-    ))
+    original = capture.search(
+        CatalogueQuery(
+            evidence=EvidenceQuery(subject=claim),
+            bindings=BindingQuery(captured_claim=claim),
+        )
+    )
     assert original.evidence == (evidence,)
     assert original.bindings == (binding,)
-    edited = capture.search(CatalogueQuery(
-        evidence=EvidenceQuery(subject=changed), bindings=BindingQuery(captured_claim=changed),
-    ))
+    edited = capture.search(
+        CatalogueQuery(
+            evidence=EvidenceQuery(subject=changed),
+            bindings=BindingQuery(captured_claim=changed),
+        )
+    )
     assert edited.evidence == ()
     assert edited.bindings == ()
     with pytest.raises(UncapturedNamespaceError):
@@ -295,7 +328,10 @@ def test_evidence_subject_scope_filters_apply_to_the_same_subject():
     from pathlib import Path
 
     from mountainash.core.capabilities.capture import (
-        CapturedAddress, CapturedAssertion, Environment, EvidenceCapture,
+        CapturedAddress,
+        CapturedAssertion,
+        Environment,
+        EvidenceCapture,
     )
     from mountainash.core.capabilities.catalogue import CatalogueQuery, EvidenceQuery
     from mountainash.core.capabilities.declarations import CapabilityKey, QualifiedCapabilityKey
@@ -304,7 +340,8 @@ def test_evidence_subject_scope_filters_apply_to_the_same_subject():
     facts = CapabilityRegistry.facts()
     first = facts[0]
     second = next(
-        fact for fact in facts
+        fact
+        for fact in facts
         if Scope(
             fact.backend,
             FamilyWide() if fact.dialect is None else Dialect(fact.dialect),
@@ -314,42 +351,60 @@ def test_evidence_subject_scope_filters_apply_to_the_same_subject():
             FamilyWide() if first.dialect is None else Dialect(first.dialect),
         )
     )
-    first_scope = Scope(
-        first.backend, FamilyWide() if first.dialect is None else Dialect(first.dialect)
-    )
-    second_scope = Scope(
-        second.backend, FamilyWide() if second.dialect is None else Dialect(second.dialect)
-    )
+    first_scope = Scope(first.backend, FamilyWide() if first.dialect is None else Dialect(first.dialect))
+    second_scope = Scope(second.backend, FamilyWide() if second.dialect is None else Dialect(second.dialect))
     source = CapturedAddress(
-        "mountainash", "tests/core/test_capability_registry_enumeration.py",
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
         "test_evidence_subject_scope_filters_apply_to_the_same_subject",
         artifact=Path(__file__).read_bytes(),
     )
     first_claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(first_scope, CapabilityKey.from_fact(first)),
-        first, replace(source, entry="first"),
+        "capability",
+        QualifiedCapabilityKey(first_scope, CapabilityKey.from_fact(first)),
+        first,
+        replace(source, entry="first"),
     )
     second_claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(second_scope, CapabilityKey.from_fact(second)),
-        second, replace(source, entry="second"),
+        "capability",
+        QualifiedCapabilityKey(second_scope, CapabilityKey.from_fact(second)),
+        second,
+        replace(source, entry="second"),
     )
     evidence = EvidenceCapture(
-        source, (first_claim, second_claim), None, Environment(), (source,),
-        "structural", ("correlated subjects",), (source,),
+        source,
+        (first_claim, second_claim),
+        None,
+        Environment(),
+        (source,),
+        "structural",
+        ("correlated subjects",),
+        (source,),
     )
     capture = CapabilityRegistry.capture(evidence=(evidence,))
 
-    assert capture.search(CatalogueQuery(
-        evidence=EvidenceQuery(subject=second_claim), scopes=frozenset({first_scope}),
-    )).evidence == ()
-    assert capture.search(CatalogueQuery(
-        evidence=EvidenceQuery(subject=second_claim), scopes=frozenset({second_scope}),
-    )).evidence == (evidence,)
+    assert (
+        capture.search(
+            CatalogueQuery(
+                evidence=EvidenceQuery(subject=second_claim),
+                scopes=frozenset({first_scope}),
+            )
+        ).evidence
+        == ()
+    )
+    assert capture.search(
+        CatalogueQuery(
+            evidence=EvidenceQuery(subject=second_claim),
+            scopes=frozenset({second_scope}),
+        )
+    ).evidence == (evidence,)
 
 
 def test_all_family_history_requires_verification_but_capability_history_does_not():
     from mountainash.core.capabilities.catalogue import (
-        CatalogueQuery, ChangeQuery, UncapturedNamespaceError,
+        CatalogueQuery,
+        ChangeQuery,
+        UncapturedNamespaceError,
     )
 
     capture = CapabilityRegistry.capture()
@@ -366,13 +421,17 @@ def test_binding_order_uses_qualified_claim_identity_before_bundle_address():
     from pathlib import Path
 
     from mountainash.core.capabilities.capture import (
-        BindingRole, CapturedAddress, CapturedAssertion, VerificationBinding,
+        BindingRole,
+        CapturedAddress,
+        CapturedAssertion,
+        VerificationBinding,
     )
     from mountainash.core.capabilities.catalogue import BindingQuery, CatalogueQuery
     from mountainash.core.capabilities.declarations import CapabilityKey, QualifiedCapabilityKey
     from mountainash.core.capabilities.gaps import VerificationSnapshot
     from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
     from mountainash.core.capabilities.schema import Scenario
+
     facts = CapabilityRegistry.facts()
 
     def scope_for(fact):
@@ -382,20 +441,18 @@ def test_binding_order_uses_qualified_claim_identity_before_bundle_address():
         )
 
     first = next(
-        fact for fact in facts
-        if any(
-            scope_for(other) == scope_for(fact)
-            and other.operation_key != fact.operation_key
-            for other in facts
-        )
+        fact
+        for fact in facts
+        if any(scope_for(other) == scope_for(fact) and other.operation_key != fact.operation_key for other in facts)
     )
     second = next(
-        fact for fact in facts
-        if scope_for(fact) == scope_for(first) and fact.operation_key != first.operation_key
+        fact for fact in facts if scope_for(fact) == scope_for(first) and fact.operation_key != first.operation_key
     )
     source = CapturedAddress(
-        "mountainash", "tests/core/test_capability_registry_enumeration.py",
-        "shared evidence bundle", artifact=Path(__file__).read_bytes(),
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
+        "shared evidence bundle",
+        artifact=Path(__file__).read_bytes(),
     )
     claims = tuple(
         CapturedAssertion(
@@ -406,23 +463,30 @@ def test_binding_order_uses_qualified_claim_identity_before_bundle_address():
         )
         for fact in (first, second)
     )
-    ordered_claims = tuple(sorted(
-        claims,
-        key=lambda claim: (
-            claim.key.scope.backend.value,
-            type(claim.key.scope.applicability).__name__,
-            claim.key.scope.dialect or "",
-            type(claim.key.local.operation).__module__,
-            type(claim.key.local.operation).__qualname__,
-            claim.key.local.operation.name,
-        ),
-    ))
+    ordered_claims = tuple(
+        sorted(
+            claims,
+            key=lambda claim: (
+                claim.key.scope.backend.value,
+                type(claim.key.scope.applicability).__name__,
+                claim.key.scope.dialect or "",
+                type(claim.key.local.operation).__module__,
+                type(claim.key.local.operation).__qualname__,
+                claim.key.local.operation.name,
+            ),
+        )
+    )
     observer = replace(source, entry="shared observer")
     oracle = replace(source, entry="independent oracle")
     bindings = tuple(
         VerificationBinding(
-            claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer,
-            claim.key.scope, oracle, "compilation",
+            claim,
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            claim.key.scope,
+            oracle,
+            "compilation",
         )
         for claim in ordered_claims
     )
@@ -432,12 +496,16 @@ def test_binding_order_uses_qualified_claim_identity_before_bundle_address():
 
     assert capture.search(CatalogueQuery(bindings=BindingQuery())).bindings == bindings
 
+
 def test_binding_order_uses_captured_claim_address_for_same_qualified_key():
     from dataclasses import replace
     from pathlib import Path
 
     from mountainash.core.capabilities.capture import (
-        BindingRole, CapturedAddress, CapturedAssertion, VerificationBinding,
+        BindingRole,
+        CapturedAddress,
+        CapturedAssertion,
+        VerificationBinding,
     )
     from mountainash.core.capabilities.catalogue import BindingQuery, CatalogueQuery
     from mountainash.core.capabilities.declarations import CapabilityKey, QualifiedCapabilityKey
@@ -451,11 +519,16 @@ def test_binding_order_uses_captured_claim_address_for_same_qualified_key():
         FamilyWide() if fact.dialect is None else Dialect(fact.dialect),
     )
     source = CapturedAddress(
-        "mountainash", "tests/core/test_capability_registry_enumeration.py",
-        "binding ordering fixture", artifact=Path(__file__).read_bytes(),
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
+        "binding ordering fixture",
+        artifact=Path(__file__).read_bytes(),
     )
     claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)), fact, source,
+        "capability",
+        QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)),
+        fact,
+        source,
     )
     older = replace(claim, address=replace(source, entry="captured-old"))
     current = replace(claim, address=replace(source, entry="captured-current"))
@@ -463,22 +536,29 @@ def test_binding_order_uses_captured_claim_address_for_same_qualified_key():
     oracle = replace(source, entry="independent oracle")
     bindings = tuple(
         VerificationBinding(
-            captured_claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE,
-            observer, scope, oracle, "compilation",
+            captured_claim,
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
         )
         for captured_claim in (current, older)
     )
 
     def ordered(records):
-        return CapabilityRegistry.capture(
-            verification=VerificationSnapshot((), bindings=records),
-        ).search(CatalogueQuery(bindings=BindingQuery())).bindings
+        return (
+            CapabilityRegistry.capture(
+                verification=VerificationSnapshot((), bindings=records),
+            )
+            .search(CatalogueQuery(bindings=BindingQuery()))
+            .bindings
+        )
 
     expected = bindings
     assert ordered(bindings) == expected
     assert ordered(tuple(reversed(bindings))) == expected
-
-
 
 
 def test_binding_capture_rejects_conflicting_payloads_at_one_claim_source():
@@ -486,7 +566,10 @@ def test_binding_capture_rejects_conflicting_payloads_at_one_claim_source():
     from pathlib import Path
 
     from mountainash.core.capabilities.capture import (
-        BindingRole, CapturedAddress, CapturedAssertion, VerificationBinding,
+        BindingRole,
+        CapturedAddress,
+        CapturedAssertion,
+        VerificationBinding,
     )
     from mountainash.core.capabilities.declarations import CapabilityKey, QualifiedCapabilityKey
     from mountainash.core.capabilities.gaps import VerificationSnapshot
@@ -499,25 +582,148 @@ def test_binding_capture_rejects_conflicting_payloads_at_one_claim_source():
         FamilyWide() if fact.dialect is None else Dialect(fact.dialect),
     )
     source = CapturedAddress(
-        "mountainash", "tests/core/test_capability_registry_enumeration.py",
-        "one captured assertion", artifact=Path(__file__).read_bytes(),
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
+        "one captured assertion",
+        artifact=Path(__file__).read_bytes(),
     )
     claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)), fact, source,
+        "capability",
+        QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)),
+        fact,
+        source,
     )
     conflicting = replace(claim, payload=replace(fact, message="conflicting capture"))
     observer = replace(source, entry="shared observer")
     oracle = replace(source, entry="independent oracle")
     bindings = tuple(
         VerificationBinding(
-            captured_claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE,
-            observer, scope, oracle, "compilation",
+            captured_claim,
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
         )
         for captured_claim in (claim, conflicting)
     )
 
     with pytest.raises(ValueError, match="conflicting payload"):
         CapabilityRegistry.capture(verification=VerificationSnapshot((), bindings=bindings))
+
+
+def test_static_provenance_follows_collection_positions_and_keeps_capture(isolated):
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.capture import CapturedAddress, RuntimeOrigin
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        CapabilityAssertion,
+        CapabilityKey,
+        CapabilitySegment,
+        DivergenceManifestation,
+        Domain,
+        ManifestationKey,
+        QualifiedCapabilityKey,
+        QualifiedManifestationKey,
+    )
+    from mountainash.core.capabilities.identity import FamilyWide, Scope
+    from mountainash.core.capabilities.schema import (
+        CaptureValue,
+        DivergenceKind,
+        OperationTarget,
+        Scenario,
+    )
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
+    )
+
+    scope = Scope(CONST_BACKEND.IBIS, FamilyWide())
+    source = CapturedAddress(
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
+        "static provenance fixture",
+        artifact=b"static provenance fixture",
+    )
+    first = CapabilityAssertion(
+        CapabilityKey(FK_STR.CENTER, "length"),
+        CapabilityLevel.LITERAL_ONLY,
+        "2026-09-15",
+        message="first",
+        probe_exempt="test",
+    )
+    second = CapabilityAssertion(
+        CapabilityKey(FK_STR.CENTER, "character"),
+        CapabilityLevel.LITERAL_ONLY,
+        "2026-09-15",
+        message="second",
+        probe_exempt="test",
+    )
+    inserted = CapabilityAssertion(
+        CapabilityKey(FK_STR.REPLACE, "substring"),
+        CapabilityLevel.LITERAL_ONLY,
+        "2026-09-15",
+        message="inserted",
+        probe_exempt="test",
+    )
+
+    def manifestation_for(value):
+        return DivergenceManifestation(
+            ManifestationKey(
+                OperationTarget(FK_STR.CENTER),
+                Scenario(arguments=(("input", CaptureValue.of(value)),)),
+            ),
+            DivergenceKind.SEMANTICS,
+            CaptureValue.of("expected"),
+            CaptureValue.of("observed"),
+            "fixture divergence",
+            "2026-09-15",
+        )
+
+    first_manifestation = manifestation_for("first")
+    second_manifestation = manifestation_for("second")
+    inserted_manifestation = manifestation_for("inserted")
+
+    def segment(capabilities, manifestations, source_capture=source):
+        return BoundSegment(
+            "mountainash.expressions.backends.capabilities.ibis.family.substrait.string",
+            scope,
+            CapabilitySegment(Domain.STRING, capabilities, manifestations),
+            source_capture,
+        )
+
+    CapabilityRegistry.register_segment(segment((first, second), (first_manifestation, second_manifestation)))
+    first_key = QualifiedCapabilityKey(scope, first.key)
+    first_manifestation_key = QualifiedManifestationKey(scope, first_manifestation.key)
+    initial_origins = CapabilityRegistry.origins()
+    assert initial_origins[first_key][0].entry == "capabilities[0]"
+    assert initial_origins[first_key][0].captured == replace(source, entry="capabilities[0]")
+    assert CapabilityRegistry.snapshot().manifestations[first_manifestation_key].origins[0] == replace(
+        initial_origins[first_key][0],
+        entry="manifestations[0]",
+        captured=replace(source, entry="manifestations[0]"),
+    )
+
+    CapabilityRegistry.reset()
+    CapabilityRegistry.register_segment(segment((inserted, first, second), (first_manifestation, second_manifestation)))
+    assert CapabilityRegistry.origins()[first_key][0].entry == "capabilities[1]"
+    assert CapabilityRegistry.snapshot().manifestations[first_manifestation_key].origins[0].entry == "manifestations[0]"
+
+    CapabilityRegistry.reset()
+    CapabilityRegistry.register_segment(
+        segment((first, second), (inserted_manifestation, first_manifestation, second_manifestation))
+    )
+    assert CapabilityRegistry.origins()[first_key][0].entry == "capabilities[0]"
+    assert CapabilityRegistry.snapshot().manifestations[first_manifestation_key].origins[0].entry == "manifestations[1]"
+
+    CapabilityRegistry.reset()
+    CapabilityRegistry.register_segment(segment((first,), (first_manifestation,), source_capture=None))
+    assert CapabilityRegistry.origins()[first_key][0].captured is None
+
+    CapabilityRegistry.reset()
+    CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, (first.qualify(scope),))
+    assert isinstance(CapabilityRegistry.origins()[first_key][0], RuntimeOrigin)
 
 
 def test_published_source_origin_survives_later_file_change(tmp_path, monkeypatch):
@@ -530,7 +736,8 @@ def test_published_source_origin_survives_later_file_change(tmp_path, monkeypatc
 
     declared_root = "mountainash.expressions.backends.capabilities"
     segment = next(
-        item for item in CapabilityRegistry.capture().segments
+        item
+        for item in CapabilityRegistry.capture().segments
         if item.module.startswith(declared_root + ".ibis.family.") and item.segment.capabilities
     )
     assert segment.source_capture is not None
@@ -547,10 +754,7 @@ def test_published_source_origin_survives_later_file_change(tmp_path, monkeypatc
         "SCOPE = Scope(CONST_BACKEND.IBIS, FamilyWide())\n"
     )
     source_path.write_bytes(original_source)
-    original_children = {
-        name: module for name, module in sys.modules.items()
-        if name.startswith(declared_root + ".")
-    }
+    original_children = {name: module for name, module in sys.modules.items() if name.startswith(declared_root + ".")}
     for name in original_children:
         sys.modules.pop(name)
     root = ModuleType(declared_root)
@@ -559,7 +763,8 @@ def test_published_source_origin_survives_later_file_change(tmp_path, monkeypatc
     monkeypatch.setitem(sys.modules, declared_root, root)
     monkeypatch.setattr(bootstrap, "_ROOTS", (declared_root,))
     monkeypatch.setattr(
-        bootstrap, "discover_declaration_modules",
+        bootstrap,
+        "discover_declaration_modules",
         lambda: (segment.module,),
     )
     importlib.invalidate_caches()
@@ -587,7 +792,10 @@ def test_family_claim_binding_retains_concrete_execution_scope():
     from pathlib import Path
 
     from mountainash.core.capabilities.capture import (
-        BindingRole, CapturedAddress, CapturedAssertion, VerificationBinding,
+        BindingRole,
+        CapturedAddress,
+        CapturedAssertion,
+        VerificationBinding,
     )
     from mountainash.core.capabilities.catalogue import BindingQuery, CatalogueQuery
     from mountainash.core.capabilities.declarations import CapabilityKey, QualifiedCapabilityKey
@@ -600,26 +808,45 @@ def test_family_claim_binding_retains_concrete_execution_scope():
     duckdb = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
     sqlite = Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite"))
     source = CapturedAddress(
-        "mountainash", "tests/core/test_capability_registry_enumeration.py",
-        "family claim", artifact=Path(__file__).read_bytes(),
+        "mountainash",
+        "tests/core/test_capability_registry_enumeration.py",
+        "family claim",
+        artifact=Path(__file__).read_bytes(),
     )
     claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(family, CapabilityKey.from_fact(fact)), fact, source,
+        "capability",
+        QualifiedCapabilityKey(family, CapabilityKey.from_fact(fact)),
+        fact,
+        source,
     )
     binding = VerificationBinding(
-        claim, Scenario(), BindingRole.OPERATIONAL_CONTRACT,
-        replace(source, entry="observer[ibis-duckdb]"), duckdb,
-        replace(source, entry="independent oracle"), "compilation",
+        claim,
+        Scenario(),
+        BindingRole.OPERATIONAL_CONTRACT,
+        replace(source, entry="observer[ibis-duckdb]"),
+        duckdb,
+        replace(source, entry="independent oracle"),
+        "compilation",
     )
     capture = CapabilityRegistry.capture(verification=VerificationSnapshot((), bindings=(binding,)))
-    assert capture.search(CatalogueQuery(
-        scopes=frozenset({duckdb}), bindings=BindingQuery(captured_claim=claim),
-    )).bindings == (binding,)
-    assert capture.search(CatalogueQuery(
-        scopes=frozenset({sqlite}), bindings=BindingQuery(captured_claim=claim),
-    )).bindings == ()
+    assert capture.search(
+        CatalogueQuery(
+            scopes=frozenset({duckdb}),
+            bindings=BindingQuery(captured_claim=claim),
+        )
+    ).bindings == (binding,)
+    assert (
+        capture.search(
+            CatalogueQuery(
+                scopes=frozenset({sqlite}),
+                bindings=BindingQuery(captured_claim=claim),
+            )
+        ).bindings
+        == ()
+    )
     exact = replace(
-        claim, key=QualifiedCapabilityKey(duckdb, claim.key.local),
+        claim,
+        key=QualifiedCapabilityKey(duckdb, claim.key.local),
         payload=replace(fact, dialect="ibis-duckdb"),
     )
     with pytest.raises(ValueError):

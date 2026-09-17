@@ -1,18 +1,53 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import Dialect
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.STRING, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS, subject='substring'), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.narwhals', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-lazy')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/narwhals.py', entry='DECLARATIONS[3].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='fixed upstream on the polars-backed narwhals path', issue='NW-STR-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject='replacement'), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.narwhals', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-lazy')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/narwhals.py', entry='DECLARATIONS[3].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='fixed upstream on the polars-backed narwhals path', issue='NW-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='replacement'), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.narwhals', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-lazy')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/narwhals.py', entry='DECLARATIONS[3].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='fixed upstream on the polars-backed narwhals path', issue='NW-STR-05'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH, subject='substring'), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.narwhals', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-lazy')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/narwhals.py', entry='DECLARATIONS[3].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='fixed upstream on the polars-backed narwhals path', issue='NW-STR-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH, subject='substring'), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.narwhals', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-lazy')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[9]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/narwhals.py', entry='DECLARATIONS[3].facts[9]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='fixed upstream on the polars-backed narwhals path', issue='NW-STR-01'),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/narwhals.py', entry='DECLARATIONS[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.STRING,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS, subject="substring"),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-05",
+            message="fixed upstream on the polars-backed narwhals path",
+            issue="NW-STR-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject="replacement"),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-05",
+            message="fixed upstream on the polars-backed narwhals path",
+            issue="NW-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="replacement"),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-05",
+            message="fixed upstream on the polars-backed narwhals path",
+            issue="NW-STR-05",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH, subject="substring"),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-05",
+            message="fixed upstream on the polars-backed narwhals path",
+            issue="NW-STR-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH, subject="substring"),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-05",
+            message="fixed upstream on the polars-backed narwhals path",
+            issue="NW-STR-01",
+        ),
+    ),
+)

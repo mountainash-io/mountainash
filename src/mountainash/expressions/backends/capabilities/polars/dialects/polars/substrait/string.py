@@ -1,4 +1,5 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
@@ -6,14 +7,930 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import Dialect
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.STRING, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[4]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[4]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[5]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[6]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[6]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[6]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[7]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation', workaround='Lowercase the input and search operand explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[8]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[8]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[8]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation', workaround='Lowercase the input and search operand explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[9]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[9]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[9]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation', workaround='Lowercase the input and search operand explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[10]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[10]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[10]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation', workaround='Lowercase the input and search operand explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[11]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[11]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[11]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[12]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[12]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[12]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[13]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[13]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[13]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[14]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[14]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[14]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[15]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[15]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[15]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_SENSITIVE')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[16]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[16]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[16]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[17]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[17]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[17]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[18]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[18]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[18]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[19]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[19]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[19]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[20]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[20]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[20]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[21]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[21]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[21]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[22]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[22]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[22]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='dotall', selector=Selector(kind='exact', value='DOTALL_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[23]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[23]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[23]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='dotall', selector=Selector(kind='exact', value='DOTALL_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[24]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[24]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[24]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='dotall', selector=Selector(kind='exact', value='DOTALL_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[25]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[25]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[25]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='dotall', selector=Selector(kind='exact', value='DOTALL_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[26]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[26]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[26]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='dotall', selector=Selector(kind='exact', value='DOTALL_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[27]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[27]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[27]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='dotall', selector=Selector(kind='exact', value='DOTALL_DISABLED')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[28]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[28]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[28]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[29]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[29]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[29]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[30]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[30]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[30]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[31]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[31]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[31]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[32]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[32]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[32]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[33]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[33]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[33]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[34]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[34]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[34]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[35]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[35]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[35]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[36]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[36]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[36]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[37]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[37]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[37]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[38]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[38]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[38]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[39]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[39]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[39]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='multiline', selector=Selector(kind='exact', value='MULTILINE_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[40]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[40]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[40]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='dotall', selector=Selector(kind='exact', value='DOTALL_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[41]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[41]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[41]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='dotall', selector=Selector(kind='exact', value='DOTALL_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[42]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[42]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[42]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='dotall', selector=Selector(kind='exact', value='DOTALL_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[43]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[43]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[43]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='dotall', selector=Selector(kind='exact', value='DOTALL_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[44]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[44]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[44]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='dotall', selector=Selector(kind='exact', value='DOTALL_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[45]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[45]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[45]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='dotall', selector=Selector(kind='exact', value='DOTALL_ENABLED')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[46]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[46]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[46]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's non-default Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='position', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[47]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[47]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[47]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='position'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[48]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[48]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[48]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='position', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[49]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[49]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[49]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='position'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[50]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[50]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[50]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='position', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[51]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[51]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[51]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='position'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[52]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[52]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[52]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='position', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[53]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[53]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[53]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='position'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[54]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[54]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[54]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='position', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[55]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[55]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[55]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='position'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[56]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[56]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[56]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='occurrence', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[57]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[57]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[57]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='occurrence'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[58]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[58]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[58]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='occurrence', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[59]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[59]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[59]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='occurrence'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[60]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[60]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[60]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='group', selector=Selector(kind='exact', value='2')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[61]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[61]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[61]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='group'), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[62]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[62]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[62]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied', probe_exempt='value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER, subject='char_set', selector=Selector(kind='exact', value='UTF8')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[63]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[63]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[63]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER, subject='char_set', selector=Selector(kind='exact', value='ASCII_ONLY')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[64]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[64]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[64]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER, subject='char_set', selector=Selector(kind='exact', value='UTF8')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[65]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[65]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[65]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER, subject='char_set', selector=Selector(kind='exact', value='ASCII_ONLY')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[66]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[66]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[66]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE, subject='char_set', selector=Selector(kind='exact', value='UTF8')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[67]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[67]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[67]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE, subject='char_set', selector=Selector(kind='exact', value='ASCII_ONLY')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[68]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[68]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[68]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE, subject='char_set', selector=Selector(kind='exact', value='UTF8')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[69]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[69]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[69]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE, subject='char_set', selector=Selector(kind='exact', value='ASCII_ONLY')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[70]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[70]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[70]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE, subject='char_set', selector=Selector(kind='exact', value='UTF8')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[71]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[71]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[71]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE, subject='char_set', selector=Selector(kind='exact', value='ASCII_ONLY')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[72]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[72]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[72]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP, subject='char_set', selector=Selector(kind='exact', value='UTF8')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[73]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[73]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[73]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP, subject='char_set', selector=Selector(kind='exact', value='ASCII_ONLY')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[74]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[74]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[74]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject='padding', selector=Selector(kind='exact', value='RIGHT')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[75]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[75]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[75]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='RIGHT is the builder default, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='RIGHT is the builder default, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject='padding', selector=Selector(kind='exact', value='LEFT')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[76]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[76]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[76]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement LEFT padding semantics for center'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject='negative_start', selector=Selector(kind='exact', value='WRAP_FROM_END')), level=CapabilityLevel.EXPR_CAPABLE, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[77]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[77]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[77]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The builder default emits WRAP_FROM_END, so the explicit option is observably equivalent to omission and cannot discriminate', probe_exempt='The builder default emits WRAP_FROM_END, so the explicit option is observably equivalent to omission and cannot discriminate'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject='negative_start', selector=Selector(kind='exact', value='LEFT_OF_BEGINNING')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[78]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[78]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[78]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement non-default negative_start semantics for substring'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject='negative_start', selector=Selector(kind='exact', value='ERROR')), level=CapabilityLevel.UNSUPPORTED, since='2026-07-23', origins=(LocalOrigin(entry='capabilities[79]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[79]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0].facts[79]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement non-default negative_start semantics for substring'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[80]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)', workaround='Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[81]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)', workaround='Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[82]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)', workaround='Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[83]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)', workaround='Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[84]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[4]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[4]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[85]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[86]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[6]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[6]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[87]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[88]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[8]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[8]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='case_sensitivity', selector=Selector(kind='exact', value='CASE_INSENSITIVE_ASCII')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-12', origins=(LocalOrigin(entry='capabilities[89]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.string', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=Dialect(name='polars')), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[3].facts[9]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3].facts[9]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics"),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/string.py', entry='DECLARATIONS[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.STRING,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
+            workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
+            workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
+            workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
+            workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_SENSITIVE"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_DISABLED"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="multiline",
+                selector=Selector(kind="exact", value="MULTILINE_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="dotall",
+                selector=Selector(kind="exact", value="DOTALL_ENABLED"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="position",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject="position"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="position",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject="position"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="position",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject="position"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="position",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject="position"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="position",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="position"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="occurrence",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject="occurrence"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="occurrence",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject="occurrence"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="group",
+                selector=Selector(kind="exact", value="2"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject="group"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            probe_exempt="value-agnostic companion to the representative-value positional fact; the value-scoped disposition probe drives the native-path check",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
+                subject="char_set",
+                selector=Selector(kind="exact", value="UTF8"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
+                subject="char_set",
+                selector=Selector(kind="exact", value="ASCII_ONLY"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
+                subject="char_set",
+                selector=Selector(kind="exact", value="UTF8"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
+                subject="char_set",
+                selector=Selector(kind="exact", value="ASCII_ONLY"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+                subject="char_set",
+                selector=Selector(kind="exact", value="UTF8"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+                subject="char_set",
+                selector=Selector(kind="exact", value="ASCII_ONLY"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+                subject="char_set",
+                selector=Selector(kind="exact", value="UTF8"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+                subject="char_set",
+                selector=Selector(kind="exact", value="ASCII_ONLY"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+                subject="char_set",
+                selector=Selector(kind="exact", value="UTF8"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+                subject="char_set",
+                selector=Selector(kind="exact", value="ASCII_ONLY"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+                subject="char_set",
+                selector=Selector(kind="exact", value="UTF8"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+                subject="char_set",
+                selector=Selector(kind="exact", value="ASCII_ONLY"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+                subject="padding",
+                selector=Selector(kind="exact", value="RIGHT"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="RIGHT is the builder default, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="RIGHT is the builder default, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+                subject="padding",
+                selector=Selector(kind="exact", value="LEFT"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement LEFT padding semantics for center",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+                subject="negative_start",
+                selector=Selector(kind="exact", value="WRAP_FROM_END"),
+            ),
+            level=CapabilityLevel.EXPR_CAPABLE,
+            since="2026-07-23",
+            message="The builder default emits WRAP_FROM_END, so the explicit option is observably equivalent to omission and cannot discriminate",
+            probe_exempt="The builder default emits WRAP_FROM_END, so the explicit option is observably equivalent to omission and cannot discriminate",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+                subject="negative_start",
+                selector=Selector(kind="exact", value="LEFT_OF_BEGINNING"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement non-default negative_start semantics for substring",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+                subject="negative_start",
+                selector=Selector(kind="exact", value="ERROR"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-23",
+            message="The native backend does not implement non-default negative_start semantics for substring",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+            workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+            workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+            workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
+            workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+                subject="case_sensitivity",
+                selector=Selector(kind="exact", value="CASE_INSENSITIVE_ASCII"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-12",
+            message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+    ),
+)
