@@ -71,3 +71,16 @@ def test_known_dialects_is_exhaustive_over_backend_enum():
     # CONST_BACKEND member (incl. PYARROW) must have an entry or facts under
     # that family would KeyError at registration.
     assert set(KNOWN_DIALECTS) == set(CONST_BACKEND)
+
+
+def test_authoring_scope_distinguishes_family_from_known_dialect():
+    from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
+
+    family = Scope(CONST_BACKEND.IBIS, FamilyWide())
+    duckdb = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
+    assert family != duckdb
+    assert len({family, duckdb}) == 2
+    with pytest.raises(ValueError, match="dialect"):
+        Scope(CONST_BACKEND.POLARS, Dialect("ibis-duckdb"))
+    with pytest.raises(TypeError, match="applicability"):
+        Scope(CONST_BACKEND.IBIS, None)

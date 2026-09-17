@@ -12,13 +12,13 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 
 import pytest
 from datetime import datetime, timedelta
+from unittest.mock import Mock
 import mountainash.expressions as ma
 import mountainash as ma_top
 from mountainash.expressions.core.utils.temporal import (
     parse_time_expression,
     to_timedelta,
     to_offset_string,
-    time_ago,
     within_last,
     older_than,
     between_last,
@@ -216,11 +216,16 @@ class TestRealWorldLogFiltering:
         self,
         backend_name,
         backend_factory,
+        monkeypatch,
     ):
 
 
         """Test filtering errors from last X minutes (like journalctl)."""
-        now = datetime.now()
+        # Keep the old error on the same day: crossing midnight masks IB-DT-13.
+        now = datetime(2026, 9, 15, 12, 30)
+        clock = Mock(wraps=datetime)
+        clock.now.return_value = now
+        monkeypatch.setattr("mountainash.expressions.core.utils.temporal.datetime", clock)
         logs_data = {
             "timestamp": [
                 now - timedelta(minutes=1),
@@ -261,10 +266,15 @@ class TestRealWorldLogFiltering:
         self,
         backend_name,
         backend_factory,
+        monkeypatch,
     ):
 
         """Test identifying old logs for cleanup (older than 1 hour)."""
-        now = datetime.now()
+        # Keep the cutoff and old log on the same day to expose IB-DT-13.
+        now = datetime(2026, 9, 15, 12, 30)
+        clock = Mock(wraps=datetime)
+        clock.now.return_value = now
+        monkeypatch.setattr("mountainash.expressions.core.utils.temporal.datetime", clock)
         logs_data = {
             "timestamp": [
                 now - timedelta(minutes=1),

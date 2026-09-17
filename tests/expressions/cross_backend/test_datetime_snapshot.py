@@ -1,6 +1,7 @@
 """Cross-backend tests for today() and now() snapshot functions."""
 from __future__ import annotations
 
+import time
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -10,17 +11,24 @@ from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.capability_gating import xfail_divergence
 
 
-# now() compiles to query-time UTC SQL on ibis-duckdb/ibis-sqlite (IB-DT-09);
-# ibis-polars evaluates now() like Polars/Narwhals, so it is NOT gated here.
-# The mark is non-strict: the UTC-vs-local divergence only manifests off UTC, so
-# a UTC runner (e.g. CI) legitimately passes — tolerate the xpass rather than
-# flake on it.
+# A fixed non-UTC clock makes IB-DT-09 observable even on UTC CI runners.
+# Backend applicability and strict expected failures come from the declaration.
 _NOW_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-DT-09", backend=b, strict=False))
-    if b in ("ibis-duckdb", "ibis-sqlite")
-    else b
+    pytest.param(b, marks=xfail_divergence("IB-DT-09", backend=b))
     for b in ALL_BACKENDS
 ]
+
+
+@pytest.fixture
+def non_utc_timezone(monkeypatch):
+    try:
+        with monkeypatch.context() as environment:
+            # POSIX fixed offset: UTC-5, with no DST or timezone database lookup.
+            environment.setenv("TZ", "EST5")
+            time.tzset()
+            yield
+    finally:
+        time.tzset()
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -33,9 +41,15 @@ class TestTodaySnapshot:
         assert result["d"][0] in (date.today(), date.today() - timedelta(days=1))
 
 
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+def test_today_compiles_to_native_date_on_ibis(backend_name, backend_factory):
+    df = backend_factory.create({"a": [1]}, backend_name)
+    assert ma.today().compile(df).type().is_date()
+
+
 @pytest.mark.parametrize("backend_name", _NOW_BACKENDS)
 class TestNowSnapshot:
-    def test_now_returns_recent_datetime(self, backend_name, backend_factory):
+    def test_now_returns_recent_datetime(self, backend_name, backend_factory, non_utc_timezone):
         before = datetime.now()
         df = backend_factory.create({"a": [1, 2, 3]}, backend_name)
         result = ma.relation(df).with_columns(
@@ -48,8 +62,7 @@ class TestNowSnapshot:
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestSnapshotFreeFunctionMatchesFluent:
-    """Free-function vs fluent equivalence holds on every backend (both paths
-    produce the same value, including the ibis upcast), so no gating is needed."""
+    """Free-function and fluent snapshots agree on every backend."""
 
     def test_today_free_function_matches_fluent(self, backend_name, backend_factory):
         df = backend_factory.create({"a": [1]}, backend_name)

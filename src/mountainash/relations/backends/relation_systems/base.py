@@ -1,7 +1,7 @@
 """Shared base for backend relation systems: backend identity + dialect.
 
-Relation limitations are declared as CapabilityFacts on each backend's
-``CAPABILITIES`` tuple and enforced through the capability spine — the
+Relation limitations are declared in capability modules and enforced
+through the capability registry — the
 compile-time gate (``_gate_capabilities``) for BUILD facts and
 ``enrich_materialization`` (registry residue) for MATERIALIZE facts. The
 legacy ``KNOWN_REL_LIMITATIONS`` class dict was retired in the spine's

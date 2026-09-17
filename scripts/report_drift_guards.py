@@ -191,11 +191,9 @@ def collect_kel_entries() -> list[KelGap]:
     """Gating expression capability facts (LITERAL_ONLY / UNSUPPORTED), read
     from the capability spine registry.
 
-    Since the spine's Phase 1 the KEL data lives on each backend's
-    ``CAPABILITIES`` tuple (registered in ``CapabilityRegistry``), not the old
-    ``KNOWN_EXPR_LIMITATIONS`` dicts — so this reads the registry rather than
-    AST-parsing the backend base classes. (The AST helpers above are now
-    unused; the Phase-4 report retarget rewrites the remaining collectors.)
+    Capability data is authored in physical scope-owned segments and published
+    through CapabilityRegistry. Read the registry rather than parsing backend
+    classes or inferring support from source layout.
 
     Est. cases per entry:
       polars: 2 input types (col, complex) × 1 backend = 2

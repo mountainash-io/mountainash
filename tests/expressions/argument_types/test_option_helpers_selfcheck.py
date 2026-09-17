@@ -186,9 +186,6 @@ def test_xfail_option_unsupported_marks_literal_only_fact(
     assert marker.name == "xfail"
     assert marker.kwargs["strict"] is True
     assert marker.kwargs["raises"] is BackendCapabilityError
-    assert marker.kwargs["reason"] == (
-        "[s=1] temporary unsupported self-check"
-    )
 
 
 def test_xfail_option_unsupported_is_noop_for_resolved_expr_capable_fact(

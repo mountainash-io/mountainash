@@ -601,18 +601,21 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="contains",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.contains,
+            options=("case_sensitivity",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="starts_with",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.starts_with,
+            options=("case_sensitivity",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="ends_with",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.ends_with,
+            options=("case_sensitivity",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
@@ -631,6 +634,7 @@ def register_all_functions() -> None:
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_string_split",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_string_split,
+            options=("case_sensitivity", "multiline", "dotall"),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
@@ -1147,7 +1151,7 @@ def register_all_functions() -> None:
             function_key=FKEY_SUBSTRAIT_CAST.CAST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,  # Cast uses comparison extension
             substrait_name="cast",
-            options=("dtype",),
+            options=("dtype", "failure_behavior"),
             protocol_method=SubstraitCastExpressionSystemProtocol.cast,
         ),
     ]
@@ -2168,18 +2172,21 @@ def register_all_functions() -> None:
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="row_number",
+            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.row_number,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="rank",
+            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="dense_rank",
+            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.dense_rank,
         ),
         ExpressionFunctionDef(
@@ -2242,6 +2249,7 @@ def register_all_functions() -> None:
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="rank_average",
             is_extension=True,
+            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
         ),
         ExpressionFunctionDef(
@@ -2249,6 +2257,7 @@ def register_all_functions() -> None:
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="rank_max",
             is_extension=True,
+            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
         ),
         ExpressionFunctionDef(

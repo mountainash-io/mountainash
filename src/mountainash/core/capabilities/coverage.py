@@ -7,13 +7,13 @@ from __future__ import annotations
 
 import builtins
 from collections import Counter
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import Any, Mapping
 
 from mountainash.core.capabilities.declarations import (
-    CapabilityDeclaration,
+    BoundSegment,
     Domain,
     FactSource,
     classify_domain,
@@ -24,14 +24,14 @@ from mountainash.core.capabilities.schema import (
     CapabilityLevel,
     DivergenceFact,
     Enforcement,
-    KnownGap,
     WILDCARD_PARAM,
     _clause_key,
 )
 from mountainash.core.constants import CONST_BACKEND
 
-if TYPE_CHECKING:
-    from mountainash.core.capabilities.retired import RetiredFact
+from mountainash.core.capabilities.retired import AssertionChange
+from mountainash.core.capabilities.capture import AuthoringBundle
+from mountainash.core.capabilities.gaps import InventoryGap, gap_order_key
 
 
 @dataclass(frozen=True)
@@ -152,8 +152,8 @@ def audit_domain_for(operation_key: Any) -> tuple[FactSource, Domain] | None:
 
     Mirrors the declaration-registration validators exactly (spec §3.2): this
     is the SAME classify_source/classify_domain the registry uses, wrapped to
-    be total. None means the op's enum class has no declaration domain yet
-    (e.g. SUBSTRAIT_ARITHMETIC_WINDOW) — rendered as UNDECLARED, never an error.
+    be total. None means the enum class has no declaration domain yet and is
+    rendered as UNDECLARED, never as an error.
     """
     try:
         return (classify_source(operation_key), classify_domain(operation_key))
@@ -215,7 +215,7 @@ class OpCoverage:
     routed: tuple[CapabilityFact, ...]
     refinements: tuple[CapabilityFact, ...]
     selector_counts: SelectorCounts
-    declarations: tuple[CapabilityDeclaration, ...]
+    segments: tuple[BoundSegment, ...]
 
     @property
     def constrained(self) -> bool:
@@ -260,10 +260,11 @@ class CoverageStats:
 @dataclass(frozen=True)
 class CoverageReport:
     families: tuple[FamilyCoverage, ...]
-    declarations: tuple[CapabilityDeclaration, ...]
+    segments: tuple[BoundSegment, ...]
+    bundles: tuple[AuthoringBundle, ...]
     divergences: tuple[DivergenceFact, ...]
-    gaps: tuple[KnownGap, ...]
-    retired: tuple[RetiredFact, ...]
+    gaps: tuple[InventoryGap, ...] | None
+    changes: tuple[AssertionChange, ...]
     stats: CoverageStats
 
 
@@ -289,27 +290,44 @@ def _check_date(value: str, owner: str) -> None:
 
 def _validate_dates(
     facts: tuple[CapabilityFact, ...],
-    declarations: tuple[CapabilityDeclaration, ...],
+    segments: tuple[BoundSegment, ...],
     divergences: tuple[DivergenceFact, ...],
-    gaps: tuple[KnownGap, ...],
-    retired: tuple[RetiredFact, ...],
+    gaps: tuple[InventoryGap, ...] | None,
+    changes: tuple[AssertionChange, ...],
 ) -> None:
-    """Reject regex-legal-but-impossible dates (e.g. 2026-99-99) at ingest (spec §4.1)."""
-    for f in facts:
-        _check_date(f.since, f"fact {f.operation_key!r}/{f.param}/{f.backend}")
-    for d in declarations:
-        owner = f"declaration {d.backend}/{d.domain.value}"
-        if d.evidence is not None:
-            _check_date(d.evidence.probe_date, owner)
-        for nf in d.facts:  # nested facts are independent input surface (spec §4.1)
-            _check_date(nf.since, f"{owner} fact {nf.operation_key!r}/{nf.param}")
-    for dv in divergences:
-        _check_date(dv.since, f"divergence {dv.id}")
-    for g in gaps:
-        _check_date(g.since, f"gap {g.gap_kind.value}/{g.reason[:40]}")
-    for r in retired:
-        _check_date(r.since, f"retired {r.operation_key!r}")
-        _check_date(r.retired_on, f"retired {r.operation_key!r}")
+    """Reject regex-legal-but-impossible dates at report ingest."""
+    for fact in facts:
+        _check_date(fact.since, f"fact {fact.operation_key!r}/{fact.param}/{fact.backend}")
+    for segment in segments:
+        for fact in segment.facts:
+            _check_date(fact.since, f"segment {segment.module} fact {fact.operation_key!r}/{fact.param}")
+    for divergence in divergences:
+        _check_date(divergence.since, f"divergence {divergence.id}")
+    for record in gaps or ():
+        if type(record) is not InventoryGap:
+            raise TypeError("report gaps require inventory-qualified records")
+        gap = record.payload
+        _check_date(gap.since, f"gap {record.key.inventory}/{record.key.obligation}")
+    _validate_changes(changes)
+
+
+def _validate_changes(changes: tuple[AssertionChange, ...]) -> None:
+    if type(changes) is not tuple or any(type(change) is not AssertionChange for change in changes):
+        raise TypeError("changes require immutable AssertionChange captures")
+    if len({change.change_ref for change in changes}) != len(changes):
+        raise ValueError("duplicate change_ref in coverage report")
+
+
+def _change_sort_key(change: AssertionChange) -> tuple[str, str, str, str, str, str]:
+    ref = change.change_ref
+    return (
+        change.recorded_at,
+        ref.repository,
+        ref.path,
+        ref.entry,
+        ref.revision or "",
+        ref.artifact.hex() if ref.artifact is not None else "",
+    )
 
 
 def _validate_backends(facts: tuple[CapabilityFact, ...]) -> None:
@@ -327,54 +345,53 @@ def _validate_backends(facts: tuple[CapabilityFact, ...]) -> None:
 
 def _validate_native_errors_builtins(
     facts: tuple[CapabilityFact, ...],
-    declarations: tuple[CapabilityDeclaration, ...],
+    segments: tuple[BoundSegment, ...],
 ) -> None:
-    """native_errors entries must be builtins (review I-4). The fact-sort key and
-    the renderer both stringify via `e.__name__`, which collides silently for
-    locally-defined exception classes — the report must fail loudly at ingest
-    instead. Mirrors `_validate_dates` scope: top-level facts AND nested
-    `d.facts` for every declaration (the nested path is an independent input
-    surface, per spec §4.1)."""
-    def _owner(f: CapabilityFact) -> str:
-        return f"fact {f.operation_key!r}/{f.param}/{f.backend}"
+    """Reject non-builtin error captures before their names become ambiguous."""
+    def _owner(fact: CapabilityFact) -> str:
+        return f"fact {fact.operation_key!r}/{fact.param}/{fact.backend}"
 
-    def _check(f: CapabilityFact, label: str) -> None:
-        for e in f.native_errors:
-            if getattr(builtins, e.__name__, None) is not e:
+    def _check(fact: CapabilityFact, label: str) -> None:
+        for error in fact.native_errors:
+            if getattr(builtins, error.__name__, None) is not error:
                 raise ValueError(
-                    f"native_errors entry {e.__name__!r} on {label} is not a "
-                    f"builtin exception class ({e!r})"
+                    f"native_errors entry {error.__name__!r} on {label} is not a "
+                    f"builtin exception class ({error!r})"
                 )
 
-    for f in facts:
-        _check(f, _owner(f))
-    for d in declarations:
-        owner = f"declaration {d.backend}/{d.domain.value}"
-        for nf in d.facts:
-            _check(nf, f"{owner} fact {nf.operation_key!r}/{nf.param}/{nf.backend}")
+    for fact in facts:
+        _check(fact, _owner(fact))
+    for segment in segments:
+        for fact in segment.facts:
+            _check(fact, f"segment {segment.module} fact {fact.operation_key!r}/{fact.param}")
 
 
-def _declaration_identity(d: CapabilityDeclaration) -> tuple:
-    """Full probe-wave identity AND canonical sort key. probe_date alone is NOT
-    unique — at ee8f5058 two narwhals/substrait/string waves share 2026-07-05
-    (_EVIDENCE_STRING and _EVIDENCE_POLARS_FIXED in
-    expressions/backends/capabilities/narwhals.py) — so the evidence's
-    library_versions and fixtures are part of the identity."""
-    if d.evidence is None:
-        return (str(d.backend), d.source.value, d.domain.value, "", (), ())
-    return (
-        str(d.backend), d.source.value, d.domain.value,
-        d.evidence.probe_date, d.evidence.library_versions, d.evidence.fixtures,
-    )
+def _segment_sort_key(segment: BoundSegment) -> str:
+    return segment.module
 
 
-def _validate_declarations(declarations: tuple[CapabilityDeclaration, ...]) -> None:
-    seen: set[tuple] = set()
-    for d in declarations:
-        ident = _declaration_identity(d)
-        if ident in seen:
-            raise ValueError(f"duplicate declaration identity {ident}")
-        seen.add(ident)
+def _validate_segments(segments: tuple[BoundSegment, ...]) -> None:
+    if type(segments) is not tuple or any(type(segment) is not BoundSegment for segment in segments):
+        raise TypeError("segments require immutable BoundSegment captures")
+    addresses: set[str] = set()
+    for segment in segments:
+        if segment.module in addresses:
+            raise ValueError(f"duplicate segment address {segment.module!r}")
+        addresses.add(segment.module)
+
+def _bundle_sort_key(bundle: AuthoringBundle) -> tuple[str, str, str]:
+    address = bundle.address
+    return address.repository, address.path, address.entry
+
+
+def _validate_bundles(bundles: tuple[AuthoringBundle, ...]) -> None:
+    if type(bundles) is not tuple or any(type(bundle) is not AuthoringBundle for bundle in bundles):
+        raise TypeError("bundles require immutable AuthoringBundle captures")
+    addresses: set[object] = set()
+    for bundle in bundles:
+        if bundle.address in addresses:
+            raise ValueError(f"duplicate bundle address {bundle.address!r}")
+        addresses.add(bundle.address)
 
 
 def _validate_divergences(divergences: tuple[DivergenceFact, ...]) -> None:
@@ -521,27 +538,20 @@ def _selector_counts(scoped: tuple[CapabilityFact, ...]) -> SelectorCounts:
 def build_coverage_report(
     universe: tuple[OpRecord, ...],
     facts: tuple[CapabilityFact, ...],
-    declarations: tuple[CapabilityDeclaration, ...],
+    segments: tuple[BoundSegment, ...],
     divergences: tuple[DivergenceFact, ...],
-    gaps: tuple[KnownGap, ...],
-    retired: tuple[RetiredFact, ...],
+    gaps: tuple[InventoryGap, ...] | None,
+    changes: tuple[AssertionChange, ...],
     implementations: tuple[ImplementationRecord, ...],
+    bundles: tuple[AuthoringBundle, ...] = (),
 ) -> CoverageReport:
     _validate_backends(facts)
-    _validate_dates(facts, declarations, divergences, gaps, retired)
-    _validate_declarations(declarations)
+    _validate_dates(facts, segments, divergences, gaps, changes)
+    _validate_segments(segments)
+    _validate_bundles(bundles)
     _validate_divergences(divergences)
-    _validate_native_errors_builtins(facts, declarations)
+    _validate_native_errors_builtins(facts, segments)
     _validate_implementations(universe, implementations)
-
-    # Canonicalize each declaration's .facts tuple by fact_sort_key at ingest
-    # (review I-3). Input declarations are NEVER mutated — dataclasses.replace
-    # yields fresh objects, so report.declarations and per-cell `applicable`
-    # reference the canonicalized copies, not the caller's originals.
-    declarations_canonical: tuple[CapabilityDeclaration, ...] = tuple(
-        replace(d, facts=tuple(sorted(d.facts, key=fact_sort_key)))
-        for d in declarations
-    )
 
     # Index facts by (op member, backend); every input fact must attach to a
     # universe op — a fact for an unregistered op is an inconsistency.
@@ -557,11 +567,13 @@ def build_coverage_report(
             (f.operation_key, CONST_BACKEND(f.backend)), []
         ).append(f)
 
-    decls_by_coord: dict[
-        tuple[CONST_BACKEND, FactSource, Domain], list[CapabilityDeclaration]
+    segments_by_coord: dict[
+        tuple[CONST_BACKEND, FactSource, Domain], list[BoundSegment]
     ] = {}
-    for d in declarations_canonical:
-        decls_by_coord.setdefault((d.backend, d.source, d.domain), []).append(d)
+    for segment in segments:
+        segments_by_coord.setdefault(
+            (segment.scope.backend, segment.source, segment.segment.domain), []
+        ).append(segment)
 
     # Implementation records joined by (operation_key, backend). Multiset
     # ingest guard has already verified exactly one record per cell.
@@ -586,14 +598,17 @@ def build_coverage_report(
                 for f in cell:
                     buckets[classify_fact(f)].append(f)
                 applicable = (
-                    tuple(decls_by_coord.get((backend, coord[0], coord[1]), ()))
+                    tuple(sorted(
+                        segments_by_coord.get((backend, coord[0], coord[1]), ()),
+                        key=_segment_sort_key,
+                    ))
                     if coord is not None
                     else ()
                 )
                 constraining = buckets["constraints"] + buckets["residue"]
                 if constraining and not applicable:
                     raise ValueError(
-                        f"constraining fact without applicable declaration: "
+                        f"constraining fact without applicable segment: "
                         f"{rec.operation_key!r} on {backend} (spec §5)"
                     )
                 sorted_constraints = tuple(
@@ -622,7 +637,7 @@ def build_coverage_report(
                         refinements=tuple(
                             sorted(buckets["refinements"], key=fact_sort_key)),
                         selector_counts=_selector_counts(scoped),
-                        declarations=applicable,
+                        segments=applicable,
                     )
                 )
         family_coverages.append(
@@ -665,19 +680,11 @@ def build_coverage_report(
 
     return CoverageReport(
         families=tuple(family_coverages),
-        declarations=tuple(sorted(declarations_canonical, key=_declaration_identity)),
+        segments=tuple(sorted(segments, key=_segment_sort_key)),
+        bundles=tuple(sorted(bundles, key=_bundle_sort_key)),
         divergences=tuple(sorted(divergences, key=lambda dv: dv.id)),
-        gaps=tuple(sorted(gaps, key=lambda g: (g.since, g.gap_kind.value, g.reason))),
-        retired=tuple(
-            sorted(
-                retired,
-                key=lambda r: (
-                    r.retired_on, r.since, str(r.operation_key), r.param,
-                    str(r.backend), r.dialect or "", r.option_value or "",
-                    r.value_class.value if r.value_class else "", r.level.value,
-                ),
-            )
-        ),
+        gaps=None if gaps is None else tuple(sorted(gaps, key=gap_order_key)),
+        changes=tuple(sorted(changes, key=_change_sort_key)),
         stats=CoverageStats(
             ops_total=len(universe),
             by_impl=by_impl,

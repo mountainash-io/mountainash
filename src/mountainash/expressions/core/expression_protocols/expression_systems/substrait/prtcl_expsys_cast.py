@@ -12,9 +12,9 @@ from typing import Literal, Protocol
 
 # Runtime (not TYPE_CHECKING) import: tests/core/test_signature_conformance.py
 # resolves this protocol's annotations via typing.get_type_hints(), which needs
-# these names in the module's runtime namespace. (TCH002 would push them into a
-# type-checking block and break that introspection.)
-from mountainash.core.dtypes import MountainashDtype, NativeDtype  # noqa: TCH002
+# these names in the module's runtime namespace. Moving them into a
+# type-checking block would break that introspection.
+from mountainash.core.dtypes import MountainashDtype, NativeDtype  # noqa: TC001
 from mountainash.core.types import ExpressionT
 
 

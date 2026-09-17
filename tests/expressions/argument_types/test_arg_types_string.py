@@ -1,6 +1,8 @@
 """Argument channel tests for string operations."""
 from __future__ import annotations
 
+from functools import cache
+
 import pytest
 
 import mountainash as ma
@@ -10,7 +12,7 @@ from expressions.argument_types._option_helpers import (
     option_result,
     xfail_option_unsupported,
 )
-from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df, matrix_identity
 from expressions.argument_types.option_disposition import (
     INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
@@ -23,10 +25,6 @@ from expressions.argument_types.option_disposition import (
     param_taxonomy,
 )
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.schema import WILDCARD_PARAM
-from mountainash.expressions.backends.capabilities.string import (
-    BROKEN_STRING_OPS_BY_BACKEND,
-)
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -36,24 +34,25 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
+    first_scalar_build_gate,
     run_argument_matrix,
     xfail_if_limited,
+)
+from tests.fixtures.capability_gating import (
+    assert_capability_gated,
+    gate_dialect,
+    gate_family,
+    resolve_identity,
+    whole_operation_gate,
 )
 
 
 _STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
 
-_BACKEND_STR_TO_CONST = {
-    "polars": CONST_BACKEND.POLARS,
-    "ibis": CONST_BACKEND.IBIS,
-    "narwhals-polars": CONST_BACKEND.NARWHALS,
-    "narwhals-pandas": CONST_BACKEND.NARWHALS,
-}
 
-
-def _op_broken_on_backend(op: str, backend: str) -> bool:
-    const = _BACKEND_STR_TO_CONST[backend]
-    return op in BROKEN_STRING_OPS_BY_BACKEND.get(const, frozenset())
+def _whole_operation_gated(operation_key, backend: str) -> bool:
+    """Derive a complete-operation restriction from the scoped spine."""
+    return whole_operation_gate(operation_key, backend) is not None
 
 
 _CASE_SENSITIVITY_FKEYS = {
@@ -298,12 +297,11 @@ _CHAR_SET_OPS = {
 }
 _CHAR_SET_VALUES = ("UTF8", "ASCII_ONLY")
 _CHAR_SET_DATA = {"t": ["ÄBC"]}
-# A broken op cannot honor ANY char_set option. Derived from the production
-# BROKEN_STRING_OPS_BY_BACKEND (capabilities/string.py) — NOT a mirror.
+# A whole-operation gate means no char_set value can be honored.
 
 
 def _char_set_broken(op: str, backend: str) -> bool:
-    return _op_broken_on_backend(op, backend)
+    return _whole_operation_gated(_CHAR_SET_OPS[op], backend)
 
 
 def _char_set_disposition(op: str, value: str, backend: str) -> str:
@@ -502,18 +500,16 @@ def test_center_padding_rejects_invalid_value():
 
 
 _PADDING_VALUES = ("RIGHT", "LEFT")
-# Per-backend broken center derived from the production
-# BROKEN_STRING_OPS_BY_BACKEND (capabilities/string.py).
 
 
 def _padding_disposition(value: str, backend: str) -> str:
-    if _op_broken_on_backend("center", backend):
+    if _whole_operation_gated(_PADDING_FKEY, backend):
         return "declared_unsupported"
     return "probe_exempt" if value == "RIGHT" else "declared_unsupported"
 
 
 def _padding_probe(value: str, backend: str) -> OptionSpec:
-    broken = _op_broken_on_backend("center", backend)
+    broken = _whole_operation_gated(_PADDING_FKEY, backend)
     discriminate = value == "LEFT" or broken
     return OptionSpec(
         _PADDING_FKEY,
@@ -528,7 +524,7 @@ def _padding_probe(value: str, backend: str) -> OptionSpec:
 
 
 def _padding_native_failure(value: str, backend: str) -> type[BaseException] | None:
-    if _op_broken_on_backend("center", backend):
+    if _whole_operation_gated(_PADDING_FKEY, backend):
         return OptionProbeDidNotDiscriminateError
     if value == "RIGHT":
         return None
@@ -546,8 +542,8 @@ OPTION_DISPOSITIONS.extend(
         "str",
         _padding_disposition(value, backend),
         (
-            "center is broken on this backend; padding cannot be honored"
-            if _op_broken_on_backend("center", backend)
+            "center is gated as a whole operation; padding cannot be honored"
+            if _whole_operation_gated(_PADDING_FKEY, backend)
             else "builder-default RIGHT is indistinguishable from omission"
             if value == "RIGHT"
             else "native backend does not implement LEFT padding semantics"
@@ -802,34 +798,23 @@ _REGEXP_FLAG_DATA = {
     "multiline": ({"text": ["a\nb"]}, "^b"),
     "dotall": ({"text": ["a\nb"]}, "a.b"),
 }
-_REGEXP_UNSUPPORTED_OPS = frozenset(
-    {
-        "regexp_match_substring_all",
-        "regexp_strpos",
-        "regexp_count_substring",
-    }
-)
-# Narwhals-only whole-op gate (backlog item 85, NW-STR-20) -- unlike
-# _REGEXP_UNSUPPORTED_OPS above (unsupported on every non-polars backend
-# uniformly), regexp_string_split works correctly on ibis-duckdb and on
-# ibis-polars for a literal pattern (which this 4-backend matrix's "ibis"
-# identity, mapped to ibis-duckdb only, exercises) -- only Narwhals has no
-# regex-split primitive at all.
-_REGEXP_UNSUPPORTED_NARWHALS_ONLY_OPS = frozenset({"regexp_string_split"})
-
-
 def _regexp_operation_unsupported(op: str, backend: str) -> bool:
-    if op in _REGEXP_UNSUPPORTED_NARWHALS_ONLY_OPS:
-        return backend in ("narwhals-polars", "narwhals-pandas")
-    return op in _REGEXP_UNSUPPORTED_OPS and backend != "polars"
+    """Whether every public regexp-flag spelling is build-gated on this fixture."""
+    return all(
+        _regexp_flag_gate(op, param, value, backend) is not None
+        for param, values in _REGEXP_FLAG_VALUES.items()
+        for value in values
+    )
 
 
 def _regexp_flag_disposition(op: str, param: str, value: str, backend: str) -> str:
-    if _regexp_operation_unsupported(op, backend):
+    if _regexp_flag_gate(op, param, value, backend) is not None:
         return "declared_unsupported"
-    if value == _REGEXP_FLAG_DEFAULTS[param]:
-        return "probe_exempt"
-    return "declared_unsupported"
+    return (
+        "probe_exempt"
+        if value == _REGEXP_FLAG_DEFAULTS[param]
+        else "declared_unsupported"
+    )
 
 
 def _regexp_flag_expr(op: str, param: str, value: str | None = None):
@@ -872,6 +857,13 @@ def _regexp_flag_expr(op: str, param: str, value: str | None = None):
     raise AssertionError(f"no regexp flag expression for {op}")
 
 
+@cache
+def _regexp_flag_gate(op: str, param: str, value: str | None, backend: str):
+    """Return the first production-order gate for this emitted regexp call."""
+    expression = _regexp_flag_expr(op, param, value)
+    return first_scalar_build_gate(expression._node, matrix_identity(backend))
+
+
 def _regexp_flag_probe(op: str, param: str, value: str) -> OptionSpec:
     data, _ = _REGEXP_FLAG_DATA[param]
     return OptionSpec(
@@ -905,29 +897,35 @@ def test_default_regexp_flag_matches_omission(param, op, backend):
     default = _REGEXP_FLAG_DEFAULTS[param]
     spec = _regexp_flag_probe(op, param, default)
     df = make_df(spec.data, backend)
-    if _regexp_operation_unsupported(op, backend):
-        # Both builds emit the default enum value, whose dialect-scoped option
-        # fact now blocks dispatch before the unavailable backend method runs.
-        # regexp_string_split on narwhals (backlog item 85, NW-STR-20) is a
-        # WHOLE-OP WILDCARD_PARAM gate rather than a flag-option-level one
-        # (the other 3 ops in _REGEXP_UNSUPPORTED_OPS) -- accommodate both.
-        for expression in (spec.build_expr(), spec.reference_expr()):
-            with pytest.raises(BackendCapabilityError) as exc_info:
-                option_result(df, expression, backend)
-            limitation = exc_info.value.limitation
-            assert limitation is not None
-            assert limitation.operation_key is spec.fkey
-            assert limitation.param in _REGEXP_FLAG_FKEYS or limitation.param == WILDCARD_PARAM
-            if limitation.param != WILDCARD_PARAM:
-                assert (
-                    limitation.option_value
-                    == _REGEXP_FLAG_DEFAULTS[limitation.param]
-                )
-            assert limitation.level.name == "UNSUPPORTED"
+    identity = resolve_identity(df)
+    expressions = (spec.build_expr(), spec.reference_expr())
+    facts = tuple(
+        first_scalar_build_gate(expression._node, identity)
+        for expression in expressions
+    )
+    if any(fact is not None for fact in facts):
+        # Explicit default and omission are equivalent public calls: when the
+        # scoped spine blocks either, both must report their actual first
+        # production-order limitation rather than falling through to a result
+        # comparison. Default regexp facts are parameter/value-scoped for the
+        # unavailable Ibis/Narwhals operations, not necessarily WILDCARD facts.
+        assert all(fact is not None for fact in facts)
+        for expression, fact in zip(expressions, facts, strict=True):
+            assert fact.operation_key is spec.fkey
+            assert_capability_gated(
+                fact.operation_key,
+                identity.family,
+                dialect=identity.dialect,
+                param=fact.param,
+                option_value=fact.option_value,
+                build=lambda expression=expression: option_result(
+                    df, expression, backend
+                ),
+            )
         return
 
-    assert option_result(df, spec.build_expr(), backend) == option_result(
-        df, spec.reference_expr(), backend
+    assert option_result(df, expressions[0], backend) == option_result(
+        df, expressions[1], backend
     )
 
 
@@ -1035,6 +1033,8 @@ OPTION_DISPOSITIONS.extend(
         (
             "operation is unsupported on this backend; the option cannot be honored"
             if _regexp_operation_unsupported(op, backend)
+            else "the scoped capability fact gates this option value"
+            if _regexp_flag_gate(op, param, value, backend) is not None
             else f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is "
             "indistinguishable from omission"
             if value == _REGEXP_FLAG_DEFAULTS[param]
@@ -1089,7 +1089,8 @@ OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
     )
     for param, operations in _REGEXP_FLAG_FKEYS.items()
     for op, fkey in operations.items()
-    if op in _REGEXP_UNSUPPORTED_OPS
+    if _regexp_flag_gate(op, param, _REGEXP_FLAG_DEFAULTS[param], "ibis")
+    is not None
 )
 
 TESTED_OPTION_PARAMS.extend(

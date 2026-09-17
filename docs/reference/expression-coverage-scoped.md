@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, metadata, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Declarations: 72 · Facts: 1558 · Registered operations: 341 · Implementation records: 1023
+Segments: 63 · Historical bundles: 72 · Facts: 1557 · Registered operations: 341 · Implementation records: 1023
 
 Legend — scoped deviations:
 
@@ -432,7 +432,6 @@ Legend — scoped deviations:
 
 | Dialect | Param | Option values | Value class | Level | Enforcement | Boundary | Condition | Predicate | Message | Workaround | Upstream | Since | Native errors | Probe-exempt |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | failure_behavior == 'null' | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
 | narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | failure_behavior == 'null' | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
 | narwhals-lazy | failure_behavior | — | — | unsupported | gate | build | — | failure_behavior == 'throw' | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |
 | narwhals-pandas | failure_behavior | — | — | unsupported | gate | build | — | failure_behavior == 'null' | This backend cannot execute STRUCT.CAST for the requested failure behavior | — | — | 2026-08-24 | — | — |

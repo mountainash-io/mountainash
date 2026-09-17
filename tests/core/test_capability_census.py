@@ -19,6 +19,19 @@ def test_every_site_classified_with_reason():
             assert e.operation_key is not None and e.backend, f"{e.path}:{e.line} needs op+backend"
 
 
+def test_whole_operation_source_rows_use_physical_origin_addresses():
+    source_rows = [entry for entry in build_census() if entry.kind == "segment-source"]
+    assert source_rows, "census found no physical whole-operation gate source rows"
+    for entry in source_rows:
+        assert entry.path.startswith("mountainash."), entry.path
+        assert isinstance(entry.line, str) and entry.line, (
+            f"{entry.path} must carry its segment-local origin, not a source line"
+        )
+        assert "historical capture" in entry.current_reason, (
+            f"{entry.path}:{entry.line} lost its historical capture status"
+        )
+
+
 def _imperative_xfail_lines(tree: ast.AST) -> list[int]:
     """Lines of raw imperative ``pytest.xfail(...)`` calls (NOT the
     ``pytest.mark.xfail`` marker, whose ``func.value`` is an Attribute)."""
@@ -70,11 +83,12 @@ def test_no_migrated_site_carries_a_raw_capability_form():
     capability expectation through the spine helpers (``assert_capability_gated``
     / ``xfail_divergence`` / a ``CapabilityFact``-derived mark). No migrated test
     file may keep a raw imperative ``pytest.xfail(`` or a hand-coded
-    ``pytest.raises(BackendCapabilityError)`` gate reconstruction. The src
-    production map (``manual-map``) is the single source and is exempt."""
+    ``pytest.raises(BackendCapabilityError)`` gate reconstruction. Physical
+    segment source rows are exempt from this test-only scan.
+    """
     census = build_census()
     test_files = sorted(
-        {e.path for e in census if e.bucket == "migrated" and not e.path.startswith("src/")}
+        {entry.path for entry in census if entry.bucket == "migrated" and entry.kind != "segment-source"}
     )
     assert test_files, "no migrated test sites discovered"
     offenders: list[str] = []

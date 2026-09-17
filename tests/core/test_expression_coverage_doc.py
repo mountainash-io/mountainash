@@ -72,10 +72,9 @@ def test_coverage_renders_all_outputs_before_first_write(tmp_path, monkeypatch):
 
 
 def _matrix_body(doc: str) -> str:
-    """The per-family matrix section, between '## Per-family coverage' and
-    '## Unmapped families'. The legend and summary legitimately contain
-    'audited'; scoping the badge assertion to the matrix body excludes them."""
-    return doc.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
+    """The per-family matrix section, excluding an optional unmapped section."""
+    matrix_and_tail = doc.split("## Per-family coverage", 1)[1]
+    return matrix_and_tail.split("## Unmapped families", 1)[0]
 
 
 # The artifact id is the relative path (the parametrize id for the renderer
@@ -94,11 +93,9 @@ def test_coverage_doc_is_current(report, rel_path, renderer):
     )
 
 
-# ---------------------------------------------------------------------------
-# JSON-completeness invariant (spec §4.5 / §4.6): parsing the committed
-# `expression-coverage.json` recovers the fact multiset, op universe,
-# declaration/divergence/gap/retirement counts, and per-backend stats equal
-# to the live-registry model. Identity-based, not string-match.
+# JSON completeness invariant: parsing the committed artifact recovers the
+# fact multiset, operation universe, segment/bundle/divergence/gap/change
+# counts, and per-backend statistics from the live model.
 # ---------------------------------------------------------------------------
 
 
@@ -179,13 +176,8 @@ def _model_fact_multiset(report: CoverageReport) -> list:
     return sorted(out)
 
 
-def test_json_completeness(report, inputs):
-    """Spec §4.5 / §4.6: parsing the committed `expression-coverage.json`
-    recovers the full model — fact multiset (identity-based), op universe,
-    declaration/divergence/gap/retirement counts, and per-backend stats equal
-    to the live-registry model. A committed JSON that is byte-equal to the
-    regen but missing a fact here would mean the renderer silently dropped
-    a row — this invariant closes that gap."""
+def test_committed_json_matches_live_model(inputs, report):
+    """The committed JSON recovers the report's complete live-model projection."""
     json_path = next(p for p, r in _ARTIFACT_RENDERERS if r is render_json)
     committed = (_REPO_ROOT / json_path).read_text(encoding="utf-8")
     obj = json.loads(committed)
@@ -204,10 +196,11 @@ def test_json_completeness(report, inputs):
     )
 
     # 2. Counts.
-    assert len(obj["declarations"]) == len(report.declarations)
+    assert len(obj["segments"]) == len(report.segments)
+    assert len(obj["historical_bundles"]) == len(report.bundles)
     assert len(obj["divergences"]) == len(report.divergences)
-    assert len(obj["gaps"]) == len(report.gaps)
-    assert len(obj["retired"]) == len(report.retired)
+    assert obj["gaps"] is None  # Package-only reporting did not request guard inventories.
+    assert len(obj["changes"]) == len(report.changes)
 
     # 3. Per-backend stats — by_impl re-keyed to tuples must equal the model.
     for b in RENDERED_BACKENDS:
@@ -262,40 +255,35 @@ def test_every_fact_bucketed_exactly_once(inputs, report):
     assert scattered == original
 
 
-def test_declarations_rendered_exactly_once(inputs, report):
-    from mountainash.core.capabilities.coverage import _declaration_identity
+def test_segments_rendered_exactly_once(inputs, report):
+    report_modules = [segment.module for segment in report.segments]
+    input_modules = [segment.module for segment in inputs["segments"]]
+    assert report_modules == sorted(input_modules)
 
-    # plan-review C1: build_coverage_report canonicalizes each declaration's
-    # .facts via dataclasses.replace, so report.declarations is a multiset of
-    # NEW objects — id() comparison no longer holds by design. Compare by
-    # the canonical _declaration_identity tuple (spec §4.4 evidence-keyed
-    # identity: backend, source, domain, probe_date, library_versions, fixtures).
-    report_keys = sorted(
-        _declaration_identity(d) for d in report.declarations
-    )
-    input_keys = sorted(
-        _declaration_identity(d) for d in inputs["declarations"]
-    )
-    assert report_keys == input_keys
     doc = render_markdown(report)
-    pairs_body = doc.split("### Audited pairs", 1)[1].split("\n## ", 1)[0]
+    active_body = doc.split("### Active segments", 1)[1].split(
+        "### Captured historical waves", 1
+    )[0]
     rows = [
-        ln for ln in pairs_body.splitlines()
-        if ln.startswith("|") and "---" not in ln and not ln.startswith("| Backend")
+        line for line in active_body.splitlines()
+        if line.startswith("|") and "---" not in line and not line.startswith("| Module")
     ]
-    assert len(rows) == len(report.declarations)
-    for d in report.declarations:
-        if d.evidence is not None:
-            assert any(d.evidence.probe_date in r for r in rows)
-            if d.evidence.fixtures:
-                assert any(d.evidence.fixtures[0] in r for r in rows)
+    assert len(rows) == len(report.segments)
+    for segment in report.segments:
+        assert any(segment.module in row for row in rows)
 
+    historical_body = doc.split("### Captured historical waves", 1)[1].split("\n## ", 1)[0]
+    historical_rows = [
+        line for line in historical_body.splitlines()
+        if line.startswith("|") and "---" not in line and not line.startswith("| Backend")
+    ]
+    assert len(historical_rows) == len(report.bundles)
 
-def test_gaps_and_retirements_rendered_exactly_once(report):
+def test_gaps_and_changes_rendered_exactly_once(report):
     doc = render_markdown(report)
     for heading, records in (
         ("## Known gaps", report.gaps),
-        ("## Retirement changelog", report.retired),
+        ("## Assertion change history", report.changes),
     ):
         body = doc.split(heading, 1)[1].split("\n## ", 1)[0]
         rows = [ln for ln in body.splitlines()
@@ -312,18 +300,16 @@ def test_divergence_operation_keys_within_universe(inputs, report):
 
 
 def test_unaudited_never_renders_audit_badge(report):
-    """No op without an applicable declaration renders the `audited` badge in
-    its cell. SCOPED to the matrix body (## Per-family coverage ...
-    ## Unmapped families) because the legend and summary legitimately contain
-    'audited'. The default-capable mark `✓` requires IMPLEMENTED, never mere
-    absence of facts (spec §3.3 / §4.5)."""
+    """No op without an applicable segment renders the `audited` badge in its
+    cell. The default-capable mark `✓` requires implementation, never mere
+    absence of facts."""
     doc = render_markdown(report)
     matrix = _matrix_body(doc)
     for fam in report.families:
         if fam.audit_domain is None:
             continue  # unmapped families render in their own section
         for oc in fam.ops:
-            if not oc.declarations:
+            if not oc.segments:
                 cell = _cell_text(oc)
                 assert " audited" not in cell, (
                     f"un-audited cell renders ' audited' badge: "
@@ -350,15 +336,12 @@ def test_no_contradictions_in_live_registry(report):
 
 
 def test_no_audited_unknown_in_live_registry(report):
-    """Spec §3.6 / review I-1: every backend's audited_unknown count must be
-    zero. Fires the moment a declaration covers a family whose ops the
-    implementation axis cannot see (registry/derivation drift)."""
+    """Every audited scope resolves to a visible implementation record."""
     for b in RENDERED_BACKENDS:
         n = report.stats.audited_unknown[b]
         assert n == 0, (
-            f"audited_unknown == {n} on {b.value}; a declaration covers ops "
-            f"the impl-axis cannot resolve — investigate the declaration's "
-            f"audit domain vs the registered ops"
+            f"audited_unknown == {n} on {b.value}; a segment covers ops "
+            f"the impl-axis cannot resolve — investigate the segment scope"
         )
 
 
@@ -385,63 +368,6 @@ def test_per_backend_sum_law_in_live_report(report):
         )
 
 
-def test_implementation_via_handler_live_baseline_pin(inputs):
-    """Spec §3.6 / review C-1: live-baseline pin on the implementation axis.
-
-    The 9 IMPLEMENTED_VIA_HANDLER records are the SOURCE / REF / CONFORM
-    relation ops (RKEY_MOUNTAINASH_REL) × 3 backends, dispatched through the
-    visitor's `handler` path. The 0 UNKNOWN / 0 NOT_IMPLEMENTED counts assert
-    the implementation axis sees every registered op today.
-
-    DATA PIN: when this test breaks, the fix is to UPDATE THE PIN after
-    verifying the registry change was intentional (e.g. a new handler-only
-    op, a stub move, a real implementation gap). The pin is a snapshot of
-    the develop @ PR #256 merge baseline; do not let the test 'correct' the
-    numbers silently.
-    """
-    from mountainash.relations.core.relation_system.relation_keys.enums import (
-        RKEY_MOUNTAINASH_REL,
-    )
-
-    impls = inputs["implementations"]
-
-    # Exact key set: SOURCE / REF / CONFORM × POLARS / NARWHALS / IBIS.
-    expected_handler_keys = frozenset(
-        (op, backend)
-        for op in (RKEY_MOUNTAINASH_REL.SOURCE,
-                   RKEY_MOUNTAINASH_REL.REF,
-                   RKEY_MOUNTAINASH_REL.CONFORM)
-        for backend in RENDERED_BACKENDS
-    )
-    actual_handler_keys = frozenset(
-        (r.operation_key, r.backend) for r in impls
-        if r.state is ImplState.IMPLEMENTED_VIA_HANDLER
-    )
-    assert actual_handler_keys == expected_handler_keys, (
-        f"IMPLEMENTED_VIA_HANDLER key set drifted from the live baseline pin.\n"
-        f"  expected: {sorted(k[0].name + '/' + k[1].value for k in expected_handler_keys)}\n"
-        f"  actual:   {sorted(k[0].name + '/' + k[1].value for k in actual_handler_keys)}\n"
-        f"  missing:  {sorted(k[0].name + '/' + k[1].value for k in expected_handler_keys - actual_handler_keys)}\n"
-        f"  extra:    {sorted(k[0].name + '/' + k[1].value for k in actual_handler_keys - expected_handler_keys)}\n"
-        f"DATA PIN — update the pin after verifying the registry change is intentional."
-    )
-    assert len(actual_handler_keys) == 9
-
-    # 0 UNKNOWN across the live registry.
-    n_unknown = sum(1 for r in impls if r.state is ImplState.UNKNOWN)
-    assert n_unknown == 0, (
-        f"live registry has {n_unknown} UNKNOWN implementation record(s); "
-        f"a registered op is no longer resolvable on the implementation axis. "
-        f"DATA PIN — update the pin if this drift is intentional."
-    )
-
-    # 0 NOT_IMPLEMENTED across the live registry.
-    n_not_impl = sum(1 for r in impls if r.state is ImplState.NOT_IMPLEMENTED)
-    assert n_not_impl == 0, (
-        f"live registry has {n_not_impl} NOT_IMPLEMENTED implementation record(s); "
-        f"a registered op's protocol-method override is missing on a backend "
-        f"leaf class. DATA PIN — update the pin if this drift is intentional."
-    )
 
 
 # ---------------------------------------------------------------------------

@@ -9,11 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import narwhals as nw
 
-from mountainash.core.capabilities import CapabilityFact
 from mountainash.expressions.core.constants import CONST_BACKEND
-from mountainash.expressions.backends.capabilities.narwhals import (
-    NARWHALS_EXPR_CAPABILITIES,
-)
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
 
 if TYPE_CHECKING:
@@ -28,8 +24,6 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     """
 
     BACKEND_NAME: str = "narwhals"
-
-    CAPABILITIES: tuple[CapabilityFact, ...] = NARWHALS_EXPR_CAPABILITIES
 
     @property
     def backend_type(self) -> CONST_BACKEND:

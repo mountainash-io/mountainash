@@ -2,22 +2,28 @@
 
 from __future__ import annotations
 
+import importlib
+import sys
 import threading
 from dataclasses import replace
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import ModuleType
 
 import pytest
 
 from mountainash.core.capabilities import (
-    CapabilityDeclaration,
-    CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
     Domain,
-    FactSource,
-    ProbeEvidence,
     load_all_capability_declarations,
 )
 from mountainash.core.capabilities import bootstrap
+from mountainash.core.capabilities.capture import CapturedAddress
+from mountainash.core.capabilities.declarations import (
+    BoundSegment, CapabilityAssertion, CapabilityKey, CapabilitySegment, LocalOrigin,
+)
+from mountainash.core.capabilities.identity import FamilyWide, Scope
 from mountainash.core.capabilities.registry import _empty_state, _LoadState
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -25,22 +31,17 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 
 
-def _decl():
-    return CapabilityDeclaration(
-        backend=CONST_BACKEND.IBIS,
-        domain=Domain.STRING,
-        source=FactSource.SUBSTRAIT,
-        facts=(
-            CapabilityFact(
-                operation_key=FK_STR.CENTER,
-                param="length",
-                level=CapabilityLevel.LITERAL_ONLY,
-                backend=CONST_BACKEND.IBIS,
-                message="test",
-                since="2026-08-07",
-                probe_exempt="test",
-            ),
-        ),
+def _decl(*subjects, suffix=""):
+    return BoundSegment(
+        "mountainash.expressions.backends.capabilities.ibis.family.substrait.string" + suffix,
+        Scope(CONST_BACKEND.IBIS, FamilyWide()),
+        CapabilitySegment(Domain.STRING, tuple(
+            CapabilityAssertion(
+                CapabilityKey(FK_STR.CENTER, subject), CapabilityLevel.LITERAL_ONLY,
+                "2026-08-07", (LocalOrigin(subject),), message="test", probe_exempt="test",
+            )
+            for subject in (subjects or ("length",))
+        )),
     )
 
 
@@ -61,19 +62,44 @@ def test_reset_disables_autoload():
         load_all_capability_declarations()
 
 
-def test_empty_declaration_evidence_survives_load_and_restore(monkeypatch):
-    empty = replace(
-        _decl(),
-        facts=(),
-        evidence=ProbeEvidence(
-            "2026-09-15",
-            (("library", "1"),),
-            ("empty-bundle",),
-        ),
+def test_segment_publication_keeps_origins_atomic():
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment, CapabilityAssertion, CapabilityKey, CapabilitySegment, LocalOrigin,
     )
-    monkeypatch.setattr(bootstrap, "_load_declarations", lambda: (empty,))
+    from mountainash.core.capabilities.identity import FamilyWide, Scope
+
+    CapabilityRegistry.reset()
+    scope = Scope(CONST_BACKEND.IBIS, FamilyWide())
+    assertion = CapabilityAssertion(
+        CapabilityKey(FK_STR.CENTER, "length"), CapabilityLevel.LITERAL_ONLY,
+        "2026-08-07", (LocalOrigin("center"),), message="test",
+    )
+    segment = BoundSegment(
+        "mountainash.expressions.backends.capabilities.ibis.family.substrait.string",
+        scope, CapabilitySegment(Domain.STRING, (assertion,)),
+    )
+    CapabilityRegistry.register_segment(segment)
+    before = CapabilityRegistry.snapshot()
+    origins = CapabilityRegistry.origins()
+    assert tuple(origins.values())[0][0].entry == "center"
+    with pytest.raises(ValueError, match="duplicate"):
+        CapabilityRegistry.register_segment(segment)
+    assert CapabilityRegistry.snapshot() is before
+    assert CapabilityRegistry.origins() is origins
+    CapabilityRegistry.reset()
+    CapabilityRegistry.restore(before)
+    assert CapabilityRegistry.origins() is origins
+
+
+def test_empty_declaration_evidence_survives_load_and_restore(monkeypatch):
+    template = _decl()
+    empty = replace(template, segment=CapabilitySegment(
+        Domain.STRING,
+        evidence_refs=(CapturedAddress("mountainash", "empty.py", "bundle", artifact=b"empty"),),
+    ))
+    monkeypatch.setattr(bootstrap, "_load_segments", lambda: (empty,))
     load_all_capability_declarations()
-    assert CapabilityRegistry.declarations() == (empty,)
+    assert CapabilityRegistry.segments() == (empty,)
     snap = CapabilityRegistry.snapshot()
     CapabilityRegistry.reset()
     CapabilityRegistry.restore(snap)
@@ -82,9 +108,9 @@ def test_empty_declaration_evidence_survives_load_and_restore(monkeypatch):
 
 def test_late_load_failure_retains_prior_data_and_original_error(monkeypatch):
     prior = _decl()
-    CapabilityRegistry.register_declaration(prior)
-    late = replace(prior, facts=(replace(prior.facts[0], param="character"),))
-    monkeypatch.setattr(bootstrap, "_load_declarations", lambda: (late, prior))
+    CapabilityRegistry.register_segment(prior)
+    late = _decl("character", suffix=".late")
+    monkeypatch.setattr(bootstrap, "_load_segments", lambda: (late, prior))
     with pytest.raises(ValueError) as first:
         CapabilityRegistry.facts()
     failed = CapabilityRegistry.snapshot()
@@ -96,7 +122,7 @@ def test_late_load_failure_retains_prior_data_and_original_error(monkeypatch):
     # must remain queryable when explicitly restored as isolated test state.
     CapabilityRegistry.restore(replace(failed, load_state=_LoadState.ISOLATED, load_error=None))
     assert CapabilityRegistry.facts() == list(prior.facts)
-    assert CapabilityRegistry.declarations() == (prior,)
+    assert CapabilityRegistry.segments() == (prior,)
     CapabilityRegistry.restore(failed)
     with pytest.raises(ValueError) as restored:
         load_all_capability_declarations()
@@ -110,13 +136,13 @@ def test_uninitialized_snapshot_retries_after_restore(monkeypatch):
     def fail():
         raise sentinel
 
-    monkeypatch.setattr(bootstrap, "_load_declarations", fail)
+    monkeypatch.setattr(bootstrap, "_load_segments", fail)
     with pytest.raises(RuntimeError) as error:
         CapabilityRegistry.facts()
     assert error.value is sentinel
     CapabilityRegistry.restore(cold)
     declaration = _decl()
-    monkeypatch.setattr(bootstrap, "_load_declarations", lambda: (declaration,))
+    monkeypatch.setattr(bootstrap, "_load_segments", lambda: (declaration,))
     assert CapabilityRegistry.facts() == list(declaration.facts)
 
 
@@ -135,7 +161,7 @@ def test_concurrent_first_readers_observe_one_complete_load(monkeypatch, fails):
             raise sentinel
         return (declaration,)
 
-    monkeypatch.setattr(bootstrap, "_load_declarations", collect)
+    monkeypatch.setattr(bootstrap, "_load_segments", collect)
     results, errors = [], []
 
     def query():
@@ -169,7 +195,7 @@ def test_cold_query_during_iteration_never_loads_or_publishes_failure(monkeypatc
     def forbidden():
         pytest.fail("guarded cold query attempted declaration loading")
 
-    monkeypatch.setattr(bootstrap, "_load_declarations", forbidden)
+    monkeypatch.setattr(bootstrap, "_load_segments", forbidden)
     fact = _decl().facts[0]
 
     def incoming():
@@ -191,7 +217,7 @@ def test_cold_query_during_iteration_never_loads_or_publishes_failure(monkeypatc
     assert CapabilityRegistry.facts() == ([fact] if catch else [])
 
 
-@pytest.mark.parametrize("action", ["reset", "restore", "register_backend", "register_declaration", "query"])
+@pytest.mark.parametrize("action", ["reset", "restore", "register_backend", "register_segment", "query"])
 def test_first_load_reentrancy_is_rejected(monkeypatch, action):
     snap = CapabilityRegistry.snapshot()
 
@@ -202,13 +228,13 @@ def test_first_load_reentrancy_is_rejected(monkeypatch, action):
             CapabilityRegistry.restore(snap)
         elif action == "register_backend":
             CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, ())
-        elif action == "register_declaration":
-            CapabilityRegistry.register_declaration(_decl())
+        elif action == "register_segment":
+            CapabilityRegistry.register_segment(_decl())
         else:
             CapabilityRegistry.facts()
         return ()
 
-    monkeypatch.setattr(bootstrap, "_load_declarations", collect)
+    monkeypatch.setattr(bootstrap, "_load_segments", collect)
     with pytest.raises(RuntimeError) as first:
         CapabilityRegistry.facts()
     with pytest.raises(RuntimeError) as second:
@@ -244,12 +270,12 @@ def test_iterable_can_join_independent_writer_without_losing_its_facts():
 def test_registration_failure_keeps_original_facts_and_declarations():
     CapabilityRegistry.reset()
     prior = _decl()
-    CapabilityRegistry.register_declaration(prior)
-    new = replace(prior.facts[0], param="character")
+    CapabilityRegistry.register_segment(prior)
+    late = _decl("character", "length", suffix=".late")
     with pytest.raises(ValueError, match="duplicate"):
-        CapabilityRegistry.register_declaration(replace(prior, facts=(new, prior.facts[0])))
+        CapabilityRegistry.register_segment(late)
     assert CapabilityRegistry.facts() == list(prior.facts)
-    assert CapabilityRegistry.declarations() == (prior,)
+    assert CapabilityRegistry.segments() == (prior,)
 
 
 @pytest.mark.parametrize("marker", list(_LoadState))
@@ -324,13 +350,63 @@ def test_released_snapshots_do_not_retain_registry_history():
     import weakref
 
     CapabilityRegistry.reset()
-    CapabilityRegistry.register_declaration(_decl())
+    CapabilityRegistry.register_segment(_decl())
     old = CapabilityRegistry.snapshot()
     reference = weakref.ref(old)
     CapabilityRegistry.reset()
     CapabilityRegistry.restore(old)
-    assert CapabilityRegistry.declarations() == (_decl(),)
+    assert CapabilityRegistry.segments() == (_decl(),)
     CapabilityRegistry.reset()
     del old
     gc.collect()
     assert reference() is None
+
+
+def test_loader_uses_declared_root_source_not_cached_leaf_file(monkeypatch):
+    original_module = _decl().module
+    original = bootstrap._source_path(original_module).read_bytes()
+    root = "mountainash.expressions.backends.capabilities"
+    module_name = root + ".ibis.family.substrait.string"
+
+    with TemporaryDirectory() as directory:
+        root_path = Path(directory, "capabilities")
+        package = root_path
+        for part in module_name.removeprefix(root + ".").split(".")[:-1]:
+            package /= part
+            package.mkdir(parents=True, exist_ok=True)
+            (package / "__init__.py").touch()
+        source_path = package / "string.py"
+        changed = (
+            original
+            + b"\nfrom dataclasses import replace\n"
+            + b"SEGMENT = replace(SEGMENT, capabilities=())\n"
+        )
+        source_path.write_bytes(changed)
+        scope_path = root_path / "ibis" / "family" / "_scope.py"
+        scope_path.write_text(
+            "from mountainash.core.capabilities.identity import FamilyWide, Scope\n"
+            "from mountainash.core.constants import CONST_BACKEND\n"
+            "SCOPE = Scope(CONST_BACKEND.IBIS, FamilyWide())\n"
+        )
+        unrelated = Path(directory, "unrelated.py")
+        unrelated.write_text("raise RuntimeError('unrelated source executed')\n")
+
+        temporary_root = ModuleType(root)
+        temporary_root.__path__ = (str(root_path),)
+        for name in tuple(sys.modules):
+            if name.startswith(root + "."):
+                monkeypatch.delitem(sys.modules, name)
+        monkeypatch.setitem(sys.modules, root, temporary_root)
+        monkeypatch.setattr(bootstrap, "_ROOTS", (root,))
+        monkeypatch.setattr(bootstrap, "discover_declaration_modules", lambda: (module_name,))
+        try:
+            cached = importlib.import_module(module_name)
+            monkeypatch.setattr(cached, "__file__", str(unrelated))
+            acquired = bootstrap._load_segments()[0]
+        finally:
+            for name in tuple(sys.modules):
+                if name == root or name.startswith(root + "."):
+                    sys.modules.pop(name)
+
+    assert acquired.segment.capabilities == ()
+    assert acquired.source_capture.artifact == changed

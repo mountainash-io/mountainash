@@ -286,11 +286,11 @@ class ExpressionFunctionRegistry:
     #     return cls._by_category.get(category, [])
 
     @classmethod
-    def list_all(cls) -> List[str]:
-        """List all registered function names.
+    def list_all(cls) -> List[Enum]:
+        """List all registered function enum keys.
 
         Returns:
-            List of function names
+            List of function enum keys
         """
         if not cls._initialized:
             cls._init_registry()

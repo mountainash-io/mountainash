@@ -112,6 +112,16 @@ def test_snapshot_round_trips_predicate_facts(isolated):
     assert CapabilityRegistry.violations_for(_call(x=7)) == frozenset({f})
 
 
+def test_equal_predicate_duplicate_rejects_entire_registration_batch(isolated):
+    first = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((Clause("x", ClauseOp.EQ, 7),)))
+    independent = _fact("x", CapabilityLevel.UNSUPPORTED, Predicate((Clause("x", ClauseOp.EQ, 9),)))
+    CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, (first,))
+    with pytest.raises(ValueError, match="duplicate"):
+        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, (independent, first))
+    assert CapabilityRegistry.violations_for(_call(x=7)) == frozenset({first})
+    assert CapabilityRegistry.violations_for(_call(x=9)) == frozenset()
+
+
 def _metadata_fact():
     return _fact(
         "overflow",
