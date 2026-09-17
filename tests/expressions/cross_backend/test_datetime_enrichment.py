@@ -4,25 +4,17 @@ date(), time(), month_start(), month_end(), days_in_month().
 """
 
 from datetime import date, datetime
-import sqlite3
 
 import pytest
 import mountainash.expressions as ma
-from fixtures.capability_gating import xfail_divergence
 
-
-_SQLITE_TIME_SHIFT = (
-    [xfail_divergence("IB-DT-14", backend="ibis-sqlite")]
-    if sqlite3.sqlite_version_info < (3, 46)
-    else []
-)
 
 POLARS_NARWHALS_IBIS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-DT-04", backend="pandas")),
+    "pandas",
     "narwhals-polars",
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-DT-04", backend="narwhals-pandas")),
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -31,9 +23,9 @@ POLARS_NARWHALS_IBIS = [
 POLARS_AND_IBIS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-DT-05", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-DT-05", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-DT-05", backend="narwhals-pandas")),
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -42,23 +34,23 @@ POLARS_AND_IBIS = [
 POLARS_AND_IBIS_TIME = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-DT-05", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-DT-05", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-DT-05", backend="narwhals-pandas")),
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
-    pytest.param("ibis-sqlite", marks=xfail_divergence("IB-DT-17", backend="ibis-sqlite")),
+    "ibis-sqlite",
 ]
 
 POLARS_IBIS_DUCKDB_SQLITE = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-DT-05", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-DT-05", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-DT-05", backend="narwhals-pandas")),
-    pytest.param("ibis-polars", marks=xfail_divergence("IB-DT-18", backend="ibis-polars")),
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
     "ibis-duckdb",
-    pytest.param("ibis-sqlite", marks=_SQLITE_TIME_SHIFT),
+    "ibis-sqlite",
 ]
 
 
@@ -72,7 +64,7 @@ class TestDateExtraction:
         actual = collect_expr(df, expr)
         # Some backends return date objects, others return timestamps at midnight
         for i, (a, expected) in enumerate(zip(actual, [date(2024, 3, 15), date(2024, 7, 20)])):
-            if hasattr(a, 'date'):
+            if hasattr(a, "date"):
                 a = a.date() if callable(a.date) else a.date
             assert a == expected, f"[{backend_name}] index {i}: got {a}"
 

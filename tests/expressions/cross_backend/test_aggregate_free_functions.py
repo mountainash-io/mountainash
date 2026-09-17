@@ -5,20 +5,17 @@ These use Substrait multi-arg signatures that don't yet match backend protocols 
 all backends currently xfail. When a backend wires support, the xfail flips to
 xpass and CI catches it.
 """
+
 from __future__ import annotations
 
 import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_CORR_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("MA-AGG-01", backend=b)) for b in ALL_BACKENDS
-]
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _CORR_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCorr:
     def test_corr_perfect_positive(self, backend_name, backend_factory):
         data = {
@@ -27,12 +24,7 @@ class TestCorr:
             "y": [2.0, 4.0, 6.0, 8.0],
         }
         df = backend_factory.create(data, backend_name)
-        result = (
-            ma.relation(df)
-            .group_by("g")
-            .agg(ma.corr(ma.col("x"), ma.col("y")).alias("c"))
-            .to_dicts()
-        )
+        result = ma.relation(df).group_by("g").agg(ma.corr(ma.col("x"), ma.col("y")).alias("c")).to_dicts()
         assert result[0]["c"] == pytest.approx(1.0)
 
 
@@ -46,12 +38,7 @@ class TestMedian:
     def test_median_basic(self, backend_name, backend_factory):
         data = {"g": ["a", "a", "a"], "x": [1, 2, 3]}
         df = backend_factory.create(data, backend_name)
-        result = (
-            ma.relation(df)
-            .group_by("g")
-            .agg(ma.median(ma.lit(0.5), ma.col("x")).alias("m"))
-            .to_dicts()
-        )
+        result = ma.relation(df).group_by("g").agg(ma.median(ma.lit(0.5), ma.col("x")).alias("m")).to_dicts()
         assert result[0]["m"] == pytest.approx(2.0)
 
 
@@ -61,8 +48,7 @@ class TestQuantile:
     @pytest.mark.xfail(
         strict=True,
         reason=(
-            "quantile() Substrait signature (boundaries, precision, n, distribution) "
-            "not wired to any backend protocol"
+            "quantile() Substrait signature (boundaries, precision, n, distribution) not wired to any backend protocol"
         ),
     )
     def test_quantile_median(self, backend_name, backend_factory):

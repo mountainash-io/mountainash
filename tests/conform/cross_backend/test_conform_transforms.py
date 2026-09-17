@@ -1,4 +1,5 @@
 """Cross-backend parametrized tests for Relation.conform()."""
+
 from __future__ import annotations
 
 import pytest
@@ -8,11 +9,7 @@ from mountainash.typespec.spec import TypeSpec, FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_IBIS_CONF = [
-    pytest.param(b, marks=xfail_divergence("MA-CONF-03", backend=b)) for b in ALL_BACKENDS
-]
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -28,7 +25,8 @@ _IBIS_CONF = [
 class TestConformCast:
     def test_cast_string_to_integer(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -36,7 +34,8 @@ class TestConformCast:
 
     def test_cast_string_to_number(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1.5", "2.5", "3.5"]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="val", type=UniversalType.NUMBER)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -44,7 +43,8 @@ class TestConformCast:
 
     def test_cast_string_to_string(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["hello", "world"]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="val", type=UniversalType.STRING)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -55,7 +55,8 @@ class TestConformCast:
 class TestConformRename:
     def test_rename_column(self, backend_name, backend_factory):
         df = backend_factory.create({"old_name": ["a", "b", "c"]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="new_name", type=UniversalType.STRING, rename_from="old_name")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -64,7 +65,8 @@ class TestConformRename:
     def test_rename_default_keeps_unmapped(self, backend_name, backend_factory):
         """fields_match="open" keeps unmapped columns; the renamed source is dropped."""
         df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -89,7 +91,8 @@ class TestConformRename:
 class TestConformNullFill:
     def test_null_fill_integer(self, backend_name, backend_factory):
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -97,7 +100,8 @@ class TestConformNullFill:
 
     def test_null_fill_string(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["x", None, "z"]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="val", type=UniversalType.STRING, null_fill="unknown")],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -109,7 +113,8 @@ class TestConformOnlyMappedFields:
     def test_default_keeps_unmapped(self, backend_name, backend_factory):
         """fields_match="open" keeps unmapped columns."""
         df = backend_factory.create({"keep": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -132,20 +137,25 @@ class TestConformMultiTransform:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cast_and_rename(self, backend_name, backend_factory):
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        spec = TypeSpec(
+            fields_match="open",
             fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2, 3]
 
-    @pytest.mark.parametrize("backend_name", _IBIS_CONF)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_full_pipeline(self, backend_name, backend_factory):
-        df = backend_factory.create({
-            "raw_score": ["1.5", None, "3.5"],
-            "raw_label": ["foo", "bar", None],
-            "extra": [10, 20, 30],
-        }, backend_name)
-        spec = TypeSpec(fields_match="open", 
+        df = backend_factory.create(
+            {
+                "raw_score": ["1.5", None, "3.5"],
+                "raw_label": ["foo", "bar", None],
+                "extra": [10, 20, 30],
+            },
+            backend_name,
+        )
+        spec = TypeSpec(
+            fields_match="open",
             fields=[
                 FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
                 FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
@@ -178,14 +188,19 @@ class TestConformFromFrictionless:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_value_domains_follow_conform_cast_and_rename(backend_name, backend_factory):
     frame = backend_factory.create({"raw": ["0", "1", "2"]}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[
-        FieldSpec(name="number", type=UniversalType.INTEGER, rename_from="raw"),
-    ])
+    spec = TypeSpec(
+        fields_match="open",
+        fields=[
+            FieldSpec(name="number", type=UniversalType.INTEGER, rename_from="raw"),
+        ],
+    )
     result = (
-        ma.relation(frame).conform(spec)
+        ma.relation(frame)
+        .conform(spec)
         .select(
             ma.col("number").value_kind().name.alias("kind"),
             ma.col("number").boolean_value(source="binary_number").name.alias("candidate"),
-        ).to_dict()
+        )
+        .to_dict()
     )
     assert result == {"kind": ["integer"] * 3, "candidate": [False, True, None]}

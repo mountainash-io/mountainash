@@ -10,25 +10,13 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from fixtures.capability_gating import assert_capability_gated, gate_family, xfail_divergence
+from fixtures.capability_gating import assert_capability_gated, gate_family
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
 )
 
 
 LIST_BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
-
-# Divergence-marked backend params. xfail_divergence returns a no-op mark when the
-# divergence does not apply to a backend, so every applicable mark is attached to
-# each param and self-selects the affected backend(s).
-_LIST_NW = [pytest.param(b, marks=xfail_divergence("NW-LIST-05", backend=b)) for b in LIST_BACKENDS]
-_LIST_NW_IB = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("NW-LIST-05", backend=b), xfail_divergence("IB-LIST-01", backend=b)],
-    )
-    for b in LIST_BACKENDS
-]
 
 
 @pytest.mark.cross_backend
@@ -210,7 +198,7 @@ class TestListSort:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListReverse:
     def test_reverse_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3], [4, 5], [6]]}
@@ -267,7 +255,7 @@ class TestListContains:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListJoin:
     def test_join_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [["a", "b", "c"], ["x", "y"], ["hello"]]}
@@ -289,7 +277,7 @@ class TestListJoin:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListSlice:
     def test_slice_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30, 40]]}
@@ -305,7 +293,7 @@ class TestListSlice:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListHead:
     def test_head_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
@@ -321,7 +309,7 @@ class TestListHead:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListTail:
     def test_tail_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}

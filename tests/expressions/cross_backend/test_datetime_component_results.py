@@ -21,18 +21,9 @@ TEMPORAL_BACKENDS = [
     "ibis-polars",
     "ibis-sqlite",
 ]
-from fixtures.capability_gating import xfail_divergence
 
-_DATE_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-DT-07", backend=b)) for b in TEMPORAL_BACKENDS
-]
-_TIME_BACKENDS = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("NW-DT-03", backend=b), xfail_divergence("IB-DT-17", backend=b)],
-    )
-    for b in TEMPORAL_BACKENDS
-]
+_DATE_BACKENDS = TEMPORAL_BACKENDS
+_TIME_BACKENDS = TEMPORAL_BACKENDS
 
 
 @pytest.mark.cross_backend
@@ -182,7 +173,6 @@ class TestDtIsLeapYear:
 class TestDtDate:
     def test_date_extraction(self, backend_name, backend_factory, collect_expr):
         from datetime import date
-
 
         data = {"ts": [datetime(2024, 3, 15, 10, 30, 45), datetime(2024, 12, 25, 23, 59, 0)]}
         df = backend_factory.create(data, backend_name)

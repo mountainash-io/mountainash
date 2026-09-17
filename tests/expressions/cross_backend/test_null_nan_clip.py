@@ -8,7 +8,6 @@ they are not pure expression transforms.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 # =============================================================================
@@ -65,7 +64,7 @@ class TestClip:
         "pandas",
         "narwhals",
         "ibis-polars",
-        pytest.param("ibis-duckdb", marks=xfail_divergence("IB-TYPE-02", backend="ibis-duckdb")),
+        "ibis-duckdb",
     ],
 )
 class TestIsNotNan:
@@ -91,7 +90,7 @@ class TestIsNotNan:
         "pandas",
         "narwhals",
         "ibis-polars",
-        pytest.param("ibis-duckdb", marks=xfail_divergence("IB-TYPE-02", backend="ibis-duckdb")),
+        "ibis-duckdb",
     ],
 )
 class TestFillNan:

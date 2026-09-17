@@ -4,6 +4,7 @@ Phase 4 of the relation result verification suite. Tests drop_nulls,
 drop_nans, with_row_index, explode, unnest, unpivot, pivot, top_k,
 sample across backends.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -17,7 +18,6 @@ from fixtures.capability_gating import (
     assert_predicate_capability_gated,
     gate_dialect,
     gate_family,
-    xfail_divergence,
 )
 
 from fixtures.backend_registry import ALL_BACKENDS
@@ -36,11 +36,6 @@ LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
 STRUCT_BACKENDS = ["polars", "narwhals-polars", "ibis-polars", "ibis-duckdb"]
 
-_IBSQL = [pytest.param(b, marks=xfail_divergence("IB-REL-10", backend=b)) for b in ALL_BACKENDS]
-_WRI = [pytest.param(b, marks=xfail_divergence("NW-REL-01", backend=b)) for b in ALL_BACKENDS]
-_UNNEST = [pytest.param(b, marks=xfail_divergence("NW-REL-02", backend=b)) for b in STRUCT_BACKENDS]
-_PIVOT = [pytest.param(b, marks=xfail_divergence("MA-REL-01", backend=b)) for b in ALL_BACKENDS]
-
 
 def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
     """Sort list of dicts by key(s) for order-independent comparison."""
@@ -58,16 +53,12 @@ def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDropNulls:
     def test_drop_nulls_all_columns(self, backend_name, backend_factory):
-        df = backend_factory.create(
-            {"a": [1, None, 3], "b": [None, 20, 30]}, backend_name
-        )
+        df = backend_factory.create({"a": [1, None, 3], "b": [None, 20, 30]}, backend_name)
         result = ma.relation(df).drop_nulls().to_dicts()
         assert result == [{"a": 3, "b": 30}]
 
     def test_drop_nulls_subset(self, backend_name, backend_factory):
-        df = backend_factory.create(
-            {"a": [1, None, 3], "b": [None, 20, 30]}, backend_name
-        )
+        df = backend_factory.create({"a": [1, None, 3], "b": [None, 20, 30]}, backend_name)
         result = ma.relation(df).drop_nulls(subset=["a"]).to_dicts()
         result_sorted = sorted_dicts(result, "a")
         assert result_sorted == [
@@ -82,7 +73,7 @@ class TestDropNulls:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _IBSQL)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDropNans:
     def test_drop_nans_basic(self, backend_name, backend_factory):
         df = backend_factory.create(
@@ -101,12 +92,10 @@ class TestDropNans:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _WRI)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithRowIndex:
     def test_with_row_index_default_name(self, backend_name, backend_factory):
-        df = backend_factory.create(
-            {"a": [10, 20, 30]}, backend_name
-        )
+        df = backend_factory.create({"a": [10, 20, 30]}, backend_name)
         result = assert_capability_gated(
             RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
             gate_family(backend_name),
@@ -122,9 +111,7 @@ class TestWithRowIndex:
         ]
 
     def test_with_row_index_custom_name(self, backend_name, backend_factory):
-        df = backend_factory.create(
-            {"a": [10, 20, 30]}, backend_name
-        )
+        df = backend_factory.create({"a": [10, 20, 30]}, backend_name)
         result = assert_capability_gated(
             RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
             gate_family(backend_name),
@@ -160,9 +147,11 @@ class TestExplode:
             df = pl.DataFrame({"id": [1, 2], "vals": [[10, 20], [30]]})
         elif backend_name == "narwhals-polars":
             import narwhals as nw
+
             df = nw.from_native(pl.DataFrame({"id": [1, 2], "vals": [[10, 20], [30]]}))
         elif backend_name == "ibis-duckdb":
             import ibis
+
             conn = ibis.duckdb.connect()
             df = conn.create_table(
                 "test_explode",
@@ -187,7 +176,7 @@ class TestExplode:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _UNNEST)
+@pytest.mark.parametrize("backend_name", STRUCT_BACKENDS)
 class TestUnnest:
     def test_unnest_struct_column(self, backend_name, backend_factory):
         """Unnest a struct column into separate columns.
@@ -197,36 +186,48 @@ class TestUnnest:
         """
         import polars as pl
 
-
         if backend_name == "polars":
-            df = pl.DataFrame({
-                "id": [1, 2],
-                "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
-            })
+            df = pl.DataFrame(
+                {
+                    "id": [1, 2],
+                    "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
+                }
+            )
         elif backend_name == "ibis-polars":
             import ibis
+
             conn = ibis.polars.connect()
             df = conn.create_table(
                 "test_unnest",
-                pl.DataFrame({
-                    "id": [1, 2],
-                    "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
-                }),
+                pl.DataFrame(
+                    {
+                        "id": [1, 2],
+                        "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
+                    }
+                ),
                 overwrite=True,
             )
         elif backend_name == "ibis-duckdb":
             import ibis
+
             conn = ibis.duckdb.connect()
             df = conn.create_table(
                 "test_unnest",
-                pl.DataFrame({
-                    "id": [1, 2],
-                    "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
-                }),
+                pl.DataFrame(
+                    {
+                        "id": [1, 2],
+                        "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
+                    }
+                ),
                 overwrite=True,
             )
+        elif backend_name == "narwhals-polars":
+            df = backend_factory.create(
+                {"id": [1, 2], "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}]},
+                backend_name,
+            )
         else:
-            pytest.skip(f"Struct columns not supported on {backend_name}")
+            raise ValueError(f"Unexpected unnest provider: {backend_name}")
 
         result = ma.relation(df).unnest("info", separator="").to_dicts()
         result_sorted = sorted_dicts(result, "id")
@@ -242,16 +243,14 @@ class TestUnnest:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _IBSQL)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestUnpivot:
     def test_unpivot_wide_to_long(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"id": [1, 2], "x": [10, 20], "y": [30, 40]},
             backend_name,
         )
-        result = ma.relation(df).unpivot(
-            on=["x", "y"], index="id"
-        ).to_dicts()
+        result = ma.relation(df).unpivot(on=["x", "y"], index="id").to_dicts()
         result_sorted = sorted_dicts(result, ["id", "variable"])
         assert result_sorted == [
             {"id": 1, "variable": "x", "value": 10},
@@ -267,7 +266,7 @@ class TestUnpivot:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _PIVOT)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestPivot:
     def test_pivot_long_to_wide(self, backend_name, backend_factory):
         df = backend_factory.create(
@@ -278,9 +277,7 @@ class TestPivot:
             },
             backend_name,
         )
-        result = ma.relation(df).pivot(
-            on="category", index="id", values="value"
-        ).to_dicts()
+        result = ma.relation(df).pivot(on="category", index="id", values="value").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         # Sort column keys too for deterministic comparison
         for row in result_sorted:
@@ -363,9 +360,7 @@ class TestSample:
     def test_oversize_n_returns_all_rows(self, backend_name, backend_factory, request):
         df = self._frame(backend_factory, backend_name)
         result = ma.relation(df).sample(n=100, seed=1).to_dicts()
-        assert sorted_dicts(result, "a") == sorted_dicts(
-            ma.relation(df).to_dicts(), "a"
-        )
+        assert sorted_dicts(result, "a") == sorted_dicts(ma.relation(df).to_dicts(), "a")
 
     def test_fraction_zero_returns_no_rows(self, backend_name, backend_factory, request):
         df = self._frame(backend_factory, backend_name)
@@ -374,9 +369,7 @@ class TestSample:
     def test_fraction_one_returns_all_rows(self, backend_name, backend_factory, request):
         df = self._frame(backend_factory, backend_name)
         result = ma.relation(df).sample(fraction=1.0, seed=1).to_dicts()
-        assert sorted_dicts(result, "a") == sorted_dicts(
-            ma.relation(df).to_dicts(), "a"
-        )
+        assert sorted_dicts(result, "a") == sorted_dicts(ma.relation(df).to_dicts(), "a")
 
 
 @pytest.mark.cross_backend
@@ -390,8 +383,10 @@ class TestJoinAsofStrategyGate:
         right = con.create_table("gate_r", pl.DataFrame({"t": [2, 4], "score": [20, 40]}), overwrite=True)
 
         for strategy in ("forward", "nearest"):
+
             def _build(strategy=strategy):
                 return ma.relation(left).join_asof(right, on="t", strategy=strategy).to_polars()
+
             err = assert_predicate_capability_gated(_build)
             assert err.function_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
 

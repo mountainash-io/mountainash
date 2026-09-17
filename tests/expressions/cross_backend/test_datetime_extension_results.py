@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 import pytest
 
 from mountainash.core.capabilities import load_all_capability_declarations
-from fixtures.capability_gating import xfail_divergence
 import mountainash as ma
 
 # Load capability declarations at import (house convention: mirror
@@ -241,12 +240,8 @@ TIMESTAMP_BACKENDS = [
     "ibis-sqlite",
 ]
 
-_MICRO_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-DT-15", backend=b)) for b in TIMESTAMP_BACKENDS
-]
-_NANO_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-DT-16", backend=b)) for b in TIMESTAMP_BACKENDS
-]
+_MICRO_BACKENDS = TIMESTAMP_BACKENDS
+_NANO_BACKENDS = TIMESTAMP_BACKENDS
 
 
 # =============================================================================
@@ -311,4 +306,3 @@ class TestDtNanosecond:
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("ts").dt.nanosecond())
         assert actual == [0, 500000000]
-

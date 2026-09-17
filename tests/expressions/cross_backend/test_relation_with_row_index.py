@@ -8,10 +8,11 @@ backend has no translator for `WindowFunction`, so `ibis.row_number()`
 ibis-polars is gated through the capability spine (RKEY_MOUNTAINASH_REL.
 WITH_ROW_INDEX, BUILD boundary) — asserted via ``assert_capability_gated``.
 narwhals-lazy diverges (with_row_index requires an explicit ``order_by=``);
-that is declared as ``NW-REL-01`` and driven by ``xfail_divergence``.
+the exact affected cells are selected by scoped manifestation bindings.
 
 See principle `d.cross-backend/known-divergences.md` §8.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -25,18 +26,12 @@ from fixtures.capability_gating import (
     assert_capability_gated,
     gate_dialect,
     gate_family,
-    xfail_divergence,
 )
-
-_WRI = [
-    pytest.param(b, marks=xfail_divergence("NW-REL-01", backend=b)) for b in ALL_BACKENDS
-]
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _WRI)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithRowIndex:
-
     def test_with_row_index_adds_zero_based_sequence(self, backend_name, backend_factory):
         """`with_row_index` adds a 0..N-1 column on every backend (ibis-polars gated)."""
         data = {"name": ["a", "b", "c", "d"]}
@@ -57,6 +52,4 @@ class TestWithRowIndex:
         else:
             idx_values = list(result["idx"])
 
-        assert idx_values == [0, 1, 2, 3], (
-            f"[{backend_name}] Expected [0, 1, 2, 3], got {idx_values}"
-        )
+        assert idx_values == [0, 1, 2, 3], f"[{backend_name}] Expected [0, 1, 2, 3], got {idx_values}"

@@ -10,6 +10,7 @@ This module provides:
 
 # --- must run BEFORE `from fixtures.backend_registry import ...` ---
 import os, sys
+
 for _i, _a in enumerate(sys.argv):
     if _a == "--ma-backend-scope" and _i + 1 < len(sys.argv):
         os.environ["MA_BACKEND_SCOPE"] = sys.argv[_i + 1]
@@ -21,7 +22,6 @@ import polars as pl
 import pandas as pd
 import narwhals as nw
 import ibis
-import pyarrow as pa
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List
 
@@ -35,6 +35,7 @@ from fixtures.backend_registry import (
     ALL_BACKENDS,
     create_ibis_sqlite_table,
 )
+
 TEMPORAL_BACKENDS = [
     "polars",
     "polars-lazy",
@@ -42,34 +43,33 @@ TEMPORAL_BACKENDS = [
     "narwhals-pandas",
     "ibis-duckdb",
     "ibis-polars",
-    "ibis-sqlite"
+    "ibis-sqlite",
 ]  # Pandas temporal support varies
 
 # Map backend names to Ibis backend types
-IBIS_BACKEND_TYPES = {
-    "ibis-duckdb": "duckdb",
-    "ibis-polars": "polars",
-    "ibis-sqlite": "sqlite"
-}
-
+IBIS_BACKEND_TYPES = {"ibis-duckdb": "duckdb", "ibis-polars": "polars", "ibis-sqlite": "sqlite"}
 
 
 # =============================================================================
 # CLI Options
 # =============================================================================
 
+
 def pytest_addoption(parser):
     parser.addoption(
-        "--ma-backend-scope", action="store", default=None,
+        "--ma-backend-scope",
+        action="store",
+        default=None,
         choices=["pr", "full"],
         help="Backend matrix scope: 'pr' (one per family) or 'full' (all). "
-             "Mirrors the MA_BACKEND_SCOPE env var; CLI wins.",
+        "Mirrors the MA_BACKEND_SCOPE env var; CLI wins.",
     )
 
 
 # =============================================================================
 # Backend Name Fixtures
 # =============================================================================
+
 
 @pytest.fixture(params=ALL_BACKENDS)
 def backend_name(request):
@@ -98,6 +98,7 @@ def temporal_backend_name(request):
 # Test Data Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def sample_data() -> Dict[str, List]:
     """
@@ -111,11 +112,11 @@ def sample_data() -> Dict[str, List]:
         - salary: float (50k-90k)
     """
     return {
-        'age': [25, 30, 35, 40, 45],
-        'score': [85, 90, 75, 95, 80],
-        'name': ['Alice', 'Bob', 'Charlie', 'David', 'Eve'],
-        'active': [True, True, False, True, False],
-        'salary': [50000.0, 60000.0, 70000.0, 80000.0, 90000.0]
+        "age": [25, 30, 35, 40, 45],
+        "score": [85, 90, 75, 95, 80],
+        "name": ["Alice", "Bob", "Charlie", "David", "Eve"],
+        "active": [True, True, False, True, False],
+        "salary": [50000.0, 60000.0, 70000.0, 80000.0, 90000.0],
     }
 
 
@@ -131,15 +132,15 @@ def temporal_data() -> Dict[str, List]:
     """
     now = datetime.now()
     return {
-        'timestamp': [
+        "timestamp": [
             now - timedelta(minutes=5),
             now - timedelta(hours=1),
             now - timedelta(days=1),
             now - timedelta(days=7),
-            now - timedelta(days=30)
+            now - timedelta(days=30),
         ],
-        'event': ['A', 'B', 'C', 'D', 'E'],
-        'level': ['INFO', 'ERROR', 'WARN', 'INFO', 'ERROR']
+        "event": ["A", "B", "C", "D", "E"],
+        "level": ["INFO", "ERROR", "WARN", "INFO", "ERROR"],
     }
 
 
@@ -153,11 +154,7 @@ def arithmetic_data() -> Dict[str, List]:
         - b: int (2-6)
         - c: float (1.5-5.5, step 1.0)
     """
-    return {
-        'a': [10, 20, 30, 40, 50],
-        'b': [2, 3, 4, 5, 6],
-        'c': [1.5, 2.5, 3.5, 4.5, 5.5]
-    }
+    return {"a": [10, 20, 30, 40, 50], "b": [2, 3, 4, 5, 6], "c": [1.5, 2.5, 3.5, 4.5, 5.5]}
 
 
 @pytest.fixture
@@ -170,15 +167,9 @@ def string_data() -> Dict[str, List]:
         - category: str (A, B, C)
     """
     return {
-        'text': ['hello', 'world', 'test', 'data', 'python'],
-        'category': ['A', 'B', 'A', 'C', 'B'],
-        'description': [
-            'Hello World',
-            'Test String',
-            'Another Test',
-            'Final String',
-            'Python Code'
-        ]
+        "text": ["hello", "world", "test", "data", "python"],
+        "category": ["A", "B", "A", "C", "B"],
+        "description": ["Hello World", "Test String", "Another Test", "Final String", "Python Code"],
     }
 
 
@@ -191,15 +182,13 @@ def null_data() -> Dict[str, List]:
         - value: Optional[int]
         - text: Optional[str]
     """
-    return {
-        'value': [1, None, 3, None, 5],
-        'text': ['a', 'b', None, 'd', None]
-    }
+    return {"value": [1, None, 3, None, 5], "text": ["a", "b", None, "d", None]}
 
 
 # =============================================================================
 # Backend DataFrame Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def polars_df(sample_data) -> pl.DataFrame:
@@ -223,7 +212,7 @@ def narwhals_df(sample_data) -> Any:
 @pytest.fixture
 def ibis_duckdb_df(sample_data) -> Any:
     """Create Ibis Table with DuckDB backend from sample data."""
-    import duckdb
+
     conn = ibis.duckdb.connect()
     return conn.create_table("sample", sample_data, overwrite=True)
 
@@ -271,6 +260,7 @@ def backend_string_df(backend_name: str, string_data) -> Any:
 # Result Helper Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def get_result_count() -> Callable:
     """
@@ -283,15 +273,17 @@ def get_result_count() -> Callable:
         count = get_result_count(result_df, "polars")
         assert count == 3
     """
+
     def _get_count(df: Any, backend_name: str) -> int:
         spec = BACKEND_REGISTRY[backend_name]
         if spec.materialization == "deferred":  # ibis
             return df.count().execute()
-        if spec.materialization == "lazy":      # polars-lazy
+        if spec.materialization == "lazy":  # polars-lazy
             return df.collect().shape[0]
         if spec.family == "narwhals":
             return df.shape[0]
         return df.shape[0] if hasattr(df, "shape") else len(df)
+
     return _get_count
 
 
@@ -307,15 +299,16 @@ def get_result() -> Callable:
         count = get_result_count(result_df, "polars")
         assert count == 3
     """
+
     def _get_result(df: Any, backend_name: str) -> Any:
         spec = BACKEND_REGISTRY[backend_name]
         if spec.materialization == "deferred":  # ibis
             return df.execute()
-        if spec.materialization == "lazy":      # polars-lazy
+        if spec.materialization == "lazy":  # polars-lazy
             return df.collect()
         return df
-    return _get_result
 
+    return _get_result
 
 
 @pytest.fixture
@@ -331,6 +324,7 @@ def select_and_extract() -> Callable:
         backend_expr = expr.compile(df, booleanizer=None)
         actual = select_and_extract(df, backend_expr, "result", backend_name)
     """
+
     def _select_and_extract(df: Any, backend_expr: Any, column_alias: str, backend_name: str) -> List:
         spec = BACKEND_REGISTRY[backend_name]
         family = spec.family
@@ -371,9 +365,12 @@ def collect_expr():
         actual = collect_expr(df, expr)
         actual = collect_expr(df, expr, alias="custom_name")
     """
+
     def _collect(df, expr, alias="result"):
         import mountainash as ma
+
         return ma.relation(df).select(expr.name.alias(alias)).to_dict()[alias]
+
     return _collect
 
 
@@ -384,9 +381,12 @@ def collect_col():
     Usage:
         values = collect_col(df, "age")
     """
+
     def _collect(df, column):
         import mountainash as ma
+
         return ma.relation(df).select(column).to_dict()[column]
+
     return _collect
 
 
@@ -403,6 +403,7 @@ def assert_parameter_sensitivity(collect_expr) -> Callable:
             df, lambda d: ma.col("val").round(d), 1, 2, backend_name
         )
     """
+
     def _assert_parameter_sensitivity(
         df: Any,
         build_expr: Callable,
@@ -434,6 +435,7 @@ def get_scalar_result() -> Callable:
         max_val = get_scalar_result(max_result, "polars")
         assert max_val == 45
     """
+
     def _get_scalar(result: Any, backend_name: str) -> Any:
         spec = BACKEND_REGISTRY[backend_name]
         if spec.materialization == "deferred":  # ibis
@@ -441,6 +443,7 @@ def get_scalar_result() -> Callable:
         if spec.materialization == "lazy":
             return result.collect() if hasattr(result, "collect") else result
         return result
+
     return _get_scalar
 
 
@@ -457,33 +460,25 @@ def assert_backend_equal():
     Usage:
         assert_backend_equal(actual, expected, backend_name, "age comparison")
     """
-    def _assert_equal(
-        actual: Any,
-        expected: Any,
-        backend_name: str,
-        message: str = ""
-    ):
+
+    def _assert_equal(actual: Any, expected: Any, backend_name: str, message: str = ""):
         if isinstance(expected, float):
             # Float comparison with tolerance
-            assert abs(actual - expected) < 1e-6, (
-                f"{message} [{backend_name}]: expected {expected}, got {actual}"
-            )
+            assert abs(actual - expected) < 1e-6, f"{message} [{backend_name}]: expected {expected}, got {actual}"
         elif isinstance(expected, list):
             # List comparison
-            assert actual == expected, (
-                f"{message} [{backend_name}]: expected {expected}, got {actual}"
-            )
+            assert actual == expected, f"{message} [{backend_name}]: expected {expected}, got {actual}"
         else:
             # Direct comparison
-            assert actual == expected, (
-                f"{message} [{backend_name}]: expected {expected}, got {actual}"
-            )
+            assert actual == expected, f"{message} [{backend_name}]: expected {expected}, got {actual}"
+
     return _assert_equal
 
 
 # =============================================================================
 # Factory Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def backend_factory():
@@ -496,18 +491,21 @@ def backend_factory():
     """
     import sys
     import os
+
     # Add tests directory to path
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     if tests_dir not in sys.path:
         sys.path.insert(0, tests_dir)
 
     from fixtures.backend_helpers import BackendDataFrameFactory
+
     return BackendDataFrameFactory
 
 
 # =============================================================================
 # Cleanup Fixtures
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def reset_between_tests():
@@ -526,6 +524,7 @@ def reset_between_tests():
 # Pytest Collection Hooks
 # =============================================================================
 
+
 def pytest_configure(config):
     # Load all capability declarations at import time — before collection — so
     # collection-time xfail/skip markers derived from the spine see a fully
@@ -535,17 +534,25 @@ def pytest_configure(config):
     load_all_capability_declarations()
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
-    """Scope-deselect the backend matrix, then assign exactly one tier marker per test.
+    """Attach closed observers before any backend, ``-k``, or ``-m`` deselection.
 
-    Backend scope (MA_BACKEND_SCOPE=pr) DESELECTS cross-backend parametrized
-    cases for out-of-scope backends — ALL_BACKENDS stays the full canonical list,
-    so structural tests that assert against it are unaffected. Then:
-    - Explicit tier markers win. >1 tier marker is a violation (spec: exactly one).
-    - Unmarked items get resolve_tier(); None means unclassified → violation.
+    Backend scope (MA_BACKEND_SCOPE=pr) then DESELECTS cross-backend
+    parametrized cases for out-of-scope backends — ALL_BACKENDS stays the full
+    canonical list, so structural tests that assert against it are unaffected.
+    Explicit tier markers win; unmarked items receive resolve_tier().
     """
     from selection.tiers import TIERS, resolve_tier
     from fixtures.backend_registry import active_scope, partition_items_by_scope
+
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from tests.fixtures.verification_bindings import attach_expectations, observer_specs
+
+    specs = observer_specs()
+    catalogue = CapabilityRegistry.capture()
+    reasons = {spec.key: catalogue.get(spec.key).assertion.impact for spec in specs}
+    attach_expectations(items, specs, reasons=reasons, requested=config.args)
 
     # --- backend-scope deselection (pr scope drops out-of-scope backend params) ---
     kept, deselected = partition_items_by_scope(items, active_scope())
@@ -568,3 +575,11 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(getattr(pytest.mark, tier))
     config._ma_tier_untagged = untagged
     config._ma_tier_multi = multi
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    from tests.fixtures.verification_bindings import classify_call
+
+    outcome = yield
+    classify_call(item, call, outcome.get_result())

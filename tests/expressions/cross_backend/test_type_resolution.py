@@ -9,7 +9,6 @@ import pytest
 import mountainash.expressions as ma
 from mountainash.core.dtypes import MountainashDtype
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 INT_CASTABLE_TYPES = [
@@ -33,8 +32,7 @@ class TestCanonicalTypeStrings:
     """Every tier-1 canonical string works on every backend."""
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-    @pytest.mark.parametrize("dtype,input_data", INT_CASTABLE_TYPES,
-                             ids=[t[0] for t in INT_CASTABLE_TYPES])
+    @pytest.mark.parametrize("dtype,input_data", INT_CASTABLE_TYPES, ids=[t[0] for t in INT_CASTABLE_TYPES])
     def test_canonical_type_accepted(self, backend_name, backend_factory, collect_expr, dtype, input_data):
         data = {"value": input_data}
         df = backend_factory.create(data, backend_name)
@@ -68,8 +66,7 @@ class TestTypeAliases:
     ]
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-    @pytest.mark.parametrize("alias,canonical", ALIAS_PAIRS,
-                             ids=[f"{a}->{c}" for a, c in ALIAS_PAIRS])
+    @pytest.mark.parametrize("alias,canonical", ALIAS_PAIRS, ids=[f"{a}->{c}" for a, c in ALIAS_PAIRS])
     def test_alias_produces_same_result_as_canonical(
         self, backend_name, backend_factory, collect_expr, alias, canonical
     ):
@@ -91,6 +88,7 @@ class TestNativeTypesOwnBackend:
 
     def test_polars_native_on_polars(self, backend_factory, collect_expr):
         import polars as pl
+
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(pl.Int64)
@@ -99,6 +97,7 @@ class TestNativeTypesOwnBackend:
 
     def test_polars_utf8_on_polars(self, backend_factory, collect_expr):
         import polars as pl
+
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(pl.Utf8)
@@ -107,6 +106,7 @@ class TestNativeTypesOwnBackend:
 
     def test_narwhals_native_on_narwhals(self, backend_factory, collect_expr):
         import narwhals as nw
+
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(nw.Int64)
@@ -115,6 +115,7 @@ class TestNativeTypesOwnBackend:
 
     def test_narwhals_string_on_narwhals(self, backend_factory, collect_expr):
         import narwhals as nw
+
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(nw.String)
@@ -123,6 +124,7 @@ class TestNativeTypesOwnBackend:
 
     def test_ibis_native_on_ibis_duckdb(self, backend_factory, collect_expr):
         import ibis.expr.datatypes as dt
+
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(dt.int64)
@@ -146,6 +148,7 @@ class TestNativeTypesCrossBackend:
     def test_polars_int64_on_ibis_raises(self, backend_factory, collect_expr):
         import polars as pl
         from mountainash.core.dtypes import DtypeMappingError
+
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(pl.Int64)
@@ -155,6 +158,7 @@ class TestNativeTypesCrossBackend:
     def test_polars_utf8_on_narwhals_raises(self, backend_factory, collect_expr):
         import polars as pl
         from mountainash.core.dtypes import DtypeMappingError
+
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "narwhals")
         expr = ma.col("value").cast(pl.Utf8)
@@ -164,6 +168,7 @@ class TestNativeTypesCrossBackend:
     def test_narwhals_string_on_polars_raises(self, backend_factory, collect_expr):
         import narwhals as nw
         from mountainash.core.dtypes import DtypeMappingError
+
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "polars")
         expr = ma.col("value").cast(nw.String)
@@ -173,6 +178,7 @@ class TestNativeTypesCrossBackend:
     def test_narwhals_int64_on_ibis_raises(self, backend_factory, collect_expr):
         import narwhals as nw
         from mountainash.core.dtypes import DtypeMappingError
+
         data = {"value": [1.0, 2.0, 3.0]}
         df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(nw.Int64)
@@ -182,6 +188,7 @@ class TestNativeTypesCrossBackend:
     def test_polars_uint16_on_ibis_raises(self, backend_factory, collect_expr):
         import polars as pl
         from mountainash.core.dtypes import DtypeMappingError
+
         data = {"value": [1, 2, 3]}
         df = backend_factory.create(data, "ibis-polars")
         expr = ma.col("value").cast(pl.UInt16)
@@ -193,13 +200,16 @@ class TestNativeTypesCrossBackend:
 class TestInvalidTypeStrings:
     """Invalid type strings raise ValueError at build time."""
 
-    @pytest.mark.parametrize("bad_dtype", [
-        "foobar",
-        "",
-        "int999",
-        "FLOAT",
-        "INTEGER",
-    ])
+    @pytest.mark.parametrize(
+        "bad_dtype",
+        [
+            "foobar",
+            "",
+            "int999",
+            "FLOAT",
+            "INTEGER",
+        ],
+    )
     def test_invalid_string_raises(self, bad_dtype):
         with pytest.raises(ValueError, match="Unknown dtype"):
             ma.col("value").cast(bad_dtype)
@@ -274,12 +284,7 @@ class TestMountainashDtypeEnum:
         assert values == [1, 2, 3]
 
 
-_BANKERS_ROUNDING_TYPE_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-CAST-01", backend=b))
-    if b == "ibis-duckdb"
-    else b
-    for b in ALL_BACKENDS
-]
+_BANKERS_ROUNDING_TYPE_BACKENDS = [b for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend

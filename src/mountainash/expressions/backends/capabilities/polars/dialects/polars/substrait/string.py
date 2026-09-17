@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.declarations import DivergenceManifestation
+from mountainash.core.capabilities.declarations import ManifestationKey
+from mountainash.core.capabilities.schema import CaptureValue
+from mountainash.core.capabilities.schema import DivergenceKind
+from mountainash.core.capabilities.schema import OperationTarget
+from mountainash.core.capabilities.schema import Scenario
+
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import Selector
@@ -931,6 +938,137 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+    ),
+    manifestations=(
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "pattern",
+                            CaptureValue(tag="text", value="a*"),
+                        ),
+                    ),
+                    options=(
+                        (
+                            "case_sensitivity",
+                            CaptureValue(tag="text", value="CASE_SENSITIVE"),
+                        ),
+                    ),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="ab"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-03"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="ibis-duckdb oracle result"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-03"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(
+                            tag="text", value="Polars consolidates zero-width matches differently from ibis-duckdb"
+                        ),
+                    ),
+                ),
+            ),
+            impact="Zero-width-capable regexp split differs from ibis-duckdb on polars.",
+            since="2026-08-13",
+            workaround="Use ibis-duckdb for empty or zero-width-capable regexp split.",
+            issue="MA-STR-03",
         ),
     ),
 )

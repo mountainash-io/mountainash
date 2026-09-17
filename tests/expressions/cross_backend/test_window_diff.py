@@ -7,7 +7,6 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 # BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
@@ -17,14 +16,7 @@ from fixtures.capability_gating import xfail_divergence
 # =============================================================================
 
 
-_DIFF_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-WIN-03", backend=b))
-    if b == "narwhals-lazy"
-    else pytest.param(b, marks=xfail_divergence("IB-WIN-01", backend=b))
-    if b == "ibis-polars"
-    else b
-    for b in ALL_BACKENDS
-]
+_DIFF_BACKENDS = [b if b == "narwhals-lazy" else b for b in ALL_BACKENDS]
 
 
 @pytest.mark.parametrize("backend_name", _DIFF_BACKENDS)
@@ -48,11 +40,13 @@ class TestDiffOverPartition:
 
     @pytest.fixture
     def diff_df(self):
-        return pl.DataFrame({
-            "group": ["A", "A", "A", "B", "B"],
-            "value": [10, 30, 25, 100, 80],
-            "ts": [1, 2, 3, 1, 2],
-        })
+        return pl.DataFrame(
+            {
+                "group": ["A", "A", "A", "B", "B"],
+                "value": [10, 30, 25, 100, 80],
+                "ts": [1, 2, 3, 1, 2],
+            }
+        )
 
     def test_diff_over_partition(self, diff_df):
         """diff().over() computes differences within each partition."""

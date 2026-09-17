@@ -648,16 +648,24 @@ if sys.argv[1] == "load":
     CapabilityRegistry.ensure_loaded()
     print(json.dumps({"imports_s": imports-start, "registry_load_total_s": time.perf_counter()-imports}))
 else:
-    from mountainash.core.capabilities.bootstrap import _load_segments
-    from mountainash.core.capabilities.capture import require_immutable
-    segments = _load_segments()
-    collected = time.perf_counter()
+    import mountainash.core.capabilities.bootstrap as bootstrap
     import mountainash.core.capabilities.registry as registry
-    for segment in segments:
-        require_immutable(segment)
-        for fact in segment.facts:
-            registry._validate_payload(fact)
-            registry._validate_fact(segment.scope.backend, fact)
+    if hasattr(bootstrap, "_load_segments"):
+        from mountainash.core.capabilities.capture import require_immutable
+        segments = bootstrap._load_segments()
+        collected = time.perf_counter()
+        for segment in segments:
+            require_immutable(segment)
+            for fact in segment.facts:
+                registry._validate_payload(fact)
+                registry._validate_fact(segment.scope.backend, fact)
+    else:
+        declarations = bootstrap._load_declarations()
+        collected = time.perf_counter()
+        for declaration in declarations:
+            registry._validate_declaration_payload(declaration)
+            for fact in declaration.facts:
+                registry._validate_fact(declaration.backend, fact)
     print(json.dumps({"declaration_collection_s": collected-imports,
                       "base_payload_fact_validation_s": time.perf_counter()-collected}))
 """
@@ -680,6 +688,16 @@ def _state_prepare_once() -> object:
     import mountainash.core.capabilities.registry as registry_module
 
     state = CapabilityRegistry._state
+    if not hasattr(state, "segments"):
+        return registry_module._prepare_state(
+            facts=state.facts,
+            kinds=state.kinds,
+            value_class_facts=state.value_class_facts,
+            predicate_facts=state.predicate_facts,
+            declarations=state.declarations,
+            load_state=state.load_state,
+            load_error=state.load_error,
+        )
     return registry_module._prepare_state(
         facts=state.facts,
         kinds=state.kinds,
@@ -688,26 +706,38 @@ def _state_prepare_once() -> object:
         segments=state.segments,
         stored=state.stored,
         origins=state.origins,
+        manifestations=state.manifestations,
         load_state=state.load_state,
         load_error=state.load_error,
     )
 
 
-def _metadata_gate_fact(*, backend_name: str = "polars", suffix: str = "") -> Any:
+def _metadata_gate_fact(*, backend_name: str = "polars", index: int = 0) -> Any:
     from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate
     from mountainash.core.constants import CONST_BACKEND
+    from mountainash.core.dtypes.metadata import STORAGE_KINDS
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
     family = CONST_BACKEND.POLARS if backend_name == "polars" else CONST_BACKEND.IBIS
+    alternatives = sorted(STORAGE_KINDS - {"native"})
+    assert 0 <= index < 1 << len(alternatives)
+    storage = frozenset({"native"} | {kind for bit, kind in enumerate(alternatives) if index & (1 << bit)})
     return CapabilityFact(
         operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
         param="x",
         level=CapabilityLevel.UNSUPPORTED,
         backend=family,
         dialect=backend_name,
-        message=f"item231 benchmark metadata ABS blocker {suffix}".rstrip(),
+        message=f"item231 benchmark metadata ABS blocker {index}",
         since="2026-09-15",
-        predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
+        # Distinct valid storage subsets preserve the native float/integer oracle.
+        # Every population uses the same two-clause shape on both source roots.
+        predicate=Predicate(
+            (
+                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+                Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
+            )
+        ),
     )
 
 
@@ -717,7 +747,7 @@ def _metadata_population(backend: str, count: int) -> Iterator[None]:
 
     token = CapabilityRegistry.snapshot()
     try:
-        facts = tuple(_metadata_gate_fact(backend_name=backend, suffix=str(index)) for index in range(count))
+        facts = tuple(_metadata_gate_fact(backend_name=backend, index=index) for index in range(count))
         if facts:
             CapabilityRegistry.register_backend(facts[0].backend, facts)
         yield
@@ -913,7 +943,7 @@ def _lifetime_memory() -> dict[str, int]:
     held = []
     try:
         for index in range(8):
-            fact = _metadata_gate_fact(suffix=f"retention-{index}")
+            fact = _metadata_gate_fact(index=index)
             CapabilityRegistry.register_backend(fact.backend, [fact])
             held.append(CapabilityRegistry.snapshot())
         CapabilityRegistry.restore(original)
@@ -1081,7 +1111,11 @@ def _publication_attribution():
 
 @pytest.mark.perf
 def test_item231_selected_preparation(benchmark, capsule):
-    _state_prepare_once()
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+
+    prepared = _state_prepare_once()
+    if hasattr(prepared, "manifestations"):
+        assert prepared.manifestations == CapabilityRegistry._state.manifestations
     benchmark.pedantic(_state_prepare_once, rounds=_ROUNDS, iterations=1)
     preparation = _profile_call(_state_prepare_once)
     publication = _publication_attribution()

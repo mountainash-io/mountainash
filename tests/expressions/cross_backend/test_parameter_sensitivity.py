@@ -8,28 +8,19 @@ See: f.development-practices/testing-philosophy.md § Discriminating Test Data
 """
 
 import math
-import sqlite3
 import pytest
 from datetime import datetime
 
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
-
-
-_SHIFT = (
-    [xfail_divergence("IB-DT-14", backend="ibis-sqlite")]
-    if sqlite3.sqlite_version_info < (3, 46)
-    else []
-)
 
 
 POLARS_IBIS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-STR-17", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-STR-17", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-STR-17", backend="narwhals-pandas")),
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -45,9 +36,7 @@ TEMPORAL_BACKENDS = [
     "ibis-sqlite",
 ]
 
-_TEMPORAL_XF = [
-    pytest.param(b, marks=_SHIFT) if b == "ibis-sqlite" else b for b in TEMPORAL_BACKENDS
-]
+_TEMPORAL_XF = TEMPORAL_BACKENDS
 
 
 # =============================================================================
@@ -84,7 +73,8 @@ class TestRoundParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda d: ma.col("val").round(d),
-            1, 2,
+            1,
+            2,
             backend_name,
         )
 
@@ -120,7 +110,8 @@ class TestLogParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda b: ma.col("val").log(b),
-            2, 10,
+            2,
+            10,
             backend_name,
         )
 
@@ -201,7 +192,8 @@ class TestTrimParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda c: ma.col("val").str.trim(c),
-            "x", ".",
+            "x",
+            ".",
             backend_name,
         )
 
@@ -224,7 +216,8 @@ class TestPadParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda w: ma.col("val").str.lpad(w, " "),
-            5, 8,
+            5,
+            8,
             backend_name,
         )
 
@@ -236,7 +229,8 @@ class TestPadParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda w: ma.col("val").str.rpad(w, " "),
-            5, 8,
+            5,
+            8,
             backend_name,
         )
 
@@ -259,7 +253,8 @@ class TestLeftRightParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda n: ma.col("val").str.left(n),
-            2, 4,
+            2,
+            4,
             backend_name,
         )
 
@@ -271,7 +266,8 @@ class TestLeftRightParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda n: ma.col("val").str.right(n),
-            2, 4,
+            2,
+            4,
             backend_name,
         )
 
@@ -294,7 +290,8 @@ class TestRepeatParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda n: ma.col("val").str.repeat(n),
-            2, 3,
+            2,
+            3,
             backend_name,
         )
 
@@ -317,7 +314,8 @@ class TestSubstringParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda s: ma.col("val").str.slice(s, 3),
-            0, 2,
+            0,
+            2,
             backend_name,
         )
 
@@ -329,7 +327,8 @@ class TestSubstringParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda l: ma.col("val").str.slice(0, l),
-            2, 4,
+            2,
+            4,
             backend_name,
         )
 
@@ -353,7 +352,8 @@ class TestDatetimeParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda d: ma.col("ts").dt.add_days(d),
-            1, 5,
+            1,
+            5,
             backend_name,
         )
 
@@ -365,7 +365,8 @@ class TestDatetimeParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda h: ma.col("ts").dt.add_hours(h),
-            1, 12,
+            1,
+            12,
             backend_name,
         )
 
@@ -376,14 +377,17 @@ class TestDatetimeParameterSensitivity:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    pytest.param("pandas", marks=xfail_divergence("MA-STR-02", backend="pandas")),
-    pytest.param("narwhals", marks=xfail_divergence("MA-STR-02", backend="narwhals")),
-    pytest.param("ibis-polars", marks=xfail_divergence("MA-STR-02", backend="ibis-polars")),
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "pandas",
+        "narwhals",
+        "ibis-polars",
+        "ibis-duckdb",
+        "ibis-sqlite",
+    ],
+)
 class TestCenterParameterSensitivity:
     """center(width, char) parameters must reach the backend."""
 
@@ -407,7 +411,8 @@ class TestCenterParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda w: ma.col("val").str.center(w, "*"),
-            5, 9,
+            5,
+            9,
             backend_name,
         )
 
@@ -418,14 +423,17 @@ class TestCenterParameterSensitivity:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    pytest.param("pandas", marks=xfail_divergence("NW-STR-18", backend="pandas")),
-    pytest.param("narwhals", marks=xfail_divergence("NW-STR-18", backend="narwhals")),
-    "ibis-polars",
-    "ibis-duckdb",
-    "ibis-sqlite",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "pandas",
+        "narwhals",
+        "ibis-polars",
+        "ibis-duckdb",
+        "ibis-sqlite",
+    ],
+)
 class TestReplaceSliceParameterSensitivity:
     """replace_slice(start, length, replacement) parameters must reach backend."""
 
@@ -449,6 +457,7 @@ class TestReplaceSliceParameterSensitivity:
         assert_parameter_sensitivity(
             df,
             lambda l: ma.col("val").str.replace_slice(1, l, "X"),
-            1, 3,
+            1,
+            3,
             backend_name,
         )

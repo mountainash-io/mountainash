@@ -2,7 +2,7 @@
 
 Three fact kinds:
 - CapabilityFact  — what a backend can/cannot do per (op, param); gates dispatch.
-- DivergenceFact  — same op, different result; never gates; drives xfails + docs.
+- DivergenceKind  — result-difference classification; scoped assertions live in declarations.
 - KnownGap        — mountainash-side incompleteness; drives verification guards.
 """
 
@@ -253,19 +253,18 @@ def _record_class(
 
 
 @lru_cache(maxsize=1)
-def _target_inventory() -> (
-    tuple[
-        dict[tuple[str, str], tuple[tuple[str, str], Any]],
-        dict[tuple[str, str], TargetSurface],
-        dict[tuple[str, str], tuple[type, TargetSurface]],
-    ]
-):
+def _target_inventory() -> tuple[
+    dict[tuple[str, str], tuple[tuple[str, str], Any]],
+    dict[tuple[str, str], TargetSurface],
+    dict[tuple[str, str], tuple[type, TargetSurface]],
+]:
     """Discover the fixed public callable and protocol authorities."""
     import mountainash.expressions.core.expression_api as expression_api_package
     import mountainash.expressions.core.expression_api.boolean as expression_api
     import mountainash.relations.core.relation_api as relation_api_package
     import mountainash.validation as validation_api
     from mountainash.expressions.core.expression_api import entrypoints
+    from mountainash.expressions.core.utils import temporal as temporal_utilities
     from mountainash.relations.core.relation_api.relation import (
         GroupedRelation,
         Relation,
@@ -306,6 +305,12 @@ def _target_inventory() -> (
     surfaces: dict[tuple[str, str], TargetSurface] = {}
     protocols: dict[tuple[str, str], tuple[type, TargetSurface]] = {}
 
+    for name in ("within_last", "older_than", "between_last"):
+        value = getattr(temporal_utilities, name)
+        _record_callable(inventory, temporal_utilities.__name__, name, value)
+        canonical = _callable_address(value)
+        if canonical is not None:
+            surfaces[canonical] = TargetSurface.EXPRESSION
     for name in entrypoints.__all__:
         value = getattr(entrypoints, name)
         _record_callable(inventory, entrypoints.__name__, name, value)
@@ -978,13 +983,11 @@ class CapabilityFact:
                 )
             if self.param == WILDCARD_PARAM:
                 raise ValueError(
-                    f"CapabilityFact({self.operation_key}, {self.param}): "
-                    "value-class facts cannot use WILDCARD_PARAM"
+                    f"CapabilityFact({self.operation_key}, {self.param}): value-class facts cannot use WILDCARD_PARAM"
                 )
             if self.boundary is not Boundary.BUILD:
                 raise ValueError(
-                    f"CapabilityFact({self.operation_key}, {self.param}): "
-                    "value-class facts must use the BUILD boundary"
+                    f"CapabilityFact({self.operation_key}, {self.param}): value-class facts must use the BUILD boundary"
                 )
         if (
             self.param == WILDCARD_PARAM
@@ -1017,8 +1020,7 @@ class CapabilityFact:
                 )
             if self.value_class is not None:
                 raise ValueError(
-                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
-                    "fact cannot also use value_class"
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate fact cannot also use value_class"
                 )
             if self.option_value is not None:
                 raise ValueError(
@@ -1027,7 +1029,7 @@ class CapabilityFact:
                 )
             if self.param == WILDCARD_PARAM:
                 raise ValueError(
-                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate " "fact cannot use WILDCARD_PARAM"
+                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate fact cannot use WILDCARD_PARAM"
                 )
             if self.enforcement is not Enforcement.GATE:
                 raise ValueError(
@@ -1055,7 +1057,7 @@ class CapabilityFact:
 
     @property
     def fact_key(self) -> str:
-        operation_type = f"{type(self.operation_key).__module__}." f"{type(self.operation_key).__qualname__}"
+        operation_type = f"{type(self.operation_key).__module__}.{type(self.operation_key).__qualname__}"
         operation = getattr(self.operation_key, "name", str(self.operation_key))
         backend = getattr(self.backend, "value", str(self.backend))
         dialect = self.dialect or ""
@@ -1079,24 +1081,6 @@ class DivergenceKind(Enum):
     NAMING = "naming"
     PRECISION = "precision"
     ENGINE_LENIENCY = "engine_leniency"
-
-
-@dataclass(frozen=True)
-class DivergenceFact:
-    id: str  # shares the upstream ID grammar: "IB-CAST-01"
-    kind: DivergenceKind
-    operation_keys: tuple[Any, ...]
-    backends: tuple[str, ...]  # family- or dialect-scoped names
-    summary: str
-    impact: str
-    workaround: str | None = None
-    upstream_ref: str | None = None
-    since: str = ""
-
-    def __post_init__(self) -> None:
-        if not _UPSTREAM_REF_RE.match(self.id):
-            raise ValueError(f"DivergenceFact: id {self.id!r} does not match PROJ-CAT-NN grammar")
-        _validate_since(self.since, f"DivergenceFact({self.id})")
 
 
 class GapKind(Enum):

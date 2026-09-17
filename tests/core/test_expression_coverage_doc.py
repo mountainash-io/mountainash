@@ -272,11 +272,20 @@ def test_gaps_and_changes_rendered_exactly_once(report):
         assert len(rows) == expected
 
 
-def test_divergence_operation_keys_within_universe(inputs, report):
+def test_manifestation_operations_within_universe(inputs, report):
+    from mountainash.core.capabilities.schema import CompositionTarget, OperationTarget
+
     universe_keys = {r.operation_key for r in inputs["universe"]}
-    for dv in report.divergences:
-        for k in dv.operation_keys:
-            assert k in universe_keys, f"divergence {dv.id} references unknown op {k!r}"
+    for record in report.divergences:
+        target = record.key.local.target
+        operations = (
+            (target.operation,)
+            if isinstance(target, OperationTarget)
+            else target.operations
+            if isinstance(target, CompositionTarget)
+            else ()
+        )
+        assert set(operations) <= universe_keys, f"manifestation target references unknown operations: {record.key}"
 
 
 def test_unaudited_never_renders_audit_badge(report):

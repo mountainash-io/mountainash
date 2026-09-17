@@ -7,25 +7,16 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 # BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
-
-_CUM_BACKENDS = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("NW-WIN-03", backend=b), xfail_divergence("IB-WIN-01", backend=b)],
-    )
-    for b in ALL_BACKENDS
-]
 
 # =============================================================================
 # Cross-backend: cum_sum basic
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", _CUM_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCumSum:
     def test_cum_sum_basic(self, backend_name, backend_factory, collect_expr):
         """cum_sum() computes running total."""
@@ -49,7 +40,7 @@ class TestCumSum:
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", _CUM_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCumMax:
     def test_cum_max_basic(self, backend_name, backend_factory, collect_expr):
         """cum_max() computes running maximum."""
@@ -65,7 +56,7 @@ class TestCumMax:
 # =============================================================================
 
 
-@pytest.mark.parametrize("backend_name", _CUM_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCumMin:
     def test_cum_min_basic(self, backend_name, backend_factory, collect_expr):
         """cum_min() computes running minimum."""
@@ -86,11 +77,13 @@ class TestCumSumOverPartition:
 
     @pytest.fixture
     def cum_df(self):
-        return pl.DataFrame({
-            "store": ["A", "A", "A", "B", "B"],
-            "date": [1, 2, 3, 1, 2],
-            "sales": [10, 20, 30, 100, 50],
-        })
+        return pl.DataFrame(
+            {
+                "store": ["A", "A", "A", "B", "B"],
+                "date": [1, 2, 3, 1, 2],
+                "sales": [10, 20, 30, 100, 50],
+            }
+        )
 
     def test_cum_sum_over_partition_with_order(self, cum_df):
         """cum_sum().over('store', order_by='date') resets per partition."""

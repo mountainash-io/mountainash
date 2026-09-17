@@ -7,6 +7,9 @@
 - Remove the authored `CapabilityAssertion.origins`, `DivergenceManifestation.origins`/`legacy_refs`, `CapabilitySegment.evidence_refs`, and `VerificationBinding.legacy_sites` constructor fields, with no compatibility aliases.
 - Remove `LocalOrigin`, `ProbeEvidence` (including its public capability re-export), `AuthoringBundle`, and the packaged retired-declaration archive. Historical sources remain in Git; live probes and genuine evidence/change capture remain supported.
 - Remove the coverage report's `bundles` input/field, JSON `historical_bundles` and its stamp count, segment JSON `evidence_refs`, and historical-wave Markdown output. Existing current-data reports remain available; the new auditing/report-to-site integration is separate backlog work.
+- Replace the global divergence list and ID-selected test expectations with physically scoped manifestations and exact target/scenario observer bindings. Upstream issue IDs remain explicit metadata joins only.
+- Classify operational expectations only during the selected test call; fixture setup, teardown, and unrelated exception failures remain visible.
+- Retain independent native construction and selected materialization observations with source, fixture, layer, stage, and environment coordinates; reject reattachment to changed claim payloads.
 
 ## Unreleased — 2026-09-15
 

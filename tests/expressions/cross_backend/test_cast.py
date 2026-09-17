@@ -11,7 +11,6 @@ import pytest
 import math
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 @pytest.mark.cross_backend
@@ -130,10 +129,12 @@ class TestCastWithNulls:
         assert values[0] == 1.0
         assert values[2] == 3.0
         assert values[4] == 5.0
-        assert values[1] is None or (isinstance(values[1], float) and math.isnan(values[1])), \
+        assert values[1] is None or (isinstance(values[1], float) and math.isnan(values[1])), (
             f"[{backend_name}] Second value should be null: {values[1]}"
-        assert values[3] is None or (isinstance(values[3], float) and math.isnan(values[3])), \
+        )
+        assert values[3] is None or (isinstance(values[3], float) and math.isnan(values[3])), (
             f"[{backend_name}] Fourth value should be null: {values[3]}"
+        )
 
     def test_cast_with_null_float_to_string(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1.5, None, 3.5]}
@@ -217,12 +218,7 @@ class TestCastEdgeCases:
 
 
 _FAILURE_NULL_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-CAST-01", backend=b))
-    if b in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy")
-    else pytest.param(b, marks=xfail_divergence("IB-CAST-04", backend=b))
-    if b == "ibis-sqlite"
-    else b
-    for b in ALL_BACKENDS
+    b if b in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy") else b for b in ALL_BACKENDS
 ]
 
 
@@ -234,8 +230,7 @@ class TestCastFailureBehavior:
     Previously silently dropped by the visitor -- every backend compiled a
     strict cast regardless of the `failure_behavior` requested via the
     fluent `.cast(dtype, failure_behavior=...)` API. The narwhals/pandas gap is
-    covered by DivergenceFact NW-CAST-01 and the ibis-sqlite gap by IB-CAST-04,
-    routed through xfail_divergence in _FAILURE_NULL_BACKENDS.
+    and ibis-sqlite gap are covered by exact scoped manifestation bindings.
     """
 
     def test_cast_failure_behavior_null(self, backend_name, backend_factory, collect_expr):
@@ -250,19 +245,9 @@ class TestCastFailureBehavior:
         assert values == [1, None, 3], f"[{backend_name}] Expected [1, None, 3], got {values}"
 
 
-_IBIS_DUCKDB_CAST_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-CAST-01", backend=b))
-    if b == "ibis-duckdb"
-    else b
-    for b in ALL_BACKENDS
-]
+_IBIS_DUCKDB_CAST_BACKENDS = [b for b in ALL_BACKENDS]
 
-_SQLITE_LENIENT_CAST_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-CAST-03", backend=b))
-    if b == "ibis-sqlite"
-    else b
-    for b in ALL_BACKENDS
-]
+_SQLITE_LENIENT_CAST_BACKENDS = [b for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend

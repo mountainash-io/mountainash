@@ -79,7 +79,7 @@ def _handcoded_gate_raises_lines(tree: ast.AST) -> list[int]:
 def test_no_migrated_site_carries_a_raw_capability_form():
     """Task 8 completeness gate: every migrated-bucket TEST site now routes its
     capability expectation through the spine helpers (``assert_capability_gated``
-    / ``xfail_divergence`` / a ``CapabilityFact``-derived mark). No migrated test
+    / exact captured observer bindings / a ``CapabilityFact``-derived mark). No migrated test
     file may keep a raw imperative ``pytest.xfail(`` or a hand-coded
     ``pytest.raises(BackendCapabilityError)`` gate reconstruction. Physical
     segment source rows are exempt from this test-only scan.

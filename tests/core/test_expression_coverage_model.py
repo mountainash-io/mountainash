@@ -21,7 +21,6 @@ from mountainash.core.capabilities.coverage import (
     _validate_backends,
     _validate_dates,
     _validate_segments,
-    _validate_divergences,
     _validate_native_errors_builtins,
 )
 from mountainash.core.capabilities.declarations import (
@@ -39,7 +38,6 @@ from mountainash.core.capabilities.schema import (
     CapabilityLevel,
     Clause,
     ClauseOp,
-    DivergenceFact,
     DivergenceKind,
     Enforcement,
     Predicate,
@@ -179,18 +177,44 @@ def test_ingest_rejects_duplicate_segment_address():
         _validate_segments((segment, segment))
 
 
-def test_ingest_rejects_duplicate_divergence_id():
-    dv = DivergenceFact(
-        id="XX-DUP-01",
-        kind=DivergenceKind.SEMANTICS,
-        operation_keys=(),
-        backends=("polars",),
-        summary="s",
-        impact="i",
-        since="2026-08-01",
+def test_report_keeps_same_scenario_in_independent_dialects():
+    from mountainash.core.capabilities.capture import SourceOrigin
+    from mountainash.core.capabilities.declarations import (
+        DivergenceManifestation,
+        ManifestationKey,
+        QualifiedManifestation,
+        QualifiedManifestationKey,
     )
-    with pytest.raises(ValueError, match="XX-DUP-01"):
-        _validate_divergences((dv, dv))
+    from mountainash.core.capabilities.schema import CaptureValue, OperationTarget, Scenario
+
+    local = DivergenceManifestation(
+        ManifestationKey(OperationTarget(FK_STR.LPAD), Scenario()),
+        DivergenceKind.SEMANTICS,
+        CaptureValue.of("expected"),
+        CaptureValue.of("observed"),
+        "dialect-specific result",
+        "2026-09-17",
+    )
+    records = tuple(
+        QualifiedManifestation(
+            QualifiedManifestationKey(Scope(CONST_BACKEND.IBIS, Dialect(dialect)), local.key),
+            local,
+            (
+                SourceOrigin(
+                    f"mountainash.expressions.backends.capabilities.ibis.dialects.{dialect.replace('-', '_')}.substrait.string",
+                    Scope(CONST_BACKEND.IBIS, Dialect(dialect)),
+                    FactSource.SUBSTRAIT,
+                    Domain.STRING,
+                    "manifestations[0]",
+                ),
+            ),
+        )
+        for dialect in ("ibis-duckdb", "ibis-sqlite")
+    )
+    report = build_coverage_report(_universe(), (), (), records, (), (), _impls())
+    assert {record.key.scope for record in report.divergences} == {record.key.scope for record in records}
+    with pytest.raises(ValueError, match="duplicate"):
+        build_coverage_report(_universe(), (), (), (records[0], records[0]), (), (), _impls())
 
 
 def _assertion(fact: CapabilityFact) -> CapabilityAssertion:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import builtins
 import json
 
 import pytest
@@ -22,6 +21,11 @@ from mountainash.core.capabilities.declarations import (
     CapabilityKey,
     CapabilitySegment,
     Domain,
+    DivergenceManifestation,
+    FactSource,
+    ManifestationKey,
+    QualifiedManifestation,
+    QualifiedManifestationKey,
 )
 from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
 from mountainash.core.capabilities.render_markdown import (
@@ -38,6 +42,7 @@ from mountainash.core.capabilities.capture import (
     CapturedAssertion,
     Environment,
     EnvironmentCoordinate,
+    SourceOrigin,
 )
 from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.schema import (
@@ -46,13 +51,15 @@ from mountainash.core.capabilities.schema import (
     CapabilityLevel,
     Clause,
     ClauseOp,
-    DivergenceFact,
     DivergenceKind,
     Enforcement,
     GapKind,
     KnownGap,
     Predicate,
     WILDCARD_PARAM,
+    CaptureValue,
+    OperationTarget,
+    Scenario,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -117,6 +124,28 @@ def _segments(facts: tuple[CapabilityFact, ...]) -> tuple[BoundSegment, ...]:
     for fact in facts:
         grouped.setdefault((fact.backend, fact.dialect), []).append(fact)
     return tuple(_segment(backend, dialect, tuple(group)) for (backend, dialect), group in grouped.items())
+
+
+def _manifestation(backend=CONST_BACKEND.POLARS, dialect=None):
+    scope = Scope(backend, FamilyWide() if dialect is None else Dialect(dialect))
+    local = DivergenceManifestation(
+        ManifestationKey(
+            OperationTarget(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD),
+            Scenario(arguments=(("input", CaptureValue.of("x")),)),
+        ),
+        DivergenceKind.SEMANTICS,
+        CaptureValue.of("expected"),
+        CaptureValue.of("observed"),
+        "fixture impact",
+        "2026-08-01",
+        workaround="fixture workaround",
+    )
+    segment = _segment(backend, dialect)
+    return QualifiedManifestation(
+        QualifiedManifestationKey(scope, local.key),
+        local,
+        (SourceOrigin(segment.module, scope, FactSource.SUBSTRAIT, Domain.STRING, "manifestations[0]"),),
+    )
 
 
 def _universe():
@@ -453,25 +482,8 @@ def _change(
 
 
 def test_nonempty_gaps_divergences_and_changes_render():
-    dv = DivergenceFact(
-        id="SY-TEST-01",
-        kind=DivergenceKind.SEMANTICS,
-        operation_keys=(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,),
-        backends=("polars",),
-        summary="fixture summary",
-        impact="fixture impact",
-        workaround="fixture workaround",
-        since="2026-08-01",
-    )
-    keyless = DivergenceFact(
-        id="SY-TEST-02",
-        kind=DivergenceKind.PRECISION,
-        operation_keys=(),
-        backends=("ibis",),
-        summary="keyless divergence",
-        impact="none",
-        since="2026-08-01",
-    )
+    dv = _manifestation()
+    second_scope = _manifestation(CONST_BACKEND.IBIS, "ibis-duckdb")
     gap = _gap("fixture gap reason")
     successor_fact = _fact(param="input", message="corrected limitation")
     successor = CapturedAssertion(
@@ -492,31 +504,19 @@ def test_nonempty_gaps_divergences_and_changes_render():
     report = _report(
         [],
         segments=(_segment(),),
-        divergences=(dv, keyless),
+        divergences=(dv, second_scope),
         gaps=(gap,),
         changes=(change,),
     )
     out = render_markdown(report)
     rendered = json.loads(render_json(report))
     change_json = rendered["changes"][0]
-    assert out.count("SY-TEST-01") == 1 and out.count("SY-TEST-02") == 1
+    assert "polars/family" in out and "ibis/ibis-duckdb" in out
     assert "2027-01-31" in out
-    assert rendered["divergences"][0]["operation_keys"] == [
-        {
-            "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
-            "op": "LPAD",
-        }
-    ]
-    assert list(change_json) == [
-        "change_ref",
-        "prior",
-        "disposition",
-        "recorded_at",
-        "reason",
-        "successors",
-        "evidence_refs",
-        "fixed_versions",
-    ]
+    assert {entry["scope"]["backend"] for entry in rendered["divergences"]} == {"polars", "ibis"}
+    for entry in rendered["divergences"]:
+        assert entry["target"]["operation"]["name"] == "LPAD"
+        assert entry["expected"] != entry["observed"]
     prior_payload = change_json["prior"]["payload"]
     assert prior_payload["operation_key"]["enum"].endswith("FKEY_SUBSTRAIT_SCALAR_STRING")
     assert prior_payload["operation_key"]["name"] == "LPAD"
@@ -605,7 +605,7 @@ def test_gather_coverage_inputs_keeps_captured_generation_after_reset_restore(
                 gather_coverage_inputs()
         else:
             inputs = gather_coverage_inputs()
-            assert inputs["facts"] == expected_facts
+            assert set(inputs["facts"]) == set(expected_facts)
             assert inputs["segments"] == expected_segments
     finally:
         CapabilityRegistry.restore(snapshot)
@@ -626,17 +626,17 @@ def test_gather_coverage_inputs_keeps_fact_and_segment_capture_coherent(
         Scope(CONST_BACKEND.POLARS, FamilyWide()),
         CapabilitySegment(Domain.STRING),
     )
-    report_inputs = CapabilityRegistry._report_inputs
+    capture = CapabilityRegistry.capture
 
-    def capture_then_publish():
-        facts, segments = report_inputs()
+    def capture_then_publish(**kwargs):
+        result = capture(**kwargs)
         CapabilityRegistry.register_segment(late_segment)
-        return facts, segments
+        return result
 
-    monkeypatch.setattr(CapabilityRegistry, "_report_inputs", capture_then_publish)
+    monkeypatch.setattr(CapabilityRegistry, "capture", capture_then_publish)
     try:
         inputs = gather_coverage_inputs()
-        assert inputs["facts"] == expected_facts
+        assert set(inputs["facts"]) == set(expected_facts)
         assert inputs["segments"] == expected_segments
         assert late_segment in CapabilityRegistry.segments()
         rendered_segments = json.loads(render_json(_report_from_inputs(inputs)))["segments"]
@@ -895,16 +895,7 @@ def test_json_round_trip():
             native_errors=(ValueError,),
         ),
     ]
-    divergence = DivergenceFact(
-        id="SY-TEST-01",
-        kind=DivergenceKind.SEMANTICS,
-        operation_keys=(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,),
-        backends=("ibis-duckdb",),
-        summary="s",
-        impact="i",
-        workaround="w",
-        since="2026-08-01",
-    )
+    divergence = _manifestation(CONST_BACKEND.IBIS, "ibis-duckdb")
     gap = _gap("fixture")
     change = _change()
     universe = _universe()

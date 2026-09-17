@@ -1,4 +1,5 @@
 """Cold capture of every guard-owned gap inventory and its history."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -95,14 +96,10 @@ def collect_all_gap_sets() -> VerificationSnapshot:
         for defining_class in protocol.__mro__:
             if method in defining_class.__dict__:
                 if defining_class is not protocol:
-                    references.append(
-                        source_address(defining_class, f"{defining_class.__qualname__}.{method}")
-                    )
+                    references.append(source_address(defining_class, f"{defining_class.__qualname__}.{method}"))
                 break
         else:
-            raise ValueError(
-                f"resolved protocol target {protocol.__qualname__}.{method} has no defining method"
-            )
+            raise ValueError(f"resolved protocol target {protocol.__qualname__}.{method} has no defining method")
         return tuple(references)
 
     sources = {}
@@ -130,24 +127,45 @@ def collect_all_gap_sets() -> VerificationSnapshot:
         records = []
         for original, payload in tuple(getattr(module, attribute).items()):
             protocol, method, obligation = _target_and_obligation(
-                name, original, cg, protocols, method_aliases,
+                name,
+                original,
+                cg,
+                protocols,
+                method_aliases,
             )
             target = ProtocolMethodTarget(
-                CallableRef(protocol.__module__, protocol.__qualname__), method,
+                CallableRef(protocol.__module__, protocol.__qualname__),
+                method,
             )
             original_key = tuple(
-                CallableRef(part.__module__, part.__qualname__) if isinstance(part, type) else part
-                for part in original
+                CallableRef(part.__module__, part.__qualname__) if isinstance(part, type) else part for part in original
             )
             origin = CapturedAddress(
-                "mountainash", path, f"{attribute}[{original!r}]", artifact=content,
+                "mountainash",
+                path,
+                f"{attribute}[{original!r}]",
+                artifact=content,
             )
-            records.append(InventoryGap(
-                GapKey(name, target, obligation, InventoryWide()),
-                original_key, payload, (origin,), protocol_reference_context(protocol, method),
-            ))
-        changes = tuple(
-            change for change in histories[module] if change.prior.key.inventory == name
-        )
+            records.append(
+                InventoryGap(
+                    GapKey(name, target, obligation, InventoryWide()),
+                    original_key,
+                    payload,
+                    (origin,),
+                    protocol_reference_context(protocol, method),
+                )
+            )
+        changes = tuple(change for change in histories[module] if change.prior.key.inventory == name)
         inventories.append(GapInventory(name, owner, tuple(records), changes))
-    return VerificationSnapshot(tuple(inventories))
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from tests.fixtures.verification_bindings import (
+        capture_bindings,
+        capture_native_observations,
+        capture_selected_observations,
+    )
+
+    catalogue = CapabilityRegistry.capture()
+    native_bindings, _ = capture_native_observations(catalogue)
+    selected_bindings, _ = capture_selected_observations(catalogue)
+    bindings = capture_bindings(catalogue) + native_bindings + selected_bindings
+    return VerificationSnapshot(tuple(inventories), bindings=bindings)

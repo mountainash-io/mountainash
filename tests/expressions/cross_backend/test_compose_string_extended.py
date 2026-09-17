@@ -7,15 +7,10 @@ implementations.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
-
-_NW_TRIM = [
-    pytest.param(b, marks=xfail_divergence("NW-STR-15", backend=b)) for b in ALL_BACKENDS
-]
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _NW_TRIM)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComposeStringTrimExtended:
     """Test ltrim and rtrim (trim already covered in test_compose_string.py)."""
 

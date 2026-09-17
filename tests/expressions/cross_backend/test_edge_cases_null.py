@@ -11,13 +11,11 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullArithmeticPropagation:
-
     def test_null_plus_integer(self, backend_name, backend_factory, collect_expr):
         data = {"a": [1, None, 3], "b": [10, 10, 10]}
         df = backend_factory.create(data, backend_name)
@@ -54,7 +52,6 @@ class TestNullArithmeticPropagation:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullComparisonPropagation:
-
     def test_null_greater_than(self, backend_name, backend_factory, collect_expr):
         data = {"a": [5, None, 3]}
         df = backend_factory.create(data, backend_name)
@@ -83,7 +80,6 @@ class TestNullComparisonPropagation:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullStringPropagation:
-
     def test_null_string_concat(self, backend_name, backend_factory, collect_expr):
         data = {"a": ["hello", None, "world"]}
         df = backend_factory.create(data, backend_name)
@@ -104,7 +100,6 @@ class TestNullStringPropagation:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullCoalesce:
-
     def test_coalesce_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [None, 2, None], "b": [10, None, 30]}
         df = backend_factory.create(data, backend_name)
@@ -118,12 +113,7 @@ class TestNullCoalesce:
         assert actual == [1, 99, 3]
 
 
-_COALESCE_ALL_NULL_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b))
-    if b == "ibis-duckdb"
-    else b
-    for b in ALL_BACKENDS
-]
+_COALESCE_ALL_NULL_BACKENDS = [b for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend

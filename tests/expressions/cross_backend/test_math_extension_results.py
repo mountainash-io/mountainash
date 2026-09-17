@@ -8,14 +8,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_CBRT = [
-    pytest.param(b, marks=xfail_divergence("MA-MATH-02", backend=b)) for b in ALL_BACKENDS
-]
-_COT = [
-    pytest.param(b, marks=xfail_divergence("NW-MATH-01", backend=b)) for b in ALL_BACKENDS
-]
 
 NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
 IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
@@ -132,7 +125,7 @@ class TestCbrt:
         actual = collect_expr(df, ma.col("a").cbrt())
         assert actual == pytest.approx([2.0, 3.0, 4.0], rel=1e-6)
 
-    @pytest.mark.parametrize("backend_name", _CBRT)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cbrt_negative(self, backend_name, backend_factory, collect_expr):
         data = {"a": [-8.0, -27.0]}
         df = backend_factory.create(data, backend_name)
@@ -191,7 +184,7 @@ class TestClip:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _COT)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCot:
     def test_cot_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [math.pi / 4, math.pi / 2]}

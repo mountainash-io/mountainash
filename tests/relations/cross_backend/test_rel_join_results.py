@@ -4,6 +4,7 @@ Phase 2 of the relation result verification suite. Tests inner, left, right,
 outer, semi, anti, cross joins, suffix disambiguation, multi-key joins, and
 join_asof across all 7 backends.
 """
+
 from __future__ import annotations
 
 import polars as pl
@@ -28,54 +29,13 @@ def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
     """Sort list of dicts by key(s) for order-independent comparison."""
     if isinstance(by, str):
         by = [by]
-    return sorted(dicts, key=lambda d: tuple(
-        (0, d[k]) if d[k] is not None else (1,) for k in by
-    ))
+    return sorted(dicts, key=lambda d: tuple((0, d[k]) if d[k] is not None else (1,) for k in by))
 
 
 # ---------------------------------------------------------------------------
 # Inner Join
 # ---------------------------------------------------------------------------
 
-from fixtures.capability_gating import xfail_divergence
-
-_ASOF = ALL_BACKENDS
-_ASOF_DIRECTIONAL = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-15", backend=b)) for b in ALL_BACKENDS
-]
-_ASOF_TEMPORAL_NEAREST = [
-    pytest.param(
-        b,
-        marks=(xfail_divergence("IB-REL-15", backend=b), xfail_divergence("IB-REL-14", backend=b)),
-    )
-    for b in ALL_BACKENDS
-]
-_ASOF_TOLERANCE = [
-    pytest.param(b, marks=xfail_divergence("NW-REL-03", backend=b)) for b in ALL_BACKENDS
-]
-_ASOF_TEMPORAL_TOLERANCE = [
-    pytest.param(
-        b,
-        marks=(xfail_divergence("NW-REL-03", backend=b), xfail_divergence("IB-REL-14", backend=b)),
-    )
-    for b in ALL_BACKENDS
-]
-_ASOF_NULL = [
-    pytest.param(b, marks=xfail_divergence("NW-REL-04", backend=b)) for b in ALL_BACKENDS
-]
-_ASOF_NEAREST_DUP = [
-    pytest.param(
-        b,
-        marks=(
-            xfail_divergence("IB-REL-15", backend=b),
-            xfail_divergence("NW-REL-05", backend=b),
-        ),
-    )
-    for b in ALL_BACKENDS
-]
-_ASOF_BY_GROUPING = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-17", backend=b)) for b in ALL_BACKENDS
-]
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -86,9 +46,7 @@ class TestJoinInner:
             {"id": [2, 3, 4], "score": [20, 30, 40]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="inner"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="inner").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 2, "val": "b", "score": 20},
@@ -101,9 +59,7 @@ class TestJoinInner:
             {"id": [3, 4], "score": [30, 40]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="inner"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="inner").to_dicts()
         assert result == []
 
 
@@ -121,9 +77,7 @@ class TestJoinLeft:
             {"id": [2, 3], "score": [20, 30]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="left"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="left").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 1, "val": "a", "score": None},
@@ -146,9 +100,7 @@ class TestJoinRight:
             {"id": [2, 3], "score": [20, 30]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="right"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="right").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 2, "val": "b", "score": 20},
@@ -170,9 +122,7 @@ class TestJoinOuter:
             {"id": [2, 3], "score": [20, 30]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="outer"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="outer").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 1, "val": "a", "score": None},
@@ -195,9 +145,7 @@ class TestJoinSemi:
             {"id": [2, 3, 4], "score": [20, 30, 40]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="semi"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="semi").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 2, "val": "b"},
@@ -219,9 +167,7 @@ class TestJoinAnti:
             {"id": [2, 3, 4], "score": [20, 30, 40]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="anti"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="anti").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 1, "val": "a"},
@@ -242,9 +188,7 @@ class TestJoinCross:
             {"b": ["x", "y"]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, how="cross"
-        ).to_dicts()
+        result = ma.relation(left).join(right, how="cross").to_dicts()
         result_sorted = sorted_dicts(result, ["a", "b"])
         assert result_sorted == [
             {"a": 1, "b": "x"},
@@ -268,9 +212,7 @@ class TestJoinSuffix:
             {"id": [1, 2], "val": [100, 200]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on="id", how="inner", suffix="_r"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on="id", how="inner", suffix="_r").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
             {"id": 1, "val": 10, "val_r": 100},
@@ -292,9 +234,7 @@ class TestJoinMultiKey:
             {"a": [1, 2], "b": ["x", "x"], "rv": [100, 200]},
             backend_name,
         )
-        result = ma.relation(left).join(
-            right, on=["a", "b"], how="inner"
-        ).to_dicts()
+        result = ma.relation(left).join(right, on=["a", "b"], how="inner").to_dicts()
         result_sorted = sorted_dicts(result, ["a", "b"])
         assert result_sorted == [
             {"a": 1, "b": "x", "lv": 10, "rv": 100},
@@ -308,7 +248,7 @@ class TestJoinMultiKey:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _ASOF)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestJoinAsof:
     def test_asof_backward_strategy(self, backend_name, backend_factory):
         """Test asof join with backward strategy.
@@ -321,9 +261,7 @@ class TestJoinAsof:
             {"t": [2, 4, 6], "score": [20, 40, 60]},
             backend_name,
         )
-        result = ma.relation(left).join_asof(
-            right, on="t", strategy="backward"
-        ).to_dicts()
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
         # t=1: no right row <= 1, so score=None
         # t=3: right t=2 <= 3, so score=20
         # t=5: right t=4 <= 5, so score=40
@@ -345,9 +283,7 @@ class TestJoinAsof:
         correctly everywhere."""
         left_data = {"t": [5, 5], "val": ["r1", "r2"]}
         right_data = {"t": [4, 6], "score": [40, 60]}
-        oracle = pl.DataFrame(left_data).join_asof(
-            pl.DataFrame(right_data), on="t", strategy="backward"
-        ).to_dicts()
+        oracle = pl.DataFrame(left_data).join_asof(pl.DataFrame(right_data), on="t", strategy="backward").to_dicts()
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
         result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
         assert result == oracle
@@ -356,13 +292,11 @@ class TestJoinAsof:
         """Temporal on-column, backward strategy (no distance computation needed —
         works everywhere unlike nearest/tolerance, see the gated-cell tests below)."""
         from datetime import datetime, timedelta
+
         base = datetime(2026, 1, 1)
         left_data = {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]}
-        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)],
-                      "score": [10, 40]}
-        oracle = pl.DataFrame(left_data).join_asof(
-            pl.DataFrame(right_data), on="t", strategy="backward"
-        ).to_dicts()
+        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}
+        oracle = pl.DataFrame(left_data).join_asof(pl.DataFrame(right_data), on="t", strategy="backward").to_dicts()
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
         result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
         assert result == oracle
@@ -388,25 +322,21 @@ class TestJoinAsofGatedCells:
         result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_BY_GROUPING)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_by_grouping(self, backend_name, backend_factory):
         """`by` groups are INTERLEAVED in the input (spec §7.1(5)) but `t` is
         globally ascending — pandas merge_asof requires global sortedness of
         `on` even with `by` set. IB-REL-17 declares that Ibis's SQL-backend
         paths group output by `by` value rather than preserving this
         interleaved order; every backend's matched VALUES are correct."""
-        left_data = {"g": ["a", "b", "a", "b"], "t": [1, 2, 3, 4],
-                     "val": ["a1", "b2", "a3", "b4"]}
-        right_data = {"g": ["a", "b", "a", "b"], "t": [1, 2, 3, 5],
-                      "score": [10, 20, 30, 50]}
+        left_data = {"g": ["a", "b", "a", "b"], "t": [1, 2, 3, 4], "val": ["a1", "b2", "a3", "b4"]}
+        right_data = {"g": ["a", "b", "a", "b"], "t": [1, 2, 3, 5], "score": [10, 20, 30, 50]}
         oracle = self._oracle(left_data, right_data, on="t", by="g", strategy="backward")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        result = ma.relation(left).join_asof(
-            right, on="t", by="g", strategy="backward"
-        ).to_dicts()
+        result = ma.relation(left).join_asof(right, on="t", by="g", strategy="backward").to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_DIRECTIONAL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_forward_strategy(self, backend_name, backend_factory):
         left_data = {"t": [1, 3, 5, 7], "val": ["a", "b", "c", "d"]}
         right_data = {"t": [2, 4, 6], "score": [20, 40, 60]}
@@ -415,7 +345,7 @@ class TestJoinAsofGatedCells:
         result = ma.relation(left).join_asof(right, on="t", strategy="forward").to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_DIRECTIONAL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_strategy(self, backend_name, backend_factory):
         left_data = {"t": [1, 3, 5, 7], "val": ["a", "b", "c", "d"]}
         right_data = {"t": [2, 4, 6], "score": [20, 40, 60]}
@@ -424,7 +354,7 @@ class TestJoinAsofGatedCells:
         result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_DIRECTIONAL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_forward_tie(self, backend_name, backend_factory):
         """A GENUINE cross-side equidistant tie (right holds 4 and 6, left is
         5 — two DIFFERENT-valued candidates at equal distance). This is the
@@ -437,7 +367,7 @@ class TestJoinAsofGatedCells:
         result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
         assert result == oracle  # forward-wins -> score 60
 
-    @pytest.mark.parametrize("backend_name", _ASOF_NEAREST_DUP)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_duplicate_right_keys(self, backend_name, backend_factory):
         """An EXACT-match tie (right holds a duplicate exactly at the left
         key) — a duplicate-tie-winner question, not a cross-side-tie
@@ -450,7 +380,7 @@ class TestJoinAsofGatedCells:
         result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
         assert result == oracle  # score 52, the LAST t=5 duplicate
 
-    @pytest.mark.parametrize("backend_name", _ASOF_DIRECTIONAL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_colliding_payload_names(self, backend_name, backend_factory):
         """Left and right share a non-key column name (`val`) — Polars-parity
         schema suffixes the right one `val_right`, matching plain `join_asof`
@@ -464,49 +394,45 @@ class TestJoinAsofGatedCells:
         result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_TEMPORAL_NEAREST)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_temporal_nearest_strategy(self, backend_name, backend_factory):
         from datetime import datetime, timedelta
+
         base = datetime(2026, 1, 1)
         left_data = {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]}
-        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)],
-                      "score": [10, 40]}
+        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
         result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_TEMPORAL_TOLERANCE)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_temporal_tolerance(self, backend_name, backend_factory):
         """Natural/Polars-idiomatic calling convention: `tolerance` is a
         `datetime.timedelta` for a temporal `on` column. `strategy="backward"`
         here, so ibis-polars is NOT gated (only forward/nearest are) — the
         native path computes this with full Polars parity."""
         from datetime import datetime, timedelta
+
         base = datetime(2026, 1, 1)
         left_data = {"t": [base, base + timedelta(minutes=3)], "val": ["a", "b"]}
-        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)],
-                      "score": [10, 40]}
+        right_data = {"t": [base + timedelta(minutes=1), base + timedelta(minutes=4)], "score": [10, 40]}
         tol = timedelta(minutes=2)
         oracle = self._oracle(left_data, right_data, on="t", strategy="backward", tolerance=tol)
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        result = ma.relation(left).join_asof(
-            right, on="t", strategy="backward", tolerance=tol
-        ).to_dicts()
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward", tolerance=tol).to_dicts()
         assert result == oracle
 
-    @pytest.mark.parametrize("backend_name", _ASOF_TOLERANCE)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_tolerance(self, backend_name, backend_factory):
         left_data = {"t": [10, 20, 30], "val": ["a", "b", "c"]}
         right_data = {"t": [5, 27], "score": [50, 270]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="backward", tolerance=2)
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        result = ma.relation(left).join_asof(
-            right, on="t", strategy="backward", tolerance=2
-        ).to_dicts()
+        result = ma.relation(left).join_asof(right, on="t", strategy="backward", tolerance=2).to_dicts()
         assert result == oracle  # distances 5 and 3 both exceed tolerance 2 -> no matches
 
-    @pytest.mark.parametrize("backend_name", _ASOF_NULL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_null_keys(self, backend_name, backend_factory):
         """Order-insensitive comparison (`sorted_dicts` by the never-null `val`
         column): DuckDB defaults to NULLS LAST on ASC, SQLite to NULLS FIRST —

@@ -6,11 +6,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_NW_TRIM = [
-    pytest.param(b, marks=xfail_divergence("NW-STR-15", backend=b)) for b in ALL_BACKENDS
-]
 
 # -- Known divergences --
 # Ibis backends: custom chars argument is silently ignored by strip_chars,
@@ -46,7 +42,7 @@ class TestStrStripChars:
 
 @pytest.mark.cross_backend
 class TestStrStripCharsStart:
-    @pytest.mark.parametrize("backend_name", _NW_TRIM)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_strip_start_whitespace(self, backend_name, backend_factory, collect_expr):
         data = {"s": ["  hello  ", " world"]}
         df = backend_factory.create(data, backend_name)
@@ -63,7 +59,7 @@ class TestStrStripCharsStart:
 
 @pytest.mark.cross_backend
 class TestStrStripCharsEnd:
-    @pytest.mark.parametrize("backend_name", _NW_TRIM)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_strip_end_whitespace(self, backend_name, backend_factory, collect_expr):
         data = {"s": ["  hello  ", "world "]}
         df = backend_factory.create(data, backend_name)

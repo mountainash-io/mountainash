@@ -24,16 +24,13 @@ from mountainash.expressions.core.utils.temporal import (
     between_last,
 )
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_ALL_XF_SQLITE_DT13 = [
-    pytest.param(b, marks=xfail_divergence("IB-DT-13", backend=b)) if b == "ibis-sqlite" else b
-    for b in ALL_BACKENDS
-]
+_ALL_XF_SQLITE_DT13 = [b for b in ALL_BACKENDS]
 
 # =============================================================================
 # Unit Tests - Parsing and Conversion (Backend-Independent)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.temporal
@@ -43,18 +40,18 @@ class TestTimeExpressionParsing:
     def test_parse_various_formats(self):
         """Test parsing various time expression formats."""
         # Minutes
-        assert parse_time_expression("3 minutes") == (3, 'minutes')
-        assert parse_time_expression("3minutes") == (3, 'minutes')
-        assert parse_time_expression("3m") == (3, 'minutes')
+        assert parse_time_expression("3 minutes") == (3, "minutes")
+        assert parse_time_expression("3minutes") == (3, "minutes")
+        assert parse_time_expression("3m") == (3, "minutes")
 
         # Hours
-        assert parse_time_expression("2 hours") == (2, 'hours')
-        assert parse_time_expression("2h") == (2, 'hours')
+        assert parse_time_expression("2 hours") == (2, "hours")
+        assert parse_time_expression("2h") == (2, "hours")
 
         # Days
-        assert parse_time_expression("1 day") == (1, 'days')
-        assert parse_time_expression("7 days") == (7, 'days')
-        assert parse_time_expression("7d") == (7, 'days')
+        assert parse_time_expression("1 day") == (1, "days")
+        assert parse_time_expression("7 days") == (7, "days")
+        assert parse_time_expression("7d") == (7, "days")
 
     def test_timedelta_conversion(self):
         """Test conversion to Python timedelta."""
@@ -81,6 +78,7 @@ class TestTimeExpressionParsing:
 # Cross-Backend Tests - Temporal Filtering
 # =============================================================================
 
+
 @pytest.mark.cross_backend
 @pytest.mark.temporal
 @pytest.mark.parametrize("backend_name", _ALL_XF_SQLITE_DT13)
@@ -95,16 +93,15 @@ class TestWithinLastFilter:
     ):
         """Test filtering for 'last X minutes' like journalctl --since."""
 
-
         now = datetime.now()
         data = {
             "timestamp": [
-                now - timedelta(minutes=2),   # 2 minutes ago
-                now - timedelta(minutes=5),   # 5 minutes ago
+                now - timedelta(minutes=2),  # 2 minutes ago
+                now - timedelta(minutes=5),  # 5 minutes ago
                 now - timedelta(minutes=10),  # 10 minutes ago
                 now - timedelta(minutes=30),  # 30 minutes ago
             ],
-            "message": ["A", "B", "C", "D"]
+            "message": ["A", "B", "C", "D"],
         }
 
         # Create DataFrame for backend
@@ -118,14 +115,12 @@ class TestWithinLastFilter:
         # Message C (10 min) and D (30 min) are older
         messages = result_dict["message"]
         assert len(messages) == 2, f"[{backend_name}] Expected 2 rows, got {len(messages)}"
-        assert messages == ["A", "B"], (
-            f"[{backend_name}] Expected ['A', 'B'], got {messages}"
-        )
+        assert messages == ["A", "B"], f"[{backend_name}] Expected ['A', 'B'], got {messages}"
 
 
 @pytest.mark.cross_backend
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name",ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestOlderThanFilter:
     """Test 'older than X time' filtering across all backends."""
 
@@ -138,12 +133,12 @@ class TestOlderThanFilter:
         now = datetime.now()
         data = {
             "created_at": [
-                now - timedelta(days=1),   # 1 day ago
-                now - timedelta(days=5),   # 5 days ago
+                now - timedelta(days=1),  # 1 day ago
+                now - timedelta(days=5),  # 5 days ago
                 now - timedelta(days=10),  # 10 days ago
                 now - timedelta(days=30),  # 30 days ago
             ],
-            "file": ["A", "B", "C", "D"]
+            "file": ["A", "B", "C", "D"],
         }
 
         # Create DataFrame for backend
@@ -156,9 +151,7 @@ class TestOlderThanFilter:
         # Should get files C, D (older than 7 days)
         files = result_dict["file"]
         assert len(files) == 2, f"[{backend_name}] Expected 2 rows, got {len(files)}"
-        assert files == ["C", "D"], (
-            f"[{backend_name}] Expected ['C', 'D'], got {files}"
-        )
+        assert files == ["C", "D"], f"[{backend_name}] Expected ['C', 'D'], got {files}"
 
 
 @pytest.mark.cross_backend
@@ -172,18 +165,16 @@ class TestBetweenLastFilter:
         backend_name,
         backend_factory,
     ):
-
-
         """Test filtering for 'between X and Y ago'."""
         now = datetime.now()
         data = {
             "timestamp": [
-                now - timedelta(hours=1),   # 1 hour ago
-                now - timedelta(hours=3),   # 3 hours ago
-                now - timedelta(hours=6),   # 6 hours ago
+                now - timedelta(hours=1),  # 1 hour ago
+                now - timedelta(hours=3),  # 3 hours ago
+                now - timedelta(hours=6),  # 6 hours ago
                 now - timedelta(hours=12),  # 12 hours ago
             ],
-            "event": ["A", "B", "C", "D"]
+            "event": ["A", "B", "C", "D"],
         }
 
         # Create DataFrame for backend
@@ -197,14 +188,13 @@ class TestBetweenLastFilter:
         # Event A (1h) is too recent, D (12h) is too old
         events = result_dict["event"]
         assert len(events) == 2, f"[{backend_name}] Expected 2 rows, got {len(events)}"
-        assert events == ["B", "C"], (
-            f"[{backend_name}] Expected ['B', 'C'], got {events}"
-        )
+        assert events == ["B", "C"], f"[{backend_name}] Expected ['B', 'C'], got {events}"
 
 
 # =============================================================================
 # Integration Tests - Real-World Scenarios
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.temporal
@@ -218,8 +208,6 @@ class TestRealWorldLogFiltering:
         backend_factory,
         monkeypatch,
     ):
-
-
         """Test filtering errors from last X minutes (like journalctl)."""
         # Keep the old error on the same day: crossing midnight masks IB-DT-13.
         now = datetime(2026, 9, 15, 12, 30)
@@ -243,24 +231,20 @@ class TestRealWorldLogFiltering:
                 "Slow query detected",
                 "Startup complete",
                 "Old error",
-            ]
+            ],
         }
 
         # Create DataFrame for backend
         logs = backend_factory.create(logs_data, backend_name)
 
         # Scenario: Show errors from last 15 minutes (like journalctl)
-        expr = (
-            (ma.col("level") == ma.lit("ERROR")) &
-            within_last(ma.col("timestamp"), "15 minutes")
-        )
+        expr = (ma.col("level") == ma.lit("ERROR")) & within_last(ma.col("timestamp"), "15 minutes")
         result_dict = ma_top.relation(logs).filter(expr).to_dict()
         messages = result_dict["message"]
         assert len(messages) == 2, f"[{backend_name}] Expected 2 recent errors, got {len(messages)}"
-        assert messages == [
-            "Database connection failed",
-            "Timeout error"
-        ], f"[{backend_name}] Unexpected error messages: {messages}"
+        assert messages == ["Database connection failed", "Timeout error"], (
+            f"[{backend_name}] Unexpected error messages: {messages}"
+        )
 
     def test_cleanup_old_logs(
         self,
@@ -268,7 +252,6 @@ class TestRealWorldLogFiltering:
         backend_factory,
         monkeypatch,
     ):
-
         """Test identifying old logs for cleanup (older than 1 hour)."""
         # Keep the cutoff and old log on the same day to expose IB-DT-13.
         now = datetime(2026, 9, 15, 12, 30)
@@ -292,7 +275,7 @@ class TestRealWorldLogFiltering:
                 "Slow query detected",
                 "Startup complete",
                 "Old error",
-            ]
+            ],
         }
 
         # Create DataFrame for backend
@@ -303,14 +286,12 @@ class TestRealWorldLogFiltering:
         result_dict = ma_top.relation(logs).filter(expr).to_dict()
         messages = result_dict["message"]
         assert len(messages) == 1, f"[{backend_name}] Expected 1 old log, got {len(messages)}"
-        assert messages == ["Old error"], (
-            f"[{backend_name}] Expected ['Old error'], got {messages}"
-        )
+        assert messages == ["Old error"], f"[{backend_name}] Expected ['Old error'], got {messages}"
 
 
 @pytest.mark.integration
 @pytest.mark.temporal
-@pytest.mark.parametrize("backend_name",ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestChainingTemporalWithOtherOperations:
     """Test that temporal filters chain with other operations."""
 
@@ -328,7 +309,7 @@ class TestChainingTemporalWithOtherOperations:
                 now - timedelta(minutes=10),
             ],
             "value": [100, 200, 300],
-            "status": ["active", "active", "inactive"]
+            "status": ["active", "active", "inactive"],
         }
 
         # Create DataFrame for backend
@@ -336,15 +317,13 @@ class TestChainingTemporalWithOtherOperations:
 
         # Complex filter: recent + active + high value
         expr = (
-            within_last(ma.col("timestamp"), "8 minutes") &
-            (ma.col("status") == ma.lit("active")) &
-            (ma.col("value") > 150)
+            within_last(ma.col("timestamp"), "8 minutes")
+            & (ma.col("status") == ma.lit("active"))
+            & (ma.col("value") > 150)
         )
         result_dict = ma_top.relation(df).filter(expr).to_dict()
 
         # Should only get the middle row (5 min ago, active, value=200)
         values = result_dict["value"]
         assert len(values) == 1, f"[{backend_name}] Expected 1 row, got {len(values)}"
-        assert values == [200], (
-            f"[{backend_name}] Expected [200], got {values}"
-        )
+        assert values == [200], f"[{backend_name}] Expected [200], got {values}"

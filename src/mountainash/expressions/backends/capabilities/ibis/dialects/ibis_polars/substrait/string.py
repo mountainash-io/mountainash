@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.declarations import DivergenceManifestation
+from mountainash.core.capabilities.declarations import ManifestationKey
+from mountainash.core.capabilities.schema import CaptureValue
+from mountainash.core.capabilities.schema import DivergenceKind
+from mountainash.core.capabilities.schema import OperationTarget
+from mountainash.core.capabilities.schema import Scenario
+
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import Selector
@@ -101,6 +108,1114 @@ SEGMENT = CapabilitySegment(
             message="ibis-polars compiles regexp_string_split to Polars' native re_split, which raises Ibis's own IbisError for a dynamic (column-valued) pattern; a literal pattern works fine",
             workaround="Use a literal string pattern instead of a column reference",
             issue="IB-STR-13",
+        ),
+    ),
+    manifestations=(
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "character",
+                            CaptureValue(tag="text", value="*"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="5"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="hi"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="center width 5 computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="marked providers reject center"),
+                    ),
+                ),
+            ),
+            impact="str.center() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for str.center().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "character",
+                            CaptureValue(tag="text", value="*"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="7"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="hi"),
+                                                CaptureValue(tag="text", value="hey"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="center width 7 computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="marked providers reject center"),
+                    ),
+                ),
+            ),
+            impact="str.center() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for str.center().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "character",
+                            CaptureValue(tag="text", value="*"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="9"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="hi"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="center width 9 computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="marked providers reject center"),
+                    ),
+                ),
+            ),
+            impact="str.center() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for str.center().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="s"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "substring",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="needle"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(
+                        (
+                            "case_sensitivity",
+                            CaptureValue(tag="text", value="CASE_SENSITIVE"),
+                        ),
+                    ),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "needle",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                    (
+                                        "s",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "needle",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="pie"),
+                                                CaptureValue(tag="text", value="split"),
+                                                CaptureValue(tag="text", value="XX"),
+                                                CaptureValue(tag="text", value="dat"),
+                                            ),
+                                        ),
+                                    ),
+                                    (
+                                        "s",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="apple pie"),
+                                                CaptureValue(tag="text", value="banana split"),
+                                                CaptureValue(tag="text", value="cherry"),
+                                                CaptureValue(tag="text", value="date"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-01"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="columnar contains computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-01"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(
+                            tag="text",
+                            value="pandas raises enriched BackendCapabilityError; ibis-polars raises UnsupportedArgumentError",
+                        ),
+                    ),
+                ),
+            ),
+            impact="Columnar literal contains raises on pandas and ibis-polars.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for columnar substring patterns.",
+            issue="MA-STR-01",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "substring",
+                            CaptureValue(tag="text", value="foo.bar"),
+                        ),
+                    ),
+                    options=(
+                        (
+                            "case_sensitivity",
+                            CaptureValue(tag="text", value="CASE_INSENSITIVE"),
+                        ),
+                    ),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="Hello World"),
+                                                CaptureValue(tag="text", value="HELLO WORLD"),
+                                                CaptureValue(tag="text", value="hello world"),
+                                                CaptureValue(tag="text", value="Goodbye"),
+                                                CaptureValue(tag="text", value="foo.bar"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="case-insensitive literal contains computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="ibis-polars raises UnsupportedArgumentError"),
+                    ),
+                ),
+            ),
+            impact="Case-insensitive matching raises on ibis-polars.",
+            since="2026-08-06",
+            workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend.",
+            issue="IB-STR-11",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "substring",
+                            CaptureValue(tag="text", value="hello"),
+                        ),
+                    ),
+                    options=(
+                        (
+                            "case_sensitivity",
+                            CaptureValue(tag="text", value="CASE_INSENSITIVE"),
+                        ),
+                    ),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="Hello World"),
+                                                CaptureValue(tag="text", value="HELLO WORLD"),
+                                                CaptureValue(tag="text", value="hello world"),
+                                                CaptureValue(tag="text", value="Goodbye"),
+                                                CaptureValue(tag="text", value="foo.bar"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="case-insensitive contains computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="ibis-polars raises UnsupportedArgumentError"),
+                    ),
+                ),
+            ),
+            impact="Case-insensitive matching raises on ibis-polars.",
+            since="2026-08-06",
+            workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend.",
+            issue="IB-STR-11",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "substring",
+                            CaptureValue(tag="text", value="world"),
+                        ),
+                    ),
+                    options=(
+                        (
+                            "case_sensitivity",
+                            CaptureValue(tag="text", value="CASE_INSENSITIVE"),
+                        ),
+                    ),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="Hello World"),
+                                                CaptureValue(tag="text", value="HELLO WORLD"),
+                                                CaptureValue(tag="text", value="hello world"),
+                                                CaptureValue(tag="text", value="Goodbye"),
+                                                CaptureValue(tag="text", value="foo.bar"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="case-insensitive ends_with computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="ibis-polars raises UnsupportedArgumentError"),
+                    ),
+                ),
+            ),
+            impact="Case-insensitive matching raises on ibis-polars.",
+            since="2026-08-06",
+            workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend.",
+            issue="IB-STR-11",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "substring",
+                            CaptureValue(tag="text", value="hello"),
+                        ),
+                    ),
+                    options=(
+                        (
+                            "case_sensitivity",
+                            CaptureValue(tag="text", value="CASE_INSENSITIVE"),
+                        ),
+                    ),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="Hello World"),
+                                                CaptureValue(tag="text", value="HELLO WORLD"),
+                                                CaptureValue(tag="text", value="hello world"),
+                                                CaptureValue(tag="text", value="Goodbye"),
+                                                CaptureValue(tag="text", value="foo.bar"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="case-insensitive starts_with computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="IB-STR-11"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="ibis-polars raises UnsupportedArgumentError"),
+                    ),
+                ),
+            ),
+            impact="Case-insensitive matching raises on ibis-polars.",
+            since="2026-08-06",
+            workaround="Use ibis-duckdb/ibis-sqlite or a polars/narwhals backend.",
+            issue="IB-STR-11",
         ),
     ),
 )

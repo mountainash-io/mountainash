@@ -14,7 +14,6 @@ if TYPE_CHECKING:
         ScalarFunctionNode,
     )
 
-from mountainash.core.capabilities.divergences import divergence_by_id
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS, BackendIdentity
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
@@ -90,6 +89,7 @@ def capability_gate(
         return None
     return fact
 
+
 def whole_operation_gates(operation_keys, backend_or_name) -> tuple[CapabilityFact, ...]:
     """Enabled whole-operation build gates for canonical operation enum keys.
 
@@ -104,8 +104,10 @@ def whole_operation_gates(operation_keys, backend_or_name) -> tuple[CapabilityFa
     dialect: dict[object, CapabilityFact] = {}
     for fact in CapabilityRegistry.facts(backend=identity.family):
         if (
-            fact.operation_key not in requested_set or fact.param != WILDCARD_PARAM
-            or fact.predicate is not None or fact.option_value is not None
+            fact.operation_key not in requested_set
+            or fact.param != WILDCARD_PARAM
+            or fact.predicate is not None
+            or fact.option_value is not None
             or fact.value_class is not None
         ):
             continue
@@ -115,7 +117,8 @@ def whole_operation_gates(operation_keys, backend_or_name) -> tuple[CapabilityFa
             dialect[fact.operation_key] = fact
     resolved = family | dialect
     return tuple(
-        resolved[key] for key in requested
+        resolved[key]
+        for key in requested
         if key in resolved
         and resolved[key].level is CapabilityLevel.UNSUPPORTED
         and resolved[key].enforcement is Enforcement.GATE
@@ -169,7 +172,7 @@ def assert_capability_gated(
     )
     assert err.function_key == operation_key
     assert isinstance(err.__cause__, fact.native_errors), (
-        f"enriched error should chain the declared native cause {fact.native_errors}, " f"got {type(err.__cause__)!r}"
+        f"enriched error should chain the declared native cause {fact.native_errors}, got {type(err.__cause__)!r}"
     )
     return None
 
@@ -198,7 +201,7 @@ def assert_predicate_capability_gated(build) -> BackendCapabilityError:
     with pytest.raises(BackendCapabilityError) as ei:
         build()
     assert ei.value.limitation.predicate is not None, (
-        f"expected a predicate-gated BackendCapabilityError, got " f"limitation={ei.value.limitation!r}"
+        f"expected a predicate-gated BackendCapabilityError, got limitation={ei.value.limitation!r}"
     )
     return ei.value
 
@@ -217,25 +220,7 @@ def assert_predicate_clauses(fact: CapabilityFact, **expected: object) -> None:
         if clause.op is ClauseOp.EQ
     }
     missing = {name: value for name, value in expected.items() if actual.get(name) != getattr(value, "value", value)}
-    assert not missing, f"expected EQ clauses {missing} on {fact.operation_key} predicate; " f"actual clauses: {actual}"
-
-
-def xfail_divergence(divergence_id, *, backend, strict=True) -> pytest.MarkDecorator:
-    """Mark a test xfail when a known DivergenceFact applies to ``backend``.
-
-    Divergences are id-keyed. ``DivergenceFact.backends`` may hold dialect-scoped
-    names (e.g. "ibis-duckdb") or bare family names (e.g. "ibis"); a backend matches
-    canonically on either its literal name or its resolved family. When the divergence
-    does not apply, a no-op ``usefixtures()`` mark is returned so the test runs normally.
-    """
-    d = divergence_by_id(divergence_id)
-    fam = gate_family(backend).value  # lowercase family, e.g. "ibis" — matches DivergenceFact.backends
-    if backend not in d.backends and fam not in d.backends:
-        return pytest.mark.usefixtures()  # divergence does not apply here — no-op mark
-    return pytest.mark.xfail(
-        strict=strict,
-        reason=f"[{divergence_id}] {d.summary} — workaround: {d.workaround}",
-    )
+    assert not missing, f"expected EQ clauses {missing} on {fact.operation_key} predicate; actual clauses: {actual}"
 
 
 def build_gate_fact(

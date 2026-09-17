@@ -20,7 +20,6 @@ from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 TEMPORAL_BACKENDS = [
@@ -185,12 +184,7 @@ class TestHasNulls:
         assert actual is False
 
 
-_REMAINING_ALL_NULLS_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b))
-    if b == "ibis-duckdb"
-    else b
-    for b in ALL_BACKENDS
-]
+_REMAINING_ALL_NULLS_BACKENDS = [b for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend
