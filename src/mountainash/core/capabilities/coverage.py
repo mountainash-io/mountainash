@@ -3,6 +3,7 @@
 PURE over explicit inputs: no registry imports, no autoload, no wall clock.
 Input gathering lives in render_markdown.gather_coverage_inputs().
 """
+
 from __future__ import annotations
 
 import builtins
@@ -30,7 +31,6 @@ from mountainash.core.capabilities.schema import (
 from mountainash.core.constants import CONST_BACKEND
 
 from mountainash.core.capabilities.retired import AssertionChange
-from mountainash.core.capabilities.capture import AuthoringBundle
 from mountainash.core.capabilities.gaps import InventoryGap, gap_order_key
 
 
@@ -60,21 +60,21 @@ _UNREGISTERED_OPS: tuple[UnregisteredOp, ...] = (
         family="FKEY_MOUNTAINASH_SCALAR_COMPARISON",
         member="EQ_MISSING",
         reason="AST-level composition in api_bldr_ext_ma_scalar_comparison.eq_missing "
-               "(composes EQUAL, IS_NULL, AND, OR) — no ScalarFunctionNode dispatch",
+        "(composes EQUAL, IS_NULL, AND, OR) — no ScalarFunctionNode dispatch",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_MOUNTAINASH_SCALAR_COMPARISON",
         member="NE_MISSING",
         reason="AST-level composition in api_bldr_ext_ma_scalar_comparison.ne_missing "
-               "(composes EQUAL, IS_NULL, AND, OR, NOT) — no ScalarFunctionNode dispatch",
+        "(composes EQUAL, IS_NULL, AND, OR, NOT) — no ScalarFunctionNode dispatch",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_MOUNTAINASH_SCALAR_COMPARISON",
         member="IS_CLOSE",
         reason="AST-level composition in api_bldr_ext_ma_scalar_comparison.is_close "
-               "(composes SUBTRACT, ABS, MULTIPLY, ADD, LTE) — no ScalarFunctionNode dispatch",
+        "(composes SUBTRACT, ABS, MULTIPLY, ADD, LTE) — no ScalarFunctionNode dispatch",
         since="2026-08-07",
     ),
     # Reserved / un-implemented members — defined on the enum but no API
@@ -83,23 +83,23 @@ _UNREGISTERED_OPS: tuple[UnregisteredOp, ...] = (
         family="FKEY_MOUNTAINASH_NULL",
         member="ALWAYS_NULL",
         reason="enum member defined with a string value but no API builder method, "
-               "no registry entry, and no source-code usages — reserved for a "
-               "future null-literal op",
+        "no registry entry, and no source-code usages — reserved for a "
+        "future null-literal op",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
         member="STRING_AGG",
         reason="enum member defined but no API builder, no registry def, and no "
-               "source-code usages — string aggregate not yet wired",
+        "source-code usages — string aggregate not yet wired",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
         member="SUM0",
         reason="enum member referenced only as a fixture in "
-               "tests/expressions/argument_types/test_arg_types_aggregate.py — no "
-               "API builder, no registry def, no source-code implementation",
+        "tests/expressions/argument_types/test_arg_types_aggregate.py — no "
+        "API builder, no registry def, no source-code implementation",
         since="2026-08-07",
     ),
     # Duplicate names — the live dispatch key lives on a different family.
@@ -107,22 +107,22 @@ _UNREGISTERED_OPS: tuple[UnregisteredOp, ...] = (
         family="FKEY_SUBSTRAIT_SCALAR_BOOLEAN",
         member="IS_TRUE",
         reason="duplicate of FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_TRUE, which is the "
-               "registered dispatch key; the boolean-family member has no source-code usages",
+        "registered dispatch key; the boolean-family member has no source-code usages",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_SUBSTRAIT_SCALAR_BOOLEAN",
         member="IS_FALSE",
         reason="duplicate of FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FALSE, which is the "
-               "registered dispatch key; the boolean-family member has no source-code usages",
+        "registered dispatch key; the boolean-family member has no source-code usages",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_SUBSTRAIT_SCALAR_STRING",
         member="REGEXP_CONTAINS",
         reason="duplicate of FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS (singular "
-               "REGEX), which is the registered mountainash extension; the "
-               "substrait-family plural member has no source-code usages",
+        "REGEX), which is the registered mountainash extension; the "
+        "substrait-family plural member has no source-code usages",
         since="2026-08-07",
     ),
     # Special node constructors — handled by FieldReferenceNode / LiteralNode
@@ -133,15 +133,15 @@ _UNREGISTERED_OPS: tuple[UnregisteredOp, ...] = (
         family="FKEY_SUBSTRAIT_FIELD_REFERENCE",
         member="COL",
         reason="FieldReferenceNode constructor — col() is a dedicated node type, "
-               "not a ScalarFunctionNode dispatch key (per definitions.py line 95)",
+        "not a ScalarFunctionNode dispatch key (per definitions.py line 95)",
         since="2026-08-07",
     ),
     UnregisteredOp(
         family="FKEY_SUBSTRAIT_LITERAL",
         member="CAST",
         reason="LiteralNode constructor — lit() is a dedicated node type, not a "
-               "ScalarFunctionNode dispatch key (per definitions.py line 95); the "
-               "registered type-cast op is FKEY_SUBSTRAIT_CAST.CAST",
+        "ScalarFunctionNode dispatch key (per definitions.py line 95); the "
+        "registered type-cast op is FKEY_SUBSTRAIT_CAST.CAST",
         since="2026-08-07",
     ),
 )
@@ -175,9 +175,7 @@ class ImplState(Enum):
     UNKNOWN = "unknown"
 
 
-_IMPLEMENTED_STATES: frozenset[ImplState] = frozenset(
-    {ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER}
-)
+_IMPLEMENTED_STATES: frozenset[ImplState] = frozenset({ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER})
 
 
 @dataclass(frozen=True)
@@ -199,6 +197,7 @@ class SelectorCounts:
     metadata_selectors: int
     value_classes: int
     dialects: int
+
 
 @dataclass(frozen=True)
 class OpCoverage:
@@ -224,10 +223,7 @@ class OpCoverage:
     @property
     def contradiction(self) -> bool:
         return self.impl is ImplState.NOT_IMPLEMENTED and (
-            self.constrained
-            or bool(self.routed)
-            or bool(self.refinements)
-            or self.audited
+            self.constrained or bool(self.routed) or bool(self.refinements) or self.audited
         )
 
     @property
@@ -261,7 +257,6 @@ class CoverageStats:
 class CoverageReport:
     families: tuple[FamilyCoverage, ...]
     segments: tuple[BoundSegment, ...]
-    bundles: tuple[AuthoringBundle, ...]
     divergences: tuple[DivergenceFact, ...]
     gaps: tuple[InventoryGap, ...] | None
     changes: tuple[AssertionChange, ...]
@@ -348,6 +343,7 @@ def _validate_native_errors_builtins(
     segments: tuple[BoundSegment, ...],
 ) -> None:
     """Reject non-builtin error captures before their names become ambiguous."""
+
     def _owner(fact: CapabilityFact) -> str:
         return f"fact {fact.operation_key!r}/{fact.param}/{fact.backend}"
 
@@ -355,8 +351,7 @@ def _validate_native_errors_builtins(
         for error in fact.native_errors:
             if getattr(builtins, error.__name__, None) is not error:
                 raise ValueError(
-                    f"native_errors entry {error.__name__!r} on {label} is not a "
-                    f"builtin exception class ({error!r})"
+                    f"native_errors entry {error.__name__!r} on {label} is not a builtin exception class ({error!r})"
                 )
 
     for fact in facts:
@@ -378,20 +373,6 @@ def _validate_segments(segments: tuple[BoundSegment, ...]) -> None:
         if segment.module in addresses:
             raise ValueError(f"duplicate segment address {segment.module!r}")
         addresses.add(segment.module)
-
-def _bundle_sort_key(bundle: AuthoringBundle) -> tuple[str, str, str]:
-    address = bundle.address
-    return address.repository, address.path, address.entry
-
-
-def _validate_bundles(bundles: tuple[AuthoringBundle, ...]) -> None:
-    if type(bundles) is not tuple or any(type(bundle) is not AuthoringBundle for bundle in bundles):
-        raise TypeError("bundles require immutable AuthoringBundle captures")
-    addresses: set[object] = set()
-    for bundle in bundles:
-        if bundle.address in addresses:
-            raise ValueError(f"duplicate bundle address {bundle.address!r}")
-        addresses.add(bundle.address)
 
 
 def _validate_divergences(divergences: tuple[DivergenceFact, ...]) -> None:
@@ -417,16 +398,12 @@ def _validate_implementations(
     expected: Counter[tuple[Any, CONST_BACKEND]] = Counter(
         (r.operation_key, b) for r in universe for b in RENDERED_BACKENDS
     )
-    actual: Counter[tuple[Any, CONST_BACKEND]] = Counter(
-        (r.operation_key, r.backend) for r in implementations
-    )
+    actual: Counter[tuple[Any, CONST_BACKEND]] = Counter((r.operation_key, r.backend) for r in implementations)
     if actual == expected:
         return
     _cell_key = lambda cell: (cell[0].name, cell[1].value)  # noqa: E731 - enum members are not orderable
     missing = sorted(
-        ((op, backend)
-         for (op, backend), n in (expected - actual).items()
-         if n > 0),
+        ((op, backend) for (op, backend), n in (expected - actual).items() if n > 0),
         key=_cell_key,
     )
     duplicates = sorted(
@@ -438,26 +415,25 @@ def _validate_implementations(
     # …" double-diagnostic for one cell (T1 review). Error-path only.
     _dupe_cells = set(duplicates)
     extras = sorted(
-        ((op, backend)
-         for (op, backend), n in (actual - expected).items()
-         if n > 0 and (op, backend) not in _dupe_cells),
+        (
+            (op, backend)
+            for (op, backend), n in (actual - expected).items()
+            if n > 0 and (op, backend) not in _dupe_cells
+        ),
         key=_cell_key,
     )
     parts: list[str] = []
     if missing:
         parts.append(
-            "missing implementation record for "
-            + ", ".join(_cell_label(op, backend) for op, backend in missing)
+            "missing implementation record for " + ", ".join(_cell_label(op, backend) for op, backend in missing)
         )
     if extras:
         parts.append(
-            "unexpected implementation record for "
-            + ", ".join(_cell_label(op, backend) for op, backend in extras)
+            "unexpected implementation record for " + ", ".join(_cell_label(op, backend) for op, backend in extras)
         )
     if duplicates:
         parts.append(
-            "duplicate implementation record for "
-            + ", ".join(_cell_label(op, backend) for op, backend in duplicates)
+            "duplicate implementation record for " + ", ".join(_cell_label(op, backend) for op, backend in duplicates)
         )
     raise ValueError("; ".join(parts))
 
@@ -490,10 +466,7 @@ def is_whole_op(fact: CapabilityFact) -> bool:
     """True for whole-op GATE facts (spec §3.5): wildcard param, value-agnostic,
     no dialect. Drives the main-doc vs scoped-doc split in renderers."""
     return (
-        fact.param == WILDCARD_PARAM
-        and fact.option_value is None
-        and fact.value_class is None
-        and fact.dialect is None
+        fact.param == WILDCARD_PARAM and fact.option_value is None and fact.value_class is None and fact.dialect is None
     )
 
 
@@ -514,9 +487,7 @@ def _selector_counts(scoped: tuple[CapabilityFact, ...]) -> SelectorCounts:
     from mountainash.core.capabilities.predicates import OPERAND_TYPES_ROOT
 
     params = {f.param for f in scoped if f.param != WILDCARD_PARAM}
-    option_selectors = {
-        (f.param, f.option_value) for f in scoped if f.option_value is not None
-    }
+    option_selectors = {(f.param, f.option_value) for f in scoped if f.option_value is not None}
     metadata_selectors = {
         _clause_key(clause)
         for fact in scoped
@@ -543,12 +514,10 @@ def build_coverage_report(
     gaps: tuple[InventoryGap, ...] | None,
     changes: tuple[AssertionChange, ...],
     implementations: tuple[ImplementationRecord, ...],
-    bundles: tuple[AuthoringBundle, ...] = (),
 ) -> CoverageReport:
     _validate_backends(facts)
     _validate_dates(facts, segments, divergences, gaps, changes)
     _validate_segments(segments)
-    _validate_bundles(bundles)
     _validate_divergences(divergences)
     _validate_native_errors_builtins(facts, segments)
     _validate_implementations(universe, implementations)
@@ -560,20 +529,15 @@ def build_coverage_report(
     for f in facts:
         if f.operation_key not in universe_keys:
             raise ValueError(
-                f"fact references op outside the registered universe: "
-                f"{f.operation_key!r} ({f.param}/{f.backend})"
+                f"fact references op outside the registered universe: {f.operation_key!r} ({f.param}/{f.backend})"
             )
-        facts_by_cell.setdefault(
-            (f.operation_key, CONST_BACKEND(f.backend)), []
-        ).append(f)
+        facts_by_cell.setdefault((f.operation_key, CONST_BACKEND(f.backend)), []).append(f)
 
-    segments_by_coord: dict[
-        tuple[CONST_BACKEND, FactSource, Domain], list[BoundSegment]
-    ] = {}
+    segments_by_coord: dict[tuple[CONST_BACKEND, FactSource, Domain], list[BoundSegment]] = {}
     for segment in segments:
-        segments_by_coord.setdefault(
-            (segment.scope.backend, segment.source, segment.segment.domain), []
-        ).append(segment)
+        segments_by_coord.setdefault((segment.scope.backend, segment.source, segment.segment.domain), []).append(
+            segment
+        )
 
     # Implementation records joined by (operation_key, backend). Multiset
     # ingest guard has already verified exactly one record per cell.
@@ -593,33 +557,31 @@ def build_coverage_report(
             for backend in RENDERED_BACKENDS:
                 cell = facts_by_cell.get((rec.operation_key, backend), [])
                 buckets: dict[str, list[CapabilityFact]] = {
-                    "routed": [], "residue": [], "refinements": [], "constraints": []
+                    "routed": [],
+                    "residue": [],
+                    "refinements": [],
+                    "constraints": [],
                 }
                 for f in cell:
                     buckets[classify_fact(f)].append(f)
                 applicable = (
-                    tuple(sorted(
-                        segments_by_coord.get((backend, coord[0], coord[1]), ()),
-                        key=_segment_sort_key,
-                    ))
+                    tuple(
+                        sorted(
+                            segments_by_coord.get((backend, coord[0], coord[1]), ()),
+                            key=_segment_sort_key,
+                        )
+                    )
                     if coord is not None
                     else ()
                 )
                 constraining = buckets["constraints"] + buckets["residue"]
                 if constraining and not applicable:
                     raise ValueError(
-                        f"constraining fact without applicable segment: "
-                        f"{rec.operation_key!r} on {backend} (spec §5)"
+                        f"constraining fact without applicable segment: {rec.operation_key!r} on {backend} (spec §5)"
                     )
-                sorted_constraints = tuple(
-                    sorted(buckets["constraints"], key=fact_sort_key)
-                )
-                whole = next(
-                    (f.level for f in sorted_constraints if is_whole_op(f)), None
-                )
-                scoped = tuple(
-                    f for f in constraining if not is_whole_op(f)
-                )
+                sorted_constraints = tuple(sorted(buckets["constraints"], key=fact_sort_key))
+                whole = next((f.level for f in sorted_constraints if is_whole_op(f)), None)
+                scoped = tuple(f for f in constraining if not is_whole_op(f))
                 impl_record = impl_by_cell[(rec.operation_key, backend)]
                 ops_out.append(
                     OpCoverage(
@@ -634,19 +596,14 @@ def build_coverage_report(
                         constraints=sorted_constraints,
                         residue=tuple(sorted(buckets["residue"], key=fact_sort_key)),
                         routed=tuple(sorted(buckets["routed"], key=fact_sort_key)),
-                        refinements=tuple(
-                            sorted(buckets["refinements"], key=fact_sort_key)),
+                        refinements=tuple(sorted(buckets["refinements"], key=fact_sort_key)),
                         selector_counts=_selector_counts(scoped),
                         segments=applicable,
                     )
                 )
-        family_coverages.append(
-            FamilyCoverage(family=family_name, audit_domain=coord, ops=tuple(ops_out))
-        )
+        family_coverages.append(FamilyCoverage(family=family_name, audit_domain=coord, ops=tuple(ops_out)))
 
-    by_impl: dict[tuple[CONST_BACKEND, ImplState], int] = {
-        (b, s): 0 for b in RENDERED_BACKENDS for s in ImplState
-    }
+    by_impl: dict[tuple[CONST_BACKEND, ImplState], int] = {(b, s): 0 for b in RENDERED_BACKENDS for s in ImplState}
     default_capable: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
     audited_clean: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
     constrained: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
@@ -681,7 +638,6 @@ def build_coverage_report(
     return CoverageReport(
         families=tuple(family_coverages),
         segments=tuple(sorted(segments, key=_segment_sort_key)),
-        bundles=tuple(sorted(bundles, key=_bundle_sort_key)),
         divergences=tuple(sorted(divergences, key=lambda dv: dv.id)),
         gaps=None if gaps is None else tuple(sorted(gaps, key=gap_order_key)),
         changes=tuple(sorted(changes, key=_change_sort_key)),

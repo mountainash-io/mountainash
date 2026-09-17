@@ -1,4 +1,5 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
@@ -6,17 +7,154 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import Dialect
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.schema import Boundary
 from mountainash.core.capabilities.schema import Enforcement
 from mountainash.core.capabilities.schema import ResidueSignal
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.DATETIME, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, subject='unit', selector=Selector(kind='exact', value='1y')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[48]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[48]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, subject='unit', selector=Selector(kind='exact', value='1mo')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[49]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[49]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, subject='unit', selector=Selector(kind='exact', value='1q')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[50]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[50]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, subject='unit', selector=Selector(kind='exact', value='year')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[51]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[51]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, subject='unit', selector=Selector(kind='exact', value='quarter')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[52]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[52]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND, subject='unit', selector=Selector(kind='exact', value='month')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[5]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[53]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[53]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, subject='unit', selector=Selector(kind='exact', value='1y')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[6]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[54]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[54]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, subject='unit', selector=Selector(kind='exact', value='1mo')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[7]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[55]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[55]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, subject='unit', selector=Selector(kind='exact', value='1q')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[8]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[56]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[56]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, subject='unit', selector=Selector(kind='exact', value='year')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[9]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[57]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[57]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, subject='unit', selector=Selector(kind='exact', value='quarter')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[10]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[58]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[58]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL, subject='unit', selector=Selector(kind='exact', value='month')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[11]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.options', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[59]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0].facts[59]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[12]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.xsd', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/xsd.py', entry='DECLARATIONS[1].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='invalid XSD lexical values are converted to null by the residue policy', boundary=Boundary.MATERIALIZE, enforcement=Enforcement.MATERIALIZE_RESIDUE, signal=ResidueSignal.NON_NULL_TO_NULL), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-21', origins=(LocalOrigin(entry='capabilities[13]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.xsd', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-polars')), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/xsd.py', entry='DECLARATIONS[1].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='invalid XSD lexical values are converted to null by the residue policy', boundary=Boundary.MATERIALIZE, enforcement=Enforcement.MATERIALIZE_RESIDUE, signal=ResidueSignal.NON_NULL_TO_NULL),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/options.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/xsd.py', entry='DECLARATIONS[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.DATETIME,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+                subject="unit",
+                selector=Selector(kind="exact", value="1y"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+                subject="unit",
+                selector=Selector(kind="exact", value="1mo"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+                subject="unit",
+                selector=Selector(kind="exact", value="1q"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+                subject="unit",
+                selector=Selector(kind="exact", value="year"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+                subject="unit",
+                selector=Selector(kind="exact", value="quarter"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+                subject="unit",
+                selector=Selector(kind="exact", value="month"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+                subject="unit",
+                selector=Selector(kind="exact", value="1y"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+                subject="unit",
+                selector=Selector(kind="exact", value="1mo"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+                subject="unit",
+                selector=Selector(kind="exact", value="1q"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+                subject="unit",
+                selector=Selector(kind="exact", value="year"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+                subject="unit",
+                selector=Selector(kind="exact", value="quarter"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+                subject="unit",
+                selector=Selector(kind="exact", value="month"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="ibis's polars sub-backend translates interval addition via polars.duration(), which has no months/years kwarg -- round/ceil cannot compute the next calendar boundary (truncate/floor, which only need FLOOR, are unaffected); verified 2026-08-16, ibis 12.0.0",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="invalid XSD lexical values are converted to null by the residue policy",
+            boundary=Boundary.MATERIALIZE,
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            signal=ResidueSignal.NON_NULL_TO_NULL,
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-21",
+            message="invalid XSD lexical values are converted to null by the residue policy",
+            boundary=Boundary.MATERIALIZE,
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            signal=ResidueSignal.NON_NULL_TO_NULL,
+        ),
+    ),
+)

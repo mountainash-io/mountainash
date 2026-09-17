@@ -1,4 +1,5 @@
 """Capability spine — schema, registry, backend identity (spec 2026-07-05)."""
+
 from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
@@ -6,12 +7,10 @@ from mountainash.core.capabilities.declarations import (
     CapabilityKey,
     CapabilitySegment,
     CapabilitySegmentModule,
-    LocalOrigin,
     QualifiedCapabilityKey,
     Selector,
     Domain,
     FactSource,
-    ProbeEvidence,
     classify_domain,
     classify_source,
 )
@@ -48,7 +47,6 @@ __all__ = [
     "CapabilityKey",
     "CapabilitySegment",
     "CapabilitySegmentModule",
-    "LocalOrigin",
     "QualifiedCapabilityKey",
     "Selector",
     "CapabilityFact",
@@ -69,7 +67,6 @@ __all__ = [
     "KnownGap",
     "Predicate",
     "ResidueSignal",
-    "ProbeEvidence",
     "TargetKind",
     "ValueClass",
     "WILDCARD_PARAM",

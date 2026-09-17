@@ -1,4 +1,5 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
@@ -6,15 +7,144 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import Dialect
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.schema import ValueClass
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.DATETIME, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='MONDAY_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='NANOSECOND')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[8]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[8]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='PICOSECOND')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[9]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[9]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='SUNDAY_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[10]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[10]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='TIMEZONE_OFFSET')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[11]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[11]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='US_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[5]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[12]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[12]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='US_YEAR')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[6]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[13]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[13]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN, subject='component', selector=Selector(kind='exact', value='IS_DST')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[7]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[15]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1].facts[15]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-07-25', origins=(LocalOrigin(entry='capabilities[8]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_substrait', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[0].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-07-29', origins=(LocalOrigin(entry='capabilities[9]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_substrait', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[0].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='local_timestamp returns the UTC wall clock, not the target-zone wall clock -- ibis has no timezone method and the naive re-cast discards the conversion (verified 2026-07-29, ibis 12.0.0/duckdb: 12:00 instead of 17:30 for Asia/Kolkata)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[10]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_substrait', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[0].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[11]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_substrait', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[0].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[12]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_substrait', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=Dialect(name='ibis-duckdb')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[9]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[0].facts[9]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message="ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py"),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.DATETIME,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="MONDAY_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="NANOSECOND"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="PICOSECOND"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="SUNDAY_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="TIMEZONE_OFFSET"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="US_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="US_YEAR"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+                subject="component",
+                selector=Selector(kind="exact", value="IS_DST"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-25",
+            message="assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-29",
+            message="local_timestamp returns the UTC wall clock, not the target-zone wall clock -- ibis has no timezone method and the naive re-cast discards the conversion (verified 2026-07-29, ibis 12.0.0/duckdb: 12:00 instead of 17:30 for Asia/Kolkata)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py",
+        ),
+    ),
+)

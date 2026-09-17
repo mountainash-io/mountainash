@@ -1,4 +1,5 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
@@ -6,15 +7,124 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import Dialect
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.schema import ValueClass
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.DATETIME, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='ISO_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='ISO_YEAR')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='MONDAY_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='PICOSECOND')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='SUNDAY_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[4]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[4]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='TIMEZONE_OFFSET')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[5]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='UNIX_TIME')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[6]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[6]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[6]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='US_WEEK')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[7]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT, subject='component', selector=Selector(kind='exact', value='US_YEAR')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[8]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[8]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[8]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN, subject='component', selector=Selector(kind='exact', value='IS_DST')), level=CapabilityLevel.UNSUPPORTED, since='2026-08-15', origins=(LocalOrigin(entry='capabilities[9]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.extract', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[2].facts[18]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2].facts[18]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-07-25', origins=(LocalOrigin(entry='capabilities[10]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_substrait', scope=Scope(backend=CONST_BACKEND.NARWHALS, applicability=Dialect(name='narwhals-polars')), source=FactSource.SUBSTRAIT, domain=Domain.DATETIME, entry='DECLARATIONS[1].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[1].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone'),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/extract.py', entry='DECLARATIONS[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_substrait.py', entry='DECLARATIONS[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.DATETIME,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="ISO_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="ISO_YEAR"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="MONDAY_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="PICOSECOND"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="SUNDAY_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="TIMEZONE_OFFSET"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="UNIX_TIME"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="US_WEEK"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+                subject="component",
+                selector=Selector(kind="exact", value="US_YEAR"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+                subject="component",
+                selector=Selector(kind="exact", value="IS_DST"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-15",
+            message="extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-25",
+            message="assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone",
+        ),
+    ),
+)

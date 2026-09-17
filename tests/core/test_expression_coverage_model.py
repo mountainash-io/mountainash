@@ -1,4 +1,5 @@
 """Model-level tests for the coverage-report universe and identities."""
+
 from __future__ import annotations
 
 import enum as _enum
@@ -30,7 +31,6 @@ from mountainash.core.capabilities.declarations import (
     CapabilitySegment,
     Domain,
     FactSource,
-    LocalOrigin,
 )
 from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
 from mountainash.core.capabilities.schema import (
@@ -49,8 +49,6 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
-
-
 
 
 def _fact(**kw) -> CapabilityFact:
@@ -74,9 +72,7 @@ def _registered_universe() -> list[OpRecord]:
         RelationOperationRegistry,
     )
 
-    keys = list(ExpressionFunctionRegistry.list_all()) + list(
-        RelationOperationRegistry.list_all()
-    )
+    keys = list(ExpressionFunctionRegistry.list_all()) + list(RelationOperationRegistry.list_all())
     return [OpRecord(k, type(k).__name__) for k in keys]
 
 
@@ -138,23 +134,23 @@ def test_audit_domain_mirrors_validators():
     assert audit_domain_for(window) == (FactSource.SUBSTRAIT, Domain.WINDOW)
 
 
-
-
 def test_classify_fact_partition_by_enforcement_precedence():
     # Precedence 1: ROUTER_METADATA wins even at EXPR_CAPABLE level (legal overlap).
     # (Schema validators: EXPR_CAPABLE requires dialect; MATERIALIZE requires
     # native_errors — schema.py __post_init__.)
-    routed = _fact(level=CapabilityLevel.EXPR_CAPABLE, dialect="polars",
-                   enforcement=Enforcement.ROUTER_METADATA)
+    routed = _fact(level=CapabilityLevel.EXPR_CAPABLE, dialect="polars", enforcement=Enforcement.ROUTER_METADATA)
     assert classify_fact(routed) == "routed"
     # Precedence 2: MATERIALIZE_RESIDUE wins even at EXPR_CAPABLE level.
-    residue = _fact(level=CapabilityLevel.EXPR_CAPABLE, dialect="polars",
-                    enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                    boundary=Boundary.MATERIALIZE, native_errors=(ValueError,))
+    residue = _fact(
+        level=CapabilityLevel.EXPR_CAPABLE,
+        dialect="polars",
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        native_errors=(ValueError,),
+    )
     assert classify_fact(residue) == "residue"
     # Precedence 3: GATE + EXPR_CAPABLE (dialect-scoped refinement).
-    refinement = _fact(level=CapabilityLevel.EXPR_CAPABLE, param="input",
-                       dialect="polars")
+    refinement = _fact(level=CapabilityLevel.EXPR_CAPABLE, param="input", dialect="polars")
     assert classify_fact(refinement) == "refinements"
     # Precedence 4: GATE + constraining level.
     for level in (CapabilityLevel.UNSUPPORTED, CapabilityLevel.POLYMORPHIC):
@@ -184,12 +180,17 @@ def test_ingest_rejects_duplicate_segment_address():
 
 
 def test_ingest_rejects_duplicate_divergence_id():
-    dv = DivergenceFact(id="XX-DUP-01", kind=DivergenceKind.SEMANTICS,
-                        operation_keys=(), backends=("polars",),
-                        summary="s", impact="i", since="2026-08-01")
+    dv = DivergenceFact(
+        id="XX-DUP-01",
+        kind=DivergenceKind.SEMANTICS,
+        operation_keys=(),
+        backends=("polars",),
+        summary="s",
+        impact="i",
+        since="2026-08-01",
+    )
     with pytest.raises(ValueError, match="XX-DUP-01"):
         _validate_divergences((dv, dv))
-
 
 
 def _assertion(fact: CapabilityFact) -> CapabilityAssertion:
@@ -197,7 +198,6 @@ def _assertion(fact: CapabilityFact) -> CapabilityAssertion:
         CapabilityKey.from_fact(fact),
         fact.level,
         fact.since,
-        (LocalOrigin("fixture"),),
         message=fact.message,
         workaround=fact.workaround,
         issue=fact.upstream_ref,
@@ -216,17 +216,10 @@ def _segment(
     facts=(),
     module_suffix="",
 ):
-    if any(
-        fact.backend is not backend or fact.dialect != dialect
-        for fact in facts
-    ):
+    if any(fact.backend is not backend or fact.dialect != dialect for fact in facts):
         raise ValueError("fixture segment facts must match its scope")
     scope = Scope(backend, FamilyWide() if dialect is None else Dialect(dialect))
-    physical_scope = (
-        "family"
-        if dialect is None
-        else f"dialects.{dialect.replace('-', '_')}"
-    )
+    physical_scope = "family" if dialect is None else f"dialects.{dialect.replace('-', '_')}"
     return BoundSegment(
         f"mountainash.expressions.backends.capabilities.{backend.value}."
         f"{physical_scope}.substrait.string{module_suffix}",
@@ -239,17 +232,11 @@ def _segments(facts: tuple[CapabilityFact, ...]) -> tuple[BoundSegment, ...]:
     grouped: dict[tuple[CONST_BACKEND, str | None], list[CapabilityFact]] = {}
     for fact in facts:
         grouped.setdefault((fact.backend, fact.dialect), []).append(fact)
-    return tuple(
-        _segment(backend, dialect, tuple(group))
-        for (backend, dialect), group in grouped.items()
-    )
+    return tuple(_segment(backend, dialect, tuple(group)) for (backend, dialect), group in grouped.items())
 
 
 def _universe():
-    return tuple(
-        OpRecord(operation, type(operation).__name__)
-        for operation in (FK_STR.LPAD, FK_STR.RPAD)
-    )
+    return tuple(OpRecord(operation, type(operation).__name__) for operation in (FK_STR.LPAD, FK_STR.RPAD))
 
 
 def _impls(state=ImplState.IMPLEMENTED, overrides=None):
@@ -262,25 +249,26 @@ def _impls(state=ImplState.IMPLEMENTED, overrides=None):
         for b in RENDERED_BACKENDS:
             cell_state = overrides.get((r.operation_key, b), state)
             unknown = cell_state is ImplState.UNKNOWN
-            records.append(ImplementationRecord(
-                r.operation_key, b, cell_state,
-                None if unknown else r.operation_key.name.lower(),
-                None if unknown else "SubstraitScalarStringExpressionSystemProtocol",
-            ))
+            records.append(
+                ImplementationRecord(
+                    r.operation_key,
+                    b,
+                    cell_state,
+                    None if unknown else r.operation_key.name.lower(),
+                    None if unknown else "SubstraitScalarStringExpressionSystemProtocol",
+                )
+            )
     return tuple(records)
 
 
 def _cell(report, member, backend):
     (fam,) = report.families
-    return next(o for o in fam.ops
-                if o.op.operation_key is member and o.backend is backend)
+    return next(o for o in fam.ops if o.op.operation_key is member and o.backend is backend)
 
 
 def test_undeclared_when_no_segment():
     # No segment -> audited is False; an UNKNOWN impl still surfaces impl.
-    report = build_coverage_report(
-        _universe(), (), (), (), (), (), _impls(state=ImplState.IMPLEMENTED)
-    )
+    report = build_coverage_report(_universe(), (), (), (), (), (), _impls(state=ImplState.IMPLEMENTED))
     for fam in report.families:
         for oc in fam.ops:
             assert oc.impl is ImplState.IMPLEMENTED
@@ -289,9 +277,7 @@ def test_undeclared_when_no_segment():
 
 
 def test_audited_true_when_segment_present():
-    report = build_coverage_report(
-        _universe(), (), (_segment(),), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), (), (_segment(),), (), (), (), _impls())
     lpad_polars = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert lpad_polars.audited is True  # STRING/SUBSTRAIT segment applies
     lpad_ibis = _cell(report, FK_STR.LPAD, CONST_BACKEND.IBIS)
@@ -300,46 +286,36 @@ def test_audited_true_when_segment_present():
 
 def test_dialect_scoped_gate_constraint_constrains():
     f = _fact(param="input", dialect="polars", level=CapabilityLevel.UNSUPPORTED)
-    report = build_coverage_report(
-        _universe(), (f,), _segments((f,)), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), (f,), _segments((f,)), (), (), (), _impls())
     oc = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert oc.constrained is True
     assert oc.selector_counts.dialects == 1 and oc.selector_counts.params == 1
 
 
 def test_residue_constrains_routed_and_refinement_do_not():
-    residue = _fact(param="input", enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                    boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
-                    native_errors=(ValueError,))
-    report = build_coverage_report(
-        _universe(), (residue,), _segments((residue,)), (), (), (), _impls()
+    residue = _fact(
+        param="input",
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        level=CapabilityLevel.UNSUPPORTED,
+        native_errors=(ValueError,),
     )
-    assert _cell(report, FK_STR.LPAD,
-                 CONST_BACKEND.POLARS).constrained is True
+    report = build_coverage_report(_universe(), (residue,), _segments((residue,)), (), (), (), _impls())
+    assert _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS).constrained is True
 
-    routed = _fact(param="input", enforcement=Enforcement.ROUTER_METADATA,
-                   level=CapabilityLevel.UNSUPPORTED)
-    refinement = _fact(operation_key=FK_STR.RPAD, param="input",
-                       dialect="polars", level=CapabilityLevel.EXPR_CAPABLE)
+    routed = _fact(param="input", enforcement=Enforcement.ROUTER_METADATA, level=CapabilityLevel.UNSUPPORTED)
+    refinement = _fact(operation_key=FK_STR.RPAD, param="input", dialect="polars", level=CapabilityLevel.EXPR_CAPABLE)
     report2 = build_coverage_report(
-        _universe(), (routed, refinement), _segments((routed, refinement)),
-        (), (), (), _impls()
+        _universe(), (routed, refinement), _segments((routed, refinement)), (), (), (), _impls()
     )
-    assert _cell(report2, FK_STR.LPAD,
-                 CONST_BACKEND.POLARS).constrained is False  # routed-only is clean
-    assert _cell(report2, FK_STR.RPAD,
-                 CONST_BACKEND.POLARS).constrained is False  # refinement-only clean
+    assert _cell(report2, FK_STR.LPAD, CONST_BACKEND.POLARS).constrained is False  # routed-only is clean
+    assert _cell(report2, FK_STR.RPAD, CONST_BACKEND.POLARS).constrained is False  # refinement-only clean
 
 
 def test_whole_op_and_scoped_compose():
     whole = _fact(level=CapabilityLevel.POLYMORPHIC)  # wildcard, value-agnostic
-    scoped = _fact(param="input", level=CapabilityLevel.UNSUPPORTED,
-                   option_value="strict")
-    report = build_coverage_report(
-        _universe(), (whole, scoped), _segments((whole, scoped)), (), (), (),
-        _impls()
-    )
+    scoped = _fact(param="input", level=CapabilityLevel.UNSUPPORTED, option_value="strict")
+    report = build_coverage_report(_universe(), (whole, scoped), _segments((whole, scoped)), (), (), (), _impls())
     oc = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert oc.whole_op is CapabilityLevel.POLYMORPHIC
     assert oc.selector_counts.option_selectors == 1
@@ -351,12 +327,10 @@ def test_selector_counts_are_distinct_key_sets():
         _fact(param="characters", option_value="x", level=CapabilityLevel.UNSUPPORTED),
         _fact(param="length", option_value="y", level=CapabilityLevel.UNSUPPORTED),
     )
-    report = build_coverage_report(
-        _universe(), fs, _segments(fs), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), fs, _segments(fs), (), (), (), _impls())
     sc = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS).selector_counts
-    assert sc.params == 2                 # {length, characters}
-    assert sc.option_selectors == 3       # {(length,x),(characters,x),(length,y)}
+    assert sc.params == 2  # {length, characters}
+    assert sc.option_selectors == 3  # {(length,x),(characters,x),(length,y)}
 
 
 def test_selector_counts_value_classes_and_dialects():
@@ -365,40 +339,39 @@ def test_selector_counts_value_classes_and_dialects():
     vc_member = next(iter(ValueClass))
     fs = (
         # value-class facts need non-wildcard param, no option_value, BUILD boundary.
-        _fact(param="input", value_class=vc_member,
-              backend=CONST_BACKEND.IBIS, level=CapabilityLevel.UNSUPPORTED),
-        _fact(param="input", value_class=vc_member, backend=CONST_BACKEND.IBIS,
-              dialect="ibis-duckdb", level=CapabilityLevel.UNSUPPORTED),
-        _fact(param="input", backend=CONST_BACKEND.IBIS, dialect="ibis-sqlite",
-              level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="input", value_class=vc_member, backend=CONST_BACKEND.IBIS, level=CapabilityLevel.UNSUPPORTED),
+        _fact(
+            param="input",
+            value_class=vc_member,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-duckdb",
+            level=CapabilityLevel.UNSUPPORTED,
+        ),
+        _fact(param="input", backend=CONST_BACKEND.IBIS, dialect="ibis-sqlite", level=CapabilityLevel.UNSUPPORTED),
     )
-    report = build_coverage_report(
-        _universe(), fs, _segments(fs), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), fs, _segments(fs), (), (), (), _impls())
     sc = _cell(report, FK_STR.LPAD, CONST_BACKEND.IBIS).selector_counts
-    assert sc.value_classes == 1          # deduplicated ValueClass set
-    assert sc.dialects == 2               # {ibis-duckdb, ibis-sqlite}
+    assert sc.value_classes == 1  # deduplicated ValueClass set
+    assert sc.dialects == 2  # {ibis-duckdb, ibis-sqlite}
 
 
 def test_selector_counts_keep_metadata_clauses_out_of_option_selectors():
     metadata = (
         _fact(
             param="input",
-            predicate=Predicate((
-                Clause("__operand_types__.input.storage_kind", ClauseOp.EQ, "polars_object"),
-            )),
+            predicate=Predicate((Clause("__operand_types__.input.storage_kind", ClauseOp.EQ, "polars_object"),)),
         ),
         _fact(
             param="input",
-            predicate=Predicate((
-                Clause("__operand_types__.input.storage_kind", ClauseOp.EQ, "polars_object"),
-                Clause("__operand_types__.input.logical_kind", ClauseOp.EQ, "float"),
-            )),
+            predicate=Predicate(
+                (
+                    Clause("__operand_types__.input.storage_kind", ClauseOp.EQ, "polars_object"),
+                    Clause("__operand_types__.input.logical_kind", ClauseOp.EQ, "float"),
+                )
+            ),
         ),
     )
-    report = build_coverage_report(
-        _universe(), metadata, _segments(metadata), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), metadata, _segments(metadata), (), (), (), _impls())
 
     counts = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS).selector_counts
     assert counts.metadata_selectors == 2
@@ -414,17 +387,12 @@ def test_constraining_fact_without_segment_raises():
 def test_fact_partition_exactly_once():
     fs = (
         _fact(level=CapabilityLevel.UNSUPPORTED),
-        _fact(param="input", enforcement=Enforcement.ROUTER_METADATA,
-              level=CapabilityLevel.UNSUPPORTED),
+        _fact(param="input", enforcement=Enforcement.ROUTER_METADATA, level=CapabilityLevel.UNSUPPORTED),
         _fact(param="input", dialect="polars", level=CapabilityLevel.EXPR_CAPABLE),
     )
-    report = build_coverage_report(
-        _universe(), fs, _segments(fs), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), fs, _segments(fs), (), (), (), _impls())
     scattered = [f for fam in report.families for oc in fam.ops for f in oc.all_facts]
     assert sorted(map(id, scattered)) == sorted(map(id, fs))
-
-
 
 
 # --- Task 1 new tests (rev 5 model cutover) ---
@@ -461,9 +429,7 @@ def test_not_implemented_with_constraining_fact_is_contradiction():
     # contradiction count isolates to the one cell we want to assert.
     overrides = {(FK_STR.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED}
     impls = _impls(overrides=overrides)
-    report = build_coverage_report(
-        _universe(), (f,), _segments((f,)), (), (), (), impls
-    )
+    report = build_coverage_report(_universe(), (f,), _segments((f,)), (), (), (), impls)
     oc = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert oc.impl is ImplState.NOT_IMPLEMENTED
     assert oc.constrained is True
@@ -476,9 +442,7 @@ def test_not_implemented_with_segment_only_is_contradiction():
     # must be surfaced as a contradiction too.
     overrides = {(FK_STR.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED}
     impls = _impls(overrides=overrides)
-    report = build_coverage_report(
-        _universe(), (), (_segment(),), (), (), (), impls
-    )
+    report = build_coverage_report(_universe(), (), (_segment(),), (), (), (), impls)
     oc = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert oc.audited is True
     assert oc.constrained is False
@@ -488,9 +452,7 @@ def test_not_implemented_with_segment_only_is_contradiction():
 
 def test_unknown_with_segment_is_audited_unknown_not_contradiction():
     impls = _impls(state=ImplState.UNKNOWN)
-    report = build_coverage_report(
-        _universe(), (), (_segment(),), (), (), (), impls
-    )
+    report = build_coverage_report(_universe(), (), (_segment(),), (), (), (), impls)
     for fam in report.families:
         for oc in fam.ops:
             assert oc.impl is ImplState.UNKNOWN
@@ -503,12 +465,9 @@ def test_unknown_with_segment_is_audited_unknown_not_contradiction():
 
 
 def test_routed_only_cell_is_clean_and_default_capable():
-    routed = _fact(param="input", enforcement=Enforcement.ROUTER_METADATA,
-                   level=CapabilityLevel.UNSUPPORTED)
+    routed = _fact(param="input", enforcement=Enforcement.ROUTER_METADATA, level=CapabilityLevel.UNSUPPORTED)
     impls = _impls()
-    report = build_coverage_report(
-        _universe(), (routed,), _segments((routed,)), (), (), (), impls
-    )
+    report = build_coverage_report(_universe(), (routed,), _segments((routed,)), (), (), (), impls)
     oc = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert oc.constrained is False
     # Routed is an annotation, not a constraint — it does NOT count as
@@ -517,10 +476,7 @@ def test_routed_only_cell_is_clean_and_default_capable():
     # (the segment's (backend, source, domain) coordinate covers the family),
     # so POLARS's audited_clean is the only bucket they enter.
     assert report.stats.constrained[CONST_BACKEND.POLARS] == 0
-    pol_clean = (
-        report.stats.audited_clean[CONST_BACKEND.POLARS]
-        + report.stats.default_capable[CONST_BACKEND.POLARS]
-    )
+    pol_clean = report.stats.audited_clean[CONST_BACKEND.POLARS] + report.stats.default_capable[CONST_BACKEND.POLARS]
     assert pol_clean == 2  # both ops are clean on POLARS
     # And audited_clean carries the audited half (the segment applies to
     # the whole STRING family on POLARS, not just to ops with facts in it).
@@ -529,21 +485,25 @@ def test_routed_only_cell_is_clean_and_default_capable():
 
 def test_per_backend_sum_law_holds():
     # Mixed report: one constrained, one clean, one UNKNOWN, one NOT_IMPLEMENTED.
-    residue = _fact(param="input", enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                    boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
-                    native_errors=(ValueError,))
-    routed = _fact(operation_key=FK_STR.RPAD, param="input",
-                   enforcement=Enforcement.ROUTER_METADATA,
-                   level=CapabilityLevel.UNSUPPORTED)
+    residue = _fact(
+        param="input",
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        level=CapabilityLevel.UNSUPPORTED,
+        native_errors=(ValueError,),
+    )
+    routed = _fact(
+        operation_key=FK_STR.RPAD,
+        param="input",
+        enforcement=Enforcement.ROUTER_METADATA,
+        level=CapabilityLevel.UNSUPPORTED,
+    )
     overrides = {
         (FK_STR.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED,
         (FK_STR.RPAD, CONST_BACKEND.POLARS): ImplState.UNKNOWN,
     }
     impls = _impls(overrides=overrides)
-    report = build_coverage_report(
-        _universe(), (residue, routed), _segments((residue, routed)),
-        (), (), (), impls
-    )
+    report = build_coverage_report(_universe(), (residue, routed), _segments((residue, routed)), (), (), (), impls)
     ops_total = report.stats.ops_total
     for b in RENDERED_BACKENDS:
         s = report.stats
@@ -570,12 +530,10 @@ def test_determinism_under_shuffled_implementations():
     out2 = build_coverage_report(_universe(), fs, segments, (), (), (), tuple(reversed(impls)))
     # Compare the OpCoverage tuples cell-by-cell.
     cells1 = sorted(
-        (oc.op.operation_key.name, str(oc.backend), oc.impl, oc.audited)
-        for fam in out1.families for oc in fam.ops
+        (oc.op.operation_key.name, str(oc.backend), oc.impl, oc.audited) for fam in out1.families for oc in fam.ops
     )
     cells2 = sorted(
-        (oc.op.operation_key.name, str(oc.backend), oc.impl, oc.audited)
-        for fam in out2.families for oc in fam.ops
+        (oc.op.operation_key.name, str(oc.backend), oc.impl, oc.audited) for fam in out2.families for oc in fam.ops
     )
     assert cells1 == cells2
     # Stats must also be deterministic over the shuffled implementations.
@@ -602,11 +560,10 @@ def test_whole_op_helpers_classify_facts():
 def test_segments_are_sorted_by_physical_address():
     last = _segment(module_suffix=".z")
     first = _segment(module_suffix=".a")
-    report = build_coverage_report(
-        _universe(), (), (last, first), (), (), (), _impls()
-    )
+    report = build_coverage_report(_universe(), (), (last, first), (), (), (), _impls())
     assert tuple(segment.module for segment in report.segments) == (
-        first.module, last.module,
+        first.module,
+        last.module,
     )
     polars_cell = _cell(report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert polars_cell.segments == (first, last)
@@ -614,9 +571,7 @@ def test_segments_are_sorted_by_physical_address():
 
 def test_impl_protocol_carried_for_known_states_and_none_for_unknown():
     # IMPLEMENTED: protocol_name from record, method_name from record.
-    impl_report = build_coverage_report(
-        _universe(), (), (), (), (), (), _impls(state=ImplState.IMPLEMENTED)
-    )
+    impl_report = build_coverage_report(_universe(), (), (), (), (), (), _impls(state=ImplState.IMPLEMENTED))
     lpad_polars = _cell(impl_report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert lpad_polars.impl is ImplState.IMPLEMENTED
     assert lpad_polars.impl_protocol == "SubstraitScalarStringExpressionSystemProtocol"
@@ -625,55 +580,49 @@ def test_impl_protocol_carried_for_known_states_and_none_for_unknown():
     # IMPLEMENTED_VIA_HANDLER: protocol_name is the literal "handler".
     via_handler_impls = [
         ImplementationRecord(
-            r.operation_key, b, ImplState.IMPLEMENTED_VIA_HANDLER,
-            "handler_qualname", "handler",
+            r.operation_key,
+            b,
+            ImplState.IMPLEMENTED_VIA_HANDLER,
+            "handler_qualname",
+            "handler",
         )
         for r in _universe()
         for b in RENDERED_BACKENDS
     ]
-    via_handler_report = build_coverage_report(
-        _universe(), (), (), (), (), (), tuple(via_handler_impls)
-    )
-    lpad_handler = _cell(via_handler_report, FK_STR.LPAD,
-                         CONST_BACKEND.POLARS)
+    via_handler_report = build_coverage_report(_universe(), (), (), (), (), (), tuple(via_handler_impls))
+    lpad_handler = _cell(via_handler_report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert lpad_handler.impl is ImplState.IMPLEMENTED_VIA_HANDLER
     assert lpad_handler.impl_protocol == "handler"
     assert lpad_handler.impl_method == "handler_qualname"
 
     # NOT_IMPLEMENTED: still carries provenance (per spec §3.6, method_name
     # is the protocol-method name; protocol_name is the protocol class).
-    ni_overrides = {
-        (FK_STR.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED
-    }
+    ni_overrides = {(FK_STR.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED}
     ni_impls = _impls(overrides=ni_overrides)
-    ni_report = build_coverage_report(
-        _universe(), (), (), (), (), (), ni_impls
-    )
+    ni_report = build_coverage_report(_universe(), (), (), (), (), (), ni_impls)
     lpad_not_implemented = _cell(ni_report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert lpad_not_implemented.impl is ImplState.NOT_IMPLEMENTED
     assert lpad_not_implemented.impl_protocol == "SubstraitScalarStringExpressionSystemProtocol"
     assert lpad_not_implemented.impl_method == "lpad"
 
     # UNKNOWN: both provenance fields None.
-    unknown_report = build_coverage_report(
-        _universe(), (), (), (), (), (), _impls(state=ImplState.UNKNOWN)
-    )
-    lpad_unknown = _cell(unknown_report, FK_STR.LPAD,
-                         CONST_BACKEND.POLARS)
+    unknown_report = build_coverage_report(_universe(), (), (), (), (), (), _impls(state=ImplState.UNKNOWN))
+    lpad_unknown = _cell(unknown_report, FK_STR.LPAD, CONST_BACKEND.POLARS)
     assert lpad_unknown.impl is ImplState.UNKNOWN
     assert lpad_unknown.impl_protocol is None
     assert lpad_unknown.impl_method is None
-
-
 
 
 def test_ingest_rejects_non_builtin_native_errors_on_top_level_facts():
     class _LocalError(Exception):
         pass
 
-    bad = _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
-                native_errors=(_LocalError,))
+    bad = _fact(
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        level=CapabilityLevel.UNSUPPORTED,
+        native_errors=(_LocalError,),
+    )
     with pytest.raises(ValueError, match="_LocalError"):
         _validate_native_errors_builtins((bad,), ())
 
@@ -682,9 +631,12 @@ def test_ingest_rejects_non_builtin_native_errors_on_nested_facts():
     class _OtherError(Exception):
         pass
 
-    valid = _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                  boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
-                  native_errors=(ValueError,))
+    valid = _fact(
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        level=CapabilityLevel.UNSUPPORTED,
+        native_errors=(ValueError,),
+    )
     segment = _segment(facts=(valid,))
     # Deliberately bypass frozen facts to exercise publication-time rejection.
     object.__setattr__(segment.facts[0], "native_errors", (_OtherError,))
@@ -693,9 +645,12 @@ def test_ingest_rejects_non_builtin_native_errors_on_nested_facts():
 
 
 def test_ingest_accepts_builtin_native_errors():
-    builtin = _fact(enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                    boundary=Boundary.MATERIALIZE, level=CapabilityLevel.UNSUPPORTED,
-                    native_errors=(ValueError, TypeError))
+    builtin = _fact(
+        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        boundary=Boundary.MATERIALIZE,
+        level=CapabilityLevel.UNSUPPORTED,
+        native_errors=(ValueError, TypeError),
+    )
     _validate_native_errors_builtins((builtin,), ())  # no raise
     # Empty native_errors tuple is also fine (BUILD-boundary facts).
     _validate_native_errors_builtins((_fact(),), ())

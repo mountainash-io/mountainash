@@ -4,6 +4,7 @@
 The committed artifact must equal the regenerated output byte-for-byte
 (spec §4.5). On failure: hatch -e test run python -m mountainash.core.capabilities.render_markdown
 """
+
 from __future__ import annotations
 
 import json
@@ -88,14 +89,12 @@ def _matrix_body(doc: str) -> str:
 )
 def test_coverage_doc_is_current(report, rel_path, renderer):
     committed = (_REPO_ROOT / rel_path).read_text(encoding="utf-8")
-    assert committed == renderer(report), (
-        f"{rel_path} is stale; regenerate with: {_REGEN_CMD}"
-    )
+    assert committed == renderer(report), f"{rel_path} is stale; regenerate with: {_REGEN_CMD}"
 
 
 # JSON completeness invariant: parsing the committed artifact recovers the
-# fact multiset, operation universe, segment/bundle/divergence/gap/change
-# counts, and per-backend statistics from the live model.
+# fact multiset, operation universe, segment/divergence/gap/change counts,
+# and per-backend statistics from the live model.
 # ---------------------------------------------------------------------------
 
 
@@ -143,9 +142,7 @@ def _json_fact_identity(f_dict: dict) -> tuple:
     )
 
 
-def _json_fact_multiset(
-    obj: dict, universe: tuple[OpRecord, ...]
-) -> list:
+def _json_fact_multiset(obj: dict, universe: tuple[OpRecord, ...]) -> list:
     """Every fact across every cell, as (op_identity, backend, identity_tuple)
     tuples — sorted, ready for multiset equality."""
     key_to_member = {(r.family, r.operation_key.name): r for r in universe}
@@ -168,11 +165,13 @@ def _model_fact_multiset(report: CoverageReport) -> list:
         for oc in fam.ops:
             for bucket in (oc.constraints, oc.residue, oc.routed, oc.refinements):
                 for f in bucket:
-                    out.append((
-                        (type(f.operation_key).__name__, f.operation_key.name),
-                        f.backend.value,
-                        fact_sort_key(f),
-                    ))
+                    out.append(
+                        (
+                            (type(f.operation_key).__name__, f.operation_key.name),
+                            f.backend.value,
+                            fact_sort_key(f),
+                        )
+                    )
     return sorted(out)
 
 
@@ -197,7 +196,6 @@ def test_committed_json_matches_live_model(inputs, report):
 
     # 2. Counts.
     assert len(obj["segments"]) == len(report.segments)
-    assert len(obj["historical_bundles"]) == len(report.bundles)
     assert len(obj["divergences"]) == len(report.divergences)
     assert obj["gaps"] is None  # Package-only reporting did not request guard inventories.
     assert len(obj["changes"]) == len(report.changes)
@@ -232,25 +230,15 @@ def test_committed_json_matches_live_model(inputs, report):
 def test_universe_partition_exact(inputs, report):
     from collections import Counter
 
-    scattered = Counter(
-        (oc.op.family, oc.op.operation_key.name)
-        for fam in report.families
-        for oc in fam.ops
-    )
-    expected = Counter(
-        {(r.family, r.operation_key.name): 3 for r in inputs["universe"]}
-    )
-    assert scattered == expected, (
-        "universe not partitioned exactly across families×backends"
-    )
+    scattered = Counter((oc.op.family, oc.op.operation_key.name) for fam in report.families for oc in fam.ops)
+    expected = Counter({(r.family, r.operation_key.name): 3 for r in inputs["universe"]})
+    assert scattered == expected, "universe not partitioned exactly across families×backends"
 
 
 def test_every_fact_bucketed_exactly_once(inputs, report):
     from collections import Counter
 
-    scattered = Counter(
-        id(f) for fam in report.families for oc in fam.ops for f in oc.all_facts
-    )
+    scattered = Counter(id(f) for fam in report.families for oc in fam.ops for f in oc.all_facts)
     original = Counter(id(f) for f in inputs["facts"])
     assert scattered == original
 
@@ -261,23 +249,16 @@ def test_segments_rendered_exactly_once(inputs, report):
     assert report_modules == sorted(input_modules)
 
     doc = render_markdown(report)
-    active_body = doc.split("### Active segments", 1)[1].split(
-        "### Captured historical waves", 1
-    )[0]
+    active_body = doc.split("### Active segments", 1)[1].split("\n## ", 1)[0]
     rows = [
-        line for line in active_body.splitlines()
+        line
+        for line in active_body.splitlines()
         if line.startswith("|") and "---" not in line and not line.startswith("| Module")
     ]
     assert len(rows) == len(report.segments)
     for segment in report.segments:
         assert any(segment.module in row for row in rows)
 
-    historical_body = doc.split("### Captured historical waves", 1)[1].split("\n## ", 1)[0]
-    historical_rows = [
-        line for line in historical_body.splitlines()
-        if line.startswith("|") and "---" not in line and not line.startswith("| Backend")
-    ]
-    assert len(historical_rows) == len(report.bundles)
 
 def test_gaps_and_changes_rendered_exactly_once(report):
     doc = render_markdown(report)
@@ -286,8 +267,7 @@ def test_gaps_and_changes_rendered_exactly_once(report):
         ("## Assertion change history", report.changes),
     ):
         body = doc.split(heading, 1)[1].split("\n## ", 1)[0]
-        rows = [ln for ln in body.splitlines()
-                if ln.startswith("|") and "---" not in ln]
+        rows = [ln for ln in body.splitlines() if ln.startswith("|") and "---" not in ln]
         expected = len(records) + 1 if records else 0
         assert len(rows) == expected
 
@@ -368,8 +348,6 @@ def test_per_backend_sum_law_in_live_report(report):
         )
 
 
-
-
 # ---------------------------------------------------------------------------
 # PYTHONHASHSEED byte-identity test (spec §4.4 M-6 / M-7 / plan-review I2):
 # determinism rests on insertion order — every dict populated by iterating
@@ -402,8 +380,7 @@ def test_artifact_byte_identity_under_hash_seed(renderer):
             timeout=300,
         )
         assert not result.stderr, (
-            f"PYTHONHASHSEED={seed} subprocess emitted stderr: "
-            f"{result.stderr.decode('utf-8', errors='replace')}"
+            f"PYTHONHASHSEED={seed} subprocess emitted stderr: {result.stderr.decode('utf-8', errors='replace')}"
         )
         captured.append(result.stdout)
     assert captured[0] == captured[1], (

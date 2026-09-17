@@ -1,18 +1,114 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import FamilyWide
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.STRING, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject='substring'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars does not support dynamic column patterns in str.replace', workaround='Use a literal string substring; replacement can be a column reference', issue='PL-STR-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject='pattern'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars does not support dynamic column patterns in str.replace_all/str.replace with regex', workaround='Use a literal string regex pattern; replacement can be a column reference', issue='PL-STR-02'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT, subject='count'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.repeat() requires a literal integer count, not a column expression', workaround='Use a literal integer count value', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject='length'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.center() requires a literal integer length, not a column expression', workaround='Use a literal integer length value', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject='character'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[4]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[4]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.center() requires a single literal fill character, not a column expression', workaround='Use a literal single-character string', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE, subject='start'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[5]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.replace_slice() requires a literal integer start, not a column expression', workaround='Use a literal integer start value', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE, subject='length'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[6]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[6]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[6]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.replace_slice() requires a literal integer length, not a column expression', workaround='Use a literal integer length value', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, subject='characters'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[7]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.pad_start() requires a single literal fill character, not a column expression', workaround='Use a literal single-character string', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, subject='characters'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[8]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[8]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[8]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.pad_end() requires a single literal fill character, not a column expression', workaround='Use a literal single-character string', issue='PL-STR-03'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject='match'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[9]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[9]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[9]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars LIKE requires a literal pattern — the SQL-LIKE to regex conversion happens in Python', workaround='Use a literal SQL LIKE pattern string', probe_exempt='dynamic arg silently miscompiles: the SQL-LIKE→regex conversion runs on str(Expr), producing a pattern that matches nothing rather than raising — cannot be confirmed by an exception-based probe'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE, subject='replacement'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[10]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[0].facts[10]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0].facts[10]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars str.replace_slice() requires a literal replacement string, not a column expression', workaround='Use a literal replacement string', probe_exempt="dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe"), CapabilityAssertion(key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject='pattern'), level=CapabilityLevel.LITERAL_ONLY, since='2026-08-13', origins=(LocalOrigin(entry='capabilities[11]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.polars', scope=Scope(backend=CONST_BACKEND.POLARS, applicability=FamilyWide()), source=FactSource.SUBSTRAIT, domain=Domain.STRING, entry='DECLARATIONS[1].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[1].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Polars regexp_string_split requires a literal pattern -- the map_elements fallback binds pattern as a Python closure value, not a column expression', workaround='Use a literal string regex pattern', issue='PL-STR-04'),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/polars.py', entry='DECLARATIONS[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.STRING,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject="substring"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars does not support dynamic column patterns in str.replace",
+            workaround="Use a literal string substring; replacement can be a column reference",
+            issue="PL-STR-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="pattern"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars does not support dynamic column patterns in str.replace_all/str.replace with regex",
+            workaround="Use a literal string regex pattern; replacement can be a column reference",
+            issue="PL-STR-02",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT, subject="count"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.repeat() requires a literal integer count, not a column expression",
+            workaround="Use a literal integer count value",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject="length"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.center() requires a literal integer length, not a column expression",
+            workaround="Use a literal integer length value",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject="character"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.center() requires a single literal fill character, not a column expression",
+            workaround="Use a literal single-character string",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE, subject="start"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.replace_slice() requires a literal integer start, not a column expression",
+            workaround="Use a literal integer start value",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE, subject="length"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.replace_slice() requires a literal integer length, not a column expression",
+            workaround="Use a literal integer length value",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, subject="characters"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.pad_start() requires a single literal fill character, not a column expression",
+            workaround="Use a literal single-character string",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, subject="characters"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.pad_end() requires a single literal fill character, not a column expression",
+            workaround="Use a literal single-character string",
+            issue="PL-STR-03",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject="match"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars LIKE requires a literal pattern — the SQL-LIKE to regex conversion happens in Python",
+            workaround="Use a literal SQL LIKE pattern string",
+            probe_exempt="dynamic arg silently miscompiles: the SQL-LIKE→regex conversion runs on str(Expr), producing a pattern that matches nothing rather than raising — cannot be confirmed by an exception-based probe",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE, subject="replacement"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Polars str.replace_slice() requires a literal replacement string, not a column expression",
+            workaround="Use a literal replacement string",
+            probe_exempt="dynamic arg silently miscompiles: str(Expr) bakes the unresolved expression's Python repr into the output as a literal string rather than raising — cannot be confirmed by an exception-based probe",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject="pattern"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-08-13",
+            message="Polars regexp_string_split requires a literal pattern -- the map_elements fallback binds pattern as a Python closure value, not a column expression",
+            workaround="Use a literal string regex pattern",
+            issue="PL-STR-04",
+        ),
+    ),
+)

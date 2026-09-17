@@ -19,9 +19,11 @@ from mountainash.core.capabilities import (
     load_all_capability_declarations,
 )
 from mountainash.core.capabilities import bootstrap
-from mountainash.core.capabilities.capture import CapturedAddress
 from mountainash.core.capabilities.declarations import (
-    BoundSegment, CapabilityAssertion, CapabilityKey, CapabilitySegment, LocalOrigin,
+    BoundSegment,
+    CapabilityAssertion,
+    CapabilityKey,
+    CapabilitySegment,
 )
 from mountainash.core.capabilities.identity import FamilyWide, Scope
 from mountainash.core.capabilities.registry import _empty_state, _LoadState
@@ -35,13 +37,19 @@ def _decl(*subjects, suffix=""):
     return BoundSegment(
         "mountainash.expressions.backends.capabilities.ibis.family.substrait.string" + suffix,
         Scope(CONST_BACKEND.IBIS, FamilyWide()),
-        CapabilitySegment(Domain.STRING, tuple(
-            CapabilityAssertion(
-                CapabilityKey(FK_STR.CENTER, subject), CapabilityLevel.LITERAL_ONLY,
-                "2026-08-07", (LocalOrigin(subject),), message="test", probe_exempt="test",
-            )
-            for subject in (subjects or ("length",))
-        )),
+        CapabilitySegment(
+            Domain.STRING,
+            tuple(
+                CapabilityAssertion(
+                    CapabilityKey(FK_STR.CENTER, subject),
+                    CapabilityLevel.LITERAL_ONLY,
+                    "2026-08-07",
+                    message="test",
+                    probe_exempt="test",
+                )
+                for subject in (subjects or ("length",))
+            ),
+        ),
     )
 
 
@@ -62,26 +70,32 @@ def test_reset_disables_autoload():
         load_all_capability_declarations()
 
 
-def test_segment_publication_keeps_origins_atomic():
+def test_segment_publication_keeps_derived_origins_atomic():
     from mountainash.core.capabilities.declarations import (
-        BoundSegment, CapabilityAssertion, CapabilityKey, CapabilitySegment, LocalOrigin,
+        BoundSegment,
+        CapabilityAssertion,
+        CapabilityKey,
+        CapabilitySegment,
     )
     from mountainash.core.capabilities.identity import FamilyWide, Scope
 
     CapabilityRegistry.reset()
     scope = Scope(CONST_BACKEND.IBIS, FamilyWide())
     assertion = CapabilityAssertion(
-        CapabilityKey(FK_STR.CENTER, "length"), CapabilityLevel.LITERAL_ONLY,
-        "2026-08-07", (LocalOrigin("center"),), message="test",
+        CapabilityKey(FK_STR.CENTER, "length"),
+        CapabilityLevel.LITERAL_ONLY,
+        "2026-08-07",
+        message="test",
     )
     segment = BoundSegment(
         "mountainash.expressions.backends.capabilities.ibis.family.substrait.string",
-        scope, CapabilitySegment(Domain.STRING, (assertion,)),
+        scope,
+        CapabilitySegment(Domain.STRING, (assertion,)),
     )
     CapabilityRegistry.register_segment(segment)
     before = CapabilityRegistry.snapshot()
     origins = CapabilityRegistry.origins()
-    assert tuple(origins.values())[0][0].entry == "center"
+    assert tuple(origins.values())[0][0].entry == "capabilities[0]"
     with pytest.raises(ValueError, match="duplicate"):
         CapabilityRegistry.register_segment(segment)
     assert CapabilityRegistry.snapshot() is before
@@ -89,21 +103,6 @@ def test_segment_publication_keeps_origins_atomic():
     CapabilityRegistry.reset()
     CapabilityRegistry.restore(before)
     assert CapabilityRegistry.origins() is origins
-
-
-def test_empty_declaration_evidence_survives_load_and_restore(monkeypatch):
-    template = _decl()
-    empty = replace(template, segment=CapabilitySegment(
-        Domain.STRING,
-        evidence_refs=(CapturedAddress("mountainash", "empty.py", "bundle", artifact=b"empty"),),
-    ))
-    monkeypatch.setattr(bootstrap, "_load_segments", lambda: (empty,))
-    load_all_capability_declarations()
-    assert CapabilityRegistry.segments() == (empty,)
-    snap = CapabilityRegistry.snapshot()
-    CapabilityRegistry.reset()
-    CapabilityRegistry.restore(snap)
-    assert CapabilityRegistry._report_inputs() == ((), (empty,))
 
 
 def test_late_load_failure_retains_prior_data_and_original_error(monkeypatch):
@@ -272,8 +271,10 @@ def test_registration_failure_keeps_original_facts_and_declarations():
     prior = _decl()
     CapabilityRegistry.register_segment(prior)
     late = _decl("character", "length", suffix=".late")
-    with pytest.raises(ValueError, match="duplicate"):
+    with pytest.raises(ValueError, match="duplicate") as error:
         CapabilityRegistry.register_segment(late)
+    assert f"{prior.module}:capabilities[0]" in str(error.value)
+    assert f"{late.module}:capabilities[1]" in str(error.value)
     assert CapabilityRegistry.facts() == list(prior.facts)
     assert CapabilityRegistry.segments() == (prior,)
 
@@ -376,11 +377,7 @@ def test_loader_uses_declared_root_source_not_cached_leaf_file(monkeypatch):
             package.mkdir(parents=True, exist_ok=True)
             (package / "__init__.py").touch()
         source_path = package / "string.py"
-        changed = (
-            original
-            + b"\nfrom dataclasses import replace\n"
-            + b"SEGMENT = replace(SEGMENT, capabilities=())\n"
-        )
+        changed = original + b"\nfrom dataclasses import replace\n" + b"SEGMENT = replace(SEGMENT, capabilities=())\n"
         source_path.write_bytes(changed)
         scope_path = root_path / "ibis" / "family" / "_scope.py"
         scope_path.write_text(

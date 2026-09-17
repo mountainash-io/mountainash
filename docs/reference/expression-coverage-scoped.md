@@ -5,7 +5,7 @@
 
 Scoped deviations — dialect, parameter, option, metadata, value-class; function-level coverage and matrices live in [`expression-coverage.md`](expression-coverage.md).
 
-Segments: 63 · Historical bundles: 72 · Facts: 1557 · Registered operations: 341 · Implementation records: 1023
+Segments: 63 · Facts: 1557 · Registered operations: 341 · Implementation records: 1023
 
 Legend — scoped deviations:
 

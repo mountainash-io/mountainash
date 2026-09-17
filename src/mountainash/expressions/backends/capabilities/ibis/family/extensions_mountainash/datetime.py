@@ -1,20 +1,118 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.schema import CapabilityLevel
-from mountainash.core.capabilities.declarations import LocalOrigin
-from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.capabilities.identity import FamilyWide
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.declarations import FactSource
-from mountainash.core.capabilities.capture import CapturedAddress
-from mountainash.core.capabilities.capture import SourceOrigin
+
+
 from mountainash.core.capabilities.declarations import CapabilityAssertion
 from mountainash.core.capabilities.schema import ValueClass
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
-SEGMENT = CapabilitySegment(domain=Domain.DATETIME, capabilities=(CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-25', origins=(LocalOrigin(entry='capabilities[0]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.any', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/any.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='temporal-any parsing requires a row-wise native parser', probe_exempt='Temporal-any parsing is covered by conform temporal contract tests'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT, subject='*'), level=CapabilityLevel.UNSUPPORTED, since='2026-08-25', origins=(LocalOrigin(entry='capabilities[1]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.default', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/default.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='default datetime parsing requires the Polars native parser', probe_exempt='Default datetime parsing is covered by conform temporal contract tests'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-07-29', origins=(LocalOrigin(entry='capabilities[2]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_ma', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST, subject='timezone', selector=Selector(kind='value_class', value=ValueClass.IANA_TIMEZONE)), level=CapabilityLevel.UNSUPPORTED, since='2026-08-16', origins=(LocalOrigin(entry='capabilities[3]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.datetime.value_classes_ma', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py', entry='DECLARATIONS[0].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS, subject='years'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[4]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[0]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS, subject='months'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[5]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[1]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[1]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS, subject='days'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[6]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[2]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[2]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS, subject='hours'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[7]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[3]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[3]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES, subject='minutes'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[8]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[4]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[4]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS, subject='seconds'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[9]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[5]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[5]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS, subject='milliseconds'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[10]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[6]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[6]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'), CapabilityAssertion(key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS, subject='microseconds'), level=CapabilityLevel.LITERAL_ONLY, since='2026-07-05', origins=(LocalOrigin(entry='capabilities[11]'), SourceOrigin(module='mountainash.expressions.backends.capabilities.ibis', scope=Scope(backend=CONST_BACKEND.IBIS, applicability=FamilyWide()), source=FactSource.MOUNTAINASH, domain=Domain.DATETIME, entry='DECLARATIONS[0].facts[7]', captured=CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0].facts[7]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a')),), message='Ibis datetime offset operations require literal integer values', workaround='Use a literal integer for the offset amount', issue='IB-DT-01'),), evidence_refs=(CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/any.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/default.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/datetime/value_classes_ma.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'), CapturedAddress(repository='mountainash', path='src/mountainash/expressions/backends/capabilities/ibis.py', entry='DECLARATIONS[0]', revision='80dc283a1eb65c33b0b3bae946b3a8f5305cd66a'),))
+SEGMENT = CapabilitySegment(
+    domain=Domain.DATETIME,
+    capabilities=(
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-25",
+            message="temporal-any parsing requires a row-wise native parser",
+            probe_exempt="Temporal-any parsing is covered by conform temporal contract tests",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT, subject="*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-25",
+            message="default datetime parsing requires the Polars native parser",
+            probe_exempt="Default datetime parsing is covered by conform temporal contract tests",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-07-29",
+            message="to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(
+                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
+                subject="timezone",
+                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-08-16",
+            message="is_dst is not supported on ibis -- ibis has no DST/timezone-offset primitive to build on (verified 2026-08-16, ibis 12.0.0/duckdb)",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS, subject="years"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS, subject="months"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS, subject="days"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS, subject="hours"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES, subject="minutes"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS, subject="seconds"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS, subject="milliseconds"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+        CapabilityAssertion(
+            key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS, subject="microseconds"),
+            level=CapabilityLevel.LITERAL_ONLY,
+            since="2026-07-05",
+            message="Ibis datetime offset operations require literal integer values",
+            workaround="Use a literal integer for the offset amount",
+            issue="IB-DT-01",
+        ),
+    ),
+)

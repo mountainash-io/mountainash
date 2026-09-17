@@ -3,7 +3,7 @@
 <!-- GENERATED FILE — do not edit by hand. -->
 <!-- Regenerate: hatch -e test run python -m mountainash.core.capabilities.render_markdown -->
 
-Segments: 63 · Historical bundles: 72 · Facts: 1557 · Registered operations: 341 · Implementation records: 1023
+Segments: 63 · Facts: 1557 · Registered operations: 341 · Implementation records: 1023
 
 Scoped deviations (dialect/param/option/metadata/value-class) live in [`expression-coverage-scoped.md`](expression-coverage-scoped.md).
 
@@ -68,150 +68,71 @@ audited_unknown: 0
 
 ### Active segments
 
-| Module | Backend | Scope | Source | Domain | Evidence references |
-| --- | --- | --- | --- | --- | --- |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime` | ibis | ibis-duckdb | mountainash | datetime | DECLARATIONS[0], DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.list` | ibis | ibis-duckdb | mountainash | list | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.struct` | ibis | ibis-duckdb | mountainash | struct | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.arithmetic` | ibis | ibis-duckdb | substrait | arithmetic | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.datetime` | ibis | ibis-duckdb | substrait | datetime | DECLARATIONS[1], DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string` | ibis | ibis-duckdb | substrait | string | DECLARATIONS[1], DECLARATIONS[4] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.datetime` | ibis | ibis-polars | mountainash | datetime | DECLARATIONS[0], DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.list` | ibis | ibis-polars | mountainash | list | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.struct` | ibis | ibis-polars | mountainash | struct | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.substrait.datetime` | ibis | ibis-polars | substrait | datetime | DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.substrait.string` | ibis | ibis-polars | substrait | string | DECLARATIONS[4], DECLARATIONS[6], DECLARATIONS[8], DECLARATIONS[9] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.boolean` | ibis | ibis-sqlite | mountainash | boolean | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.categorical` | ibis | ibis-sqlite | mountainash | categorical | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.datetime` | ibis | ibis-sqlite | mountainash | datetime | DECLARATIONS[0], DECLARATIONS[0], DECLARATIONS[4] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.geospatial` | ibis | ibis-sqlite | mountainash | geospatial | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.list` | ibis | ibis-sqlite | mountainash | list | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.struct` | ibis | ibis-sqlite | mountainash | struct | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.datetime` | ibis | ibis-sqlite | substrait | datetime | DECLARATIONS[0], DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.string` | ibis | ibis-sqlite | substrait | string | DECLARATIONS[7], DECLARATIONS[9] |
-| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime` | ibis | family | mountainash | datetime | DECLARATIONS[0], DECLARATIONS[0], DECLARATIONS[0], DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.geospatial` | ibis | family | mountainash | geospatial | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.set` | ibis | family | mountainash | set | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.string` | ibis | family | mountainash | string | DECLARATIONS[10] |
-| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.ternary` | ibis | family | mountainash | ternary | DECLARATIONS[4] |
-| `mountainash.expressions.backends.capabilities.ibis.family.substrait.arithmetic` | ibis | family | substrait | arithmetic | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.ibis.family.substrait.datetime` | ibis | family | substrait | datetime | DECLARATIONS[1], DECLARATIONS[0], DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.ibis.family.substrait.string` | ibis | family | substrait | string | DECLARATIONS[1], DECLARATIONS[1], DECLARATIONS[4] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.categorical` | narwhals | narwhals-lazy | mountainash | categorical | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.list` | narwhals | narwhals-lazy | mountainash | list | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.struct` | narwhals | narwhals-lazy | mountainash | struct | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.substrait.string` | narwhals | narwhals-lazy | substrait | string | DECLARATIONS[3] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.categorical` | narwhals | narwhals-pandas | mountainash | categorical | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.datetime` | narwhals | narwhals-pandas | mountainash | datetime | DECLARATIONS[1], DECLARATIONS[3] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.list` | narwhals | narwhals-pandas | mountainash | list | DECLARATIONS[1], DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.struct` | narwhals | narwhals-pandas | mountainash | struct | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.arithmetic` | narwhals | narwhals-pandas | substrait | arithmetic | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.datetime` | narwhals | narwhals-pandas | substrait | datetime | DECLARATIONS[2], DECLARATIONS[1], DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.string` | narwhals | narwhals-pandas | substrait | string | DECLARATIONS[12], DECLARATIONS[2], DECLARATIONS[5] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.categorical` | narwhals | narwhals-polars | mountainash | categorical | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.datetime` | narwhals | narwhals-polars | mountainash | datetime | DECLARATIONS[1], DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.list` | narwhals | narwhals-polars | mountainash | list | DECLARATIONS[1], DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.struct` | narwhals | narwhals-polars | mountainash | struct | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.arithmetic` | narwhals | narwhals-polars | substrait | arithmetic | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.datetime` | narwhals | narwhals-polars | substrait | datetime | DECLARATIONS[2], DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.string` | narwhals | narwhals-polars | substrait | string | DECLARATIONS[3], DECLARATIONS[2], DECLARATIONS[5] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.datetime` | narwhals | family | mountainash | datetime | DECLARATIONS[1], DECLARATIONS[1], DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.geospatial` | narwhals | family | mountainash | geospatial | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.list` | narwhals | family | mountainash | list | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.set` | narwhals | family | mountainash | set | DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.string` | narwhals | family | mountainash | string | DECLARATIONS[11] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.ternary` | narwhals | family | mountainash | ternary | DECLARATIONS[5] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.substrait.datetime` | narwhals | family | substrait | datetime | DECLARATIONS[1] |
-| `mountainash.expressions.backends.capabilities.narwhals.family.substrait.string` | narwhals | family | substrait | string | DECLARATIONS[0], DECLARATIONS[12], DECLARATIONS[2] |
-| `mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic` | polars | polars | substrait | arithmetic | DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.datetime` | polars | polars | substrait | datetime | DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.string` | polars | polars | substrait | string | DECLARATIONS[0], DECLARATIONS[3] |
-| `mountainash.expressions.backends.capabilities.polars.family.extensions_mountainash.set` | polars | family | mountainash | set | DECLARATIONS[0] |
-| `mountainash.expressions.backends.capabilities.polars.family.extensions_mountainash.ternary` | polars | family | mountainash | ternary | DECLARATIONS[3] |
-| `mountainash.expressions.backends.capabilities.polars.family.substrait.string` | polars | family | substrait | string | DECLARATIONS[0], DECLARATIONS[1] |
-| `mountainash.relations.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.relation` | ibis | ibis-polars | mountainash | relation | DECLARATIONS[0] |
-| `mountainash.relations.backends.capabilities.ibis.family.extensions_mountainash.relation` | ibis | family | mountainash | relation | DECLARATIONS[0] |
-| `mountainash.relations.backends.capabilities.narwhals.family.extensions_mountainash.relation` | narwhals | family | mountainash | relation | DECLARATIONS[0] |
-| `mountainash.relations.backends.capabilities.polars.family.extensions_mountainash.relation` | polars | family | mountainash | relation | DECLARATIONS[0] |
-
-### Captured historical waves
-
-These retained source captures preserve provenance, including empty bundles. They are historical records, not current native-support claims.
-
-| Backend | Source | Domain | Probe date | Library versions | Fixtures |
-| --- | --- | --- | --- | --- | --- |
-| polars | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| ibis | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | arithmetic | 2026-07-21 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| polars | mountainash | boolean | 2026-08-25 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, ibis 12.0.0 | boolean-token-parse, boolean-invalid-token-failure |
-| narwhals | mountainash | boolean | 2026-08-25 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, ibis 12.0.0 | boolean-token-parse, boolean-invalid-token-failure |
-| ibis | mountainash | boolean | 2026-08-25 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, ibis 12.0.0 | boolean-token-parse, boolean-invalid-token-failure |
-| polars | mountainash | categorical | 2026-08-24 |  | categorical-base-scalar |
-| narwhals | mountainash | categorical | 2026-08-24 |  | categorical-base-scalar |
-| ibis | mountainash | categorical | 2026-08-24 |  | categorical-base-scalar |
-| ibis | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-any, ibis, narwhals-polars, narwhals-pandas |
-| narwhals | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-any, ibis, narwhals-polars, narwhals-pandas |
-| ibis | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-default, ibis, narwhals-polars, narwhals-pandas |
-| narwhals | mountainash | datetime | 2026-08-25 | ibis 12.0.0, narwhals 2.24.0 | datetime-default, ibis, narwhals-polars, narwhals-pandas |
-| polars | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| ibis | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | datetime | 2026-08-15 | polars 1.43.2, narwhals 2.24.0, ibis 12.0.0 | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| ibis | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
-| narwhals | mountainash | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars, narwhals-polars, narwhals-pandas |
-| ibis | substrait | datetime | 2026-08-16 |  | ibis-sqlite, ibis-polars |
-| ibis | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | datetime | 2026-07-30 | ibis 12.0.0, narwhals 2.23.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| ibis | mountainash | datetime | 2026-08-16 |  | ibis-duckdb, ibis-sqlite |
-| narwhals | mountainash | datetime | 2026-08-16 |  | narwhals-polars, narwhals-pandas |
-| ibis | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | datetime | 2026-07-25 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| ibis | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | ibis-duckdb |
-| ibis | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | ibis-polars |
-| narwhals | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | narwhals-polars |
-| narwhals | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | narwhals-pandas |
-| ibis | mountainash | datetime | 2026-08-21 | ibis 12.0.0, narwhals 2.24.0, polars 1.43.2 | ibis-sqlite |
-| polars | mountainash | geospatial | 2026-08-21 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, pyarrow 25.0.1, ibis 12.0.0 | geopoint-format-representation, geojson-object-root, native-coordinate-validation |
-| narwhals | mountainash | geospatial | 2026-08-21 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, pyarrow 25.0.1, ibis 12.0.0 | geopoint-format-representation, geojson-object-root, native-coordinate-validation |
-| ibis | mountainash | geospatial | 2026-08-21 | narwhals 2.24.0, polars 1.43.2, pandas 3.0.5, pyarrow 25.0.1, ibis 12.0.0 | geopoint-format-representation, geojson-object-root, native-coordinate-validation |
-| ibis | mountainash | datetime | 2026-07-05 |  |  |
-| ibis | substrait | string | 2026-07-05 |  |  |
-| polars | mountainash | list | 2026-08-24 |  | lexical-list-seven-item-types, recursive-array-struct |
-| narwhals | mountainash | list | 2026-08-24 |  | lexical-list-seven-item-types, recursive-array-struct |
-| ibis | mountainash | list | 2026-08-24 |  | lexical-list-seven-item-types, recursive-array-struct |
-| narwhals | substrait | string | 2026-07-05 |  |  |
-| narwhals | mountainash | datetime | 2026-07-05 |  |  |
-| narwhals | mountainash | list | 2026-07-05 |  |  |
-| narwhals | substrait | string | 2026-07-05 | narwhals 2.19.0 |  |
-| polars | substrait | string | 2026-07-05 |  | polars |
-| polars | substrait | string | 2026-08-13 | polars 1.43.2 | polars |
-| polars | mountainash | set | — | — | — |
-| ibis | mountainash | set | — | — | — |
-| narwhals | mountainash | set | — | — | — |
-| polars | mountainash | ternary | — | — | — |
-| ibis | mountainash | ternary | — | — | — |
-| narwhals | mountainash | ternary | — | — | — |
-| polars | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| ibis | mountainash | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | mountainash | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| ibis | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | string | 2026-07-23 |  | polars, ibis-duckdb, narwhals-polars, narwhals-pandas |
-| polars | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| ibis | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| narwhals | substrait | string | 2026-08-12 | ibis 12.0.0, narwhals 2.24.0 | polars, ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars |
-| ibis | substrait | string | 2026-08-12 | ibis 12.0.0 | ibis-sqlite, ibis-duckdb |
-| ibis | substrait | string | 2026-08-12 | ibis 12.0.0, polars 1.43.2 | ibis-polars, ibis-duckdb, ibis-sqlite |
-| ibis | substrait | string | 2026-08-13 | ibis 12.0.0, polars 1.43.2, narwhals 2.24.0 | ibis-duckdb, ibis-polars, ibis-sqlite, narwhals-polars, narwhals-pandas |
-| polars | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
-| narwhals | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
-| ibis | mountainash | struct | 2026-08-24 |  | plain-struct, recursive-struct |
-| polars | mountainash | value | 2026-09-14 | narwhals 2.26.0, polars 1.44.2, pandas 3.0.5, numpy 2.5.3, ibis-framework 12.0.0, pyarrow 25.0.1 | normal-mountainash-item228-consumer-smoke, normal-mountainash-item228-lazy-object-smoke |
-| narwhals | mountainash | value | 2026-09-14 | narwhals 2.26.0, polars 1.44.2, pandas 3.0.5, numpy 2.5.3, ibis-framework 12.0.0, pyarrow 25.0.1 | normal-mountainash-item228-consumer-smoke, normal-mountainash-item228-lazy-object-smoke |
-| ibis | mountainash | value | 2026-09-14 | narwhals 2.26.0, polars 1.44.2, pandas 3.0.5, numpy 2.5.3, ibis-framework 12.0.0, pyarrow 25.0.1 | normal-mountainash-item228-consumer-smoke, normal-mountainash-item228-lazy-object-smoke |
-| ibis | mountainash | relation | 2026-07-05 |  |  |
-| narwhals | mountainash | relation | 2026-07-05 |  |  |
-| polars | mountainash | relation | 2026-07-05 |  |  |
+| Module | Backend | Scope | Source | Domain |
+| --- | --- | --- | --- | --- |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime` | ibis | ibis-duckdb | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.list` | ibis | ibis-duckdb | mountainash | list |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.struct` | ibis | ibis-duckdb | mountainash | struct |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.arithmetic` | ibis | ibis-duckdb | substrait | arithmetic |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.datetime` | ibis | ibis-duckdb | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string` | ibis | ibis-duckdb | substrait | string |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.datetime` | ibis | ibis-polars | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.list` | ibis | ibis-polars | mountainash | list |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.struct` | ibis | ibis-polars | mountainash | struct |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.substrait.datetime` | ibis | ibis-polars | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.substrait.string` | ibis | ibis-polars | substrait | string |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.boolean` | ibis | ibis-sqlite | mountainash | boolean |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.categorical` | ibis | ibis-sqlite | mountainash | categorical |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.datetime` | ibis | ibis-sqlite | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.geospatial` | ibis | ibis-sqlite | mountainash | geospatial |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.list` | ibis | ibis-sqlite | mountainash | list |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.struct` | ibis | ibis-sqlite | mountainash | struct |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.datetime` | ibis | ibis-sqlite | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.string` | ibis | ibis-sqlite | substrait | string |
+| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime` | ibis | family | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.geospatial` | ibis | family | mountainash | geospatial |
+| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.set` | ibis | family | mountainash | set |
+| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.string` | ibis | family | mountainash | string |
+| `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.ternary` | ibis | family | mountainash | ternary |
+| `mountainash.expressions.backends.capabilities.ibis.family.substrait.arithmetic` | ibis | family | substrait | arithmetic |
+| `mountainash.expressions.backends.capabilities.ibis.family.substrait.datetime` | ibis | family | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.ibis.family.substrait.string` | ibis | family | substrait | string |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.categorical` | narwhals | narwhals-lazy | mountainash | categorical |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.list` | narwhals | narwhals-lazy | mountainash | list |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.struct` | narwhals | narwhals-lazy | mountainash | struct |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.substrait.string` | narwhals | narwhals-lazy | substrait | string |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.categorical` | narwhals | narwhals-pandas | mountainash | categorical |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.datetime` | narwhals | narwhals-pandas | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.list` | narwhals | narwhals-pandas | mountainash | list |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.struct` | narwhals | narwhals-pandas | mountainash | struct |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.arithmetic` | narwhals | narwhals-pandas | substrait | arithmetic |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.datetime` | narwhals | narwhals-pandas | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.string` | narwhals | narwhals-pandas | substrait | string |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.categorical` | narwhals | narwhals-polars | mountainash | categorical |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.datetime` | narwhals | narwhals-polars | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.list` | narwhals | narwhals-polars | mountainash | list |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.struct` | narwhals | narwhals-polars | mountainash | struct |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.arithmetic` | narwhals | narwhals-polars | substrait | arithmetic |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.datetime` | narwhals | narwhals-polars | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.string` | narwhals | narwhals-polars | substrait | string |
+| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.datetime` | narwhals | family | mountainash | datetime |
+| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.geospatial` | narwhals | family | mountainash | geospatial |
+| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.list` | narwhals | family | mountainash | list |
+| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.set` | narwhals | family | mountainash | set |
+| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.string` | narwhals | family | mountainash | string |
+| `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.ternary` | narwhals | family | mountainash | ternary |
+| `mountainash.expressions.backends.capabilities.narwhals.family.substrait.datetime` | narwhals | family | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.narwhals.family.substrait.string` | narwhals | family | substrait | string |
+| `mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic` | polars | polars | substrait | arithmetic |
+| `mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.datetime` | polars | polars | substrait | datetime |
+| `mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.string` | polars | polars | substrait | string |
+| `mountainash.expressions.backends.capabilities.polars.family.extensions_mountainash.set` | polars | family | mountainash | set |
+| `mountainash.expressions.backends.capabilities.polars.family.extensions_mountainash.ternary` | polars | family | mountainash | ternary |
+| `mountainash.expressions.backends.capabilities.polars.family.substrait.string` | polars | family | substrait | string |
+| `mountainash.relations.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.relation` | ibis | ibis-polars | mountainash | relation |
+| `mountainash.relations.backends.capabilities.ibis.family.extensions_mountainash.relation` | ibis | family | mountainash | relation |
+| `mountainash.relations.backends.capabilities.narwhals.family.extensions_mountainash.relation` | narwhals | family | mountainash | relation |
+| `mountainash.relations.backends.capabilities.polars.family.extensions_mountainash.relation` | polars | family | mountainash | relation |
 
 ## Per-family coverage
 

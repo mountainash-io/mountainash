@@ -1,4 +1,5 @@
 """Assertion-change history contracts."""
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -8,7 +9,6 @@ import pytest
 
 from mountainash.core.capabilities import CapabilityFact, CapabilityLevel
 from mountainash.core.capabilities.capture import (
-    AuthoringBundle,
     BindingRole,
     CapturedAddress,
     CapturedAssertion,
@@ -18,7 +18,7 @@ from mountainash.core.capabilities.capture import (
     UnresolvedHistoricalValue,
     VerificationBinding,
 )
-from mountainash.core.capabilities.declarations import Domain, FactSource, ProbeEvidence
+from mountainash.core.capabilities.declarations import Domain, FactSource
 from mountainash.core.capabilities.identity import FamilyWide, Scope
 from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.schema import CaptureValue, Scenario
@@ -61,10 +61,12 @@ def test_assertion_change_preserves_complete_same_key_replacement():
         "correct explanatory claim",
         (successor,),
         (_address("evidence"),),
-        Environment((
-            EnvironmentCoordinate("package", "ibis", "13.0.0"),
-            EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
-        )),
+        Environment(
+            (
+                EnvironmentCoordinate("package", "ibis", "13.0.0"),
+                EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
+            )
+        ),
     )
 
     assert change.prior.payload.message == "old limitation"
@@ -118,39 +120,28 @@ def test_assertion_change_rejects_invalid_history(replacement, error):
 
 
 def test_capture_environment_preserves_stack_and_rejects_conflicts():
-    env = Environment((
-        EnvironmentCoordinate("package", "ibis", "12.0.0"),
-        EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
-    ))
+    env = Environment(
+        (
+            EnvironmentCoordinate("package", "ibis", "12.0.0"),
+            EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
+        )
+    )
     assert env.coordinates[1].name == "ibis-framework"
     assert env.coordinates[1].original_label == "ibis"
-    assert env != Environment((
-        EnvironmentCoordinate("package", "ibis-framework", "12.0.0"),
-        EnvironmentCoordinate("engine", "duckdb", "1.3.0"),
-    ))
+    assert env != Environment(
+        (
+            EnvironmentCoordinate("package", "ibis-framework", "12.0.0"),
+            EnvironmentCoordinate("engine", "duckdb", "1.3.0"),
+        )
+    )
     with pytest.raises(ValueError, match="conflicting"):
-        Environment((
-            EnvironmentCoordinate("package", "ibis", "12.0.0"),
-            EnvironmentCoordinate("package", "ibis-framework", "11.0.0"),
-        ))
+        Environment(
+            (
+                EnvironmentCoordinate("package", "ibis", "12.0.0"),
+                EnvironmentCoordinate("package", "ibis-framework", "11.0.0"),
+            )
+        )
 
-
-def test_empty_historical_bundles_keep_independent_addresses_and_evidence():
-    evidence = ProbeEvidence("2026-08-07", (), ("historical fixture",))
-    first = AuthoringBundle(
-        CapturedAddress("mountainash", "old.py", "declarations[0]", artifact=b"source"),
-        CONST_BACKEND.IBIS, FactSource.SUBSTRAIT, Domain.STRING, (), evidence,
-    )
-    second = AuthoringBundle(
-        CapturedAddress("mountainash", "old.py", "declarations[1]", artifact=b"source"),
-        CONST_BACKEND.IBIS, FactSource.SUBSTRAIT, Domain.STRING, (), None,
-    )
-    assert first != second
-    assert first.members == second.members == ()
-    assert first.evidence is evidence
-    assert second.evidence is None
-    with pytest.raises(ValueError, match="immutable revision or retained artifact"):
-        CapturedAddress("mountainash", "old.py", "declarations[0]")
 
 def test_evidence_requires_explicit_null_or_unavailable_history():
     claim = _captured("observed limitation", "claim")
@@ -158,16 +149,35 @@ def test_evidence_requires_explicit_null_or_unavailable_history():
 
     with pytest.raises(ValueError, match="explicit"):
         EvidenceCapture(
-            source, (claim,), None, Environment(), (source,), "structural", None, (source,),
+            source,
+            (claim,),
+            None,
+            Environment(),
+            (source,),
+            "structural",
+            None,
+            (source,),
         )
 
     explicit_null = EvidenceCapture(
-        source, (claim,), None, Environment(), (source,), "structural",
-        CaptureValue.of(None), (source,),
+        source,
+        (claim,),
+        None,
+        Environment(),
+        (source,),
+        "structural",
+        CaptureValue.of(None),
+        (source,),
     )
     unavailable = EvidenceCapture(
-        source, (claim,), None, Environment(), (source,), "historical_unknown",
-        UnresolvedHistoricalValue("legacy result", source, "result was not retained"), (source,),
+        source,
+        (claim,),
+        None,
+        Environment(),
+        (source,),
+        "historical_unknown",
+        UnresolvedHistoricalValue("legacy result", source, "result was not retained"),
+        (source,),
     )
 
     assert explicit_null.result == CaptureValue("null", "")
@@ -196,20 +206,34 @@ def test_verification_binding_rejects_capability_key_payload_scope_and_self_orac
     )
     scope = Scope(CONST_BACKEND.IBIS, FamilyWide())
     claim = CapturedAssertion(
-        "capability", QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)), fact, _address("claim"),
+        "capability",
+        QualifiedCapabilityKey(scope, CapabilityKey.from_fact(fact)),
+        fact,
+        _address("claim"),
     )
     observer = _address("observer")
     oracle = _address("oracle")
 
     binding = VerificationBinding(
-        claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
+        claim,
+        Scenario(),
+        BindingRole.STRUCTURAL_EVIDENCE,
+        observer,
+        scope,
+        oracle,
+        "compilation",
     )
     assert binding.captured_claim is claim
 
     with pytest.raises(ValueError, match="payload"):
         VerificationBinding(
             replace(claim, payload=replace(fact, param="unexpected")),
-            Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
         )
     with pytest.raises(ValueError, match="scope"):
         VerificationBinding(
@@ -220,11 +244,22 @@ def test_verification_binding_rejects_capability_key_payload_scope_and_self_orac
                     CapabilityKey.from_fact(fact),
                 ),
             ),
-            Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
         )
     with pytest.raises(ValueError, match="independent"):
         VerificationBinding(
-            claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, observer, "compilation",
+            claim,
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            observer,
+            "compilation",
         )
 
 
@@ -232,7 +267,6 @@ def test_verification_binding_accepts_and_validates_manifestation_and_gap_claims
     from mountainash.core.capabilities.capture import SourceOrigin
     from mountainash.core.capabilities.declarations import (
         DivergenceManifestation,
-        LocalOrigin,
         ManifestationKey,
         QualifiedManifestation,
         QualifiedManifestationKey,
@@ -251,8 +285,12 @@ def test_verification_binding_accepts_and_validates_manifestation_and_gap_claims
     scope = Scope(CONST_BACKEND.IBIS, FamilyWide())
     local_key = ManifestationKey(OperationTarget(FK_STR.CENTER), Scenario())
     manifestation = DivergenceManifestation(
-        local_key, DivergenceKind.SEMANTICS, CaptureValue.of(0), CaptureValue.of(1),
-        "observed difference", "2026-09-15", (LocalOrigin("manifestation"),),
+        local_key,
+        DivergenceKind.SEMANTICS,
+        CaptureValue.of(0),
+        CaptureValue.of(1),
+        "observed difference",
+        "2026-09-15",
     )
     manifestation_key = QualifiedManifestationKey(scope, local_key)
     local_claim = CapturedAssertion("manifestation", manifestation_key, manifestation, source)
@@ -267,9 +305,18 @@ def test_verification_binding_accepts_and_validates_manifestation_and_gap_claims
         source,
     )
     for claim in (local_claim, qualified_claim):
-        assert VerificationBinding(
-            claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
-        ).captured_claim is claim
+        assert (
+            VerificationBinding(
+                claim,
+                Scenario(),
+                BindingRole.STRUCTURAL_EVIDENCE,
+                observer,
+                scope,
+                oracle,
+                "compilation",
+            ).captured_claim
+            is claim
+        )
     with pytest.raises(ValueError, match="payload"):
         VerificationBinding(
             replace(
@@ -282,17 +329,34 @@ def test_verification_binding_accepts_and_validates_manifestation_and_gap_claims
                     ),
                 ),
             ),
-            Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
         )
 
     gap_key = GapKey("review", OperationTarget(FK_STR.CENTER), "structural coverage", InventoryWide())
     gap = InventoryGap(
-        gap_key, ("legacy",), KnownGap(GapKind.OTHER, "test-only gap", "2026-09-15"), (source,),
+        gap_key,
+        ("legacy",),
+        KnownGap(GapKind.OTHER, "test-only gap", "2026-09-15"),
+        (source,),
     )
     gap_claim = CapturedAssertion("gap", gap_key, gap, source)
-    assert VerificationBinding(
-        gap_claim, Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
-    ).captured_claim is gap_claim
+    assert (
+        VerificationBinding(
+            gap_claim,
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
+        ).captured_claim
+        is gap_claim
+    )
     with pytest.raises(ValueError, match="payload"):
         VerificationBinding(
             replace(
@@ -302,5 +366,10 @@ def test_verification_binding_accepts_and_validates_manifestation_and_gap_claims
                     key=GapKey("review", OperationTarget(FK_STR.CENTER), "other coverage", InventoryWide()),
                 ),
             ),
-            Scenario(), BindingRole.STRUCTURAL_EVIDENCE, observer, scope, oracle, "compilation",
+            Scenario(),
+            BindingRole.STRUCTURAL_EVIDENCE,
+            observer,
+            scope,
+            oracle,
+            "compilation",
         )

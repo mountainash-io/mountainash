@@ -207,8 +207,8 @@ def _header(report: CoverageReport) -> list[str]:
         "<!-- GENERATED FILE — do not edit by hand. -->",
         f"<!-- Regenerate: {_REGEN_CMD} -->",
         "",
-        f"Segments: {len(report.segments)} · Historical bundles: {len(report.bundles)} "
-        f"· Facts: {report.stats.facts_total} · Registered operations: {report.stats.ops_total} "
+        f"Segments: {len(report.segments)} · Facts: {report.stats.facts_total} "
+        f"· Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
         "",
         "Scoped deviations (dialect/param/option/metadata/value-class) live in "
@@ -226,9 +226,7 @@ def _summary(report: CoverageReport) -> list[str]:
     lines = ["## Summary", ""]
     lines.append("### Per-backend counts")
     lines.append("")
-    lines.append(
-        "| Backend | default_capable | audited_clean | constrained " "| NOT_IMPLEMENTED | UNKNOWN | ops_total |"
-    )
+    lines.append("| Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |")
     lines.append("| --- | --- | --- | --- | --- | --- | --- |")
     for b in RENDERED_BACKENDS:
         s = report.stats
@@ -242,7 +240,7 @@ def _summary(report: CoverageReport) -> list[str]:
     # line. Spec §3.3 / §4.1.
     lines.append("")
     lines.append(f"contradictions: {report.stats.contradictions}")
-    lines.append(f"audited_unknown: " f"{sum(report.stats.audited_unknown.values())}")
+    lines.append(f"audited_unknown: {sum(report.stats.audited_unknown.values())}")
     lines.append("")
     lines.append("### Fact statistics")
     lines.append("")
@@ -270,35 +268,13 @@ def _summary(report: CoverageReport) -> list[str]:
     lines.append("")
     lines.append("### Active segments")
     lines.append("")
-    lines.append("| Module | Backend | Scope | Source | Domain | Evidence references |")
-    lines.append("| --- | --- | --- | --- | --- | --- |")
+    lines.append("| Module | Backend | Scope | Source | Domain |")
+    lines.append("| --- | --- | --- | --- | --- |")
     for segment in report.segments:
         scope = segment.scope.dialect or "family"
-        evidence = ", ".join(reference.entry for reference in segment.segment.evidence_refs) or "—"
         lines.append(
             f"| `{segment.module}` | {segment.scope.backend.value} | {scope} "
-            f"| {segment.source.value} | {segment.segment.domain.value} | {_escape(evidence)} |"
-        )
-    lines.append("")
-    lines.append("### Captured historical waves")
-    lines.append("")
-    lines.append(
-        "These retained source captures preserve provenance, including empty bundles. "
-        "They are historical records, not current native-support claims."
-    )
-    lines.append("")
-    lines.append("| Backend | Source | Domain | Probe date | Library versions | Fixtures |")
-    lines.append("| --- | --- | --- | --- | --- | --- |")
-    for bundle in report.bundles:
-        if bundle.evidence is None:
-            probe, versions, fixtures = "—", "—", "—"
-        else:
-            probe = bundle.evidence.probe_date
-            versions = ", ".join(f"{name} {version}" for name, version in bundle.evidence.library_versions)
-            fixtures = ", ".join(bundle.evidence.fixtures)
-        lines.append(
-            f"| {bundle.backend.value} | {bundle.source.value} | {bundle.domain.value} "
-            f"| {probe} | {_escape(versions)} | {_escape(fixtures)} |"
+            f"| {segment.source.value} | {segment.segment.domain.value} |"
         )
     lines.append("")
     return lines
@@ -350,7 +326,7 @@ def _unmapped_families(report: CoverageReport) -> list[str]:
             if oc.impl in {ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER}:
                 by_backend[oc.backend] += 1
         if all(by_backend[b] == n_ops for b in RENDERED_BACKENDS):
-            stamp = f"{n_ops} ops — all implemented on " f"{len(RENDERED_BACKENDS)}/{len(RENDERED_BACKENDS)} backends"
+            stamp = f"{n_ops} ops — all implemented on {len(RENDERED_BACKENDS)}/{len(RENDERED_BACKENDS)} backends"
         else:
             stamp = f"{n_ops} ops — " + " · ".join(f"{by_backend[b]}/{n_ops} {b.value}" for b in RENDERED_BACKENDS)
         lines.append(f"- `{fam.family}` ({stamp}): " + ", ".join(f"`{n}`" for n in names))
@@ -427,7 +403,7 @@ def _detail_sections(report: CoverageReport) -> list[str]:
             if not function_level:
                 continue
             wrote_any = True
-            lines.append(f"### `{oc.op.operation_key.name}` × {oc.backend.value} " f"({oc.op.family})")
+            lines.append(f"### `{oc.op.operation_key.name}` × {oc.backend.value} ({oc.op.family})")
             lines.append("")
             lines.append(_DETAIL_HEADER)
             lines.append(_DETAIL_RULE)
@@ -444,7 +420,7 @@ def _divergences_section(report: CoverageReport) -> list[str]:
     lines = ["## Divergence register", ""]
     if not report.divergences:
         return lines + ["None recorded.", ""]
-    lines.append("| Id | Kind | Backends | Operations | Summary | Impact " "| Workaround | Upstream | Since |")
+    lines.append("| Id | Kind | Backends | Operations | Summary | Impact | Workaround | Upstream | Since |")
     lines.append("| " + " | ".join(["---"] * 9) + " |")
     for dv in report.divergences:
         ops = ", ".join(f"`{k.name}`" for k in dv.operation_keys) or "—"
@@ -500,10 +476,7 @@ def _capture_value(value: Any) -> Any:
             key=lambda member: json.dumps(member, sort_keys=True, ensure_ascii=False),
         )
     if is_dataclass(value) and not isinstance(value, type):
-        return {
-            field.name: _capture_value(getattr(value, field.name))
-            for field in fields(value)
-        }
+        return {field.name: _capture_value(getattr(value, field.name)) for field in fields(value)}
     raise TypeError(f"unsupported captured value {type(value).__name__}")
 
 
@@ -527,9 +500,7 @@ def _captured_assertion_dict(assertion: Any) -> dict[str, Any]:
         "key": _capture_value(assertion.key),
         "payload": _capture_value(assertion.payload),
         "address": _captured_address_dict(assertion.address),
-        "reference_context": [
-            _captured_address_dict(address) for address in assertion.reference_context
-        ],
+        "reference_context": [_captured_address_dict(address) for address in assertion.reference_context],
     }
 
 
@@ -570,8 +541,7 @@ def _changes_section(report: CoverageReport) -> list[str]:
     if not report.changes:
         return lines + ["None recorded.", ""]
     lines += [
-        "Diagnostic projection of captured records; this report is not a lossless "
-        "serialization format.",
+        "Diagnostic projection of captured records; this report is not a lossless serialization format.",
         "",
         "| Recorded at | Disposition | Prior address | Prior payload | Successor addresses "
         "| Evidence addresses | Fixed-version coordinates | Reason |",
@@ -652,8 +622,8 @@ def _scoped_header(report: CoverageReport) -> list[str]:
         "function-level coverage and matrices live in "
         "[`expression-coverage.md`](expression-coverage.md).",
         "",
-        f"Segments: {len(report.segments)} · Historical bundles: {len(report.bundles)} "
-        f"· Facts: {report.stats.facts_total} · Registered operations: {report.stats.ops_total} "
+        f"Segments: {len(report.segments)} · Facts: {report.stats.facts_total} "
+        f"· Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
         "",
         _SCOPED_LEGEND,
@@ -673,7 +643,7 @@ def _scoped_detail_sections(report: CoverageReport) -> list[str]:
             if not scoped:
                 continue
             wrote_any = True
-            lines.append(f"### `{oc.op.operation_key.name}` × {oc.backend.value} " f"({oc.op.family})")
+            lines.append(f"### `{oc.op.operation_key.name}` × {oc.backend.value} ({oc.op.family})")
             lines.append("")
             dsw = tuple(f for f in scoped if is_dialect_scoped_whole_op(f))
             remaining = tuple(f for f in scoped if not is_dialect_scoped_whole_op(f))
@@ -719,7 +689,6 @@ def render_scoped(report: CoverageReport) -> str:
 # Determinism rests on insertion order: every dict is populated by iterating
 # already-sorted sequences; no `set` iteration.
 # ---------------------------------------------------------------------------
-
 
 
 def _op_key(operation_key: Any) -> dict[str, str]:
@@ -849,33 +818,7 @@ def _segment_dict(segment: Any) -> dict[str, Any]:
         "source": segment.source.value,
         "domain": segment.segment.domain.value,
         "facts": [_fact_dict(fact) for fact in sorted(segment.facts, key=fact_sort_key)],
-        "evidence_refs": [
-            _captured_address_dict(address) for address in segment.segment.evidence_refs
-        ],
-        "changes": [
-            _captured_address_dict(change.change_ref) for change in segment.segment.changes
-        ],
-    }
-
-
-def _evidence_dict(evidence: Any) -> dict[str, Any] | None:
-    if evidence is None:
-        return None
-    return {
-        "probe_date": evidence.probe_date,
-        "library_versions": [list(pair) for pair in evidence.library_versions],
-        "fixtures": list(evidence.fixtures),
-    }
-
-
-def _bundle_dict(bundle: Any) -> dict[str, Any]:
-    return {
-        "address": _captured_address_dict(bundle.address),
-        "backend": bundle.backend.value,
-        "source": bundle.source.value,
-        "domain": bundle.domain.value,
-        "members": [_captured_assertion_dict(member) for member in bundle.members],
-        "evidence": _evidence_dict(bundle.evidence),
+        "changes": [_captured_address_dict(change.change_ref) for change in segment.segment.changes],
     }
 
 
@@ -909,9 +852,7 @@ def _gap_dict(record: Any) -> dict[str, Any]:
         ),
         "original_key": _capture_value(record.original_key),
         "origins": [_captured_address_dict(origin) for origin in record.origins],
-        "reference_context": [
-            _captured_address_dict(address) for address in record.reference_context
-        ],
+        "reference_context": [_captured_address_dict(address) for address in record.reference_context],
         "gap_kind": gap.gap_kind.value,
         "reason": gap.reason,
         "since": gap.since,
@@ -927,12 +868,8 @@ def _change_dict(change: Any) -> dict[str, Any]:
         "disposition": change.disposition.value,
         "recorded_at": change.recorded_at,
         "reason": change.reason,
-        "successors": [
-            _captured_assertion_dict(successor) for successor in change.successors
-        ],
-        "evidence_refs": [
-            _captured_address_dict(address) for address in change.evidence_refs
-        ],
+        "successors": [_captured_assertion_dict(successor) for successor in change.successors],
+        "evidence_refs": [_captured_address_dict(address) for address in change.evidence_refs],
         "fixed_versions": _environment_dict(change.fixed_versions),
     }
 
@@ -942,7 +879,6 @@ def _stamp(report: CoverageReport) -> dict[str, int]:
     visible-only summary, not a wall-clock stamp."""
     return {
         "segments": len(report.segments),
-        "historical_bundles": len(report.bundles),
         "facts": report.stats.facts_total,
         "operations": report.stats.ops_total,
         "implementation_records": sum(report.stats.by_impl.values()),
@@ -999,7 +935,6 @@ def render_json(report: CoverageReport) -> str:
         "stats": _stats_dict(report),
         "families": [_family_dict(f) for f in report.families],
         "segments": [_segment_dict(segment) for segment in report.segments],
-        "historical_bundles": [_bundle_dict(bundle) for bundle in report.bundles],
         "divergences": [_divergence_dict(dv) for dv in report.divergences],
         "gaps": None if report.gaps is None else [_gap_dict(gap) for gap in report.gaps],
         "changes": [_change_dict(change) for change in reversed(report.changes)],
@@ -1008,10 +943,9 @@ def render_json(report: CoverageReport) -> str:
 
 
 def gather_coverage_inputs(*, verification: VerificationSnapshot | None = None) -> dict:
-    """Acquire one immutable reporting state and cold historical provenance."""
+    """Acquire one immutable reporting state."""
     from mountainash.core.capabilities.coverage import OpRecord
     from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
-    from mountainash.core.capabilities.evidence.legacy_bundles import BUNDLES
     from mountainash.core.capabilities.gaps import VerificationSnapshot
     from mountainash.core.capabilities.registry import CapabilityRegistry
     from mountainash.expressions.core.expression_system.function_mapping.registry import (
@@ -1035,7 +969,6 @@ def gather_coverage_inputs(*, verification: VerificationSnapshot | None = None) 
         universe=universe,
         facts=facts,
         segments=segments,
-        bundles=BUNDLES,
         divergences=KNOWN_DIVERGENCES,
         gaps=None if verification is None else verification.gaps,
         changes=(

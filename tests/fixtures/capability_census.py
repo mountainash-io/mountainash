@@ -11,8 +11,7 @@ bucket, with an explicit reason. The scope is three families:
       *capability-encoding* ``pytest.mark.xfail`` / ``xfail_divergence`` marker,
       discovered structurally via the :mod:`ast` module; and
   (c) each registered physical segment source row for a whole-operation build
-      gate, addressed by its own module and local origin rather than an old
-      declaration assignment line.
+      gate, addressed by its captured module and publisher-derived location.
 
 Classification is total over the discovered scope:
 
@@ -33,6 +32,7 @@ Entries are emitted in deterministic ``(path, address)`` order and
 ``build_census`` also writes the committed catalogue
 ``tests/_spine_expectation_census.md`` that Task 6's inventory and SP2 read.
 """
+
 from __future__ import annotations
 
 import ast
@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from mountainash.core.capabilities.declarations import LocalOrigin
+from mountainash.core.capabilities.declarations import QualifiedCapabilityKey
 from mountainash.core.capabilities.divergences import divergence_by_id
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
@@ -141,21 +141,16 @@ def _classify_selector(
     ``reason`` is ``None`` for the ``inventoried`` fall-through so the caller can
     supply a scope-specific inventory reason.
     """
-    fact = capability_gate(
-        operation_key, family, dialect=dialect, param=param, option_value=option_value
-    )
+    fact = capability_gate(operation_key, family, dialect=dialect, param=param, option_value=option_value)
     if fact is not None:
         scope = f"{family.value}{'/' + dialect if dialect else ''}"
         return (
             "migrated",
             f"spine gate fact ({fact.level.value}/{fact.enforcement.value}) on {scope} — derivable via capability_gate",
         )
-    raw = CapabilityRegistry.capability_for(
-        operation_key, param, family, dialect=dialect, option_value=option_value
-    )
+    raw = CapabilityRegistry.capability_for(operation_key, param, family, dialect=dialect, option_value=option_value)
     if raw is not None and (
-        raw.level is CapabilityLevel.LITERAL_ONLY
-        or raw.enforcement is Enforcement.ROUTER_METADATA
+        raw.level is CapabilityLevel.LITERAL_ONLY or raw.enforcement is Enforcement.ROUTER_METADATA
     ):
         return (
             "retained",
@@ -168,9 +163,9 @@ def _classify_selector(
 # Scope (c): physical source rows for all whole-operation build gates.
 # ---------------------------------------------------------------------------
 def _scope_c_entries() -> list[CensusEntry]:
-    segments = CapabilityRegistry.segments()
+    capture = CapabilityRegistry.capture()
     entries: list[CensusEntry] = []
-    for segment in segments:
+    for segment in capture.segments:
         for assertion, fact in zip(segment.segment.capabilities, segment.facts):
             if (
                 fact.param != WILDCARD_PARAM
@@ -179,38 +174,14 @@ def _scope_c_entries() -> list[CensusEntry]:
                 or fact.enforcement is not Enforcement.GATE
             ):
                 continue
-            local = tuple(
-                origin for origin in assertion.origins if type(origin) is LocalOrigin
-            )
-            if len(local) != 1:
-                raise UnclassifiedExpectation(
-                    f"{segment.module}:{assertion.key!r}: expected one physical "
-                    f"local origin, got {assertion.origins!r}"
-                )
-            origin = local[0]
-            bucket, reason = _classify_selector(
-                fact.operation_key,
-                segment.scope.backend,
-                dialect=segment.scope.dialect,
-            )
-            if reason is None:
-                raise UnclassifiedExpectation(
-                    f"{segment.module}:{origin.entry}: registered whole-operation "
-                    "gate is not queryable through the capability spine"
-                )
-            captures = tuple(
-                prior.captured
-                for prior in assertion.origins
-                if getattr(prior, "captured", None) is not None
-            )
-            capture_note = (
-                "; historical capture retained: "
-                + ", ".join(
-                    f"{capture.path}:{capture.entry}@{capture.revision or 'artifact'}"
-                    for capture in captures
-                )
-                if captures
-                else "; no historical capture attached"
+            key = QualifiedCapabilityKey(segment.scope, assertion.key)
+            (origin,) = capture.origins(key)
+            published = capture.get(key)
+            bucket = "migrated"
+            scope = f"{segment.scope.backend.value}{'/' + segment.scope.dialect if segment.scope.dialect else ''}"
+            reason = (
+                f"spine gate fact ({published.level.value}/{published.enforcement.value}) "
+                f"on {scope} — derivable via capability_gate"
             )
             entries.append(
                 CensusEntry(
@@ -222,10 +193,7 @@ def _scope_c_entries() -> list[CensusEntry]:
                     backend=segment.scope.backend.value,
                     param=WILDCARD_PARAM,
                     option_value=None,
-                    current_reason=(
-                        "registered physical whole-operation gate source row"
-                        + capture_note
-                    ),
+                    current_reason="registered physical whole-operation gate source row",
                     bucket=bucket,
                     reason=reason,
                 )
@@ -262,10 +230,7 @@ def _scope_a_entries() -> list[CensusEntry]:
                         )
                     entries.append(
                         CensusEntry(
-                            node_id=(
-                                f"{_PROBE_REL}::{fname}"
-                                f"[{fact.operation_key.name.lower()}-{fixture}]"
-                            ),
+                            node_id=(f"{_PROBE_REL}::{fname}[{fact.operation_key.name.lower()}-{fixture}]"),
                             path=_PROBE_REL,
                             line=lineno,
                             kind="parametrized-case",
@@ -274,8 +239,7 @@ def _scope_a_entries() -> list[CensusEntry]:
                             param=WILDCARD_PARAM,
                             option_value=None,
                             current_reason=(
-                                "runtime whole-operation gate provider variant "
-                                f"({fact.operation_key.name}, {fixture})"
+                                f"runtime whole-operation gate provider variant ({fact.operation_key.name}, {fixture})"
                             ),
                             bucket=bucket,
                             reason=reason,
@@ -317,9 +281,7 @@ def _scope_b_entries() -> list[CensusEntry]:
     return entries
 
 
-def _site_entries(
-    node: ast.Call, kind: str, rel: str, qual: str, backends: list[str]
-) -> list[CensusEntry]:
+def _site_entries(node: ast.Call, kind: str, rel: str, qual: str, backends: list[str]) -> list[CensusEntry]:
     if kind == "divergence":
         return _divergence_site(node, rel, qual)
     if kind == "mark_xfail":
@@ -340,8 +302,7 @@ def _divergence_site(node: ast.Call, rel: str, qual: str) -> list[CensusEntry]:
             divergence_by_id(div_id)
         except KeyError as exc:
             raise UnclassifiedExpectation(
-                f"{rel}:{node.lineno}: xfail_divergence references unknown divergence "
-                f"id {div_id!r}"
+                f"{rel}:{node.lineno}: xfail_divergence references unknown divergence id {div_id!r}"
             ) from exc
     return [
         CensusEntry(
@@ -360,9 +321,7 @@ def _divergence_site(node: ast.Call, rel: str, qual: str) -> list[CensusEntry]:
     ]
 
 
-def _marker_site(
-    node: ast.Call, rel: str, qual: str, backends: list[str]
-) -> list[CensusEntry]:
+def _marker_site(node: ast.Call, rel: str, qual: str, backends: list[str]) -> list[CensusEntry]:
     reason_expr = _kwarg_expr(node, "reason")
     reason_text = _static_str(reason_expr) if reason_expr is not None else None
     refs = _ref_names(reason_expr) if reason_expr is not None else frozenset()
@@ -379,10 +338,7 @@ def _marker_site(
             reason = "spine-derived xfail marker (reason built from a CapabilityFact) — migrated"
         else:
             bucket = "inventoried"
-            reason = (
-                "capability-encoding static xfail marker with no statically "
-                "recoverable spine fact — inventoried"
-            )
+            reason = "capability-encoding static xfail marker with no statically recoverable spine fact — inventoried"
         out.append(
             CensusEntry(
                 node_id=f"{rel}::{qual}::L{node.lineno}[{backend}]",
@@ -401,9 +357,7 @@ def _marker_site(
     return out
 
 
-def _imperative_site(
-    node: ast.Call, rel: str, qual: str, backends: list[str]
-) -> list[CensusEntry]:
+def _imperative_site(node: ast.Call, rel: str, qual: str, backends: list[str]) -> list[CensusEntry]:
     reason_expr = node.args[0] if node.args else _kwarg_expr(node, "reason")
     reason_text = _static_str(reason_expr) if reason_expr is not None else None
     refs = _ref_names(reason_expr) if reason_expr is not None else frozenset()
@@ -456,9 +410,7 @@ def _imperative_site(
 # ---------------------------------------------------------------------------
 # Curated non-capability predicate list (explicit per-family reasons).
 # ---------------------------------------------------------------------------
-def _non_capability_predicate(
-    rel: str, reason_text: str | None, reason_expr: ast.AST | None = None
-) -> str | None:
+def _non_capability_predicate(rel: str, reason_text: str | None, reason_expr: ast.AST | None = None) -> str | None:
     if rel.endswith("core/test_api_reachability.py"):
         return (
             "non-capability: API reachability gap (fkey not emitted by any public "
@@ -674,11 +626,7 @@ def _backends_from_test(test: ast.AST) -> list[str]:
     if isinstance(op, ast.Eq) and isinstance(comparator, ast.Constant) and isinstance(comparator.value, str):
         return [comparator.value]
     if isinstance(op, ast.In) and isinstance(comparator, (ast.Tuple, ast.List)):
-        return [
-            elt.value
-            for elt in comparator.elts
-            if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
-        ]
+        return [elt.value for elt in comparator.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)]
     if _is_startswith_call(test):
         arg = test.args[0]
         prefix = arg.value if isinstance(arg, ast.Constant) and isinstance(arg.value, str) else None
@@ -718,20 +666,14 @@ def _read_family_fixtures(tree: ast.AST) -> dict[CONST_BACKEND, tuple[str, ...]]
             if family is None or not isinstance(value, (ast.Tuple, ast.List)):
                 continue
             out[family] = tuple(
-                elt.value
-                for elt in value.elts
-                if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
+                elt.value for elt in value.elts if isinstance(elt, ast.Constant) and isinstance(elt.value, str)
             )
         return out
     return {}
 
 
 def _const_backend_from_attr(expr: ast.AST | None) -> CONST_BACKEND | None:
-    if (
-        isinstance(expr, ast.Attribute)
-        and isinstance(expr.value, ast.Name)
-        and expr.value.id == "CONST_BACKEND"
-    ):
+    if isinstance(expr, ast.Attribute) and isinstance(expr.value, ast.Name) and expr.value.id == "CONST_BACKEND":
         return getattr(CONST_BACKEND, expr.attr, None)
     return None
 
@@ -747,24 +689,16 @@ def _read_probe_operation_keys(tree: ast.AST) -> tuple[object, ...]:
             break
         keys: list[object] = []
         for key in node.value.keys:
-            if not (
-                isinstance(key, ast.Attribute)
-                and isinstance(key.value, ast.Name)
-                and key.value.id == "FK_STR"
-            ):
+            if not (isinstance(key, ast.Attribute) and isinstance(key.value, ast.Name) and key.value.id == "FK_STR"):
                 raise UnclassifiedExpectation(
                     f"{_PROBE_REL}:{node.lineno}: _OP_CASES must use canonical FK_STR members"
                 )
             operation_key = getattr(FK_STR, key.attr, None)
             if operation_key is None:
-                raise UnclassifiedExpectation(
-                    f"{_PROBE_REL}:{node.lineno}: unknown FK_STR member {key.attr!r}"
-                )
+                raise UnclassifiedExpectation(f"{_PROBE_REL}:{node.lineno}: unknown FK_STR member {key.attr!r}")
             keys.append(operation_key)
         return tuple(keys)
-    raise UnclassifiedExpectation(
-        f"{_PROBE_REL}: expected canonical _OP_CASES collection provider"
-    )
+    raise UnclassifiedExpectation(f"{_PROBE_REL}: expected canonical _OP_CASES collection provider")
 
 
 def _parametrized_op_backend_funcs(tree: ast.AST) -> list[tuple[str, int]]:
@@ -795,8 +729,6 @@ def _relpath(path: Path) -> str:
 
 def _sorted_families(mapping: dict[CONST_BACKEND, Any]) -> list[CONST_BACKEND]:
     return sorted(mapping, key=lambda f: f.value)
-
-
 
 
 # ---------------------------------------------------------------------------
