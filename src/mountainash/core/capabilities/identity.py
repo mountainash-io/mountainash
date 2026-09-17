@@ -32,3 +32,40 @@ KNOWN_DIALECTS: dict[CONST_BACKEND, frozenset[str]] = {
 # KeyError. CONST_BACKEND has five members (POLARS/PANDAS/PYARROW/IBIS/
 # NARWHALS); PYARROW is a real member even though no Phase-1 backend
 # registers facts under it.
+
+
+@dataclass(frozen=True)
+class FamilyWide:
+    """An explicitly authored family-wide applicability."""
+
+
+@dataclass(frozen=True)
+class Dialect:
+    name: str
+
+    def __post_init__(self) -> None:
+        if type(self.name) is not str or not self.name:
+            raise ValueError("dialect requires a nonempty canonical name")
+
+
+@dataclass(frozen=True)
+class Scope:
+    backend: CONST_BACKEND
+    applicability: FamilyWide | Dialect
+
+    def __post_init__(self) -> None:
+        if type(self.backend) is not CONST_BACKEND:
+            raise TypeError("scope backend must be CONST_BACKEND")
+        if type(self.applicability) not in (FamilyWide, Dialect):
+            raise TypeError("scope applicability must be FamilyWide or Dialect")
+        if isinstance(self.applicability, Dialect):
+            if self.applicability.name not in KNOWN_DIALECTS[self.backend]:
+                raise ValueError(
+                    f"unknown {self.backend.value} dialect {self.applicability.name!r}"
+                )
+
+    @property
+    def dialect(self) -> str | None:
+        if isinstance(self.applicability, Dialect):
+            return self.applicability.name
+        return None

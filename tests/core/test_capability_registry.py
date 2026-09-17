@@ -386,7 +386,9 @@ def test_accepted_enum_keys_are_stable_across_clause_order_and_hash_seeds():
                 level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.POLARS,
                 since="2026-09-15", predicate=Predicate(order),
             ) for order in (clauses, tuple(reversed(clauses)))]
-            CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, facts)
+            for fact in facts:
+                CapabilityRegistry.reset()
+                CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, [fact])
             assert facts[0].fact_key == facts[1].fact_key
             keys.append(facts[0].fact_key)
         print(json.dumps(keys))
@@ -402,26 +404,32 @@ def test_accepted_enum_keys_are_stable_across_clause_order_and_hash_seeds():
     assert outputs[0] == outputs[1] == outputs[2]
 
 
-@pytest.mark.parametrize("unsafe_field", ["facts", "fixtures", "versions", "pair"])
-def test_registration_rejects_nested_mutable_declaration_payload(unsafe_field):
-    from dataclasses import replace
-    from mountainash.core.capabilities import CapabilityDeclaration, Domain, FactSource, ProbeEvidence
+def test_registration_rejects_mutable_segment_payload():
+    from mountainash.core.capabilities import BoundSegment, CapabilitySegment, Domain
+    from mountainash.core.capabilities.identity import FamilyWide, Scope
 
-    evidence = ProbeEvidence("2026-09-15", (("library", "1"),), ("fixture",))
-    if unsafe_field == "fixtures":
-        evidence = replace(evidence, fixtures=["fixture"])
-    elif unsafe_field == "versions":
-        evidence = replace(evidence, library_versions=[("library", "1")])
-    elif unsafe_field == "pair":
-        evidence = replace(evidence, library_versions=(["library", "1"],))
-    declaration = CapabilityDeclaration(
-        backend=CONST_BACKEND.POLARS,
-        domain=Domain.STRING,
-        source=FactSource.SUBSTRAIT,
-        facts=[_fact()] if unsafe_field == "facts" else (_fact(),),
-        evidence=evidence,
+    segment = BoundSegment(
+        "mountainash.expressions.backends.capabilities.polars.family.substrait.string",
+        Scope(CONST_BACKEND.POLARS, FamilyWide()), CapabilitySegment(Domain.STRING),
     )
-    with pytest.raises(ValueError):
-        CapabilityRegistry.register_declaration(declaration)
+    object.__setattr__(segment, "facts", [_fact()])
+    with pytest.raises(TypeError, match="mutable"):
+        CapabilityRegistry.register_segment(segment)
     assert CapabilityRegistry.facts() == []
-    assert CapabilityRegistry.declarations() == ()
+    assert CapabilityRegistry.segments() == ()
+
+
+def test_whole_operation_fixture_respects_dialect_permission():
+    from tests.fixtures.capability_gating import whole_operation_gates
+
+    family = _fact(
+        backend=CONST_BACKEND.IBIS, param=WILDCARD_PARAM,
+        level=CapabilityLevel.UNSUPPORTED,
+    )
+    dialect = _fact(
+        backend=CONST_BACKEND.IBIS, param=WILDCARD_PARAM,
+        dialect="ibis-duckdb", level=CapabilityLevel.EXPR_CAPABLE,
+    )
+    CapabilityRegistry.register_backend(CONST_BACKEND.IBIS, (family, dialect))
+    assert whole_operation_gates((FK_STR.LPAD,), "ibis-sqlite") == (family,)
+    assert whole_operation_gates((FK_STR.LPAD,), "ibis-duckdb") == ()

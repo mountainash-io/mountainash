@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import inspect
 from datetime import date
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -39,6 +40,9 @@ from mountainash.relations.core.unified_visitor.visit_registry import (
     RelationVisitRegistry,
 )
 
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.retired import AssertionChange
+
 # Closed-by-default: no ImportError guards. If narwhals or ibis is missing
 # from the test environment, this file must ERROR, not silently audit a
 # smaller backend matrix (closed-by-default-verification principle). The
@@ -65,6 +69,9 @@ REL_WIRING_PROTOCOL_REGISTRY = {
     SubstraitSetRelationSystemProtocol: "substrait_set",
     MountainashExtensionRelationSystemProtocol: "mountainash_extension",
 }
+
+
+GAP_CHANGES: tuple[AssertionChange, ...] = ()
 
 
 KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {

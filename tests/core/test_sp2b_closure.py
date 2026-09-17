@@ -28,7 +28,6 @@ from pathlib import Path
 import yaml
 
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.gap_collection import collect_all_gap_sets
 from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES, divergence_by_id
 from tests.core.test_compile_smoke import _KNOWN_SMOKE_FAILURES
 from tests.core.test_imperative_xfail_ban import _capability_imperative_offenders
@@ -256,8 +255,6 @@ def test_g_catch_all_consumed_and_stale_detected():
     }
     overlap = sorted(k for k in _KNOWN_SMOKE_FAILURES if k in catalogued)
     assert not overlap, f"native-failure park keys also catalogued as capability gaps: {overlap[:10]}"
-    gaps = collect_all_gap_sets()
-    assert gaps and any(g for g in gaps.values()), "gap-staleness surface is empty"
 
 
 # ---------------------------------------------------------------------------

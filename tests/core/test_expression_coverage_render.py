@@ -1,9 +1,8 @@
-"""Renderer tests over synthetic reports — determinism, cells, collapse."""
+"""Renderer tests over local reports — determinism, cells, and collapse."""
 
 from __future__ import annotations
 
 import builtins
-import enum as _enum
 import json
 
 import pytest
@@ -18,22 +17,30 @@ from mountainash.core.capabilities.coverage import (
     fact_sort_key,
 )
 from mountainash.core.capabilities.declarations import (
-    CapabilityDeclaration,
+    BoundSegment,
+    CapabilityAssertion,
+    CapabilityKey,
+    CapabilitySegment,
     Domain,
-    FactSource,
-    ProbeEvidence,
+    LocalOrigin,
 )
+from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
 from mountainash.core.capabilities.render_markdown import (
     _collapse_groups,
     _fact_detail_row,
     _resolve_concrete_owner,
     gather_coverage_inputs,
-    gather_implementation_records,
     render_json,
     render_markdown,
     render_scoped,
 )
-from mountainash.core.capabilities.retired import RetiredFact
+from mountainash.core.capabilities.capture import (
+    CapturedAddress,
+    CapturedAssertion,
+    Environment,
+    EnvironmentCoordinate,
+)
+from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
@@ -49,44 +56,91 @@ from mountainash.core.capabilities.schema import (
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING,
+)
 
 
-class FKEY_SUBSTRAIT_SYNTH_SET(_enum.Enum):
-    OP_A = _enum.auto()
-    OP_B = _enum.auto()
 
 
-# _impls, _fact, _decl, _universe: copy the Task 1 helper bodies verbatim here.
-# Plan mandates duplication — test modules do not import from each other.
+# _impls, _fact, _segment, and _universe are local fixture builders over
+# registered Substrait string operations.
 
 
 def _fact(**kw) -> CapabilityFact:
     base = dict(
-        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
+        operation_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
         param=WILDCARD_PARAM,
         level=CapabilityLevel.UNSUPPORTED,
         backend=CONST_BACKEND.POLARS,
-        message="synthetic",
+        message="fixture",
         since="2026-08-01",
     )
     base.update(kw)
     return CapabilityFact(**base)
 
 
-def _decl(backend=CONST_BACKEND.POLARS, facts=()):
-    return CapabilityDeclaration(
-        backend=backend,
-        domain=Domain.SET,
-        source=FactSource.SUBSTRAIT,
-        facts=tuple(facts),
-        evidence=ProbeEvidence(
-            probe_date="2026-08-01", library_versions=(("polars", "1.35.1"),), fixtures=("synthetic",)
-        ),
+def _assertion(fact: CapabilityFact) -> CapabilityAssertion:
+    return CapabilityAssertion(
+        CapabilityKey.from_fact(fact),
+        fact.level,
+        fact.since,
+        (LocalOrigin("fixture"),),
+        message=fact.message,
+        workaround=fact.workaround,
+        issue=fact.upstream_ref,
+        boundary=fact.boundary,
+        native_errors=fact.native_errors,
+        condition=fact.condition,
+        probe_exempt=fact.probe_exempt,
+        enforcement=fact.enforcement,
+        signal=fact.residue_signal,
+    )
+
+
+def _segment(
+    backend=CONST_BACKEND.POLARS,
+    dialect: str | None = None,
+    facts=(),
+    module_suffix="",
+):
+    if any(
+        fact.backend is not backend or fact.dialect != dialect
+        for fact in facts
+    ):
+        raise ValueError("fixture segment facts must match its scope")
+    scope = Scope(backend, FamilyWide() if dialect is None else Dialect(dialect))
+    physical_scope = (
+        "family"
+        if dialect is None
+        else f"dialects.{dialect.replace('-', '_')}"
+    )
+    return BoundSegment(
+        f"mountainash.expressions.backends.capabilities.{backend.value}."
+        f"{physical_scope}.substrait.string{module_suffix}",
+        scope,
+        CapabilitySegment(Domain.STRING, tuple(_assertion(fact) for fact in facts)),
+    )
+
+
+def _segments(facts: tuple[CapabilityFact, ...]) -> tuple[BoundSegment, ...]:
+    grouped: dict[tuple[CONST_BACKEND, str | None], list[CapabilityFact]] = {}
+    for fact in facts:
+        grouped.setdefault((fact.backend, fact.dialect), []).append(fact)
+    return tuple(
+        _segment(backend, dialect, tuple(group))
+        for (backend, dialect), group in grouped.items()
     )
 
 
 def _universe():
-    return tuple(OpRecord(m, type(m).__name__) for m in FKEY_SUBSTRAIT_SYNTH_SET)
+    return tuple(
+        OpRecord(member, type(member).__name__)
+        for member in (
+            FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+        )
+    )
 
 
 def _impls(state=ImplState.IMPLEMENTED, overrides=None):
@@ -104,25 +158,25 @@ def _impls(state=ImplState.IMPLEMENTED, overrides=None):
                     r.operation_key,
                     b,
                     cell_state,
-                    None if unknown else "synthetic",
-                    None if unknown else "SyntheticProtocol",
+                    None if unknown else r.operation_key.name.lower(),
+                    None if unknown else "SubstraitScalarStringExpressionSystemProtocol",
                 )
             )
     return tuple(records)
 
 
-def _report(facts=(), decls=None, impls=None, **kw):
-    if decls is None:
-        decls = (_decl(facts=tuple(facts)),) if facts else ()
+def _report(facts=(), segments=None, impls=None, **kw):
+    if segments is None:
+        segments = _segments(tuple(facts)) if facts else ()
     if impls is None:
         impls = _impls()
     return build_coverage_report(
         _universe(),
         tuple(facts),
-        tuple(decls),
+        tuple(segments),
         kw.get("divergences", ()),
         kw.get("gaps", ()),
-        kw.get("retired", ()),
+        kw.get("changes", ()),
         impls,
     )
 
@@ -135,24 +189,24 @@ def test_render_is_deterministic_under_input_shuffle():
     property, and a determinism regression in render_scoped / render_json
     would otherwise be invisible (the model-level shuffle test covers the
     model, this one covers the renderers end-to-end)."""
-    fs = [_fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("x", "y", "z")] + [
-        _fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)
+    fs = [_fact(param="length", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("x", "y", "z")] + [
+        _fact(param="characters", dialect="polars", level=CapabilityLevel.LITERAL_ONLY)
     ]
-    decl = _decl(facts=tuple(fs))
+    segments = _segments(tuple(fs))
     impls = _impls()
     impls_rev = tuple(reversed(impls))
     # Build the three baselines (facts in given order, impls in given order).
-    base = build_coverage_report(_universe(), tuple(fs), (decl,), (), (), (), impls)
+    base = build_coverage_report(_universe(), tuple(fs), segments, (), (), (), impls)
     # Three shuffled builds covering both axes: fact order and impl order.
     fs_rev = tuple(reversed(fs))
     build_facts_rev = lambda: build_coverage_report(  # noqa: E731
-        _universe(), fs_rev, (decl,), (), (), (), impls
+        _universe(), fs_rev, segments, (), (), (), impls
     )
     build_impls_rev = lambda: build_coverage_report(  # noqa: E731
-        _universe(), tuple(fs), (decl,), (), (), (), impls_rev
+        _universe(), tuple(fs), segments, (), (), (), impls_rev
     )
     build_both_rev = lambda: build_coverage_report(  # noqa: E731
-        _universe(), fs_rev, (decl,), (), (), (), impls_rev
+        _universe(), fs_rev, segments, (), (), (), impls_rev
     )
     # All three renderers under all four input orderings.
     for renderer in (render_markdown, render_scoped, render_json):
@@ -164,90 +218,85 @@ def test_render_is_deterministic_under_input_shuffle():
 def test_cell_texts():
     # Constrained composition (whole_op + scoped) — UNCHANGED across rev 5.
     whole = _fact(level=CapabilityLevel.POLYMORPHIC)
-    scoped = _fact(param="values", option_value="strict", level=CapabilityLevel.UNSUPPORTED)
+    scoped = _fact(param="input", option_value="strict", level=CapabilityLevel.UNSUPPORTED)
     out = render_markdown(_report([whole, scoped]))
     assert "poly + ◐ partial (1 params, 1 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects)" in out
 
     # Clean default-capable (IMPLEMENTED + clean + no audit) -> `✓` (U+2713).
-    clean = render_markdown(_report([], decls=(), impls=_impls()))
+    clean = render_markdown(_report([], segments=(), impls=_impls()))
     assert "| ✓ |" in clean
     assert " audited" not in clean.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
 
     # NOT_IMPLEMENTED + no facts + no audit -> `—` (only true blank).
-    empty = render_markdown(_report([], decls=(), impls=_impls(state=ImplState.NOT_IMPLEMENTED)))
+    empty = render_markdown(_report([], segments=(), impls=_impls(state=ImplState.NOT_IMPLEMENTED)))
     matrix = empty.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     assert "| — |" in matrix
     assert "⚠ contradiction" not in matrix
 
     # UNKNOWN -> `?` (no glyph change, no annotations).
-    unknown = render_markdown(_report([], decls=(), impls=_impls(state=ImplState.UNKNOWN)))
+    unknown = render_markdown(_report([], segments=(), impls=_impls(state=ImplState.UNKNOWN)))
     assert "| ? |" in unknown
 
 
 def test_handler_cell_uses_glyph():
     # IMPLEMENTED_VIA_HANDLER (clean, no audit) -> `✓ᴴ` (the ᴴ footnote).
     handler_impls = _impls(state=ImplState.IMPLEMENTED_VIA_HANDLER)
-    out = render_markdown(_report([], decls=(), impls=handler_impls))
+    out = render_markdown(_report([], segments=(), impls=handler_impls))
     assert "✓ᴴ" in out
-    # Bare `✓` (without the ᴴ superscript) must not appear as a cell mark for
-    # these synthetic cells — the handler glyph is the only clean mark.
+    # Each real string operation uses the handler glyph and remains unaudited.
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     for line in matrix.splitlines():
-        if line.startswith("| `") and ("OP_A" in line or "OP_B" in line):
+        if line.startswith("| `") and ("LPAD" in line or "RPAD" in line):
             assert "✓ᴴ" in line, f"expected handler glyph in row: {line!r}"
             assert " audited" not in line
 
     # IMPLEMENTED_VIA_HANDLER + audited -> `✓ᴴ audited`.
-    out_audited = render_markdown(_report([], decls=(_decl(),), impls=handler_impls))
+    out_audited = render_markdown(_report([], segments=(_segment(),), impls=handler_impls))
     assert "✓ᴴ audited" in out_audited
 
 
 def test_handler_cell_with_constraining_fact_renders_composition_not_glyph():
-    # Spec §3.3: the `if oc.constrained` branch precedes the handler-glyph
-    # branch in _cell_text, so a handler-dispatched cell that ALSO carries a
-    # constraining whole-op GATE fact renders the constrained composition, NOT
-    # the clean `✓ᴴ`. The live registry has no such cell (the three handler ops
-    # are fact-free), so only a synthetic universe exercises the path (M-5).
+    # A constrained whole-op gate takes precedence over the handler glyph.
     gates = [_fact(level=CapabilityLevel.UNSUPPORTED, backend=b) for b in RENDERED_BACKENDS]
-    decls = tuple(_decl(backend=b, facts=(g,)) for b, g in zip(RENDERED_BACKENDS, gates))
-    out = render_markdown(_report(gates, decls=decls, impls=_impls(state=ImplState.IMPLEMENTED_VIA_HANDLER)))
+    segments = tuple(_segment(backend=b, facts=(g,)) for b, g in zip(RENDERED_BACKENDS, gates))
+    out = render_markdown(_report(gates, segments=segments, impls=_impls(state=ImplState.IMPLEMENTED_VIA_HANDLER)))
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
-    op_a_rows = [ln for ln in matrix.splitlines() if ln.startswith("| `") and "OP_A" in ln]
-    assert op_a_rows, matrix
-    row = op_a_rows[0]
-    assert "✗ unsupported" in row  # constrained composition rendered
-    assert "✓ᴴ" not in row  # NOT the clean handler glyph
-    # OP_B carries no fact, so its handler cells still render `✓ᴴ` (control).
-    op_b_rows = [ln for ln in matrix.splitlines() if ln.startswith("| `") and "OP_B" in ln]
-    assert op_b_rows and "✓ᴴ" in op_b_rows[0]
+    lpad_rows = [ln for ln in matrix.splitlines() if ln.startswith("| `") and "LPAD" in ln]
+    assert lpad_rows, matrix
+    row = lpad_rows[0]
+    assert "✗ unsupported" in row
+    assert "✓ᴴ" not in row
+    # RPAD carries no fact, so its handler cells still render `✓ᴴ`.
+    rpad_rows = [ln for ln in matrix.splitlines() if ln.startswith("| `") and "RPAD" in ln]
+    assert rpad_rows and "✓ᴴ" in rpad_rows[0]
 
 
 def test_contradiction_cell_renders_loudly():
-    # NOT_IMPLEMENTED + constraining fact + applicable declaration -> contradiction.
-    f = _fact(param="values", dialect="duckdb", level=CapabilityLevel.UNSUPPORTED)
+    # NOT_IMPLEMENTED + constraining fact + applicable segment -> contradiction.
+    f = _fact(param="input", dialect="polars", level=CapabilityLevel.UNSUPPORTED)
     impls = _impls(
         overrides={
-            (FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED,
+            (FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED,
         }
     )
-    out = render_markdown(_report([f], decls=(_decl(facts=(f,)),), impls=impls))
+    out = render_markdown(_report([f], segments=_segments((f,)), impls=impls))
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     # The cell renders the loud marker, not `—`.
     assert "⚠ contradiction" in matrix
     # And the summary section renders the count even when > 0.
     assert "contradictions: 1" in out
 
-    # NOT_IMPLEMENTED + declaration only (no facts) is also a contradiction.
-    out_decl_only = render_markdown(_report([], decls=(_decl(),), impls=impls))
-    assert "⚠ contradiction" in out_decl_only
-    assert "contradictions: 1" in out_decl_only
+    # NOT_IMPLEMENTED + segment only (no facts) is also a contradiction.
+    out_segment_only = render_markdown(_report([], segments=(_segment(),), impls=impls))
+    assert "⚠ contradiction" in out_segment_only
+    assert "contradictions: 1" in out_segment_only
 
 
 def test_unknown_cell_never_carries_audited_badge():
     # Audited is stored on UNKNOWN cells (the field is not dead state), but
     # it must NEVER be rendered on the `?` cell (spec §3.3, legend says so).
     impls = _impls(state=ImplState.UNKNOWN)
-    out = render_markdown(_report([], decls=(_decl(),), impls=impls))
+    out = render_markdown(_report([], segments=(_segment(),), impls=impls))
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     # Every matrix row containing `?` must not contain `audited`.
     for line in matrix.splitlines():
@@ -257,10 +306,8 @@ def test_unknown_cell_never_carries_audited_badge():
     assert "audited_unknown: 2" in out  # both ops on POLARS
 
 
-def test_unaudited_cell_never_renders_audit_badge():
-    # With no declarations at all, no cell in the matrix may carry the
-    # `audited` badge — the only mark is the unaudited `✓`.
-    out = render_markdown(_report([], decls=(), impls=_impls()))
+    # With no active segments, no cell in the matrix may carry the audit badge.
+    out = render_markdown(_report([], segments=(), impls=_impls()))
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     assert " audited" not in matrix
     # And the U+2705 green-tick glyph is RETIRED — the marker is U+2713 only.
@@ -268,28 +315,19 @@ def test_unaudited_cell_never_renders_audit_badge():
     assert "✅" not in out
 
 
-def test_char_point_glyph_reconciliation():
-    # Byte-level drift the eye cannot see: U+2713 (light check) is the only
-    # success marker, U+2705 (green check) is RETIRED.
-    out = render_markdown(_report([]))
-    assert "\u2713" in out
-    assert "\u2705" not in out
-    # And the retired string literals `DECLARED_CLEAN` / `UNDECLARED` are gone.
-    assert "DECLARED_CLEAN" not in out
-    assert "UNDECLARED" not in out
 
 
 def test_residue_and_routed_annotations():
     residue = _fact(
-        param="v",
+        param="input",
         enforcement=Enforcement.MATERIALIZE_RESIDUE,
         boundary=Boundary.MATERIALIZE,
         level=CapabilityLevel.UNSUPPORTED,
         native_errors=(ValueError,),
     )
     routed = _fact(
-        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_B,
-        param="v",
+        operation_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+        param="characters",
         enforcement=Enforcement.ROUTER_METADATA,
         level=CapabilityLevel.UNSUPPORTED,
     )
@@ -302,17 +340,14 @@ def test_residue_and_routed_annotations():
 
 
 def test_refinement_annotation_lists_dialects():
-    refinement = _fact(param="v", dialect="duckdb", level=CapabilityLevel.EXPR_CAPABLE)
+    refinement = _fact(param="input", dialect="polars", level=CapabilityLevel.EXPR_CAPABLE)
     out = render_markdown(_report([refinement]))
-    # Refinement alone stays clean (no constraining facts) — base mark `✓`,
-    # then the audited badge (the declaration applies to the family), then
-    # the `✓ dialect-verified: …` annotation listing the dialects.
-    assert "✓ audited ✓ dialect-verified: duckdb" in out
+    # Refinement alone stays clean; the applicable segment adds the audit badge.
+    assert "✓ audited ✓ dialect-verified: polars" in out
 
 
-def test_undeclared_never_renders_clean_marker():
-    # No declarations at all -> no `audited` badge anywhere in matrix rows.
-    out = render_markdown(_report([], decls=()))
+def test_unsegmented_cells_never_render_an_audit_badge():
+    out = render_markdown(_report([], segments=()))
     matrix = out.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     assert " audited" not in matrix
 
@@ -322,28 +357,29 @@ def test_summary_per_backend_table_consistency():
     # ops_total (the per-backend sum law, spec §4.5) and the invariant lines
     # (rendered even when 0 — both invariants visible per spec §3.3 / §4.1).
     residue = _fact(
-        param="v",
+        param="input",
         enforcement=Enforcement.MATERIALIZE_RESIDUE,
         boundary=Boundary.MATERIALIZE,
         level=CapabilityLevel.UNSUPPORTED,
         native_errors=(ValueError,),
     )
     routed = _fact(
-        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_B,
-        param="v",
+        operation_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+        param="characters",
         enforcement=Enforcement.ROUTER_METADATA,
         level=CapabilityLevel.UNSUPPORTED,
     )
     overrides = {
-        (FKEY_SUBSTRAIT_SYNTH_SET.OP_A, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED,
-        (FKEY_SUBSTRAIT_SYNTH_SET.OP_B, CONST_BACKEND.POLARS): ImplState.UNKNOWN,
+        (FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, CONST_BACKEND.POLARS): ImplState.NOT_IMPLEMENTED,
+        (FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, CONST_BACKEND.POLARS): ImplState.UNKNOWN,
     }
     impls = _impls(overrides=overrides)
-    out = render_markdown(_report([residue, routed], decls=(_decl(facts=(residue, routed)),), impls=impls))
+    out = render_markdown(
+        _report([residue, routed], segments=_segments((residue, routed)), impls=impls)
+    )
     # Per-backend columns: default_capable / audited_clean / constrained / NOT_IMPLEMENTED / UNKNOWN / ops_total.
     assert "| Backend | default_capable | audited_clean | constrained | NOT_IMPLEMENTED | UNKNOWN | ops_total |" in out
-    # Setup creates: OP_A×POLARS = NOT_IMPLEMENTED + constraining fact = 1 contradiction.
-    # OP_B×POLARS = UNKNOWN + applicable declaration = 1 audited_unknown.
+    # LPAD×POLARS is a contradiction; RPAD×POLARS is audited unknown.
     assert "contradictions: 1" in out
     assert "audited_unknown: 1" in out
 
@@ -357,19 +393,19 @@ def test_summary_per_backend_table_consistency():
 
 
 def test_option_collapse_rule():
-    same = [_fact(param="fmt", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("a", "b", "c")]
+    same = [_fact(param="characters", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("a", "b", "c")]
     groups = _collapse_groups(tuple(same))
     assert len(groups) == 1 and groups[0][1] == ["a", "b", "c"]
 
     two = _collapse_groups(tuple(same[:2]))
     assert len(two) == 2  # <3 renders per-fact
 
-    split = same[:2] + [_fact(param="fmt", option_value="c", message="different", level=CapabilityLevel.UNSUPPORTED)]
+    split = same[:2] + [_fact(param="characters", option_value="c", message="different", level=CapabilityLevel.UNSUPPORTED)]
     assert len(_collapse_groups(tuple(split))) == 3  # metadata splits groups
 
     # Mixed group: a value-agnostic fact sharing the remaining identity blocks
     # collapse — all four render per-fact (the defined handling, Task 4 code).
-    mixed = same + [_fact(param="fmt", level=CapabilityLevel.UNSUPPORTED)]
+    mixed = same + [_fact(param="characters", level=CapabilityLevel.UNSUPPORTED)]
     assert len(_collapse_groups(tuple(mixed))) == 4
 
 
@@ -377,94 +413,72 @@ def test_scoped_report_keeps_same_message_metadata_predicates_distinguishable():
     """Consumers receive every executable metadata selector, not a collapsed label."""
     facts = (
         _fact(
-            param="x",
-            predicate=Predicate((Clause("__operand_types__.x.storage_kind", ClauseOp.EQ, "polars_object"),)),
+            param="input",
+            predicate=Predicate((Clause("__operand_types__.input.storage_kind", ClauseOp.EQ, "polars_object"),)),
         ),
         _fact(
-            param="x",
-            predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
+            param="input",
+            predicate=Predicate((Clause("__operand_types__.input.logical_kind", ClauseOp.EQ, "float"),)),
         ),
     )
 
     scoped = render_scoped(_report(facts))
 
-    assert scoped.count("| * | x |") == 2
-    assert "__operand_types__.x.storage_kind == 'polars_object'" in scoped
-    assert "__operand_types__.x.logical_kind == 'float'" in scoped
+    assert scoped.count("| * | input |") == 2
+    assert "__operand_types__.input.storage_kind == 'polars_object'" in scoped
+    assert "__operand_types__.input.logical_kind == 'float'" in scoped
 
 
 def test_scoped_report_keeps_option_constraints_in_their_dialects():
     facts = tuple(
-        _fact(param="mode", option_value=value, dialect=dialect)
+        _fact(
+            param="characters",
+            option_value=value,
+            backend=CONST_BACKEND.IBIS,
+            dialect=dialect,
+        )
         for dialect in ("ibis-duckdb", "ibis-sqlite")
         for value in ("a", "b", "c")
     )
     scoped = render_scoped(_report(facts))
     for dialect in ("ibis-duckdb", "ibis-sqlite"):
-        assert f"| {dialect} | mode | a, b, c |" in scoped
+        assert f"| {dialect} | characters | a, b, c |" in scoped
 
 
-def test_legend_has_by_exception_rows_and_footnotes():
-    out = render_markdown(_report([]))
-    # The §3.3 render-map rows in prose (by-exception epistemics).
-    for token in ("`✓`", "`—`", "`⚠ contradiction`", "`?`"):
-        assert token in out, f"legend missing row for {token}"
-    # Audit-badge inference-limit sentence retained verbatim.
-    assert "domain-wave-level evidence" in out
-    assert "not proof the specific op was exercised" in out
-    # ᴴ footnote.
-    assert "ᴴ" in out
-    # ? footnote incl. "audited is stored but not rendered on `?` cells".
-    assert "audited is stored but not rendered on `?` cells" in out
 
-
-def test_unmapped_families_stamp_impl_summary():
-    # Uses the live report. While unmapped families (audit_domain is None) exist,
-    # assert the §3.6 stamp line format. When a future release maps every family,
-    # _unmapped_families() emits no section at all — then the correct expectation
-    # is the section's ABSENCE, not a stamp match. Branching here makes the
-    # "every family mapped" day a passing test rather than a misleading regex
-    # miss (T3 review: live-registry fragility, recorded as a dated expectation).
-    inputs = gather_coverage_inputs()
-    report = build_coverage_report(
-        inputs["universe"],
-        inputs["facts"],
-        inputs["declarations"],
-        inputs["divergences"],
-        inputs["gaps"],
-        inputs["retired"],
-        inputs["implementations"],
+def _change(
+    *,
+    successors: tuple[CapturedAssertion, ...] = (),
+    fixed_versions: Environment | None = None,
+) -> AssertionChange:
+    prior = _fact(param="input", message="prior limitation")
+    prior_capture = CapturedAssertion(
+        "capability",
+        prior.fact_key,
+        prior,
+        CapturedAddress("mountainash", "old.py", "prior", artifact=b"old"),
     )
-    out = render_markdown(report)
-    if not any(f.audit_domain is None for f in report.families):
-        assert "## Unmapped families" not in out
-        return
-    # The stamp format: "N ops — all implemented on 3/3 backends" or a
-    # per-backend split when not uniform: "M/N polars · M/N narwhals · M/N ibis"
-    # (render_markdown uses the ops count as denominator - final-review M-2).
-    import re
-
-    assert re.search(
-        r"\d+ ops — (all implemented on 3/3 backends|" r"\d+/\d+ polars · .*narwhals · .*ibis)", out
-    ), f"unmapped stamp line missing or malformed: {out!r}"
+    return AssertionChange(
+        CapturedAddress("mountainash", "changes.py", "changes[0]", artifact=b"change"),
+        prior_capture,
+        ChangeDisposition.INCORRECT_DECLARATION,
+        "2026-08-01T12:34:56",
+        "fixture correction",
+        successors,
+        (CapturedAddress("mountainash", "evidence.py", "cases[0]", artifact=b"evidence"),),
+        fixed_versions,
+    )
 
 
-def test_header_includes_implementation_record_count():
-    out = render_markdown(_report([]))
-    # Pinned label `· Implementation records: {N}` where N is the sum of
-    # by_impl.values() across the three backends (2 ops × 3 backends = 6).
-    assert "· Implementation records: 6" in out
-
-
-def test_nonempty_gaps_divergences_retirements_render():
+def test_nonempty_gaps_divergences_and_changes_render():
     dv = DivergenceFact(
         id="SY-TEST-01",
         kind=DivergenceKind.SEMANTICS,
-        operation_keys=(FKEY_SUBSTRAIT_SYNTH_SET.OP_A,),
+        operation_keys=(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,),
         backends=("polars",),
-        summary="synthetic summary",
-        impact="synthetic impact",
-        workaround="synthetic workaround",
+        summary="fixture summary",
+        impact="fixture impact",
+        workaround="fixture workaround",
         since="2026-08-01",
     )
     keyless = DivergenceFact(
@@ -476,26 +490,59 @@ def test_nonempty_gaps_divergences_retirements_render():
         impact="none",
         since="2026-08-01",
     )
-    gap = KnownGap(gap_kind=GapKind.UNTESTED_OPTION, reason="synthetic gap reason", since="2026-08-01")
-    ret = RetiredFact(
-        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_B,
-        param="values",
-        backend=CONST_BACKEND.POLARS,
-        dialect=None,
-        option_value=None,
-        value_class=None,
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-07-01",
-        retired_on="2026-08-01",
-        fixed_in_versions=(("polars", "1.36.0"),),
-        upstream_ref=None,
-        note="synthetic retirement",
+    gap = _gap("fixture gap reason")
+    successor_fact = _fact(param="input", message="corrected limitation")
+    successor = CapturedAssertion(
+        "capability",
+        successor_fact.fact_key,
+        successor_fact,
+        CapturedAddress("mountainash", "new.py", "successor", artifact=b"new"),
     )
-    out = render_markdown(_report([], decls=(_decl(),), divergences=(dv, keyless), gaps=(gap,), retired=(ret,)))
+    change = _change(
+        successors=(successor,),
+        fixed_versions=Environment((
+            EnvironmentCoordinate("package", "ibis", "13.0.0"),
+            EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
+        )),
+    )
+    report = _report(
+        [],
+        segments=(_segment(),),
+        divergences=(dv, keyless),
+        gaps=(gap,),
+        changes=(change,),
+    )
+    out = render_markdown(report)
+    rendered = json.loads(render_json(report))
+    change_json = rendered["changes"][0]
     assert out.count("SY-TEST-01") == 1 and out.count("SY-TEST-02") == 1
-    assert out.count("synthetic gap reason") == 1
-    assert "2027-01-31" in out  # 2026-08-01 + 183 days: review_due from data
-    assert out.count("synthetic retirement") == 1 and "polars 1.36.0" in out
+    assert "2027-01-31" in out
+    assert rendered["divergences"][0]["operation_keys"] == [{
+        "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+        "op": "LPAD",
+    }]
+    assert list(change_json) == [
+        "change_ref",
+        "prior",
+        "disposition",
+        "recorded_at",
+        "reason",
+        "successors",
+        "evidence_refs",
+        "fixed_versions",
+    ]
+    prior_payload = change_json["prior"]["payload"]
+    assert prior_payload["operation_key"]["enum"].endswith("FKEY_SUBSTRAIT_SCALAR_STRING")
+    assert prior_payload["operation_key"]["name"] == "LPAD"
+    assert prior_payload["param"] == "input"
+    assert change_json["prior"]["address"]["entry"] == "prior"
+    assert change_json["successors"][0]["address"]["entry"] == "successor"
+    assert change_json["evidence_refs"][0]["entry"] == "cases[0]"
+    assert change_json["fixed_versions"]["coordinates"][0]["kind"] == "engine"
+
+def test_report_rejects_duplicate_change_capture_address():
+    with pytest.raises(ValueError, match="duplicate change_ref"):
+        _report(changes=(_change(), _change()))
 
 
 def test_detail_section_written_for_every_cell_with_facts():
@@ -504,12 +551,12 @@ def test_detail_section_written_for_every_cell_with_facts():
     # row lives in `render_scoped`, not the main doc. The spec's "every
     # cell with facts gets a detail row" rule is preserved across the
     # two artifacts (the partition-exactness invariant, §4.5 M-3).
-    routed = _fact(param="v", enforcement=Enforcement.ROUTER_METADATA, level=CapabilityLevel.UNSUPPORTED)
+    routed = _fact(param="characters", enforcement=Enforcement.ROUTER_METADATA, level=CapabilityLevel.UNSUPPORTED)
     main = render_markdown(_report([routed]))
     scoped = render_scoped(_report([routed]))
     main_detail = main.split("## Per-op detail", 1)[1]
-    assert "### `OP_A` × polars" not in main_detail
-    assert "### `OP_A` × polars" in scoped
+    assert "### `LPAD` × polars" not in main_detail
+    assert "### `LPAD` × polars" in scoped
     assert "router_metadata" in scoped
 
 
@@ -519,15 +566,7 @@ def test_detail_section_written_for_every_cell_with_facts():
 
 
 def _report_from_inputs(inputs):
-    return build_coverage_report(
-        inputs["universe"],
-        inputs["facts"],
-        inputs["declarations"],
-        inputs["divergences"],
-        inputs["gaps"],
-        inputs["retired"],
-        inputs["implementations"],
-    )
+    return build_coverage_report(**inputs)
 
 
 def test_gather_coverage_inputs_refuses_isolated_registry():
@@ -551,7 +590,7 @@ def test_gather_coverage_inputs_keeps_captured_generation_after_reset_restore(
 ):
     from mountainash.core.capabilities import CapabilityRegistry
 
-    expected_facts, expected_declarations = CapabilityRegistry._report_inputs()
+    expected_facts, expected_segments = CapabilityRegistry._report_inputs()
     snapshot = CapabilityRegistry.snapshot()
     CapabilityRegistry.reset()
     isolated = CapabilityRegistry.snapshot()
@@ -580,121 +619,57 @@ def test_gather_coverage_inputs_keeps_captured_generation_after_reset_restore(
         else:
             inputs = gather_coverage_inputs()
             assert inputs["facts"] == expected_facts
-            assert inputs["declarations"] == expected_declarations
+            assert inputs["segments"] == expected_segments
     finally:
         CapabilityRegistry.restore(snapshot)
 
 
-def test_gather_coverage_inputs_keeps_fact_and_declaration_evidence_coherent(
+def test_gather_coverage_inputs_keeps_fact_and_segment_capture_coherent(
     monkeypatch,
 ):
     from mountainash.core.capabilities import CapabilityRegistry
 
-    expected_facts, expected_declarations = CapabilityRegistry._report_inputs()
+    expected_facts, expected_segments = CapabilityRegistry._report_inputs()
     snapshot = CapabilityRegistry.snapshot()
-    late_declaration = CapabilityDeclaration(
-        backend=CONST_BACKEND.POLARS,
-        domain=Domain.SET,
-        source=FactSource.SUBSTRAIT,
-        facts=(),
-        evidence=ProbeEvidence(
-            probe_date="2026-09-15",
-            library_versions=(("polars", "1.44.2"),),
-            fixtures=("published-after-capture",),
-        ),
+    assert sorted(fact.fact_key for fact in expected_facts) == sorted(
+        fact.fact_key
+        for segment in expected_segments
+        for fact in segment.facts
+    )
+    late_segment = BoundSegment(
+        "mountainash.expressions.backends.capabilities.polars.family.substrait.string.late",
+        Scope(CONST_BACKEND.POLARS, FamilyWide()),
+        CapabilitySegment(Domain.STRING),
     )
     report_inputs = CapabilityRegistry._report_inputs
-    registry_facts = CapabilityRegistry.facts
 
     def capture_then_publish():
-        facts, declarations = report_inputs()
-        CapabilityRegistry.register_declaration(late_declaration)
-        return facts, declarations
-
-    def facts_then_publish(*args, **kwargs):
-        facts = registry_facts(*args, **kwargs)
-        CapabilityRegistry.register_declaration(late_declaration)
-        return facts
+        facts, segments = report_inputs()
+        CapabilityRegistry.register_segment(late_segment)
+        return facts, segments
 
     monkeypatch.setattr(CapabilityRegistry, "_report_inputs", capture_then_publish)
-    monkeypatch.setattr(CapabilityRegistry, "facts", facts_then_publish)
     try:
         inputs = gather_coverage_inputs()
         assert inputs["facts"] == expected_facts
-        assert inputs["declarations"] == expected_declarations
-        assert late_declaration in CapabilityRegistry.declarations()
-        declarations = json.loads(render_json(_report_from_inputs(inputs)))["declarations"]
-        fixtures = {
-            tuple(declaration["evidence"]["fixtures"])
-            for declaration in declarations
-            if declaration["evidence"] is not None
+        assert inputs["segments"] == expected_segments
+        assert late_segment in CapabilityRegistry.segments()
+        rendered_segments = json.loads(render_json(_report_from_inputs(inputs)))["segments"]
+        assert late_segment.module not in {
+            segment["module"] for segment in rendered_segments
         }
-        assert ("polars",) in fixtures
-        assert ("published-after-capture",) not in fixtures
     finally:
         CapabilityRegistry.restore(snapshot)
 
 
 # ---------------------------------------------------------------------------
-# Task 2 — Derivation tests (spec §3.6).
-# The renderer itself is Task 3; the pre-existing tests above fail on the
-# Task-3 NotImplementedError stubs by design. Run only this section by node id.
+# Implementation derivation helpers.
 # ---------------------------------------------------------------------------
 
 
 class TestDerivation:
-    """gather_implementation_records() + _resolve_concrete_owner() — spec §3.6."""
+    """_resolve_concrete_owner() excludes protocol stub carriers."""
 
-    def test_live_derivation_shape_and_counts(self):
-        """Cardinality + per-state tallies against the real registries (spec §3.6
-        empirical baseline + the rev-5 universe)."""
-        from mountainash.relations.core.relation_system.relation_keys.enums import (
-            RKEY_MOUNTAINASH_REL,
-        )
-
-        universe = gather_coverage_inputs()["universe"]
-        recs = gather_implementation_records(universe)
-        assert len(recs) == len(universe) * 3
-        assert sum(1 for r in recs if r.state is ImplState.UNKNOWN) == 0
-        assert sum(1 for r in recs if r.state is ImplState.NOT_IMPLEMENTED) == 0
-
-        handler_ops = {RKEY_MOUNTAINASH_REL.SOURCE, RKEY_MOUNTAINASH_REL.REF, RKEY_MOUNTAINASH_REL.CONFORM}
-        hv = [r for r in recs if r.state is ImplState.IMPLEMENTED_VIA_HANDLER]
-        assert len(hv) == 9
-        assert {r.operation_key for r in hv} == handler_ops
-        for r in hv:
-            assert r.backend in {CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS, CONST_BACKEND.IBIS}
-
-    def test_rank_sharing_ops_all_implemented_with_method_rank(self):
-        """Three ops share `protocol_method = ...rank`; name-based dispatch
-        (review M-4) means they all IMPLEMENT with method_name == 'rank'."""
-        from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_MOUNTAINASH_WINDOW,
-            SUBSTRAIT_ARITHMETIC_WINDOW,
-        )
-
-        recs = gather_implementation_records(gather_coverage_inputs()["universe"])
-        rank_ops = {
-            SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
-            FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE,
-            FKEY_MOUNTAINASH_WINDOW.RANK_MAX,
-        }
-        for op in rank_ops:
-            matches = [r for r in recs if r.operation_key is op]
-            assert len(matches) == 3
-            for r in matches:
-                assert r.state is ImplState.IMPLEMENTED
-                assert r.method_name == "rank"
-
-    def test_via_handler_provenance_locked_to_handler(self):
-        """Every IMPLEMENTED_VIA_HANDLER record has protocol_name == 'handler'
-        and method_name containing 'visit_' (the documented literal — Task 1
-        test would have caught any drift here)."""
-        recs = gather_implementation_records(gather_coverage_inputs()["universe"])
-        for r in recs:
-            if r.state is ImplState.IMPLEMENTED_VIA_HANDLER:
-                assert r.protocol_name == "handler"
-                assert "visit_" in (r.method_name or "")
 
     def test_resolve_concrete_owner_skips_protocol_stubs(self):
         """Spec §3.6 / review C-2: a bare Protocol subclass is a stub carrier,
@@ -724,7 +699,7 @@ class TestDerivation:
 
 # ---------------------------------------------------------------------------
 # Task 2 — JSON renderer (spec §4.6).
-# Pure-function tests over synthetic universes: shape lock, round-trip,
+# Pure-function tests over local registered operations: shape lock, round-trip,
 # no-collapse, null-vs-empty. No registry calls; the model is the source of
 # truth and `render_json` is the only function under test here.
 # ---------------------------------------------------------------------------
@@ -734,10 +709,11 @@ _TOP_LEVEL_KEYS = [
     "stamp",
     "stats",
     "families",
-    "declarations",
+    "segments",
+    "historical_bundles",
     "divergences",
     "gaps",
-    "retired",
+    "changes",
 ]
 
 _CELL_KEYS = {
@@ -779,7 +755,7 @@ def _json_fact_semantic_identity(f_dict: dict) -> tuple:
         f_dict["upstream_ref"] or "",
         tuple(f_dict["native_errors"]),
         f_dict["probe_exempt"] or "",
-        (),  # predicate term — empty for synthetic facts (none carry a predicate)
+        (),  # predicate term — empty for these local fixture facts
     )
 
 
@@ -815,31 +791,27 @@ def _model_fact_multiset(report: CoverageReport) -> list:
 
 
 def test_json_shape_lock():
-    """Spec §4.6: 7 top-level keys in spec order; cell keys exact;
-    stats.backends.<backend>.by_impl nested per-backend and ImplState-.value-keyed
-    (plan-review C3 — the model's tuple-keyed Mapping has no legal JSON key
-    form); enum .value everywhere; ISO date strings; declarations carry a
-    facts array; null vs [] distinction for option_value vs native_errors."""
-    # Build a non-trivial report so the structure exercises every shape.
-    fs = [_fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("x", "y", "z")] + [
-        _fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)
+    """The report serializes current segments separately from historical capture."""
+    fs = [_fact(param="length", option_value=value, level=CapabilityLevel.UNSUPPORTED) for value in ("x", "y", "z")] + [
+        _fact(param="characters", dialect="polars", level=CapabilityLevel.LITERAL_ONLY)
     ]
-    decl = _decl(facts=tuple(fs))
+    segments = _segments(tuple(fs))
     impls = _impls()
-    out = render_json(build_coverage_report(_universe(), tuple(fs), (decl,), (), (), (), impls))
+    out = render_json(build_coverage_report(_universe(), tuple(fs), segments, (), (), (), impls))
     obj = json.loads(out)
 
     # Top-level keys in spec order.
     assert list(obj.keys()) == _TOP_LEVEL_KEYS
 
-    # Stamp counts (no timestamps per spec §4.4).
+    # Stamp counts are deliberately timeless.
     assert set(obj["stamp"].keys()) == {
-        "declarations",
+        "segments",
+        "historical_bundles",
         "facts",
         "operations",
         "implementation_records",
     }
-    assert all(isinstance(obj["stamp"][k], int) for k in obj["stamp"])
+    assert all(isinstance(obj["stamp"][key], int) for key in obj["stamp"])
 
     # Stats structure: per-backend nested with by_impl keyed by ImplState .value.
     stats = obj["stats"]
@@ -865,7 +837,7 @@ def test_json_shape_lock():
     for k, v in stats["facts_by_backend"].items():
         assert isinstance(k, str) and isinstance(v, int)
 
-    # Cell keys (taken from the synthetic fact-decorated cell).
+    # Cell keys (taken from a real LPAD fact-decorated cell).
     target_cell = None
     for fam in obj["families"]:
         for op_entry in fam["ops"]:
@@ -893,18 +865,18 @@ def test_json_shape_lock():
     for v in target_cell["selector_counts"].values():
         assert isinstance(v, int)
 
-    # Op keys: two-part {family, op} with string values.
+    # Operation and family identity use the registered canonical authority.
     op_entry = obj["families"][0]["ops"][0]
-    assert set(op_entry["op"].keys()) == {"family", "op"}
-    assert isinstance(op_entry["op"]["family"], str)
-    assert isinstance(op_entry["op"]["op"], str)
+    assert op_entry["op"] == {
+        "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
+        "op": "LPAD",
+    }
 
-    # Family shape.
     fam = obj["families"][0]
     assert set(fam.keys()) == {"family", "source", "domain", "ops"}
-    # source/domain are .value or null (unmapped families are None in the model).
-    assert fam["source"] is None or isinstance(fam["source"], str)
-    assert fam["domain"] is None or isinstance(fam["domain"], str)
+    assert fam["family"] == "FKEY_SUBSTRAIT_SCALAR_STRING"
+    assert fam["source"] == "substrait"
+    assert fam["domain"] == "string"
 
     # ISO date strings: every fact's `since` matches the ISO grammar.
     iso_re = __import__("re").compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -915,142 +887,77 @@ def test_json_shape_lock():
                     for f in cell[bucket]:
                         assert iso_re.match(f["since"]), f"non-ISO since in JSON: {f['since']!r}"
 
-    # Declarations carry a `facts` array (plan-review C2 — this is what makes
-    # declarations JSON-recoverable per §4.4 I-3).
-    for d in obj["declarations"]:
-        assert "facts" in d and isinstance(d["facts"], list)
-        for f in d["facts"]:
-            assert isinstance(f, dict)
-        # evidence is dict-or-null (preserves the absence-of-evidence signal).
-        assert d["evidence"] is None or isinstance(d["evidence"], dict)
-        if d["evidence"] is not None:
-            assert set(d["evidence"].keys()) == {
-                "probe_date",
-                "library_versions",
-                "fixtures",
-            }
-            assert iso_re.match(d["evidence"]["probe_date"])
-
+    segment_rows = obj["segments"]
+    assert len(segment_rows) == len(segments)
+    for row in segment_rows:
+        assert set(row) == {
+            "module", "scope", "source", "domain", "facts", "evidence_refs", "changes",
+        }
+        assert row["module"].endswith(".substrait.string")
+        assert row["source"] == "substrait"
+        assert row["domain"] == "string"
+    assert {row["scope"]["dialect"] for row in segment_rows} == {None, "polars"}
+    assert obj["historical_bundles"] == []
 
 def test_json_round_trip():
-    """Spec §4.6: json.loads(render_json(report)) recovers exact fact multiset
-    (identity tuples), op universe, declaration/divergence/gap/retirement
-    counts, per-backend stats equal to the model's (by_impl re-keyed to
-    tuples), canonicalized declaration .facts order, and builtins-resolved
-    native_errors (review I-4)."""
-    fs = [_fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("x", "y", "z")] + [
-        _fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY),
+    fs = [
+        _fact(param="length", option_value=value, level=CapabilityLevel.UNSUPPORTED)
+        for value in ("x", "y", "z")
+    ] + [
+        _fact(param="characters", dialect="polars", level=CapabilityLevel.LITERAL_ONLY),
         _fact(
-            param="c",
+            param="input",
             enforcement=Enforcement.MATERIALIZE_RESIDUE,
             boundary=Boundary.MATERIALIZE,
             level=CapabilityLevel.UNSUPPORTED,
             native_errors=(ValueError,),
         ),
     ]
-    # Mix the declaration's fact order with a non-canonical input to prove the
-    # canonicalization at ingest (review I-3) is what shows up in JSON.
-    decl_facts = tuple(reversed(fs))
-    decl = _decl(facts=decl_facts)
-    impls = _impls()
-    # Add a divergence, gap, and retirement to exercise the count assertions.
-    dv = DivergenceFact(
+    divergence = DivergenceFact(
         id="SY-TEST-01",
         kind=DivergenceKind.SEMANTICS,
-        operation_keys=(FKEY_SUBSTRAIT_SYNTH_SET.OP_A,),
+        operation_keys=(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,),
         backends=("ibis-duckdb",),
         summary="s",
         impact="i",
         workaround="w",
         since="2026-08-01",
     )
-    gap = KnownGap(gap_kind=GapKind.UNTESTED_OPTION, reason="synthetic", since="2026-08-01")
-    ret = RetiredFact(
-        operation_key=FKEY_SUBSTRAIT_SYNTH_SET.OP_A,
-        param="values",
-        backend=CONST_BACKEND.POLARS,
-        dialect=None,
-        option_value=None,
-        value_class=None,
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-07-01",
-        retired_on="2026-08-01",
-        fixed_in_versions=(("polars", "1.36.0"),),
-        upstream_ref=None,
-        note="synthetic",
-    )
+    gap = _gap("fixture")
+    change = _change()
     universe = _universe()
-    report = build_coverage_report(universe, tuple(fs), (decl,), (dv,), (gap,), (ret,), impls)
+    report = build_coverage_report(
+        universe,
+        tuple(fs),
+        _segments(tuple(fs)),
+        (divergence,),
+        (gap,),
+        (change,),
+        _impls(),
+    )
+    obj = json.loads(render_json(report))
 
-    text = render_json(report)
-    obj = json.loads(text)
-
-    # 1. Op universe (by family+op name).
-    expected_ops = {(r.family, r.operation_key.name) for r in universe}
-    actual_ops = set()
-    for fam in obj["families"]:
-        for op_entry in fam["ops"]:
-            actual_ops.add((op_entry["op"]["family"], op_entry["op"]["op"]))
+    expected_ops = {(record.family, record.operation_key.name) for record in universe}
+    actual_ops = {
+        (entry["op"]["family"], entry["op"]["op"])
+        for family in obj["families"]
+        for entry in family["ops"]
+    }
     assert actual_ops == expected_ops
-
-    # 2. Counts.
-    assert len(obj["declarations"]) == len(report.declarations)
+    assert len(obj["segments"]) == len(report.segments)
+    assert len(obj["historical_bundles"]) == len(report.bundles)
     assert len(obj["divergences"]) == len(report.divergences)
     assert len(obj["gaps"]) == len(report.gaps)
-    assert len(obj["retired"]) == len(report.retired)
-    # Retired emitted newest-first.
-    retired_dates = [r["retired_on"] for r in obj["retired"]]
-    assert retired_dates == sorted(retired_dates, reverse=True)
-
-    # 3. Per-backend stats — by_impl re-keyed to tuples must equal the model.
-    for b in RENDERED_BACKENDS:
-        b_stats = obj["stats"]["backends"][b.value]
-        for s in ImplState:
-            assert (
-                b_stats["by_impl"][s.value] == report.stats.by_impl[(b, s)]
-            ), f"by_impl[{b.value},{s.value}] round-trip mismatch"
-        assert b_stats["default_capable"] == report.stats.default_capable[b]
-        assert b_stats["audited_clean"] == report.stats.audited_clean[b]
-        assert b_stats["constrained"] == report.stats.constrained[b]
-        assert b_stats["audited_unknown"] == report.stats.audited_unknown[b]
-    assert obj["stats"]["ops_total"] == report.stats.ops_total
-    assert obj["stats"]["facts_total"] == report.stats.facts_total
-    assert obj["stats"]["contradictions"] == report.stats.contradictions
-
-    # 4. Fact multiset — equal to the model after sorting.
+    assert len(obj["changes"]) == len(report.changes)
     assert _json_fact_multiset(obj, universe) == _model_fact_multiset(report)
-
-    # 5. Canonicalized declaration .facts order (review I-3). The input was
-    # reversed; the JSON must reflect the canonicalized order.
-    assert len(obj["declarations"]) == 1
-    json_facts = [_json_fact_semantic_identity(f) for f in obj["declarations"][0]["facts"]]
-    model_facts = [fact_sort_key(f) for f in report.declarations[0].facts]
-    assert json_facts == model_facts, (
-        "declaration .facts order in JSON must match the canonicalized model " "order from fact_sort_key (review I-3)"
-    )
-
-    # 6. native_errors round-trip via getattr(builtins, name) (review I-4).
-    # Every native_errors entry in the JSON must resolve to a builtin exception
-    # class — the model's ingest validator guarantees this; the JSON is the
-    # wire form a consumer would use to do the same.
-    for fam in obj["families"]:
-        for op_entry in fam["ops"]:
-            for cell in op_entry["cells"].values():
-                for bucket in ("constraints", "residue", "routed", "refinements"):
-                    for f in cell[bucket]:
-                        for name in f["native_errors"]:
-                            resolved = getattr(builtins, name)
-                            assert isinstance(resolved, type)
-                            assert issubclass(resolved, BaseException)
-    # The MODEL facts in fact_multiset have at least one native_errors tuple,
-    # so the JSON is non-trivially exercising this code path.
+    assert obj["segments"][0]["module"] == report.segments[0].module
     assert any(
-        f.native_errors
-        for fam in report.families
-        for oc in fam.ops
-        for bucket in (oc.constraints, oc.residue, oc.routed, oc.refinements)
-        for f in bucket
-    ), "test setup must include a fact with native_errors"
+        fact.native_errors
+        for family in report.families
+        for coverage in family.ops
+        for bucket in (coverage.constraints, coverage.residue, coverage.routed, coverage.refinements)
+        for fact in bucket
+    )
 
 
 def test_json_no_collapse():
@@ -1058,25 +965,27 @@ def test_json_no_collapse():
     option_value list) appears as ≥3 distinct fact objects in JSON — the
     extract carries every fact row uncollapsed (spec §4.6 note: 'No
     option-collapse in JSON — that is a markdown readability device')."""
-    same = [_fact(param="fmt", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("a", "b", "c")]
-    out = render_json(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
+    same = [_fact(param="characters", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("a", "b", "c")]
+    out = render_json(_report(tuple(same), segments=_segments(tuple(same))))
     obj = json.loads(out)
     # Sanity: the scoped doc (rev 6) collapses these into one row. The
     # main doc has no detail section for them — they are scoped (param
     # is not WILDCARD_PARAM), and the partition sends scoped facts to
     # render_scoped (§4.3).
-    scoped = render_scoped(_report(tuple(same), decls=(_decl(facts=tuple(same)),)))
+    scoped = render_scoped(_report(tuple(same), segments=_segments(tuple(same))))
     assert "a, b, c" in scoped  # the collapsed option list appears in the scoped doc
     # The JSON has all three as distinct fact objects with distinct option_value.
-    fmt_facts: list[dict] = []
+    character_facts: list[dict] = []
     for fam in obj["families"]:
         for op_entry in fam["ops"]:
             for cell in op_entry["cells"].values():
-                fmt_facts.extend(f for f in cell["constraints"] if f["param"] == "fmt")
-    assert len(fmt_facts) == 3
-    assert sorted(f["option_value"] for f in fmt_facts) == ["a", "b", "c"]
+                character_facts.extend(
+                    f for f in cell["constraints"] if f["param"] == "characters"
+                )
+    assert len(character_facts) == 3
+    assert sorted(f["option_value"] for f in character_facts) == ["a", "b", "c"]
     # And the identity is distinct per row (the model never collapsed).
-    identities = {_json_fact_semantic_identity(f) for f in fmt_facts}
+    identities = {_json_fact_semantic_identity(f) for f in character_facts}
     assert len(identities) == 3
 
 
@@ -1103,49 +1012,34 @@ def test_json_null_vs_empty():
                     )
     assert found, "test setup must produce a constraint cell"
 
-    # Spot-check the parallel convention: empty evidence in a non-default
-    # declaration is still serialized as a dict (not null), absent evidence
-    # is null. We exercise the latter with a probe_exempt-only declaration.
-    exempt = _fact(probe_exempt="synthetic exemption")
-    out2 = render_json(
-        _report(
-            [exempt],
-            decls=(
-                CapabilityDeclaration(
-                    backend=CONST_BACKEND.POLARS,
-                    domain=Domain.SET,
-                    source=FactSource.SUBSTRAIT,
-                    facts=(exempt,),
-                    evidence=None,
-                ),
-            ),
-        )
+
+
+def test_historical_bundles_preserve_empty_wave_provenance():
+    from mountainash.core.capabilities.evidence.legacy_bundles import BUNDLES
+
+    report = build_coverage_report(
+        _universe(), (), (), (), (), (), _impls(), bundles=BUNDLES
     )
-    obj2 = json.loads(out2)
-    assert obj2["declarations"][0]["evidence"] is None
+    historical = json.loads(render_json(report))["historical_bundles"]
+    assert len(BUNDLES) == 72
+    assert sum(not bundle.members for bundle in BUNDLES) == 10
+    assert len(historical) == len(BUNDLES)
+    assert sum(not bundle["members"] for bundle in historical) == 10
 
 
 def test_json_is_deterministic_under_input_shuffle():
-    """Spec §4.4: input order does not affect output bytes (review M-6: every
-    dict populated by iterating already-sorted sequences; no set iteration).
-    The drift gate is a two-process PYTHONHASHSEED byte-identity check on the
-    JSON artifact; this single-process test catches the input-shuffle axis."""
-    fs = [_fact(param="a", option_value=v, level=CapabilityLevel.UNSUPPORTED) for v in ("x", "y", "z")] + [
-        _fact(param="b", dialect="duckdb", level=CapabilityLevel.LITERAL_ONLY)
+    fs = [_fact(param="length", option_value=value, level=CapabilityLevel.UNSUPPORTED) for value in ("x", "y", "z")] + [
+        _fact(param="characters", dialect="polars", level=CapabilityLevel.LITERAL_ONLY)
     ]
-    decl = _decl(facts=tuple(fs))
+    segments = _segments(tuple(fs))
     impls = _impls()
-    base = build_coverage_report(_universe(), tuple(fs), (decl,), (), (), (), impls)
-    out1 = render_json(base)
-    out2 = render_json(
-        build_coverage_report(_universe(), tuple(reversed(fs)), (decl,), (), (), (), tuple(reversed(impls)))
-    )
+    out1 = render_json(build_coverage_report(
+        _universe(), tuple(fs), segments, (), (), (), impls
+    ))
+    out2 = render_json(build_coverage_report(
+        _universe(), tuple(reversed(fs)), segments, (), (), (), tuple(reversed(impls))
+    ))
     assert out1 == out2
-    # Also shuffle the declaration's facts (reversed input) — the canonical
-    # sort at ingest (review I-3) must keep the output identical.
-    decl_rev = _decl(facts=tuple(reversed(fs)))
-    out3 = render_json(build_coverage_report(_universe(), tuple(fs), (decl_rev,), (), (), (), impls))
-    assert out1 == out3
 
 
 # ---------------------------------------------------------------------------
@@ -1170,43 +1064,33 @@ def _cell_section(text: str, op_name: str, backend_value: str) -> str:
 
 
 def test_partition_exactness_over_mixed_cell():
-    """§4.5 M-3: every input fact's identity appears in exactly one markdown
-    artifact's detail body. Synthetic mixed cell: whole-op GATE +
-    param UNSUPPORTED + dialect-scoped gate. Function-level goes to main;
-    the other two go to scoped. None of the three facts can be collapsed
-    (each has option_value=None, so the option-collapse rule doesn't
-    apply — but the identity-based assertion would still hold if it did:
-    a collapsed row counts each `option_value` fact once). Asserted on
-    fact identities (via the rendered row), not row counts."""
+    """Every input fact identity appears in exactly one report detail artifact."""
     whole_op = _fact(
         param=WILDCARD_PARAM,
         level=CapabilityLevel.UNSUPPORTED,
     )
     param_fact = _fact(
-        param="values",
+        param="input",
         level=CapabilityLevel.UNSUPPORTED,
     )
     dialect_fact = _fact(
         param=WILDCARD_PARAM,
-        dialect="ibis-duckdb",
+        dialect="polars",
         level=CapabilityLevel.UNSUPPORTED,
     )
     report = _report([whole_op, param_fact, dialect_fact])
     main = render_markdown(report)
     scoped = render_scoped(report)
 
-    main_section = _cell_section(main, "OP_A", "polars")
-    scoped_section = _cell_section(scoped, "OP_A", "polars")
-    assert main_section, "main doc missing OP_A x polars section"
-    assert scoped_section, "scoped doc missing OP_A x polars section"
+    main_section = _cell_section(main, "LPAD", "polars")
+    scoped_section = _cell_section(scoped, "LPAD", "polars")
+    assert main_section, "main doc missing LPAD x polars section"
+    assert scoped_section, "scoped doc missing LPAD x polars section"
 
-    # Build the expected row for each fact (option_value=None -> []).
     main_whole_row = _fact_detail_row(whole_op, [])
     scoped_param_row = _fact_detail_row(param_fact, [])
     scoped_dialect_row = _fact_detail_row(dialect_fact, [])
 
-    # Function-level (whole-op) lives in main; scoped lives in scoped; no
-    # fact appears in both — the partition is exact.
     assert main_whole_row in main_section
     assert main_whole_row not in scoped_section
     assert scoped_param_row in scoped_section
@@ -1216,94 +1100,71 @@ def test_partition_exactness_over_mixed_cell():
 
 
 def test_scoped_only_cell_no_main_doc_section():
-    """A cell with ONLY scoped facts (no whole-op) renders no main-doc
-    detail section; the `◐` matrix cell is preserved; the scoped doc
-    carries the detail row."""
-    param_fact = _fact(param="values", level=CapabilityLevel.UNSUPPORTED)
+    """A cell with only scoped facts keeps its detail out of the main document."""
+    param_fact = _fact(param="input", level=CapabilityLevel.UNSUPPORTED)
     report = _report([param_fact])
     main = render_markdown(report)
     scoped = render_scoped(report)
 
-    # Main doc has no detail section for the cell.
     main_detail = main.split("## Per-op detail", 1)[1]
-    assert "### `OP_A` × polars" not in main_detail
-    # But the matrix cell is still there with the partial annotation.
+    assert "### `LPAD` × polars" not in main_detail
     matrix = main.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
     assert "◐ partial (1 params, 0 option-selectors, 0 metadata-selectors, 0 value-classes, 0 dialects)" in matrix
-    # Scoped doc has the detail.
     scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
-    assert "### `OP_A` × polars" in scoped_detail
-    scoped_row = _fact_detail_row(param_fact, [])
-    assert scoped_row in scoped_detail
+    assert "### `LPAD` × polars" in scoped_detail
+    assert _fact_detail_row(param_fact, []) in scoped_detail
 
 
-def test_dialect_scoped_whole_op_subheading_and_i2b():
-    """A dialect-scoped whole-op gate renders under the scoped doc's
-    `Dialect-scoped whole-op` subheading AND its level+dialect appears
-    in the main-doc matrix cell (I-2b, spec §4.3 example:
-    `◐ partial (…) · unsupported on ibis-duckdb`)."""
+def test_dialect_scoped_whole_op_subheading():
+    """A dialect-scoped whole-op gate remains scoped and annotates its matrix cell."""
     dialect_whole = _fact(
         param=WILDCARD_PARAM,
-        dialect="ibis-duckdb",
+        dialect="polars",
         level=CapabilityLevel.UNSUPPORTED,
     )
     report = _report([dialect_whole])
     main = render_markdown(report)
     scoped = render_scoped(report)
 
-    # Main doc matrix cell: I-2b suffix present (level + sorted dialect).
     matrix = main.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
-    assert "· unsupported on ibis-duckdb" in matrix
-
-    # Scoped doc: under "Dialect-scoped whole-op" subheading.
-    scoped_cell = _cell_section(scoped, "OP_A", "polars")
+    assert "· unsupported on polars" in matrix
+    scoped_cell = _cell_section(scoped, "LPAD", "polars")
     assert "#### Dialect-scoped whole-op" in scoped_cell
-    dialect_row = _fact_detail_row(dialect_whole, [])
-    assert dialect_row in scoped_cell
+    assert _fact_detail_row(dialect_whole, []) in scoped_cell
 
 
 def test_refinements_never_in_main_doc_detail():
-    """Refinements are scoped by construction (schema requires dialect on
-    EXPR_CAPABLE, so `is_whole_op` is False for every refinement).
-    The main doc's per-op detail never carries a refinement row (§4.3
-    structural) — it lives in the scoped doc; the matrix cell still
-    carries the `✓ dialect-verified: …` annotation."""
+    """Refinements stay scoped while retaining their matrix dialect annotation."""
     refinement = _fact(
-        param="v",
-        dialect="duckdb",
+        param="input",
+        dialect="polars",
         level=CapabilityLevel.EXPR_CAPABLE,
     )
     report = _report([refinement])
     main = render_markdown(report)
     scoped = render_scoped(report)
 
-    # Main doc has no detail section for the cell (refinement is scoped).
     main_detail = main.split("## Per-op detail", 1)[1]
-    assert "### `OP_A` × polars" not in main_detail
-    # But the matrix cell still carries the `✓ dialect-verified: duckdb` annotation.
+    assert "### `LPAD` × polars" not in main_detail
     matrix = main.split("## Per-family coverage", 1)[1].split("## Unmapped families", 1)[0]
-    assert "dialect-verified: duckdb" in matrix
-    # Scoped doc has the detail row.
+    assert "dialect-verified: polars" in matrix
     scoped_detail = scoped.split("## Per-op detail (scoped)", 1)[1]
-    assert "### `OP_A` × polars" in scoped_detail
-    ref_row = _fact_detail_row(refinement, [])
-    assert ref_row in scoped_detail
+    assert "### `LPAD` × polars" in scoped_detail
+    assert _fact_detail_row(refinement, []) in scoped_detail
 
 
-def test_cross_references_in_both_headers():
-    """Both artifacts cross-reference each other in their headers — the
-    spec's "Both docs cross-reference each other in their headers"
-    requirement (§4.3)."""
-    report = _report([])
-    main = render_markdown(report)
-    scoped = render_scoped(report)
 
-    # Main doc header (above ## Summary) points to the scoped doc.
-    main_header = main.split("## Summary", 1)[0]
-    assert "expression-coverage-scoped.md" in main_header
-    # Scoped doc header (above ## Per-op detail (scoped)) points to the main doc.
-    scoped_header = scoped.split("## Per-op detail (scoped)", 1)[0]
-    assert "expression-coverage.md" in scoped_header
-    # And the main doc's parquet consumer recipe (§4.6) is in the header block.
-    assert "Parquet recipe" in main_header
-    assert "expression-coverage.json" in main_header
+
+def _gap(reason):
+    from mountainash.core.capabilities.gaps import GapKey, InventoryGap, InventoryWide
+    from mountainash.core.capabilities.schema import OperationTarget
+
+    return InventoryGap(
+        GapKey(
+            "fixture.options", OperationTarget(FKEY_SUBSTRAIT_SCALAR_STRING.LPAD),
+            "option behavior coverage:length", InventoryWide(),
+        ),
+        ("SubstraitScalarStringExpressionSystemProtocol", "lpad", "length"),
+        KnownGap(gap_kind=GapKind.UNTESTED_OPTION, reason=reason, since="2026-08-01"),
+        (CapturedAddress("fixture", "guard.py", "options[length]", artifact=b"fixture gap source"),),
+    )

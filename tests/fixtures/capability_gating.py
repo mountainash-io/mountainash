@@ -90,6 +90,44 @@ def capability_gate(
         return None
     return fact
 
+def whole_operation_gates(operation_keys, backend_or_name) -> tuple[CapabilityFact, ...]:
+    """Enabled whole-operation build gates for canonical operation enum keys.
+
+    The registry's purpose-specific indexed view is queried once, then the
+    identity's dialect facts replace family defaults. This mirrors dispatch
+    precedence without recreating a test-owned support map.
+    """
+    identity = resolve_identity(backend_or_name)
+    requested = tuple(operation_keys)
+    requested_set = frozenset(requested)
+    family: dict[object, CapabilityFact] = {}
+    dialect: dict[object, CapabilityFact] = {}
+    for fact in CapabilityRegistry.facts(backend=identity.family):
+        if (
+            fact.operation_key not in requested_set or fact.param != WILDCARD_PARAM
+            or fact.predicate is not None or fact.option_value is not None
+            or fact.value_class is not None
+        ):
+            continue
+        if fact.dialect is None:
+            family[fact.operation_key] = fact
+        elif fact.dialect == identity.dialect:
+            dialect[fact.operation_key] = fact
+    resolved = family | dialect
+    return tuple(
+        resolved[key] for key in requested
+        if key in resolved
+        and resolved[key].level is CapabilityLevel.UNSUPPORTED
+        and resolved[key].enforcement is Enforcement.GATE
+        and resolved[key].boundary is Boundary.BUILD
+    )
+
+
+def whole_operation_gate(operation_key, backend_or_name) -> CapabilityFact | None:
+    """The enabled build-time gate for one complete operation on an identity."""
+    gates = whole_operation_gates((operation_key,), backend_or_name)
+    return gates[0] if gates else None
+
 
 def assert_capability_gated(
     operation_key, family, *, dialect=None, build, materialize=None, param=WILDCARD_PARAM, option_value=None

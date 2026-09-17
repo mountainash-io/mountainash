@@ -29,13 +29,16 @@ import importlib
 import pkgutil
 from datetime import date
 from pathlib import Path
-from typing import Protocol, Set, List, Type
+from typing import TYPE_CHECKING, Protocol, Set, List, Type
 from dataclasses import dataclass, field
 
 from expressions.argument_types._coverage_guard_helpers import (
     GapKind,
     KnownGap,
 )
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.retired import AssertionChange
 
 pytestmark = pytest.mark.protocol_alignment
 
@@ -307,12 +310,12 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
     MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarCategoricalExpressionSystemProtocol,
     MountainAshScalarGeospatialExpressionSystemProtocol,
-    MountainAshScalarDatetimeExpressionSystemProtocol,
     MountainAshScalarListExpressionSystemProtocol,
     MountainAshScalarSetExpressionSystemProtocol,
     MountainAshScalarStringExpressionSystemProtocol,
     MountainAshScalarStructExpressionSystemProtocol,
     MountainAshScalarTernaryExpressionSystemProtocol,
+    MountainAshScalarValueExpressionSystemProtocol,
     # MountainAshScalarAggregateExpressionSystemProtocol,
     MountainashExtensionAggregateExpressionSystemProtocol,
     MountainashWindowExpressionSystemProtocol,
@@ -705,6 +708,7 @@ WIRING_PROTOCOL_REGISTRY = {
     MountainAshScalarSetExpressionSystemProtocol: "mountainash_scalar_set",
     MountainAshScalarStringExpressionSystemProtocol: "mountainash_scalar_string",
     MountainAshScalarStructExpressionSystemProtocol: "mountainash_scalar_struct",
+    MountainAshScalarValueExpressionSystemProtocol: "mountainash_scalar_value",
     MountainAshScalarGeospatialExpressionSystemProtocol: "mountainash_scalar_geospatial",
     MountainashWindowExpressionSystemProtocol: "mountainash_window",
     MountainAshScalarValueExpressionSystemProtocol: "mountainash_scalar_value",
@@ -733,6 +737,9 @@ MOUNTAINASH_PROTOCOLS = [
 # Methods that exist in protocols but are intentionally not fully wired yet.
 # Each entry maps (protocol_cls, method_name) → known gap details.
 # These are xfailed in the wiring audit, not hard failures.
+GAP_CHANGES: tuple["AssertionChange", ...] = ()
+
+
 KNOWN_ASPIRATIONAL: dict[tuple[type, str], KnownGap] = {
     # Substrait Aggregate Arithmetic — not yet in function registry
     (SubstraitAggregateArithmeticExpressionSystemProtocol, "sum0"): KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="No function mapping registered yet", since="2026-05-12"),

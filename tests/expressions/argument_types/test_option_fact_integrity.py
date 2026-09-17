@@ -210,8 +210,8 @@ def _governed_fixtures(fact) -> set[str]:
 
 
 def test_no_op_level_fact_is_left_unbacked() -> None:
-    """Closed-by-default: every matrix fixture a WILDCARD_PARAM fact governs
-    must carry an op-level cell, or the matrix is silently blind to the gate.
+    """Every governed fixture needs an explicit op-level cell or a registered
+    probe whose emitted call selects that exact whole-operation gate.
 
     Scoped to what the matrix CAN represent. A fact on a non-fixture dialect is
     exempt here and verified instead by its dedicated cross-backend gate test
@@ -219,6 +219,9 @@ def test_no_op_level_fact_is_left_unbacked() -> None:
     this to every registered WILDCARD fact would flag ibis-sqlite facts the
     four-fixture surface can never cover.
     """
+    from fixtures.capability_gating import first_scalar_build_gate
+    from mountainash.core.capabilities.identity import BackendIdentity
+
     covered = {
         (cell.fkey, cell.fixture)
         for cell in OPTION_DISPOSITIONS
@@ -232,10 +235,20 @@ def test_no_op_level_fact_is_left_unbacked() -> None:
             continue
         for fixture in _governed_fixtures(fact):
             if (fact.operation_key, fixture) not in covered:
+                # An option discriminator can encounter a whole-operation gate
+                # before its exact option fact. Its emitted call, not the cell's
+                # single backing-mode label, establishes that observer binding.
+                identity = BackendIdentity(*disposition._FIXTURE_IDENTITY[fixture])
+                if any(
+                    first_scalar_build_gate(probe.spec.build_expr().node, identity) is fact
+                    for probe in REGISTERED_OPTION_PROBES
+                    if probe.fixture == fixture and probe.spec.fkey is fact.operation_key
+                ):
+                    continue
                 orphans.append((str(fact.operation_key), fixture, fact.dialect))
     assert not orphans, (
-        f"WILDCARD_PARAM gating facts governing a matrix fixture with no "
-        f"op-level cell: {sorted(orphans)}"
+        f"WILDCARD_PARAM gating facts with neither an op-level cell nor a "
+        f"matching registered probe: {sorted(orphans)}"
     )
 
 def test_unit_c_wildcard_facts_have_explicit_op_level_cells() -> None:

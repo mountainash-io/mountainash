@@ -37,8 +37,17 @@ from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from mountainash.core.capabilities.declarations import CapabilityDeclaration
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        QualifiedCapabilityKey,
+        QualifiedManifestation,
+        QualifiedManifestationKey,
+    )
+    from mountainash.core.capabilities.capture import EvidenceCapture, RuntimeOrigin, SourceOrigin
     from mountainash.core.capabilities.predicates import BoundCall
+    from mountainash.core.capabilities.catalogue import CatalogueCapture, IssueSnapshot, ScopeReader
+    from mountainash.core.capabilities.identity import Scope
+    from mountainash.core.capabilities.gaps import VerificationSnapshot
 
 # backend slot is CONST_BACKEND | str: str families arrive only via the
 # serialization workstream's register_target (spec 2026-07-06); register_backend
@@ -255,7 +264,10 @@ class _RegistryState:
     kinds: Mapping[str, TargetKind]
     value_class_facts: Mapping[_ValueClassBucketKey, tuple[CapabilityFact, ...]]
     predicate_facts: tuple[CapabilityFact, ...]
-    declarations: tuple[CapabilityDeclaration, ...]
+    segments: tuple[BoundSegment, ...]
+    stored: Mapping[QualifiedCapabilityKey, CapabilityFact]
+    origins: Mapping[QualifiedCapabilityKey, tuple[SourceOrigin | RuntimeOrigin, ...]]
+    manifestations: Mapping[QualifiedManifestationKey, QualifiedManifestation]
     load_state: _LoadState
     load_error: BaseException | None
     predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, bool], ...]]
@@ -264,7 +276,8 @@ class _RegistryState:
 
 
 def _prepare_state(
-    *, facts, kinds, value_class_facts, predicate_facts, declarations, load_state, load_error=None
+    *, facts, kinds, value_class_facts, predicate_facts, segments, stored, origins,
+    manifestations=None, load_state, load_error=None,
 ) -> _RegistryState:
     """Own all backing maps and prepare finite declaration-derived views once."""
     from mountainash.core.capabilities.predicates import metadata_arguments
@@ -298,7 +311,10 @@ def _prepare_state(
         MappingProxyType(dict(kinds)),
         MappingProxyType(dict(value_class_facts)),
         tuple(predicate_facts),
-        tuple(declarations),
+        tuple(segments),
+        MappingProxyType(dict(stored)),
+        MappingProxyType(dict(origins)),
+        MappingProxyType(dict(manifestations or {})),
         load_state,
         load_error,
         MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
@@ -309,14 +325,15 @@ def _prepare_state(
 
 def _empty_state(load_state=_LoadState.UNINITIALIZED) -> _RegistryState:
     return _prepare_state(
-        facts={}, kinds={}, value_class_facts={}, predicate_facts=(), declarations=(), load_state=load_state
+        facts={}, kinds={}, value_class_facts={}, predicate_facts=(), segments=(),
+        stored={}, origins={}, manifestations={}, load_state=load_state
     )
+
 
 
 def _require_type(value, expected, field):
     if type(value) is not expected:
         raise ValueError(f"{field} must have exact type {expected.__name__}")
-
 
 def _enum_domain(value):
     domain = type(value.value)
@@ -375,37 +392,6 @@ def _validate_payload(fact):
                 raise ValueError("clause operand must have an immutable supported shape")
 
 
-def _validate_declaration_payload(declaration):
-    from mountainash.core.capabilities.declarations import (
-        CapabilityDeclaration,
-        Domain,
-        FactSource,
-        ProbeEvidence,
-    )
-
-    _require_type(declaration, CapabilityDeclaration, "declaration")
-    _require_type(declaration.backend, CONST_BACKEND, "backend")
-    _require_type(declaration.domain, Domain, "domain")
-    _require_type(declaration.source, FactSource, "source")
-    _require_type(declaration.facts, tuple, "declaration.facts")
-    for fact in declaration.facts:
-        _validate_payload(fact)
-    evidence = declaration.evidence
-    if evidence is not None:
-        _require_type(evidence, ProbeEvidence, "evidence")
-        _require_type(evidence.probe_date, str, "probe_date")
-        _require_type(evidence.library_versions, tuple, "library_versions")
-        _require_type(evidence.fixtures, tuple, "fixtures")
-        for pair in evidence.library_versions:
-            _require_type(pair, tuple, "library_versions pair")
-            if len(pair) != 2:
-                raise ValueError("library_versions requires string pairs")
-            for value in pair:
-                _require_type(value, str, "library_versions value")
-        for fixture in evidence.fixtures:
-            _require_type(fixture, str, "fixture")
-    declaration.__post_init__()
-
 
 def _register_identity(kinds, name: str, kind: TargetKind) -> None:
     if kind is TargetKind.SERIALIZE and name in {b.value for b in CONST_BACKEND}:
@@ -438,25 +424,86 @@ def _check_predicate_conflicts(fact: CapabilityFact, predicates: Iterable[Capabi
         )
 
 
-def _stage_batch(family, incoming, facts, kinds, value_class_facts, predicate_facts):
+
+def _source_origins(segment, origins):
+    from mountainash.core.capabilities.capture import SourceOrigin
+    from mountainash.core.capabilities.declarations import LocalOrigin
+
+    return tuple(
+        SourceOrigin(
+            segment.module, segment.scope, segment.source, segment.segment.domain, origin.entry,
+            replace(segment.source_capture, entry=origin.entry) if segment.source_capture is not None else None,
+        )
+        if type(origin) is LocalOrigin else origin
+        for origin in origins
+    )
+
+
+def _origin_labels(origins):
+    from mountainash.core.capabilities.capture import SourceOrigin
+
+    return tuple(
+        f"{origin.module}:{origin.entry}" if type(origin) is SourceOrigin
+        else f"runtime:{origin.generation}:{origin.batch}:{origin.ordinal}"
+        for origin in origins
+    )
+
+
+def _stage_batch(
+    family, incoming, facts, kinds, value_class_facts, predicate_facts,
+    stored, origins, manifestations, generation, segment=None,
+):
+    from mountainash.core.capabilities.capture import RuntimeOrigin
+    from mountainash.core.capabilities.declarations import (
+        CapabilityKey,
+        QualifiedCapabilityKey,
+        QualifiedManifestation,
+        QualifiedManifestationKey,
+    )
+    from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
+
     _register_identity(kinds, family.value, TargetKind.EXECUTE)
-    for fact in incoming:
+    for ordinal, fact in enumerate(incoming):
         _validate_fact(family, fact)
+        scope = segment.scope if segment is not None else Scope(
+            family, FamilyWide() if fact.dialect is None else Dialect(fact.dialect),
+        )
+        local = segment.segment.capabilities[ordinal].key if segment is not None else CapabilityKey.from_fact(fact)
+        qualified = QualifiedCapabilityKey(scope, local)
+        if segment is None:
+            fact_origins = (RuntimeOrigin(generation, 0, ordinal),)
+        else:
+            fact_origins = _source_origins(segment, segment.segment.capabilities[ordinal].origins)
+        if qualified in stored:
+            raise ValueError(
+                f"duplicate capability key: {qualified!r}; "
+                f"existing origins={_origin_labels(origins[qualified])!r}; "
+                f"incoming origins={_origin_labels(fact_origins)!r}"
+            )
         if fact.predicate is not None:
             _check_predicate_conflicts(fact, predicate_facts)
             predicate_facts.append(fact)
         elif fact.value_class is not None:
             key = (fact.operation_key, fact.param, fact.backend, fact.dialect)
-            bucket = value_class_facts.get(key, ())
-            if any(f.value_class is fact.value_class for f in bucket):
-                raise ValueError(f"duplicate value-class CapabilityFact key: {key}")
-            value_class_facts[key] = bucket + (fact,)
+            value_class_facts[key] = value_class_facts.get(key, ()) + (fact,)
         else:
             key = (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.option_value)
-            if key in facts:
-                raise ValueError(f"duplicate CapabilityFact key: {key}")
             facts[key] = fact
-
+        stored[qualified] = fact
+        origins[qualified] = fact_origins
+    if segment is not None:
+        for manifestation in segment.segment.manifestations:
+            key = QualifiedManifestationKey(segment.scope, manifestation.key)
+            manifestation_origins = _source_origins(segment, manifestation.origins)
+            if key in manifestations:
+                raise ValueError(
+                    f"duplicate manifestation key: {key!r}; "
+                    f"existing origins={_origin_labels(manifestations[key].origins)!r}; "
+                    f"incoming origins={_origin_labels(manifestation_origins)!r}"
+                )
+            manifestations[key] = QualifiedManifestation(
+                key, manifestation, manifestation_origins
+            )
 
 class CapabilityRegistry:
     """Transactional declarations with accessor-level immutable snapshots.
@@ -469,7 +516,7 @@ class CapabilityRegistry:
     _state = _empty_state()
     _load_lock = threading.RLock()
     _guards = threading.local()
-
+    _generation = 0
     @classmethod
     @contextmanager
     def _mutation(cls):
@@ -507,24 +554,36 @@ class CapabilityRegistry:
             state = cls._state
             if cls._ready(state, enumeration):
                 return state
-            from mountainash.core.capabilities.bootstrap import _load_declarations
+            from mountainash.core.capabilities.bootstrap import _load_segments
 
             cls._guards.loading = True
             try:
-                declarations = _load_declarations()
+                segments = _load_segments()
                 facts = dict(state.facts)
                 kinds = dict(state.kinds)
                 vclass = dict(state.value_class_facts)
                 predicates = list(state.predicate_facts)
-                for declaration in declarations:
-                    _validate_declaration_payload(declaration)
-                    _stage_batch(declaration.backend, declaration.facts, facts, kinds, vclass, predicates)
+                stored, origins, manifestations = (
+                    dict(state.stored), dict(state.origins), dict(state.manifestations)
+                )
+                addresses = {segment.module for segment in state.segments}
+                for segment in segments:
+                    if segment.module in addresses:
+                        raise ValueError(f"duplicate segment address: {segment.module}")
+                    addresses.add(segment.module)
+                    _stage_batch(
+                        segment.scope.backend, segment.facts, facts, kinds, vclass, predicates,
+                        stored, origins, manifestations, cls._generation + 1, segment,
+                    )
                 candidate = _prepare_state(
                     facts=facts,
                     kinds=kinds,
                     value_class_facts=vclass,
                     predicate_facts=predicates,
-                    declarations=state.declarations + declarations,
+                    segments=state.segments + segments,
+                    stored=stored,
+                    origins=origins,
+                    manifestations=manifestations,
                     load_state=_LoadState.LOADED,
                 )
             except BaseException as exc:
@@ -532,6 +591,7 @@ class CapabilityRegistry:
                 raise
             finally:
                 cls._guards.loading = False
+            cls._generation += 1
             cls._state = candidate
             return candidate
 
@@ -545,25 +605,38 @@ class CapabilityRegistry:
         cls._acquire_state()
 
     @classmethod
-    def _publish_batch(cls, family, incoming, declaration=None):
+    def _publish_batch(cls, family, incoming, segment=None):
         with cls._load_lock:
             state = cls._state
-            if not incoming and declaration is None and family.value in state.kinds:
+            if not incoming and segment is None and family.value in state.kinds:
                 return
+            if segment is not None and any(prior.module == segment.module for prior in state.segments):
+                raise ValueError(f"duplicate segment address: {segment.module}")
             facts = dict(state.facts)
             kinds = dict(state.kinds)
             vclass = dict(state.value_class_facts)
             predicates = list(state.predicate_facts)
-            _stage_batch(family, incoming, facts, kinds, vclass, predicates)
-            cls._state = _prepare_state(
+            stored, origins, manifestations = (
+                dict(state.stored), dict(state.origins), dict(state.manifestations)
+            )
+            _stage_batch(
+                family, incoming, facts, kinds, vclass, predicates,
+                stored, origins, manifestations, cls._generation + 1, segment,
+            )
+            candidate = _prepare_state(
                 facts=facts,
                 kinds=kinds,
                 value_class_facts=vclass,
                 predicate_facts=predicates,
-                declarations=state.declarations + (() if declaration is None else (declaration,)),
+                segments=state.segments + (() if segment is None else (segment,)),
+                stored=stored,
+                origins=origins,
+                manifestations=manifestations,
                 load_state=state.load_state,
                 load_error=state.load_error,
             )
+            cls._generation += 1
+            cls._state = candidate
 
     @classmethod
     def register_backend(cls, family: CONST_BACKEND, facts: Iterable[CapabilityFact]) -> None:
@@ -576,20 +649,30 @@ class CapabilityRegistry:
             cls._publish_batch(family, incoming)
 
     @classmethod
-    def register_declaration(cls, declaration) -> None:
-        """Atomically retain facts and evidence, including empty declarations."""
+    def register_segment(cls, segment: BoundSegment) -> None:
+        """Publish one physical segment and its origins as a single generation."""
+        from mountainash.core.capabilities.capture import require_immutable
+        from mountainash.core.capabilities.declarations import BoundSegment
+
         with cls._mutation():
-            _validate_declaration_payload(declaration)
-            cls._publish_batch(declaration.backend, declaration.facts, declaration)
+            _require_type(segment, BoundSegment, "segment")
+            require_immutable(segment)
+            for fact in segment.facts:
+                _validate_payload(fact)
+            cls._publish_batch(segment.scope.backend, segment.facts, segment)
 
     @classmethod
-    def declarations(cls):
-        return cls._acquire_state().declarations
+    def segments(cls):
+        return cls._acquire_state().segments
+
+    @classmethod
+    def origins(cls):
+        return cls._acquire_state().origins
 
     @classmethod
     def _report_inputs(cls):
         state = cls._acquire_state(enumeration=True)
-        return state.views[None, None], state.declarations
+        return state.views[None, None], state.segments
 
     @classmethod
     def metadata_operand_names(cls, operation_key, backend, dialect=None) -> frozenset[str]:
@@ -675,6 +758,34 @@ class CapabilityRegistry:
         if enforcement is not None and type(enforcement) is not Enforcement:
             return ()
         return state.views.get((backend, enforcement), ())
+
+    @classmethod
+    def reader(cls, scope: Scope) -> ScopeReader:
+        from mountainash.core.capabilities.catalogue import ScopeReader
+
+        state = cls._acquire_state()
+        return ScopeReader(scope, state.stored, state.manifestations)
+
+    @classmethod
+    def capture(
+        cls, *, scopes: frozenset[Scope] | None = None,
+        verification: VerificationSnapshot | None = None,
+        issues: IssueSnapshot | None = None,
+        evidence: tuple[EvidenceCapture, ...] | None = None,
+    ) -> CatalogueCapture:
+        from mountainash.core.capabilities.catalogue import CatalogueCapture, _validate_scopes
+
+        _validate_scopes(scopes)
+        state = cls._acquire_state(enumeration=True)
+        if scopes is None:
+            scopes = frozenset(key.scope for key in state.stored) | frozenset(
+                segment.scope for segment in state.segments
+            )
+        segments = tuple(segment for segment in state.segments if segment.scope in scopes)
+        return CatalogueCapture(
+            scopes, segments, state.stored, state.origins, state.manifestations,
+            verification, issues, evidence,
+        )
 
     @classmethod
     def facts(

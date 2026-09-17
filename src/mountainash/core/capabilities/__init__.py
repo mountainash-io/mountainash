@@ -1,8 +1,14 @@
 """Capability spine — schema, registry, backend identity (spec 2026-07-05)."""
 from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
 from mountainash.core.capabilities.declarations import (
-    CapabilityDeclaration,
-    CapabilityDeclarationModule,
+    BoundSegment,
+    CapabilityAssertion,
+    CapabilityKey,
+    CapabilitySegment,
+    CapabilitySegmentModule,
+    LocalOrigin,
+    QualifiedCapabilityKey,
+    Selector,
     Domain,
     FactSource,
     ProbeEvidence,
@@ -12,7 +18,7 @@ from mountainash.core.capabilities.declarations import (
 from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALECTS
 from mountainash.core.capabilities.predicates import BoundCall
 from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
-from mountainash.core.capabilities.retired import RETIRED_FACTS, RetiredFact
+from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
@@ -33,15 +39,23 @@ from mountainash.core.capabilities.schema import (
 )
 
 __all__ = [
+    "AssertionChange",
     "BackendIdentity",
     "BoundCall",
     "Boundary",
-    "CapabilityDeclaration",
-    "CapabilityDeclarationModule",
+    "BoundSegment",
+    "CapabilityAssertion",
+    "CapabilityKey",
+    "CapabilitySegment",
+    "CapabilitySegmentModule",
+    "LocalOrigin",
+    "QualifiedCapabilityKey",
+    "Selector",
     "CapabilityFact",
     "CapabilityLevel",
     "CapabilityRegistry",
     "CapabilityViolation",
+    "ChangeDisposition",
     "Clause",
     "ClauseOp",
     "DivergenceFact",
@@ -56,8 +70,6 @@ __all__ = [
     "Predicate",
     "ResidueSignal",
     "ProbeEvidence",
-    "RETIRED_FACTS",
-    "RetiredFact",
     "TargetKind",
     "ValueClass",
     "WILDCARD_PARAM",

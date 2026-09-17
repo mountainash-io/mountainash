@@ -1,76 +1,61 @@
-"""Retired-fact catalog (spec rev 3, §4).
-
-Retirement is a MOVE, not a deletion: when a backend release fixes a
-declared limitation, the CapabilityFact leaves its declaration module and a
-RetiredFact is appended here. Like ``divergences.py``, this catalog is
-core-owned audit data — never registered into the registry, never gates.
-"""
-
+"""Immutable assertion-change history captures."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from enum import Enum
 
-from mountainash.core.capabilities.schema import (
-    CapabilityLevel,
-    ValueClass,
-    _validate_since,
+from mountainash.core.capabilities.capture import (
+    CapturedAddress,
+    CapturedAssertion,
+    Environment,
 )
 
-if TYPE_CHECKING:
-    from mountainash.core.constants import CONST_BACKEND
+
+class ChangeDisposition(Enum):
+    UPSTREAM_FIX = "upstream_fix"
+    LOCAL_IMPLEMENTATION_FIX = "local_implementation_fix"
+    NARROWED_APPLICABILITY = "narrowed_applicability"
+    INCORRECT_DECLARATION = "incorrect_declaration"
+    SUPERSESSION = "supersession"
 
 
 @dataclass(frozen=True)
-class RetiredFact:
-    operation_key: Any
-    param: str
-    backend: "CONST_BACKEND"
-    dialect: str | None
-    option_value: str | None
-    value_class: ValueClass | None  # mirrors CapabilityFact; value-class
-    # retirements are NOT squeezed into
-    # option_value (disjoint keyspaces)
-    level: CapabilityLevel
-    since: str  # original declaration date
-    retired_on: str
-    fixed_in_versions: tuple[tuple[str, str], ...]  # (("narwhals","2.19.0"),)
-    upstream_ref: str | None
-    note: str
+class AssertionChange:
+    change_ref: CapturedAddress
+    prior: CapturedAssertion
+    disposition: ChangeDisposition
+    recorded_at: str
+    reason: str
+    successors: tuple[CapturedAssertion, ...] = ()
+    evidence_refs: tuple[CapturedAddress, ...] = ()
+    fixed_versions: Environment | None = None
 
     def __post_init__(self) -> None:
-        owner = f"RetiredFact({self.operation_key}, {self.param})"
-        _validate_since(self.since, owner)
-        _validate_since(self.retired_on, f"{owner}.retired_on")
-        if self.retired_on < self.since:
-            raise ValueError(
-                f"{owner}: retired_on ({self.retired_on}) precedes since "
-                f"({self.since}) — a fact cannot be retired before it was declared "
-                "(both are zero-padded YYYY-MM-DD, so the compare is chronological)"
-            )
-        if self.option_value is not None and self.value_class is not None:
-            raise ValueError(f"{owner}: option_value and value_class are exclusive")
-
-
-RETIRED_FACTS: tuple[RetiredFact, ...] = ()
-
-
-def assert_no_active_retired_overlap(registry: Any) -> None:
-    """Guard: no fact key is simultaneously active and retired.
-
-    Captures both active keyspaces without triggering production autoload.
-    """
-    state = registry.snapshot()
-    active_option = set(state.facts)
-    active_vclass = {
-        (f.operation_key, f.param, f.backend, f.dialect, f.value_class)
-        for bucket in state.value_class_facts.values()
-        for f in bucket
-    }
-    for r in RETIRED_FACTS:
-        if r.value_class is not None:
-            key_vclass = (r.operation_key, r.param, r.backend, r.dialect, r.value_class)
-            assert key_vclass not in active_vclass, f"{key_vclass} is simultaneously active and retired"
-        else:
-            key_option = (r.operation_key, r.param, r.backend, r.dialect, r.option_value)
-            assert key_option not in active_option, f"{key_option} is simultaneously active and retired"
+        if type(self.change_ref) is not CapturedAddress or type(self.prior) is not CapturedAssertion:
+            raise TypeError("change requires captured address and complete predecessor")
+        if type(self.disposition) is not ChangeDisposition:
+            raise TypeError("change requires an explicit disposition")
+        if type(self.recorded_at) is not str:
+            raise TypeError("recorded_at requires ISO date/time text")
+        datetime.fromisoformat(self.recorded_at)
+        if type(self.reason) is not str or not self.reason.strip():
+            raise ValueError("change requires a reason")
+        if type(self.successors) is not tuple or any(
+            type(successor) is not CapturedAssertion for successor in self.successors
+        ):
+            raise TypeError("successors require immutable complete captures")
+        if any(successor.family != self.prior.family for successor in self.successors):
+            raise ValueError("successor must retain the assertion family")
+        if any(successor == self.prior for successor in self.successors):
+            raise ValueError("successor cannot be the identical predecessor capture")
+        if any(successor.address == self.prior.address for successor in self.successors):
+            raise ValueError("successor cannot reuse the immutable predecessor address")
+        if len(set(successor.address for successor in self.successors)) != len(self.successors):
+            raise ValueError("duplicate successor address")
+        if type(self.evidence_refs) is not tuple or any(
+            type(ref) is not CapturedAddress for ref in self.evidence_refs
+        ):
+            raise TypeError("change evidence requires captured addresses")
+        if self.fixed_versions is not None and type(self.fixed_versions) is not Environment:
+            raise TypeError("fixed versions require observed coordinates or explicit unknown")

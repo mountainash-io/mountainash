@@ -12,6 +12,10 @@
 ### Added
 - Installed wheel/sdist and advertised-extra verification, source-provenance checks, Python-policy enforcement, and retained failed verification evidence.
 - Documented installed-artifact hello world and explicit unpublished/publication-gated status.
+- Add distinct external native-construction targets to the capability schema, with import-safe Ibis DuckDB/SQLite callable authorities, exact dialect qualification, and a dedicated `native_input` declaration home. Construction observations cannot be attributed to later Mountainash execution; divergence classifications and runtime gates are unchanged.
+
+### Fixed
+- Restore capability registration for the Substrait rounding family through its explicit `rounding` domain, including option gates and gate-disabled native probes.
 
 ## Unreleased — 2026-09-14
 

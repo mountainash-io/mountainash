@@ -6,7 +6,9 @@ spec §4.6 — the machine-readable extract, the third committed artifact.
 """
 
 from __future__ import annotations
+import hashlib
 import json
+from dataclasses import fields, is_dataclass
 from datetime import date, timedelta
 from enum import Enum
 from pathlib import Path
@@ -14,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from mountainash.core.generated_artifacts import write_text_if_changed
 
 
+from mountainash.core.capabilities.gaps import InventoryWide
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     CoverageReport,
@@ -35,6 +38,7 @@ from mountainash.core.capabilities.schema import (
 
 if TYPE_CHECKING:
     from mountainash.core.constants import CONST_BACKEND
+    from mountainash.core.capabilities.gaps import VerificationSnapshot
 
 _REGEN_CMD = "hatch -e test run python -m mountainash.core.capabilities.render_markdown"
 
@@ -44,11 +48,10 @@ Legend — cell states (by exception):
 - `✓` **default-capable** — implemented and clean, no constraining fact. The
   presumption; the majority; not a gap. Routed / dialect-verified annotations
   still append (`✓ ↻ routed`, `✓ ✓ dialect-verified: …`).
-- `✓ audited` — same as above, strengthened by a probe wave covering this
-  op's (backend, source, domain). **Scope of the claim:** the probe wave
-  declared the backend×domain surface and recorded nothing against this op.
-  Declarations carry no per-op probe manifest, so this is
-  domain-wave-level evidence, not proof the specific op was exercised.
+- `✓ audited` — same as above, strengthened by an active physical segment
+  covering this op's (backend, source, domain). **Scope of the claim:** the
+  segment records the ownership surface; it is not evidence that this specific
+  operation, or the segment itself, was exercised.
 - `✓ᴴ` **implemented via handler** — same as `✓` / `✓ audited`, but reached
   through the visitor's `handler` dispatch path rather than a concrete
   protocol-method override on the backend leaf class (spec §3.6). The `ᴴ`
@@ -58,9 +61,9 @@ Legend — cell states (by exception):
   selector keys, never raw fact counts).
 - `—` **NOT_IMPLEMENTED** — the protocol-method override is absent (or only a
   bare `…` stub on the `*Protocol` carrier) and the cell has no facts and
-  no declaration. The only true blank.
+  no applicable segment. The only true blank.
 - `⚠ contradiction` — `NOT_IMPLEMENTED` AND the cell carries facts, a routed
-  or refinement entry, or an applicable declaration. Catalog and registry
+  or refinement entry, or an applicable segment. Catalog and registry
   disagree; the suite-level `contradictions == 0` invariant guards this.
 - `?` **UNKNOWN** — the registry has no definition for the op, or the
   definition carries neither `protocol_method` nor `handler`. The `audited`
@@ -204,8 +207,8 @@ def _header(report: CoverageReport) -> list[str]:
         "<!-- GENERATED FILE — do not edit by hand. -->",
         f"<!-- Regenerate: {_REGEN_CMD} -->",
         "",
-        f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
-        f"· Registered operations: {report.stats.ops_total} "
+        f"Segments: {len(report.segments)} · Historical bundles: {len(report.bundles)} "
+        f"· Facts: {report.stats.facts_total} · Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
         "",
         "Scoped deviations (dialect/param/option/metadata/value-class) live in "
@@ -265,19 +268,36 @@ def _summary(report: CoverageReport) -> list[str]:
         "narwhals path) and are not independent coverage columns."
     )
     lines.append("")
-    lines.append("### Audited pairs")
+    lines.append("### Active segments")
+    lines.append("")
+    lines.append("| Module | Backend | Scope | Source | Domain | Evidence references |")
+    lines.append("| --- | --- | --- | --- | --- | --- |")
+    for segment in report.segments:
+        scope = segment.scope.dialect or "family"
+        evidence = ", ".join(reference.entry for reference in segment.segment.evidence_refs) or "—"
+        lines.append(
+            f"| `{segment.module}` | {segment.scope.backend.value} | {scope} "
+            f"| {segment.source.value} | {segment.segment.domain.value} | {_escape(evidence)} |"
+        )
+    lines.append("")
+    lines.append("### Captured historical waves")
+    lines.append("")
+    lines.append(
+        "These retained source captures preserve provenance, including empty bundles. "
+        "They are historical records, not current native-support claims."
+    )
     lines.append("")
     lines.append("| Backend | Source | Domain | Probe date | Library versions | Fixtures |")
     lines.append("| --- | --- | --- | --- | --- | --- |")
-    for d in report.declarations:
-        if d.evidence is None:
+    for bundle in report.bundles:
+        if bundle.evidence is None:
             probe, versions, fixtures = "—", "—", "—"
         else:
-            probe = d.evidence.probe_date
-            versions = ", ".join(f"{n} {v}" for n, v in d.evidence.library_versions)
-            fixtures = ", ".join(d.evidence.fixtures)
+            probe = bundle.evidence.probe_date
+            versions = ", ".join(f"{name} {version}" for name, version in bundle.evidence.library_versions)
+            fixtures = ", ".join(bundle.evidence.fixtures)
         lines.append(
-            f"| {d.backend.value} | {d.source.value} | {d.domain.value} "
+            f"| {bundle.backend.value} | {bundle.source.value} | {bundle.domain.value} "
             f"| {probe} | {_escape(versions)} | {_escape(fixtures)} |"
         )
     lines.append("")
@@ -440,34 +460,134 @@ def _divergences_section(report: CoverageReport) -> list[str]:
 
 def _gaps_section(report: CoverageReport) -> list[str]:
     lines = ["## Known gaps", ""]
+    if report.gaps is None:
+        return lines + ["Verification inventories not requested.", ""]
     if not report.gaps:
         return lines + ["None recorded.", ""]
-    lines.append("| Kind | Reason | Since | Review due |")
-    lines.append("| --- | --- | --- | --- |")
-    for g in report.gaps:
-        due = (date.fromisoformat(g.since) + timedelta(days=183)).isoformat()
-        lines.append(f"| {g.gap_kind.value} | {_escape(g.reason)} | {g.since} | {due} |")
+    lines.append("| Inventory | Target | Obligation | Kind | Reason | Since | Review due |")
+    lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+    for record in report.gaps:
+        gap = record.payload
+        due = (date.fromisoformat(gap.since) + timedelta(days=183)).isoformat()
+        target = _escape(_compact_json(_capture_value(record.key.target)))
+        lines.append(
+            f"| {_escape(record.key.inventory)} | {target} | {_escape(record.key.obligation)} "
+            f"| {gap.gap_kind.value} | {_escape(gap.reason)} | {gap.since} | {due} |"
+        )
     lines.append("")
     return lines
 
 
-def _retirements_section(report: CoverageReport) -> list[str]:
-    lines = ["## Retirement changelog", ""]
-    if not report.retired:
-        return lines + ["None recorded.", ""]
-    lines.append(
-        "| Retired on | Operation | Param | Backend | Dialect "
-        "| Option value | Value class | Level | Since | Fixed in "
-        "| Upstream | Note |"
+def _capture_value(value: Any) -> Any:
+    """Diagnostic projection of immutable captures; not a lossless codec."""
+    if value is None or type(value) in (str, bool, int, float):
+        return value
+    if type(value) is bytes:
+        return {"encoding": "hex", "value": value.hex()}
+    if isinstance(value, Enum):
+        return {
+            "enum": f"{type(value).__module__}.{type(value).__qualname__}",
+            "name": value.name,
+            "value": _capture_value(value.value),
+        }
+    if isinstance(value, type):
+        return {"type": f"{value.__module__}.{value.__qualname__}"}
+    if type(value) is tuple:
+        return [_capture_value(member) for member in value]
+    if type(value) is frozenset:
+        return sorted(
+            (_capture_value(member) for member in value),
+            key=lambda member: json.dumps(member, sort_keys=True, ensure_ascii=False),
+        )
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            field.name: _capture_value(getattr(value, field.name))
+            for field in fields(value)
+        }
+    raise TypeError(f"unsupported captured value {type(value).__name__}")
+
+
+def _captured_address_dict(address: Any) -> dict[str, Any]:
+    return {
+        "repository": address.repository,
+        "path": address.path,
+        "entry": address.entry,
+        "revision": address.revision,
+        "artifact": (
+            {"encoding": "sha256", "value": hashlib.sha256(address.artifact).hexdigest()}
+            if address.artifact is not None
+            else None
+        ),
+    }
+
+
+def _captured_assertion_dict(assertion: Any) -> dict[str, Any]:
+    return {
+        "family": assertion.family,
+        "key": _capture_value(assertion.key),
+        "payload": _capture_value(assertion.payload),
+        "address": _captured_address_dict(assertion.address),
+        "reference_context": [
+            _captured_address_dict(address) for address in assertion.reference_context
+        ],
+    }
+
+
+def _environment_dict(environment: Any) -> dict[str, Any] | None:
+    if environment is None:
+        return None
+    return {
+        "coordinates": [
+            {
+                "kind": coordinate.kind,
+                "name": coordinate.name,
+                "version": coordinate.version,
+                "original_label": coordinate.original_label,
+            }
+            for coordinate in environment.coordinates
+        ]
+    }
+
+
+def _compact_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _fixed_versions_text(environment: Any) -> str:
+    if environment is None:
+        return "unknown"
+    if not environment.coordinates:
+        return "observed environment (no version coordinates)"
+    return "; ".join(
+        f"{coordinate.kind}:{coordinate.name}={coordinate.version or 'unknown'}"
+        f" (imported as {coordinate.original_label})"
+        for coordinate in environment.coordinates
     )
-    lines.append("| " + " | ".join(["---"] * 12) + " |")
-    for r in reversed(report.retired):  # model sorts ascending; render newest-first
-        fixed = ", ".join(f"{n} {v}" for n, v in r.fixed_in_versions) or "—"
+
+
+def _changes_section(report: CoverageReport) -> list[str]:
+    lines = ["## Assertion change history", ""]
+    if not report.changes:
+        return lines + ["None recorded.", ""]
+    lines += [
+        "Diagnostic projection of captured records; this report is not a lossless "
+        "serialization format.",
+        "",
+        "| Recorded at | Disposition | Prior address | Prior payload | Successor addresses "
+        "| Evidence addresses | Fixed-version coordinates | Reason |",
+        "| " + " | ".join(["---"] * 8) + " |",
+    ]
+    for change in reversed(report.changes):
+        successors = [_captured_address_dict(successor.address) for successor in change.successors]
+        evidence = [_captured_address_dict(address) for address in change.evidence_refs]
         lines.append(
-            f"| {r.retired_on} | `{r.operation_key.name}` | {_escape(r.param)} "
-            f"| {str(r.backend)} | {r.dialect or '—'} | {r.option_value or '—'} "
-            f"| {r.value_class.value if r.value_class else '—'} | {r.level.value} "
-            f"| {r.since} | {fixed} | {r.upstream_ref or '—'} | {_escape(r.note)} |"
+            f"| {change.recorded_at} | {change.disposition.value} "
+            f"| {_escape(_compact_json(_captured_address_dict(change.prior.address)))} "
+            f"| {_escape(_compact_json(_capture_value(change.prior.payload)))} "
+            f"| {_escape(_compact_json(successors))} "
+            f"| {_escape(_compact_json(evidence))} "
+            f"| {_escape(_fixed_versions_text(change.fixed_versions))} "
+            f"| {_escape(change.reason)} |"
         )
     lines.append("")
     return lines
@@ -482,7 +602,7 @@ def render_markdown(report: CoverageReport) -> str:
     lines += _detail_sections(report)
     lines += _divergences_section(report)
     lines += _gaps_section(report)
-    lines += _retirements_section(report)
+    lines += _changes_section(report)
     return "\n".join(lines) + "\n"
 
 
@@ -532,8 +652,8 @@ def _scoped_header(report: CoverageReport) -> list[str]:
         "function-level coverage and matrices live in "
         "[`expression-coverage.md`](expression-coverage.md).",
         "",
-        f"Declarations: {len(report.declarations)} · Facts: {report.stats.facts_total} "
-        f"· Registered operations: {report.stats.ops_total} "
+        f"Segments: {len(report.segments)} · Historical bundles: {len(report.bundles)} "
+        f"· Facts: {report.stats.facts_total} · Registered operations: {report.stats.ops_total} "
         f"· Implementation records: {impl_total}",
         "",
         _SCOPED_LEGEND,
@@ -593,13 +713,13 @@ def render_scoped(report: CoverageReport) -> str:
 
 
 # ---------------------------------------------------------------------------
-# JSON renderer — spec §4.6 (rev 6).
-# The machine-readable extract: the FULL model, not a summary. No option
-# collapse, no markdown glyphs, no per-field prose; every fact row uncollapsed
-# and every value serializable as a plain JSON value. Determinism rests on
-# insertion order (spec §4.4 M-6): every dict is populated by iterating
+# JSON renderer — diagnostic coverage projection.
+# Fact rows remain uncollapsed. Assertion-change rows carry their complete
+# in-memory captured fields, but this report is not a lossless capture codec.
+# Determinism rests on insertion order: every dict is populated by iterating
 # already-sorted sequences; no `set` iteration.
 # ---------------------------------------------------------------------------
+
 
 
 def _op_key(operation_key: Any) -> dict[str, str]:
@@ -718,9 +838,27 @@ def _family_dict(fam: Any) -> dict[str, Any]:
     }
 
 
+def _scope_dict(scope: Any) -> dict[str, Any]:
+    return {"backend": scope.backend.value, "dialect": scope.dialect}
+
+
+def _segment_dict(segment: Any) -> dict[str, Any]:
+    return {
+        "module": segment.module,
+        "scope": _scope_dict(segment.scope),
+        "source": segment.source.value,
+        "domain": segment.segment.domain.value,
+        "facts": [_fact_dict(fact) for fact in sorted(segment.facts, key=fact_sort_key)],
+        "evidence_refs": [
+            _captured_address_dict(address) for address in segment.segment.evidence_refs
+        ],
+        "changes": [
+            _captured_address_dict(change.change_ref) for change in segment.segment.changes
+        ],
+    }
+
+
 def _evidence_dict(evidence: Any) -> dict[str, Any] | None:
-    """ProbeEvidence -> dict; null preserves the absence-of-evidence signal
-    (vs. a `{}` empty record, which would mean 'evidence exists but is empty')."""
     if evidence is None:
         return None
     return {
@@ -730,16 +868,14 @@ def _evidence_dict(evidence: Any) -> dict[str, Any] | None:
     }
 
 
-def _declaration_dict(d: Any) -> dict[str, Any]:
-    """One CapabilityDeclaration — carries its facts in the canonicalized order
-    the model canonicalized at ingest (spec §4.4 I-3); this is what makes
-    declarations JSON-recoverable per §4.6 / plan-review C2."""
+def _bundle_dict(bundle: Any) -> dict[str, Any]:
     return {
-        "backend": d.backend.value,
-        "source": d.source.value,
-        "domain": d.domain.value,
-        "evidence": _evidence_dict(d.evidence),
-        "facts": [_fact_dict(f) for f in d.facts],
+        "address": _captured_address_dict(bundle.address),
+        "backend": bundle.backend.value,
+        "source": bundle.source.value,
+        "domain": bundle.domain.value,
+        "members": [_captured_assertion_dict(member) for member in bundle.members],
+        "evidence": _evidence_dict(bundle.evidence),
     }
 
 
@@ -760,32 +896,44 @@ def _divergence_dict(dv: Any) -> dict[str, Any]:
     }
 
 
-def _gap_dict(g: Any) -> dict[str, Any]:
-    """KnownGap + review_due = since + 183 days (spec §4.3 rule 7)."""
+def _gap_dict(record: Any) -> dict[str, Any]:
+    gap = record.payload
     return {
-        "gap_kind": g.gap_kind.value,
-        "reason": g.reason,
-        "since": g.since,
-        "review_due": (date.fromisoformat(g.since) + timedelta(days=183)).isoformat(),
+        "inventory": record.key.inventory,
+        "target": _capture_value(record.key.target),
+        "obligation": record.key.obligation,
+        "coverage_scope": (
+            {"kind": "inventory_wide"}
+            if type(record.key.coverage_scope) is InventoryWide
+            else {"kind": "scope", **_scope_dict(record.key.coverage_scope)}
+        ),
+        "original_key": _capture_value(record.original_key),
+        "origins": [_captured_address_dict(origin) for origin in record.origins],
+        "reference_context": [
+            _captured_address_dict(address) for address in record.reference_context
+        ],
+        "gap_kind": gap.gap_kind.value,
+        "reason": gap.reason,
+        "since": gap.since,
+        "review_due": (date.fromisoformat(gap.since) + timedelta(days=183)).isoformat(),
     }
 
 
-def _retired_dict(r: Any) -> dict[str, Any]:
-    """RetiredFact — emitted newest-first (spec §4.3 rule 8); the model sorts
-    ascending, the renderer reverses, mirroring the markdown retirements section."""
+def _change_dict(change: Any) -> dict[str, Any]:
+    """Diagnostic projection of an AssertionChange, not a lossless codec."""
     return {
-        "operation_key": _op_key(r.operation_key),
-        "param": r.param,
-        "backend": r.backend.value,
-        "dialect": r.dialect,
-        "option_value": r.option_value,
-        "value_class": r.value_class.value if r.value_class is not None else None,
-        "level": r.level.value,
-        "since": r.since,
-        "retired_on": r.retired_on,
-        "fixed_in_versions": [list(pair) for pair in r.fixed_in_versions],
-        "upstream_ref": r.upstream_ref,
-        "note": r.note,
+        "change_ref": _captured_address_dict(change.change_ref),
+        "prior": _captured_assertion_dict(change.prior),
+        "disposition": change.disposition.value,
+        "recorded_at": change.recorded_at,
+        "reason": change.reason,
+        "successors": [
+            _captured_assertion_dict(successor) for successor in change.successors
+        ],
+        "evidence_refs": [
+            _captured_address_dict(address) for address in change.evidence_refs
+        ],
+        "fixed_versions": _environment_dict(change.fixed_versions),
     }
 
 
@@ -793,7 +941,8 @@ def _stamp(report: CoverageReport) -> dict[str, int]:
     """Counts only — the model has no timestamps, so this is the regen-time
     visible-only summary, not a wall-clock stamp."""
     return {
-        "declarations": len(report.declarations),
+        "segments": len(report.segments),
+        "historical_bundles": len(report.bundles),
         "facts": report.stats.facts_total,
         "operations": report.stats.ops_total,
         "implementation_records": sum(report.stats.by_impl.values()),
@@ -839,38 +988,32 @@ def _stats_dict(report: CoverageReport) -> dict[str, Any]:
 
 
 def render_json(report: CoverageReport) -> str:
-    """Spec §4.6 — the canonical JSON export of the FULL model.
+    """Diagnostic JSON projection of the coverage report.
 
-    Determinism: every dict is built by iterating already-sorted sequences;
-    `sort_keys=False` (insertion order is the contract — review M-6). Every
-    value is serializable as plain JSON: enum members by `.value`, dates as
-    ISO strings, absent optionals as `null`, empty collections as `[]`. No
-    option-collapse — the extract carries every fact row uncollapsed (the
-    markdown's collapse is a readability device, not a model property)."""
+    The change rows expose complete in-memory captures, but this existing report
+    projection is not a lossless serialization format. Determinism comes from
+    already-sorted model sequences and insertion-ordered dictionaries.
+    """
     obj = {
         "stamp": _stamp(report),
         "stats": _stats_dict(report),
         "families": [_family_dict(f) for f in report.families],
-        "declarations": [_declaration_dict(d) for d in report.declarations],
+        "segments": [_segment_dict(segment) for segment in report.segments],
+        "historical_bundles": [_bundle_dict(bundle) for bundle in report.bundles],
         "divergences": [_divergence_dict(dv) for dv in report.divergences],
-        "gaps": [_gap_dict(g) for g in report.gaps],
-        "retired": [_retired_dict(r) for r in reversed(report.retired)],
+        "gaps": None if report.gaps is None else [_gap_dict(gap) for gap in report.gaps],
+        "changes": [_change_dict(change) for change in reversed(report.changes)],
     }
     return json.dumps(obj, indent=2, ensure_ascii=False) + "\n"
 
 
-def gather_coverage_inputs() -> dict:
-    """Impure input gathering — the only registry-touching code (spec §4).
-
-    Universe and implementation records are derived from their operation
-    registries; the immutable facts and declarations share one captured
-    enumeration state.
-    """
+def gather_coverage_inputs(*, verification: VerificationSnapshot | None = None) -> dict:
+    """Acquire one immutable reporting state and cold historical provenance."""
     from mountainash.core.capabilities.coverage import OpRecord
     from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
-    from mountainash.core.capabilities.gaps import KNOWN_GAPS
+    from mountainash.core.capabilities.evidence.legacy_bundles import BUNDLES
+    from mountainash.core.capabilities.gaps import VerificationSnapshot
     from mountainash.core.capabilities.registry import CapabilityRegistry
-    from mountainash.core.capabilities.retired import RETIRED_FACTS
     from mountainash.expressions.core.expression_system.function_mapping.registry import (
         ExpressionFunctionRegistry,
     )
@@ -878,21 +1021,27 @@ def gather_coverage_inputs() -> dict:
         RelationOperationRegistry,
     )
 
-    facts, declarations = CapabilityRegistry._report_inputs()
+    if verification is not None and type(verification) is not VerificationSnapshot:
+        raise TypeError("verification requires an explicit VerificationSnapshot")
+    facts, segments = CapabilityRegistry._report_inputs()
     keys = list(ExpressionFunctionRegistry.list_all()) + list(RelationOperationRegistry.list_all())
     universe = tuple(
         sorted(
-            (OpRecord(k, type(k).__name__) for k in keys),
-            key=lambda r: (r.family, r.operation_key.name),
+            (OpRecord(key, type(key).__name__) for key in keys),
+            key=lambda record: (record.family, record.operation_key.name),
         )
     )
     inputs = dict(
         universe=universe,
         facts=facts,
-        declarations=declarations,
+        segments=segments,
+        bundles=BUNDLES,
         divergences=KNOWN_DIVERGENCES,
-        gaps=KNOWN_GAPS,
-        retired=RETIRED_FACTS,
+        gaps=None if verification is None else verification.gaps,
+        changes=(
+            tuple(change for segment in segments for change in segment.segment.changes)
+            + (() if verification is None else verification.changes)
+        ),
     )
     inputs["implementations"] = gather_implementation_records(universe)
     return inputs

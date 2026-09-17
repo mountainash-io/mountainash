@@ -5,14 +5,14 @@ expectations (spec 2026-08-01-spine-derived-test-expectations §3, Task 5).
 capability-encoding expectation site and classifies each into exactly one
 bucket, with an explicit reason. The scope is three families:
 
-  (a) pytest collection metadata for every parametrized ``(op, backend)`` case
-      that touches a known expectation API (the op-level gate-probe suite);
+  (a) pytest collection metadata for every parametrized whole-operation gate
+      case in the op-level gate-probe suite;
   (b) the **raw forms being migrated** — every ``pytest.xfail(`` call and every
       *capability-encoding* ``pytest.mark.xfail`` / ``xfail_divergence`` marker,
       discovered structurally via the :mod:`ast` module; and
-  (c) each ``src``-defined production capability map **imported by name**
-      (``capabilities.string.BROKEN_STRING_OPS_BY_BACKEND``), which
-      drives registered op-level gate facts through ``_op_level_facts``.
+  (c) each registered physical segment source row for a whole-operation build
+      gate, addressed by its own module and local origin rather than an old
+      declaration assignment line.
 
 Classification is total over the discovered scope:
 
@@ -29,9 +29,9 @@ An expectation-producing call whose *form* the census cannot parse at all
 raises :class:`UnclassifiedExpectation` — a census failure, never a silent
 omission (closed-by-default, rev-2 I6).
 
-Entries are emitted in deterministic ``(path, line)`` order and ``build_census``
-also writes the committed catalogue ``tests/_spine_expectation_census.md`` that
-Task 6's inventory and SP2 read.
+Entries are emitted in deterministic ``(path, address)`` order and
+``build_census`` also writes the committed catalogue
+``tests/_spine_expectation_census.md`` that Task 6's inventory and SP2 read.
 """
 from __future__ import annotations
 
@@ -40,22 +40,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from mountainash.core.capabilities.declarations import LocalOrigin
 from mountainash.core.capabilities.divergences import divergence_by_id
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
+    Boundary,
     CapabilityLevel,
     Enforcement,
     WILDCARD_PARAM,
 )
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.expressions.backends.capabilities import (
-    string as _string_caps,
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
-from mountainash.expressions.backends.capabilities.string import (
-    BROKEN_STRING_OPS_BY_BACKEND,
-    OP_LEVEL_FKEYS,
+from tests.fixtures.capability_gating import (
+    capability_gate,
+    identity_for,
+    whole_operation_gates,
 )
-from tests.fixtures.capability_gating import capability_gate, identity_for
 
 # The sentinel used wherever a selector genuinely cannot be recovered from a
 # static site — NEVER a guess. A sentinel is a non-empty, non-None string, so an
@@ -69,9 +71,9 @@ _TESTS_DIR = Path(__file__).resolve().parent.parent
 _REPO_ROOT = _TESTS_DIR.parent
 _REPORT_PATH = _TESTS_DIR / "_spine_expectation_census.md"
 
-# The single known-expectation-API parametrized ``(op, backend)`` provider
-# (scope a). Its parametrization is pure collection metadata derived from the
-# production broken-ops map crossed with a per-family fixture table.
+# The known-expectation-API provider (scope a) derives its parametrized
+# runtime variants from canonical operation enums and the scoped registry,
+# crossed with this suite's fixture matrix.
 _PROBE_REL = "tests/expressions/argument_types/test_op_level_gate_probes.py"
 
 # Roots that identify a reason built from a live spine object (→ migrated).
@@ -97,7 +99,7 @@ class UnclassifiedExpectation(Exception):
 class CensusEntry:
     node_id: str
     path: str
-    line: int
+    line: int | str
     kind: str
     operation_key: Any
     backend: Any
@@ -113,12 +115,12 @@ class CensusEntry:
 # ---------------------------------------------------------------------------
 def build_census() -> list[CensusEntry]:
     """Discover and classify the full closed scope, write the committed report,
-    and return the entries in deterministic ``(path, line, node_id)`` order."""
+    and return entries in deterministic ``(path, address, node_id)`` order."""
     entries: list[CensusEntry] = []
     entries.extend(_scope_c_entries())
     entries.extend(_scope_a_entries())
     entries.extend(_scope_b_entries())
-    entries.sort(key=lambda e: (e.path, e.line, e.node_id))
+    entries.sort(key=lambda e: (e.path, str(e.line), e.node_id))
     _write_report(entries)
     return entries
 
@@ -163,30 +165,67 @@ def _classify_selector(
 
 
 # ---------------------------------------------------------------------------
-# Scope (c): the src-defined production capability map, imported by name.
+# Scope (c): physical source rows for all whole-operation build gates.
 # ---------------------------------------------------------------------------
 def _scope_c_entries() -> list[CensusEntry]:
-    src = Path(_string_caps.__file__).resolve()
-    line = _assign_lineno(src, "BROKEN_STRING_OPS_BY_BACKEND")
-    rel = _relpath(src)
+    segments = CapabilityRegistry.segments()
     entries: list[CensusEntry] = []
-    for family in _sorted_families(BROKEN_STRING_OPS_BY_BACKEND):
-        for op in sorted(BROKEN_STRING_OPS_BY_BACKEND[family]):
-            fkey = OP_LEVEL_FKEYS[op]
-            bucket, reason = _classify_selector(fkey, family)
-            if reason is None:  # pragma: no cover - the map always registers a gate fact
-                reason = "op-level broken-ops map entry with no registered gate fact — inventoried"
+    for segment in segments:
+        for assertion, fact in zip(segment.segment.capabilities, segment.facts):
+            if (
+                fact.param != WILDCARD_PARAM
+                or fact.level is not CapabilityLevel.UNSUPPORTED
+                or fact.boundary is not Boundary.BUILD
+                or fact.enforcement is not Enforcement.GATE
+            ):
+                continue
+            local = tuple(
+                origin for origin in assertion.origins if type(origin) is LocalOrigin
+            )
+            if len(local) != 1:
+                raise UnclassifiedExpectation(
+                    f"{segment.module}:{assertion.key!r}: expected one physical "
+                    f"local origin, got {assertion.origins!r}"
+                )
+            origin = local[0]
+            bucket, reason = _classify_selector(
+                fact.operation_key,
+                segment.scope.backend,
+                dialect=segment.scope.dialect,
+            )
+            if reason is None:
+                raise UnclassifiedExpectation(
+                    f"{segment.module}:{origin.entry}: registered whole-operation "
+                    "gate is not queryable through the capability spine"
+                )
+            captures = tuple(
+                prior.captured
+                for prior in assertion.origins
+                if getattr(prior, "captured", None) is not None
+            )
+            capture_note = (
+                "; historical capture retained: "
+                + ", ".join(
+                    f"{capture.path}:{capture.entry}@{capture.revision or 'artifact'}"
+                    for capture in captures
+                )
+                if captures
+                else "; no historical capture attached"
+            )
             entries.append(
                 CensusEntry(
-                    node_id=f"BROKEN_STRING_OPS_BY_BACKEND[{family.value}][{op}]",
-                    path=rel,
-                    line=line,
-                    kind="manual-map",
-                    operation_key=fkey.name,
-                    backend=family.value,
+                    node_id=f"{segment.module}::{origin.entry}",
+                    path=segment.module,
+                    line=origin.entry,
+                    kind="segment-source",
+                    operation_key=fact.operation_key.name,
+                    backend=segment.scope.backend.value,
                     param=WILDCARD_PARAM,
                     option_value=None,
-                    current_reason=f"'{op}' has no correct native implementation on {family.value} (op-level gate)",
+                    current_reason=(
+                        "registered physical whole-operation gate source row"
+                        + capture_note
+                    ),
                     bucket=bucket,
                     reason=reason,
                 )
@@ -195,41 +234,49 @@ def _scope_c_entries() -> list[CensusEntry]:
 
 
 # ---------------------------------------------------------------------------
-# Scope (a): pytest collection metadata for the op-level gate-probe suite.
+# Scope (a): runtime collection variants for the op-level gate-probe suite.
 # ---------------------------------------------------------------------------
 def _scope_a_entries() -> list[CensusEntry]:
     src = _REPO_ROOT / _PROBE_REL
     if not src.exists():  # pragma: no cover - the probe suite ships with the repo
         return []
     tree = ast.parse(src.read_text(), filename=str(src))
-    family_fixtures = _read_family_fixtures(tree)
+    fixtures = _read_family_fixtures(tree)
+    operation_keys = _read_probe_operation_keys(tree)
     funcs = _parametrized_op_backend_funcs(tree)
     entries: list[CensusEntry] = []
     for fname, lineno in funcs:
-        for family in _sorted_families(BROKEN_STRING_OPS_BY_BACKEND):
-            for op in sorted(BROKEN_STRING_OPS_BY_BACKEND[family]):
-                fkey = OP_LEVEL_FKEYS[op]
-                for fixture in family_fixtures.get(family, ()):
-                    idn = identity_for(fixture)
+        for family in _sorted_families(fixtures):
+            for fixture in fixtures[family]:
+                identity = identity_for(fixture)
+                for fact in whole_operation_gates(operation_keys, fixture):
                     bucket, reason = _classify_selector(
-                        fkey, idn.family, dialect=idn.dialect
+                        fact.operation_key,
+                        identity.family,
+                        dialect=identity.dialect,
                     )
                     if reason is None:
-                        reason = (
-                            "parametrized op-level gate case with no matching spine "
-                            "fact — inventoried"
+                        raise UnclassifiedExpectation(
+                            f"{_PROBE_REL}::{fname}[{fact.operation_key.name}-{fixture}]: "
+                            "runtime provider emitted an unqueryable whole-operation gate"
                         )
                     entries.append(
                         CensusEntry(
-                            node_id=f"{_PROBE_REL}::{fname}[{op}-{fixture}]",
+                            node_id=(
+                                f"{_PROBE_REL}::{fname}"
+                                f"[{fact.operation_key.name.lower()}-{fixture}]"
+                            ),
                             path=_PROBE_REL,
                             line=lineno,
                             kind="parametrized-case",
-                            operation_key=fkey.name,
+                            operation_key=fact.operation_key.name,
                             backend=fixture,
-                            param="op",
+                            param=WILDCARD_PARAM,
                             option_value=None,
-                            current_reason=f"parametrized (op, backend) = ({op}, {fixture}) on the op-level gate-probe API",
+                            current_reason=(
+                                "runtime whole-operation gate provider variant "
+                                f"({fact.operation_key.name}, {fixture})"
+                            ),
                             bucket=bucket,
                             reason=reason,
                         )
@@ -689,6 +736,37 @@ def _const_backend_from_attr(expr: ast.AST | None) -> CONST_BACKEND | None:
     return None
 
 
+def _read_probe_operation_keys(tree: ast.AST) -> tuple[object, ...]:
+    """Recover the canonical operation enums that the runtime provider receives."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == "_OP_CASES" for target in node.targets):
+            continue
+        if not isinstance(node.value, ast.Dict):
+            break
+        keys: list[object] = []
+        for key in node.value.keys:
+            if not (
+                isinstance(key, ast.Attribute)
+                and isinstance(key.value, ast.Name)
+                and key.value.id == "FK_STR"
+            ):
+                raise UnclassifiedExpectation(
+                    f"{_PROBE_REL}:{node.lineno}: _OP_CASES must use canonical FK_STR members"
+                )
+            operation_key = getattr(FK_STR, key.attr, None)
+            if operation_key is None:
+                raise UnclassifiedExpectation(
+                    f"{_PROBE_REL}:{node.lineno}: unknown FK_STR member {key.attr!r}"
+                )
+            keys.append(operation_key)
+        return tuple(keys)
+    raise UnclassifiedExpectation(
+        f"{_PROBE_REL}: expected canonical _OP_CASES collection provider"
+    )
+
+
 def _parametrized_op_backend_funcs(tree: ast.AST) -> list[tuple[str, int]]:
     out: list[tuple[str, int]] = []
     for node in ast.walk(tree):
@@ -702,7 +780,7 @@ def _parametrized_op_backend_funcs(tree: ast.AST) -> list[tuple[str, int]]:
                 and deco.args
             ):
                 argnames = _static_str(deco.args[0])
-                if argnames and "op" in [a.strip() for a in argnames.split(",")]:
+                if argnames and "fkey" in [name.strip() for name in argnames.split(",")]:
                     out.append((node.name, node.lineno))
                     break
     return out
@@ -719,18 +797,6 @@ def _sorted_families(mapping: dict[CONST_BACKEND, Any]) -> list[CONST_BACKEND]:
     return sorted(mapping, key=lambda f: f.value)
 
 
-def _assign_lineno(pyfile: Path, name: str) -> int:
-    tree = ast.parse(pyfile.read_text(), filename=str(pyfile))
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id == name for t in node.targets
-        ):
-            return node.lineno
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == name:
-            return node.lineno
-    raise UnclassifiedExpectation(
-        f"{_relpath(pyfile)}: expected module-level assignment {name!r} not found"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -742,7 +808,7 @@ def _write_report(entries: list[CensusEntry]) -> None:
         "",
         "> Generated by `tests/fixtures/capability_census.py::build_census()`.",
         "> Do not edit by hand — this is the closed SCOPE authority (§3) that the",
-        "> Task 6 inventory and SP2 read. Entries are ordered by `(path, line)`.",
+        "> Task 6 inventory and SP2 read. Entries are ordered by `(path, address)`.",
         "",
         "Buckets: `migrated` (derivable from the spine today), `retained` "
         "(a LITERAL_ONLY/ROUTER_METADATA fact — not an assertable gate), "

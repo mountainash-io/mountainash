@@ -14,7 +14,7 @@ import sys
 import types
 import typing
 from pathlib import Path
-from typing import get_type_hints
+from typing import TYPE_CHECKING, get_type_hints
 
 import pytest
 
@@ -35,6 +35,9 @@ from expressions.argument_types._introspection import (
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.retired import AssertionChange
 
 _CATEGORY_MODULES = [
     "test_arg_types_string",
@@ -296,6 +299,9 @@ def test_collect_option_param_taxonomy_rejects_conflicting_duplicates(monkeypatc
 
     with pytest.raises(AssertionError, match="Conflicting option-parameter taxonomy"):
         _collect_option_param_taxonomy()
+
+
+GAP_CHANGES: tuple[AssertionChange, ...] = ()
 
 
 _KNOWN_UNTESTED_ARGUMENT_PARAMS: dict[tuple[str, str, str], KnownGap] = {

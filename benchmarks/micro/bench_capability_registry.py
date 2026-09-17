@@ -648,20 +648,16 @@ if sys.argv[1] == "load":
     CapabilityRegistry.ensure_loaded()
     print(json.dumps({"imports_s": imports-start, "registry_load_total_s": time.perf_counter()-imports}))
 else:
-    from mountainash.core.capabilities.bootstrap import discover_declaration_modules
-    declarations = []
-    for name in discover_declaration_modules():
-        bundle = getattr(importlib.import_module(name), "DECLARATIONS")
-        if type(bundle) is not tuple:
-            raise TypeError(name)
-        declarations.extend(bundle)
+    from mountainash.core.capabilities.bootstrap import _load_segments
+    from mountainash.core.capabilities.capture import require_immutable
+    segments = _load_segments()
     collected = time.perf_counter()
     import mountainash.core.capabilities.registry as registry
-    for declaration in declarations:
-        if hasattr(registry, "_validate_declaration_payload"):
-            registry._validate_declaration_payload(declaration)
-        for fact in declaration.facts:
-            registry._validate_fact(declaration.backend, fact)
+    for segment in segments:
+        require_immutable(segment)
+        for fact in segment.facts:
+            registry._validate_payload(fact)
+            registry._validate_fact(segment.scope.backend, fact)
     print(json.dumps({"declaration_collection_s": collected-imports,
                       "base_payload_fact_validation_s": time.perf_counter()-collected}))
 """
@@ -689,7 +685,9 @@ def _state_prepare_once() -> object:
         kinds=state.kinds,
         value_class_facts=state.value_class_facts,
         predicate_facts=state.predicate_facts,
-        declarations=state.declarations,
+        segments=state.segments,
+        stored=state.stored,
+        origins=state.origins,
         load_state=state.load_state,
         load_error=state.load_error,
     )
@@ -846,7 +844,7 @@ def _report_inputs() -> tuple[tuple[Any, ...], tuple[Any, ...]]:
     from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
 
     load_all_capability_declarations()
-    return tuple(CapabilityRegistry.facts()), tuple(CapabilityRegistry.declarations())
+    return tuple(CapabilityRegistry.facts()), tuple(CapabilityRegistry.segments())
 
 
 def _profile_call(call) -> dict[str, Any]:

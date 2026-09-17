@@ -216,11 +216,17 @@ class TestRealWorldLogFiltering:
         self,
         backend_name,
         backend_factory,
+        mocker,
     ):
 
 
         """Test filtering errors from last X minutes (like journalctl)."""
-        now = datetime.now()
+        # Keep the old error on the same day: crossing midnight masks IB-DT-13.
+        now = datetime(2026, 9, 15, 12, 30)
+        clock = mocker.patch(
+            "mountainash.expressions.core.utils.temporal.datetime", wraps=datetime
+        )
+        clock.now.return_value = now
         logs_data = {
             "timestamp": [
                 now - timedelta(minutes=1),
