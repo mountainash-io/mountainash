@@ -162,14 +162,13 @@ def _all() -> tuple[DivergenceFact, ...]:
         DivergenceFact(
             id="IB-DT-09",
             kind=DivergenceKind.SEMANTICS,
-            operation_keys=(FK_MA_DT.TODAY, FK_MA_DT.NOW),
-            backends=("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
-            summary="Ibis today() upcasts date to timestamp on ALL ibis backends; now() "
-                    "compiles to query-time UTC SQL on ibis-duckdb and ibis-sqlite only "
-                    "(ibis-polars evaluates now() like Polars/Narwhals)",
-            impact="today() snapshot type differs on all ibis backends; now() evaluation "
-                   "instant differs on ibis-duckdb/ibis-sqlite (UTC, query-time)",
-            workaround="Use Polars or Narwhals for exact date types; account for UTC query-time now() on ibis-duckdb/ibis-sqlite",
+            operation_keys=(FK_MA_DT.NOW,),
+            backends=("ibis-duckdb", "ibis-sqlite"),
+            summary="now() returns naive UTC query-time timestamps on ibis-duckdb and ibis-sqlite",
+            impact="On non-UTC hosts, now() differs from the local naive datetime snapshot "
+                   "used by Polars, Narwhals and ibis-polars",
+            workaround="Account for UTC query-time semantics, or use Polars, Narwhals or ibis-polars "
+                       "for local datetime snapshots",
             upstream_ref="IB-DT-09",
             since="2026-07-05",
         ),

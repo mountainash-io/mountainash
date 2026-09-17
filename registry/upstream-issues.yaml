@@ -1916,18 +1916,17 @@ issues:
 - id: IB-DT-09
   project: ibis
   category: datetime-ops
-  summary: Ibis today() upcasts date to timestamp and now() uses query-time UTC SQL
+  summary: now() returns naive UTC query-time timestamps on ibis-duckdb and ibis-sqlite
   root_cause: by_design
   affected_backends:
   - ibis-duckdb
-  - ibis-polars
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
   status: by_design
   our_workaround: accepted_divergence
-  notes: ''
-  last_verified: '2026-07-05'
+  notes: 'Narrowed on 2026-09-17 with Ibis 12.0.0: NOW agrees with local snapshots under UTC but differs under non-UTC timezones on DuckDB and SQLite. ibis-polars follows local snapshot semantics. TODAY compiles to native Date on all three Ibis backends and is no longer part of this declaration. The NOW regression uses a fixed non-UTC timezone with strict expected failures; native-Date TODAY coverage remains unmarked.'
+  last_verified: '2026-09-17'
 - id: IB-AGG-04
   project: ibis
   category: aggregate-ops
