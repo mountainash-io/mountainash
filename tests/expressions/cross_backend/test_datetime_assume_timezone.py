@@ -10,8 +10,7 @@ enriched through the visitor path, not the queryable CapabilityRegistry, so
 assert_capability_gated cannot resolve it (capability_gate returns None). Per
 the crosswalk Part D fallback (mutation probe fails to redden -> split-out
 §4.1.1), the precise `pytest.raises(BackendCapabilityError)` gate assertion is
-kept here, isolated from any xfail_divergence so the all-or-nothing census
-guard stays satisfied.
+kept here, isolated from operational expected-failure bindings.
 """
 
 from __future__ import annotations
@@ -44,9 +43,7 @@ _ASSUME_TZ_HONORED = {"polars", "polars-lazy"}
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", TIMESTAMP_BACKENDS)
 class TestDtAssumeTimezone:
-    def test_assume_timezone_preserves_hour(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_assume_timezone_preserves_hour(self, backend_name, backend_factory, collect_expr):
         """Polars: assume UTC then extract hour — same hour as the naive input.
 
         ibis/narwhals: the gate raises (they silently drop the tz), so the
@@ -67,9 +64,7 @@ class TestDtAssumeTimezone:
             with pytest.raises(BackendCapabilityError, match="assume_timezone"):
                 collect_expr(df, expr)
 
-    def test_assume_timezone_runs_without_error(
-        self, backend_name, backend_factory
-    ):
+    def test_assume_timezone_runs_without_error(self, backend_name, backend_factory):
         """Polars runs cleanly; ibis/narwhals raise BackendCapabilityError."""
         data = {
             "ts": [
@@ -78,11 +73,7 @@ class TestDtAssumeTimezone:
             ]
         }
         df = backend_factory.create(data, backend_name)
-        build = (
-            ma.relation(df)
-            .select(ma.col("ts").dt.assume_timezone("UTC").name.alias("tz_ts"))
-            .to_dict
-        )
+        build = ma.relation(df).select(ma.col("ts").dt.assume_timezone("UTC").name.alias("tz_ts")).to_dict
         if backend_name in _ASSUME_TZ_HONORED:
             result = build()
             assert len(result["tz_ts"]) == 2

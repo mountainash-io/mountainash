@@ -20,7 +20,7 @@
 # A legal gate park marker (spec 2.1):
 #   pytest.mark.xfail(reason=<reason>, raises=BackendCapabilityError, strict=True)
 # A divergence gap is NOT parkable bare (a marker cannot carry the value oracle) —
-# declare the DivergenceFact instead. strict=True is mandatory: a strict=False park
+# declare the scoped manifestation instead. strict=True is mandatory: a strict=False park
 # swallows unrelated failures and XPASSes silently when the gap closes.
 #
 # EMPTY on baseline. Populated only when Phase 2 hits an un-fact-able gap.

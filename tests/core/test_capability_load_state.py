@@ -145,6 +145,77 @@ def test_uninitialized_snapshot_retries_after_restore(monkeypatch):
     assert CapabilityRegistry.facts() == list(declaration.facts)
 
 
+def test_retiring_one_dialect_preserves_other_scope_and_shared_evidence(monkeypatch):
+    from mountainash.core.capabilities.capture import CapturedAddress, CapturedAssertion, Environment, EvidenceCapture
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, ChangeQuery, EvidenceQuery
+    from mountainash.core.capabilities.declarations import QualifiedCapabilityKey
+    from mountainash.core.capabilities.identity import Dialect
+    from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
+
+    cold = CapabilityRegistry.snapshot()
+    local = _decl().segment
+    segments = tuple(
+        BoundSegment(
+            f"mountainash.expressions.backends.capabilities.ibis.dialects.{dialect.replace('-', '_')}.substrait.string",
+            Scope(CONST_BACKEND.IBIS, Dialect(dialect)),
+            local,
+        )
+        for dialect in ("ibis-duckdb", "ibis-sqlite")
+    )
+    source = CapturedAddress(
+        "mountainash",
+        "tests/core/test_capability_load_state.py",
+        "dialect lifecycle fixture",
+        artifact=Path(__file__).read_bytes(),
+    )
+    claims = tuple(
+        CapturedAssertion(
+            "capability",
+            QualifiedCapabilityKey(segment.scope, local.capabilities[0].key),
+            segment.facts[0],
+            replace(source, entry=segment.scope.dialect),
+        )
+        for segment in segments
+    )
+    evidence = EvidenceCapture(
+        source,
+        claims,
+        None,
+        Environment(),
+        (source,),
+        "structural",
+        ("shared two-dialect observation",),
+        (source,),
+    )
+    monkeypatch.setattr(bootstrap, "_load_segments", lambda: segments)
+    before = CapabilityRegistry.capture(evidence=(evidence,))
+    prior, unaffected = claims
+    change = AssertionChange(
+        replace(source, entry="duckdb retirement"),
+        prior,
+        ChangeDisposition.INCORRECT_DECLARATION,
+        "2026-09-17",
+        "Retire only the DuckDB fixture claim.",
+        evidence_refs=(source,),
+    )
+    retired = replace(segments[0], segment=replace(local, capabilities=(), changes=(change,)))
+    CapabilityRegistry.restore(cold)
+    monkeypatch.setattr(bootstrap, "_load_segments", lambda: (retired, segments[1]))
+    after = CapabilityRegistry.capture(evidence=(evidence,))
+
+    assert after.get_optional(prior.key) is None
+    assert after.get(unaffected.key) == before.get(unaffected.key)
+    assert before.get(prior.key) == prior.payload
+    assert before.search(CatalogueQuery(changes=ChangeQuery(family="capability"))).changes == ()
+    assert after.search(CatalogueQuery(changes=ChangeQuery(prior=prior))).changes == (change,)
+    assert after.search(CatalogueQuery(changes=ChangeQuery(prior=unaffected))).changes == ()
+    for claim in claims:
+        assert after.search(
+            CatalogueQuery(scopes=frozenset((claim.key.scope,)), evidence=EvidenceQuery(subject=claim))
+        ).evidence == (evidence,)
+    assert evidence.subjects == claims
+
+
 @pytest.mark.parametrize("fails", [False, True])
 def test_concurrent_first_readers_observe_one_complete_load(monkeypatch, fails):
     entered, release = threading.Event(), threading.Event()

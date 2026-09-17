@@ -17,7 +17,6 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 
 import pytest
 import mountainash.expressions as ma
-from fixtures.capability_gating import xfail_divergence
 
 
 # Ternary constant values for raw sentinel assertions
@@ -30,13 +29,17 @@ T_FALSE = -1
 # Test: Auto-Booleanization on compile()
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestAutoBooleanizeOnCompile:
     """Test automatic booleanization when compile() is called on ternary expressions."""
 
@@ -199,13 +202,17 @@ class TestAutoBooleanizeOnCompile:
 # Test: Namespace-Level Coercion (Ternary → Boolean)
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestTernaryToBooleanCoercion:
     """Test automatic ternary → boolean coercion when chaining operations."""
 
@@ -259,13 +266,17 @@ class TestTernaryToBooleanCoercion:
 # Test: Namespace-Level Coercion (Boolean → Ternary)
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestBooleanToTernaryCoercion:
     """Test automatic boolean → ternary coercion when chaining operations."""
 
@@ -298,13 +309,17 @@ class TestBooleanToTernaryCoercion:
 # Test: Edge Cases
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestEdgeCases:
     """Test edge cases for auto-booleanization."""
 
@@ -392,13 +407,17 @@ class TestEdgeCases:
 # Test: Additional Ternary → Boolean Coercion Cases
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestTernaryToBooleanCoercionExtended:
     """Extended tests for ternary → boolean coercion."""
 
@@ -450,13 +469,17 @@ class TestTernaryToBooleanCoercionExtended:
 # Test: Additional Boolean → Ternary Coercion Cases
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestBooleanToTernaryCoercionExtended:
     """Extended tests for boolean → ternary coercion."""
 
@@ -530,13 +553,17 @@ class TestBooleanToTernaryCoercionExtended:
 # Test: Multiple Operands with Auto-Coercion
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestMultipleOperandsCoercion:
     """Test auto-coercion with multiple operands in and_/or_/t_and/t_or."""
 
@@ -550,10 +577,7 @@ class TestMultipleOperandsCoercion:
         df = backend_factory.create(data, backend_name)
 
         # base AND a>70 AND b>70 - both ternary operands should be coerced
-        expr = ma.col("base").and_(
-            ma.col("a").t_gt(70),
-            ma.col("b").t_gt(70)
-        )
+        expr = ma.col("base").and_(ma.col("a").t_gt(70), ma.col("b").t_gt(70))
         backend_expr = expr.compile(df)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -575,10 +599,7 @@ class TestMultipleOperandsCoercion:
         df = backend_factory.create(data, backend_name)
 
         # score>70 t_and a t_and b
-        expr = ma.col("score").t_gt(70).t_and(
-            ma.col("a").eq(True),
-            ma.col("b").eq(True)
-        )
+        expr = ma.col("score").t_gt(70).t_and(ma.col("a").eq(True), ma.col("b").eq(True))
         backend_expr = expr.compile(df, booleanizer=None)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -600,10 +621,7 @@ class TestMultipleOperandsCoercion:
         df = backend_factory.create(data, backend_name)
 
         # score>70 t_or active t_or premium
-        expr = ma.col("score").t_gt(70).t_or(
-            ma.col("active").eq(True),
-            ma.col("premium").eq(True)
-        )
+        expr = ma.col("score").t_gt(70).t_or(ma.col("active").eq(True), ma.col("premium").eq(True))
         backend_expr = expr.compile(df, booleanizer=None)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)
@@ -620,13 +638,17 @@ class TestMultipleOperandsCoercion:
 # Test: Filtering with Auto-Booleanization
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestFilteringWithAutoBooleanization:
     """Test that auto-booleanization works correctly in filter operations."""
 
@@ -685,13 +707,17 @@ class TestFilteringWithAutoBooleanization:
 # Test: All Ternary Comparison Operators
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestAllTernaryComparisonOperators:
     """Test that all ternary comparison operators work with auto-booleanization."""
 
@@ -703,7 +729,7 @@ class TestAllTernaryComparisonOperators:
         expr = ma.col("a").t_eq(1)
         values = select_and_extract(df, expr.compile(df), "result", backend_name)
 
-        assert values[0] is True   # 1 == 1 -> TRUE -> is_true -> True
+        assert values[0] is True  # 1 == 1 -> TRUE -> is_true -> True
         assert values[1] is False  # NULL == 1 -> UNKNOWN -> is_true -> False
         assert values[2] is False  # 2 == 1 -> FALSE -> is_true -> False
 
@@ -717,7 +743,7 @@ class TestAllTernaryComparisonOperators:
 
         assert values[0] is False  # 1 != 1 -> FALSE -> is_true -> False
         assert values[1] is False  # NULL != 1 -> UNKNOWN -> is_true -> False
-        assert values[2] is True   # 2 != 1 -> TRUE -> is_true -> True
+        assert values[2] is True  # 2 != 1 -> TRUE -> is_true -> True
 
     def test_t_ge_auto_booleanize(self, backend_name, backend_factory, select_and_extract):
         """Test t_ge with default auto-booleanization."""
@@ -727,8 +753,8 @@ class TestAllTernaryComparisonOperators:
         expr = ma.col("a").t_ge(70)
         values = select_and_extract(df, expr.compile(df), "result", backend_name)
 
-        assert values[0] is True   # 80 >= 70 -> TRUE
-        assert values[1] is True   # 70 >= 70 -> TRUE
+        assert values[0] is True  # 80 >= 70 -> TRUE
+        assert values[1] is True  # 70 >= 70 -> TRUE
         assert values[2] is False  # NULL >= 70 -> UNKNOWN -> False
         assert values[3] is False  # 60 >= 70 -> FALSE
 
@@ -740,8 +766,8 @@ class TestAllTernaryComparisonOperators:
         expr = ma.col("a").t_le(70)
         values = select_and_extract(df, expr.compile(df), "result", backend_name)
 
-        assert values[0] is True   # 60 <= 70 -> TRUE
-        assert values[1] is True   # 70 <= 70 -> TRUE
+        assert values[0] is True  # 60 <= 70 -> TRUE
+        assert values[1] is True  # 70 <= 70 -> TRUE
         assert values[2] is False  # NULL <= 70 -> UNKNOWN -> False
         assert values[3] is False  # 80 <= 70 -> FALSE
 
@@ -750,13 +776,17 @@ class TestAllTernaryComparisonOperators:
 # Test: Ternary Constants with Auto-Booleanization
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestTernaryConstantsAutoBooleanization:
     """Test ternary constants with auto-booleanization."""
 
@@ -809,13 +839,17 @@ class TestTernaryConstantsAutoBooleanization:
 # Test: Collection Operations with Auto-Booleanization
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestCollectionOperationsAutoBooleanization:
     """Test ternary collection operations with auto-booleanization."""
 
@@ -827,8 +861,8 @@ class TestCollectionOperationsAutoBooleanization:
         expr = ma.col("status").t_is_in(["A", "B"])
         values = select_and_extract(df, expr.compile(df), "result", backend_name)
 
-        assert values[0] is True   # "A" in [A,B] -> TRUE -> True
-        assert values[1] is True   # "B" in [A,B] -> TRUE -> True
+        assert values[0] is True  # "A" in [A,B] -> TRUE -> True
+        assert values[1] is True  # "B" in [A,B] -> TRUE -> True
         assert values[2] is False  # NULL in [A,B] -> UNKNOWN -> False
         assert values[3] is False  # "C" in [A,B] -> FALSE -> False
 
@@ -843,20 +877,24 @@ class TestCollectionOperationsAutoBooleanization:
         assert values[0] is False  # "A" not in [A,B] -> FALSE -> False
         assert values[1] is False  # "B" not in [A,B] -> FALSE -> False
         assert values[2] is False  # NULL not in [A,B] -> UNKNOWN -> False
-        assert values[3] is True   # "C" not in [A,B] -> TRUE -> True
+        assert values[3] is True  # "C" not in [A,B] -> TRUE -> True
 
 
 # =============================================================================
 # Test: Deep Nesting and Complex Chains
 # =============================================================================
 
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", [
-    "polars",
-    "narwhals-polars",
-    "ibis-polars",
-    "ibis-duckdb",
-])
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        "polars",
+        "narwhals-polars",
+        "ibis-polars",
+        "ibis-duckdb",
+    ],
+)
 class TestDeepNestingAndComplexChains:
     """Test deeply nested and complex expression chains."""
 
@@ -894,7 +932,8 @@ class TestDeepNestingAndComplexChains:
         # Start ternary, go boolean, back to ternary, then boolean again
         # t_gt(70) -> and_(active) -> t_and(t_eq(True)) -> or_(False)
         expr = (
-            ma.col("score").t_gt(70)  # ternary
+            ma.col("score")
+            .t_gt(70)  # ternary
             .and_(ma.col("active").eq(True))  # coerce to bool, do boolean AND
             .t_and(ma.col("active").eq(True))  # coerce back to ternary
             .or_(ma.lit(False))  # coerce to bool for final OR
@@ -903,7 +942,7 @@ class TestDeepNestingAndComplexChains:
 
         # Complex chain - verify it compiles and runs without error
         # The exact values depend on coercion semantics
-        assert values[0] is True   # All conditions true
+        assert values[0] is True  # All conditions true
         assert values[1] is False  # UNKNOWN becomes False
         assert values[2] is False  # FALSE in ternary
 
@@ -938,10 +977,7 @@ class TestDeepNestingAndComplexChains:
         df = backend_factory.create(data, backend_name)
 
         # a > 70 AND b > 70 AND c > 70 (all ternary)
-        expr = ma.col("a").t_gt(70).t_and(
-            ma.col("b").t_gt(70),
-            ma.col("c").t_gt(70)
-        )
+        expr = ma.col("a").t_gt(70).t_and(ma.col("b").t_gt(70), ma.col("c").t_gt(70))
         values = select_and_extract(df, expr.compile(df), "result", backend_name)
 
         # Row 0: T t_and T t_and T = T -> True
@@ -958,7 +994,7 @@ _XOR_PARITY_BACKENDS = [
     "polars",
     "narwhals-polars",
     "ibis-polars",
-    pytest.param("ibis-duckdb", marks=xfail_divergence("IB-DT-06", backend="ibis-duckdb")),
+    "ibis-duckdb",
 ]
 
 
@@ -978,10 +1014,7 @@ class TestTernaryXorParityCoercion:
         df = backend_factory.create(data, backend_name)
 
         # xor_parity: True if odd number of operands are True
-        expr = ma.col("a").t_gt(70).xor_parity(
-            ma.col("b").eq(True),
-            ma.col("c").eq(True)
-        )
+        expr = ma.col("a").t_gt(70).xor_parity(ma.col("b").eq(True), ma.col("c").eq(True))
         backend_expr = expr.compile(df)
 
         values = select_and_extract(df, backend_expr, "result", backend_name)

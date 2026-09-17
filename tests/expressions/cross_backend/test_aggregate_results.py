@@ -1,8 +1,8 @@
 """Cross-backend result verification for aggregate operations.
 
 Verifies that aggregate expressions produce identical results across all 7
-backends. Divergences route through declared DivergenceFacts via
-``xfail_divergence``; genuine API-misuse gaps (first/last require ``.over()``;
+backends. Exact scoped manifestation bindings select expected failures;
+genuine API-misuse gaps (first/last require ``.over()``;
 ``col().median()`` is unavailable) are pinned with ``pytest.raises`` fix-tests.
 """
 
@@ -16,7 +16,6 @@ from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 def _collect_agg(df, expr, alias="__value__"):
@@ -38,45 +37,17 @@ def _collect_agg(df, expr, alias="__value__"):
 
 # all-null aggregate: ibis-duckdb rejects the untyped all-null table (IB-REL-06),
 # ibis-polars/ibis-sqlite raise AttributeError on the inferred NullColumn (IB-AGG-06).
-_ALLNULL = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("IB-REL-06", backend=b), xfail_divergence("IB-AGG-06", backend=b)],
-    )
-    for b in ALL_BACKENDS
-]
+
 # min/max/count all-null: only ibis-duckdb rejects the table (IB-REL-06).
-_ALLNULL_DUCK = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-06", backend=b)) for b in ALL_BACKENDS
-]
+
 # mode() / any_value(): order-dependent, rejected on a narwhals LazyFrame (NW-AGG-03).
-_LAZY = [
-    pytest.param(b, marks=xfail_divergence("NW-AGG-03", backend=b)) for b in ALL_BACKENDS
-]
+
 # product() non-zero data: ibis-polars returns None (IB-AGG-05); ibis-duckdb/sqlite compute it.
-_PRODUCT = [
-    pytest.param(b, marks=xfail_divergence("IB-AGG-05", backend=b)) for b in ALL_BACKENDS
-]
+
 # product() with a zero factor: ibis-polars None (IB-AGG-05); ibis-duckdb/sqlite break (IB-AGG-07).
-_PRODUCT_ZERO = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("IB-AGG-05", backend=b), xfail_divergence("IB-AGG-07", backend=b)],
-    )
-    for b in ALL_BACKENDS
-]
+
 # any_value()/n_unique() all-null: narwhals-lazy (NW-AGG-03) + ibis-duckdb
 # (IB-REL-06); ibis-polars/ibis-sqlite compute None over an all-null column.
-_ANYVAL_ALLNULL = [
-    pytest.param(
-        b,
-        marks=[
-            xfail_divergence("NW-AGG-03", backend=b),
-            xfail_divergence("IB-REL-06", backend=b),
-        ],
-    )
-    for b in ALL_BACKENDS
-]
 
 
 @pytest.mark.cross_backend
@@ -95,7 +66,7 @@ class TestAggregateSum:
         actual = _collect_agg(df, ma.col("a").sum())
         assert actual == 9
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_sum_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -126,7 +97,7 @@ class TestAggregateMean:
         actual = _collect_agg(df, ma.col("a").mean())
         assert actual == pytest.approx(6.0, rel=1e-9)
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_mean_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -157,7 +128,7 @@ class TestAggregateMin:
         actual = _collect_agg(df, ma.col("a").min())
         assert actual == 1
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_min_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -188,7 +159,7 @@ class TestAggregateMax:
         actual = _collect_agg(df, ma.col("a").max())
         assert actual == 8
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_max_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -219,7 +190,7 @@ class TestAggregateCount:
         actual = _collect_agg(df, ma.col("a").count())
         assert actual == 3
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_count_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -260,7 +231,7 @@ class TestAggregateStdDev:
         assert actual is not None
         assert actual == pytest.approx(2.2677868380553634, rel=1e-6)
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_std_dev_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -285,7 +256,7 @@ class TestAggregateVariance:
         actual = _collect_agg(df, ma.col("a").variance(distribution="SAMPLE"))
         assert actual == pytest.approx(4.571428571428571, rel=1e-6)
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_variance_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -320,7 +291,7 @@ class TestAggregateMedian:
 
 @pytest.mark.cross_backend
 class TestAggregateMedianAllNulls:
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_median_all_nulls(self, backend_name, backend_factory):
         # ibis-duckdb rejects the all-null table (IB-REL-06) before median is
         # reached; every other backend raises AttributeError on col().median().
@@ -355,7 +326,7 @@ class TestAggregateNUnique:
         # Polars: NULL is a unique value → 3; SQL: NULL not counted → 2
         assert actual in [2, 3]
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_n_unique_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -392,7 +363,7 @@ class TestAggregateFirst:
         with pytest.raises(ValueError):
             _collect_agg(df, ma.col("a").first())
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_first_all_nulls(self, backend_name, backend_factory):
         # ibis-duckdb rejects the all-null table (IB-REL-06); the others raise
         # ValueError (first requires .over()).
@@ -429,7 +400,7 @@ class TestAggregateLast:
         with pytest.raises(ValueError):
             _collect_agg(df, ma.col("a").last())
 
-    @pytest.mark.parametrize("backend_name", _ALLNULL_DUCK)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_last_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)
@@ -441,7 +412,7 @@ class TestAggregateLast:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LAZY)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAggregateMode:
     def test_mode_single_mode(self, backend_name, backend_factory):
         data = {"a": [1, 2, 2, 3, 3, 3, 4]}
@@ -477,7 +448,7 @@ class TestAggregateMode:
 
 @pytest.mark.cross_backend
 class TestAggregateProduct:
-    @pytest.mark.parametrize("backend_name", _PRODUCT)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_integers(self, backend_name, backend_factory):
         data = {"a": [2, 3, 4]}
         df = backend_factory.create(data, backend_name)
@@ -485,21 +456,21 @@ class TestAggregateProduct:
         # pandas/narwhals compute via log/exp — allow float approximation
         assert actual == pytest.approx(24)
 
-    @pytest.mark.parametrize("backend_name", _PRODUCT)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_with_one(self, backend_name, backend_factory):
         data = {"a": [5, 1, 1, 1]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").product())
         assert actual == pytest.approx(5)
 
-    @pytest.mark.parametrize("backend_name", _PRODUCT_ZERO)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_with_zero(self, backend_name, backend_factory):
         data = {"a": [10, 20, 0, 30]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").product())
         assert actual == 0
 
-    @pytest.mark.parametrize("backend_name", _PRODUCT)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_single_element(self, backend_name, backend_factory):
         data = {"a": [42]}
         df = backend_factory.create(data, backend_name)
@@ -512,21 +483,21 @@ class TestAggregateProduct:
 
 @pytest.mark.cross_backend
 class TestAggregateAnyValue:
-    @pytest.mark.parametrize("backend_name", _LAZY)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_returns_valid_element(self, backend_name, backend_factory):
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").any_value())
         assert actual in [10, 20, 30, 40, 50]
 
-    @pytest.mark.parametrize("backend_name", _LAZY)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_strings(self, backend_name, backend_factory):
         data = {"a": ["alpha", "beta", "gamma"]}
         df = backend_factory.create(data, backend_name)
         actual = _collect_agg(df, ma.col("a").any_value())
         assert actual in ["alpha", "beta", "gamma"]
 
-    @pytest.mark.parametrize("backend_name", _LAZY)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_with_nulls(self, backend_name, backend_factory):
         data = {"a": [None, 20, None, 40]}
         df = backend_factory.create(data, backend_name)
@@ -534,7 +505,7 @@ class TestAggregateAnyValue:
         # May return None or any non-null value
         assert actual in [None, 20, 40]
 
-    @pytest.mark.parametrize("backend_name", _ANYVAL_ALLNULL)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
         df = backend_factory.create(data, backend_name)

@@ -3,6 +3,7 @@
 Phase 3 of the relation result verification suite. Tests group_by+agg
 and concat across all 7 backends.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -43,9 +44,7 @@ class TestGroupBySingleAgg:
             {"group": ["a", "a", "b", "b"], "val": [1, 2, 3, 4]},
             backend_name,
         )
-        result = ma.relation(df).group_by("group").agg(
-            ma.col("val").sum().alias("total")
-        ).to_dicts()
+        result = ma.relation(df).group_by("group").agg(ma.col("val").sum().alias("total")).to_dicts()
         result_sorted = sorted_dicts(result, "group")
         assert result_sorted == [
             {"group": "a", "total": 3},
@@ -57,9 +56,7 @@ class TestGroupBySingleAgg:
             {"group": ["a", "a", "b", "b"], "val": [2, 4, 6, 8]},
             backend_name,
         )
-        result = ma.relation(df).group_by("group").agg(
-            ma.col("val").mean().alias("avg")
-        ).to_dicts()
+        result = ma.relation(df).group_by("group").agg(ma.col("val").mean().alias("avg")).to_dicts()
         result_sorted = sorted_dicts(result, "group")
         assert result_sorted == [
             {"group": "a", "avg": 3.0},
@@ -71,9 +68,7 @@ class TestGroupBySingleAgg:
             {"group": ["a", "a", "a", "b", "b"], "val": [1, 2, 3, 4, 5]},
             backend_name,
         )
-        result = ma.relation(df).group_by("group").agg(
-            ma.col("val").count().alias("cnt")
-        ).to_dicts()
+        result = ma.relation(df).group_by("group").agg(ma.col("val").count().alias("cnt")).to_dicts()
         result_sorted = sorted_dicts(result, "group")
         assert result_sorted == [
             {"group": "a", "cnt": 3},
@@ -94,11 +89,16 @@ class TestGroupByMultipleAggs:
             {"group": ["a", "a", "b", "b"], "val": [1, 3, 5, 7]},
             backend_name,
         )
-        result = ma.relation(df).group_by("group").agg(
-            ma.col("val").sum().alias("total"),
-            ma.col("val").min().alias("minimum"),
-            ma.col("val").max().alias("maximum"),
-        ).to_dicts()
+        result = (
+            ma.relation(df)
+            .group_by("group")
+            .agg(
+                ma.col("val").sum().alias("total"),
+                ma.col("val").min().alias("minimum"),
+                ma.col("val").max().alias("maximum"),
+            )
+            .to_dicts()
+        )
         result_sorted = sorted_dicts(result, "group")
         assert result_sorted == [
             {"group": "a", "total": 4, "minimum": 1, "maximum": 3},
@@ -123,9 +123,7 @@ class TestGroupByMultipleKeys:
             },
             backend_name,
         )
-        result = ma.relation(df).group_by("region", "category").agg(
-            ma.col("val").sum().alias("total")
-        ).to_dicts()
+        result = ma.relation(df).group_by("region", "category").agg(ma.col("val").sum().alias("total")).to_dicts()
         result_sorted = sorted_dicts(result, ["region", "category"])
         assert result_sorted == [
             {"region": "east", "category": "a", "total": 10},
@@ -172,10 +170,12 @@ class TestConcat:
             {"a": [3, 4], "b": ["z", "w"]},
             backend_name,
         )
-        result = ma.concat([
-            ma.relation(df1),
-            ma.relation(df2),
-        ]).to_dicts()
+        result = ma.concat(
+            [
+                ma.relation(df1),
+                ma.relation(df2),
+            ]
+        ).to_dicts()
         assert result == [
             {"a": 1, "b": "x"},
             {"a": 2, "b": "y"},
@@ -189,10 +189,12 @@ class TestConcat:
             {"a": [1, 2]},
             backend_name,
         )
-        result = ma.concat([
-            ma.relation(df1),
-            ma.relation(df2),
-        ]).to_dicts()
+        result = ma.concat(
+            [
+                ma.relation(df1),
+                ma.relation(df2),
+            ]
+        ).to_dicts()
         assert result == [{"a": 1}, {"a": 2}, {"a": 1}, {"a": 2}]
 
 
@@ -213,21 +215,19 @@ class TestUnaliasedMeasureNameParity:
     the full assertion under a strict xfail marker so an upstream naming
     convergence surfaces as a hard XPASS failure."""
 
-    def test_unaliased_measure_name_parity_with_runtime(
-        self, backend_name, backend_factory, request
-    ):
+    def test_unaliased_measure_name_parity_with_runtime(self, backend_name, backend_factory, request):
         if backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"):
-            request.applymarker(pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "Ibis names un-aliased measures from expr repr (e.g. "
-                    "'Sum(v)'), not the source column — see "
-                    "known-divergences.md #18"
-                ),
-            ))
-        df = backend_factory.create(
-            {"k": ["a", "a", "b"], "v": [1, 2, 3]}, backend_name
-        )
+            request.applymarker(
+                pytest.mark.xfail(
+                    strict=True,
+                    reason=(
+                        "Ibis names un-aliased measures from expr repr (e.g. "
+                        "'Sum(v)'), not the source column — see "
+                        "known-divergences.md #18"
+                    ),
+                )
+            )
+        df = backend_factory.create({"k": ["a", "a", "b"], "v": [1, 2, 3]}, backend_name)
         rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
         inferred = infer_schema(rel._node, None)
         assert set(inferred.keys()) == set(rel.to_polars().columns)

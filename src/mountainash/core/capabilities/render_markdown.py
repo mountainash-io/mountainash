@@ -420,15 +420,20 @@ def _divergences_section(report: CoverageReport) -> list[str]:
     lines = ["## Divergence register", ""]
     if not report.divergences:
         return lines + ["None recorded.", ""]
-    lines.append("| Id | Kind | Backends | Operations | Summary | Impact | Workaround | Upstream | Since |")
-    lines.append("| " + " | ".join(["---"] * 9) + " |")
-    for dv in report.divergences:
-        ops = ", ".join(f"`{k.name}`" for k in dv.operation_keys) or "—"
+    lines.append("| Scope | Kind | Target | Scenario | Expected | Observed | Impact | Workaround | Upstream | Since |")
+    lines.append("| " + " | ".join(["---"] * 10) + " |")
+    for record in report.divergences:
+        claim = record.assertion
+        scope = record.key.scope
+        structured = tuple(
+            _escape(json.dumps(_capture_value(value), sort_keys=True, ensure_ascii=False))
+            for value in (claim.key.target, claim.key.scenario, claim.expected, claim.observed)
+        )
         lines.append(
-            f"| {dv.id} | {dv.kind.value} | {', '.join(dv.backends)} | {ops} "
-            f"| {_escape(dv.summary)} | {_escape(dv.impact)} "
-            f"| {_escape(dv.workaround or '—')} | {dv.upstream_ref or '—'} "
-            f"| {dv.since or '—'} |"
+            f"| {scope.backend.value}/{scope.dialect or 'family'} | {claim.kind.value} | "
+            + " | ".join(structured)
+            + f" | {_escape(claim.impact)} | {_escape(claim.workaround or '—')} "
+            + f"| {claim.issue or '—'} | {claim.since or '—'} |"
         )
     lines.append("")
     return lines
@@ -822,20 +827,21 @@ def _segment_dict(segment: Any) -> dict[str, Any]:
     }
 
 
-def _divergence_dict(dv: Any) -> dict[str, Any]:
-    """DivergenceFact — backends are verbatim dialect/family-name strings
-    (spec §4.6 M-5); the .value rule does NOT apply. operation_keys use the
-    {family, op} convention."""
+def _divergence_dict(record: Any) -> dict[str, Any]:
+    """Scoped manifestation projection; issue identity is an explicit join."""
+    claim = record.assertion
     return {
-        "id": dv.id,
-        "kind": dv.kind.value,
-        "operation_keys": [_op_key(k) for k in dv.operation_keys],
-        "backends": list(dv.backends),
-        "summary": dv.summary,
-        "impact": dv.impact,
-        "workaround": dv.workaround,
-        "upstream_ref": dv.upstream_ref,
-        "since": dv.since,
+        "scope": _scope_dict(record.key.scope),
+        "target": _capture_value(claim.key.target),
+        "scenario": _capture_value(claim.key.scenario),
+        "kind": claim.kind.value,
+        "expected": _capture_value(claim.expected),
+        "observed": _capture_value(claim.observed),
+        "impact": claim.impact,
+        "workaround": claim.workaround,
+        "issue": claim.issue,
+        "since": claim.since,
+        "origins": [{"module": origin.module, "entry": origin.entry} for origin in record.origins],
     }
 
 
@@ -945,7 +951,7 @@ def render_json(report: CoverageReport) -> str:
 def gather_coverage_inputs(*, verification: VerificationSnapshot | None = None) -> dict:
     """Acquire one immutable reporting state."""
     from mountainash.core.capabilities.coverage import OpRecord
-    from mountainash.core.capabilities.divergences import KNOWN_DIVERGENCES
+    from mountainash.core.capabilities.catalogue import CapabilityQuery, CatalogueQuery, ManifestationQuery
     from mountainash.core.capabilities.gaps import VerificationSnapshot
     from mountainash.core.capabilities.registry import CapabilityRegistry
     from mountainash.expressions.core.expression_system.function_mapping.registry import (
@@ -957,7 +963,9 @@ def gather_coverage_inputs(*, verification: VerificationSnapshot | None = None) 
 
     if verification is not None and type(verification) is not VerificationSnapshot:
         raise TypeError("verification requires an explicit VerificationSnapshot")
-    facts, segments = CapabilityRegistry._report_inputs()
+    capture = CapabilityRegistry.capture(verification=verification)
+    records = capture.search(CatalogueQuery(capabilities=CapabilityQuery(), manifestations=ManifestationQuery()))
+    facts, segments = records.capabilities, capture.segments
     keys = list(ExpressionFunctionRegistry.list_all()) + list(RelationOperationRegistry.list_all())
     universe = tuple(
         sorted(
@@ -965,19 +973,18 @@ def gather_coverage_inputs(*, verification: VerificationSnapshot | None = None) 
             key=lambda record: (record.family, record.operation_key.name),
         )
     )
-    inputs = dict(
+    return dict(
         universe=universe,
+        implementations=gather_implementation_records(universe),
         facts=facts,
         segments=segments,
-        divergences=KNOWN_DIVERGENCES,
+        divergences=records.manifestations,
         gaps=None if verification is None else verification.gaps,
         changes=(
             tuple(change for segment in segments for change in segment.segment.changes)
             + (() if verification is None else verification.changes)
         ),
     )
-    inputs["implementations"] = gather_implementation_records(universe)
-    return inputs
 
 
 def _resolve_concrete_owner(leaf: type, name: str) -> type | None:

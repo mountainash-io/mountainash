@@ -11,6 +11,7 @@ list/struct dtype) also never calls `json.loads()`: the cell already holds
 a real Python list/dict, so the transport action normalizes it directly
 (spec Task 4's `_normalize_native` path) without any text decode.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,13 +21,8 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_NATIVE_CONTAINER_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("MA-CONF-04", backend=b)) if b == "ibis-sqlite" else b
-    for b in ALL_BACKENDS
-    if b not in ("pandas", "narwhals-pandas")
-]
+_NATIVE_CONTAINER_BACKENDS = [b for b in ALL_BACKENDS if b not in ("pandas", "narwhals-pandas")]
 
 
 def _patch_json_loads(monkeypatch):
@@ -60,16 +56,12 @@ def _patch_extract_source_shapes(monkeypatch):
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", _NATIVE_CONTAINER_BACKENDS)
 class TestSchemaBearingNativeContainersNeverParseJSON:
-    def test_native_list_source_never_calls_json_loads(
-        self, backend_name, backend_factory, monkeypatch
-    ):
+    def test_native_list_source_never_calls_json_loads(self, backend_name, backend_factory, monkeypatch):
         json_calls = _patch_json_loads(monkeypatch)
         shape_calls = _patch_extract_source_shapes(monkeypatch)
 
         df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)]
-        )
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 
@@ -79,16 +71,12 @@ class TestSchemaBearingNativeContainersNeverParseJSON:
         # (collect_schema()/table-schema only) ran; no row was ever sniffed.
         assert shape_calls, backend_name
 
-    def test_native_struct_source_never_calls_json_loads(
-        self, backend_name, backend_factory, monkeypatch
-    ):
+    def test_native_struct_source_never_calls_json_loads(self, backend_name, backend_factory, monkeypatch):
         json_calls = _patch_json_loads(monkeypatch)
         shape_calls = _patch_extract_source_shapes(monkeypatch)
 
         df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)]
-        )
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 
@@ -104,30 +92,22 @@ class TestOpaquePandasContainersStayOnLogicalConversion:
     unavailable -- the already-native Python container resolves through
     logical conversion (spec Task 4), never through a JSON-text decode."""
 
-    def test_native_python_list_resolves_without_parsing_json(
-        self, backend_name, backend_factory, monkeypatch
-    ):
+    def test_native_python_list_resolves_without_parsing_json(self, backend_name, backend_factory, monkeypatch):
         json_calls = _patch_json_loads(monkeypatch)
 
         df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)]
-        )
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 
         assert result["payload"].to_list() == [[1, 2], [3]], backend_name
         assert json_calls == [], backend_name
 
-    def test_native_python_dict_resolves_without_parsing_json(
-        self, backend_name, backend_factory, monkeypatch
-    ):
+    def test_native_python_dict_resolves_without_parsing_json(self, backend_name, backend_factory, monkeypatch):
         json_calls = _patch_json_loads(monkeypatch)
 
         df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)]
-        )
+        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 

@@ -17,15 +17,12 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_ELIGIBILITY_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-18", backend=b)) for b in ALL_BACKENDS
-]
 
 # =============================================================================
 # Cross-Backend Tests - Comparison Operators
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -34,10 +31,7 @@ class TestComparisonOperators:
 
     def test_equality(self, backend_name, backend_factory, get_result_count):
         """Test == operator."""
-        data = {
-            "age": [25, 30, 35, 30, 40],
-            "name": ["Alice", "Bob", "Charlie", "David", "Eve"]
-        }
+        data = {"age": [25, 30, 35, 30, 40], "name": ["Alice", "Bob", "Charlie", "David", "Eve"]}
         df = backend_factory.create(data, backend_name)
 
         # age == 30
@@ -50,9 +44,7 @@ class TestComparisonOperators:
 
     def test_not_equal(self, backend_name, backend_factory, get_result_count):
         """Test != operator."""
-        data = {
-            "age": [25, 30, 35, 30, 40]
-        }
+        data = {"age": [25, 30, 35, 30, 40]}
         df = backend_factory.create(data, backend_name)
 
         # age != 30
@@ -65,9 +57,7 @@ class TestComparisonOperators:
 
     def test_less_than(self, backend_name, backend_factory, get_result_count):
         """Test < operator."""
-        data = {
-            "age": [25, 30, 35, 40, 45]
-        }
+        data = {"age": [25, 30, 35, 40, 45]}
         df = backend_factory.create(data, backend_name)
 
         # age < 35
@@ -80,9 +70,7 @@ class TestComparisonOperators:
 
     def test_less_than_or_equal(self, backend_name, backend_factory, get_result_count):
         """Test <= operator."""
-        data = {
-            "age": [25, 30, 35, 40, 45]
-        }
+        data = {"age": [25, 30, 35, 40, 45]}
         df = backend_factory.create(data, backend_name)
 
         # age <= 35
@@ -95,9 +83,7 @@ class TestComparisonOperators:
 
     def test_greater_than(self, backend_name, backend_factory, get_result_count):
         """Test > operator."""
-        data = {
-            "age": [25, 30, 35, 40, 45]
-        }
+        data = {"age": [25, 30, 35, 40, 45]}
         df = backend_factory.create(data, backend_name)
 
         # age > 35
@@ -110,9 +96,7 @@ class TestComparisonOperators:
 
     def test_greater_than_or_equal(self, backend_name, backend_factory, get_result_count):
         """Test >= operator."""
-        data = {
-            "age": [25, 30, 35, 40, 45]
-        }
+        data = {"age": [25, 30, 35, 40, 45]}
         df = backend_factory.create(data, backend_name)
 
         # age >= 35
@@ -128,6 +112,7 @@ class TestComparisonOperators:
 # Cross-Backend Tests - Logical Operators
 # =============================================================================
 
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestLogicalOperators:
@@ -135,10 +120,7 @@ class TestLogicalOperators:
 
     def test_and_operator(self, backend_name, backend_factory, get_result_count):
         """Test AND (&) operator."""
-        data = {
-            "age": [25, 30, 35, 40, 45],
-            "score": [85, 90, 75, 95, 80]
-        }
+        data = {"age": [25, 30, 35, 40, 45], "score": [85, 90, 75, 95, 80]}
         df = backend_factory.create(data, backend_name)
 
         # (age > 30) AND (score >= 80)
@@ -152,9 +134,7 @@ class TestLogicalOperators:
 
     def test_or_operator(self, backend_name, backend_factory, get_result_count):
         """Test OR (|) operator."""
-        data = {
-            "age": [25, 30, 35, 40, 45]
-        }
+        data = {"age": [25, 30, 35, 40, 45]}
         df = backend_factory.create(data, backend_name)
 
         # (age < 28) OR (age > 38)
@@ -168,9 +148,7 @@ class TestLogicalOperators:
 
     def test_not_operator(self, backend_name, backend_factory, get_result_count):
         """Test NOT (~) operator."""
-        data = {
-            "active": [True, True, False, True, False]
-        }
+        data = {"active": [True, True, False, True, False]}
         df = backend_factory.create(data, backend_name)
 
         # NOT active
@@ -183,11 +161,7 @@ class TestLogicalOperators:
 
     def test_complex_and_or(self, backend_name, backend_factory, get_result_count):
         """Test complex AND/OR combination."""
-        data = {
-            "age": [25, 30, 35, 40, 45],
-            "score": [85, 90, 75, 95, 80],
-            "active": [True, True, False, True, False]
-        }
+        data = {"age": [25, 30, 35, 40, 45], "score": [85, 90, 75, 95, 80], "active": [True, True, False, True, False]}
         df = backend_factory.create(data, backend_name)
 
         # (age > 30 AND score >= 80) OR active == False
@@ -206,6 +180,7 @@ class TestLogicalOperators:
 # Cross-Backend Tests - Collection Operators
 # =============================================================================
 
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestCollectionOperators:
@@ -213,10 +188,7 @@ class TestCollectionOperators:
 
     def test_in_operator(self, backend_name, backend_factory, get_result_count):
         """Test IN operator."""
-        data = {
-            "category": ["A", "B", "C", "D", "E"],
-            "value": [10, 20, 30, 40, 50]
-        }
+        data = {"category": ["A", "B", "C", "D", "E"], "value": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
 
         # category IN ['A', 'C', 'E']
@@ -229,9 +201,7 @@ class TestCollectionOperators:
 
     def test_not_in_operator(self, backend_name, backend_factory, get_result_count):
         """Test NOT IN operator."""
-        data = {
-            "category": ["A", "B", "C", "D", "E"]
-        }
+        data = {"category": ["A", "B", "C", "D", "E"]}
         df = backend_factory.create(data, backend_name)
 
         # category NOT IN ['B', 'D']
@@ -244,9 +214,7 @@ class TestCollectionOperators:
 
     def test_in_with_numbers(self, backend_name, backend_factory, get_result_count):
         """Test IN operator with numeric values."""
-        data = {
-            "value": [10, 20, 30, 40, 50]
-        }
+        data = {"value": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
 
         # value IN [20, 40]
@@ -262,6 +230,7 @@ class TestCollectionOperators:
 # Cross-Backend Tests - Null Checks
 # =============================================================================
 
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullChecks:
@@ -269,10 +238,7 @@ class TestNullChecks:
 
     def test_is_null(self, backend_name, backend_factory, get_result_count):
         """Test IS NULL check."""
-        data = {
-            "value": [10, None, 30, None, 50],
-            "name": ["Alice", "Bob", "Charlie", "David", "Eve"]
-        }
+        data = {"value": [10, None, 30, None, 50], "name": ["Alice", "Bob", "Charlie", "David", "Eve"]}
         df = backend_factory.create(data, backend_name)
 
         # value IS NULL
@@ -285,9 +251,7 @@ class TestNullChecks:
 
     def test_is_not_null(self, backend_name, backend_factory, get_result_count):
         """Test IS NOT NULL check."""
-        data = {
-            "value": [10, None, 30, None, 50]
-        }
+        data = {"value": [10, None, 30, None, 50]}
         df = backend_factory.create(data, backend_name)
 
         # value IS NOT NULL
@@ -300,9 +264,7 @@ class TestNullChecks:
 
     def test_null_with_comparison(self, backend_name, backend_factory, get_result_count):
         """Test null check combined with comparison."""
-        data = {
-            "value": [10, None, 30, None, 50]
-        }
+        data = {"value": [10, None, 30, None, 50]}
         df = backend_factory.create(data, backend_name)
 
         # (value IS NOT NULL) AND (value > 20)
@@ -319,6 +281,7 @@ class TestNullChecks:
 # Integration Tests - Boolean with Arithmetic
 # =============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBooleanWithArithmetic:
@@ -326,10 +289,7 @@ class TestBooleanWithArithmetic:
 
     def test_comparison_with_arithmetic(self, backend_name, backend_factory, get_result_count):
         """Test comparison with arithmetic expression."""
-        data = {
-            "a": [10, 20, 30, 40, 50],
-            "b": [5, 10, 15, 20, 25]
-        }
+        data = {"a": [10, 20, 30, 40, 50], "b": [5, 10, 15, 20, 25]}
         df = backend_factory.create(data, backend_name)
 
         # (a + b) > 50
@@ -343,10 +303,7 @@ class TestBooleanWithArithmetic:
 
     def test_complex_arithmetic_boolean(self, backend_name, backend_factory, get_result_count):
         """Test complex arithmetic in boolean expression."""
-        data = {
-            "x": [10, 20, 30, 40, 50],
-            "y": [2, 3, 4, 5, 6]
-        }
+        data = {"x": [10, 20, 30, 40, 50], "y": [2, 3, 4, 5, 6]}
         df = backend_factory.create(data, backend_name)
 
         # (x * y) >= 100
@@ -363,6 +320,7 @@ class TestBooleanWithArithmetic:
 # Integration Tests - Boolean with String Operations
 # =============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBooleanWithStringOperations:
@@ -370,10 +328,7 @@ class TestBooleanWithStringOperations:
 
     def test_string_comparison_and_numeric(self, backend_name, backend_factory, get_result_count):
         """Test string contains AND numeric comparison."""
-        data = {
-            "name": ["Alice Smith", "Bob Jones", "Charlie Smith", "David Brown"],
-            "age": [25, 30, 35, 40]
-        }
+        data = {"name": ["Alice Smith", "Bob Jones", "Charlie Smith", "David Brown"], "age": [25, 30, 35, 40]}
         df = backend_factory.create(data, backend_name)
 
         # (name contains "Smith") AND (age > 28)
@@ -387,9 +342,7 @@ class TestBooleanWithStringOperations:
 
     def test_string_starts_with_or_ends_with(self, backend_name, backend_factory, get_result_count):
         """Test string starts_with OR ends_with."""
-        data = {
-            "filename": ["test.txt", "data.csv", "test.csv", "report.txt", "output.json"]
-        }
+        data = {"filename": ["test.txt", "data.csv", "test.csv", "report.txt", "output.json"]}
         df = backend_factory.create(data, backend_name)
 
         # (filename starts with "test") OR (filename ends with ".json")
@@ -406,6 +359,7 @@ class TestBooleanWithStringOperations:
 # Edge Case Tests
 # =============================================================================
 
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestBooleanEdgeCases:
@@ -413,9 +367,7 @@ class TestBooleanEdgeCases:
 
     def test_all_true_condition(self, backend_name, backend_factory, get_result_count):
         """Test condition that's always true."""
-        data = {
-            "value": [1, 2, 3, 4, 5]
-        }
+        data = {"value": [1, 2, 3, 4, 5]}
         df = backend_factory.create(data, backend_name)
 
         # value > 0 (always true)
@@ -428,9 +380,7 @@ class TestBooleanEdgeCases:
 
     def test_all_false_condition(self, backend_name, backend_factory, get_result_count):
         """Test condition that's always false."""
-        data = {
-            "value": [1, 2, 3, 4, 5]
-        }
+        data = {"value": [1, 2, 3, 4, 5]}
         df = backend_factory.create(data, backend_name)
 
         # value > 100 (always false)
@@ -443,9 +393,7 @@ class TestBooleanEdgeCases:
 
     def test_in_empty_list(self, backend_name, backend_factory, get_result_count):
         """Test IN operator with empty list."""
-        data = {
-            "value": [1, 2, 3, 4, 5]
-        }
+        data = {"value": [1, 2, 3, 4, 5]}
         df = backend_factory.create(data, backend_name)
 
         # value IN [] (should match nothing)
@@ -458,11 +406,7 @@ class TestBooleanEdgeCases:
 
     def test_nested_logical_operations(self, backend_name, backend_factory, get_result_count):
         """Test deeply nested logical operations."""
-        data = {
-            "a": [1, 2, 3, 4, 5],
-            "b": [5, 4, 3, 2, 1],
-            "c": [2, 3, 4, 5, 6]
-        }
+        data = {"a": [1, 2, 3, 4, 5], "b": [5, 4, 3, 2, 1], "c": [2, 3, 4, 5, 6]}
         df = backend_factory.create(data, backend_name)
 
         # ((a > 2) AND (b < 4)) OR (c == 3)
@@ -483,6 +427,7 @@ class TestBooleanEdgeCases:
 # Complex Real-World Tests
 # =============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComplexBooleanExpressions:
@@ -494,29 +439,27 @@ class TestComplexBooleanExpressions:
             "name": ["Alice", "Bob", "Charlie", "David", "Eve", "Frank"],
             "age": [25, 30, 35, 40, 45, 50],
             "category": ["A", "B", "A", "C", "B", "A"],
-            "score": [85, 90, 75, 95, 80, 88]
+            "score": [85, 90, 75, 95, 80, 88],
         }
         df = backend_factory.create(data, backend_name)
 
         # (age >= 30 AND age <= 45) AND (category IN ['A', 'B']) AND (score >= 80)
         expr = (
-            (ma.col("age") >= 30) &
-            (ma.col("age") <= 45) &
-            ma.col("category").is_in(["A", "B"]) &
-            (ma.col("score") >= 80)
+            (ma.col("age") >= 30)
+            & (ma.col("age") <= 45)
+            & ma.col("category").is_in(["A", "B"])
+            & (ma.col("score") >= 80)
         )
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         # Bob: age=30, cat=B, score=90: True
         # Charlie: age=35, cat=A, score=75: False (score < 80)
         # Eve: age=45, cat=B, score=80: True
         expected = ["Bob", "Eve"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("backend_name", _ELIGIBILITY_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComplexEligibilityCheck:
     """OR-of-AND eligibility predicate — xfail-gated on ibis-duckdb (IB-REL-18):
     DuckDB does not guarantee filtered-scan row order for this predicate shape."""
@@ -527,14 +470,13 @@ class TestComplexEligibilityCheck:
             "applicant": ["Alice", "Bob", "Charlie", "David", "Eve"],
             "age": [17, 25, 35, 30, 22],
             "score": [95, 70, 85, 90, 88],
-            "premium": [True, False, True, False, True]
+            "premium": [True, False, True, False, True],
         }
         df = backend_factory.create(data, backend_name)
 
         # Eligible if: (age >= 18 AND score >= 80) OR (premium == True AND score >= 85)
-        expr = (
-            ((ma.col("age") >= 18) & (ma.col("score") >= 80)) |
-            ((ma.col("premium") == True) & (ma.col("score") >= 85))
+        expr = ((ma.col("age") >= 18) & (ma.col("score") >= 80)) | (
+            (ma.col("premium") == True) & (ma.col("score") >= 85)
         )
         actual = ma_top.relation(df).filter(expr).to_dict()["applicant"]
         # Alice: (17>=18 & 95>=80) | (True & 95>=85) = False | True = True
@@ -543,6 +485,4 @@ class TestComplexEligibilityCheck:
         # David: (30>=18 & 90>=80) | (False & 90>=85) = True | False = True
         # Eve: (22>=18 & 88>=80) | (True & 88>=85) = True | True = True
         expected = ["Alice", "Charlie", "David", "Eve"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"

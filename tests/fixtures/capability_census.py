@@ -8,8 +8,8 @@ bucket, with an explicit reason. The scope is three families:
   (a) pytest collection metadata for every parametrized whole-operation gate
       case in the op-level gate-probe suite;
   (b) the **raw forms being migrated** — every ``pytest.xfail(`` call and every
-      *capability-encoding* ``pytest.mark.xfail`` / ``xfail_divergence`` marker,
-      discovered structurally via the :mod:`ast` module; and
+      *capability-encoding* ``pytest.mark.xfail`` marker, discovered via
+      :mod:`ast`, plus explicit typed manifestation observer associations; and
   (c) each registered physical segment source row for a whole-operation build
       gate, addressed by its captured module and publisher-derived location.
 
@@ -41,7 +41,6 @@ from pathlib import Path
 from typing import Any
 
 from mountainash.core.capabilities.declarations import QualifiedCapabilityKey
-from mountainash.core.capabilities.divergences import divergence_by_id
 from mountainash.core.capabilities.registry import CapabilityRegistry
 from mountainash.core.capabilities.schema import (
     Boundary,
@@ -120,6 +119,7 @@ def build_census() -> list[CensusEntry]:
     entries.extend(_scope_c_entries())
     entries.extend(_scope_a_entries())
     entries.extend(_scope_b_entries())
+    entries.extend(_observer_entries())
     entries.sort(key=lambda e: (e.path, str(e.line), e.node_id))
     _write_report(entries)
     return entries
@@ -251,12 +251,34 @@ def _scope_a_entries() -> list[CensusEntry]:
 # ---------------------------------------------------------------------------
 # Scope (b): raw xfail forms discovered via the ast module.
 # ---------------------------------------------------------------------------
+def _observer_entries() -> list[CensusEntry]:
+    from tests.fixtures.verification_bindings import capture_bindings, observer_specs
+
+    specs = observer_specs()
+    bindings = capture_bindings(CapabilityRegistry.capture(), specs)
+    return [
+        CensusEntry(
+            node_id=f"{spec.path}::{binding.observer.entry}::{spec.key!r}",
+            path=spec.path,
+            line=binding.observer.entry,
+            kind="bound-observer",
+            operation_key=str(spec.key.local.target),
+            backend=spec.key.scope.dialect or spec.key.scope.backend.value,
+            param="scenario",
+            option_value=None,
+            current_reason=binding.captured_claim.payload.impact,
+            bucket="migrated",
+            reason=f"Exact scoped manifestation and captured oracle; {spec.stage} observer",
+        )
+        for spec, binding in zip(specs, bindings, strict=True)
+    ]
+
+
 def _scope_b_entries() -> list[CensusEntry]:
     entries: list[CensusEntry] = []
     for pyfile in sorted(_TESTS_DIR.rglob("*.py")):
         rel = _relpath(pyfile)
-        # Skip the spine surface fixtures themselves — they DEFINE mark
-        # factories (e.g. xfail_divergence); they are not expectation sites.
+        # Fixture modules define expectation factories, not observer sites.
         if rel.startswith("tests/fixtures/") or "__pycache__" in rel:
             continue
         try:
@@ -282,8 +304,6 @@ def _scope_b_entries() -> list[CensusEntry]:
 
 
 def _site_entries(node: ast.Call, kind: str, rel: str, qual: str, backends: list[str]) -> list[CensusEntry]:
-    if kind == "divergence":
-        return _divergence_site(node, rel, qual)
     if kind == "mark_xfail":
         return _marker_site(node, rel, qual, backends)
     if kind == "xfail":
@@ -291,34 +311,6 @@ def _site_entries(node: ast.Call, kind: str, rel: str, qual: str, backends: list
     raise UnclassifiedExpectation(  # pragma: no cover - _call_kind is exhaustive
         f"{rel}:{node.lineno}: unrecognized expectation call kind {kind!r}"
     )
-
-
-def _divergence_site(node: ast.Call, rel: str, qual: str) -> list[CensusEntry]:
-    div_id = _static_str(node.args[0]) if node.args else _kwarg_str(node, "divergence_id")
-    backend = _kwarg_str(node, "backend") or UNRESOLVED
-    resolved = div_id or UNRESOLVED
-    if div_id is not None:
-        try:  # validate the id resolves; a bad id is a real census failure
-            divergence_by_id(div_id)
-        except KeyError as exc:
-            raise UnclassifiedExpectation(
-                f"{rel}:{node.lineno}: xfail_divergence references unknown divergence id {div_id!r}"
-            ) from exc
-    return [
-        CensusEntry(
-            node_id=f"{rel}::{qual}::L{node.lineno}[{backend}]",
-            path=rel,
-            line=node.lineno,
-            kind="static-marker",
-            operation_key=UNRESOLVED,  # divergences are id-keyed / op-diffuse
-            backend=backend,
-            param=UNRESOLVED,
-            option_value=None,
-            current_reason=f"xfail_divergence('{resolved}', backend={backend!r})",
-            bucket="migrated",
-            reason=f"spine-derived id-keyed divergence mark via xfail_divergence('{resolved}') — migrated",
-        )
-    ]
 
 
 def _marker_site(node: ast.Call, rel: str, qual: str, backends: list[str]) -> list[CensusEntry]:
@@ -477,10 +469,6 @@ def _call_kind(node: ast.Call) -> str | None:
             return "xfail"
         if func.attr == "xfail" and _is_pytest_mark(func.value):
             return "mark_xfail"
-        if func.attr == "xfail_divergence":
-            return "divergence"
-    if isinstance(func, ast.Name) and func.id == "xfail_divergence":
-        return "divergence"
     return None
 
 

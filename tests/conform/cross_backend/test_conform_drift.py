@@ -16,6 +16,7 @@ ExpressionSystem) and on ibis-sqlite (no TryCast compilation rule) — see
 for the same divergence pinned at the expression layer, and
 known-divergences.md #19/#20.
 """
+
 from __future__ import annotations
 
 import polars as pl
@@ -28,11 +29,7 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_DRIFT = [
-    pytest.param(b, marks=xfail_divergence("MA-CONF-02", backend=b)) for b in ALL_BACKENDS
-]
 
 # Backends that compile conform's cast expressions through the Narwhals
 # ExpressionSystem (plain "pandas" DataFrames share this route — see
@@ -76,7 +73,9 @@ class TestDetectionParity:
         )
 
         output_contract = resolve_conform_output(
-            spec, available_columns=["n"], actual_dtypes=actual_dtypes,
+            spec,
+            available_columns=["n"],
+            actual_dtypes=actual_dtypes,
         )
         assert output_contract.drift is not None
         assert len(output_contract.drift.type_mismatches) == 1
@@ -103,8 +102,7 @@ class TestEvolvePolicy:
         result = ma.relation(df).conform(spec, contract={"data_type": "evolve"}).to_polars()
 
         assert result["n"].dtype == pl.String, (
-            f"[{backend_name}] evolve must skip the cast -- expected String, "
-            f"got {result['n'].dtype}"
+            f"[{backend_name}] evolve must skip the cast -- expected String, got {result['n'].dtype}"
         )
         assert result["n"].to_list() == ["1", "2", "3"]
 
@@ -115,15 +113,13 @@ class TestEvolvePolicy:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", _DRIFT)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDiscardValuePolicy:
     def test_discard_value_nulls_unparseable(self, backend_name, backend_factory):
         df = backend_factory.create({"n": ["1", "bad", "3"]}, backend_name)
         spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
 
-        result = ma.relation(df).conform(
-            spec, contract={"data_type": "discard_value"}
-        ).to_polars()
+        result = ma.relation(df).conform(spec, contract={"data_type": "discard_value"}).to_polars()
 
         assert _as_float_list(result["n"].to_list()) == [1.0, None, 3.0], (
             f"[{backend_name}] expected [1, None, 3], got {result['n'].to_list()}"
@@ -137,27 +133,22 @@ class TestDiscardValuePolicy:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("backend_name", _DRIFT)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDiscardRowPolicy:
     def test_discard_row_drops_failed_keeps_legit_null(self, backend_name, backend_factory):
         # id=1 -> "1" (parses); id=2 -> "bad" (non-null, cast fails -> DROP);
         # id=3 -> None (legitimately null -> KEPT, n stays null);
         # id=4 -> "3" (parses).
-        df = backend_factory.create(
-            {"id": [1, 2, 3, 4], "n": ["1", "bad", None, "3"]}, backend_name
-        )
+        df = backend_factory.create({"id": [1, 2, 3, 4], "n": ["1", "bad", None, "3"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="n", type=UniversalType.INTEGER)],
             fields_match="open",
         )
 
-        result = ma.relation(df).conform(
-            spec, contract={"data_type": "discard_row"}
-        ).to_polars()
+        result = ma.relation(df).conform(spec, contract={"data_type": "discard_row"}).to_polars()
 
         assert result["id"].to_list() == [1, 3, 4], (
-            f"[{backend_name}] expected id row [1, 3, 4] (id=2 dropped), "
-            f"got {result['id'].to_list()}"
+            f"[{backend_name}] expected id row [1, 3, 4] (id=2 dropped), got {result['id'].to_list()}"
         )
         assert _as_float_list(result["n"].to_list()) == [1.0, None, 3.0], (
             f"[{backend_name}] expected n [1, None, 3], got {result['n'].to_list()}"

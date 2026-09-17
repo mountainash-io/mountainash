@@ -5,32 +5,12 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from fixtures.capability_gating import assert_capability_gated, gate_family, xfail_divergence
+from fixtures.capability_gating import assert_capability_gated, gate_family
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
 )
 
 LIST_BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
-
-# Divergence-marked backend params. xfail_divergence returns a no-op mark when the
-# divergence does not apply to a backend, so every applicable mark is attached to
-# each param and self-selects the affected backend(s).
-_LIST_NW = [pytest.param(b, marks=xfail_divergence("NW-LIST-05", backend=b)) for b in LIST_BACKENDS]
-_LIST_NW_IB = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("NW-LIST-05", backend=b), xfail_divergence("IB-LIST-01", backend=b)],
-    )
-    for b in LIST_BACKENDS
-]
-_LIST_IB = [pytest.param(b, marks=xfail_divergence("IB-LIST-01", backend=b)) for b in LIST_BACKENDS]
-_LIST_EXPLODE_MULTI = [
-    pytest.param(
-        b,
-        marks=[xfail_divergence("NW-LIST-05", backend=b), xfail_divergence("PL-LIST-01", backend=b)],
-    )
-    for b in LIST_BACKENDS
-]
 
 
 @pytest.mark.cross_backend
@@ -65,7 +45,7 @@ class TestListGet:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListGatherEvery:
     def test_gather_every_2(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5, 6], [10, 20, 30, 40]]}
@@ -81,7 +61,7 @@ class TestListGatherEvery:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListArgMin:
     def test_arg_min_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[30, 10, 20], [5, 15, 3]]}
@@ -97,7 +77,7 @@ class TestListArgMin:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListArgMax:
     def test_arg_max_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[30, 10, 20], [5, 15, 3]]}
@@ -113,7 +93,7 @@ class TestListArgMax:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListAll:
     def test_all_true(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[True, True, True], [True, False], [False, False]]}
@@ -129,7 +109,7 @@ class TestListAll:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListAny:
     def test_any_mixed(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[True, False, True], [False, False], [True, True]]}
@@ -145,7 +125,7 @@ class TestListAny:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListNUnique:
     def test_n_unique_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 2, 3, 3, 3], [4, 4], [1, 2, 3, 4, 5]]}
@@ -161,7 +141,7 @@ class TestListNUnique:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListCountMatches:
     def test_count_matches_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 2, 3, 2], [4, 4, 4], [1, 2, 3]]}
@@ -177,7 +157,7 @@ class TestListCountMatches:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListDropNulls:
     def test_drop_nulls_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, None, 3], [None, None], [4, 5]]}
@@ -193,7 +173,7 @@ class TestListDropNulls:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListSetUnion:
     def test_set_union_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [[1, 2, 3], [4, 5]], "b": [[2, 3, 4], [5, 6]]}
@@ -210,7 +190,7 @@ class TestListSetUnion:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListSetIntersection:
     def test_set_intersection_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [[1, 2, 3], [4, 5]], "b": [[2, 3, 4], [5, 6]]}
@@ -227,7 +207,7 @@ class TestListSetIntersection:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListSetDifference:
     def test_set_difference_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [[1, 2, 3], [4, 5, 6]], "b": [[2, 3], [6]]}
@@ -244,7 +224,7 @@ class TestListSetDifference:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListMedian:
     def test_median_odd(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 3, 5], [2, 4, 6, 8, 10]]}
@@ -260,7 +240,7 @@ class TestListMedian:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListStd:
     def test_std_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[2, 4, 4, 4, 5, 5, 7, 9]]}
@@ -271,7 +251,7 @@ class TestListStd:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListVar:
     def test_var_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[2, 4, 4, 4, 5, 5, 7, 9]]}
@@ -282,7 +262,7 @@ class TestListVar:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListShift:
     def test_shift_forward(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4], [10, 20, 30]]}
@@ -298,7 +278,7 @@ class TestListShift:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW_IB)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListDiff:
     def test_diff_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[10, 20, 35, 50], [1, 3, 6]]}
@@ -314,7 +294,7 @@ class TestListDiff:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _LIST_NW)
+@pytest.mark.parametrize("backend_name", LIST_BACKENDS)
 class TestListConcat:
     def test_concat_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [[1, 2], [3, 4]], "b": [[5, 6], [7, 8]]}
@@ -331,25 +311,17 @@ class TestListConcat:
 
 @pytest.mark.cross_backend
 class TestListExplode:
-    @pytest.mark.parametrize("backend_name", _LIST_EXPLODE_MULTI)
+    @pytest.mark.parametrize("backend_name", LIST_BACKENDS)
     def test_explode_basic(self, backend_name, backend_factory):
         data = {"id": [1, 2, 3], "arr": [[10, 20], [30], [40, 50, 60]]}
         df = backend_factory.create(data, backend_name)
-        result = (
-            ma.relation(df)
-            .select(ma.col("id"), ma.col("arr").list.explode().name.alias("val"))
-            .to_dict()
-        )
+        result = ma.relation(df).select(ma.col("id"), ma.col("arr").list.explode().name.alias("val")).to_dict()
         assert result["id"] == [1, 1, 2, 3, 3, 3]
         assert result["val"] == [10, 20, 30, 40, 50, 60]
 
-    @pytest.mark.parametrize("backend_name", _LIST_NW)
+    @pytest.mark.parametrize("backend_name", LIST_BACKENDS)
     def test_explode_single_element_lists(self, backend_name, backend_factory):
         data = {"arr": [[1], [2], [3]]}
         df = backend_factory.create(data, backend_name)
-        result = (
-            ma.relation(df)
-            .select(ma.col("arr").list.explode().name.alias("val"))
-            .to_dict()
-        )
+        result = ma.relation(df).select(ma.col("arr").list.explode().name.alias("val")).to_dict()
         assert result["val"] == [1, 2, 3]

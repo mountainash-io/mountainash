@@ -6,7 +6,6 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 _IBIS_POLARS_CI_XFAIL = (
@@ -20,11 +19,7 @@ _IBIS_POLARS_CI_XFAIL = (
 # Unicode-aware-lowercasing contract cannot be honored there; the gate fires
 # unconditionally, even for this file's all-ASCII fixtures). Covered instead
 # by test_string.py's TestCaseInsensitiveIbisSqliteGate.
-_CI = [
-    pytest.param(b, marks=xfail_divergence("IB-STR-11", backend=b))
-    for b in ALL_BACKENDS
-    if b != "ibis-sqlite"
-]
+_CI = [b for b in ALL_BACKENDS if b != "ibis-sqlite"]
 
 
 class TestCaseInsensitiveContains:

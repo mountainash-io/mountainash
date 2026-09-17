@@ -9,11 +9,11 @@ Known divergences:
   explicit ``idx`` sort key rather than raw positional equality (mirrors the
   ``.sort("group", "score")`` pattern in test_window_results.py's rank tests).
 """
+
 import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 def _collect_ordered(df, expr):
@@ -24,22 +24,12 @@ def _collect_ordered(df, expr):
     window computation. Sorting by an explicit index column makes the
     comparison order-independent without weakening what is asserted.
     """
-    result = (
-        ma.relation(df)
-        .select(ma.col("idx"), expr.alias("result"))
-        .sort("idx")
-        .to_dict()
-    )
+    result = ma.relation(df).select(ma.col("idx"), expr.alias("result")).sort("idx").to_dict()
     return result["result"]
 
 
-_IS_DUP_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-WIN-01", backend=b)) for b in ALL_BACKENDS
-]
-
-
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", _IS_DUP_BACKENDS)
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestIsDuplicated:
     def test_is_duplicated_basic(self, backend_name, backend_factory):
         data = {"idx": [0, 1, 2, 3, 4], "val": [1, 2, 2, 3, 1]}

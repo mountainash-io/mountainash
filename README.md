@@ -137,7 +137,7 @@ looks up operand names and operation/backend predicate candidates without
 enumerating the complete capability report; operand type descriptors are still
 resolved freshly in the current input scope, never cached across frames.
 
-`CapabilityRegistry.register_backend()` and `register_declaration()` publish
+`CapabilityRegistry.register_backend()` and `register_segment()` publish
 whole batches or leave the previous data unchanged. Initial loading is likewise
 transactional; a failed load retains its original exception until reset/restore.
 Registered facts, predicates, declarations, and evidence must use their exact
@@ -152,6 +152,15 @@ recursive first-load queries raise `RuntimeError`; warm reads remain available
 during registration. Snapshot tokens are opaque and must only be passed back to
 `restore()`. `reset()` enters isolated mode, which allows local queries but
 refuses production reporting.
+
+Behavioral divergences are published as scoped manifestations in physical
+`SEGMENT` homes under each backend's capability tree. Their natural identity is
+scope, target, and scenario—not an upstream issue ID. Cold catalogue captures
+retain claim payloads, source identity, explicit evidence, and correction
+history without importing tests or running probes. Test-owned bindings select
+exact observer cells; direct native evidence remains distinct from public
+execution and capability refusals. See the
+[manifestation guide](docs/guides/known-divergences.md) for authoring and retirement.
 
 ## Top-level package map
 

@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.declarations import DivergenceManifestation
+from mountainash.core.capabilities.declarations import ManifestationKey
+from mountainash.core.capabilities.schema import CaptureValue
+from mountainash.core.capabilities.schema import DivergenceKind
+from mountainash.core.capabilities.schema import OperationTarget
+from mountainash.core.capabilities.schema import Scenario
+
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 from mountainash.core.capabilities.declarations import Selector
@@ -1697,6 +1704,1001 @@ SEGMENT = CapabilitySegment(
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+        ),
+    ),
+    manifestations=(
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="pi/2"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+1"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="math.acosh(2.0)"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="pi/2"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="math.asinh(1.0)"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="pi/4"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "x",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                    (
+                                        "y",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="text", value="pi/2"),
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p-1"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="math.atanh(0.5)"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="text", value="pi/2"),
+                                                CaptureValue(tag="text", value="pi"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="float", value="-0x1.0000000000000p+0"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                CaptureValue(tag="text", value="math.cosh(1.0)"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="text", value="pi/2"),
+                                                CaptureValue(tag="text", value="pi"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="float", value="0x1.6800000000000p+6"),
+                                CaptureValue(tag="float", value="0x1.6800000000000p+7"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.6800000000000p+6"),
+                                                CaptureValue(tag="float", value="0x1.6800000000000p+7"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="pi/2"),
+                                CaptureValue(tag="text", value="pi"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="text", value="pi/2"),
+                                                CaptureValue(tag="text", value="pi"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="math.sinh(1.0)"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="text", value="pi/4"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH),
+                scenario=Scenario(
+                    arguments=(),
+                    options=(),
+                    input_schema=(),
+                    input_data=(
+                        (
+                            "values",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                                CaptureValue(tag="float", value="0x1.0000000000000p+0"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "shape",
+                            CaptureValue(tag="text", value="collect expression"),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(
+                            tag="sequence",
+                            value=(
+                                CaptureValue(tag="float", value="0x0.0p+0"),
+                                CaptureValue(tag="text", value="math.tanh(1.0)"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "historical_source_claim",
+                        CaptureValue(tag="text", value="historical unsupported native function"),
+                    ),
+                ),
+            ),
+            impact="trig, angular, and hyperbolic functions raise on pandas/narwhals",
+            since="2026-08-06",
+            workaround="Use a polars or ibis-polars/ibis-duckdb backend for these math functions",
+            issue="NW-MATH-10",
         ),
     ),
 )

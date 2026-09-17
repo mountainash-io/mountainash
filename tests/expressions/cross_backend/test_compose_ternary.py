@@ -3,11 +3,7 @@
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
-_TERN = [
-    pytest.param(b, marks=xfail_divergence("MA-TERN-01", backend=b)) for b in ALL_BACKENDS
-]
 
 T_TRUE = 1
 T_UNKNOWN = 0
@@ -18,7 +14,7 @@ T_FALSE = -1
 class TestComposeTernary:
     """Test ternary expressions with composed operands."""
 
-    @pytest.mark.parametrize("backend_name", _TERN)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_ternary_with_null_safe_operand(self, backend_name, backend_factory, select_and_extract):
         """t_gt with fill_null operand: score.t_gt(threshold.fill_null(0))."""
         data = {
@@ -61,9 +57,7 @@ class TestComposeTernary:
         data = {"value": [100, -999, 50, -999, 80], "active": [True, True, False, True, True]}
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.t_col("value", unknown={-999}).t_gt(ma.lit(60)).t_and(
-            ma.col("active").t_eq(ma.lit(True))
-        )
+        expr = ma.t_col("value", unknown={-999}).t_gt(ma.lit(60)).t_and(ma.col("active").t_eq(ma.lit(True)))
         result = df.filter(expr.compile(df, booleanizer="t_is_true"))
 
         count = get_result_count(result, backend_name)
@@ -80,9 +74,7 @@ class TestComposeTernary:
         data = {"value": [100, -999, 50, -999, 80], "active": [True, True, False, True, True]}
         df = backend_factory.create(data, backend_name)
 
-        expr = ma.t_col("value", unknown={-999}).t_gt(ma.lit(60)).t_and(
-            ma.col("active").t_eq(ma.lit(True))
-        )
+        expr = ma.t_col("value", unknown={-999}).t_gt(ma.lit(60)).t_and(ma.col("active").t_eq(ma.lit(True)))
         result = df.filter(expr.compile(df, booleanizer="t_maybe_true"))
 
         count = get_result_count(result, backend_name)

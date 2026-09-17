@@ -10,7 +10,6 @@ import math
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 
 @pytest.mark.cross_backend
@@ -98,12 +97,7 @@ class TestBetween:
         assert result == [False, False, True, False, False], f"[{backend_name}] got {result}"
 
 
-_FINITE_INFINITE_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-CMP-01", backend=b))
-    if b == "ibis-sqlite"
-    else b
-    for b in ALL_BACKENDS
-]
+_FINITE_INFINITE_BACKENDS = [b for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend
@@ -111,7 +105,7 @@ _FINITE_INFINITE_BACKENDS = [
 class TestComposeComparisonNumeric:
     """Numeric checks is_finite / is_infinite. (is_nan lives in TestComposeIsNan,
     routed through IB-TYPE-02.) ibis-sqlite lacks is_finite/is_infinite (raises
-    OperationNotDefinedError), routed through DivergenceFact IB-CMP-01."""
+    OperationNotDefinedError), covered by scoped manifestation bindings."""
 
     def test_is_finite(self, backend_name, backend_factory, get_result_count):
         """Test is_finite on float column."""
@@ -217,7 +211,7 @@ class TestComposeLogarithmic:
 
     def test_ln(self, backend_name, backend_factory, collect_expr):
         """Test ln (natural log)."""
-        data = {"val": [1.0, math.e, math.e ** 2]}
+        data = {"val": [1.0, math.e, math.e**2]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").ln()
@@ -226,12 +220,7 @@ class TestComposeLogarithmic:
             assert math.isclose(a, e, abs_tol=1e-6), f"[{backend_name}] Row {i}: {a} != {e}"
 
 
-_IS_NAN_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("IB-TYPE-02", backend=b))
-    if b in ("ibis-duckdb", "ibis-sqlite")
-    else b
-    for b in ALL_BACKENDS
-]
+_IS_NAN_BACKENDS = [b for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend

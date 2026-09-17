@@ -14,6 +14,7 @@ hold identically across every backend. Enforcement -- actually compiling
 ``lit(None).cast(dtype)`` -- is exercised per-backend via ``.to_polars()``,
 mountainash's universal cross-backend materialization terminal.
 """
+
 from __future__ import annotations
 
 import polars as pl
@@ -26,32 +27,10 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
-
-# Ibis backends: the compiled Ibis schema and SQL are correctly typed
-# (verified: `CAST(NULL AS BIGINT)`, `.schema()` reports `int64`), but
-# `Relation.to_polars()`'s `result.to_pandas()` -> `pl.from_pandas(...)`
-# bridge loses the dtype for an all-NULL column that isn't natively
-# float-representable (int64 -> pandas `object`/`float64`, bool ->
-# `object`) -- `.to_pyarrow()` preserves it, `.to_pandas()` does not.
-# STRING/NUMBER survive because `object`/`float64` already round-trip to
-# String/Float64 by coincidence. See known-divergences.md #21.
-_IBIS_DTYPE_LOSS_BACKENDS = {"ibis-duckdb", "ibis-polars", "ibis-sqlite"}
-_IBIS_DTYPE_LOSS_TYPES = {"integer", "boolean"}
-
-# pandas / narwhals-pandas: mountainash's canonical -> pandas dtype mapping
-# targets non-nullable numpy dtypes (int64, bool). Casting an all-null
-# column to int64 raises; casting to bool silently maps None -> False
-# (data corruption, not just a wrong dtype). Reproduces for any
-# null-containing cast on these two backends, not just null_fill -- see
-# known-divergences.md #22.
-_PANDAS_NULLABLE_CAST_BACKENDS = {"pandas", "narwhals-pandas"}
-_PANDAS_NULLABLE_CAST_TYPES = {"integer", "boolean"}
 
 
 def _typed_null_cases():
-    """(backend, type) product; the all-null typed-cast divergence is
-    2D-conditional — MA-TYPE-02 marks pandas/narwhals-pandas int/bool casts."""
+    """Complete (backend, type) product; exact expectations are separately bound."""
     _types = [
         ("integer", UniversalType.INTEGER, pl.Int64),
         ("number", UniversalType.NUMBER, pl.Float64),
@@ -61,13 +40,7 @@ def _typed_null_cases():
     cases = []
     for be in ALL_BACKENDS:
         for type_id, ut, dt in _types:
-            marks = []
-            if be in _PANDAS_NULLABLE_CAST_BACKENDS and type_id in _PANDAS_NULLABLE_CAST_TYPES:
-                marks = [xfail_divergence("MA-TYPE-02", backend=be)]
-            # MA-TYPE-01 (ibis all-null dtype loss) no longer manifests on this
-            # env — the to_polars() bridge now preserves the dtype — so it is
-            # RETIRED here (the fact remains for other consumers).
-            cases.append(pytest.param(be, type_id, ut, dt, marks=marks, id=f"{be}-{type_id}"))
+            cases.append(pytest.param(be, type_id, ut, dt, id=f"{be}-{type_id}"))
     return cases
 
 
@@ -84,7 +57,12 @@ class TestTypedNullEmission:
         _typed_null_cases(),
     )
     def test_missing_field_emits_typed_all_null_column(
-        self, backend_name, backend_factory, type_id, universal_type, expected_polars_dtype,
+        self,
+        backend_name,
+        backend_factory,
+        type_id,
+        universal_type,
+        expected_polars_dtype,
     ):
 
         df = backend_factory.create({"a": [1, 2, 3]}, backend_name)
@@ -104,8 +82,7 @@ class TestTypedNullEmission:
             f"under missing_columns=null_fill, got columns={result.columns}"
         )
         assert result["b"].is_null().all(), (
-            f"[{backend_name}] typed null column 'b' should be all-null, "
-            f"got {result['b'].to_list()}"
+            f"[{backend_name}] typed null column 'b' should be all-null, got {result['b'].to_list()}"
         )
         # The present field is untouched.
         assert result["a"].to_list() == [1, 2, 3]
@@ -143,7 +120,9 @@ class TestTypedNullEmission:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestNullFillUnderStrictPresetOverride:
     def test_equal_preset_with_null_fill_override_emits_missing_field(
-        self, backend_name, backend_factory,
+        self,
+        backend_name,
+        backend_factory,
     ):
         # "equal" normally freezes on a missing field (MissingFieldsError);
         # an explicit contract override selects null_fill instead.
@@ -188,9 +167,7 @@ class TestNullFillDriftRecording:
 
         collection = ma.relation(df).conform(spec).collect_with_drift()
 
-        assert collection.drift.missing_columns == [
-            ColumnDrift(name="b", action="null_fill")
-        ], (
+        assert collection.drift.missing_columns == [ColumnDrift(name="b", action="null_fill")], (
             f"[{backend_name}] expected a single null_fill ColumnDrift for "
             f"'b', got {collection.drift.missing_columns!r}"
         )

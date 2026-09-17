@@ -12,7 +12,6 @@ from mountainash import col, lit, when, coalesce, greatest, least
 from mountainash.relations import relation
 
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import xfail_divergence
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -37,9 +36,6 @@ SAMPLE_DATA = {
 # ===========================================================================
 # 1. Filter with mountainash expressions
 # ===========================================================================
-
-
-_HORIZ = [pytest.param(b, marks=xfail_divergence("MA-REL-02", backend=b)) for b in ALL_BACKENDS]
 
 
 @pytest.mark.cross_backend
@@ -222,7 +218,7 @@ class TestHorizontalFunctions:
     def _df(self, backend_name, backend_factory):
         return backend_factory.create(SAMPLE_DATA, backend_name)
 
-    @pytest.mark.parametrize("backend_name", _HORIZ)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_greatest(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         result = (
@@ -230,7 +226,7 @@ class TestHorizontalFunctions:
         )
         assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
 
-    @pytest.mark.parametrize("backend_name", _HORIZ)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_least(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         result = relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()

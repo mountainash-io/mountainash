@@ -17,13 +17,14 @@ from mountainash.core.capabilities.declarations import (
     BoundSegment,
     Domain,
     FactSource,
+    QualifiedManifestation,
+    QualifiedManifestationKey,
     classify_domain,
     classify_source,
 )
 from mountainash.core.capabilities.schema import (
     CapabilityFact,
     CapabilityLevel,
-    DivergenceFact,
     Enforcement,
     WILDCARD_PARAM,
     _clause_key,
@@ -32,6 +33,7 @@ from mountainash.core.constants import CONST_BACKEND
 
 from mountainash.core.capabilities.retired import AssertionChange
 from mountainash.core.capabilities.gaps import InventoryGap, gap_order_key
+from mountainash.core.capabilities.catalogue import _manifestation_order
 
 
 @dataclass(frozen=True)
@@ -257,7 +259,7 @@ class CoverageStats:
 class CoverageReport:
     families: tuple[FamilyCoverage, ...]
     segments: tuple[BoundSegment, ...]
-    divergences: tuple[DivergenceFact, ...]
+    divergences: tuple[QualifiedManifestation, ...]
     gaps: tuple[InventoryGap, ...] | None
     changes: tuple[AssertionChange, ...]
     stats: CoverageStats
@@ -286,7 +288,7 @@ def _check_date(value: str, owner: str) -> None:
 def _validate_dates(
     facts: tuple[CapabilityFact, ...],
     segments: tuple[BoundSegment, ...],
-    divergences: tuple[DivergenceFact, ...],
+    divergences: tuple[QualifiedManifestation, ...],
     gaps: tuple[InventoryGap, ...] | None,
     changes: tuple[AssertionChange, ...],
 ) -> None:
@@ -297,7 +299,7 @@ def _validate_dates(
         for fact in segment.facts:
             _check_date(fact.since, f"segment {segment.module} fact {fact.operation_key!r}/{fact.param}")
     for divergence in divergences:
-        _check_date(divergence.since, f"divergence {divergence.id}")
+        _check_date(divergence.assertion.since, f"manifestation {divergence.key!r}")
     for record in gaps or ():
         if type(record) is not InventoryGap:
             raise TypeError("report gaps require inventory-qualified records")
@@ -375,12 +377,14 @@ def _validate_segments(segments: tuple[BoundSegment, ...]) -> None:
         addresses.add(segment.module)
 
 
-def _validate_divergences(divergences: tuple[DivergenceFact, ...]) -> None:
-    ids: set[str] = set()
-    for dv in divergences:
-        if dv.id in ids:
-            raise ValueError(f"duplicate divergence id {dv.id!r}")
-        ids.add(dv.id)
+def _validate_divergences(divergences: tuple[QualifiedManifestation, ...]) -> None:
+    keys: set[QualifiedManifestationKey] = set()
+    for record in divergences:
+        if type(record) is not QualifiedManifestation:
+            raise TypeError("report divergences require qualified manifestations")
+        if record.key in keys:
+            raise ValueError(f"duplicate manifestation key {record.key!r}")
+        keys.add(record.key)
 
 
 def _cell_label(op: Any, backend: CONST_BACKEND) -> str:
@@ -510,7 +514,7 @@ def build_coverage_report(
     universe: tuple[OpRecord, ...],
     facts: tuple[CapabilityFact, ...],
     segments: tuple[BoundSegment, ...],
-    divergences: tuple[DivergenceFact, ...],
+    divergences: tuple[QualifiedManifestation, ...],
     gaps: tuple[InventoryGap, ...] | None,
     changes: tuple[AssertionChange, ...],
     implementations: tuple[ImplementationRecord, ...],
@@ -638,7 +642,7 @@ def build_coverage_report(
     return CoverageReport(
         families=tuple(family_coverages),
         segments=tuple(sorted(segments, key=_segment_sort_key)),
-        divergences=tuple(sorted(divergences, key=lambda dv: dv.id)),
+        divergences=tuple(sorted(divergences, key=lambda record: _manifestation_order(record.key))),
         gaps=None if gaps is None else tuple(sorted(gaps, key=gap_order_key)),
         changes=tuple(sorted(changes, key=_change_sort_key)),
         stats=CoverageStats(

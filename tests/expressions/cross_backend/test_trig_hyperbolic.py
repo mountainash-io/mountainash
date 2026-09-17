@@ -4,16 +4,15 @@ import math
 
 import pytest
 import mountainash.expressions as ma
-from fixtures.capability_gating import xfail_divergence
 
 # Polars + Ibis have native trig support (including SQLite via ibis); pandas and
 # narwhals lack trig/angular functions (NW-MATH-10).
 TRIG_BACKENDS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-MATH-10", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-10", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-10", backend="narwhals-pandas")),
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
     "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
@@ -24,12 +23,12 @@ TRIG_BACKENDS = [
 HYPERBOLIC_BACKENDS = [
     "polars",
     "polars-lazy",
-    pytest.param("pandas", marks=xfail_divergence("NW-MATH-10", backend="pandas")),
-    pytest.param("narwhals-polars", marks=xfail_divergence("NW-MATH-10", backend="narwhals-polars")),
-    pytest.param("narwhals-pandas", marks=xfail_divergence("NW-MATH-10", backend="narwhals-pandas")),
-    pytest.param("ibis-polars", marks=xfail_divergence("IB-MATH-06", backend="ibis-polars")),
-    pytest.param("ibis-duckdb", marks=xfail_divergence("IB-MATH-06", backend="ibis-duckdb")),
-    pytest.param("ibis-sqlite", marks=xfail_divergence("IB-MATH-02", backend="ibis-sqlite")),
+    "pandas",
+    "narwhals-polars",
+    "narwhals-pandas",
+    "ibis-polars",
+    "ibis-duckdb",
+    "ibis-sqlite",
 ]
 
 

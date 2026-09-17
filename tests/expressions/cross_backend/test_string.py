@@ -12,7 +12,7 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import assert_capability_gated, xfail_divergence
+from fixtures.capability_gating import assert_capability_gated
 from mountainash.core.capabilities import CapabilityLevel, load_all_capability_declarations
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
@@ -26,6 +26,7 @@ load_all_capability_declarations()
 # Cross-Backend Tests - Case Conversion
 # =============================================================================
 
+
 @pytest.mark.cross_backend
 @pytest.mark.string
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -34,38 +35,31 @@ class TestCaseConversion:
 
     def test_str_upper(self, backend_name, backend_factory, collect_expr):
         """Test converting strings to uppercase."""
-        data = {
-            "name": ["Alice", "BOB", "Charlie", "DAVID", "eve"]
-        }
+        data = {"name": ["Alice", "BOB", "Charlie", "DAVID", "eve"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("name").str.upper()
         actual = collect_expr(df, expr)
 
         expected = ["ALICE", "BOB", "CHARLIE", "DAVID", "EVE"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_str_lower(self, backend_name, backend_factory, collect_expr):
         """Test converting strings to lowercase."""
-        data = {
-            "name": ["Alice", "BOB", "Charlie", "DAVID", "eve"]
-        }
+        data = {"name": ["Alice", "BOB", "Charlie", "DAVID", "eve"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("name").str.lower()
         actual = collect_expr(df, expr)
 
         expected = ["alice", "bob", "charlie", "david", "eve"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Cross-Backend Tests - Trim Operations
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -75,23 +69,20 @@ class TestTrimOperations:
 
     def test_str_trim(self, backend_name, backend_factory, collect_expr):
         """Test trimming whitespace from both sides."""
-        data = {
-            "text": ["  hello  ", "world  ", "  foo", "bar", "  baz  "]
-        }
+        data = {"text": ["  hello  ", "world  ", "  foo", "bar", "  baz  "]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.trim()
         actual = collect_expr(df, expr)
 
         expected = ["hello", "world", "foo", "bar", "baz"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Cross-Backend Tests - String Length
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -101,23 +92,20 @@ class TestStringLength:
 
     def test_str_length(self, backend_name, backend_factory, collect_expr):
         """Test getting string length."""
-        data = {
-            "word": ["cat", "hello", "a", "testing", ""]
-        }
+        data = {"word": ["cat", "hello", "a", "testing", ""]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("word").str.length()
         actual = collect_expr(df, expr)
 
         expected = [3, 5, 1, 7, 0]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Cross-Backend Tests - String Contains
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -127,36 +115,29 @@ class TestStringContains:
 
     def test_str_contains_hello(self, backend_name, backend_factory):
         """Test filtering rows containing 'hello'."""
-        data = {
-            "text": ["hello world", "foo bar", "test", "hello", "world"]
-        }
+        data = {"text": ["hello world", "foo bar", "test", "hello", "world"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.contains("hello")
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["hello world", "hello"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_str_contains_world(self, backend_name, backend_factory):
         """Test filtering rows containing 'world'."""
-        data = {
-            "text": ["hello world", "foo bar", "test", "hello", "world"]
-        }
+        data = {"text": ["hello world", "foo bar", "test", "hello", "world"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.contains("world")
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["hello world", "world"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Cross-Backend Tests - Starts With / Ends With
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -166,32 +147,23 @@ class TestStringStartsEndsWith:
 
     def test_str_starts_with(self, backend_name, backend_factory):
         """Test filtering files starting with 'test'."""
-        data = {
-            "filename": ["test.txt", "data.csv", "test.csv", "report.txt", "test.json"]
-        }
+        data = {"filename": ["test.txt", "data.csv", "test.csv", "report.txt", "test.json"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("filename").str.starts_with("test")
         actual = ma_top.relation(df).filter(expr).to_dict()["filename"]
         expected = ["test.txt", "test.csv", "test.json"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_str_ends_with(self, backend_name, backend_factory):
         """Test filtering files ending with '.csv'."""
-        data = {
-            "filename": ["test.txt", "data.csv", "test.csv", "report.txt", "test.json"]
-        }
+        data = {"filename": ["test.txt", "data.csv", "test.csv", "report.txt", "test.json"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("filename").str.ends_with(".csv")
         actual = ma_top.relation(df).filter(expr).to_dict()["filename"]
         expected = ["data.csv", "test.csv"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
-
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
@@ -222,9 +194,7 @@ _ASCII_FOLD_HONORING_BACKENDS = [b for b in ALL_BACKENDS if b != "ibis-polars"]
 # an ASCII-only result, so it is excluded here (the "folds correctly"
 # positive assertion) and covered instead by
 # TestCaseInsensitiveIbisSqliteGate below.
-_UNICODE_FOLD_KELVIN_HONORING_BACKENDS = [
-    b for b in _ASCII_FOLD_HONORING_BACKENDS if b != "ibis-sqlite"
-]
+_UNICODE_FOLD_KELVIN_HONORING_BACKENDS = [b for b in _ASCII_FOLD_HONORING_BACKENDS if b != "ibis-sqlite"]
 
 # Dynamic (expression-valued) search-operand parity, scoped per
 # known-divergences.md's KNOWN_EXPR_LIMITATIONS: starts_with/ends_with
@@ -251,13 +221,9 @@ _KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
 # then silently corrupts every downstream `~expr` on that column --
 # verified directly; not fixable at this layer without either regressing
 # negation elsewhere or forcing every narwhals-pandas DataFrame onto a
-# nullable dtype backend end-to-end. Declared as DivergenceFact NW-STR-19
-# and routed through xfail_divergence below (not silently excluded).
-_NULL_INPUT_ROW_BACKENDS = [
-    pytest.param(b, marks=xfail_divergence("NW-STR-19", backend=b))
-    for b in _ASCII_FOLD_HONORING_BACKENDS
-]
-
+# nullable dtype backend end-to-end. Exact scoped manifestation bindings
+# select the affected cells; no backend is silently excluded.
+_NULL_INPUT_ROW_BACKENDS = _ASCII_FOLD_HONORING_BACKENDS
 
 
 @pytest.mark.cross_backend
@@ -365,23 +331,19 @@ def test_case_insensitive_unicode_kelvin_sign_folds(backend_name, backend_factor
 @pytest.mark.string
 @pytest.mark.parametrize(
     ("method", "backend_name"),
-    [
-        (method, backend_name)
-        for method, backends in _DYNAMIC_OPERAND_HONORING.items()
-        for backend_name in backends
-    ],
+    [(method, backend_name) for method, backends in _DYNAMIC_OPERAND_HONORING.items() for backend_name in backends],
 )
 def test_case_insensitive_ascii_dynamic_search_operand(method, backend_name, backend_factory, collect_expr):
     """CASE_INSENSITIVE_ASCII folds an expression-valued (column) search
     operand the same way as a literal one, on every cell that already
     supports expression operands for this op."""
-    data = {"text": ["HELLO world"], "needle": ["hello"]} if method != "ends_with" else {
-        "text": ["world HELLO"], "needle": ["hello"]
-    }
-    df = backend_factory.create(data, backend_name)
-    expr = getattr(ma.col("text").str, method)(
-        ma.col("needle"), case_sensitive="CASE_INSENSITIVE_ASCII"
+    data = (
+        {"text": ["HELLO world"], "needle": ["hello"]}
+        if method != "ends_with"
+        else {"text": ["world HELLO"], "needle": ["hello"]}
     )
+    df = backend_factory.create(data, backend_name)
+    expr = getattr(ma.col("text").str, method)(ma.col("needle"), case_sensitive="CASE_INSENSITIVE_ASCII")
     assert collect_expr(df, expr) == [True], f"[{backend_name}.{method}]"
 
 
@@ -401,9 +363,9 @@ class TestCaseInsensitiveAsciiIbisPolarsGate:
             dialect="ibis-polars",
             param="case_sensitivity",
             option_value="CASE_INSENSITIVE_ASCII",
-            build=lambda: getattr(ma.col("text").str, method)(
-                "hello", case_sensitive="CASE_INSENSITIVE_ASCII"
-            ).compile(df),
+            build=lambda: getattr(ma.col("text").str, method)("hello", case_sensitive="CASE_INSENSITIVE_ASCII").compile(
+                df
+            ),
         )
 
 
@@ -425,9 +387,7 @@ class TestCaseInsensitiveIbisSqliteGate:
             dialect="ibis-sqlite",
             param="case_sensitivity",
             option_value="CASE_INSENSITIVE",
-            build=lambda: getattr(ma.col("text").str, method)(
-                "kelvin", case_sensitive="CASE_INSENSITIVE"
-            ).compile(df),
+            build=lambda: getattr(ma.col("text").str, method)("kelvin", case_sensitive="CASE_INSENSITIVE").compile(df),
         )
 
 
@@ -435,7 +395,9 @@ class TestCaseInsensitiveIbisSqliteGate:
 @pytest.mark.string
 @pytest.mark.parametrize("backend_name", _ASCII_FOLD_HONORING_BACKENDS)
 def test_case_insensitive_ascii_null_search_operand_propagates_null(
-    backend_name, backend_factory, collect_expr,
+    backend_name,
+    backend_factory,
+    collect_expr,
 ):
     """A null-typed literal search operand (e.g. ma.col("text").str.
     contains(None)) under case_sensitivity=CASE_INSENSITIVE_ASCII yields a
@@ -445,7 +407,7 @@ def test_case_insensitive_ascii_null_search_operand_propagates_null(
     search operand is None -- real cell on every one of these 8 backends,
     unconditionally (not gated on backend). This is distinct from a null
     INPUT row with a real search operand, which remains False (not null)
-    on pandas/narwhals-pandas specifically -- see DivergenceFact NW-STR-19
+    on pandas/narwhals-pandas specifically -- see the scoped null-input claim
     and test_contains_ascii_null_input. Uses a 3-row fixture (not 1) --
     narwhals-pandas silently collapsed a bare-literal null result to a
     single row regardless of input length (backlog item 82); a 1-row
@@ -462,7 +424,10 @@ def test_case_insensitive_ascii_null_search_operand_propagates_null(
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
 def test_null_search_operand_preserves_row_count(
-    method, backend_name, backend_factory, collect_expr,
+    method,
+    backend_name,
+    backend_factory,
+    collect_expr,
 ):
     """contains/starts_with/ends_with's null-search-operand short-circuit
     (backlog item 80) returned a bare `nw.lit(None)` on the Narwhals
@@ -485,6 +450,7 @@ def test_null_search_operand_preserves_row_count(
 # =============================================================================
 # Cross-Backend Tests - count_substring (backlog item 78)
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -558,8 +524,7 @@ class TestCountSubstring:
 # replace() (disclosed, not fixed here -- see backlog item
 # ibis-polars-dynamic-pattern-raw-error.md).
 _COUNT_SUBSTRING_DYNAMIC_HONORING = [
-    b for b in ALL_BACKENDS
-    if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", "ibis-polars")
+    b for b in ALL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", "ibis-polars")
 ]
 
 
@@ -590,10 +555,10 @@ def test_count_substring_dynamic_operand_regex_metacharacter(backend_name, backe
     assert collect_expr(df, expr) == [0, 3, 2], f"[{backend_name}]"
 
 
-
 # =============================================================================
 # Cross-Backend Tests - String Replace
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -603,33 +568,25 @@ class TestStringReplace:
 
     def test_str_replace_hello(self, backend_name, backend_factory, collect_expr):
         """Test replacing 'hello' with 'hi'."""
-        data = {
-            "text": ["hello world", "foo bar", "hello foo", "world bar"]
-        }
+        data = {"text": ["hello world", "foo bar", "hello foo", "world bar"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.replace("hello", "hi")
         actual = collect_expr(df, expr)
 
         expected = ["hi world", "foo bar", "hi foo", "world bar"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_str_replace_bar(self, backend_name, backend_factory, collect_expr):
         """Test replacing 'bar' with 'baz'."""
-        data = {
-            "text": ["hello world", "foo bar", "hello foo", "world bar"]
-        }
+        data = {"text": ["hello world", "foo bar", "hello foo", "world bar"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.replace("bar", "baz")
         actual = collect_expr(df, expr)
 
         expected = ["hello world", "foo baz", "hello foo", "world baz"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # A dynamic (column-valued) substring on `replace`: raw `polars` (and
@@ -685,15 +642,18 @@ class TestDynamicPatternIbisPolarsGate:
         ("operation_key", "param", "build"),
         [
             (
-                FK_STR.REPLACE, "substring",
+                FK_STR.REPLACE,
+                "substring",
                 lambda: ma.col("text").str.replace(ma.col("pattern"), "X"),
             ),
             (
-                FK_STR.COUNT_SUBSTRING, "substring",
+                FK_STR.COUNT_SUBSTRING,
+                "substring",
                 lambda: ma.col("text").str.count_substring(ma.col("pattern")),
             ),
             (
-                FK_STR.REGEXP_REPLACE, "pattern",
+                FK_STR.REGEXP_REPLACE,
+                "pattern",
                 lambda: ma.col("text").str.regexp_replace(ma.col("pattern"), "X"),
             ),
         ],
@@ -745,7 +705,6 @@ class TestNullPatternPreExistingGapNotWorsened:
             collect_expr(df, build())
 
 
-
 # ibis-polars raw native-error leaks on regexp_match_substring/string_split
 # (backlog item 83). Literal path is genuinely unaffected on ibis-polars
 # (no existing coverage found there prior to this item — confirmed via
@@ -782,20 +741,20 @@ class TestRegexpMatchSplitIbisPolarsGate:
         ("operation_key", "param", "build"),
         [
             (
-                FK_STR.REGEXP_MATCH, "pattern",
+                FK_STR.REGEXP_MATCH,
+                "pattern",
                 lambda: ma.col("text").str.regexp_match_substring(ma.col("pattern")),
             ),
             (
-                FK_STR.SPLIT, "separator",
+                FK_STR.SPLIT,
+                "separator",
                 lambda: ma.col("text").str.string_split(ma.col("sep")),
             ),
         ],
         ids=["regexp_match_substring", "string_split"],
     )
     def test_dynamic_pattern_is_gated_on_ibis_polars(self, operation_key, param, build, backend_factory):
-        df = backend_factory.create(
-            {"text": ["hello world"], "pattern": ["hello"], "sep": [" "]}, "ibis-polars"
-        )
+        df = backend_factory.create({"text": ["hello world"], "pattern": ["hello"], "sep": [" "]}, "ibis-polars")
         caught: BackendCapabilityError | None = None
         try:
             build().compile(df)
@@ -825,6 +784,7 @@ class TestRegexpMatchSplitIbisPolarsGate:
         noticing."""
         df = backend_factory.create({"text": ["a,b,c"]}, "ibis-polars")
         import polars as pl
+
         with pytest.raises(pl.exceptions.SchemaError):
             collect_expr(df, ma.col("text").str.string_split(ma.lit(None)))
 
@@ -850,6 +810,7 @@ def test_regexp_strpos_and_count_substring_stay_cleanly_gated_on_ibis_polars(bac
             caught = exc
         assert caught is not None, f"expected BackendCapabilityError for {build}"
 
+
 # =============================================================================
 # Cross-Backend Tests - regexp_string_split / string_split (backlog items 85/86)
 # =============================================================================
@@ -860,6 +821,7 @@ def test_regexp_strpos_and_count_substring_stay_cleanly_gated_on_ibis_polars(bac
 # pass-through, and narwhals has no native regex-split capability at all.
 # narwhals.string_split (item 86, non-regex) was also a bare pass-through
 # despite narwhals genuinely supporting a literal-separator native split.
+
 
 def test_regexp_string_split_real_output_on_polars(backend_factory, collect_expr):
     """Polars has no native regex-split primitive — the map_elements
@@ -879,7 +841,6 @@ def test_regexp_string_split_excludes_capture_group_text_on_polars(backend_facto
     assert collect_expr(df, expr) == [["a", "b", "c"]]
 
 
-@xfail_divergence("MA-STR-03", backend="polars")
 def test_regexp_string_split_zero_width_pattern_is_documented_divergence_on_polars(backend_factory, collect_expr):
     """Empty/zero-width-capable patterns diverge from the ibis-duckdb oracle
     — a genuine engine-consolidation difference between DuckDB's regex
@@ -1035,10 +996,10 @@ class TestRegexpStringSplitGates:
         assert collect_expr(pyarrow_df, expr) == [["a", "b", "c"], ["d", "e"]]
 
 
-
 # =============================================================================
 # Cross-Backend Tests - String Substring
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -1048,38 +1009,31 @@ class TestStringSubstring:
 
     def test_str_substring_first_3(self, backend_name, backend_factory, collect_expr):
         """Test extracting first 3 characters."""
-        data = {
-            "text": ["hello", "world", "testing", "foo", "bar"]
-        }
+        data = {"text": ["hello", "world", "testing", "foo", "bar"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.substring(0, 3)
         actual = collect_expr(df, expr)
 
         expected = ["hel", "wor", "tes", "foo", "bar"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_str_substring_from_pos_2(self, backend_name, backend_factory, collect_expr):
         """Test extracting from position 2 to end."""
-        data = {
-            "text": ["hello", "world", "testing", "foo", "bar"]
-        }
+        data = {"text": ["hello", "world", "testing", "foo", "bar"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.substring(2)
         actual = collect_expr(df, expr)
 
         expected = ["llo", "rld", "sting", "o", "r"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Integration Tests - Chaining String Operations
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.string
@@ -1089,9 +1043,7 @@ class TestChainingStringOperations:
 
     def test_chain_trim_and_lowercase(self, backend_name, backend_factory, collect_expr):
         """Test chaining trim -> lowercase."""
-        data = {
-            "name": ["  Alice  ", "  BOB  ", "  Charlie  "]
-        }
+        data = {"name": ["  Alice  ", "  BOB  ", "  Charlie  "]}
         df = backend_factory.create(data, backend_name)
 
         # Chain: trim -> lowercase
@@ -1099,29 +1051,24 @@ class TestChainingStringOperations:
         actual = collect_expr(df, expr)
 
         expected = ["alice", "bob", "charlie"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_chain_trim_upper_starts_with(self, backend_name, backend_factory):
         """Test chaining trim -> upper -> starts_with filter."""
-        data = {
-            "text": ["  hello world  ", "  foo bar  ", "  hello  ", "  goodbye  "]
-        }
+        data = {"text": ["  hello world  ", "  foo bar  ", "  hello  ", "  goodbye  "]}
         df = backend_factory.create(data, backend_name)
 
         # Chain: trim -> upper -> check starts with "HELLO"
         expr = ma.col("text").str.trim().str.upper().str.starts_with("HELLO")
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["  hello world  ", "  hello  "]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Integration Tests - String with Boolean Filters
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.string
@@ -1134,7 +1081,7 @@ class TestStringWithBooleanFilter:
         data = {
             "name": ["Alice", "Bob", "Charlie", "David", "Eve"],
             "age": [25, 30, 35, 40, 45],
-            "city": ["New York", "Boston", "New York", "Chicago", "Boston"]
+            "city": ["New York", "Boston", "New York", "Chicago", "Boston"],
         }
         df = backend_factory.create(data, backend_name)
 
@@ -1144,16 +1091,11 @@ class TestStringWithBooleanFilter:
         expr = (ma.col("age") > 30) & ma.col("city").str.contains("New")
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["Charlie"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_age_and_name_starts_with(self, backend_name, backend_factory):
         """Test filtering: age < 40 AND name starts with 'A' or 'B'."""
-        data = {
-            "name": ["Alice", "Bob", "Charlie", "David", "Eve"],
-            "age": [25, 30, 35, 40, 45]
-        }
+        data = {"name": ["Alice", "Bob", "Charlie", "David", "Eve"], "age": [25, 30, 35, 40, 45]}
         df = backend_factory.create(data, backend_name)
 
         # Filter: age < 40 AND (name starts with "A" or "B")
@@ -1162,14 +1104,13 @@ class TestStringWithBooleanFilter:
         expr = (ma.col("age") < 40) & (expr_a | expr_b)
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["Alice", "Bob"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Integration Tests - String with Arithmetic
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.string
@@ -1179,10 +1120,7 @@ class TestStringWithArithmetic:
 
     def test_string_length_plus_score(self, backend_name, backend_factory, collect_expr):
         """Test getting length of name and adding to score."""
-        data = {
-            "name": ["Alice", "Bob", "Charlie", "David"],
-            "score": [85, 92, 78, 95]
-        }
+        data = {"name": ["Alice", "Bob", "Charlie", "David"], "score": [85, 92, 78, 95]}
         df = backend_factory.create(data, backend_name)
 
         # Get length of name and add to score
@@ -1191,14 +1129,13 @@ class TestStringWithArithmetic:
         actual = collect_expr(df, expr_result)
 
         expected = [85 + 5, 92 + 3, 78 + 7, 95 + 5]  # [90, 95, 85, 100]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
 # Edge Case Tests
 # =============================================================================
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -1208,9 +1145,7 @@ class TestStringEdgeCases:
 
     def test_empty_string_operations(self, backend_name, backend_factory, collect_expr):
         """Test operations on empty strings."""
-        data = {
-            "text": ["", "a", "", "test", ""]
-        }
+        data = {"text": ["", "a", "", "test", ""]}
         df = backend_factory.create(data, backend_name)
 
         # Length of empty strings
@@ -1218,15 +1153,11 @@ class TestStringEdgeCases:
         actual = collect_expr(df, expr)
 
         expected = [0, 1, 0, 4, 0]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_case_conversion_on_mixed(self, backend_name, backend_factory, collect_expr):
         """Test case conversion on mixed case strings."""
-        data = {
-            "text": ["HeLLo", "WoRLD", "TeSt123", "MiXeD"]
-        }
+        data = {"text": ["HeLLo", "WoRLD", "TeSt123", "MiXeD"]}
         df = backend_factory.create(data, backend_name)
 
         # Uppercase
@@ -1234,15 +1165,11 @@ class TestStringEdgeCases:
         actual = collect_expr(df, expr)
 
         expected = ["HELLO", "WORLD", "TEST123", "MIXED"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_trim_no_whitespace(self, backend_name, backend_factory, collect_expr):
         """Test trimming strings with no whitespace."""
-        data = {
-            "text": ["hello", "world", "test"]
-        }
+        data = {"text": ["hello", "world", "test"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.trim()
@@ -1250,15 +1177,11 @@ class TestStringEdgeCases:
 
         # Should return unchanged
         expected = ["hello", "world", "test"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_substring_full_length(self, backend_name, backend_factory, collect_expr):
         """Test substring that extracts entire string."""
-        data = {
-            "text": ["hello", "world", "test"]
-        }
+        data = {"text": ["hello", "world", "test"]}
         df = backend_factory.create(data, backend_name)
 
         # Extract from position 0 with no length limit (entire string)
@@ -1266,15 +1189,11 @@ class TestStringEdgeCases:
         actual = collect_expr(df, expr)
 
         expected = ["hello", "world", "test"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_replace_no_match(self, backend_name, backend_factory, collect_expr):
         """Test replace when pattern doesn't exist."""
-        data = {
-            "text": ["hello", "world", "test"]
-        }
+        data = {"text": ["hello", "world", "test"]}
         df = backend_factory.create(data, backend_name)
 
         # Try to replace "xyz" which doesn't exist
@@ -1283,15 +1202,11 @@ class TestStringEdgeCases:
 
         # Should return unchanged
         expected = ["hello", "world", "test"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_contains_empty_string(self, backend_name, backend_factory):
         """Test contains with empty substring."""
-        data = {
-            "text": ["hello", "world", "test"]
-        }
+        data = {"text": ["hello", "world", "test"]}
         df = backend_factory.create(data, backend_name)
 
         # Empty string is contained in all strings
@@ -1299,45 +1214,33 @@ class TestStringEdgeCases:
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         # All strings contain empty string
         expected = ["hello", "world", "test"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_starts_with_empty_string(self, backend_name, backend_factory):
         """Test starts_with empty string."""
-        data = {
-            "text": ["hello", "world", "test"]
-        }
+        data = {"text": ["hello", "world", "test"]}
         df = backend_factory.create(data, backend_name)
 
         # All strings start with empty string
         expr = ma.col("text").str.starts_with("")
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["hello", "world", "test"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_ends_with_empty_string(self, backend_name, backend_factory):
         """Test ends_with empty string."""
-        data = {
-            "text": ["hello", "world", "test"]
-        }
+        data = {"text": ["hello", "world", "test"]}
         df = backend_factory.create(data, backend_name)
 
         # All strings end with empty string
         expr = ma.col("text").str.ends_with("")
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         expected = ["hello", "world", "test"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_replace_multiple_occurrences(self, backend_name, backend_factory, collect_expr):
         """Test replacing multiple occurrences in same string."""
-        data = {
-            "text": ["hello hello", "test test test", "world"]
-        }
+        data = {"text": ["hello hello", "test test test", "world"]}
         df = backend_factory.create(data, backend_name)
 
         # Replace all occurrences of a word
@@ -1350,9 +1253,7 @@ class TestStringEdgeCases:
 
     def test_case_sensitivity_contains(self, backend_name, backend_factory):
         """Test case sensitivity in contains operation."""
-        data = {
-            "text": ["Hello World", "HELLO WORLD", "hello world", "goodbye"]
-        }
+        data = {"text": ["Hello World", "HELLO WORLD", "hello world", "goodbye"]}
         df = backend_factory.create(data, backend_name)
 
         # Search for lowercase "hello"
@@ -1360,15 +1261,11 @@ class TestStringEdgeCases:
         actual = ma_top.relation(df).filter(expr).to_dict()["text"]
         # Should only match lowercase "hello"
         expected = ["hello world"]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_substring_beyond_length(self, backend_name, backend_factory, collect_expr):
         """Test substring starting beyond string length."""
-        data = {
-            "text": ["hi", "hello", "x"]
-        }
+        data = {"text": ["hi", "hello", "x"]}
         df = backend_factory.create(data, backend_name)
 
         # Start at position 10 (beyond all strings)
@@ -1377,24 +1274,19 @@ class TestStringEdgeCases:
 
         # Should return empty strings
         expected = ["", "", ""]
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_length_with_special_characters(self, backend_name, backend_factory, collect_expr):
         """Test length with special characters and numbers."""
-        data = {
-            "text": ["hello!", "123", "test@example.com", "a-b-c"]
-        }
+        data = {"text": ["hello!", "123", "test@example.com", "a-b-c"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.length()
         actual = collect_expr(df, expr)
 
         expected = [6, 3, 16, 5]  # "hello!" = 6, "123" = 3, "test@example.com" = 16, "a-b-c" = 5
-        assert actual == expected, (
-            f"[{backend_name}] Expected {expected}, got {actual}"
-        )
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+
 
 @pytest.mark.cross_backend
 @pytest.mark.string
@@ -1419,9 +1311,7 @@ class TestConcatMultiOperand:
         actual = collect_expr(df, expr)
         assert actual == ["x1!", "y2?"], f"[{backend_name}] got {actual}"
 
-    def test_concat_single_operand_ignore_nulls_yields_empty_string(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_concat_single_operand_ignore_nulls_yields_empty_string(self, backend_name, backend_factory, collect_expr):
         """The single-input case is not a `return input`/`return others[0]`
         fast path — the old broken shortcut silently returned the nullable
         operand unchanged instead of routing it through the fold, so a null
@@ -1432,27 +1322,21 @@ class TestConcatMultiOperand:
         actual = collect_expr(df, expr)
         assert actual == ["x", ""], f"[{backend_name}] got {actual}"
 
-    def test_concat_single_operand_accept_nulls_propagates_null(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_concat_single_operand_accept_nulls_propagates_null(self, backend_name, backend_factory, collect_expr):
         data = {"a": ["x", None]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").str.concat(null_handling="ACCEPT_NULLS")
         actual = collect_expr(df, expr)
         assert actual == ["x", None], f"[{backend_name}] got {actual}"
 
-    def test_concat_ignore_nulls_default_skips_null_operand(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_concat_ignore_nulls_default_skips_null_operand(self, backend_name, backend_factory, collect_expr):
         data = {"a": ["x", None, "z"], "b": ["1", "2", None]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").str.concat(ma.col("b"))
         actual = collect_expr(df, expr)
         assert actual == ["x1", "2", "z"], f"[{backend_name}] got {actual}"
 
-    def test_concat_accept_nulls_propagates_null(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_concat_accept_nulls_propagates_null(self, backend_name, backend_factory, collect_expr):
         data = {"a": ["x", None, "z"], "b": ["1", "2", "3"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").str.concat(ma.col("b"), null_handling="ACCEPT_NULLS")
@@ -1466,9 +1350,7 @@ class TestConcatMultiOperand:
         actual = collect_expr(df, expr)
         assert actual == ["x-1-!", "y-2-?"], f"[{backend_name}] got {actual}"
 
-    def test_concat_ws_skips_null_operand_no_double_separator(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_concat_ws_skips_null_operand_no_double_separator(self, backend_name, backend_factory, collect_expr):
         """The exact NW-STR-19 trigger scenario the fold eliminates: a
         trailing null operand must not leave a trailing separator.
 
@@ -1484,9 +1366,7 @@ class TestConcatMultiOperand:
         actual = collect_expr(df, expr)
         assert actual == ["p-q", "x-y-z"], f"[{backend_name}] got {actual}"
 
-    def test_concat_ws_all_null_row_yields_empty_string(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_concat_ws_all_null_row_yields_empty_string(self, backend_name, backend_factory, collect_expr):
         """The all-null-row trigger scenario the fold eliminates: an
         all-null row must yield '', not NULL, on every dialect.
 
@@ -1525,9 +1405,7 @@ class TestConcatWsNullSeparator:
         actual = collect_expr(df, expr)
         assert actual == [None, "x-y", None], f"[{backend_name}] got {actual}"
 
-    def test_literal_none_separator_propagates_and_does_not_crash(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_literal_none_separator_propagates_and_does_not_crash(self, backend_name, backend_factory, collect_expr):
         data = {"a": ["x", "y"], "b": ["1", "2"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").str.concat_ws(None, ma.col("b"))
@@ -1542,9 +1420,7 @@ class TestConcatWsDynamicSeparator:
     """The fold supports a genuinely dynamic (column-expression) separator
     on every backend — no LITERAL_ONLY gate is needed anywhere."""
 
-    def test_column_expression_separator_varies_per_row(
-        self, backend_name, backend_factory, collect_expr
-    ):
+    def test_column_expression_separator_varies_per_row(self, backend_name, backend_factory, collect_expr):
         data = {"sep": ["-", "_", "."], "a": ["x", "y", "z"], "b": ["1", "2", "3"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").str.concat_ws(ma.col("sep"), ma.col("b"))
@@ -1560,11 +1436,11 @@ class TestConcatOperandType:
     coercion/validation feature — Substrait types every concat/concat_ws
     operand as string/varchar, with no implicit-cast contract."""
 
-    def test_concat_numeric_operand_raises_native_error(
-        self, backend_name, backend_factory
-    ):
+    def test_concat_numeric_operand_raises_native_error(self, backend_name, backend_factory):
         data = {"a": ["x", "y"], "n": [1, 2]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("a").str.concat(ma.col("n"))
-        with pytest.raises(Exception):  # native TypeError/InvalidOperationError/SignatureValidationError — backend-specific, not mountainash's
+        with pytest.raises(
+            Exception
+        ):  # native TypeError/InvalidOperationError/SignatureValidationError — backend-specific, not mountainash's
             ma.relation(df).select(expr.name.alias("r")).to_dict()

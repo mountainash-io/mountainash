@@ -1,4 +1,5 @@
 """Cross-backend tests for Relation method aliases."""
+
 from __future__ import annotations
 
 import pytest
@@ -17,15 +18,6 @@ ALL_BACKENDS = [
 ]
 
 
-from fixtures.capability_gating import xfail_divergence
-
-_MELT = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-10", backend=b)) for b in ALL_BACKENDS
-]
-_CROSSJOIN = [
-    pytest.param(b, marks=xfail_divergence("IB-REL-12", backend=b)) for b in ALL_BACKENDS
-]
-
 @pytest.mark.cross_backend
 class TestRelationAliases:
     def _make_relation(self, backend_name, backend_factory):
@@ -37,7 +29,7 @@ class TestRelationAliases:
         r = self._make_relation(backend_name, backend_factory)
         assert r.limit(2).to_dicts() == r.head(2).to_dicts(), f"[{backend_name}]"
 
-    @pytest.mark.parametrize("backend_name", _MELT)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_melt_is_unpivot(self, backend_name, backend_factory):
         r = self._make_relation(backend_name, backend_factory)
         melt_result = sorted(r.melt(on="b", index="a").to_dicts(), key=lambda d: d["a"])
@@ -51,7 +43,7 @@ class TestRelationAliases:
         top_asc = sorted(r.top_k(2, by="a", descending=False).to_dicts(), key=lambda d: d["a"])
         assert bottom == top_asc, f"[{backend_name}]"
 
-    @pytest.mark.parametrize("backend_name", _CROSSJOIN)
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cross_join(self, backend_name, backend_factory):
         r1 = self._make_relation(backend_name, backend_factory)
         r2 = ma.relation(backend_factory.create({"c": [10, 20]}, backend_name))

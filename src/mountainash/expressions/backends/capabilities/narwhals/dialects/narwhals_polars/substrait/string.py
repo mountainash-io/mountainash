@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.declarations import DivergenceManifestation
+from mountainash.core.capabilities.declarations import ManifestationKey
+from mountainash.core.capabilities.schema import CaptureValue
+from mountainash.core.capabilities.schema import DivergenceKind
+from mountainash.core.capabilities.schema import OperationTarget
+from mountainash.core.capabilities.schema import Scenario
+
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import CapabilityKey
@@ -985,6 +992,1546 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+        ),
+    ),
+    manifestations=(
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "character",
+                            CaptureValue(tag="text", value="*"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="5"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="hi"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="center width 5 computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="marked providers reject center"),
+                    ),
+                ),
+            ),
+            impact="str.center() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for str.center().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "character",
+                            CaptureValue(tag="text", value="*"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="7"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="hi"),
+                                                CaptureValue(tag="text", value="hey"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="center width 7 computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="marked providers reject center"),
+                    ),
+                ),
+            ),
+            impact="str.center() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for str.center().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "character",
+                            CaptureValue(tag="text", value="*"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="9"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="hi"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="center width 9 computes"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="MA-STR-02"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="marked providers reject center"),
+                    ),
+                ),
+            ),
+            impact="str.center() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis SQL backend for str.center().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="s"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "s",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "s",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="  hello  "),
+                                                CaptureValue(tag="text", value=" world"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="leading-only alias trim is expected"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="directional trim strips both sides"),
+                    ),
+                ),
+            ),
+            impact="Directional trimming over-strips both ends.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for directional trimming.",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="  hello  "),
+                                                CaptureValue(tag="text", value="  world  "),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="leading-only trim is expected"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="directional trim strips both sides"),
+                    ),
+                ),
+            ),
+            impact="Directional trimming over-strips both ends.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for directional trimming.",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "count",
+                            CaptureValue(tag="integer", value="2"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="ab"),
+                                                CaptureValue(tag="text", value="cd"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-17"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="repeat count 2 differs from count 3"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-17"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="no repeat translation is wired"),
+                    ),
+                ),
+            ),
+            impact="str.repeat() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for str.repeat().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "count",
+                            CaptureValue(tag="integer", value="3"),
+                        ),
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="ab"),
+                                                CaptureValue(tag="text", value="cd"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.ENGINE_LENIENCY,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-17"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="repeat count 3 differs from count 2"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-17"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="no repeat translation is wired"),
+                    ),
+                ),
+            ),
+            impact="str.repeat() raises on the marked providers.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for str.repeat().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="1"),
+                        ),
+                        (
+                            "replacement",
+                            CaptureValue(tag="text", value="X"),
+                        ),
+                        (
+                            "start",
+                            CaptureValue(tag="integer", value="1"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="hello"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-18"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="length 1 differs from length 3"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-18"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(
+                            tag="text", value="slice arguments do not reach the backend and input is unchanged"
+                        ),
+                    ),
+                ),
+            ),
+            impact="str.replace_slice() returns input unchanged.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for str.replace_slice().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="3"),
+                        ),
+                        (
+                            "replacement",
+                            CaptureValue(tag="text", value="X"),
+                        ),
+                        (
+                            "start",
+                            CaptureValue(tag="integer", value="1"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(tag="sequence", value=(CaptureValue(tag="text", value="hello"),)),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-18"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="length 3 differs from length 1"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-18"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(
+                            tag="text", value="slice arguments do not reach the backend and input is unchanged"
+                        ),
+                    ),
+                ),
+            ),
+            impact="str.replace_slice() returns input unchanged.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for str.replace_slice().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="val"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            "length",
+                            CaptureValue(tag="integer", value="3"),
+                        ),
+                        (
+                            "replacement",
+                            CaptureValue(tag="text", value="XY"),
+                        ),
+                        (
+                            "start",
+                            CaptureValue(tag="integer", value="1"),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "val",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="hello"),
+                                                CaptureValue(tag="text", value="world"),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-18"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="replacement changes the input"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-18"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(
+                            tag="text", value="slice arguments do not reach the backend and input is unchanged"
+                        ),
+                    ),
+                ),
+            ),
+            impact="str.replace_slice() returns input unchanged.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for str.replace_slice().",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="s"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "s",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "s",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="  hello  "),
+                                                CaptureValue(tag="text", value="world "),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="trailing-only alias trim is expected"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="directional trim strips both sides"),
+                    ),
+                ),
+            ),
+            impact="Directional trimming over-strips both ends.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for directional trimming.",
+            issue=None,
+        ),
+        DivergenceManifestation(
+            key=ManifestationKey(
+                target=OperationTarget(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM),
+                scenario=Scenario(
+                    arguments=(
+                        (
+                            "input",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "column",
+                                        CaptureValue(tag="text", value="text"),
+                                    ),
+                                    (
+                                        "expression",
+                                        CaptureValue(tag="text", value="field"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    options=(),
+                    input_schema=(
+                        (
+                            "columns",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="mapping",
+                                            value=(
+                                                (
+                                                    "nullable",
+                                                    CaptureValue(tag="bool", value="false"),
+                                                ),
+                                                (
+                                                    "type",
+                                                    CaptureValue(tag="text", value="text"),
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    input_data=(
+                        (
+                            "fixture",
+                            CaptureValue(
+                                tag="mapping",
+                                value=(
+                                    (
+                                        "text",
+                                        CaptureValue(
+                                            tag="sequence",
+                                            value=(
+                                                CaptureValue(tag="text", value="  hello  "),
+                                                CaptureValue(tag="text", value="  world  "),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    execution=(
+                        (
+                            "stage",
+                            CaptureValue(
+                                tag="enum",
+                                value=(
+                                    "mountainash.core.capabilities.schema",
+                                    "EntrypointStage",
+                                    "MATERIALIZATION",
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            kind=DivergenceKind.SEMANTICS,
+            expected=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="trailing-only trim is expected"),
+                    ),
+                ),
+            ),
+            observed=CaptureValue(
+                tag="mapping",
+                value=(
+                    (
+                        "claim_status",
+                        CaptureValue(tag="text", value="historical_source_claim"),
+                    ),
+                    (
+                        "declaration",
+                        CaptureValue(tag="text", value="NW-STR-15"),
+                    ),
+                    (
+                        "statement",
+                        CaptureValue(tag="text", value="directional trim strips both sides"),
+                    ),
+                ),
+            ),
+            impact="Directional trimming over-strips both ends.",
+            since="2026-08-06",
+            workaround="Use a polars or ibis backend for directional trimming.",
+            issue=None,
         ),
     ),
 )

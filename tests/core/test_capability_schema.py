@@ -8,8 +8,6 @@ from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
-    DivergenceFact,
-    DivergenceKind,
     Enforcement,
     GapKind,
     KnownGap,
@@ -85,32 +83,6 @@ class TestKnownGap:
         new = KnownGap(gap_kind=GapKind.ASPIRATIONAL, reason="r", since=date.today().isoformat())
         assert old.is_stale(today=date.today())
         assert not new.is_stale(today=date.today())
-
-
-class TestDivergenceFact:
-    def test_construction(self):
-        d = DivergenceFact(
-            id="IB-CAST-01",
-            kind=DivergenceKind.PRECISION,
-            operation_keys=(FK_STR.LPAD,),
-            backends=("ibis-duckdb",),
-            summary="DuckDB banker's rounding on cast",
-            impact="cast(int) rounds half-to-even",
-            since="2026-07-05",
-        )
-        assert d.id == "IB-CAST-01"
-
-    def test_id_grammar_validated(self):
-        with pytest.raises(ValueError, match="id"):
-            DivergenceFact(
-                id="not a valid id",
-                kind=DivergenceKind.SEMANTICS,
-                operation_keys=(),
-                backends=("polars",),
-                summary="s",
-                impact="i",
-                since="2026-07-05",
-            )
 
 
 def test_value_class_and_option_value_are_mutually_exclusive():
