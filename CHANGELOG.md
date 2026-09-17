@@ -19,6 +19,7 @@
 - Restore capability registration for the Substrait rounding family through its explicit `rounding` domain, including option gates and gate-disabled native probes.
 - Narrow `IB-DT-09` to non-local `now()` snapshots on Ibis DuckDB/SQLite; retain passing native-Date `today()` coverage and make the remaining expected failures deterministic with a restored, fixed non-UTC test timezone.
 - Stabilize the old-log cleanup regression with a fixed same-day cutoff, preventing midnight-dependent SQLite XPASSes while retaining the strict `IB-DT-13` expectation and original result assertions.
+- Remove the optional pytest-mock fixture dependency from both fixed-clock log-filtering tests so they execute in the CI test environment.
 
 ## Unreleased — 2026-09-14
 
