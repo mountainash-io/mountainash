@@ -205,7 +205,7 @@ def validate_metadata_predicate(predicate: Predicate, protocol_method: Any) -> N
         if clause.op not in (ClauseOp.EQ, ClauseOp.IN):
             raise ValueError(f"unsupported metadata selector {clause.op}")
         values = (
-            cast(frozenset[str | int], clause.operand)
+            cast("frozenset[str | int]", clause.operand)
             if clause.op is ClauseOp.IN
             else (clause.operand,)
         )

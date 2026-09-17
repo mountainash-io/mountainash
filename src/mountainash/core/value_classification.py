@@ -93,7 +93,7 @@ def text_value(value: object) -> str | None:
         return None
     value_type = type(value)
     if value_type is str:
-        return cast(str, value)
+        return cast("str", value)
     return str(value)
 
 
@@ -124,7 +124,7 @@ def _numpy_value_kind(value: object, value_type: type[object], np: Any) -> Value
 def _is_finite_float(value: object) -> bool:
     value_type = type(value)
     if value_type is float:
-        return math.isfinite(cast(float, value))
+        return math.isfinite(cast("float", value))
     return bool(import_numpy().isfinite(value))
 
 

@@ -3,6 +3,7 @@
 ## Unreleased — 2026-09-15
 
 ### Changed
+- Upgrade Ruff to 0.16.8, preserving exact-type capability validation and runtime protocol annotation resolution while clearing source lint findings.
 - Require Python 3.12 or later and align optional files dependencies with the supported 26.8 release line.
 - Restrict source distributions to portable build inputs.
 - Replace the legacy release upload path with isolated candidate verification and separately approved PyPI Trusted Publishing of the exact verified artifacts.

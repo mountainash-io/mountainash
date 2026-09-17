@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, FrozenSet, Optional, Protocol, Literal
 
 from mountainash.core.types import ExpressionT
-from mountainash.typespec.spec import FieldSpec  # noqa: TCH002
+from mountainash.typespec.spec import FieldSpec  # noqa: TC001 - runtime get_type_hints() resolution
 
 
 class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):

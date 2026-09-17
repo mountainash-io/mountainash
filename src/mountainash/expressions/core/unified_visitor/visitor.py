@@ -519,6 +519,7 @@ class UnifiedExpressionVisitor:
         result_type, requires_null_carrier = self._conditional_result_metadata(node)
         logical_else = node.else_clause
         last_index = len(node.conditions) - 1
+        compiled_arguments: dict[int, SupportedExpressions] | None = None
         for index in range(last_index, -1, -1):
             condition, branch = node.conditions[index]
             arguments = (condition, branch, logical_else)
@@ -530,7 +531,7 @@ class UnifiedExpressionVisitor:
                 operand_types = self._required_operand_types(func_def, protocol_method, arguments)
             args = self._gate_and_resolve_args(
                 function_key, arguments, protocol_method,
-                compiled_arguments={2: current} if index != last_index and needs_binding else None,
+                compiled_arguments=compiled_arguments,
             )
             if needs_binding:
                 self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
@@ -544,6 +545,8 @@ class UnifiedExpressionVisitor:
             with self.backend.operand_types(operand_types):
                 current = self.backend.if_then_else(*args)
             if index:
+                if needs_binding:
+                    compiled_arguments = {2: current}
                 logical_else = (
                     IfThenNode(conditions=[(condition, branch)], else_clause=logical_else)
                     if needs_binding else current

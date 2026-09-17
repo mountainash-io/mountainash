@@ -96,7 +96,7 @@ def _is_pandas_native_nan(value: object, kind: ValueKind) -> bool:
         return False
     value_type = type(value)
     if value_type is float:
-        return math.isnan(cast(float, value))
+        return math.isnan(cast("float", value))
     return bool(import_numpy().isnan(value))
 
 

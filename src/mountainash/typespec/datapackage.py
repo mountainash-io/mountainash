@@ -965,7 +965,7 @@ def _validate_package_metadata(raw: Mapping[str, object]) -> None:
             _validate_metadata_models(
                 raw[key],
                 path=f"$.{key}",
-                model=cast(type[BaseModel], model),
+                model=cast("type[BaseModel]", model),
                 kind="package",
             )
 

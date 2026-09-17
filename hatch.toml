@@ -211,7 +211,7 @@ test-ci = [
 #================
 [envs.ruff]
 installer = "uv"
-dependencies = ["ruff==0.3.7"]
+dependencies = ["ruff==0.16.8"]
 [envs.ruff.scripts]
 check = "ruff check ./src"
 fix = "ruff check ./src --fix"
