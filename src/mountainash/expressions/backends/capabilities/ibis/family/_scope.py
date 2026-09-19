@@ -1,4 +1,5 @@
 """Scope-owned capability declarations; import-safe data only."""
+
 from __future__ import annotations
 
 from mountainash.core.constants import CONST_BACKEND

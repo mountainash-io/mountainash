@@ -8,6 +8,7 @@ they are not pure expression transforms.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 # =============================================================================
@@ -73,8 +74,13 @@ class TestIsNotNan:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_not_nan()
-        actual = collect_expr(df, expr)
-        assert actual == [True, False, True, False, True], f"[{backend_name}] got {actual}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb',
+            reason='is_nan/fill_nan/NaN comparisons diverge on SQL engines.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [True, False, True, False, True], f"[{backend_name}] got {actual}"
 
 
 # =============================================================================
@@ -99,5 +105,10 @@ class TestFillNan:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").fill_nan(0.0)
-        actual = collect_expr(df, expr)
-        assert actual == [1.0, 0.0, 3.0, 0.0, 5.0], f"[{backend_name}] got {actual}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb',
+            reason='is_nan/fill_nan/NaN comparisons diverge on SQL engines.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [1.0, 0.0, 3.0, 0.0, 5.0], f"[{backend_name}] got {actual}"

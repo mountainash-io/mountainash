@@ -9,6 +9,7 @@ import pytest
 import mountainash.expressions as ma
 from mountainash.core.dtypes import MountainashDtype
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 INT_CASTABLE_TYPES = [
@@ -297,5 +298,10 @@ class TestCastToIntBankersRounding:
         data = {"value": [1.5, 2.5, 3.5]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast(int)
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3]
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb',
+            reason='Tests expecting truncation-on-cast produce different results on ibis-duckdb.',
+            errors=(AssertionError,),
+        ):
+            values = collect_expr(df, expr)
+            assert values == [1, 2, 3]

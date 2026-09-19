@@ -70,6 +70,66 @@ def _param_name_for(sig_params: tuple, index: int) -> str | None:
         return sig_params[index].name
     return None
 
+class _CallOperandResolver:
+    """Resolve one call's operands without recompiling native expressions."""
+
+    def __init__(self, visitor, function_key, arguments, compiled_arguments) -> None:
+        self._visitor = visitor
+        self._function_key = function_key
+        self._arguments = arguments
+        self._compiled_arguments = compiled_arguments
+        self._native: dict[int, Any] = {}
+
+    def __len__(self) -> int:
+        return len(self._arguments)
+
+    def native(self, index: int) -> Any:
+        """Return the native operand, compiling at most once."""
+        if index not in self._native:
+            argument = self._arguments[index]
+            if self._compiled_arguments is not None and index in self._compiled_arguments:
+                value = self._compiled_arguments[index]
+            else:
+                value = (
+                    self._visitor.visit(argument)
+                    if isinstance(argument, ExpressionNode)
+                    else argument
+                )
+            self._native[index] = value
+        return self._native[index]
+
+    def raw_literal_or_native(self, index: int) -> Any:
+        """Use an ordinary literal raw; preserve every other operand as native."""
+        argument = self._arguments[index]
+        if (
+            isinstance(argument, LiteralNode)
+            and not argument.is_native
+            and not self._visitor._is_backend_expression(argument.value)
+        ):
+            return argument.value
+        return self.native(index)
+
+    def raw_literal(self, index: int, message: str) -> Any:
+        """Require a raw literal for a backend intrinsic scalar parameter."""
+        argument = self._arguments[index]
+        if not isinstance(argument, ExpressionNode):
+            return argument
+        if (
+            isinstance(argument, LiteralNode)
+            and not argument.is_native
+            and not self._visitor._is_backend_expression(argument.value)
+        ):
+            return argument.value
+        if isinstance(argument, LiteralNode):
+            self.native(index)
+        from mountainash.core.types import BackendCapabilityError
+
+        raise BackendCapabilityError(
+            message,
+            backend=self._visitor.backend.BACKEND_NAME,
+            function_key=self._function_key,
+        )
+
 
 if TYPE_CHECKING:
     from ...types import SupportedExpressions
@@ -241,76 +301,68 @@ class UnifiedExpressionVisitor:
 
         return self.backend.col(node.field)
 
-    def _gate_and_resolve_args(self, function_key, arguments, protocol_method, *, compiled_arguments=None):
-        """Per-argument capability gate (spec Section 2).
+    def _gate_and_resolve_args(
+        self,
+        function_key,
+        arguments,
+        protocol_method,
+        *,
+        method_name: str,
+        compiled_arguments=None,
+    ):
+        """Apply optional gates, then resolve through an operation companion.
 
-        LITERAL_ONLY + LiteralNode -> raw value; LITERAL_ONLY + dynamic ->
-        compile-time BackendCapabilityError; UNSUPPORTED -> immediate error;
-        POLYMORPHIC -> LiteralNode unwraps, expressions compile; default ->
-        visit normally. Only GATE facts gate here — ROUTER_METADATA is
-        consumed by a backend router and MATERIALIZE_RESIDUE enriches an
-        error raised after this returns. Precompiled operands still use their
-        original AST for capability checks without a second compilation walk.
+        Capability facts may still refuse an unsupported dynamic call.  They
+        never decide how an accepted literal is lowered: that is the category
+        companion's ordinary backend responsibility.
         """
-        from mountainash.core.capabilities import (
-            CapabilityLevel,
-            CapabilityRegistry,
-            Enforcement,
-        )
-        from mountainash.core.types import BackendCapabilityError
-
-        backend_family = self.backend.backend_type
-        dialect = getattr(self.backend, "dialect", None)
-
-        # Map node.arguments positions to protocol param names.
-        # Signature shape: (self, input, /, a, b=None, *varargs) — skip self;
-        # every index at/after a VAR_POSITIONAL param maps to its name (see
-        # module-level _param_name_for). Cached per protocol_method (stable
-        # registry object).
-        sig_params = _protocol_sig_params(protocol_method)
-
-        resolved = []
-        for i, arg in enumerate(arguments):
-            param_name = _param_name_for(sig_params, i)
-            fact = (
-                CapabilityRegistry.capability_for(function_key, param_name, backend_family, dialect)
-                if param_name is not None
-                else None
+        if self.enforce_capabilities:
+            from mountainash.core.capabilities import (
+                CapabilityLevel,
+                CapabilityRegistry,
+                Enforcement,
             )
-            if fact is not None and (fact.enforcement is not Enforcement.GATE or fact.predicate is not None):
-                fact = None  # conditional facts gate only through the collecting path
+            from mountainash.core.types import BackendCapabilityError
 
-            level = fact.level if fact is not None else CapabilityLevel.EXPR_CAPABLE
+            backend_family = self.backend.backend_type
+            dialect = getattr(self.backend, "dialect", None)
+            sig_params = _protocol_sig_params(protocol_method)
 
-            if self.enforce_capabilities and level is CapabilityLevel.UNSUPPORTED:
-                raise BackendCapabilityError(
-                    fact.message,
-                    backend=self.backend.BACKEND_NAME,
-                    function_key=function_key,
-                    limitation=fact,
+            for i, arg in enumerate(arguments):
+                param_name = _param_name_for(sig_params, i)
+                fact = (
+                    CapabilityRegistry.capability_for(function_key, param_name, backend_family, dialect)
+                    if param_name is not None
+                    else None
                 )
-            if (
-                level is CapabilityLevel.LITERAL_ONLY
-                and isinstance(arg, ExpressionNode)
-                and not isinstance(arg, LiteralNode)
-                and self.enforce_capabilities
-            ):
-                raise BackendCapabilityError(
-                    fact.message,
-                    backend=self.backend.BACKEND_NAME,
-                    function_key=function_key,
-                    limitation=fact,
-                )
-            if (
-                (level is CapabilityLevel.LITERAL_ONLY or level is CapabilityLevel.POLYMORPHIC)
-                and isinstance(arg, LiteralNode)
-            ):
-                resolved.append(arg.value)
-            elif compiled_arguments is not None and i in compiled_arguments:
-                resolved.append(compiled_arguments[i])
-            else:
-                resolved.append(self.visit(arg) if isinstance(arg, ExpressionNode) else arg)
-        return resolved
+                if fact is None or fact.enforcement is not Enforcement.GATE or fact.predicate is not None:
+                    continue
+                if fact.level is CapabilityLevel.UNSUPPORTED or (
+                    fact.level is CapabilityLevel.LITERAL_ONLY
+                    and isinstance(arg, ExpressionNode)
+                    and not isinstance(arg, LiteralNode)
+                ):
+                    raise BackendCapabilityError(
+                        fact.message,
+                        backend=self.backend.BACKEND_NAME,
+                        function_key=function_key,
+                        limitation=fact,
+                    )
+
+        prepared = self.backend.prepare_call_arguments(
+            method_name, _CallOperandResolver, self,
+            function_key, arguments, compiled_arguments,
+        )
+        if prepared is not None:
+            return prepared
+        return [
+            compiled_arguments[i]
+            if compiled_arguments is not None and i in compiled_arguments
+            else self.visit(argument)
+            if isinstance(argument, ExpressionNode)
+            else argument
+            for i, argument in enumerate(arguments)
+        ]
 
     def _bound_call(self, function_key, protocol_method, arguments, options):
         from mountainash.core.capabilities.predicates import bind_expression_call
@@ -340,6 +392,7 @@ class UnifiedExpressionVisitor:
                 backend=self.backend.BACKEND_NAME,
                 function_key=bound.operation_key,
                 limitation=ordered[0],
+                candidate_fact_keys=tuple(fact.fact_key for fact in ordered),
             )
 
     def _gate_operation(self, function_key) -> None:
@@ -454,7 +507,9 @@ class UnifiedExpressionVisitor:
         self._gate_operation(node.function_key)
 
         operand_types = self._required_operand_types(func_def, protocol_method, node.arguments)
-        args = self._gate_and_resolve_args(node.function_key, node.arguments, protocol_method)
+        args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method, method_name=method_name
+        )
         from ..expression_system.function_keys.enums import (
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
         )
@@ -530,7 +585,10 @@ class UnifiedExpressionVisitor:
                 self._gate_operation(function_key)
                 operand_types = self._required_operand_types(func_def, protocol_method, arguments)
             args = self._gate_and_resolve_args(
-                function_key, arguments, protocol_method,
+                function_key,
+                arguments,
+                protocol_method,
+                method_name="if_then_else",
                 compiled_arguments=compiled_arguments,
             )
             if needs_binding:
@@ -554,26 +612,46 @@ class UnifiedExpressionVisitor:
         return self._normalize_if_then_result(current, result_type, requires_null_carrier)
 
     def _conditional_result_metadata(self, node: IfThenNode) -> tuple[Any, bool]:
-        """Read only metadata an enclosing type-sensitive call already required."""
+        """Use declared metadata only for an uncached null-carrier conditional."""
+        branches = [result for _, result in node.conditions] + [node.else_clause]
         result_type = self.type_context.cached_native(node)
         if result_type is None:
-            return None, False
-        branches = [result for _, result in node.conditions] + [node.else_clause]
+            if not self.type_context.active or not any(
+                self.type_context.is_null_scalar(branch) for branch in branches
+            ):
+                return None, False
+            result_type = self.type_context.resolve_declared_native(node)
+            if result_type is None:
+                return None, False
         branch_types = [self.type_context.cached_native(branch) for branch in branches]
         has_literal_null = any(
-            branch_type is not None and branch_type.descriptor.logical_kind == "null" for branch_type in branch_types
+            branch_type is not None
+            and branch_type.descriptor.logical_kind == "null"
+            for branch_type in branch_types
         )
-        storages = {branch_type.descriptor.storage_kind for branch_type in branch_types if branch_type is not None}
-        has_nullable_storage = bool({"pandas_nullable", "pandas_arrow"}.intersection(storages))
+        storages = {
+            branch_type.descriptor.storage_kind
+            for branch_type in branch_types
+            if branch_type is not None
+        }
+        has_nullable_storage = bool(
+            {"pandas_nullable", "pandas_arrow"}.intersection(storages)
+        )
         concrete = [
             branch_type
             for branch_type in branch_types
-            if branch_type is not None and branch_type.descriptor.logical_kind != "null"
+            if branch_type is not None
+            and branch_type.descriptor.logical_kind != "null"
         ]
         different_dtypes = bool(concrete) and any(
-            branch_type.native_dtype != concrete[0].native_dtype for branch_type in concrete[1:]
+            branch_type.native_dtype != concrete[0].native_dtype
+            for branch_type in concrete[1:]
         )
-        requires_null_carrier = has_literal_null or different_dtypes or (has_nullable_storage and len(storages) > 1)
+        requires_null_carrier = (
+            has_literal_null
+            or different_dtypes
+            or (has_nullable_storage and len(storages) > 1)
+        )
         return result_type, requires_null_carrier
 
     def _normalize_conditional_branch(
@@ -631,7 +709,9 @@ class UnifiedExpressionVisitor:
         self._gate_predicate_violations(bound, phase="raw")
         self._gate_operation(function_key)
         operand_types = self._required_operand_types(func_def, protocol_method, arguments)
-        args = self._gate_and_resolve_args(function_key, arguments, protocol_method)
+        args = self._gate_and_resolve_args(
+            function_key, arguments, protocol_method, method_name="cast"
+        )
         self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
         self._gate_options(function_key, options)
         with self.backend.operand_types(operand_types):
@@ -653,6 +733,7 @@ class UnifiedExpressionVisitor:
             FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
             (node.value, *node.options),
             protocol_method,
+            method_name="is_in",
         )
         return self.backend.is_in(value_expr, *options)
 
@@ -701,7 +782,9 @@ class UnifiedExpressionVisitor:
         self._gate_predicate_violations(bound, phase="raw")
         self._gate_operation(node.function_key)
         operand_types = self._required_operand_types(func_def, protocol_method, node.arguments, options)
-        compiled_args = self._gate_and_resolve_args(node.function_key, node.arguments, protocol_method)
+        compiled_args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method, method_name=method_name
+        )
         self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
         self._gate_options(node.function_key, options)
         if order_node is not None:

@@ -88,6 +88,71 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
     - Pattern: like, regexp_match_substring, regexp_replace, regexp_strpos
     - Split: string_split, regexp_string_split, string_agg
     """
+    def _prepare_call_lpad(self, operands):
+        prepared = [operands.native(0), operands.native(1)]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Polars padding characters must be literals")
+            )
+        return prepared
+
+    def _prepare_call_rpad(self, operands):
+        prepared = [operands.native(0), operands.native(1)]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Polars padding characters must be literals")
+            )
+        return prepared
+
+    def _prepare_call_center(self, operands):
+        prepared = [
+            operands.native(0),
+            operands.raw_literal(1, "Polars center length must be a literal"),
+        ]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Polars center padding character must be a literal")
+            )
+        return prepared
+
+    def _prepare_call_replace_slice(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Polars slice start must be a literal"),
+            operands.raw_literal(2, "Polars slice length must be a literal"),
+            operands.raw_literal(3, "Polars slice replacement must be a literal"),
+        ]
+
+    def _prepare_literal_pattern(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Polars replacement patterns must be literals"),
+        ] + [operands.native(index) for index in range(2, len(operands))]
+
+    def _prepare_call_replace(self, operands):
+        return self._prepare_literal_pattern(operands)
+
+    def _prepare_call_regexp_replace(self, operands):
+        return self._prepare_literal_pattern(operands)
+
+    def _prepare_call_repeat(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Polars repeat count must be a literal"),
+        ]
+
+    def _prepare_call_like(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Polars LIKE pattern must be a literal"),
+        ]
+
+    def _prepare_call_regexp_string_split(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Polars regex split pattern must be a literal"),
+        ]
+
 
     # =========================================================================
     # Case Transformation Operations
@@ -103,11 +168,20 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Polars).
+            char_set: Omit it or use UTF8 for native Polars behavior.
 
         Returns:
             Lowercase string.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports UTF8 char_set. Omit char_set or use UTF8 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
+            )
         return input.str.to_lowercase()
 
     def upper(
@@ -120,11 +194,20 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Polars).
+            char_set: Omit it or use UTF8 for native Polars behavior.
 
         Returns:
             Uppercase string.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports UTF8 char_set. Omit char_set or use UTF8 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
+            )
         return input.str.to_uppercase()
 
     def swapcase(
@@ -137,7 +220,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Polars).
+            char_set: Omit it or use UTF8 for native Polars behavior.
 
         Returns:
             String with swapped case.
@@ -148,6 +231,15 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         """
         # Polars doesn't have swapcase, use a workaround
         # This is a simplification - full implementation would need UDF
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports UTF8 char_set. Omit char_set or use UTF8 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+            )
         return input.map_elements(
             lambda s: s.swapcase() if s is not None else None,
             return_dtype=pl.String,
@@ -163,7 +255,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Polars).
+            char_set: Omit it or use UTF8 for native Polars behavior.
 
         Returns:
             String with first character capitalized.
@@ -171,6 +263,15 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Note:
             Polars doesn't have native capitalize. We use map_elements.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports UTF8 char_set. Omit char_set or use UTF8 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+            )
         return input.map_elements(
             lambda s: s.capitalize() if s is not None else None,
             return_dtype=pl.String,
@@ -186,7 +287,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Polars).
+            char_set: Omit it or use UTF8 for native Polars behavior.
 
         Returns:
             Title-cased string.
@@ -195,6 +296,15 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             Polars has str.to_titlecase() which capitalizes all words.
             Substrait's title() excludes articles - this is a simplification.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports UTF8 char_set. Omit char_set or use UTF8 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+            )
         return input.str.to_titlecase()
 
     def initcap(
@@ -209,11 +319,20 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Polars).
+            char_set: Omit it or use UTF8 for native Polars behavior.
 
         Returns:
             String with each word capitalized.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports UTF8 char_set. Omit char_set or use UTF8 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+            )
         return input.str.to_titlecase()
 
     # =========================================================================
@@ -331,11 +450,20 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             input: String expression.
             length: Target length.
             character: Single padding character (default: space).
-            padding: Which side gets extra padding (ignored).
+            padding: Omit for Python str.center behavior; explicit directions are unsupported.
 
         Returns:
             Centered string.
         """
+        if padding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars center uses Python str.center padding; explicit LEFT/RIGHT padding is not implemented.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+            )
         char = " " if character is None else str(character)
         target_len = int(length)
         return input.map_elements(
@@ -361,11 +489,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             input: String expression.
             start: Starting position (0-indexed for API consistency).
             length: Length of substring.
-            negative_start: How to handle negative start values.
+            negative_start: Omit it or use WRAP_FROM_END for native Polars behavior.
 
         Returns:
             Substring expression.
         """
+        if negative_start not in (None, "WRAP_FROM_END"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports WRAP_FROM_END negative_start. Omit it or use WRAP_FROM_END for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            )
+
         if length is None:
             return input.str.slice(start)
         return input.str.slice(start, length)
@@ -494,11 +632,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             substring: Substring to search for (expression or literal).
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
 
         Returns:
             Integer expression (1-indexed, 0 = not found).
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+            )
+
         return input.str.find(substring).fill_null(-1) + 1
 
     def count_substring(
@@ -513,7 +661,7 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             substring: Substring to count (expression or literal).
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
 
         Returns:
             Integer expression. A null substring short-circuits to a null
@@ -527,6 +675,16 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             Matches the null-propagation convention count_substring's
             Ibis/Narwhals implementations use for the same input (item 78).
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+            )
+
         return input.str.count_matches(substring.cast(pl.Utf8), literal=True)
 
     # =========================================================================
@@ -626,11 +784,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             input: String expression.
             substring: Substring to replace.
             replacement: Replacement string.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
 
         Returns:
             String with replacements.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            )
+
         return input.str.replace_all(substring, replacement, literal=True)
 
     def repeat(
@@ -681,11 +849,21 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             match: SQL LIKE pattern.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
 
         Returns:
             Boolean expression.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+            )
+
         pattern_str = str(match)
         # Convert SQL LIKE pattern to regex
         # Use placeholders to avoid conflicts during escaping
@@ -712,16 +890,61 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             pattern: Regex pattern.
-            position: Starting position (ignored in basic impl).
-            occurrence: Which occurrence (ignored in basic impl).
+            position: Omit it or use 1 for native Polars behavior.
+            occurrence: Omit it or use 1 for native Polars behavior.
             group: Capture group number.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
+            multiline: Omit it or use MULTILINE_DISABLED for native Polars behavior.
+            dotall: Omit it or use DOTALL_DISABLED for native Polars behavior.
 
         Returns:
             Matched substring or null.
         """
+        if position not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports position 1. Omit position or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            )
+        if occurrence not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports occurrence 1. Omit occurrence or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            )
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            )
+        if multiline not in (None, "MULTILINE_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports MULTILINE_DISABLED multiline. Omit it or use MULTILINE_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            )
+        if dotall not in (None, "DOTALL_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports DOTALL_DISABLED dotall. Omit it or use DOTALL_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            )
         # group is a raw int|None option (arguments-vs-options.md); no Expr to guard.
         group_index = 0 if group is None else group
         return input.str.extract(pattern, group_index=group_index)
@@ -742,15 +965,60 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             pattern: Regex pattern.
-            position: Starting position.
-            group: Capture group number.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            position: Omit it or use 1 for native Polars behavior.
+            group: Omit it or use 0 for native Polars behavior.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
+            multiline: Omit it or use MULTILINE_DISABLED for native Polars behavior.
+            dotall: Omit it or use DOTALL_DISABLED for native Polars behavior.
 
         Returns:
             List of matched substrings.
         """
+        if position not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports position 1. Omit position or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            )
+        if group not in (None, 0):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports group 0. Omit group or use 0 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            )
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            )
+        if multiline not in (None, "MULTILINE_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports MULTILINE_DISABLED multiline. Omit it or use MULTILINE_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            )
+        if dotall not in (None, "DOTALL_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports DOTALL_DISABLED dotall. Omit it or use DOTALL_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            )
         return input.str.extract_all(pattern)
 
     def regexp_strpos(
@@ -769,15 +1037,60 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             pattern: Regex pattern.
-            position: Starting position.
-            occurrence: Which occurrence.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            position: Omit it or use 1 for native Polars behavior.
+            occurrence: Omit it or use 1 for native Polars behavior.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
+            multiline: Omit it or use MULTILINE_DISABLED for native Polars behavior.
+            dotall: Omit it or use DOTALL_DISABLED for native Polars behavior.
 
         Returns:
             Position (1-indexed), or 0 if not found.
         """
+        if position not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports position 1. Omit position or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            )
+        if occurrence not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports occurrence 1. Omit occurrence or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            )
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            )
+        if multiline not in (None, "MULTILINE_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports MULTILINE_DISABLED multiline. Omit it or use MULTILINE_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            )
+        if dotall not in (None, "DOTALL_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports DOTALL_DISABLED dotall. Omit it or use DOTALL_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            )
         # Polars doesn't have direct regex position, use find with regex
         return (input.str.find(pattern, literal=False) + 1).fill_null(0)
 
@@ -796,14 +1109,50 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             pattern: Regex pattern.
-            position: Starting position.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            position: Omit it or use 1 for native Polars behavior.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
+            multiline: Omit it or use MULTILINE_DISABLED for native Polars behavior.
+            dotall: Omit it or use DOTALL_DISABLED for native Polars behavior.
 
         Returns:
             Count of matches.
         """
+        if position not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports position 1. Omit position or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            )
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            )
+        if multiline not in (None, "MULTILINE_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports MULTILINE_DISABLED multiline. Omit it or use MULTILINE_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            )
+        if dotall not in (None, "DOTALL_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports DOTALL_DISABLED dotall. Omit it or use DOTALL_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            )
         return input.str.count_matches(pattern, literal=False)
 
     def regexp_replace(
@@ -824,15 +1173,60 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
             input: String expression.
             pattern: Regex pattern.
             replacement: Replacement string.
-            position: Starting position.
-            occurrence: Which occurrence (0 = all).
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            position: Omit it or use 1 for native Polars behavior.
+            occurrence: Omit it, use 0 to replace all, or use 1 to replace the first match.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
+            multiline: Omit it or use MULTILINE_DISABLED for native Polars behavior.
+            dotall: Omit it or use DOTALL_DISABLED for native Polars behavior.
 
         Returns:
             String with replacements.
         """
+        if position not in (None, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports position 1. Omit position or use 1 for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
+        if occurrence not in (None, 0, 1):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports occurrence 0 or 1. Omit occurrence, use 0 to replace all, or use 1 to replace the first match.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
+        if multiline not in (None, "MULTILINE_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports MULTILINE_DISABLED multiline. Omit it or use MULTILINE_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
+        if dotall not in (None, "DOTALL_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports DOTALL_DISABLED dotall. Omit it or use DOTALL_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
         # If occurrence is 0 or None, replace all
         if occurrence is None or occurrence == 0:
             return input.str.replace_all(pattern, replacement, literal=False)
@@ -874,23 +1268,46 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Args:
             input: String expression.
             pattern: Regex pattern for separator.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            case_sensitivity: Omit it or use CASE_SENSITIVE for native Polars behavior.
+            multiline: Omit it or use MULTILINE_DISABLED for native Polars behavior.
+            dotall: Omit it or use DOTALL_DISABLED for native Polars behavior.
 
         Returns:
             List of strings.
 
         Note:
             Polars has no native regex-split primitive (str.split/
-            split_exact/splitn are literal-substring-only) -- falls back to
-            map_elements with a capture-group-safe split helper, mirroring
-            this file's established pattern for other missing primitives
-            (swapcase/capitalize/center/replace_slice/repeat). `pattern`
-            must be a literal -- gated via a LITERAL_ONLY CapabilityFact
-            (PL-STR-04); the visitor rejects a dynamic argument before this
-            method is ever called with one.
+            split_exact/splitn are literal-substring-only), so this method
+            uses map_elements with a capture-group-safe split helper. Pattern
+            preparation requires a literal before this method is called.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports CASE_SENSITIVE case_sensitivity. Omit it or use CASE_SENSITIVE for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+            )
+        if multiline not in (None, "MULTILINE_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports MULTILINE_DISABLED multiline. Omit it or use MULTILINE_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+            )
+        if dotall not in (None, "DOTALL_DISABLED"):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
+
+            raise BackendCapabilityError(
+                "Polars only supports DOTALL_DISABLED dotall. Omit it or use DOTALL_DISABLED for native Polars behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+            )
         return input.map_elements(
             lambda s: _regexp_split_excluding_groups(pattern, s),
             return_dtype=pl.List(pl.String),

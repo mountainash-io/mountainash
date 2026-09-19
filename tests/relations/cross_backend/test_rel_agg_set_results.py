@@ -12,6 +12,8 @@ import mountainash as ma
 from mountainash.relations.schema_inference import infer_schema
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -215,19 +217,15 @@ class TestUnaliasedMeasureNameParity:
     the full assertion under a strict xfail marker so an upstream naming
     convergence surfaces as a hard XPASS failure."""
 
-    def test_unaliased_measure_name_parity_with_runtime(self, backend_name, backend_factory, request):
-        if backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"):
-            request.applymarker(
-                pytest.mark.xfail(
-                    strict=True,
-                    reason=(
-                        "Ibis names un-aliased measures from expr repr (e.g. "
-                        "'Sum(v)'), not the source column — see "
-                        "known-divergences.md #18"
-                    ),
-                )
-            )
+    def test_unaliased_measure_name_parity_with_runtime(self, backend_name, backend_factory):
         df = backend_factory.create({"k": ["a", "a", "b"], "v": [1, 2, 3]}, backend_name)
         rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
         inferred = infer_schema(rel._node, None)
-        assert set(inferred.keys()) == set(rel.to_polars().columns)
+        with expect_call_failure(
+            when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
+            errors=(AssertionError,),
+            reason=(
+                "Inferred schemas and Ibis runtime output names can disagree"
+            ),
+        ):
+            assert set(inferred.keys()) == set(rel.to_polars().columns)

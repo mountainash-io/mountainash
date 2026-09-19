@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.backends.expression_systems.narwhals.base import _identify_native_issue
 from mountainash.relations.backends.relation_systems.base import BaseRelationSystem
 
 
@@ -10,6 +11,7 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
     """Base mixin that identifies this relation system as Narwhals."""
 
     BACKEND_NAME = "narwhals"
+    identify_native_issue = staticmethod(_identify_native_issue)
 
     @property
     def backend_type(self) -> CONST_BACKEND:

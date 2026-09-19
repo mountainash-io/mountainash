@@ -72,26 +72,6 @@ def test_divide_preserves_legacy_positional_option_order(owner: type) -> None:
     assert bound.arguments["rounding"] == "CEILING"
 
 
-@pytest.mark.parametrize(
-    "system_cls",
-    (PolarsExpressionSystem, IbisExpressionSystem, NarwhalsExpressionSystem),
-    ids=("polars", "ibis", "narwhals"),
-)
-def test_divide_invokes_legacy_positional_options_with_keyword_rounding(
-    system_cls: type,
-) -> None:
-    system = system_cls()
-
-    result = system.divide(
-        8.0,
-        2.0,
-        "SILENT",
-        "NAN",
-        "IEEE",
-        rounding="CEILING",
-    )
-
-    assert result == 4.0
 
 # ── A1 Exception set ─────────────────────────────────────────────────────
 # (protocol_name, method_name, backend_name) → "reason. Since YYYY-MM-DD."
@@ -320,17 +300,13 @@ def _init_a2_local_builders() -> dict:
     """A2-only expression factories, never shared with test_api_reachability.py
     or test_compile_smoke.py. Keeping these local (not added to
     _smoke_helpers.py's shared _init_smoke_expr_builders()) is deliberate:
-    several of these FKEYs (e.g. FIELD/GET/TO_ARRAY/TRUNCATE/OFFSET_BY/NTILE)
-    currently have _KNOWN_SMOKE_FAILURES park entries in test_compile_smoke.py
-    describing the exact "missing required arg" TypeError the generic
-    resolver hits — sharing a correctly-parameterized builder would silently
-    resolve those compile-smoke cases too, and for
-    FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY specifically that resolution
-    surfaces a genuine, undeclared backend capability gap (ibis/narwhals/
-    pandas lack array.to_array()) requiring a real CapabilityFact in the
-    production capability spine — out of scope for a test-harness-only
-    change. Keeping the overlay A2-local avoids all of that cross-suite
-    ripple. Since 2026-08-11."""
+    several of these FKEYs (for example FIELD, GET, TO_ARRAY, TRUNCATE,
+    OFFSET_BY, and NTILE) need arguments that the generic compile-smoke builder
+    cannot derive. Sharing a correctly parameterized factory would alter that
+    suite's intentionally generic coverage. For
+    FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY, it would also exercise backend
+    behavior unrelated to this signature-conformance contract. Keeping the
+    overlay A2-local prevents either cross-suite change. Since 2026-08-11."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,

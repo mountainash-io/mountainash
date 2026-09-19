@@ -7,7 +7,11 @@ import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
+from ibis.common.exceptions import UnsupportedBackendType
+
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 
 # ALL_BACKENDS = [
@@ -104,27 +108,47 @@ class TestRelationConformStructStrictModes:
     the struct ROOT and actually extract the nested field at runtime."""
 
     def test_equal_dotted_source_extracts(self, backend_name, backend_factory):
-        df = backend_factory.create({"payload": [{"id": 1}, {"id": 2}]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
+        ):
+            df = backend_factory.create({"payload": [{"id": 1}, {"id": 2}]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
             fields_match="equal",
         )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert result["pid"].to_list() == [1, 2]
+        with expect_call_failure(
+            when=backend_name in ("narwhals-pandas", "pandas"),
+            errors=(TypeError,),
+            reason="conform() with a dotted struct source path raises TypeError on pandas/narwhals-pandas; polars and ibis native structured backends extract it",
+        ):
+            result = ma.relation(df).conform(spec).to_polars()
+            assert result["pid"].to_list() == [1, 2]
 
     def test_subset_dotted_source_extracts_with_extra_column(self, backend_name, backend_factory):
-        df = backend_factory.create({"payload": [{"id": 1}, {"id": 2}], "other": ["x", "y"]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
+        ):
+            df = backend_factory.create({"payload": [{"id": 1}, {"id": 2}], "other": ["x", "y"]}, backend_name)
         spec = TypeSpec(
             fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
             fields_match="subset",
         )
-        result = ma.relation(df).conform(spec).to_polars()
-        assert result["pid"].to_list() == [1, 2]
-        # Subset is a select mode: only spec fields are emitted — the extra
-        # unmapped column is allowed in the INPUT (that's subset's point)
-        # but discarded from the OUTPUT.
-        assert list(result.columns) == ["pid"]
-        assert "other" not in result.columns
+        with expect_call_failure(
+            when=backend_name in ("narwhals-pandas", "pandas"),
+            errors=(TypeError,),
+            reason="conform() with a dotted struct source path raises TypeError on pandas/narwhals-pandas; polars and ibis native structured backends extract it",
+        ):
+            result = ma.relation(df).conform(spec).to_polars()
+            assert result["pid"].to_list() == [1, 2]
+            # Subset is a select mode: only spec fields are emitted — the extra
+            # unmapped column is allowed in the INPUT (that's subset's point)
+            # but discarded from the OUTPUT.
+            assert list(result.columns) == ["pid"]
+            assert "other" not in result.columns
 
 
 _STRUCT_CAST = [
@@ -142,7 +166,12 @@ class TestRelationConformStructCastOffPolars:
     """Struct conform lowers through the backend-neutral struct operation."""
 
     def test_struct_cast_uses_neutral_operation(self, backend_name, backend_factory):
-        df = backend_factory.create({"addr": [{"street": "Main St", "zip": "12345"}]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
+        ):
+            df = backend_factory.create({"addr": [{"street": "Main St", "zip": "12345"}]}, backend_name)
         spec = TypeSpec(
             fields_match="open",
             fields=[

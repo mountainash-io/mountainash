@@ -1,7 +1,7 @@
 """Input-authoritative dialect gating for the capability gate (item 95).
 
 _gate_capabilities keys its dialect-scoped lookup off the visitor's anchor
-dialect, so a GATE fact scoped to an operation's authoritative (left) input
+dialect, so a GATE policy scoped to an operation's authoritative (left) input
 dialect fires against the wrong string. This item resolves the authoritative
 input dialect recursively.
 
@@ -16,13 +16,16 @@ import polars as pl
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities import (
-    CapabilityFact,
-    CapabilityLevel,
-    CapabilityRegistry,
-    Enforcement,
-    WILDCARD_PARAM,
+from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.declarations import (
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
 )
+from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND, SetType
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import (
@@ -43,24 +46,24 @@ def _nw_pandas(data: dict):
 
 
 @pytest.fixture
-def _narwhals_pandas_filter_gate_fact():
+def _narwhals_pandas_filter_gate_policy():
+    scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
+    policy = CapabilityPolicyRule(
+        key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+        level=CapabilityLevel.UNSUPPORTED,
+        since="2026-09-18",
+        message="test-only BUILD-time gate for narwhals-pandas filter",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+    )
     snap = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_backend(
-            CONST_BACKEND.NARWHALS,
-            [
-                CapabilityFact(
-                    operation_key=RKEY_SUBSTRAIT_REL.FILTER,
-                    param=WILDCARD_PARAM,
-                    level=CapabilityLevel.UNSUPPORTED,
-                    backend=CONST_BACKEND.NARWHALS,
-                    dialect="narwhals-pandas",
-                    since="2026-08-14",
-                    message="test-only BUILD-time gate for narwhals-pandas filter",
-                    enforcement=Enforcement.GATE,
-                )
-            ],
-        )
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.relations.backends.capabilities.narwhals.dialects."
+            "narwhals_pandas.substrait.relation.test_rel_authoritative_dialect_gating_filter",
+            scope,
+            CapabilitySegment(Domain.RELATION, policies=(policy,)),
+        ))
         yield
     finally:
         CapabilityRegistry.restore(snap)
@@ -68,7 +71,7 @@ def _narwhals_pandas_filter_gate_fact():
 
 class TestInlineOperandDialectGate:
     def test_filter_gate_fires_on_inline_left_operand_dialect(
-        self, _narwhals_pandas_filter_gate_fact
+        self, _narwhals_pandas_filter_gate_policy
     ):
         # Anchor is narwhals-polars (a_polars is alphabetically first); the
         # Filter is INLINE in the target tree (not a separately-compiled dep),
@@ -87,25 +90,33 @@ class TestInlineOperandDialectGate:
 
 
 class TestAuthoritativeDialectCases:
-    def test_gate_does_not_fire_when_left_matches_anchor(self, _narwhals_pandas_filter_gate_fact):
+    def test_gate_does_not_fire_when_left_matches_anchor(
+        self, _narwhals_pandas_filter_gate_policy
+    ):
         dag = RelationDAG()
         dag.add("a_polars", ma.relation(_nw_polars({"k": [1, 2]})))
         dag.add("z_polars2", ma.relation(_nw_polars({"k": [1, 2]})))
         dag.add("target", dag.ref("z_polars2").filter(ma.col("k") > 0).join(dag.ref("a_polars"), on="k"))
-        dag.collect("target")   # narwhals-pandas fact must NOT fire
+        dag.collect("target")   # narwhals-pandas policy must NOT fire
 
     def test_join_gate_fires_on_left_operand_dialect(self):
+        scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
+        policy = CapabilityPolicyRule(
+            key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-09-18",
+            message="join gate on narwhals-pandas",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+        )
         snap = CapabilityRegistry.snapshot()
         try:
-            CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, [
-                CapabilityFact(
-                    operation_key=RKEY_SUBSTRAIT_REL.JOIN, param=WILDCARD_PARAM,
-                    level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
-                    dialect="narwhals-pandas", since="2026-08-14",
-                    enforcement=Enforcement.GATE,
-                    message="join gate on narwhals-pandas",
-                )
-            ])
+            CapabilityRegistry.register_segment(BoundSegment(
+                "mountainash.relations.backends.capabilities.narwhals.dialects."
+                "narwhals_pandas.substrait.relation.test_rel_authoritative_dialect_gating_join",
+                scope,
+                CapabilitySegment(Domain.RELATION, policies=(policy,)),
+            ))
             dag = RelationDAG()
             dag.add("a_polars", ma.relation(_nw_polars({"k": [1, 2]})))
             dag.add("z_pandas", ma.relation(_nw_pandas({"k": [1, 2]})))

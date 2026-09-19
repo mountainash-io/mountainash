@@ -17,6 +17,8 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 
 import pytest
 import mountainash.expressions as ma
+from duckdb.duckdb import ParserException
+from fixtures.call_expectations import expect_call_failure
 
 
 # Ternary constant values for raw sentinel assertions
@@ -1015,13 +1017,18 @@ class TestTernaryXorParityCoercion:
 
         # xor_parity: True if odd number of operands are True
         expr = ma.col("a").t_gt(70).xor_parity(ma.col("b").eq(True), ma.col("c").eq(True))
-        backend_expr = expr.compile(df)
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb',
+            reason='Chained boolean parity via xor diverges on ibis-duckdb',
+            errors=(ParserException,),
+        ):
+            backend_expr = expr.compile(df)
 
-        values = select_and_extract(df, backend_expr, "result", backend_name)
+            values = select_and_extract(df, backend_expr, "result", backend_name)
 
-        # Row 0: is_true(TRUE)=True, True, True -> 3 Trues (odd) -> True
-        # Row 1: is_true(UNKNOWN)=False, True, False -> 1 True (odd) -> True
-        # Row 2: is_true(FALSE)=False, True, True -> 2 Trues (even) -> False
-        assert values[0] is True, f"[{backend_name}] 3 Trues (odd)"
-        assert values[1] is True, f"[{backend_name}] 1 True (odd)"
-        assert values[2] is False, f"[{backend_name}] 2 Trues (even)"
+            # Row 0: is_true(TRUE)=True, True, True -> 3 Trues (odd) -> True
+            # Row 1: is_true(UNKNOWN)=False, True, False -> 1 True (odd) -> True
+            # Row 2: is_true(FALSE)=False, True, True -> 2 Trues (even) -> False
+            assert values[0] is True, f"[{backend_name}] 3 Trues (odd)"
+            assert values[1] is True, f"[{backend_name}] 1 True (odd)"
+            assert values[2] is False, f"[{backend_name}] 2 Trues (even)"

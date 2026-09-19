@@ -21,30 +21,12 @@ def _load():
     return mod
 
 
-def test_collect_protocol_alignment_returns_entries():
-    mod = _load()
-    gaps = mod.collect_protocol_alignment()
-    assert len(gaps) > 0
-    g = gaps[0]
-    assert g.protocol_name
-    assert g.method_name
-    assert g.reason
-    assert g.since
-
-
-def test_collect_kel_entries_returns_entries_for_each_backend():
-    mod = _load()
-    entries = mod.collect_kel_entries()
-    assert len(entries) > 0
-    backends_found = {e.backend for e in entries}
-    assert "polars" in backends_found
-    assert "narwhals" in backends_found
-    assert "ibis" in backends_found
-    e = entries[0]
-    assert e.op_name
-    assert e.param_name
-    assert e.message
-    assert e.est_cases > 0
+def test_collect_kel_entries_reports_public_argument_restrictions_not_protections():
+    entries = _load().collect_kel_entries()
+    identities = {(entry.backend, entry.op_name, entry.param_name) for entry in entries}
+    assert ("polars", "replace", "substring") in identities
+    assert ("ibis-duckdb", "parse_xsd_duration", "*") not in identities
+    assert ("polars", "regexp_replace", "position") not in identities
 
 
 def test_collect_kel_entries_refuses_isolated_registry():
@@ -98,16 +80,6 @@ def test_collect_kel_entries_keeps_captured_generation_after_reset_restore(
         else:
             entries = mod.collect_kel_entries()
             assert entries == expected
-            assert (
-                mod.KelGap(
-                    backend="polars",
-                    op_name="replace",
-                    param_name="substring",
-                    message="Polars does not support dynamic column patterns in str.replace",
-                    est_cases=2,
-                )
-                in entries
-            )
     finally:
         CapabilityRegistry.restore(snapshot)
 

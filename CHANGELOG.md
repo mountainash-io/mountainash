@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 2026-09-19
+
+### Changed
+- Separate descriptive capability information from explicit concrete-dialect protection policies; family descriptions compose with their original identity and provenance, without executable inheritance.
+- Move required argument preparation, validation and intrinsic backend refusals into backend implementations, independent of catalogue descriptions and optional protections.
+- Publish information and policy atomically; reject ambiguous competing policies instead of resolving them through specificity or registration order.
+- Extract capability-owned scenarios and observer bindings into ordinary tests, remove their production schemas and the unused routing-metadata accessor, and migrate coverage/divergence/drift reports to descriptive information and separately owned examples.
+
+### Fixed
+- Keep coverage-report source provenance as SHA-256 digests rather than repeatedly embedding complete source files; immutable source captures remain unchanged.
+
 ## Unreleased — 2026-09-17
 
 ### Changed

@@ -4,7 +4,7 @@ Acceptance criteria (from task-6 brief):
   * cross-backend: definite ``[1,-1]`` on array cols (polars, ibis)
   * null list row → UNKNOWN(0)
   * ``t_col`` unknown-sentinel needle → UNKNOWN
-  * narwhals asserts the declared NW-LIST-01 outcome (BackendCapabilityError)
+  * narwhals dynamically supplied membership items are rejected at the backend boundary
   * classification (§12.3): ``node.is_ternary`` True; default compile booleanizes;
     ``booleanizer=None`` gives ``-1/0/1``; composes with ``t_and``/``t_or`` WITHOUT
     a spurious ``TO_TERNARY`` wrapper
@@ -30,8 +30,7 @@ T_FALSE = -1
 
 
 # Backends that support list/array columns. Polars + ibis-duckdb are the
-# references for this op; narwhals is gated by the NW-LIST-01 wildcard fact
-# (whole-op BackendCapabilityError at compile time).
+# references for this operation.
 LIST_T_CONTAINS_BACKENDS = ["polars", "polars-lazy", "ibis-duckdb"]
 
 
@@ -292,29 +291,25 @@ class TestListTContainsCrossBackend:
 
 
 # ============================================================================
-# Narwhals — NW-LIST-01 item gate & execution
+# Narwhals — dynamic item refusal and literal execution
 # ============================================================================
 
 
 @pytest.mark.parametrize("backend_name", ["narwhals-polars"])
-class TestListTContainsNarwhalsGate:
-    """``list.t_contains`` item expression argument is gated on narwhals (NW-LIST-01)."""
+class TestListTContainsNarwhals:
+    """Narwhals rejects dynamic list-membership items but supports literal ones."""
 
-    def test_t_contains_dynamic_item_raises_backend_capability_error(
+    def test_t_contains_dynamic_item_has_backend_owned_refusal(
         self, backend_name, backend_factory
     ):
-        """Narwhals raises ``BackendCapabilityError`` for dynamic item expressions (NW-LIST-01)."""
         data = {"tags": [[1, 2, 3], [4, 5, 6]], "item": [2, 5]}
         df = backend_factory.create(data, backend_name)
         with pytest.raises(BackendCapabilityError) as excinfo:
             ma.col("tags").list.t_contains(ma.col("item")).compile(df)
-        msg = str(excinfo.value)
-        assert (
-            "NW-LIST-01" in msg
-            or "literal item" in msg.lower()
-            or "list.contains" in msg.lower()
-            or "list_t_contains" in msg
-        ), f"[{backend_name}] unexpected message: {msg}"
+        error = excinfo.value
+        assert error.backend == "narwhals"
+        assert error.function_key is FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS
+        assert error.limitation is None
 
     def test_t_contains_literal_item_executes_on_narwhals_polars(
         self, backend_name, backend_factory

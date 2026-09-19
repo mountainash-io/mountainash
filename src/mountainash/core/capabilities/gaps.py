@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from mountainash.core.capabilities.capture import (
-    CapturedAddress,
-    VerificationBinding,
-    require_immutable,
-)
+from mountainash.core.capabilities.capture import CapturedAddress, require_immutable
 from mountainash.core.capabilities.identity import Scope
 from mountainash.core.capabilities.retired import AssertionChange
 from mountainash.core.capabilities.schema import (
@@ -119,48 +115,4 @@ class GapInventory:
                 or change.prior.key.inventory != self.name
             ):
                 raise ValueError("gap change predecessor belongs to another inventory")
-        require_immutable(self)
-
-
-@dataclass(frozen=True)
-class VerificationSnapshot:
-    inventories: tuple[GapInventory, ...]
-    bindings: tuple[VerificationBinding, ...] | None = None
-    gaps: tuple[InventoryGap, ...] = field(init=False)
-    changes: tuple[AssertionChange, ...] = field(init=False)
-
-    def __post_init__(self) -> None:
-        if type(self.inventories) is not tuple or any(
-            type(inventory) is not GapInventory for inventory in self.inventories
-        ):
-            raise TypeError("verification snapshot requires immutable inventories")
-        if len({inventory.name for inventory in self.inventories}) != len(self.inventories):
-            raise ValueError("duplicate verification inventory")
-        gaps = tuple(
-            sorted(
-                (gap for inventory in self.inventories for gap in inventory.gaps),
-                key=gap_order_key,
-            )
-        )
-        changes = tuple(change for inventory in self.inventories for change in inventory.changes)
-        if len({change.change_ref for change in changes}) != len(changes):
-            raise ValueError("duplicate gap change address")
-        if self.bindings is not None:
-            if type(self.bindings) is not tuple or any(
-                type(binding) is not VerificationBinding for binding in self.bindings
-            ):
-                raise TypeError("verification bindings require an immutable typed tuple")
-            identities: list[tuple[object, object, object, object]] = []
-            for binding in self.bindings:
-                identity = (
-                    binding.captured_claim,
-                    binding.scenario,
-                    binding.role,
-                    binding.observer,
-                )
-                if identity in identities:
-                    raise ValueError("duplicate verification binding identity")
-                identities.append(identity)
-        object.__setattr__(self, "gaps", gaps)
-        object.__setattr__(self, "changes", changes)
         require_immutable(self)

@@ -30,10 +30,9 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     - power: Exponentiation
     - negate: Negation
 
-    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
-    ``on_division_by_zero``, and ``division_type`` options are accepted for
-    protocol alignment. Native Narwhals behavior is used; capability facts gate
-    modes that do not match it.
+    Omitted options use native Narwhals behavior. Explicit rounding is unsupported.
+    Integer overflow modes are validated here; native wrapping is available as
+    SILENT except for division, which has no implemented integer overflow mode.
     """
 
     def add(
@@ -49,12 +48,28 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Narwhals).
-            rounding: IEEE rounding mode (ignored in Narwhals).
+            overflow: Omitted or SILENT uses native integer wrapping.
+            rounding: Unsupported when explicit; omission uses native rounding.
 
         Returns:
             Sum of x and y.
         """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support add() with rounding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            )
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support add() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            )
         return x + y
 
     def subtract(
@@ -70,12 +85,28 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Narwhals).
-            rounding: IEEE rounding mode (ignored in Narwhals).
+            overflow: Omitted or SILENT uses native integer wrapping.
+            rounding: Unsupported when explicit; omission uses native rounding.
 
         Returns:
             Difference x - y.
         """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support subtract() with rounding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            )
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support subtract() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            )
         return x - y
 
     def multiply(
@@ -91,12 +122,28 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Narwhals).
-            rounding: IEEE rounding mode (ignored in Narwhals).
+            overflow: Omitted or SILENT uses native integer wrapping.
+            rounding: Unsupported when explicit; omission uses native rounding.
 
         Returns:
             Product of x and y.
         """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support multiply() with rounding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            )
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support multiply() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            )
         return x * y
 
     def divide(
@@ -111,19 +158,63 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     ) -> NarwhalsExpr:
         """Divide x by y.
 
-        For integer division, results are truncated toward zero.
+        For integer division, results are truncated toward zero. Omitted
+        options preserve native Narwhals lowering.
 
         Args:
             x: Dividend.
             y: Divisor.
-            overflow: Overflow handling (ignored in Narwhals).
-            on_domain_error: Domain error handling (ignored in Narwhals).
-            on_division_by_zero: Division by zero handling (ignored in Narwhals).
-            rounding: IEEE rounding mode (ignored in Narwhals).
+            overflow: Unsupported when explicit.
+            on_domain_error: NAN on Narwhals Polars/Lazy or NULL on Narwhals
+                Pandas; otherwise omit for native behavior.
+            on_division_by_zero: IEEE on Narwhals Polars/Lazy; otherwise omit
+                for native behavior.
+            rounding: Unsupported when explicit; omission uses native rounding.
 
         Returns:
             Quotient x / y.
         """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support divide() with rounding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if overflow is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support divide() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "NAN"
+            and self.dialect in ("narwhals-polars", "narwhals-lazy")
+            or on_domain_error == "NULL" and self.dialect == "narwhals-pandas"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "The selected Narwhals dialect does not implement this division "
+                "domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if on_division_by_zero is not None and not (
+            on_division_by_zero == "IEEE"
+            and self.dialect in ("narwhals-polars", "narwhals-lazy")
+        ):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "The selected Narwhals dialect does not implement this "
+                "division-by-zero mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
         return x / y
 
     def modulus(
@@ -137,16 +228,43 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     ) -> NarwhalsExpr:
         """Calculate the remainder when dividing x by y.
 
+        Omitted options preserve native Narwhals lowering.
+
         Args:
             x: Dividend.
             y: Divisor.
-            division_type: TRUNCATE or FLOOR (Narwhals uses backend default).
-            overflow: Overflow handling (ignored in Narwhals).
-            on_domain_error: Domain error handling (ignored in Narwhals).
+            division_type: Omit for native remainder behavior, or use FLOOR.
+            overflow: Omitted or SILENT uses native integer wrapping.
+            on_domain_error: ERROR is unavailable; otherwise native remainder behavior.
 
         Returns:
             Remainder of x / y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support modulus() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
+        if division_type is not None and division_type != "FLOOR":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support modulus() with this division type.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
+        if on_domain_error == "ERROR":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+
+            raise BackendCapabilityError(
+                "Narwhals remainder cannot raise on domain errors.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
         return x % y
 
     def power(
@@ -161,11 +279,19 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         Args:
             x: Base.
             y: Exponent.
-            overflow: Overflow handling (ignored in Narwhals).
+            overflow: Omitted or SILENT uses native integer wrapping.
 
         Returns:
             x raised to the power y.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support power() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
+            )
         return x ** y
 
     def negate(
@@ -178,11 +304,19 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
 
         Args:
             x: Value to negate.
-            overflow: Overflow handling (ignored in Narwhals).
+            overflow: Omitted or SILENT uses native integer wrapping.
 
         Returns:
             Negated value (-x).
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support negate() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            )
         return x * nw.lit(-1)
 
     # =========================================================================
@@ -200,9 +334,30 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
 
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Narwhals).
-            on_domain_error: Domain error policy (ignored in Narwhals).
+            rounding: Unsupported when explicit; omission uses native rounding.
+            on_domain_error: NAN on Narwhals Polars/Lazy; otherwise omit for
+                native behavior.
         """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support sqrt() with rounding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "NAN"
+            and self.dialect in ("narwhals-polars", "narwhals-lazy")
+        ):
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "The selected Narwhals dialect does not implement this "
+                "square-root domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            )
         return x.sqrt()
 
     def exp(
@@ -215,8 +370,16 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
 
         Args:
             x: Exponent value.
-            rounding: IEEE rounding mode (ignored in Narwhals).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support exp() with rounding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
+            )
         return x.exp()
 
     def abs(
@@ -229,8 +392,16 @@ class SubstraitNarwhalsScalarArithmeticExpressionSystem(NarwhalsBaseExpressionSy
 
         Args:
             x: Input value.
-            overflow: Overflow mode (ignored in Narwhals).
+            overflow: Omitted or SILENT uses native integer wrapping.
         """
+        if overflow is not None and overflow != "SILENT":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
+            raise BackendCapabilityError(
+                "Narwhals does not support abs() with overflow.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            )
         return x.abs()
 
     def sign(

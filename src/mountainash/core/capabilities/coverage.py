@@ -6,34 +6,27 @@ Input gathering lives in render_markdown.gather_coverage_inputs().
 
 from __future__ import annotations
 
-import builtins
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     Domain,
     FactSource,
-    QualifiedManifestation,
-    QualifiedManifestationKey,
+    QualifiedInformation,
+    QualifiedPolicy,
     classify_domain,
     classify_source,
 )
-from mountainash.core.capabilities.schema import (
-    CapabilityFact,
-    CapabilityLevel,
-    Enforcement,
-    WILDCARD_PARAM,
-    _clause_key,
-)
+from mountainash.core.capabilities.gaps import InventoryGap, gap_order_key
+from mountainash.core.capabilities.retired import AssertionChange
 from mountainash.core.constants import CONST_BACKEND
 
-from mountainash.core.capabilities.retired import AssertionChange
-from mountainash.core.capabilities.gaps import InventoryGap, gap_order_key
-from mountainash.core.capabilities.catalogue import _manifestation_order
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.schema import InformationLayer, PolicyAction, PolicyConsumer
 
 
 @dataclass(frozen=True)
@@ -149,13 +142,11 @@ _UNREGISTERED_OPS: tuple[UnregisteredOp, ...] = (
 )
 
 
-def audit_domain_for(operation_key: Any) -> tuple[FactSource, Domain] | None:
-    """(source, domain) audit coordinates for an op, or None if unmapped.
+def declaration_domain_for(operation_key: Any) -> tuple[FactSource, Domain] | None:
+    """Return the source/domain provenance for a registered operation.
 
-    Mirrors the declaration-registration validators exactly (spec §3.2): this
-    is the SAME classify_source/classify_domain the registry uses, wrapped to
-    be total. None means the enum class has no declaration domain yet and is
-    rendered as UNDECLARED, never as an error.
+    `None` means the enum family has no known declaration classification.  It
+    is a report label, not a completeness or support verdict.
     """
     try:
         return (classify_source(operation_key), classify_domain(operation_key))
@@ -177,9 +168,6 @@ class ImplState(Enum):
     UNKNOWN = "unknown"
 
 
-_IMPLEMENTED_STATES: frozenset[ImplState] = frozenset({ImplState.IMPLEMENTED, ImplState.IMPLEMENTED_VIA_HANDLER})
-
-
 @dataclass(frozen=True)
 class ImplementationRecord:
     """One cell of the implementation axis (§3.6). Provenance fields
@@ -193,50 +181,27 @@ class ImplementationRecord:
 
 
 @dataclass(frozen=True)
-class SelectorCounts:
-    params: int
-    option_selectors: int
-    metadata_selectors: int
-    value_classes: int
-    dialects: int
-
-
-@dataclass(frozen=True)
 class OpCoverage:
+    """One implementation cell with independently authored declarations.
+
+    An empty declaration tuple is UNKNOWN: it says nothing about support,
+    verification, audit, or the absence of a native behaviour.
+    """
+
     op: OpRecord
-    audit_domain: tuple[FactSource, Domain] | None
+    declaration_domain: tuple[FactSource, Domain] | None
     backend: CONST_BACKEND
     impl: ImplState
     impl_method: str | None
     impl_protocol: str | None
-    audited: bool
-    whole_op: CapabilityLevel | None
-    constraints: tuple[CapabilityFact, ...]
-    residue: tuple[CapabilityFact, ...]
-    routed: tuple[CapabilityFact, ...]
-    refinements: tuple[CapabilityFact, ...]
-    selector_counts: SelectorCounts
-    segments: tuple[BoundSegment, ...]
-
-    @property
-    def constrained(self) -> bool:
-        return bool(self.constraints or self.residue)
-
-    @property
-    def contradiction(self) -> bool:
-        return self.impl is ImplState.NOT_IMPLEMENTED and (
-            self.constrained or bool(self.routed) or bool(self.refinements) or self.audited
-        )
-
-    @property
-    def all_facts(self) -> tuple[CapabilityFact, ...]:
-        return self.constraints + self.residue + self.routed + self.refinements
+    information: tuple[QualifiedInformation, ...]
+    policies: tuple[QualifiedPolicy, ...]
 
 
 @dataclass(frozen=True)
 class FamilyCoverage:
     family: str
-    audit_domain: tuple[FactSource, Domain] | None
+    declaration_domain: tuple[FactSource, Domain] | None
     ops: tuple[OpCoverage, ...]
 
 
@@ -244,127 +209,29 @@ class FamilyCoverage:
 class CoverageStats:
     ops_total: int
     by_impl: Mapping[tuple[CONST_BACKEND, ImplState], int]
-    default_capable: Mapping[CONST_BACKEND, int]
-    audited_clean: Mapping[CONST_BACKEND, int]
-    constrained: Mapping[CONST_BACKEND, int]
-    audited_unknown: Mapping[CONST_BACKEND, int]
-    contradictions: int
-    facts_by_level: Mapping[CapabilityLevel, int]
-    facts_by_enforcement: Mapping[Enforcement, int]
-    facts_by_backend: Mapping[CONST_BACKEND, int]
-    facts_total: int
+    information_by_layer: Mapping[InformationLayer, int]
+    policies_by_consumer: Mapping[PolicyConsumer, int]
+    policies_by_action: Mapping[PolicyAction, int]
+    information_total: int
+    policies_total: int
 
 
 @dataclass(frozen=True)
 class CoverageReport:
     families: tuple[FamilyCoverage, ...]
     segments: tuple[BoundSegment, ...]
-    divergences: tuple[QualifiedManifestation, ...]
+    information: tuple[QualifiedInformation, ...]
+    policies: tuple[QualifiedPolicy, ...]
     gaps: tuple[InventoryGap, ...] | None
     changes: tuple[AssertionChange, ...]
     stats: CoverageStats
 
 
-def classify_fact(fact: CapabilityFact) -> str:
-    """Partition by enforcement precedence (spec §3.4). Total over legal facts."""
-    if fact.enforcement is Enforcement.ROUTER_METADATA:
-        return "routed"
-    if fact.enforcement is Enforcement.MATERIALIZE_RESIDUE:
-        return "residue"
-    if fact.level is CapabilityLevel.EXPR_CAPABLE:
-        return "refinements"
-    return "constraints"
-
-
 def _check_date(value: str, owner: str) -> None:
-    if value == "":
-        return
     try:
         date.fromisoformat(value)
-    except ValueError:
+    except (TypeError, ValueError):
         raise ValueError(f"invalid calendar date {value!r} on {owner}") from None
-
-
-def _validate_dates(
-    facts: tuple[CapabilityFact, ...],
-    segments: tuple[BoundSegment, ...],
-    divergences: tuple[QualifiedManifestation, ...],
-    gaps: tuple[InventoryGap, ...] | None,
-    changes: tuple[AssertionChange, ...],
-) -> None:
-    """Reject regex-legal-but-impossible dates at report ingest."""
-    for fact in facts:
-        _check_date(fact.since, f"fact {fact.operation_key!r}/{fact.param}/{fact.backend}")
-    for segment in segments:
-        for fact in segment.facts:
-            _check_date(fact.since, f"segment {segment.module} fact {fact.operation_key!r}/{fact.param}")
-    for divergence in divergences:
-        _check_date(divergence.assertion.since, f"manifestation {divergence.key!r}")
-    for record in gaps or ():
-        if type(record) is not InventoryGap:
-            raise TypeError("report gaps require inventory-qualified records")
-        gap = record.payload
-        _check_date(gap.since, f"gap {record.key.inventory}/{record.key.obligation}")
-    _validate_changes(changes)
-
-
-def _validate_changes(changes: tuple[AssertionChange, ...]) -> None:
-    if type(changes) is not tuple or any(type(change) is not AssertionChange for change in changes):
-        raise TypeError("changes require immutable AssertionChange captures")
-    if len({change.change_ref for change in changes}) != len(changes):
-        raise ValueError("duplicate change_ref in coverage report")
-
-
-def _change_sort_key(change: AssertionChange) -> tuple[str, str, str, str, str, str]:
-    ref = change.change_ref
-    return (
-        change.recorded_at,
-        ref.repository,
-        ref.path,
-        ref.entry,
-        ref.revision or "",
-        ref.artifact.hex() if ref.artifact is not None else "",
-    )
-
-
-def _validate_backends(facts: tuple[CapabilityFact, ...]) -> None:
-    """EXECUTE-scope guard (spec §2): str backends are SERIALIZE-side and excluded
-    upstream; PANDAS/PYARROW facts mean the report's scope premise broke."""
-    for f in facts:
-        if isinstance(f.backend, str) and not isinstance(f.backend, CONST_BACKEND):
-            raise ValueError(f"SERIALIZE-target fact leaked into coverage inputs: {f!r}")
-        if f.backend not in RENDERED_BACKENDS:
-            raise ValueError(
-                f"fact declares non-rendered backend {f.backend!r} "
-                f"({f.operation_key!r}/{f.param}); revisit report scope (spec §2)"
-            )
-
-
-def _validate_native_errors_builtins(
-    facts: tuple[CapabilityFact, ...],
-    segments: tuple[BoundSegment, ...],
-) -> None:
-    """Reject non-builtin error captures before their names become ambiguous."""
-
-    def _owner(fact: CapabilityFact) -> str:
-        return f"fact {fact.operation_key!r}/{fact.param}/{fact.backend}"
-
-    def _check(fact: CapabilityFact, label: str) -> None:
-        for error in fact.native_errors:
-            if getattr(builtins, error.__name__, None) is not error:
-                raise ValueError(
-                    f"native_errors entry {error.__name__!r} on {label} is not a builtin exception class ({error!r})"
-                )
-
-    for fact in facts:
-        _check(fact, _owner(fact))
-    for segment in segments:
-        for fact in segment.facts:
-            _check(fact, f"segment {segment.module} fact {fact.operation_key!r}/{fact.param}")
-
-
-def _segment_sort_key(segment: BoundSegment) -> str:
-    return segment.module
 
 
 def _validate_segments(segments: tuple[BoundSegment, ...]) -> None:
@@ -377,285 +244,185 @@ def _validate_segments(segments: tuple[BoundSegment, ...]) -> None:
         addresses.add(segment.module)
 
 
-def _validate_divergences(divergences: tuple[QualifiedManifestation, ...]) -> None:
-    keys: set[QualifiedManifestationKey] = set()
-    for record in divergences:
-        if type(record) is not QualifiedManifestation:
-            raise TypeError("report divergences require qualified manifestations")
-        if record.key in keys:
-            raise ValueError(f"duplicate manifestation key {record.key!r}")
-        keys.add(record.key)
+def _segment_sort_key(segment: BoundSegment) -> str:
+    return segment.module
 
 
-def _cell_label(op: Any, backend: CONST_BACKEND) -> str:
-    return f"{type(op).__name__}.{op.name} × {backend.value}"
+def _declaration_order(record: QualifiedInformation | QualifiedPolicy) -> tuple:
+    key = record.key
+    local = key.local
+    scope = key.scope
+    selector = local.selector
+    base = (
+        scope.backend.value,
+        type(scope.applicability).__name__,
+        scope.dialect or "",
+        type(local.operation).__name__,
+        local.operation.name,
+        local.subject,
+        selector.kind,
+        repr(selector.value),
+    )
+    if isinstance(record, QualifiedInformation):
+        return (*base, record.key.layer.value)
+    return (*base, record.assertion.consumer.value, record.assertion.action.value)
+
+
+def _validate_declarations(
+    universe: tuple[OpRecord, ...],
+    information: tuple[QualifiedInformation, ...],
+    policies: tuple[QualifiedPolicy, ...],
+) -> None:
+    if type(information) is not tuple or any(type(record) is not QualifiedInformation for record in information):
+        raise TypeError("report information requires qualified information records")
+    if type(policies) is not tuple or any(type(record) is not QualifiedPolicy for record in policies):
+        raise TypeError("report policies requires qualified policy records")
+    universe_keys = {record.operation_key for record in universe}
+    groups: tuple[tuple[str, tuple[QualifiedInformation | QualifiedPolicy, ...]], ...] = (
+        ("information", information),
+        ("policy", policies),
+    )
+    for kind, records in groups:
+        seen: set[Any] = set()
+        for record in records:
+            if record.key in seen:
+                raise ValueError(f"duplicate qualified {kind} key {record.key!r}")
+            seen.add(record.key)
+            if record.key.local.operation not in universe_keys:
+                raise ValueError(
+                    f"{kind} references op outside the registered universe: {record.key.local.operation!r}"
+                )
+            if record.key.scope.backend not in RENDERED_BACKENDS:
+                raise ValueError(f"{kind} uses non-rendered backend {record.key.scope.backend.value!r}")
+            _check_date(record.assertion.since, f"{kind} {record.key!r}")
+            if kind == "policy" and record.key.scope.dialect is None:
+                raise ValueError("policy requires a concrete dialect scope")
+
+
+def _validate_changes(changes: tuple[AssertionChange, ...]) -> None:
+    if type(changes) is not tuple or any(type(change) is not AssertionChange for change in changes):
+        raise TypeError("changes require immutable AssertionChange captures")
+    if len({change.change_ref for change in changes}) != len(changes):
+        raise ValueError("duplicate change_ref in coverage report")
+
+
+def _change_sort_key(change: AssertionChange) -> tuple[str, str, str, str]:
+    ref = change.change_ref
+    return (change.recorded_at, ref.repository, ref.path, ref.entry)
 
 
 def _validate_implementations(
     universe: tuple[OpRecord, ...],
     implementations: tuple[ImplementationRecord, ...],
 ) -> None:
-    """Multiset guard (spec §4.1): exactly one record per universe op ×
-    rendered backend. Counter-based, NOT set-based, so a missing record and a
-    duplicate cannot cancel silently. Reports every missing/extra/duplicate
-    cell deterministically (sorted) in a single ValueError."""
+    """Require exactly one independent discovery result per operation/backend."""
     expected: Counter[tuple[Any, CONST_BACKEND]] = Counter(
-        (r.operation_key, b) for r in universe for b in RENDERED_BACKENDS
+        (record.operation_key, backend) for record in universe for backend in RENDERED_BACKENDS
     )
-    actual: Counter[tuple[Any, CONST_BACKEND]] = Counter((r.operation_key, r.backend) for r in implementations)
+    actual: Counter[tuple[Any, CONST_BACKEND]] = Counter(
+        (record.operation_key, record.backend) for record in implementations
+    )
     if actual == expected:
         return
-    _cell_key = lambda cell: (cell[0].name, cell[1].value)  # noqa: E731 - enum members are not orderable
-    missing = sorted(
-        ((op, backend) for (op, backend), n in (expected - actual).items() if n > 0),
-        key=_cell_key,
-    )
-    duplicates = sorted(
-        ((op, backend) for (op, backend), n in actual.items() if n > 1),
-        key=_cell_key,
-    )
-    # A cell that is both over-expected and counted >1 is already named as a
-    # duplicate; excluding it from `extras` avoids the "unexpected … ; duplicate
-    # …" double-diagnostic for one cell (T1 review). Error-path only.
-    _dupe_cells = set(duplicates)
+
+    def cell_key(cell: tuple[Any, CONST_BACKEND]) -> tuple[str, str]:
+        return cell[0].name, cell[1].value
+
+    missing = sorted((expected - actual).keys(), key=cell_key)
+    duplicates = sorted((cell for cell, count in actual.items() if count > 1), key=cell_key)
+    duplicate_cells = set(duplicates)
     extras = sorted(
-        (
-            (op, backend)
-            for (op, backend), n in (actual - expected).items()
-            if n > 0 and (op, backend) not in _dupe_cells
-        ),
-        key=_cell_key,
+        (cell for cell in (actual - expected) if cell not in duplicate_cells),
+        key=cell_key,
     )
     parts: list[str] = []
     if missing:
-        parts.append(
-            "missing implementation record for " + ", ".join(_cell_label(op, backend) for op, backend in missing)
-        )
+        parts.append("missing implementation record for " + ", ".join(_cell_label(*cell) for cell in missing))
     if extras:
-        parts.append(
-            "unexpected implementation record for " + ", ".join(_cell_label(op, backend) for op, backend in extras)
-        )
+        parts.append("unexpected implementation record for " + ", ".join(_cell_label(*cell) for cell in extras))
     if duplicates:
-        parts.append(
-            "duplicate implementation record for " + ", ".join(_cell_label(op, backend) for op, backend in duplicates)
-        )
+        parts.append("duplicate implementation record for " + ", ".join(_cell_label(*cell) for cell in duplicates))
     raise ValueError("; ".join(parts))
 
 
-def fact_sort_key(f: CapabilityFact) -> tuple:
-    """Canonical FULL-identity sort key (spec §4.4): every semantic field
-    participates, so distinct facts can never tie and bucket order is
-    independent of input order. Used for model bucket order AND every renderer
-    fact sequence (Task 4 imports it)."""
-    return (
-        f.dialect or "",
-        f.param,
-        f.option_value or "",
-        f.value_class.value if f.value_class else "",
-        f.level.value,
-        f.enforcement.value,
-        f.boundary.value,
-        f.condition or "",
-        f.since,
-        f.message,
-        f.workaround or "",
-        f.upstream_ref or "",
-        tuple(e.__name__ for e in f.native_errors),
-        f.probe_exempt or "",
-        tuple(_clause_key(c) for c in f.predicate.clauses) if f.predicate is not None else (),
-    )
-
-
-def is_whole_op(fact: CapabilityFact) -> bool:
-    """True for whole-op GATE facts (spec §3.5): wildcard param, value-agnostic,
-    no dialect. Drives the main-doc vs scoped-doc split in renderers."""
-    return (
-        fact.param == WILDCARD_PARAM and fact.option_value is None and fact.value_class is None and fact.dialect is None
-    )
-
-
-def is_dialect_scoped_whole_op(fact: CapabilityFact) -> bool:
-    """True for wildcard-param, value-agnostic, NO value_class, but with a
-    dialect set — the dialect-scoped whole-op shape (plan-review M2). The single
-    helper the scoped-doc subheading and the I-2b cell predicate share."""
-    return (
-        fact.param == WILDCARD_PARAM
-        and fact.option_value is None
-        and fact.value_class is None
-        and fact.dialect is not None
-    )
-
-
-def _selector_counts(scoped: tuple[CapabilityFact, ...]) -> SelectorCounts:
-    """Exact distinct-key sets (spec §3.5)."""
-    from mountainash.core.capabilities.predicates import OPERAND_TYPES_ROOT
-
-    params = {f.param for f in scoped if f.param != WILDCARD_PARAM}
-    option_selectors = {(f.param, f.option_value) for f in scoped if f.option_value is not None}
-    metadata_selectors = {
-        _clause_key(clause)
-        for fact in scoped
-        if fact.predicate is not None
-        for clause in fact.predicate.clauses
-        if clause.path.split(".", 1)[0] == OPERAND_TYPES_ROOT
-    }
-    value_classes = {f.value_class for f in scoped if f.value_class is not None}
-    dialects = {f.dialect for f in scoped if f.dialect is not None}
-    return SelectorCounts(
-        params=len(params),
-        option_selectors=len(option_selectors),
-        metadata_selectors=len(metadata_selectors),
-        value_classes=len(value_classes),
-        dialects=len(dialects),
-    )
+def _cell_label(operation: Any, backend: CONST_BACKEND) -> str:
+    return f"{type(operation).__name__}.{operation.name} × {backend.value}"
 
 
 def build_coverage_report(
     universe: tuple[OpRecord, ...],
-    facts: tuple[CapabilityFact, ...],
+    information: tuple[QualifiedInformation, ...],
+    policies: tuple[QualifiedPolicy, ...],
     segments: tuple[BoundSegment, ...],
-    divergences: tuple[QualifiedManifestation, ...],
     gaps: tuple[InventoryGap, ...] | None,
     changes: tuple[AssertionChange, ...],
     implementations: tuple[ImplementationRecord, ...],
 ) -> CoverageReport:
-    _validate_backends(facts)
-    _validate_dates(facts, segments, divergences, gaps, changes)
+    """Build a descriptive report without turning declarations into evidence.
+
+    Information and policies are preserved as their distinct qualified records.
+    No family expansion, policy projection, or absence-derived capability claim
+    is performed here.
+    """
     _validate_segments(segments)
-    _validate_divergences(divergences)
-    _validate_native_errors_builtins(facts, segments)
+    _validate_declarations(universe, information, policies)
+    _validate_changes(changes)
     _validate_implementations(universe, implementations)
+    if gaps is not None and (type(gaps) is not tuple or any(type(gap) is not InventoryGap for gap in gaps)):
+        raise TypeError("gaps require immutable InventoryGap captures or None")
 
-    # Index facts by (op member, backend); every input fact must attach to a
-    # universe op — a fact for an unregistered op is an inconsistency.
-    facts_by_cell: dict[tuple[Any, CONST_BACKEND], list[CapabilityFact]] = {}
-    universe_keys = {r.operation_key for r in universe}
-    for f in facts:
-        if f.operation_key not in universe_keys:
-            raise ValueError(
-                f"fact references op outside the registered universe: {f.operation_key!r} ({f.param}/{f.backend})"
-            )
-        facts_by_cell.setdefault((f.operation_key, CONST_BACKEND(f.backend)), []).append(f)
-
-    segments_by_coord: dict[tuple[CONST_BACKEND, FactSource, Domain], list[BoundSegment]] = {}
-    for segment in segments:
-        segments_by_coord.setdefault((segment.scope.backend, segment.source, segment.segment.domain), []).append(
-            segment
-        )
-
-    # Implementation records joined by (operation_key, backend). Multiset
-    # ingest guard has already verified exactly one record per cell.
-    impl_by_cell: dict[tuple[Any, CONST_BACKEND], ImplementationRecord] = {
-        (r.operation_key, r.backend): r for r in implementations
-    }
-
+    information = tuple(sorted(information, key=_declaration_order))
+    policies = tuple(sorted(policies, key=_declaration_order))
+    implementations_by_cell = {(record.operation_key, record.backend): record for record in implementations}
     families: dict[str, list[OpRecord]] = {}
-    for rec in universe:
-        families.setdefault(rec.family, []).append(rec)
+    for record in universe:
+        families.setdefault(record.family, []).append(record)
 
     family_coverages: list[FamilyCoverage] = []
     for family_name in sorted(families):
-        ops_out: list[OpCoverage] = []
-        coord = audit_domain_for(families[family_name][0].operation_key)
-        for rec in sorted(families[family_name], key=lambda r: r.operation_key.name):
+        family_operations = sorted(families[family_name], key=lambda record: record.operation_key.name)
+        domain = declaration_domain_for(family_operations[0].operation_key)
+        cells: list[OpCoverage] = []
+        for record in family_operations:
             for backend in RENDERED_BACKENDS:
-                cell = facts_by_cell.get((rec.operation_key, backend), [])
-                buckets: dict[str, list[CapabilityFact]] = {
-                    "routed": [],
-                    "residue": [],
-                    "refinements": [],
-                    "constraints": [],
-                }
-                for f in cell:
-                    buckets[classify_fact(f)].append(f)
-                applicable = (
-                    tuple(
-                        sorted(
-                            segments_by_coord.get((backend, coord[0], coord[1]), ()),
-                            key=_segment_sort_key,
-                        )
-                    )
-                    if coord is not None
-                    else ()
-                )
-                constraining = buckets["constraints"] + buckets["residue"]
-                if constraining and not applicable:
-                    raise ValueError(
-                        f"constraining fact without applicable segment: {rec.operation_key!r} on {backend} (spec §5)"
-                    )
-                sorted_constraints = tuple(sorted(buckets["constraints"], key=fact_sort_key))
-                whole = next((f.level for f in sorted_constraints if is_whole_op(f)), None)
-                scoped = tuple(f for f in constraining if not is_whole_op(f))
-                impl_record = impl_by_cell[(rec.operation_key, backend)]
-                ops_out.append(
+                implementation = implementations_by_cell[(record.operation_key, backend)]
+                cells.append(
                     OpCoverage(
-                        op=rec,
-                        audit_domain=coord,
+                        op=record,
+                        declaration_domain=domain,
                         backend=backend,
-                        impl=impl_record.state,
-                        impl_method=impl_record.method_name,
-                        impl_protocol=impl_record.protocol_name,
-                        audited=bool(applicable),
-                        whole_op=whole,
-                        constraints=sorted_constraints,
-                        residue=tuple(sorted(buckets["residue"], key=fact_sort_key)),
-                        routed=tuple(sorted(buckets["routed"], key=fact_sort_key)),
-                        refinements=tuple(sorted(buckets["refinements"], key=fact_sort_key)),
-                        selector_counts=_selector_counts(scoped),
-                        segments=applicable,
+                        impl=implementation.state,
+                        impl_method=implementation.method_name,
+                        impl_protocol=implementation.protocol_name,
+                        information=tuple(
+                            item
+                            for item in information
+                            if item.key.scope.backend is backend and item.key.local.operation is record.operation_key
+                        ),
+                        policies=tuple(
+                            item
+                            for item in policies
+                            if item.key.scope.backend is backend and item.key.local.operation is record.operation_key
+                        ),
                     )
                 )
-        family_coverages.append(FamilyCoverage(family=family_name, audit_domain=coord, ops=tuple(ops_out)))
+        family_coverages.append(FamilyCoverage(family_name, domain, tuple(cells)))
 
-    by_impl: dict[tuple[CONST_BACKEND, ImplState], int] = {(b, s): 0 for b in RENDERED_BACKENDS for s in ImplState}
-    default_capable: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
-    audited_clean: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
-    constrained: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
-    audited_unknown: dict[CONST_BACKEND, int] = {b: 0 for b in RENDERED_BACKENDS}
-    contradictions = 0
-    for fc in family_coverages:
-        for oc in fc.ops:
-            by_impl[(oc.backend, oc.impl)] = by_impl.get((oc.backend, oc.impl), 0) + 1
-            if oc.impl is ImplState.UNKNOWN:
-                if oc.audited:
-                    audited_unknown[oc.backend] = audited_unknown.get(oc.backend, 0) + 1
-            elif oc.impl in _IMPLEMENTED_STATES:
-                if oc.constrained:
-                    constrained[oc.backend] = constrained.get(oc.backend, 0) + 1
-                elif oc.audited:
-                    audited_clean[oc.backend] = audited_clean.get(oc.backend, 0) + 1
-                else:
-                    default_capable[oc.backend] = default_capable.get(oc.backend, 0) + 1
-            elif oc.impl is ImplState.NOT_IMPLEMENTED:
-                if oc.contradiction:
-                    contradictions += 1
-
-    by_level: dict[CapabilityLevel, int] = {}
-    by_enforcement: dict[Enforcement, int] = {}
-    by_backend: dict[CONST_BACKEND, int] = {}
-    for f in facts:
-        by_level[f.level] = by_level.get(f.level, 0) + 1
-        by_enforcement[f.enforcement] = by_enforcement.get(f.enforcement, 0) + 1
-        backend = CONST_BACKEND(f.backend)
-        by_backend[backend] = by_backend.get(backend, 0) + 1
-
+    by_impl = Counter((record.backend, record.state) for record in implementations)
     return CoverageReport(
         families=tuple(family_coverages),
         segments=tuple(sorted(segments, key=_segment_sort_key)),
-        divergences=tuple(sorted(divergences, key=lambda record: _manifestation_order(record.key))),
+        information=information,
+        policies=policies,
         gaps=None if gaps is None else tuple(sorted(gaps, key=gap_order_key)),
         changes=tuple(sorted(changes, key=_change_sort_key)),
         stats=CoverageStats(
             ops_total=len(universe),
-            by_impl=by_impl,
-            default_capable=default_capable,
-            audited_clean=audited_clean,
-            constrained=constrained,
-            audited_unknown=audited_unknown,
-            contradictions=contradictions,
-            facts_by_level=by_level,
-            facts_by_enforcement=by_enforcement,
-            facts_by_backend=by_backend,
-            facts_total=len(facts),
+            by_impl={key: by_impl.get(key, 0) for key in ((b, s) for b in RENDERED_BACKENDS for s in ImplState)},
+            information_by_layer=Counter(record.assertion.layer for record in information),
+            policies_by_consumer=Counter(record.assertion.consumer for record in policies),
+            policies_by_action=Counter(record.assertion.action for record in policies),
+            information_total=len(information),
+            policies_total=len(policies),
         ),
     )

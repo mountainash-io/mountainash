@@ -1,202 +1,40 @@
+"""Native storage failures retain their actual operation attribution."""
+from __future__ import annotations
+
 import pytest
+
 import mountainash as ma
-from mountainash.core.capabilities.schema import CapabilityLevel, Boundary, Enforcement
-from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_LIST,
-)
-from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
-from tests.fixtures.capability_gating import (
-    assert_capability_gated,
-    capability_gate,
-    identity_for,
+    FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
+    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STRING,
 )
 
 
-class TestIdentityFor:
-    def test_declared_dialect(self):
-        idn = identity_for("ibis-polars")
-        assert idn.family is CONST_BACKEND.IBIS and idn.dialect == "ibis-polars"
-
-    def test_unknown_dialect_keeps_family(self):
-        idn = identity_for("narwhals-pyarrow")
-        assert idn.family is CONST_BACKEND.NARWHALS and idn.dialect is None
-
-    def test_unresolvable_raises(self):
-        with pytest.raises(ValueError, match="cannot resolve backend family"):
-            identity_for("totally-unknown")
-
-
-class TestCapabilityGate:
-    def test_returns_gate_build_unsupported(self):
-        op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
-        fact = capability_gate(op, CONST_BACKEND.IBIS, dialect="ibis-polars")
-        assert fact and fact.level is CapabilityLevel.UNSUPPORTED
-        assert fact.enforcement is Enforcement.GATE and fact.boundary is Boundary.BUILD
-
-    def test_ignores_router_metadata(self):
-        op = RKEY_MOUNTAINASH_REL["READ_RESOURCE"]  # UNSUPPORTED but ROUTER_METADATA
-        assert capability_gate(op, CONST_BACKEND.POLARS) is None
-
-    def test_none_when_no_fact(self):
-        op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
-        assert capability_gate(op, CONST_BACKEND.IBIS, dialect="ibis-duckdb") is None
-
-
-class TestAssertCapabilityGated:
-    def test_build_gate_requires_correct_raise(self):
-        op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
-        fact = capability_gate(op, CONST_BACKEND.IBIS, dialect="ibis-polars")
-
-        def build():
-            raise BackendCapabilityError("x", backend="ibis-polars", function_key=op, limitation=fact)
-
-        assert assert_capability_gated(op, CONST_BACKEND.IBIS, dialect="ibis-polars", build=build) is None
-
-    def test_build_gate_rejects_wrong_limitation(self):
-        op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
-
-        def build():
-            raise BackendCapabilityError("x", backend="ibis-polars", function_key=op, limitation=None)
-
-        with pytest.raises(AssertionError, match="limitation"):
-            assert_capability_gated(op, CONST_BACKEND.IBIS, dialect="ibis-polars", build=build)
-
-    def test_materialize_residue_real_enrichment(self, backend_factory):
-        # list.get(negative) is a MATERIALIZE_RESIDUE fact on narwhals-polars
-        # (NW-LIST-04): the enriched BackendCapabilityError is raised at the
-        # relation materialization boundary (rel.collect()), chaining the
-        # native ValueError. The fact is keyed on param="index", so the gate
-        # must be consulted with that param (WILDCARD does not match it).
-        df = backend_factory.create({"x": [[1, 2, 3]]}, "narwhals-polars")
-        expr = ma.col("x").list.get(-1)  # build succeeds; error is deferred
-        assert_capability_gated(
-            FKEY_MOUNTAINASH_SCALAR_LIST.GET,
-            CONST_BACKEND.NARWHALS,
-            dialect="narwhals-polars",
-            param="index",
-            build=lambda: ma.relation(df).select(expr.name.alias("r")),
-            materialize=lambda rel: rel.collect(),  # raises the enriched error
+class TestNativeErrorEnrichment:
+    @pytest.mark.parametrize(
+        ("first", "operation", "native_issue"),
+        [
+            ("string", FK_STRING.SPLIT, "narwhals:arrow-string-storage"),
+            ("list", FK_LIST.CONTAINS, "narwhals:arrow-list-storage"),
+        ],
+    )
+    def test_native_failure_identifies_the_failing_operation(
+        self, backend_factory, first, operation, native_issue,
+    ):
+        # Both expressions can raise TypeError on object-backed pandas data.
+        # Exception class alone must not select the other operation's policy.
+        dataframe = backend_factory.create(
+            {"text": ["a,b,c"], "tags": [[1, 2, 3]]}, "narwhals-pandas",
         )
-
-    def test_materialize_residue_narwhals_pandas_list_contains(self, backend_factory):
-        # NW-LIST-01: list.contains() on narwhals-pandas requires a
-        # PyArrow-backed list column. Compile-time (not just materialize-time)
-        # failure -- item 88 fixed the gap that let this leak raw.
-        df = backend_factory.create({"tags": [[1, 2, 3]]}, "narwhals-pandas")
-        expr = ma.col("tags").list.contains(2)
-        assert_capability_gated(
-            FKEY_MOUNTAINASH_SCALAR_LIST.CONTAINS,
-            CONST_BACKEND.NARWHALS,
-            dialect="narwhals-pandas",
-            build=lambda: ma.relation(df).select(expr.name.alias("r")),
-            materialize=lambda rel: rel.collect(),
-        )
-
-    def test_materialize_residue_narwhals_pandas_list_t_contains(self, backend_factory):
-        # NW-LIST-01's t_contains sibling -- same storage-residue fact shape,
-        # a distinct operation_key from CONTAINS.
-        from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_MOUNTAINASH_SCALAR_LIST,
-        )
-
-        df = backend_factory.create({"tags": [[1, 2, 3]]}, "narwhals-pandas")
-        expr = ma.col("tags").list.t_contains(2)
-        assert_capability_gated(
-            FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
-            CONST_BACKEND.NARWHALS,
-            dialect="narwhals-pandas",
-            build=lambda: ma.relation(df).select(expr.name.alias("r")),
-            materialize=lambda rel: rel.collect(),
-        )
-
-    def test_materialize_residue_disambiguates_split_from_contains(self, backend_factory):
-        # NW-STR-22 (SPLIT) and NW-LIST-01 (CONTAINS) both declare
-        # native_errors=(TypeError,) on narwhals-pandas -- a SPLIT-only
-        # failure must be attributed to NW-STR-22, never mislabeled as
-        # NW-LIST-01 (backlog item 88 round-2 finding 1).
-        from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_SUBSTRAIT_SCALAR_STRING,
-        )
-
-        df = backend_factory.create({"text": ["a,b,c"]}, "narwhals-pandas")
-        expr = ma.col("text").str.string_split(",")
-        assert_capability_gated(
-            FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT,
-            CONST_BACKEND.NARWHALS,
-            dialect="narwhals-pandas",
-            build=lambda: ma.relation(df).select(expr.name.alias("r")),
-            materialize=lambda rel: rel.collect(),
-        )
-
-    def test_materialize_residue_ambiguous_same_select_raises_raw(self, backend_factory):
-        # SPLIT and CONTAINS present in the SAME select, same TypeError --
-        # genuinely ambiguous which one failed. Must never guess: the raw
-        # exception propagates rather than an incorrectly-attributed
-        # BackendCapabilityError (backlog item 88 round-2 finding 2).
-        df = backend_factory.create({"text": ["a,b,c"], "tags": [[1, 2, 3]]}, "narwhals-pandas")
-        rel = ma.relation(df).select(
-            ma.col("text").str.string_split(",").name.alias("a"),
-            ma.col("tags").list.contains(2).name.alias("b"),
-        )
-        with pytest.raises(TypeError) as ei:
-            rel.collect()
-        assert not isinstance(ei.value, BackendCapabilityError)
-
-    def test_materialize_residue_unrelated_exception_on_handler_op_not_mislabeled(self, backend_factory):
-        # A handler-routed op failing with a genuine TypeError -- the same
-        # native_errors type every narwhals-pandas residue fact declares --
-        # must never be mislabeled as NW-LIST-01/NW-STR-22. Handler ops get
-        # an empty (authoritative) preferred-key set, so this proves the
-        # empty set actually excludes candidates rather than merely relying
-        # on an exception-type mismatch. Drives UnifiedRelationVisitor
-        # ._dispatch() directly (enforce_capabilities=False) against a REAL
-        # narwhals-pandas relation_system, so enrich_materialization
-        # consults the real registry residue -- a real handler op raising a
-        # native TypeError mid-compile isn't reliably reproducible through
-        # the public API (join/join_asof validate types client-side before
-        # ever reaching the backend).
-        import dataclasses
-
-        from mountainash.expressions.core.expression_system.expsys_base import (
-            get_expression_system,
-        )
-        from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
-        from mountainash.relations.core.relation_nodes import ReadRelNode
-        from mountainash.relations.core.relation_protocols.relsys_base import (
-            get_relation_system,
-        )
-        from mountainash.relations.core.relation_system.relation_mapping.registry import (
-            RelationOperationRegistry,
-        )
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
-
-        nwf = backend_factory.create({"tags": [[1, 2, 3]]}, "narwhals-pandas")
-        relation_system = get_relation_system(CONST_BACKEND.NARWHALS)(dialect="narwhals-pandas")
-        expr_visitor = UnifiedExpressionVisitor(
-            get_expression_system(CONST_BACKEND.NARWHALS)(dialect="narwhals-pandas")
-        )
-        visitor = UnifiedRelationVisitor(
-            relation_system,
-            expr_visitor,
-            enforce_capabilities=False,
-        )
-
-        def _raise_type_error(node, v):
-            raise TypeError("synthetic handler failure")
-
-        real_source_op = RelationOperationRegistry.get(RKEY_MOUNTAINASH_REL["SOURCE"])
-        synthetic_op = dataclasses.replace(real_source_op, handler=_raise_type_error)
-        assert synthetic_op.handler is not None  # confirms the handler branch is exercised
-
-        with pytest.raises(TypeError, match="synthetic handler failure") as ei:
-            visitor._dispatch(ReadRelNode(dataframe=nwf), synthetic_op)
-        assert not isinstance(ei.value, BackendCapabilityError)
-
-    def test_no_fact_returns_result(self):
-        op = RKEY_MOUNTAINASH_REL["WITH_ROW_INDEX"]
-        s = object()
-        assert assert_capability_gated(op, CONST_BACKEND.IBIS, dialect="ibis-duckdb", build=lambda: s) is s
+        expressions = [
+            ma.col("text").str.string_split(",").name.alias("text_parts"),
+            ma.col("tags").list.contains(2).name.alias("has_tag"),
+        ]
+        if first == "list":
+            expressions.reverse()
+        with pytest.raises(BackendCapabilityError) as raised:
+            ma.relation(dataframe).select(*expressions).collect()
+        assert raised.value.function_key is operation
+        assert raised.value.limitation.native_issue == native_issue
+        assert isinstance(raised.value.__cause__, TypeError)

@@ -25,7 +25,12 @@ from mountainash.relations import LogicalTerminalRequired
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
+from ibis.common.exceptions import UnsupportedBackendType
+
+from mountainash.conform.errors import ConformTransformError
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 _NATIVE_CONTAINER_BACKENDS = [b for b in ALL_BACKENDS if b not in ("pandas", "narwhals-pandas")]
 
@@ -195,7 +200,12 @@ class TestNativeTerminalSuccessForNativeContainers:
 
         monkeypatch.setattr(transport, "decode_structured_value", decode_must_not_run)
 
-        df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite cannot construct the native Array source; no terminal operation has run",
+        ):
+            df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
@@ -209,7 +219,12 @@ class TestNativeTerminalSuccessForNativeContainers:
 
         monkeypatch.setattr(transport, "decode_structured_value", decode_must_not_run)
 
-        df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite cannot construct the native Struct source; no terminal operation has run",
+        ):
+            df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
@@ -308,14 +323,24 @@ class TestCompleteLogicalEgressOpaqueNative:
         import polars as pl
 
         rel = _opaque_relation(backend_name)
-        result = rel.to_polars()
-        assert result["payload"].dtype == pl.Object
-        assert result["payload"].to_list() == [[1, 2], [3]]
+        with expect_call_failure(
+            when=backend_name == "narwhals-polars",
+            errors=(ConformTransformError,),
+            reason="an opaque-carrier structured field (no schema evidence, already-native Python container) fails to decode through logical egress when the source is a Narwhals-wrapped Polars frame",
+        ):
+            result = rel.to_polars()
+            assert result["payload"].dtype == pl.Object
+            assert result["payload"].to_list() == [[1, 2], [3]]
 
     def test_to_pandas_resolves_opaque_native_container(self, backend_name):
         rel = _opaque_relation(backend_name)
-        result = rel.to_pandas()
-        assert result["payload"].tolist() == [[1, 2], [3]]
+        with expect_call_failure(
+            when=backend_name == "narwhals-polars",
+            errors=(ConformTransformError,),
+            reason="an opaque-carrier structured field (no schema evidence, already-native Python container) fails to decode through logical egress when the source is a Narwhals-wrapped Polars frame",
+        ):
+            result = rel.to_pandas()
+            assert result["payload"].tolist() == [[1, 2], [3]]
 
 
 @pytest.mark.parametrize("backend_name", _OPAQUE_BACKENDS)

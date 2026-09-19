@@ -16,6 +16,8 @@ all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 
 import pytest
 import mountainash.expressions as ma
+from ibis.common.exceptions import IbisTypeError
+from fixtures.call_expectations import expect_call_failure
 
 
 # =============================================================================
@@ -358,11 +360,16 @@ class TestAllNullsCoalesce:
     def test_all_nulls_coalesce(self, backend_name, backend_factory, collect_expr):
         """Test coalesce when all values are null."""
         data = {"a": [None, None, None], "b": [None, None, None], "c": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-
-        # Coalesce with all nulls should return null
-        expr = ma.coalesce(ma.col("a"), ma.col("b"), ma.col("c"))
-        actual = collect_expr(df, expr)
-
-        expected = [None, None, None]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with inferred NULL-typed columns",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            # Coalesce with all nulls should return null
+            expr = ma.coalesce(ma.col("a"), ma.col("b"), ma.col("c"))
+            actual = collect_expr(df, expr)
+            expected = [None, None, None]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"

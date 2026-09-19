@@ -1,30 +1,21 @@
 """Argument channel tests for string operations."""
 from __future__ import annotations
 
-from functools import cache
+
 
 import pytest
 
 import mountainash as ma
-from expressions.argument_types._option_helpers import (
-    OptionProbeDidNotDiscriminateError,
-    OptionSpec,
-    option_result,
-    xfail_option_unsupported,
-)
-from expressions.argument_types.conftest import ALL_BACKENDS, make_df, matrix_identity
+from fixtures.call_expectations import expect_call_failure
+from expressions.argument_types.conftest import ALL_BACKENDS, make_df
+from expressions.argument_types._option_helpers import OptionSpec, option_result
 from expressions.argument_types.option_disposition import (
     INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
-    OPTION_FAMILY_DEFAULT_FACT_KEYS,
-    REGISTERED_INVALID_OPTION_REJECTIONS,
-    REGISTERED_OPTION_PROBES,
     InvalidOptionRejection,
     OptionCell,
-    OptionProbeRegistration,
     param_taxonomy,
 )
-from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -34,26 +25,22 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 from expressions.argument_types._test_template import (
     INPUT_TYPES,
     OpSpec,
-    first_scalar_build_gate,
     run_argument_matrix,
-    xfail_if_limited,
-)
-from tests.fixtures.capability_gating import (
-    assert_capability_gated,
-    gate_dialect,
-    gate_family,
-    resolve_identity,
-    whole_operation_gate,
 )
 
 
 _STRING_PROTOCOL = "SubstraitScalarStringExpressionSystemProtocol"
 
 
-def _whole_operation_gated(operation_key, backend: str) -> bool:
-    """Derive a complete-operation restriction from the scoped spine."""
-    return whole_operation_gate(operation_key, backend) is not None
-
+def _known_unavailable(operation_key, backend: str) -> bool:
+    """Concrete whole-operation refusals exercised by the char-set cases."""
+    return (
+        operation_key == FK_STR.SWAPCASE
+        and backend in {"ibis", "narwhals-polars", "narwhals-pandas"}
+        or operation_key in {FK_STR.TITLE, FK_STR.INITCAP} and backend == "ibis"
+        or operation_key == FK_STR.CAPITALIZE
+        and backend in {"narwhals-polars", "narwhals-pandas"}
+    )
 
 _CASE_SENSITIVITY_FKEYS = {
     "contains": FK_STR.CONTAINS,
@@ -133,39 +120,29 @@ def test_case_insensitive_string_option_discriminates(op, backend):
 
 @pytest.mark.parametrize("op", sorted(_CASE_INSENSITIVE_DECLARED_OPS))
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_case_insensitive_string_option_declared_unsupported(
-    op, backend, request
-):
+def test_case_insensitive_string_option_declared_unsupported(op, backend):
     spec = _case_sensitivity_probe(op, "CASE_INSENSITIVE")
-    request.applymarker(
-        xfail_option_unsupported(
-            spec.fkey, spec.option_param, spec.option_value, backend
-        )
-    )
-    df = make_df(spec.data, backend)
-
-    assert option_result(df, spec.build_expr(), backend) != option_result(
-        df, spec.reference_expr(), backend
-    )
+    with pytest.raises(BackendCapabilityError):
+        option_result(make_df(spec.data, backend), spec.build_expr(), backend)
 
 
 @pytest.mark.parametrize("op", sorted(_CASE_SENSITIVITY_FKEYS))
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_case_sensitive_string_option_matches_omission(op, backend):
     spec = _case_sensitivity_probe(op, "CASE_SENSITIVE")
-    df = make_df(spec.data, backend)
-
-    assert option_result(df, spec.build_expr(), backend) == option_result(
-        df, spec.reference_expr(), backend
-    )
+    if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}:
+        _assert_backend_refusal(
+            lambda: option_result(make_df(spec.data, backend), spec.build_expr(), backend),
+            FK_STR.STRPOS,
+        )
+    else:
+        df = make_df(spec.data, backend)
+        assert option_result(df, spec.build_expr(), backend) == option_result(
+            df, spec.reference_expr(), backend
+        )
 
 
 _CASE_SENSITIVITY_VALUES = ("CASE_SENSITIVE", "CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII")
-_CASE_INSENSITIVE_NATIVE_FAILURES = {
-    (op, backend): OptionProbeDidNotDiscriminateError
-    for op in _CASE_INSENSITIVE_DECLARED_OPS
-    for backend in ALL_BACKENDS
-}
 
 
 OPTION_DISPOSITIONS.extend(
@@ -178,14 +155,18 @@ OPTION_DISPOSITIONS.extend(
         value,
         "str",
         (
-            "probe_exempt"
+            "declared_unsupported"
+            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}
+            else "probe_exempt"
             if value == "CASE_SENSITIVE"
             else "honored"
             if op in _CASE_INSENSITIVE_HONORED_OPS
             else "declared_unsupported"
         ),
         (
-            "builder-default CASE_SENSITIVE is indistinguishable from omission"
+            "operation has no native Narwhals implementation"
+            if op == "strpos" and backend in {"narwhals-polars", "narwhals-pandas"}
+            else "builder-default CASE_SENSITIVE is indistinguishable from omission"
             if value == "CASE_SENSITIVE"
             else "native backend implements CASE_INSENSITIVE semantics"
             if op in _CASE_INSENSITIVE_HONORED_OPS
@@ -197,40 +178,7 @@ OPTION_DISPOSITIONS.extend(
     for value in _CASE_SENSITIVITY_VALUES
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _case_sensitivity_probe(op, value),
-        backend,
-        (
-            "probe_exempt"
-            if value == "CASE_SENSITIVE"
-            else "honored"
-            if op in _CASE_INSENSITIVE_HONORED_OPS
-            else "declared_unsupported"
-        ),
-        (
-            _CASE_INSENSITIVE_NATIVE_FAILURES[(op, backend)]
-            if value != "CASE_SENSITIVE"
-            and op in _CASE_INSENSITIVE_DECLARED_OPS
-            else None
-        ),
-    )
-    for op in _CASE_SENSITIVITY_FKEYS
-    for backend in ALL_BACKENDS
-    for value in _CASE_SENSITIVITY_VALUES
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (
-        _CASE_SENSITIVITY_FKEYS[op],
-        "case_sensitivity",
-        value,
-        CONST_BACKEND.IBIS,
-        None,
-    )
-    for op in _CASE_INSENSITIVE_DECLARED_OPS
-    for value in ("CASE_INSENSITIVE", "CASE_INSENSITIVE_ASCII")
-)
 
 _INVALID_CASE_SENSITIVITY_REJECTIONS = [
     InvalidOptionRejection(
@@ -244,9 +192,7 @@ _INVALID_CASE_SENSITIVITY_REJECTIONS = [
     )
     for op, fkey in _CASE_SENSITIVITY_FKEYS.items()
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(
-    _INVALID_CASE_SENSITIVITY_REJECTIONS
-)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -301,7 +247,7 @@ _CHAR_SET_DATA = {"t": ["ÄBC"]}
 
 
 def _char_set_broken(op: str, backend: str) -> bool:
-    return _whole_operation_gated(_CHAR_SET_OPS[op], backend)
+    return _known_unavailable(_CHAR_SET_OPS[op], backend)
 
 
 def _char_set_disposition(op: str, value: str, backend: str) -> str:
@@ -315,54 +261,7 @@ def _char_set_expr(op: str, char_set: str | None = None):
     return getattr(ma.col("t").str, op)(**kwargs)
 
 
-def _char_set_probe(op: str, value: str, backend: str) -> OptionSpec:
-    fkey = _CHAR_SET_OPS[op]
-    # On a broken pair the entire op is a no-op, so UTF8 is NOT equivalent to
-    # omission (both return unchanged input, but the op itself is broken).
-    # expected_discriminates=True ensures the native probe raises on broken
-    # pairs, matching the declared_unsupported disposition.
-    discriminate = value == "ASCII_ONLY" or _char_set_broken(op, backend)
-    return OptionSpec(
-        fkey,
-        "char_set",
-        value,
-        "str",
-        lambda: _char_set_expr(op, value),
-        lambda: _char_set_expr(op),
-        _CHAR_SET_DATA,
-        expected_discriminates=discriminate,
-    )
 
-
-@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
-@pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_char_set_ascii_only_declared_unsupported(op, backend, request):
-    request.applymarker(
-        xfail_option_unsupported(
-            _CHAR_SET_OPS[op], "char_set", "ASCII_ONLY", backend))
-    df = make_df(_CHAR_SET_DATA, backend)
-    got = option_result(df, _char_set_expr(op, "ASCII_ONLY"), backend)
-    reference = option_result(df, _char_set_expr(op), backend)
-    assert got == reference
-
-
-@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
-@pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_char_set_utf8_equivalent_to_omission(op, backend, request):
-    request.applymarker(
-        xfail_option_unsupported(
-            _CHAR_SET_OPS[op], "char_set", "UTF8", backend))
-    df = make_df(_CHAR_SET_DATA, backend)
-    assert option_result(df, _char_set_expr(op, "UTF8"), backend) \
-        == option_result(df, _char_set_expr(op), backend)
-
-
-def _char_set_native_failure(op: str, backend: str) -> type[BaseException] | None:
-    if _char_set_broken(op, backend):
-        if backend == "ibis" and op == "initcap":
-            return AttributeError
-        return OptionProbeDidNotDiscriminateError
-    return OptionProbeDidNotDiscriminateError
 
 
 OPTION_DISPOSITIONS.extend(
@@ -388,31 +287,32 @@ OPTION_DISPOSITIONS.extend(
     for value in _CHAR_SET_VALUES
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _char_set_probe(op, value, backend),
-        backend,
-        _char_set_disposition(op, value, backend),
-        _char_set_native_failure(op, backend)
-        if _char_set_disposition(op, value, backend) == "declared_unsupported"
-        else None,
-    )
-    for op in _CHAR_SET_OPS
-    for backend in ALL_BACKENDS
-    for value in _CHAR_SET_VALUES
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (_CHAR_SET_OPS[op], "char_set", value, CONST_BACKEND.IBIS, None)
-    for op in ("swapcase", "title", "initcap")
-    for value in _CHAR_SET_VALUES
-)
-# Working ops on ibis: ASCII_ONLY is UNSUPPORTED as a family default
-# (UTF8 is EXPR_CAPABLE only dialect-scoped via _dialect_facts).
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (_CHAR_SET_OPS[op], "char_set", "ASCII_ONLY", CONST_BACKEND.IBIS, None)
-    for op in ("lower", "upper", "capitalize")
-)
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_ascii_only_declared_unsupported(op, backend):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(_CHAR_SET_DATA, backend), _char_set_expr(op, "ASCII_ONLY"), backend
+        )
+
+
+@pytest.mark.parametrize("op", sorted(_CHAR_SET_OPS))
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_char_set_utf8_equivalent_to_omission(op, backend):
+    if _char_set_broken(op, backend):
+        _assert_backend_refusal(
+            lambda: option_result(
+                make_df(_CHAR_SET_DATA, backend), _char_set_expr(op, "UTF8"), backend
+            ),
+            _CHAR_SET_OPS[op],
+        )
+    else:
+        df = make_df(_CHAR_SET_DATA, backend)
+        assert option_result(df, _char_set_expr(op, "UTF8"), backend) == option_result(
+            df, _char_set_expr(op), backend
+        )
+
 
 _INVALID_CHAR_SET_REJECTIONS = [
     InvalidOptionRejection(
@@ -426,7 +326,7 @@ _INVALID_CHAR_SET_REJECTIONS = [
     )
     for op in _CHAR_SET_OPS
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_CHAR_SET_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -468,7 +368,7 @@ TESTED_OPTION_PARAMS.extend(
 
 
 _PADDING_FKEY = FK_STR.CENTER
-_PADDING_DATA = {"t": ["hi"]}
+_PADDING_DATA = {"t": ["hi", "abc", None]}
 
 
 def _padding_expr(padding: str | None = None):
@@ -477,21 +377,43 @@ def _padding_expr(padding: str | None = None):
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_center_padding_left_declared_unsupported(backend, request):
-    request.applymarker(
-        xfail_option_unsupported(_PADDING_FKEY, "padding", "LEFT", backend))
-    df = make_df(_PADDING_DATA, backend)
-    got = option_result(df, _padding_expr("LEFT"), backend)
-    assert got == ["*hi**"]
+def test_center_padding_left_is_rejected(backend):
+    _assert_backend_refusal(
+        lambda: option_result(
+            make_df(_PADDING_DATA, backend), _padding_expr("LEFT"), backend
+        ),
+        FK_STR.CENTER,
+    )
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_center_padding_right_equivalent_to_omission(backend, request):
-    request.applymarker(
-        xfail_option_unsupported(_PADDING_FKEY, "padding", "RIGHT", backend))
-    df = make_df(_PADDING_DATA, backend)
-    assert option_result(df, _padding_expr("RIGHT"), backend) \
-        == option_result(df, _padding_expr(), backend)
+def test_center_padding_right_contract(backend):
+    if backend == "ibis":
+        assert option_result(make_df(_PADDING_DATA, backend), _padding_expr("RIGHT"), backend) == [
+            "*hi**", "*abc*", None,
+        ]
+        return
+    _assert_backend_refusal(
+        lambda: option_result(
+            make_df(_PADDING_DATA, backend), _padding_expr("RIGHT"), backend
+        ),
+        FK_STR.CENTER,
+    )
+
+
+@pytest.mark.parametrize("backend", ALL_BACKENDS)
+def test_center_padding_omission_retains_native_default(backend):
+    if backend.startswith("narwhals"):
+        _assert_backend_refusal(
+            lambda: option_result(make_df(_PADDING_DATA, backend), _padding_expr(), backend),
+            FK_STR.CENTER,
+        )
+        return
+    expected = (
+        ["*hi**", "*abc*", None] if backend == "ibis"
+        else ["hi".center(5, "*"), "abc".center(5, "*"), None]
+    )
+    assert option_result(make_df(_PADDING_DATA, backend), _padding_expr(), backend) == expected
 
 
 def test_center_padding_rejects_invalid_value():
@@ -503,32 +425,7 @@ _PADDING_VALUES = ("RIGHT", "LEFT")
 
 
 def _padding_disposition(value: str, backend: str) -> str:
-    if _whole_operation_gated(_PADDING_FKEY, backend):
-        return "declared_unsupported"
-    return "probe_exempt" if value == "RIGHT" else "declared_unsupported"
-
-
-def _padding_probe(value: str, backend: str) -> OptionSpec:
-    broken = _whole_operation_gated(_PADDING_FKEY, backend)
-    discriminate = value == "LEFT" or broken
-    return OptionSpec(
-        _PADDING_FKEY,
-        "padding",
-        value,
-        "str",
-        lambda v=value: _padding_expr(v),
-        lambda: _padding_expr(),
-        _PADDING_DATA,
-        expected_discriminates=discriminate,
-    )
-
-
-def _padding_native_failure(value: str, backend: str) -> type[BaseException] | None:
-    if _whole_operation_gated(_PADDING_FKEY, backend):
-        return OptionProbeDidNotDiscriminateError
-    if value == "RIGHT":
-        return None
-    return OptionProbeDidNotDiscriminateError
+    return "honored" if backend == "ibis" and value == "RIGHT" else "declared_unsupported"
 
 
 OPTION_DISPOSITIONS.extend(
@@ -541,34 +438,14 @@ OPTION_DISPOSITIONS.extend(
         value,
         "str",
         _padding_disposition(value, backend),
-        (
-            "center is gated as a whole operation; padding cannot be honored"
-            if _whole_operation_gated(_PADDING_FKEY, backend)
-            else "builder-default RIGHT is indistinguishable from omission"
-            if value == "RIGHT"
-            else "native backend does not implement LEFT padding semantics"
-        ),
+        "Ibis honors RIGHT; other explicit padding modes are intrinsically refused",
     )
     for backend in ALL_BACKENDS
     for value in _PADDING_VALUES
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _padding_probe(value, backend),
-        backend,
-        _padding_disposition(value, backend),
-        _padding_native_failure(value, backend)
-        if _padding_disposition(value, backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for value in _PADDING_VALUES
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.add(
-    (_PADDING_FKEY, "padding", "LEFT", CONST_BACKEND.IBIS, None)
-)
+
 
 _PADDING_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -581,7 +458,7 @@ _PADDING_INVALID_REJECTIONS = [
         lambda: _padding_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_PADDING_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -619,33 +496,31 @@ def _negative_start_expr(negative_start: str | None = None):
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_substring_negative_start_left_of_beginning_declared_unsupported(backend, request):
-    request.applymarker(
-        xfail_option_unsupported(
-            _NEGATIVE_START_FKEY, "negative_start", "LEFT_OF_BEGINNING", backend))
-    df = make_df(_NEGATIVE_START_DATA, backend)
-    got = option_result(df, _negative_start_expr("LEFT_OF_BEGINNING"), backend)
-    assert got == ["llo"]
+def test_substring_negative_start_left_of_beginning_declared_unsupported(backend):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(_NEGATIVE_START_DATA, backend),
+            _negative_start_expr("LEFT_OF_BEGINNING"),
+            backend,
+        )
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_substring_negative_start_error_declared_unsupported(backend, request):
-    request.applymarker(
-        xfail_option_unsupported(
-            _NEGATIVE_START_FKEY, "negative_start", "ERROR", backend))
-    df = make_df(_NEGATIVE_START_DATA, backend)
-    got = option_result(df, _negative_start_expr("ERROR"), backend)
-    assert got == ["llo"]
+def test_substring_negative_start_error_declared_unsupported(backend):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(_NEGATIVE_START_DATA, backend),
+            _negative_start_expr("ERROR"),
+            backend,
+        )
 
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_substring_negative_start_wrap_from_end_equivalent_to_omission(backend, request):
-    request.applymarker(
-        xfail_option_unsupported(
-            _NEGATIVE_START_FKEY, "negative_start", "WRAP_FROM_END", backend))
+def test_substring_negative_start_wrap_from_end_equivalent_to_omission(backend):
     df = make_df(_NEGATIVE_START_DATA, backend)
-    assert option_result(df, _negative_start_expr("WRAP_FROM_END"), backend) \
-        == option_result(df, _negative_start_expr(), backend)
+    assert option_result(df, _negative_start_expr("WRAP_FROM_END"), backend) == option_result(
+        df, _negative_start_expr(), backend
+    )
 
 
 def test_substring_negative_start_rejects_invalid_value():
@@ -660,24 +535,6 @@ def _negative_start_disposition(value: str, backend: str) -> str:
     return "probe_exempt" if value == "WRAP_FROM_END" else "declared_unsupported"
 
 
-def _negative_start_probe(value: str, backend: str) -> OptionSpec:
-    discriminate = value != "WRAP_FROM_END"
-    return OptionSpec(
-        _NEGATIVE_START_FKEY,
-        "negative_start",
-        value,
-        "str",
-        lambda v=value: _negative_start_expr(v),
-        lambda: _negative_start_expr(),
-        _NEGATIVE_START_DATA,
-        expected_discriminates=discriminate,
-    )
-
-
-def _negative_start_native_failure(value: str, backend: str) -> type[BaseException] | None:
-    if value == "WRAP_FROM_END":
-        return None
-    return OptionProbeDidNotDiscriminateError
 
 
 OPTION_DISPOSITIONS.extend(
@@ -700,23 +557,7 @@ OPTION_DISPOSITIONS.extend(
     for value in _NEGATIVE_START_VALUES
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _negative_start_probe(value, backend),
-        backend,
-        _negative_start_disposition(value, backend),
-        _negative_start_native_failure(value, backend)
-        if _negative_start_disposition(value, backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for value in _NEGATIVE_START_VALUES
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (_NEGATIVE_START_FKEY, "negative_start", value, CONST_BACKEND.IBIS, None)
-    for value in ("LEFT_OF_BEGINNING", "ERROR")
-)
 
 _INVALID_NEGATIVE_START_REJECTIONS = [
     InvalidOptionRejection(
@@ -729,7 +570,7 @@ _INVALID_NEGATIVE_START_REJECTIONS = [
         lambda: _negative_start_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_NEGATIVE_START_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -799,16 +640,29 @@ _REGEXP_FLAG_DATA = {
     "dotall": ({"text": ["a\nb"]}, "a.b"),
 }
 def _regexp_operation_unsupported(op: str, backend: str) -> bool:
-    """Whether every public regexp-flag spelling is build-gated on this fixture."""
-    return all(
-        _regexp_flag_gate(op, param, value, backend) is not None
-        for param, values in _REGEXP_FLAG_VALUES.items()
-        for value in values
+    """Public regexp operations that lack a native implementation."""
+    return (
+        backend == "ibis"
+        and op
+        in {
+            "regexp_match_substring_all",
+            "regexp_strpos",
+            "regexp_count_substring",
+        }
+        or backend in {"narwhals-polars", "narwhals-pandas"}
+        and op
+        in {
+            "regexp_match_substring",
+            "regexp_match_substring_all",
+            "regexp_strpos",
+            "regexp_count_substring",
+            "regexp_string_split",
+        }
     )
 
 
 def _regexp_flag_disposition(op: str, param: str, value: str, backend: str) -> str:
-    if _regexp_flag_gate(op, param, value, backend) is not None:
+    if _regexp_operation_unsupported(op, backend):
         return "declared_unsupported"
     return (
         "probe_exempt"
@@ -857,31 +711,10 @@ def _regexp_flag_expr(op: str, param: str, value: str | None = None):
     raise AssertionError(f"no regexp flag expression for {op}")
 
 
-@cache
-def _regexp_flag_gate(op: str, param: str, value: str | None, backend: str):
-    """Return the first production-order gate for this emitted regexp call."""
-    expression = _regexp_flag_expr(op, param, value)
-    return first_scalar_build_gate(expression._node, matrix_identity(backend))
-
-
-def _regexp_flag_probe(op: str, param: str, value: str) -> OptionSpec:
-    data, _ = _REGEXP_FLAG_DATA[param]
-    return OptionSpec(
-        _REGEXP_FLAG_FKEYS[param][op],
-        param,
-        value,
-        "str",
-        lambda: _regexp_flag_expr(op, param, value),
-        lambda: _regexp_flag_expr(op, param),
-        data,
-        expected_discriminates=value != _REGEXP_FLAG_DEFAULTS[param],
-    )
-
-
-def _regexp_flag_native_exception(op: str, backend: str):
-    if _regexp_operation_unsupported(op, backend):
-        return BackendCapabilityError
-    return None
+def _assert_backend_refusal(call, function_key) -> None:
+    with pytest.raises(BackendCapabilityError) as raised:
+        call()
+    assert raised.value.function_key == function_key
 
 
 @pytest.mark.parametrize(
@@ -894,39 +727,18 @@ def _regexp_flag_native_exception(op: str, backend: str):
 )
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_default_regexp_flag_matches_omission(param, op, backend):
-    default = _REGEXP_FLAG_DEFAULTS[param]
-    spec = _regexp_flag_probe(op, param, default)
-    df = make_df(spec.data, backend)
-    identity = resolve_identity(df)
-    expressions = (spec.build_expr(), spec.reference_expr())
-    facts = tuple(
-        first_scalar_build_gate(expression._node, identity)
-        for expression in expressions
-    )
-    if any(fact is not None for fact in facts):
-        # Explicit default and omission are equivalent public calls: when the
-        # scoped spine blocks either, both must report their actual first
-        # production-order limitation rather than falling through to a result
-        # comparison. Default regexp facts are parameter/value-scoped for the
-        # unavailable Ibis/Narwhals operations, not necessarily WILDCARD facts.
-        assert all(fact is not None for fact in facts)
-        for expression, fact in zip(expressions, facts, strict=True):
-            assert fact.operation_key is spec.fkey
-            assert_capability_gated(
-                fact.operation_key,
-                identity.family,
-                dialect=identity.dialect,
-                param=fact.param,
-                option_value=fact.option_value,
-                build=lambda expression=expression: option_result(
-                    df, expression, backend
-                ),
-            )
-        return
-
-    assert option_result(df, expressions[0], backend) == option_result(
-        df, expressions[1], backend
-    )
+    data, _ = _REGEXP_FLAG_DATA[param]
+    explicit = _regexp_flag_expr(op, param, _REGEXP_FLAG_DEFAULTS[param])
+    if _regexp_operation_unsupported(op, backend):
+        _assert_backend_refusal(
+            lambda: option_result(make_df(data, backend), explicit, backend),
+            _REGEXP_FLAG_FKEYS[param][op],
+        )
+    else:
+        df = make_df(data, backend)
+        assert option_result(df, explicit, backend) == option_result(
+            df, _regexp_flag_expr(op, param), backend
+        )
 
 
 @pytest.mark.parametrize(
@@ -939,17 +751,13 @@ def test_default_regexp_flag_matches_omission(param, op, backend):
     ],
 )
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_enabled_regexp_flag_declared_unsupported(param, op, enabled, backend, request):
-    spec = _regexp_flag_probe(op, param, enabled)
-    request.applymarker(
-        xfail_option_unsupported(
-            spec.fkey, spec.option_param, spec.option_value, backend
-        )
-    )
-    df = make_df(spec.data, backend)
-
-    assert option_result(df, spec.build_expr(), backend) != option_result(
-        df, spec.reference_expr(), backend
+def test_enabled_regexp_flag_is_rejected(param, op, enabled, backend):
+    data, _ = _REGEXP_FLAG_DATA[param]
+    _assert_backend_refusal(
+        lambda: option_result(
+            make_df(data, backend), _regexp_flag_expr(op, param, enabled), backend
+        ),
+        _REGEXP_FLAG_FKEYS[param][op],
     )
 
 
@@ -990,7 +798,7 @@ _INVALID_REGEXP_FLAG_REJECTIONS = [
     for param, operations in _REGEXP_FLAG_FKEYS.items()
     for op, fkey in operations.items()
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_REGEXP_FLAG_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1031,14 +839,12 @@ OPTION_DISPOSITIONS.extend(
         "str",
         _regexp_flag_disposition(op, param, value, backend),
         (
-            "operation is unsupported on this backend; the option cannot be honored"
+            "operation has no native backend implementation"
             if _regexp_operation_unsupported(op, backend)
-            else "the scoped capability fact gates this option value"
-            if _regexp_flag_gate(op, param, value, backend) is not None
             else f"builder-default {_REGEXP_FLAG_DEFAULTS[param]} is "
             "indistinguishable from omission"
             if value == _REGEXP_FLAG_DEFAULTS[param]
-            else f"native backend does not implement {value} semantics"
+            else f"ordinary backend implementation rejects {value}"
         ),
     )
     for param, operations in _REGEXP_FLAG_FKEYS.items()
@@ -1047,51 +853,7 @@ OPTION_DISPOSITIONS.extend(
     for value in _REGEXP_FLAG_VALUES[param]
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _regexp_flag_probe(op, param, value),
-        backend,
-        _regexp_flag_disposition(op, param, value, backend),
-        (
-            _regexp_flag_native_exception(op, backend)
-            if _regexp_flag_native_exception(op, backend) is not None
-            else OptionProbeDidNotDiscriminateError
-        )
-        if _regexp_flag_disposition(op, param, value, backend)
-        == "declared_unsupported"
-        else None,
-    )
-    for param, operations in _REGEXP_FLAG_FKEYS.items()
-    for op in operations
-    for backend in ALL_BACKENDS
-    for value in _REGEXP_FLAG_VALUES[param]
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (
-        fkey,
-        param,
-        value,
-        CONST_BACKEND.IBIS,
-        None,
-    )
-    for param, operations in _REGEXP_FLAG_FKEYS.items()
-    for fkey in operations.values()
-    for value in _REGEXP_FLAG_VALUES[param][1:]
-)
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (
-        fkey,
-        param,
-        _REGEXP_FLAG_DEFAULTS[param],
-        CONST_BACKEND.IBIS,
-        None,
-    )
-    for param, operations in _REGEXP_FLAG_FKEYS.items()
-    for op, fkey in operations.items()
-    if _regexp_flag_gate(op, param, _REGEXP_FLAG_DEFAULTS[param], "ibis")
-    is not None
-)
 
 TESTED_OPTION_PARAMS.extend(
     (
@@ -1147,7 +909,6 @@ _POSITIONAL_DATA = {
 _POSITIONAL_HONORED = {
     ("regexp_match_substring", "group", "polars"),
     ("regexp_match_substring", "group", "ibis"),
-    ("regexp_replace", "occurrence", "polars"),
 }
 _POSITIONAL_CASES = [
     (param, op)
@@ -1190,10 +951,6 @@ def _positional_disposition(op: str, param: str, backend: str) -> str:
     return "declared_unsupported"
 
 
-def _positional_native_failure(op: str, backend: str):
-    if _regexp_operation_unsupported(op, backend):
-        return BackendCapabilityError
-    return OptionProbeDidNotDiscriminateError
 
 
 def _positional_probe(op: str, param: str, value: str) -> OptionSpec:
@@ -1212,19 +969,14 @@ def _positional_probe(op: str, param: str, value: str) -> OptionSpec:
 
 @pytest.mark.parametrize("param,op", _POSITIONAL_CASES)
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_positional_option_disposition(param, op, backend, request):
+def test_positional_option_disposition(param, op, backend):
     spec = _positional_probe(op, param, _POSITIONAL_VALUE)
-    if _positional_disposition(op, param, backend) == "declared_unsupported":
-        request.applymarker(
-            xfail_option_unsupported(
-                spec.fkey, spec.option_param, spec.option_value, backend
-            )
-        )
     df = make_df(spec.data, backend)
-
-    assert option_result(df, spec.build_expr(), backend) != option_result(
-        df, spec.reference_expr(), backend
-    )
+    if _positional_disposition(op, param, backend) == "honored":
+        assert option_result(df, spec.build_expr(), backend) == ["b"]
+    else:
+        with pytest.raises(BackendCapabilityError):
+            option_result(df, spec.build_expr(), backend)
 
 
 OPTION_DISPOSITIONS.extend(
@@ -1243,7 +995,7 @@ OPTION_DISPOSITIONS.extend(
             else "operation is unsupported on this backend; the option cannot "
             "be honored"
             if _regexp_operation_unsupported(op, backend)
-            else "native backend silently ignores the regexp positional option"
+            else "the backend implementation rejects this positional option"
         ),
     )
     for param, operations in _POSITIONAL_FKEYS.items()
@@ -1251,32 +1003,7 @@ OPTION_DISPOSITIONS.extend(
     for backend in ALL_BACKENDS
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _positional_probe(op, param, _POSITIONAL_VALUE),
-        backend,
-        _positional_disposition(op, param, backend),
-        _positional_native_failure(op, backend)
-        if _positional_disposition(op, param, backend) == "declared_unsupported"
-        else None,
-    )
-    for param, operations in _POSITIONAL_FKEYS.items()
-    for op in operations
-    for backend in ALL_BACKENDS
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (
-        _POSITIONAL_FKEYS[param][op],
-        param,
-        _POSITIONAL_VALUE,
-        CONST_BACKEND.IBIS,
-        None,
-    )
-    for param, operations in _POSITIONAL_FKEYS.items()
-    for op in operations
-    if (op, param, "ibis") not in _POSITIONAL_HONORED
-)
 
 _INVALID_POSITIONAL_REJECTIONS = [
     InvalidOptionRejection(
@@ -1293,7 +1020,7 @@ _INVALID_POSITIONAL_REJECTIONS = [
     for param, operations in _POSITIONAL_FKEYS.items()
     for op in operations
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_POSITIONAL_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1363,42 +1090,6 @@ OPTION_DISPOSITIONS.extend(
     for value in ("IGNORE_NULLS", "ACCEPT_NULLS")
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        OptionSpec(
-            FK_STR.CONCAT,
-            "null_handling",
-            "IGNORE_NULLS",
-            "str",
-            lambda: _concat_null_handling_expr("IGNORE_NULLS"),
-            lambda: _concat_null_handling_expr(),
-            _CONCAT_NULL_HANDLING_DATA,
-            expected_discriminates=False,
-        ),
-        backend,
-        "honored",
-        None,
-    )
-    for backend in ALL_BACKENDS
-)
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        OptionSpec(
-            FK_STR.CONCAT,
-            "null_handling",
-            "ACCEPT_NULLS",
-            "str",
-            lambda: _concat_null_handling_expr("ACCEPT_NULLS"),
-            lambda: _concat_null_handling_expr(),
-            _CONCAT_NULL_HANDLING_DATA,
-            expected_discriminates=True,
-        ),
-        backend,
-        "honored",
-        None,
-    )
-    for backend in ALL_BACKENDS
-)
 
 TESTED_OPTION_PARAMS.append(
     (
@@ -1420,7 +1111,7 @@ _CONCAT_NULL_HANDLING_INVALID_REJECTIONS = [
         lambda: _concat_null_handling_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_CONCAT_NULL_HANDLING_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -2011,17 +1702,10 @@ OP_SPECS: list[OpSpec] = [
 ]
 
 
-# Ops fully unsupported on narwhals (raise BackendCapabilityError for all input types,
-# not just col/complex). xfail_if_limited only marks col/complex, so we handle these
-# manually to avoid unexplained failures on raw/lit inputs.
+# These concrete fixture cells are known native backend gaps.  They remain
+# strict expected failures until the upstream implementation changes.
 _NARWHALS_FULLY_UNSUPPORTED: set[tuple] = {
-    # repeat: narwhals has no str.repeat(); raises BackendCapabilityError unconditionally
     (FK_STR.REPEAT, "count"),
-    # REGEXP_MATCH_ALL/REGEXP_COUNT/REGEXP_STRPOS removed 2026-08 — now fact-backed:
-    # first_scalar_build_gate() sees the emitted case_sensitivity/multiline/dotall
-    # option values and resolves the same whole-op-unavailable GATE/BUILD fact for
-    # every input type (backlog arg-matrix-xfail-blind-to-value-class-facts).
-    # center: whole-op gated on narwhals (no per-row-width pad) — 61a
     (FK_STR.CENTER, "length"),
     (FK_STR.CENTER, "character"),
     # string extension ops with no narwhals support
@@ -2049,19 +1733,19 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op, it)
+                mark = None
                 if mark is None and bk in ("narwhals-polars", "narwhals-pandas"):
                     if (op.function_key, op.param_name) in _NARWHALS_FULLY_UNSUPPORTED:
                         mark = pytest.mark.xfail(
                             strict=True,
-                            raises=Exception,
+                            raises=BackendCapabilityError,
                             reason="Narwhals backend does not support this operation at all",
                         )
                 if mark is None and bk == "ibis":
                     if (op.function_key, op.param_name) in _IBIS_FULLY_UNSUPPORTED:
                         mark = pytest.mark.xfail(
                             strict=True,
-                            raises=Exception,
+                            raises=BackendCapabilityError,
                             reason="Ibis backend does not support this operation at all",
                         )
                 marks = [mark] if mark else []
@@ -2075,4 +1759,116 @@ if OP_SPECS:
 
     @pytest.mark.parametrize("op,backend,input_type", _params())
     def test_argument_channel(op: OpSpec, backend: str, input_type: str):
+        if backend == "narwhals-pandas" and op.op_name == "string_split" and input_type in ("raw", "lit"):
+            with expect_call_failure(
+                reason="Narwhals pandas string_split requires pyarrow-backed storage",
+                errors=(TypeError,),
+            ):
+                run_argument_matrix(op, backend, input_type)
+            return
+
+        if (
+            backend == "ibis"
+            and op.op_name
+            in {
+                "regexp_match_substring_all",
+                "regexp_count_substring",
+                "regexp_strpos",
+            }
+            or backend in {"narwhals-polars", "narwhals-pandas"}
+            and op.op_name
+            in {
+                "strpos",
+                "regexp_match_substring",
+                "regexp_match_substring_all",
+                "regexp_count_substring",
+                "regexp_strpos",
+                "regexp_string_split",
+            }
+        ):
+            _assert_backend_refusal(
+                lambda: run_argument_matrix(op, backend, input_type), op.function_key
+            )
+            return
+
+        if input_type in {"col", "complex"} and (
+            backend == "polars"
+            and op.op_name
+            in {
+                "replace",
+                "like",
+                "regexp_replace_pattern",
+                "repeat",
+                "center_length",
+                "center_character",
+                "lpad_characters",
+                "rpad_characters",
+                "replace_slice_start",
+                "replace_slice_length",
+                "replace_slice_replacement",
+                "regexp_string_split",
+            }
+            or backend == "ibis"
+            and op.op_name
+            in {
+                "trim",
+                "ltrim",
+                "rtrim",
+                "center_length",
+                "center_character",
+                "replace_slice_start",
+                "replace_slice_length",
+                "replace_slice_replacement",
+            }
+            or backend == "narwhals-polars"
+            and op.op_name
+            in {
+                "replace",
+                "lpad",
+                "rpad",
+                "substring_start",
+                "substring_length",
+                "left",
+                "right",
+                "trim",
+                "ltrim",
+                "rtrim",
+                "like",
+                "regexp_replace_pattern",
+                "count_substring",
+                "lpad_characters",
+                "rpad_characters",
+                "string_split",
+            }
+            or backend == "narwhals-pandas"
+            and op.op_name
+            in {
+                "contains",
+                "starts_with",
+                "ends_with",
+                "replace",
+                "lpad",
+                "rpad",
+                "substring_start",
+                "substring_length",
+                "left",
+                "right",
+                "trim",
+                "ltrim",
+                "rtrim",
+                "like",
+                "replace_replacement",
+                "regexp_replace_pattern",
+                "regexp_replace_replacement",
+                "count_substring",
+                "lpad_characters",
+                "rpad_characters",
+                "string_split",
+            }
+        ):
+            _assert_backend_refusal(
+                lambda: run_argument_matrix(op, backend, input_type), op.function_key
+            )
+            return
+
         run_argument_matrix(op, backend, input_type)

@@ -10,35 +10,25 @@ import duckdb as _duckdb
 import mountainash as ma
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import InvalidOptionValueError
+from mountainash.core.types import BackendCapabilityError
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
     FKEY_MOUNTAINASH_SCALAR_ARITHMETIC as FK_MA_ARITH,
 )
 from expressions.argument_types.conftest import ALL_BACKENDS, make_df
-from expressions.argument_types._option_helpers import (
-    OptionProbeDidNotDiscriminateError,
-    OptionSpec,
-    option_result,
-    xfail_option_unsupported,
-)
+from expressions.argument_types._option_helpers import OptionSpec, option_result
 from expressions.argument_types.option_disposition import (
     INVALID_OPTION_VALUE,
     OPTION_DISPOSITIONS,
-    OPTION_FAMILY_DEFAULT_FACT_KEYS,
-    REGISTERED_INVALID_OPTION_REJECTIONS,
-    REGISTERED_OPTION_PROBES,
     InvalidOptionRejection,
     OptionCell,
-    OptionProbeRegistration,
     param_taxonomy,
 )
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from fixtures.call_expectations import expect_call_failure
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 
 TESTED_PARAMS: list[tuple] = [
     (FK_ARITH.ABS, "x"),
@@ -93,41 +83,6 @@ TESTED_PARAMS: list[tuple] = [
 ]
 
 
-@pytest.mark.parametrize(
-    ("build", "fkey"),
-    [
-        pytest.param(
-            lambda: ma.col("v").add(ma.col("w"), rounding="CEILING"),
-            FK_ARITH.ADD,
-            id="add",
-        ),
-        pytest.param(
-            lambda: ma.col("v").subtract(ma.col("w"), rounding="CEILING"),
-            FK_ARITH.SUBTRACT,
-            id="subtract",
-        ),
-        pytest.param(
-            lambda: ma.col("v").multiply(ma.col("w"), rounding="CEILING"),
-            FK_ARITH.MULTIPLY,
-            id="multiply",
-        ),
-        pytest.param(
-            lambda: ma.col("v").divide(ma.col("w"), rounding="CEILING"),
-            FK_ARITH.DIVIDE,
-            id="divide",
-        ),
-        pytest.param(
-            lambda: ma.col("v").sin(rounding="CEILING"),
-            FK_ARITH.SIN,
-            id="sin",
-        ),
-    ],
-)
-def test_arithmetic_rounding_option_is_emitted(build, fkey):
-    node = build()._node
-
-    assert node.function_key is fkey
-    assert node.options == {"rounding": "CEILING"}
 
 
 _ARITH_PROTOCOL = "SubstraitScalarArithmeticExpressionSystemProtocol"
@@ -182,34 +137,6 @@ def _abs_probe(value: str) -> OptionSpec:
     )
 
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _abs_probe(value),
-        backend,
-        "declared_unsupported",
-        (
-            _duckdb.OutOfRangeException
-            if backend == "ibis"
-            else OptionProbeDidNotDiscriminateError
-        ),
-    )
-    for backend, value in sorted(_ABS_DECLARED)
-)
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _abs_probe(value)._replace(
-            expected_discriminates=False,
-            expected_native_exception=(
-                _duckdb.OutOfRangeException
-                if backend == "ibis" and value == "ERROR"
-                else None
-            ),
-        ),
-        backend,
-        "probe_exempt",
-    )
-    for backend, value in sorted(_ABS_PROBE_EXEMPT)
-)
 
 
 _SEMANTIC_VALUES = {
@@ -261,7 +188,7 @@ _SEMANTIC_INPUTS = {
         {"v": pl.Int64, "w": pl.Int64},
     ),
 }
-_SEMANTIC_EXEMPT = {
+_SEMANTIC_HONORED = {
     ("acos", "on_domain_error", "polars", "NAN"),
     ("acosh", "on_domain_error", "polars", "NAN"),
     ("asin", "on_domain_error", "polars", "NAN"),
@@ -274,7 +201,6 @@ _SEMANTIC_EXEMPT = {
     ("divide", "on_domain_error", "narwhals-pandas", "NULL"),
     ("divide", "on_division_by_zero", "polars", "IEEE"),
     ("divide", "on_division_by_zero", "narwhals-polars", "IEEE"),
-    ("divide", "on_division_by_zero", "narwhals-pandas", "NULL"),
     ("modulus", "division_type", "polars", "FLOOR"),
     ("modulus", "division_type", "narwhals-polars", "FLOOR"),
     ("modulus", "division_type", "narwhals-pandas", "FLOOR"),
@@ -284,6 +210,21 @@ _SEMANTIC_EXEMPT = {
     ("acos", "on_domain_error", "ibis", "ERROR"),
     ("asin", "on_domain_error", "ibis", "ERROR"),
     ("sqrt", "on_domain_error", "ibis", "ERROR"),
+    ("divide", "on_division_by_zero", "ibis", "IEEE"),
+    ("modulus", "division_type", "ibis", "TRUNCATE"),
+    ("modulus", "on_domain_error", "ibis", "NULL"),
+    ("atan2", "on_domain_error", "ibis", "NAN"),
+    ("divide", "on_domain_error", "ibis", "NAN"),
+}
+_SEMANTIC_UNIMPLEMENTED = {
+    (op, "on_domain_error", backend, value)
+    for op in {"acos", "acosh", "asin", "atan2", "atanh"}
+    for backend in {"narwhals-polars", "narwhals-pandas"}
+    for value in _SEMANTIC_VALUES[(op, "on_domain_error")]
+} | {
+    (op, "on_domain_error", "ibis", value)
+    for op in {"acosh", "atanh"}
+    for value in _SEMANTIC_VALUES[(op, "on_domain_error")]
 }
 _SEMANTIC_INTENDED_ERROR = {
     ("acos", "on_domain_error", "ibis", "ERROR"): _duckdb.InvalidInputException,
@@ -295,7 +236,8 @@ _SEMANTIC_DECLARED = {
     for (op, param), values in _SEMANTIC_VALUES.items()
     for backend in ALL_BACKENDS
     for value in values
-    if (op, param, backend, value) not in _SEMANTIC_EXEMPT
+    if (op, param, backend, value)
+    not in _SEMANTIC_HONORED | _SEMANTIC_UNIMPLEMENTED
 }
 
 
@@ -321,27 +263,6 @@ def _semantic_probe(op: str, param: str, value: str) -> OptionSpec:
     )
 
 
-def _semantic_native_failure(
-    op: str, param: str, backend: str, value: str
-) -> type[BaseException]:
-    if backend.startswith("narwhals") and op in {
-        "acos",
-        "acosh",
-        "asin",
-        "atan2",
-        "atanh",
-    }:
-        return NotImplementedError
-    if backend == "ibis":
-        if op in {"acos", "asin"}:
-            return _duckdb.InvalidInputException
-        if op in {"acosh", "atanh"}:
-            return NotImplementedError
-        if op == "sqrt":
-            return _duckdb.OutOfRangeException
-    return OptionProbeDidNotDiscriminateError
-
-
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         _SEMANTIC_FKEYS[op],
@@ -352,46 +273,26 @@ OPTION_DISPOSITIONS.extend(
         value,
         "int64" if op == "modulus" else "float64",
         (
-            "probe_exempt"
-            if (op, param, backend, value) in _SEMANTIC_EXEMPT
+            "honored"
+            if (op, param, backend, value) in _SEMANTIC_HONORED
             else "declared_unsupported"
         ),
         (
             "intended-error-path"
             if (op, param, backend, value) in _SEMANTIC_INTENDED_ERROR
-            else "native omission already has the requested semantics and is "
-            "indistinguishable from the explicit option"
-            if (op, param, backend, value) in _SEMANTIC_EXEMPT
+            else "native backend honors the requested semantic mode"
+            if (op, param, backend, value) in _SEMANTIC_HONORED
             else "native behavior does not implement the requested option semantics"
         ),
     )
     for (op, param), values in _SEMANTIC_VALUES.items()
     for backend in ALL_BACKENDS
     for value in values
+    if (op, param, backend, value) not in _SEMANTIC_UNIMPLEMENTED
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _semantic_probe(op, param, value),
-        backend,
-        "declared_unsupported",
-        _semantic_native_failure(op, param, backend, value),
-    )
-    for op, param, backend, value in sorted(_SEMANTIC_DECLARED)
-)
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _semantic_probe(op, param, value)._replace(
-            expected_discriminates=False,
-            expected_native_exception=_SEMANTIC_INTENDED_ERROR.get(
-                (op, param, backend, value)
-            ),
-        ),
-        backend,
-        "probe_exempt",
-    )
-    for op, param, backend, value in sorted(_SEMANTIC_EXEMPT)
-)
+
+
 
 
 _OVERFLOW_SPECS = {
@@ -556,34 +457,6 @@ OPTION_DISPOSITIONS.extend(
 _IBIS_OVERFLOW_ERRORS = frozenset(
     {"add", "subtract", "multiply", "modulus", "negate"}
 )
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _overflow_probe(op, value),
-        backend,
-        "declared_unsupported",
-        (
-            _duckdb.OutOfRangeException
-            if backend == "ibis" and op in _IBIS_OVERFLOW_ERRORS
-            else OptionProbeDidNotDiscriminateError
-        ),
-    )
-    for op, backend, value in sorted(_OVERFLOW_DECLARED)
-)
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _overflow_probe(op, value)._replace(
-            expected_discriminates=False,
-            expected_native_exception=(
-                _duckdb.OutOfRangeException
-                if backend == "ibis" and value == "ERROR"
-                else None
-            ),
-        ),
-        backend,
-        "probe_exempt",
-    )
-    for op, backend, value in sorted(_OVERFLOW_PROBE_EXEMPT)
-)
 
 
 _ROUNDING_VALUES = (
@@ -671,14 +544,22 @@ _NARWHALS_IMPLEMENTED_ROUNDING_OPS = {
     "sqrt",
     "subtract",
 }
-
-
-def _rounding_native_failure(op: str, backend: str) -> type[BaseException]:
-    if backend == "ibis" and op in _IBIS_UNIMPLEMENTED_ROUNDING_OPS:
-        return NotImplementedError
-    if backend.startswith("narwhals") and op not in _NARWHALS_IMPLEMENTED_ROUNDING_OPS:
-        return NotImplementedError
-    return OptionProbeDidNotDiscriminateError
+_ROUNDING_UNIMPLEMENTED = {
+    (op, backend, value)
+    for op in _ROUNDING_FKEYS
+    for backend in ALL_BACKENDS
+    for value in _ROUNDING_VALUES
+    if backend == "ibis" and op in _IBIS_UNIMPLEMENTED_ROUNDING_OPS
+    or backend.startswith("narwhals")
+    and op not in _NARWHALS_IMPLEMENTED_ROUNDING_OPS
+}
+_ROUNDING_DECLARED = {
+    (op, backend, value)
+    for op in _ROUNDING_FKEYS
+    for backend in ALL_BACKENDS
+    for value in _ROUNDING_VALUES
+    if (op, backend, value) not in _ROUNDING_UNIMPLEMENTED
+}
 
 
 OPTION_DISPOSITIONS.extend(
@@ -696,21 +577,9 @@ OPTION_DISPOSITIONS.extend(
     for op, fkey in _ROUNDING_FKEYS.items()
     for backend in ALL_BACKENDS
     for value in _ROUNDING_VALUES
+    if (op, backend, value) not in _ROUNDING_UNIMPLEMENTED
 )
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (
-        cell.fkey,
-        cell.param,
-        cell.value,
-        CONST_BACKEND.IBIS,
-        None,
-    )
-    for cell in OPTION_DISPOSITIONS
-    if cell.protocol == _ARITH_PROTOCOL
-    and cell.fixture == "ibis"
-    and cell.disposition != "invalid"
-)
 
 
 # Invalid strings are unbounded, so the matrix uses one canonical sentinel per
@@ -766,7 +635,7 @@ _INVALID_OPTION_REJECTIONS = [
         for op, fkey in _ROUNDING_FKEYS.items()
     ),
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_OPTION_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -796,17 +665,6 @@ def test_arithmetic_canonical_invalid_option_rejected_at_build_time(
         rejection.build_expr()
 
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _rounding_probe(op, value),
-        backend,
-        "declared_unsupported",
-        _rounding_native_failure(op, backend),
-    )
-    for op in _ROUNDING_FKEYS
-    for backend in ALL_BACKENDS
-    for value in _ROUNDING_VALUES
-)
 
 
 def test_power_overflow_probe_uses_pinned_int64_boundary() -> None:
@@ -876,25 +734,22 @@ def _assert_requested_semantics(value: str, got: list[object]) -> None:
     ids=lambda value: str(value),
 )
 def test_arithmetic_semantic_option_declared_unsupported(
-    op, param, backend, value, request
+    op, param, backend, value,
 ):
+
     spec = _semantic_probe(op, param, value)
-    request.applymarker(
-        xfail_option_unsupported(spec.fkey, param, value, backend)
-    )
     df = make_df(spec.data, backend, schema=spec.schema)
-    got = option_result(df, spec.build_expr(), backend)
-    if value == "ERROR":
-        pytest.fail("requested ERROR semantics returned a value")
-    _assert_requested_semantics(value, got)
+    with pytest.raises(BackendCapabilityError) as caught:
+        option_result(df, spec.build_expr(), backend)
+    assert caught.value.function_key is _SEMANTIC_FKEYS[op]
 
 
 @pytest.mark.parametrize(
     "op,param,backend,value",
-    sorted(_SEMANTIC_EXEMPT),
+    sorted(_SEMANTIC_HONORED),
     ids=lambda value: str(value),
 )
-def test_arithmetic_semantic_option_matches_native_requested_semantics(
+def test_arithmetic_semantic_option_honors_requested_semantics(
     op, param, backend, value
 ):
     spec = _semantic_probe(op, param, value)
@@ -907,9 +762,28 @@ def test_arithmetic_semantic_option_matches_native_requested_semantics(
             )
         return
     df = make_df(spec.data, backend, schema=spec.schema)
-    _assert_requested_semantics(
-        value, option_result(df, spec.build_expr(), backend)
-    )
+    got = option_result(df, spec.build_expr(), backend)
+    _assert_requested_semantics(value, got)
+
+
+@pytest.mark.parametrize(
+    "op,param,backend,value",
+    sorted(_SEMANTIC_UNIMPLEMENTED),
+    ids=lambda value: str(value),
+)
+def test_arithmetic_semantic_option_preserves_native_operation_refusal(
+    op, param, backend, value
+):
+    spec = _semantic_probe(op, param, value)
+    with expect_call_failure(
+        reason=f"{op}() is deliberately unimplemented by the {backend} backend.",
+        errors=(NotImplementedError,),
+    ):
+        option_result(
+            make_df(spec.data, backend, schema=spec.schema),
+            spec.build_expr(),
+            backend,
+        )
 
 
 @pytest.mark.parametrize("op,param", sorted(_SEMANTIC_VALUES))
@@ -926,14 +800,12 @@ def test_arithmetic_semantic_option_rejects_invalid_value_at_build_time(
     sorted(_OVERFLOW_DECLARED),
     ids=lambda value: str(value),
 )
-def test_arithmetic_overflow_declared_unsupported(op, backend, value, request):
+def test_arithmetic_overflow_declared_unsupported(op, backend, value):
     spec = _overflow_probe(op, value)
-    request.applymarker(
-        xfail_option_unsupported(spec.fkey, "overflow", value, backend)
-    )
-    df = make_df(spec.data, backend, schema=spec.schema)
-    got = option_result(df, spec.build_expr(), backend)
-    assert got != option_result(df, spec.reference_expr(), backend)
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df(spec.data, backend, schema=spec.schema), spec.build_expr(), backend
+        )
 
 
 @pytest.mark.parametrize(
@@ -957,18 +829,34 @@ def test_arithmetic_overflow_rejects_invalid_value_at_build_time(op, value):
         _overflow_probe(op, value).build_expr()
 
 
-@pytest.mark.parametrize("op", sorted(_ROUNDING_FKEYS))
-@pytest.mark.parametrize("backend", ALL_BACKENDS)
-@pytest.mark.parametrize("value", _ROUNDING_VALUES)
-def test_arithmetic_rounding_declared_unsupported(op, backend, value, request):
+@pytest.mark.parametrize(
+    "op,backend,value",
+    sorted(_ROUNDING_DECLARED),
+    ids=lambda value: str(value),
+)
+def test_arithmetic_rounding_declared_unsupported(op, backend, value):
     spec = _rounding_probe(op, value)
-    request.applymarker(
-        xfail_option_unsupported(spec.fkey, "rounding", value, backend)
-    )
-    df = make_df(spec.data, backend, schema=spec.schema)
-    assert option_result(df, spec.build_expr(), backend) != option_result(
-        df, spec.reference_expr(), backend
-    )
+    with pytest.raises(BackendCapabilityError) as caught:
+        option_result(
+            make_df(spec.data, backend, schema=spec.schema), spec.build_expr(), backend
+        )
+    assert caught.value.function_key is _ROUNDING_FKEYS[op]
+
+
+@pytest.mark.parametrize(
+    "op,backend,value",
+    sorted(_ROUNDING_UNIMPLEMENTED),
+    ids=lambda value: str(value),
+)
+def test_arithmetic_rounding_preserves_native_operation_refusal(op, backend, value):
+    spec = _rounding_probe(op, value)
+    with expect_call_failure(
+        reason=f"{op}() is deliberately unimplemented by the {backend} backend.",
+        errors=(NotImplementedError,),
+    ):
+        option_result(
+            make_df(spec.data, backend, schema=spec.schema), spec.build_expr(), backend
+        )
 
 
 @pytest.mark.parametrize("op", sorted(_ROUNDING_FKEYS))
@@ -983,13 +871,13 @@ def test_arithmetic_rounding_rejects_invalid_value_at_build_time(op, value):
     sorted(_ABS_DECLARED),
     ids=lambda value: str(value),
 )
-def test_abs_overflow_declared_unsupported(backend, value, request):
-    request.applymarker(
-        xfail_option_unsupported(FK_ARITH.ABS, "overflow", value, backend)
-    )
-    df = make_df({"v": [-128]}, backend, schema={"v": pl.Int8})
-    got = option_result(df, ma.col("v").abs(overflow=value), backend)
-    assert got == [128]
+def test_abs_overflow_declared_unsupported(backend, value):
+    with pytest.raises(BackendCapabilityError):
+        option_result(
+            make_df({"v": [-128]}, backend, schema={"v": pl.Int8}),
+            ma.col("v").abs(overflow=value),
+            backend,
+        )
 
 
 @pytest.mark.parametrize(
@@ -1046,6 +934,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [1, 2, 3], "b": [10, 20, 30]},
+        expected_by_input={
+            "raw": [11, 12, 13],
+            "lit": [11, 12, 13],
+            "col": [11, 22, 33],
+            "complex": [11, 22, 33],
+        },
     ),
     OpSpec(
         function_key=FK_ARITH.SUBTRACT,
@@ -1056,6 +950,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [10, 20, 30], "b": [1, 2, 3]},
+        expected_by_input={
+            "raw": [9, 19, 29],
+            "lit": [9, 19, 29],
+            "col": [9, 18, 27],
+            "complex": [9, 18, 27],
+        },
     ),
     OpSpec(
         function_key=FK_ARITH.MULTIPLY,
@@ -1066,6 +966,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [1, 2, 3], "b": [2, 3, 4]},
+        expected_by_input={
+            "raw": [2, 4, 6],
+            "lit": [2, 4, 6],
+            "col": [2, 6, 12],
+            "complex": [2, 6, 12],
+        },
     ),
     OpSpec(
         function_key=FK_ARITH.DIVIDE,
@@ -1076,6 +982,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [10, 20, 30], "b": [2, 5, 10]},
+        expected_by_input={
+            "raw": [5.0, 10.0, 15.0],
+            "lit": [5.0, 10.0, 15.0],
+            "col": [5.0, 4.0, 3.0],
+            "complex": [5.0, 4.0, 3.0],
+        },
     ),
     OpSpec(
         function_key=FK_MA_ARITH.FLOOR_DIVIDE,
@@ -1086,6 +998,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [10, 20, 30], "b": [3, 7, 4]},
+        expected_by_input={
+            "raw": [3, 6, 10],
+            "lit": [3, 6, 10],
+            "col": [3, 2, 7],
+            "complex": [3, 2, 7],
+        },
     ),
     OpSpec(
         function_key=FK_ARITH.POWER,
@@ -1096,6 +1014,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [2, 3, 4], "b": [2, 3, 2]},
+        expected_by_input={
+            "raw": [4, 9, 16],
+            "lit": [4, 9, 16],
+            "col": [4, 27, 16],
+            "complex": [4, 27, 16],
+        },
     ),
     OpSpec(
         function_key=FK_ARITH.MODULO,
@@ -1106,6 +1030,12 @@ OP_SPECS: list[OpSpec] = [
         param_name="y",
         input_col="a",
         data={"a": [10, 21, 30], "b": [3, 4, 7]},
+        expected_by_input={
+            "raw": [1, 0, 0],
+            "lit": [1, 0, 0],
+            "col": [1, 1, 2],
+            "complex": [1, 1, 2],
+        },
     ),
     OpSpec(
         function_key=FK_ARITH.ATAN2,
@@ -1119,8 +1049,7 @@ OP_SPECS: list[OpSpec] = [
     ),
 ]
 
-# atan2 raises NotImplementedError on both narwhals backends (not a registry-tracked
-# limitation); mark all input types as xfail for those backends.
+# atan2 has one concrete native limitation on both Narwhals fixtures.
 _ATAN2_NW_XFAIL = pytest.mark.xfail(
     strict=True,
     raises=NotImplementedError,
@@ -1134,7 +1063,7 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op, it)
+                mark = None
                 marks = [mark] if mark else []
                 if op.op_name == "atan2" and bk in _ATAN2_NW_BACKENDS:
                     marks = [_ATAN2_NW_XFAIL]

@@ -1,4 +1,4 @@
-"""Relation limitations registry: seeds + structural enrichment (spec §3.8)."""
+"""Relation backend error boundaries and materialization residue propagation."""
 from __future__ import annotations
 
 import polars as pl
@@ -6,6 +6,9 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
 
 
 def _nw(df: pl.DataFrame):
@@ -13,14 +16,16 @@ def _nw(df: pl.DataFrame):
     return nw.from_native(df, eager_only=True)
 
 
-class TestSeededNarwhalsLimitations:
-    def test_narwhals_unnest_enriched(self):
+class TestNarwhalsBackendLimitations:
+    def test_narwhals_unnest_has_backend_owned_refusal(self):
         df = _nw(pl.DataFrame({"s": [{"a": 1}]}))
         rel = ma.relation(df).unnest("s", separator=".")
         with pytest.raises(BackendCapabilityError) as exc:
             rel.collect()
-        assert exc.value.limitation is not None
-        assert "unnest" in str(exc.value).lower() or exc.value.limitation.message
+        error = exc.value
+        assert error.backend == "narwhals"
+        assert error.function_key is RKEY_MOUNTAINASH_REL.UNNEST
+        assert error.limitation is None
 
     def test_narwhals_join_asof_tolerance_enriched(self):
         left = _nw(pl.DataFrame({"t": [1, 5], "v": [10, 20]}).sort("t"))
@@ -30,92 +35,6 @@ class TestSeededNarwhalsLimitations:
             rel.collect()
 
 
-class TestStructuralInvariant:
-    def test_base_mixin_shape(self):
-        from mountainash.relations.backends.relation_systems.base import (
-            BaseRelationSystem,
-        )
-        # The legacy KNOWN_REL_LIMITATIONS dict was retired in the spine's
-        # Phase 1 (its absence is guarded by test_no_legacy_registries_remain).
-        assert not hasattr(BaseRelationSystem, "KNOWN_REL_LIMITATIONS")
-        assert BaseRelationSystem.BACKEND_NAME == "unknown"
-
-    def test_all_backends_carry_backend_name(self):
-        from mountainash.relations.backends.relation_systems.polars import (
-            PolarsRelationSystem,
-        )
-        assert PolarsRelationSystem.BACKEND_NAME == "polars"
-
-
-@pytest.fixture
-def _polars_materialize_residue():
-    """Register an isolated MATERIALIZE-boundary CapabilityFact for polars so
-    a native ColumnNotFoundError at collect enriches to BackendCapabilityError.
-
-    Residue is matched by native exception type (registry.residue_for), so the
-    carrier op key (UNNEST, unused by these plans) is irrelevant to the match —
-    it only has to be a real registered relation op for registration to
-    validate. snapshot/restore keeps the fact out of every other test.
-    """
-    from mountainash.core.capabilities import (
-        Boundary,
-        CapabilityFact,
-        CapabilityLevel,
-        CapabilityRegistry,
-        Enforcement,
-    )
-    from mountainash.core.constants import CONST_BACKEND
-    from mountainash.relations.core.relation_system.relation_keys.enums import (
-        RKEY_MOUNTAINASH_REL,
-    )
-
-    snap = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.register_backend(
-            CONST_BACKEND.POLARS,
-            [
-                CapabilityFact(
-                    operation_key=RKEY_MOUNTAINASH_REL.UNNEST,
-                    param="*",
-                    level=CapabilityLevel.UNSUPPORTED,
-                    backend=CONST_BACKEND.POLARS,
-                    message="materialize-time quirk",
-                    enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                    boundary=Boundary.MATERIALIZE,
-                    native_errors=(pl.exceptions.ColumnNotFoundError,),
-                    since="2026-07-05",
-                )
-            ],
-        )
-        yield
-    finally:
-        CapabilityRegistry.restore(snap)
-
-
-class TestMaterializeBoundary:
-    def test_materialize_failures_consult_boundary_entries(
-        self, _polars_materialize_residue
-    ):
-        rel = ma.relation(pl.DataFrame({"a": [1]}).lazy()).filter(
-            ma.col("missing") > 0
-        )
-        with pytest.raises(BackendCapabilityError, match="materialize-time quirk"):
-            rel.collect()
-
-    def test_dag_collect_with_drift_consults_boundary_entries(
-        self, _polars_materialize_residue
-    ):
-        from mountainash.relations.dag import RelationDAG
-
-        dag = RelationDAG()
-        dag.add(
-            "bad",
-            ma.relation(pl.DataFrame({"a": [1]}).lazy()).filter(
-                ma.col("missing") > 0
-            ),
-        )
-        with pytest.raises(BackendCapabilityError, match="materialize-time quirk"):
-            dag.collect_with_drift("bad")
 
 
 class TestDagMaterializeResidueDialectPropagation:
@@ -218,27 +137,71 @@ class TestDagMaterializeResidueDialectPropagation:
         assert exc_info.value.limitation.upstream_ref == "NW-STR-22"
 
 
-def test_predicate_fact_gates_relation_call():
-    from mountainash.core.capabilities import CapabilityRegistry
+def test_disjoint_finite_predicate_partition_gates_the_relation_visitor():
+    """Concrete Polars scope: FETCH count is a native integer, not a family fallback."""
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
+        Selector,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
     from mountainash.core.capabilities.schema import (
-        CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate,
+        Clause,
+        ClauseOp,
+        PolicyAction,
+        PolicyConsumer,
+        Predicate,
     )
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
 
-    snap = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.reset()
-        CapabilityRegistry.register_backend(CONST_BACKEND.NARWHALS, [
-            CapabilityFact(
-                operation_key=RKEY_SUBSTRAIT_REL.FILTER, param="predicate",
-                level=CapabilityLevel.UNSUPPORTED, backend=CONST_BACKEND.NARWHALS,
-                message="filter blocked by predicate fact", since="2026-08-15",
-                predicate=Predicate((Clause("predicate", ClauseOp.IS_SET),)),
+    scope = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
+
+    def policy(action, predicate, message):
+        return CapabilityPolicyRule(
+            key=CapabilityKey(
+                RKEY_SUBSTRAIT_REL.FETCH,
+                "count",
+                Selector("predicate", predicate),
             ),
-        ])
-        df = _nw(pl.DataFrame({"a": [1, 2]}))
-        with pytest.raises(BackendCapabilityError, match="filter blocked"):
-            ma.relation(df).filter(ma.col("a").eq(1)).collect()
+            level=(
+                CapabilityLevel.UNSUPPORTED
+                if action is PolicyAction.BLOCK
+                else CapabilityLevel.EXPR_CAPABLE
+            ),
+            since="2026-09-18",
+            message=message,
+            consumer=PolicyConsumer.GATE,
+            action=action,
+        )
+
+    permit_one = policy(
+        PolicyAction.PERMIT,
+        Predicate((Clause("count", ClauseOp.EQ, 1),)),
+        "one row remains available",
+    )
+    block_remainder = policy(
+        PolicyAction.BLOCK,
+        Predicate((Clause("count", ClauseOp.IN, frozenset({2, 3})),)),
+        "the selected finite remainder is unavailable",
+    )
+    segment = BoundSegment(
+        "mountainash.relations.backends.capabilities.polars.dialects.polars.substrait.relation.finite_partition",
+        scope,
+        CapabilitySegment(Domain.RELATION, policies=(permit_one, block_remainder)),
+    )
+    snap = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
+    try:
+        CapabilityRegistry.register_segment(segment)
+        dataframe = pl.DataFrame({"value": [1, 2, 3]})
+        assert ma.relation(dataframe).head(1).collect().to_dicts() == [{"value": 1}]
+        with pytest.raises(BackendCapabilityError) as raised:
+            ma.relation(dataframe).head(2).collect()
+        assert raised.value.limitation.message == "the selected finite remainder is unavailable"
     finally:
         CapabilityRegistry.restore(snap)

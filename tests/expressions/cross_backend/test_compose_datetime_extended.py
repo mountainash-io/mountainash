@@ -4,6 +4,9 @@ import pytest
 from datetime import datetime
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import OperationNotDefinedError
+from mountainash.core.types import BackendCapabilityError
+from fixtures.call_expectations import expect_call_failure
 
 # week_of_year: pandas + all narwhals lack ISO week (NW-DT-06, bare BCE).
 
@@ -45,8 +48,13 @@ class TestComposeDatetimeCalendar:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.week_of_year()
-        actual = collect_expr(df, expr)
-        assert actual[0] >= 1, f"[{backend_name}] Jan 1 week should be >= 1: {actual[0]}"
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            reason='dt.week_of_year() raises on pandas and all narwhals backends',
+            errors=(BackendCapabilityError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual[0] >= 1, f"[{backend_name}] Jan 1 week should be >= 1: {actual[0]}"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_iso_year(self, backend_name, backend_factory, collect_expr):
@@ -96,8 +104,13 @@ class TestComposeDatetimeArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_years(1).dt.year()
-        actual = collect_expr(df, expr)
-        assert actual == [2025, 2025], f"[{backend_name}] got {actual}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars',
+            reason='calendar interval arithmetic raises TypeError on ibis-polars',
+            errors=(TypeError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [2025, 2025], f"[{backend_name}] got {actual}"
 
     def test_add_months(self, backend_name, backend_factory, collect_expr):
         """Test add_months."""
@@ -105,8 +118,13 @@ class TestComposeDatetimeArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_months(3).dt.month()
-        actual = collect_expr(df, expr)
-        assert actual == [4, 1], f"[{backend_name}] got {actual}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars',
+            reason='calendar interval arithmetic raises TypeError on ibis-polars',
+            errors=(TypeError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [4, 1], f"[{backend_name}] got {actual}"
 
 
 @pytest.mark.cross_backend
@@ -137,9 +155,14 @@ class TestComposeDatetimeDiff:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("end").dt.diff_days(ma.col("start"))
-        actual = collect_expr(df, expr)
-        assert actual[0] == 10, f"[{backend_name}] Expected 10 day diff: {actual[0]}"
-        assert actual[1] == 30, f"[{backend_name}] Expected 30 day diff: {actual[1]}"
+        with expect_call_failure(
+            when=backend_name in ('ibis-polars', 'ibis-sqlite'),
+            reason='time-unit differences raise on ibis-polars and ibis-sqlite',
+            errors=(OperationNotDefinedError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual[0] == 10, f"[{backend_name}] Expected 10 day diff: {actual[0]}"
+            assert actual[1] == 30, f"[{backend_name}] Expected 30 day diff: {actual[1]}"
 
 
 @pytest.mark.cross_backend

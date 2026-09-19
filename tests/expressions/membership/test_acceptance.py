@@ -2,7 +2,7 @@
 
 Proves the end-to-end membership guarantees across all backends:
   1. NEVER-SILENT build-raise for bare expressions, empty, nested, or native members.
-  2. Migration paths correct (.list.contains, .list.t_contains, NW-LIST-01 gate on narwhals).
+  2. Migration paths correct (.list.contains and .list.t_contains).
   3. FULL §7 null truth table for all four ops (is_in/is_not_in/t_is_in/t_is_not_in)
      INCLUDING the SQL-critical row x="a", members=["b", None] → t_is_not_in=UNKNOWN, is_not_in=False.
   4. INVARIANT is_in ≡ booleanize(t_is_in) AND is_not_in ≡ booleanize(t_is_not_in) over shapes × backends.
@@ -18,6 +18,9 @@ import pytest
 import mountainash as ma
 from mountainash import col as ma_col, lit as ma_lit, t_col as ma_t_col
 from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_LIST,
+)
 from mountainash.expressions.membership.errors import (
     BareExpressionCollectionError,
     NativeExprMemberError,
@@ -149,28 +152,30 @@ class TestMigrationPaths:
         assert actual == [T_TRUE, T_UNKNOWN, T_FALSE], f"[{backend_name}] {actual}"
 
     @pytest.mark.parametrize("backend_name", ["narwhals-polars"])
-    def test_list_contains_narwhals_nw_list_01_gate(
+    def test_list_contains_narwhals_refuses_dynamic_items(
         self, backend_name, backend_factory
     ):
         data = {"tags": [[1, 2, 3], [4, 5, 6]], "item": [2, 5]}
         df = backend_factory.create(data, backend_name)
         with pytest.raises(BackendCapabilityError) as excinfo:
             ma_col("tags").list.contains(ma_col("item")).compile(df)
-        assert "NW-LIST-01" in str(excinfo.value) or "literal item" in str(
-            excinfo.value
-        ).lower()
+        error = excinfo.value
+        assert error.backend == "narwhals"
+        assert error.function_key is FKEY_MOUNTAINASH_SCALAR_LIST.CONTAINS
+        assert error.limitation is None
 
     @pytest.mark.parametrize("backend_name", ["narwhals-polars"])
-    def test_list_t_contains_narwhals_nw_list_01_gate(
+    def test_list_t_contains_narwhals_refuses_dynamic_items(
         self, backend_name, backend_factory
     ):
         data = {"tags": [[1, 2, 3], [4, 5, 6]], "item": [2, 5]}
         df = backend_factory.create(data, backend_name)
         with pytest.raises(BackendCapabilityError) as excinfo:
             ma_col("tags").list.t_contains(ma_col("item")).compile(df)
-        assert "NW-LIST-01" in str(excinfo.value) or "literal item" in str(
-            excinfo.value
-        ).lower()
+        error = excinfo.value
+        assert error.backend == "narwhals"
+        assert error.function_key is FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS
+        assert error.limitation is None
 
 
 # ============================================================================

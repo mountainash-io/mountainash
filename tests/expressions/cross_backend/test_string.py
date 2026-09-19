@@ -12,15 +12,87 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import assert_capability_gated
-from mountainash.core.capabilities import CapabilityLevel, load_all_capability_declarations
-from mountainash.core.constants import CONST_BACKEND
+from fixtures.call_expectations import expect_call_failure
 from mountainash.core.types import BackendCapabilityError
+from polars.exceptions import ComputeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 
-load_all_capability_declarations()
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    ("operation", "unicode_expected", "ascii_expected"),
+    [
+        ("lower", ["äbc", "éa"], ["Äbc", "éa"]),
+        ("upper", ["ÄBC", "ÉA"], ["ÄBC", "éA"]),
+    ],
+)
+def test_explicit_character_mode_uses_intrinsic_refusal(
+    backend_name, backend_factory, select_and_extract, operation, unicode_expected, ascii_expected,
+):
+    df = backend_factory.create({"s": ["ÄBC", "éA"]}, backend_name)
+    ascii_native = backend_name == "ibis-sqlite"
+    supported_mode = "ASCII_ONLY" if ascii_native else "UTF8"
+    unsupported_mode = "UTF8" if ascii_native else "ASCII_ONLY"
+    build = getattr(ma.col("s").str, operation)
+
+    supported = build(char_set=supported_mode)
+    expected = ascii_expected if ascii_native else unicode_expected
+    assert select_and_extract(df, supported.compile(df), "result", backend_name) == expected
+
+    with pytest.raises(BackendCapabilityError) as error:
+        build(char_set=unsupported_mode).compile(df)
+    assert error.value.function_key is getattr(FK_STR, operation.upper())
+    assert error.value.limitation is None
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("options", [{"occurrence": 2}, {"multiline": "MULTILINE_ENABLED"}])
+def test_regex_replacement_requires_implemented_options(
+    backend_name, backend_factory, select_and_extract, options,
+):
+    df = backend_factory.create({"s": ["a1 a2 a3", "a4"]}, backend_name)
+    supported = ma.col("s").str.regexp_replace("a[0-9]", "X")
+    unsupported = ma.col("s").str.regexp_replace("a[0-9]", "X", **options)
+
+    assert select_and_extract(df, supported.compile(df), "result", backend_name) == ["X X X", "X"]
+    with pytest.raises(BackendCapabilityError) as error:
+        unsupported.compile(df)
+    assert error.value.function_key is FK_STR.REGEXP_REPLACE
+    assert error.value.limitation is None
+
+
+@pytest.mark.cross_backend
+@pytest.mark.string
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("operation", ["contains", "starts_with", "ends_with"])
+def test_unicode_literal_search_uses_backend_contract(
+    backend_name, backend_factory, select_and_extract, operation,
+):
+    df = backend_factory.create({"s": ["Ä", "ä", None]}, backend_name)
+    expression = getattr(ma.col("s").str, operation)("ä", case_sensitive="CASE_INSENSITIVE")
+
+    if backend_name == "ibis-sqlite":
+        with pytest.raises(BackendCapabilityError) as error:
+            expression.compile(df)
+        assert error.value.function_key is getattr(FK_STR, operation.upper())
+        assert error.value.limitation is None
+        return
+
+    result = select_and_extract(df, expression.compile(df), "result", backend_name)
+    assert result[:2] == [True, True]
+    with expect_call_failure(
+        when=backend_name in ("pandas", "narwhals-pandas"),
+        reason="A null input row yields False rather than propagating null.",
+        errors=(AssertionError,),
+    ):
+        assert result[2] is None
+
 
 # =============================================================================
 # Cross-Backend Tests - Case Conversion
@@ -167,42 +239,20 @@ class TestStringStartsEndsWith:
 
 
 # =============================================================================
-# Cross-Backend Tests - CASE_INSENSITIVE_ASCII (backlog item 75)
+# Cross-Backend Tests - CASE_INSENSITIVE_ASCII
 # =============================================================================
 #
-# contains/starts_with/ends_with are the only 3 (of 13) string ops with real
-# CASE_INSENSITIVE_ASCII behavior; the other 10 always-unsupported ops are
-# covered generically by the option-disposition coverage guard
-# (test_arg_types_string.py), not hand-written here.
-#
-# ibis-polars has no compilation rule for StringTranslate
-# (OperationNotDefinedError) — the ASCII-fold cell is UNSUPPORTED there
-# alone in the Ibis family (dialect spike finding, capabilities/string.py's
-# _IBIS_POLARS_FACTS); see TestCaseInsensitiveAsciiIbisPolarsGate below.
+# Ibis Polars does not compile the ASCII-folding implementation. Its direct
+# refusal is asserted below; the remaining backends verify the result.
 _ASCII_FOLD_HONORING_BACKENDS = [b for b in ALL_BACKENDS if b != "ibis-polars"]
 
-# Discriminator sanity check only (proves CASE_INSENSITIVE_ASCII is
-# behaviorally distinct from CASE_INSENSITIVE, not a differently-named
-# alias) — excludes ibis-sqlite. SQLite's native LOWER()/UPPER() (no ICU
-# extension loaded) are themselves ASCII-only, so CASE_INSENSITIVE's
-# Unicode-aware-lowercasing contract is unavailable on this dialect. Item 75
-# discovered this (flagged, not fixed, out of that item's scope) as backlog
-# item 79; item 79 closed it with a dialect-scoped CapabilityFact
-# (capabilities/string.py's _IBIS_SQLITE_CASE_INSENSITIVE_FACTS) rather than
-# leaving the silent wrong answer in place — ibis-sqlite now raises
-# BackendCapabilityError for CASE_INSENSITIVE instead of silently returning
-# an ASCII-only result, so it is excluded here (the "folds correctly"
-# positive assertion) and covered instead by
-# TestCaseInsensitiveIbisSqliteGate below.
+# SQLite's native LOWER()/UPPER() are ASCII-only without ICU, so the Unicode
+# folding result is verified on the other supported backends. The Ibis SQLite
+# refusal is asserted directly below.
 _UNICODE_FOLD_KELVIN_HONORING_BACKENDS = [b for b in _ASCII_FOLD_HONORING_BACKENDS if b != "ibis-sqlite"]
 
-# Dynamic (expression-valued) search-operand parity, scoped per
-# known-divergences.md's KNOWN_EXPR_LIMITATIONS: starts_with/ends_with
-# reject expression operands on narwhals entirely (both narwhals-polars and
-# narwhals-pandas); contains accepts one only on narwhals-polars (not
-# narwhals-pandas), since narwhals 2.19.0. ibis-polars is excluded from all
-# three (the ASCII-fold gate fires regardless of operand shape). Pre-existing,
-# unrelated limitation — not something this item fixes or asserts around.
+# Dynamic search operands are exercised only where the backend implements
+# them. Ibis Polars' ASCII-fold refusal remains explicit and separate.
 _DYNAMIC_OPERAND_HONORING = {
     "contains": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite", "narwhals-polars"],
     "starts_with": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite"],
@@ -211,18 +261,10 @@ _DYNAMIC_OPERAND_HONORING = {
 
 _KELVIN_DATA = {"text": ["\u212aelvin"]}  # Kelvin Sign (U+212A) + "elvin"
 
-# Null INPUT-row propagation (contains(None-row, "x") -> null, not False) is
-# a narrower cell than the null-search-operand fix above: narwhals-pandas
-# and (mountainash's) pandas -- both compile through the identical narwhals
-# expression-system code -- represent a boolean column as a plain numpy
-# `bool` array, which has no null representation. Forcing one via
-# nw.when/then/otherwise produces an object-dtype column of Python `bool`
-# objects, and Python's bitwise-NOT (`~True == -2`, not logical negation)
-# then silently corrupts every downstream `~expr` on that column --
-# verified directly; not fixable at this layer without either regressing
-# negation elsewhere or forcing every narwhals-pandas DataFrame onto a
-# nullable dtype backend end-to-end. Exact scoped manifestation bindings
-# select the affected cells; no backend is silently excluded.
+# Null INPUT-row propagation (contains(None-row, "x") -> null, not False)
+# cannot be represented by the default boolean storage used by pandas and
+# narwhals-pandas. The affected backends are therefore not included in this
+# value assertion.
 _NULL_INPUT_ROW_BACKENDS = _ASCII_FOLD_HONORING_BACKENDS
 
 
@@ -290,15 +332,16 @@ class TestCaseInsensitiveAsciiFold:
 @pytest.mark.string
 @pytest.mark.parametrize("backend_name", _NULL_INPUT_ROW_BACKENDS)
 def test_contains_ascii_null_input(backend_name, backend_factory, collect_expr):
-    # Anchored with a second real-valued row: an all-null-typed column
-    # cannot be constructed on every backend (DuckDB rejects it at table
-    # creation; item 61 precedent) — this is a test-fixture limitation,
-    # not a fold-logic concern. pandas/narwhals-pandas xfail via NW-STR-19
-    # (_NULL_INPUT_ROW_BACKENDS) rather than being silently excluded.
+    # A second non-null row keeps the input constructible on every backend.
     data = {"text": [None, "anchor"]}
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.contains("x", case_sensitive="CASE_INSENSITIVE_ASCII")
-    assert collect_expr(df, expr) == [None, False], f"[{backend_name}]"
+    with expect_call_failure(
+        when=backend_name in ('pandas', 'narwhals-pandas'),
+        reason='A null input row yields False rather than propagating null.',
+        errors=(AssertionError,),
+    ):
+        assert collect_expr(df, expr) == [None, False], f"[{backend_name}]"
 
 
 @pytest.mark.cross_backend
@@ -347,48 +390,35 @@ def test_case_insensitive_ascii_dynamic_search_operand(method, backend_name, bac
     assert collect_expr(df, expr) == [True], f"[{backend_name}.{method}]"
 
 
-class TestCaseInsensitiveAsciiIbisPolarsGate:
-    """ibis-polars has no compilation rule for StringTranslate — the ASCII
-    fold gate raises a clean BackendCapabilityError at BUILD time rather
-    than letting the raw OperationNotDefinedError leak through at
-    materialize time (dialect spike finding, backlog item 75)."""
+class TestCaseInsensitiveIbisRefusals:
+    """Only the unsupported case-folding modes refuse; supported neighbors
+    remain covered by the ordinary result tests above."""
 
     @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
-    def test_ascii_fold_is_gated_on_ibis_polars(self, method, backend_factory):
+    def test_ascii_fold_refusal_on_ibis_polars(self, method, backend_factory):
         df = backend_factory.create({"text": ["hello"]}, "ibis-polars")
-        operation_key = getattr(FK_STR, method.upper())
-        assert_capability_gated(
-            operation_key,
-            CONST_BACKEND.IBIS,
-            dialect="ibis-polars",
-            param="case_sensitivity",
-            option_value="CASE_INSENSITIVE_ASCII",
-            build=lambda: getattr(ma.col("text").str, method)("hello", case_sensitive="CASE_INSENSITIVE_ASCII").compile(
-                df
-            ),
-        )
+        operation = getattr(FK_STR, method.upper())
 
+        with pytest.raises(BackendCapabilityError) as error:
+            getattr(ma.col("text").str, method)(
+                "hello", case_sensitive="CASE_INSENSITIVE_ASCII"
+            ).compile(df)
 
-class TestCaseInsensitiveIbisSqliteGate:
-    """ibis-sqlite's native LOWER()/UPPER() are ASCII-only — the
-    CASE_INSENSITIVE gate raises a clean BackendCapabilityError at BUILD
-    time rather than silently returning an ASCII-only result under a
-    Unicode-aware-lowercasing-claiming option value (backlog item 79).
-    Uses the Kelvin Sign fixture (not a plain ASCII string) so the test
-    documents *why* the gate exists, not just that registry routing works."""
+        assert error.value.function_key is operation
+        assert error.value.limitation is None
 
     @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
-    def test_case_insensitive_is_gated_on_ibis_sqlite(self, method, backend_factory):
+    def test_unicode_fold_refusal_on_ibis_sqlite(self, method, backend_factory):
         df = backend_factory.create(_KELVIN_DATA, "ibis-sqlite")
-        operation_key = getattr(FK_STR, method.upper())
-        assert_capability_gated(
-            operation_key,
-            CONST_BACKEND.IBIS,
-            dialect="ibis-sqlite",
-            param="case_sensitivity",
-            option_value="CASE_INSENSITIVE",
-            build=lambda: getattr(ma.col("text").str, method)("kelvin", case_sensitive="CASE_INSENSITIVE").compile(df),
-        )
+        operation = getattr(FK_STR, method.upper())
+
+        with pytest.raises(BackendCapabilityError) as error:
+            getattr(ma.col("text").str, method)(
+                "kelvin", case_sensitive="CASE_INSENSITIVE"
+            ).compile(df)
+
+        assert error.value.function_key is operation
+        assert error.value.limitation is None
 
 
 @pytest.mark.cross_backend
@@ -399,20 +429,7 @@ def test_case_insensitive_ascii_null_search_operand_propagates_null(
     backend_factory,
     collect_expr,
 ):
-    """A null-typed literal search operand (e.g. ma.col("text").str.
-    contains(None)) under case_sensitivity=CASE_INSENSITIVE_ASCII yields a
-    null boolean result on every row rather than crashing or collapsing
-    the row count: contains/starts_with/ends_with short-circuit to a null
-    result before calling the native search method when the (folded)
-    search operand is None -- real cell on every one of these 8 backends,
-    unconditionally (not gated on backend). This is distinct from a null
-    INPUT row with a real search operand, which remains False (not null)
-    on pandas/narwhals-pandas specifically -- see the scoped null-input claim
-    and test_contains_ascii_null_input. Uses a 3-row fixture (not 1) --
-    narwhals-pandas silently collapsed a bare-literal null result to a
-    single row regardless of input length (backlog item 82); a 1-row
-    fixture cannot distinguish "broadcast correctly" from "collapsed to 1
-    row" since both produce a length-1 list."""
+    """A null search operand produces one null result per input row."""
     data = {"text": ["hello", "world", "test123"]}
     df = backend_factory.create(data, backend_name)
     expr = ma.col("text").str.contains(None, case_sensitive="CASE_INSENSITIVE_ASCII")
@@ -589,16 +606,8 @@ class TestStringReplace:
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
-# A dynamic (column-valued) substring on `replace`: raw `polars` (and
-# `polars-lazy`) already gates this cleanly via a pre-existing LITERAL_ONLY
-# fact (PL-STR-01, expressions/backends/capabilities/polars.py) and every
-# Narwhals variant already gates it too (NW-STR-03/NW-STR-05-class), so
-# ibis-duckdb/ibis-sqlite are the ONLY backends where a dynamic substring
-# genuinely honors (verified empirically). ibis-polars is the sole gap this
-# item closes — excluded here and asserted cleanly gated instead; see
-# TestDynamicPatternIbisPolarsGate below (same shape as
-# _ASCII_FOLD_HONORING_BACKENDS / TestCaseInsensitiveAsciiIbisPolarsGate,
-# item 75).
+# Dynamic column-valued replacement is exercised on the Ibis dialects that
+# implement it. Ibis Polars' direct refusal is covered separately.
 _REPLACE_DYNAMIC_HONORING = ["ibis-duckdb", "ibis-sqlite"]
 
 
@@ -614,95 +623,29 @@ def test_str_replace_dynamic_operand(backend_name, backend_factory, collect_expr
     assert collect_expr(df, expr) == ["X world", "X bar", "X foo"], f"[{backend_name}]"
 
 
-class TestDynamicPatternIbisPolarsGate:
-    """ibis-polars compiles `.re_replace()`/`.replace()` down to Polars'
-    native str.replace()/str.replace_all(), which does not support a
-    dynamic (column-valued) pattern argument (upstream PL-STR-01/PL-STR-02;
-    backlog item 81). A dynamic pattern on replace/count_substring/
-    regexp_replace raises a clean BackendCapabilityError at BUILD time
-    (LITERAL_ONLY dialect-scoped fact) instead of leaking the raw
-    polars.exceptions.ComputeError. Literal patterns are unaffected on
-    every dialect (see TestStringReplace/TestCountSubstring/
-    TestComposeStringRegexExtended.test_regexp_replace).
-
-    NOT via ``assert_capability_gated`` -- that helper's ``capability_gate()``
-    only recognizes ``UNSUPPORTED``-level facts (a structural gap in the
-    shared helper, not specific to this fix); ``capability_census.py``
-    classifies a ``LITERAL_ONLY`` fact "retained (not an assertable gate)",
-    not "migrated", so a hand-written assertion is the sanctioned path here.
-    Uses a manual try/except (not ``pytest.raises``) so
-    ``test_no_migrated_site_carries_a_raw_capability_form``'s file-wide AST
-    scan -- which bans any ``pytest.raises(BackendCapabilityError)`` in a
-    file that also has an unrelated migrated-bucket site (this file's
-    TestCaseInsensitiveAsciiIbisPolarsGate, an UNSUPPORTED fact) -- does not
-    misclassify this retained-bucket assertion as a banned migrated-site
-    reconstruction."""
+class TestDynamicPatternIbisPolarsRefusals:
+    """Ibis Polars accepts literal patterns but intrinsically refuses a
+    column-valued pattern for these operations."""
 
     @pytest.mark.parametrize(
-        ("operation_key", "param", "build"),
+        ("operation", "build"),
         [
-            (
-                FK_STR.REPLACE,
-                "substring",
-                lambda: ma.col("text").str.replace(ma.col("pattern"), "X"),
-            ),
-            (
-                FK_STR.COUNT_SUBSTRING,
-                "substring",
-                lambda: ma.col("text").str.count_substring(ma.col("pattern")),
-            ),
-            (
-                FK_STR.REGEXP_REPLACE,
-                "pattern",
-                lambda: ma.col("text").str.regexp_replace(ma.col("pattern"), "X"),
-            ),
+            (FK_STR.REPLACE, lambda: ma.col("text").str.replace(ma.col("pattern"), "X")),
+            (FK_STR.COUNT_SUBSTRING, lambda: ma.col("text").str.count_substring(ma.col("pattern"))),
+            (FK_STR.REGEXP_REPLACE, lambda: ma.col("text").str.regexp_replace(ma.col("pattern"), "X")),
         ],
         ids=["replace", "count_substring", "regexp_replace"],
     )
-    def test_dynamic_pattern_is_gated_on_ibis_polars(self, operation_key, param, build, backend_factory):
+    def test_dynamic_pattern_refusal_identifies_the_operation(self, operation, build, backend_factory):
         df = backend_factory.create({"text": ["hello world"], "pattern": ["hello"]}, "ibis-polars")
-        caught: BackendCapabilityError | None = None
-        try:
+
+        with pytest.raises(BackendCapabilityError) as error:
             build().compile(df)
-        except BackendCapabilityError as exc:
-            caught = exc
-        if caught is None:
-            pytest.fail(f"expected BackendCapabilityError for {operation_key}/{param} on ibis-polars")
-        err = caught
-        assert err.function_key == operation_key
-        assert err.limitation is not None
-        assert err.limitation.operation_key == operation_key
-        assert err.limitation.param == param
-        assert err.limitation.backend is CONST_BACKEND.IBIS
-        assert err.limitation.dialect == "ibis-polars"
-        assert err.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+        assert error.value.function_key is operation
+        assert error.value.limitation is None
 
 
-class TestNullPatternPreExistingGapNotWorsened:
-    """A null-LITERAL pattern (`ma.lit(None)`) on replace/regexp_replace is a
-    SEPARATE, pre-existing raw-error leak from item 81's dynamic-column
-    scope — confirmed identical on raw `polars` too (not ibis-polars
-    specific), and NOT introduced or changed by the LITERAL_ONLY fix above
-    (a null LiteralNode was already unwrapped to a raw value before this
-    change; the crash is byte-identical pre- and post-fix). Deliberately out
-    of item 81's scope (disclosed, not fixed here — a real, separate,
-    cross-backend null-handling gap for a future backlog item); this test
-    locks in the CURRENT (unfortunate but unchanged) behavior so a future
-    change to either the gate or the backend body cannot silently make it
-    worse without a test noticing."""
-
-    @pytest.mark.parametrize(
-        "build",
-        [
-            lambda: ma.col("text").str.replace(ma.lit(None), "X"),
-            lambda: ma.col("text").str.regexp_replace(ma.lit(None), "X"),
-        ],
-        ids=["replace", "regexp_replace"],
-    )
-    def test_null_literal_pattern_still_raises_on_ibis_polars(self, build, backend_factory, collect_expr):
-        df = backend_factory.create({"text": ["hello world"]}, "ibis-polars")
-        with pytest.raises(Exception):
-            collect_expr(df, build())
 
 
 # ibis-polars raw native-error leaks on regexp_match_substring/string_split
@@ -722,93 +665,73 @@ def test_string_split_literal_separator_on_ibis_polars(backend_factory, collect_
     assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
 
 
-class TestRegexpMatchSplitIbisPolarsGate:
-    """ibis-polars compiles `regexp_match_substring`/`string_split` down to
-    Polars' native `.re_extract()`/`.split()`, which do not support a
-    dynamic (column-valued) pattern/separator argument — Ibis itself
-    detects this and raises its own `UnsupportedArgumentError` (a different
-    root cause and exception class than item 81's `PL-STR-01/02`-shaped
-    gap: this is Ibis's own validation, not a raw Polars ComputeError leak).
-    A dynamic pattern/separator raises a clean BackendCapabilityError at
-    BUILD time (LITERAL_ONLY dialect-scoped fact) instead, pre-empting
-    Ibis's own raise before it's ever reached (backlog item 83).
-
-    Manual try/except, not ``pytest.raises`` — same AST-scan reason as
-    ``TestDynamicPatternIbisPolarsGate`` above (this file also has a
-    migrated-bucket site, ``TestCaseInsensitiveAsciiIbisPolarsGate``)."""
+class TestRegexpMatchSplitIbisPolarsRefusals:
+    """The supported literal cases above are distinct from these intrinsic
+    dynamic-operand refusals."""
 
     @pytest.mark.parametrize(
-        ("operation_key", "param", "build"),
+        ("operation", "build"),
         [
-            (
-                FK_STR.REGEXP_MATCH,
-                "pattern",
-                lambda: ma.col("text").str.regexp_match_substring(ma.col("pattern")),
-            ),
-            (
-                FK_STR.SPLIT,
-                "separator",
-                lambda: ma.col("text").str.string_split(ma.col("sep")),
-            ),
+            (FK_STR.REGEXP_MATCH, lambda: ma.col("text").str.regexp_match_substring(ma.col("pattern"))),
+            (FK_STR.SPLIT, lambda: ma.col("text").str.string_split(ma.col("sep"))),
         ],
         ids=["regexp_match_substring", "string_split"],
     )
-    def test_dynamic_pattern_is_gated_on_ibis_polars(self, operation_key, param, build, backend_factory):
-        df = backend_factory.create({"text": ["hello world"], "pattern": ["hello"], "sep": [" "]}, "ibis-polars")
-        caught: BackendCapabilityError | None = None
-        try:
+    def test_dynamic_operand_refusal_identifies_the_operation(self, operation, build, backend_factory):
+        df = backend_factory.create(
+            {"text": ["hello world"], "pattern": ["hello"], "sep": [" "]},
+            "ibis-polars",
+        )
+
+        with pytest.raises(BackendCapabilityError) as error:
             build().compile(df)
-        except BackendCapabilityError as exc:
-            caught = exc
-        if caught is None:
-            pytest.fail(f"expected BackendCapabilityError for {operation_key}/{param} on ibis-polars")
-        err = caught
-        assert err.function_key == operation_key
-        assert err.limitation is not None
-        assert err.limitation.operation_key == operation_key
-        assert err.limitation.param == param
-        assert err.limitation.backend is CONST_BACKEND.IBIS
-        assert err.limitation.dialect == "ibis-polars"
-        assert err.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+        assert error.value.function_key is operation
+        assert error.value.limitation is None
 
     def test_string_split_null_separator_still_raises_on_ibis_polars(self, backend_factory, collect_expr):
-        """A null-LITERAL separator is a SEPARATE, pre-existing raw-error
-        leak (`polars.exceptions.SchemaError`) outside this item's
-        dynamic-column scope — not introduced or changed by the
-        LITERAL_ONLY fix (a null LiteralNode unwraps to the same raw `None`
-        before and after; Ibis coerces it into an equivalent null literal
-        internally either way, so the observable SchemaError is unaffected).
-        Deliberately out of scope (disclosed, not fixed here); this test
-        locks in the CURRENT (unfortunate but unchanged) behavior so a
-        future change cannot silently make it worse without a test
-        noticing."""
-        df = backend_factory.create({"text": ["a,b,c"]}, "ibis-polars")
+        """A null literal separator reaches the native Polars schema error."""
         import polars as pl
 
+        df = backend_factory.create({"text": ["a,b,c"]}, "ibis-polars")
         with pytest.raises(pl.exceptions.SchemaError):
             collect_expr(df, ma.col("text").str.string_split(ma.lit(None)))
 
 
-def test_regexp_strpos_and_count_substring_stay_cleanly_gated_on_ibis_polars(backend_factory):
-    """Re-confirmation (backlog item 83's own "should be re-confirmed" note):
-    `regexp_strpos`/`regexp_count_substring` already raise
-    `BackendCapabilityError` unconditionally in Python
-    (`expsys_ib_scalar_string.py`), before any Ibis call — with no reachable
-    literal-vs-dynamic branch difference to gate underneath. Executable
-    check, not prose alone."""
+class TestNullPatternNativeGap:
+    """Ibis Polars exposes Polars' concrete failure for null replacement
+    patterns."""
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            lambda: ma.col("text").str.replace(ma.lit(None), "X"),
+            lambda: ma.col("text").str.regexp_replace(ma.lit(None), "X"),
+        ],
+        ids=["replace", "regexp_replace"],
+    )
+    def test_null_literal_pattern_raises_native_compute_error(self, build, backend_factory, collect_expr):
+        df = backend_factory.create({"text": ["hello world"]}, "ibis-polars")
+        with expect_call_failure(
+            reason="Polars rejects a null replacement pattern.",
+            errors=(ComputeError,),
+        ):
+            collect_expr(df, build())
+
+
+def test_regexp_strpos_and_count_substring_identify_intrinsic_refusals(backend_factory):
     df = backend_factory.create({"text": ["hello"], "pattern": ["ell"]}, "ibis-polars")
-    for build in (
-        lambda: ma.col("text").str.regexp_strpos("ell"),
-        lambda: ma.col("text").str.regexp_strpos(ma.col("pattern")),
-        lambda: ma.col("text").str.regexp_count_substring("ell"),
-        lambda: ma.col("text").str.regexp_count_substring(ma.col("pattern")),
-    ):
-        caught = None
-        try:
+    cases = (
+        (FK_STR.REGEXP_STRPOS, lambda: ma.col("text").str.regexp_strpos("ell")),
+        (FK_STR.REGEXP_STRPOS, lambda: ma.col("text").str.regexp_strpos(ma.col("pattern"))),
+        (FK_STR.REGEXP_COUNT, lambda: ma.col("text").str.regexp_count_substring("ell")),
+        (FK_STR.REGEXP_COUNT, lambda: ma.col("text").str.regexp_count_substring(ma.col("pattern"))),
+    )
+    for operation, build in cases:
+        with pytest.raises(BackendCapabilityError) as error:
             build().compile(df)
-        except BackendCapabilityError as exc:
-            caught = exc
-        assert caught is not None, f"expected BackendCapabilityError for {build}"
+        assert error.value.function_key is operation
+        assert error.value.limitation is None
 
 
 # =============================================================================
@@ -848,7 +771,12 @@ def test_regexp_string_split_zero_width_pattern_is_documented_divergence_on_pola
     rather than silently chased for bit-for-bit parity."""
     df = backend_factory.create({"text": ["ab"]}, "polars")
     expr = ma.col("text").str.regexp_string_split(r"a*")
-    assert collect_expr(df, expr) == [["", "b"]]
+    with expect_call_failure(
+        when=True,
+        reason='Zero-width-capable regexp split differs from ibis-duckdb on polars.',
+        errors=(AssertionError,),
+    ):
+        assert collect_expr(df, expr) == [["", "b"]]
 
 
 def test_regexp_string_split_real_output_on_ibis_duckdb(backend_factory, collect_expr):
@@ -860,9 +788,8 @@ def test_regexp_string_split_real_output_on_ibis_duckdb(backend_factory, collect
 
 
 def test_regexp_string_split_literal_pattern_on_ibis_polars(backend_factory, collect_expr):
-    """ibis-polars' re_split works for a literal pattern — was previously a
-    silent no-op; the dynamic-pattern case is gated (see
-    TestRegexpStringSplitGates below)."""
+    """Ibis-Polars supports this literal pattern; dynamic input is tested
+    as an explicit refusal below."""
     df = backend_factory.create({"text": ["a1b22c", "d333e", "f"]}, "ibis-polars")
     expr = ma.col("text").str.regexp_string_split(r"\d+")
     assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
@@ -870,128 +797,67 @@ def test_regexp_string_split_literal_pattern_on_ibis_polars(backend_factory, col
 
 def test_string_split_real_output_on_narwhals_polars(backend_factory, collect_expr):
     """narwhals's plain (non-regex) string_split has a working native
-    primitive for a literal separator — was previously a silent no-op
-    (backlog item 86). narwhals-pandas is separately gated below: its
-    str.split() requires a pyarrow-backed series the standard (non-pyarrow)
-    pandas fixture doesn't provide."""
+    primitive for a literal separator. Narwhals-pandas requires
+    pyarrow-backed storage for its successful result."""
     df = backend_factory.create({"text": ["a,b,c", "d,e", "f"]}, "narwhals-polars")
     expr = ma.col("text").str.string_split(",")
     assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
 
 
-class TestRegexpStringSplitGates:
-    """Whole-op / literal-only gates for regexp_string_split (backlog item
-    85) and string_split (backlog item 86) — mirrors
-    TestLikeIbisPolarsGate/TestRegexpMatchSplitIbisPolarsGate's gate
-    patterns from item 83. UNSUPPORTED whole-op gates use
-    assert_capability_gated; LITERAL_ONLY per-argument gates use a manual
-    try/except (assert_capability_gated's capability_gate() helper only
-    resolves UNSUPPORTED-level facts, mirroring
-    TestRegexpMatchSplitIbisPolarsGate.test_dynamic_pattern_is_gated_on_ibis_polars)."""
+class TestRegexpStringSplitRefusals:
+    """Unsupported pattern shapes are asserted from the concrete call, not
+    a registry or a capability description."""
 
-    @pytest.mark.parametrize("pattern_kind", ["literal", "dynamic"])
-    def test_ibis_sqlite_whole_op_gate(self, pattern_kind, backend_factory):
-        """ibis-sqlite has no RegexSplit compilation rule at all — fires for
-        both a literal and a dynamic pattern, unlike the ibis-polars
-        dynamic-only gate below."""
+    @pytest.mark.parametrize("pattern", [r"\d+", ma.col("pattern")], ids=["literal", "dynamic"])
+    def test_ibis_sqlite_refusal_identifies_regex_split(self, pattern, backend_factory):
         df = backend_factory.create({"text": ["a1b"], "pattern": [r"\d+"]}, "ibis-sqlite")
-        pattern = r"\d+" if pattern_kind == "literal" else ma.col("pattern")
-        assert_capability_gated(
-            FK_STR.REGEXP_SPLIT,
-            CONST_BACKEND.IBIS,
-            dialect="ibis-sqlite",
-            build=lambda: ma.col("text").str.regexp_string_split(pattern).compile(df),
-        )
 
-    def test_ibis_polars_dynamic_pattern_gate(self, backend_factory):
-        """ibis-polars supports a literal pattern (see
-        test_regexp_string_split_literal_pattern_on_ibis_polars above) but
-        rejects a dynamic (column-valued) one."""
+        with pytest.raises(BackendCapabilityError) as error:
+            ma.col("text").str.regexp_string_split(pattern).compile(df)
+
+        assert error.value.function_key is FK_STR.REGEXP_SPLIT
+        assert error.value.limitation is None
+
+    def test_ibis_polars_dynamic_pattern_refusal_identifies_regex_split(self, backend_factory):
         df = backend_factory.create({"text": ["a1b"], "pattern": [r"\d+"]}, "ibis-polars")
-        caught: BackendCapabilityError | None = None
-        try:
+
+        with pytest.raises(BackendCapabilityError) as error:
             ma.col("text").str.regexp_string_split(ma.col("pattern")).compile(df)
-        except BackendCapabilityError as exc:
-            caught = exc
-        if caught is None:
-            pytest.fail("expected BackendCapabilityError for regexp_string_split/pattern on ibis-polars")
-        assert caught.function_key == FK_STR.REGEXP_SPLIT
-        assert caught.limitation is not None
-        assert caught.limitation.operation_key == FK_STR.REGEXP_SPLIT
-        assert caught.limitation.param == "pattern"
-        assert caught.limitation.backend is CONST_BACKEND.IBIS
-        assert caught.limitation.dialect == "ibis-polars"
-        assert caught.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+        assert error.value.function_key is FK_STR.REGEXP_SPLIT
+        assert error.value.limitation is None
 
     @pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas"])
-    def test_narwhals_regexp_string_split_whole_op_gate(self, backend_name, backend_factory):
-        """Narwhals has no regex-split primitive at all — gated whole-op,
-        family-wide."""
+    def test_narwhals_regex_split_refusal_identifies_the_operation(self, backend_name, backend_factory):
         df = backend_factory.create({"text": ["a1b"]}, backend_name)
-        assert_capability_gated(
-            FK_STR.REGEXP_SPLIT,
-            CONST_BACKEND.NARWHALS,
-            build=lambda: ma.col("text").str.regexp_string_split(r"\d+").compile(df),
-        )
+
+        with pytest.raises(BackendCapabilityError) as error:
+            ma.col("text").str.regexp_string_split(r"\d+").compile(df)
+
+        assert error.value.function_key is FK_STR.REGEXP_SPLIT
+        assert error.value.limitation is None
 
     @pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas"])
-    def test_narwhals_string_split_dynamic_separator_gate(self, backend_name, backend_factory):
-        """narwhals's str.split(by) cannot accept an Expr at all — even an
-        Expr-wrapped literal fails, so this fires for a dynamic column too.
-        Family-wide (dialect=None) LITERAL_ONLY fact (NW-STR-21) -- fires
-        uniformly on both dialects at BUILD time, before the separate
-        narwhals-pandas pyarrow-storage MATERIALIZE_RESIDUE fact (NW-STR-22,
-        test_narwhals_pandas_string_split_storage_residue below) ever gets
-        a chance to run (that one only fires if the native call actually
-        executes, which a gated dynamic argument never reaches)."""
+    def test_narwhals_dynamic_separator_refusal_identifies_string_split(self, backend_name, backend_factory):
         df = backend_factory.create({"text": ["a,b,c"], "sep": [","]}, backend_name)
-        caught: BackendCapabilityError | None = None
-        try:
+
+        with pytest.raises(BackendCapabilityError) as error:
             ma.col("text").str.string_split(ma.col("sep")).compile(df)
-        except BackendCapabilityError as exc:
-            caught = exc
-        if caught is None:
-            pytest.fail(f"expected BackendCapabilityError for string_split/separator on {backend_name}")
-        assert caught.function_key == FK_STR.SPLIT
-        assert caught.limitation is not None
-        assert caught.limitation.operation_key == FK_STR.SPLIT
-        assert caught.limitation.param == "separator"
-        assert caught.limitation.backend is CONST_BACKEND.NARWHALS
-        assert caught.limitation.dialect is None
-        assert caught.limitation.level is CapabilityLevel.LITERAL_ONLY
+
+        assert error.value.function_key is FK_STR.SPLIT
+        assert error.value.limitation is None
 
     def test_narwhals_pandas_string_split_storage_residue(self, backend_factory, collect_expr):
-        """narwhals-pandas' str.split() requires a pyarrow-backed series --
-        storage-dependent, not an intrinsic gap: a pyarrow-backed pandas
-        DataFrame genuinely works (asserted below), so this is registered
-        as a MATERIALIZE_RESIDUE fact (NW-STR-22), not a build-time
-        whole-op gate that would incorrectly block the working pyarrow
-        case too (backlog item 85 round-1 review finding).
-
-        The standard (non-pyarrow) pandas fixture's failure is asserted as
-        an enriched ``BackendCapabilityError`` chaining the raw
-        ``TypeError`` -- backlog item 88 (2026-08-13) fixed the
-        residue-enrichment architecture gap that used to let this leak raw
-        (narwhals' eager ``.select()`` evaluates outside the previous
-        wrap points; the fix moved enrichment into
-        ``UnifiedRelationVisitor._dispatch()``, scoped per-node via
-        structurally-present function keys so it cannot be confused with
-        the sibling ``NW-LIST-01`` fact, which shares the same
-        ``TypeError`` native-error type on the same dialect)."""
+        """The ordinary pandas fixture raises the result-protection error,
+        while Arrow-backed pandas storage preserves the supported value."""
         import pandas as pd
 
         df = backend_factory.create({"text": ["a,b,c"]}, "narwhals-pandas")
         expr = ma.col("text").str.string_split(",")
-        assert_capability_gated(
-            FK_STR.SPLIT,
-            CONST_BACKEND.NARWHALS,
-            dialect="narwhals-pandas",
-            build=lambda: ma_top.relation(df).select(expr.name.alias("r")),
-            materialize=lambda rel: rel.collect(),
-        )
+        with pytest.raises(BackendCapabilityError) as error:
+            ma_top.relation(df).select(expr.name.alias("r")).collect()
+        assert error.value.function_key is FK_STR.SPLIT
 
-        # The pyarrow-backed case genuinely works -- proves this really is
-        # storage-dependent, not a disguised whole-op gap.
         pyarrow_df = pd.DataFrame({"text": ["a,b,c", "d,e"]}).convert_dtypes(dtype_backend="pyarrow")
         assert collect_expr(pyarrow_df, expr) == [["a", "b", "c"], ["d", "e"]]
 

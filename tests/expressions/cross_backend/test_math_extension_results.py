@@ -8,6 +8,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
@@ -129,8 +130,13 @@ class TestCbrt:
     def test_cbrt_negative(self, backend_name, backend_factory, collect_expr):
         data = {"a": [-8.0, -27.0]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("a").cbrt())
-        assert actual == pytest.approx([-2.0, -3.0], rel=1e-6)
+        with expect_call_failure(
+            when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            reason='ma.col(x).cbrt() on negative inputs yields NaN across all backends',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("a").cbrt())
+            assert actual == pytest.approx([-2.0, -3.0], rel=1e-6)
 
 
 @pytest.mark.cross_backend
@@ -189,6 +195,11 @@ class TestCot:
     def test_cot_basic(self, backend_name, backend_factory, collect_expr):
         data = {"a": [math.pi / 4, math.pi / 2]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("a").cot())
-        assert actual[0] == pytest.approx(1.0, rel=1e-6)
-        assert actual[1] == pytest.approx(0.0, abs=1e-10)
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            reason='ma.col(x).cot() raises on pandas and all narwhals backends',
+            errors=(NotImplementedError,),
+        ):
+            actual = collect_expr(df, ma.col("a").cot())
+            assert actual[0] == pytest.approx(1.0, rel=1e-6)
+            assert actual[1] == pytest.approx(0.0, abs=1e-10)

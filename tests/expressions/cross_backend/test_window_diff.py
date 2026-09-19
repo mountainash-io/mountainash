@@ -7,6 +7,9 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import OperationNotDefinedError
+from narwhals.exceptions import InvalidOperationError
+from fixtures.call_expectations import expect_call_failure
 
 # BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
@@ -26,8 +29,13 @@ class TestDiff:
         data = {"value": [10, 30, 25, 100, 80]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").diff()
-        result = collect_expr(df, expr)
-        assert result == [None, 20, -5, 75, -20], f"[{backend_name}] got {result}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
+            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
+            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+        ):
+            result = collect_expr(df, expr)
+            assert result == [None, 20, -5, 75, -20], f"[{backend_name}] got {result}"
 
 
 # =============================================================================

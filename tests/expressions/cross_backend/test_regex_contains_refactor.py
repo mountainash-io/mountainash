@@ -11,6 +11,9 @@ from __future__ import annotations
 import pytest
 
 import mountainash.expressions as ma
+from ibis.common.exceptions import UnsupportedArgumentError
+from mountainash.core.types import BackendCapabilityError
+from fixtures.call_expectations import expect_call_failure
 
 
 # Custom list: narwhals-pandas excluded — str.contains rejects columnar pattern (pre-existing xfail)
@@ -73,5 +76,10 @@ class TestRegexContainsRefactor:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("s").str.contains(ma.col("needle"))
-        actual = collect_expr(df, expr)
-        assert actual == [True, True, False, True], f"[{backend_name}] Expected [True, True, False, True], got {actual}"
+        with expect_call_failure(
+            when=backend_name == 'pandas' or backend_name == 'ibis-polars',
+            reason=('Columnar literal contains raises on pandas and ibis-polars.' if backend_name == 'pandas' else 'Columnar literal contains raises on pandas and ibis-polars.'),
+            errors=((BackendCapabilityError,) if backend_name == 'pandas' else (UnsupportedArgumentError,)),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == [True, True, False, True], f"[{backend_name}] Expected [True, True, False, True], got {actual}"

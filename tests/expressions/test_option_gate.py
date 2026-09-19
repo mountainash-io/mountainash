@@ -5,14 +5,19 @@ import pytest
 from expressions.argument_types.conftest import make_df
 from mountainash.core.backend_detection import identify_backend_identity
 from mountainash.core.capabilities import (
-    CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
 )
+from mountainash.core.capabilities.declarations import (
+    BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector,
+)
+from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_nodes import (
     FieldReferenceNode,
+    LiteralNode,
     ScalarFunctionNode,
 )
 from mountainash.expressions.core.expression_system.expsys_base import (
@@ -55,52 +60,50 @@ def _compile_node(node, df, backend):
 
 
 def test_declared_unsupported_option_raises_before_dispatch():
-    CapabilityRegistry.register_backend(
-        CONST_BACKEND.POLARS,
-        [
-            CapabilityFact(
-                operation_key=FK_ARITH.ABS,
-                param="overflow",
-                option_value=_UNSUPPORTED_OPTION_VALUE,
-                level=CapabilityLevel.UNSUPPORTED,
-                backend=CONST_BACKEND.POLARS,
-                dialect=_TEST_DIALECT,
-                message="polars abs has no checked overflow",
-                since="2026-07-21",
-                condition=(
-                    "options['overflow'] == '__UNIT_TEST_UNSUPPORTED__'"
-                ),
-            ),
-        ],
+    policy = CapabilityPolicyRule(
+        CapabilityKey(FK_ARITH.ABS, "overflow", Selector("exact", _UNSUPPORTED_OPTION_VALUE)),
+        CapabilityLevel.UNSUPPORTED, "2026-09-18", "synthetic option refusal",
+        PolicyConsumer.GATE, PolicyAction.BLOCK,
     )
+    CapabilityRegistry.register_segment(BoundSegment(
+        "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic.option_gate",
+        Scope(CONST_BACKEND.POLARS, Dialect(_TEST_DIALECT)),
+        CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
+    ))
     df = make_df({"v": [1]}, "polars")
     node = _abs_node_with_options({"overflow": _UNSUPPORTED_OPTION_VALUE})
 
-    with pytest.raises(BackendCapabilityError):
+    with pytest.raises(BackendCapabilityError) as raised:
         _compile_node(node, df, "polars")
+    assert raised.value.function_key is FK_ARITH.ABS
+    assert raised.value.limitation is not None
 
 
 def _trim_node_with_characters(characters):
     return ScalarFunctionNode(
         function_key=FK_STRING.TRIM,
-        arguments=[FieldReferenceNode(field="v")],
-        options={"characters": characters},
+        arguments=[
+            FieldReferenceNode(field="v"),
+            characters if isinstance(characters, FieldReferenceNode) else LiteralNode(value=characters),
+        ],
     )
 
 
-def test_literal_only_option_allows_a_raw_literal_value():
+def test_literal_only_argument_allows_a_raw_literal_value():
     df = make_df({"v": ["xvaluex"]}, "narwhals-polars")
     node = _trim_node_with_characters("x")
 
-    _compile_node(node, df, "narwhals")
+    compiled = _compile_node(node, df, "narwhals")
+    assert df.select(compiled.alias("result")).to_dict()["result"].to_list() == ["value"]
 
 
-def test_literal_only_option_rejects_an_expression_value():
-    df = make_df({"v": ["xvaluex"]}, "narwhals-polars")
+def test_literal_only_argument_rejects_an_expression_value():
+    df = make_df({"v": ["xvaluex"], "policy": ["x"]}, "narwhals-polars")
     node = _trim_node_with_characters(FieldReferenceNode(field="policy"))
 
-    with pytest.raises(BackendCapabilityError, match="literal string value"):
+    with pytest.raises(BackendCapabilityError) as raised:
         _compile_node(node, df, "narwhals")
+    assert raised.value.function_key is FK_STRING.TRIM
 
 
 @pytest.mark.parametrize("method", ["to_timezone", "local_timestamp"])

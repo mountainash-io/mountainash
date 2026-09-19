@@ -32,7 +32,7 @@ class SubstraitNarwhalsLiteralExpressionSystem(NarwhalsBaseExpressionSystem, Sub
         if x is None and self.dialect == "narwhals-pandas":
             resolved = self.literal_operand_type(x, dtype)
             if resolved.descriptor.storage_kind == "pandas_nullable":
-                return self._pandas_nullable_expression(
+                return self._pandas_typed_expression(
                     nw.lit(None), resolved.native_dtype
                 )
         return nw.lit(x, dtype=native_dtype)

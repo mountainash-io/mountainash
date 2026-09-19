@@ -11,24 +11,26 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities import load_all_capability_declarations
 from mountainash.core.types import BackendCapabilityError
-
-load_all_capability_declarations()
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+)
 
 TEMPORAL_BACKENDS = [
     "polars",
     "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
+    "narwhals-lazy",
     "ibis-duckdb",
     "ibis-polars",
     "ibis-sqlite",
 ]
 
-# ibis honors neither op composably on any dialect -- declared UNSUPPORTED in
-# Task 4. Until that task lands these fail; from Task 4 on they raise
-# BackendCapabilityError and are covered by TestTimezoneOpsIbisGate instead.
+# Ibis cannot preserve either operation's composable timezone semantics:
+# to_timezone has no engine-level target-zone lowering and local_timestamp
+# returns the UTC wall clock. Both backend methods refuse the call.
 HONORING_BACKENDS = [b for b in TEMPORAL_BACKENDS if not b.startswith("ibis")]
 IBIS_BACKENDS = [b for b in TEMPORAL_BACKENDS if b.startswith("ibis")]
 
@@ -41,6 +43,7 @@ TZ_DATA = {
     "x": [
         datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc),
         datetime(2024, 7, 15, 12, 0, tzinfo=timezone.utc),
+        None,
     ]
 }
 
@@ -55,14 +58,16 @@ class TestDtToTimezone:
         df = backend_factory.create(TZ_DATA, backend_name)
         actual = collect_expr(df, ma.col("x").dt.to_timezone(NY))
 
-        assert [v.replace(tzinfo=None) for v in actual] == [
+        assert [None if v is None else v.replace(tzinfo=None) for v in actual] == [
             datetime(2024, 1, 15, 7, 0),
             datetime(2024, 7, 15, 8, 0),
+            None,
         ]
         # EST in January, EDT in July -- proves DST is honored, not a fixed shift.
-        assert [v.utcoffset() for v in actual] == [
+        assert [None if v is None else v.utcoffset() for v in actual] == [
             timedelta(hours=-5),
             timedelta(hours=-4),
+            None,
         ]
 
 
@@ -76,31 +81,32 @@ class TestDtLocalTimestamp:
         df = backend_factory.create(TZ_DATA, backend_name)
         actual = collect_expr(df, ma.col("x").dt.local_timestamp(NY))
 
-        assert [v.replace(tzinfo=None) for v in actual] == [
+        assert [None if v is None else v.replace(tzinfo=None) for v in actual] == [
             datetime(2024, 1, 15, 7, 0),
             datetime(2024, 7, 15, 8, 0),
+            None,
         ]
-        assert all(v.tzinfo is None for v in actual)
+        assert all(v is None or v.tzinfo is None for v in actual)
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", IBIS_BACKENDS)
 @pytest.mark.parametrize("method", ["to_timezone", "local_timestamp"])
-class TestTimezoneOpsIbisGate:
+class TestTimezoneOpsIbisRefusal:
     def test_raises_capability_error(
         self, method, backend_name, backend_factory, collect_expr
     ):
-        """ibis honors neither op composably; the gate raises before dispatch.
-
-        to_timezone is correct at the materialization boundary ONLY -- the
-        target zone lives in the ibis output dtype, not in the engine, so any
-        expression composed on the result raises UnsupportedOperationError.
-        local_timestamp is outright wrong (UTC wall clock). Probed on all
-        three dialects; ibis-sqlite refuses the cast outright. See spec
-        Section 2.3.1.
-        """
+        """Ibis refuses each operation at its public function boundary."""
         df = backend_factory.create(TZ_DATA, backend_name)
         expr = getattr(ma.col("x").dt, method)(NY)
-        with pytest.raises(BackendCapabilityError, match="timezone"):
+        with pytest.raises(BackendCapabilityError) as raised:
             collect_expr(df, expr)
+        expected_key = (
+            FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE
+            if method == "to_timezone"
+            else FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP
+        )
+        assert raised.value.function_key is expected_key
+        assert raised.value.backend == "ibis"
+        assert raised.value.limitation is None
 

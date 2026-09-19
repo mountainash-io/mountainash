@@ -376,41 +376,44 @@ class TestExhaustiveLeafWalkRegressionSafety:
 
 
 @pytest.fixture
-def _narwhals_pandas_join_gate_fact():
-    """Register an isolated, dialect-scoped GATE fact: JOIN is
-    UNSUPPORTED on narwhals-pandas specifically (test-only, not a real
-    production limitation) -- used to prove item 91 testing plan #10: the
-    compiling visitor gates using the ANCHOR's dialect, not a
-    JoinRelNode's true left-operand dialect. Item 95's scope to fix, not
-    this item's."""
-    from mountainash.core.capabilities import (
-        CapabilityFact,
-        CapabilityLevel,
-        CapabilityRegistry,
-        Enforcement,
-        WILDCARD_PARAM,
+def _narwhals_pandas_join_gate_policy():
+    """Publish a concrete GATE policy for narwhals-pandas JOIN.
+
+    This test-only policy proves item 91 testing plan #10: the compiling
+    visitor must gate against the JoinRelNode's authoritative left-input
+    dialect, rather than its anchor dialect.
+    """
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
     )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
     from mountainash.relations.core.relation_system.relation_keys.enums import (
         RKEY_SUBSTRAIT_REL,
     )
 
+    scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
+    policy = CapabilityPolicyRule(
+        key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
+        level=CapabilityLevel.UNSUPPORTED,
+        since="2026-09-18",
+        message="test-only GATE for narwhals-pandas join (item 91 testing plan #10)",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+    )
     snap = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_backend(
-            CONST_BACKEND.NARWHALS,
-            [
-                CapabilityFact(
-                    operation_key=RKEY_SUBSTRAIT_REL.JOIN,
-                    param=WILDCARD_PARAM,
-                    level=CapabilityLevel.UNSUPPORTED,
-                    backend=CONST_BACKEND.NARWHALS,
-                    dialect="narwhals-pandas",
-                    message="test-only GATE for narwhals-pandas join (item 91 testing plan #10)",
-                    enforcement=Enforcement.GATE,
-                    since="2026-08-13",
-                )
-            ],
-        )
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.relations.backends.capabilities.narwhals.dialects."
+            "narwhals_pandas.substrait.relation.test_rel_multi_input_dialect_coercion",
+            scope,
+            CapabilitySegment(Domain.RELATION, policies=(policy,)),
+        ))
         yield
     finally:
         CapabilityRegistry.restore(snap)
@@ -423,7 +426,7 @@ class TestGatingUsesAuthoritativeDialectNotAnchor:
     limitation; item 95 ships the gating-precision fix and inverts it."""
 
     def test_pandas_scoped_join_gate_fires_when_left_operand_is_pandas(
-        self, _narwhals_pandas_join_gate_fact
+        self, _narwhals_pandas_join_gate_policy
     ):
         from mountainash.relations.dag import RelationDAG
         from mountainash.core.types import BackendCapabilityError
@@ -432,7 +435,7 @@ class TestGatingUsesAuthoritativeDialectNotAnchor:
         # "a_polars_src" sorts alphabetically first -> becomes the anchor
         # (narwhals-polars), regardless of tree position. The join's TRUE
         # left/authoritative operand is "z_pandas_src" (narwhals-pandas) --
-        # exactly what the registered GATE fact targets.
+        # exactly what the registered GATE policy targets.
         dag.add("a_polars_src", ma.relation(_nw_polars({"id": [1], "x": [1]})))
         dag.add("z_pandas_src", ma.relation(_nw_pandas({"id": [1], "y": [1]})))
         joined = dag.ref("z_pandas_src").join(dag.ref("a_polars_src"), on="id")

@@ -7,6 +7,8 @@ from typing import Any, Optional
 import narwhals as nw
 
 from mountainash.core.transit import BoundaryKey, transit_call
+from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
@@ -104,9 +106,10 @@ class MountainashNarwhalsExtensionRelationSystem(
         return relation.sort(by, descending=descending).head(k)
 
     def unnest(self, relation: Any, /, *, columns: list[str], separator: str) -> Any:
-        raise NotImplementedError(
-            "unnest is not supported on the Narwhals backend. "
-            "Narwhals has no frame-level unnest — requires schema introspection synthesis (Phase 2)."
+        raise BackendCapabilityError(
+            "Narwhals does not support frame-level unnest.",
+            backend=self.BACKEND_NAME,
+            function_key=RKEY_MOUNTAINASH_REL.UNNEST,
         )
 
     def read_resource(self, resource: Any) -> Any:
@@ -176,6 +179,12 @@ class MountainashNarwhalsExtensionRelationSystem(
         strategy: str,
         tolerance: Any,
     ) -> Any:
+        if tolerance is not None:
+            raise BackendCapabilityError(
+                "Narwhals join_asof does not expose a tolerance argument.",
+                backend="narwhals",
+                function_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+            )
         if strategy == "nearest" and self._is_pandas(left):
             return self._nearest_forward_wins(left, right, on=on, by=by)
         return left.join_asof(

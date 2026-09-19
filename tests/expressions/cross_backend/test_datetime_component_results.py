@@ -11,6 +11,8 @@ from datetime import datetime
 import pytest
 
 import mountainash as ma
+from pyarrow.lib import ArrowNotImplementedError
+from fixtures.call_expectations import expect_call_failure
 
 TEMPORAL_BACKENDS = [
     "polars",
@@ -176,9 +178,14 @@ class TestDtDate:
 
         data = {"ts": [datetime(2024, 3, 15, 10, 30, 45), datetime(2024, 12, 25, 23, 59, 0)]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("ts").dt.date())
-        expected = [date(2024, 3, 15), date(2024, 12, 25)]
-        assert actual == expected
+        with expect_call_failure(
+            when=backend_name == 'narwhals-pandas',
+            reason='dt.date() raises on narwhals-pandas',
+            errors=(NotImplementedError,),
+        ):
+            actual = collect_expr(df, ma.col("ts").dt.date())
+            expected = [date(2024, 3, 15), date(2024, 12, 25)]
+            assert actual == expected
 
 
 @pytest.mark.cross_backend
@@ -189,6 +196,11 @@ class TestDtTime:
 
         data = {"ts": [datetime(2024, 3, 15, 10, 30, 45), datetime(2024, 12, 25, 23, 59, 0)]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("ts").dt.time())
-        expected = [time(10, 30, 45), time(23, 59, 0)]
-        assert actual == expected
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite' or backend_name in ('narwhals-polars', 'narwhals-pandas'),
+            reason=('dt.time() yields the wrong type on ibis-sqlite' if backend_name == 'ibis-sqlite' else 'dt.time() raises on narwhals-polars/narwhals-pandas'),
+            errors=((ArrowNotImplementedError,) if backend_name == 'ibis-sqlite' else (NotImplementedError,)),
+        ):
+            actual = collect_expr(df, ma.col("ts").dt.time())
+            expected = [time(10, 30, 45), time(23, 59, 0)]
+            assert actual == expected

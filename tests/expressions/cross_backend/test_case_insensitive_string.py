@@ -7,18 +7,10 @@ import pytest
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
 
-
-_IBIS_POLARS_CI_XFAIL = (
-    "ibis-polars rejects columnar Lowercase() as StringContains needle — "
-    "Ibis wraps literal in Lowercase() expr but Polars backend requires scalar literal"
-)
-
-# ibis-sqlite excluded: case_sensitive=False routes to the CASE_INSENSITIVE
-# option value, which is now gated UNSUPPORTED on ibis-sqlite (backlog item
-# 79 — ibis-sqlite's native LOWER()/UPPER() are ASCII-only, so the option's
-# Unicode-aware-lowercasing contract cannot be honored there; the gate fires
-# unconditionally, even for this file's all-ASCII fixtures). Covered instead
-# by test_string.py's TestCaseInsensitiveIbisSqliteGate.
+# ibis-sqlite cannot provide Unicode-aware CASE_INSENSITIVE matching because
+# native LOWER()/UPPER() are ASCII-only. The Ibis string backend refuses that
+# exact mode, including these ASCII fixtures; test_string.py covers the
+# refusal separately.
 _CI = [b for b in ALL_BACKENDS if b != "ibis-sqlite"]
 
 

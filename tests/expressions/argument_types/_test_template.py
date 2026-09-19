@@ -6,29 +6,19 @@ Each per-category file declares:
 
 Then calls run_argument_matrix(op_spec, backend, input_type) per parametrized case.
 
-Every cell's expectation and execution build from ONE bound AST — build_matrix_cell()
-— so xfail_if_limited() (collection time) and run_argument_matrix() (execution time)
-can never diverge. See backlog arg-matrix-xfail-blind-to-value-class-facts and spec
-2026-08-09-argument-matrix-value-class-facts-design.
+Each matrix case builds one bound AST and then materializes it through the
+ordinary backend path.  Expectations are owned by the category case itself;
+this helper neither reads capability records nor converts native failures into
+test outcomes.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities.registry import CapabilityRegistry
-from mountainash.core.capabilities.schema import CapabilityLevel, WILDCARD_PARAM
-from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions import BaseExpressionAPI
-from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import (
-    ScalarFunctionNode,
-)
-from tests.fixtures.capability_gating import build_gate_fact, first_scalar_build_gate
-
-from expressions.argument_types.conftest import matrix_identity
 
 INPUT_TYPES = ["raw", "lit", "col", "complex"]
 
@@ -52,15 +42,15 @@ class OpSpec:
     the receiver `op.build` is called on — for ops whose only expression-typed
     argument is the receiver itself (e.g. to_timezone.x), so raw/lit/col/complex
     genuinely vary the bound call rather than an ignored placeholder."""
+    expected_by_input: dict[str, list[Any]] | None = None
+    """Exact result oracle when this case has backend-neutral value semantics."""
 
 
 @dataclass(frozen=True)
 class BoundMatrixCell:
-    """One matrix cell's fully bound AST — the single source of truth both
-    expectation derivation and execution consult."""
+    """One matrix cell's fully bound AST and matrix argument."""
     expression: BaseExpressionAPI
     node: Any
-    operation_key: Any
     argument: Any
 
 
@@ -91,120 +81,58 @@ def _as_input_expression(value: Any) -> BaseExpressionAPI:
 
 
 def build_matrix_cell(op: OpSpec, input_type: str) -> BoundMatrixCell:
-    """Build the exact expression AST for one (op, input_type) matrix cell.
-
-    The ONLY place that constructs a matrix cell's expression — both
-    xfail_if_limited (expectation) and run_argument_matrix (execution) call
-    this, so their builds are always structurally identical.
-    """
+    """Build the exact expression AST for one (op, input_type) matrix cell."""
     arg = _materialize_arg(input_type, op.raw_arg, op.arg_col_name, op.complex_builder)
     receiver = _as_input_expression(arg) if op.matrix_arg_is_input else ma.col(op.input_col)
     expr = op.build(receiver, arg)
     if op.execution_mode == "over":
         expr = expr.over("__group__")
     node = expr.node
-    return BoundMatrixCell(
-        expression=expr, node=node, operation_key=node.function_key, argument=arg
-    )
+    return BoundMatrixCell(expression=expr, node=node, argument=arg)
 
 
-def _legacy_argument_gate(operation_key: Any, identity, param_name: str):
-    """Pre-item-71 argument-only lookup, preserved exactly for non-scalar nodes
-    (window functions have no production option-gating equivalent to mirror)."""
-    fact = CapabilityRegistry.capability_for(
-        operation_key, param_name, identity.family, identity.dialect
-    )
-    if fact is None or fact.level in (CapabilityLevel.EXPR_CAPABLE, CapabilityLevel.POLYMORPHIC):
-        return None
-    return fact
 
 
-def _cell_limitation(cell: BoundMatrixCell, op: OpSpec, identity, input_type: str):
-    """(limitation, wildcard_residue) for one bound cell.
-
-    Scalar cells: limitation is the spine-derived build-time gate across the
-    WHOLE emitted AST (op-wide -> arguments -> options, first_scalar_build_gate);
-    residue is consulted only as a later materialize-time fallback.
-
-    Non-scalar cells: the pre-item-71 precedence is preserved exactly — a
-    wildcard residue fact short-circuits before any per-argument lookup runs.
-    """
-    residue = CapabilityRegistry.residue_for(identity.family, identity.dialect)
-    wildcard_residue = residue.get((cell.operation_key, WILDCARD_PARAM))
-
-    if isinstance(cell.node, ScalarFunctionNode):
-        limitation = first_scalar_build_gate(cell.node, identity)
-    elif wildcard_residue is None and input_type not in ("raw", "lit"):
-        limitation = _legacy_argument_gate(cell.operation_key, identity, op.param_name)
-    else:
-        limitation = None
-    return limitation, wildcard_residue
-
-
-def xfail_if_limited(backend: str, op: OpSpec, input_type: str):
-    """Spine-derived xfail, keyed off the exact bound AST for this cell.
-
-    Scalar operations: build-time gate first (whole emitted AST), residue
-    fallback second. Non-scalar operations: residue-first, matching the
-    pre-item-71 behavior unchanged (no production option-gating equivalent).
-    """
-    identity = matrix_identity(backend)
-    cell = build_matrix_cell(op, input_type)
-    limitation, wildcard_residue = _cell_limitation(cell, op, identity, input_type)
-
-    if isinstance(cell.node, ScalarFunctionNode):
-        fact = limitation if limitation is not None else wildcard_residue
-    else:
-        fact = wildcard_residue if wildcard_residue is not None else limitation
-
-    if fact is None:
-        return None
-    return pytest.mark.xfail(
-        strict=True,
-        raises=BackendCapabilityError,
-        reason=fact.message,
-    )
-
-
-def _materialize_result(df, compiled, backend: str) -> None:
-    """Force execution to surface errors that fire at materialization time."""
+def _materialize_result(df, compiled, backend: str) -> list[Any]:
+    """Execute a compiled result and return its null-preserving values."""
+    alias = "__argument_matrix_result__"
     if backend == "polars":
         import polars as pl
 
-        if isinstance(df, pl.LazyFrame):
-            df.select(compiled).collect()
-        else:
-            df.select(compiled)
-    elif backend in ("ibis", "ibis-polars"):
-        df.select(compiled.name("__result__")).execute()
-    elif backend in ("narwhals-polars", "narwhals-pandas"):
-        df.select(compiled).to_native()
-    else:
-        raise ValueError(backend)
+        result = df.select(compiled.alias(alias))
+        if isinstance(result, pl.LazyFrame):
+            result = result.collect()
+        return result[alias].to_list()
+    if backend in ("ibis", "ibis-polars"):
+        return df.select(compiled.name(alias)).to_pyarrow()[alias].to_pylist()
+    if backend in ("narwhals-polars", "narwhals-pandas"):
+        return df.select(compiled.alias(alias)).to_arrow()[alias].to_pylist()
+    raise ValueError(backend)
 
 
-def run_argument_matrix(op: OpSpec, backend: str, input_type: str):
-    """Execute one cell of the (operation × backend × input_type) matrix."""
+def run_argument_matrix(op: OpSpec, backend: str, input_type: str) -> None:
+    """Execute one case and prove its explicit shape/value contract."""
     from expressions.argument_types.conftest import make_df
 
-    identity = matrix_identity(backend)
     cell = build_matrix_cell(op, input_type)
-    limitation, wildcard_residue = _cell_limitation(cell, op, identity, input_type)
     df = make_df(op.data, backend)
-
-    try:
-        compiled = cell.expression.compile(df)
-        assert compiled is not None
-        _materialize_result(df, compiled, backend)
-    except BackendCapabilityError:
-        raise
-    except Exception as e:
-        for fact in (limitation, wildcard_residue):
-            if fact is not None and fact.native_errors and isinstance(e, fact.native_errors):
-                raise BackendCapabilityError(
-                    str(fact.message),
-                    backend=backend,
-                    function_key=cell.operation_key,
-                    limitation=fact,
-                ) from e
-        raise
+    result = _materialize_result(df, cell.expression.compile(df), backend)
+    receiver_column = op.arg_col_name if op.matrix_arg_is_input else op.input_col
+    # Native vector selects return one value for an entirely scalar expression;
+    # Ibis table projection broadcasts it across the table instead.
+    expected_rows = (
+        1 if op.matrix_arg_is_input and input_type in ("raw", "lit") and not backend.startswith("ibis")
+        else len(op.data[receiver_column])
+    )
+    assert len(result) == expected_rows, (
+        f"{op.op_name} changed result shape for {input_type} on {backend}: "
+        f"{result!r}"
+    )
+    if op.expected_by_input is not None:
+        expected = op.expected_by_input[input_type]
+        if op.matrix_arg_is_input and input_type in ("raw", "lit"):
+            expected = expected * expected_rows
+        assert result == expected, (
+            f"{op.op_name} produced the wrong {input_type} result on {backend}: "
+            f"{result!r}"
+        )

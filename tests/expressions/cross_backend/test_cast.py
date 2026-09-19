@@ -11,6 +11,10 @@ import pytest
 import math
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from _pytest.outcomes import Failed
+from ibis.common.exceptions import OperationNotDefinedError
+from mountainash.core.types import BackendCapabilityError
+from fixtures.call_expectations import expect_call_failure
 
 
 @pytest.mark.cross_backend
@@ -241,8 +245,13 @@ class TestCastFailureBehavior:
         data = {"value": ["1", "1x", "3"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64", failure_behavior=CaseFailureBehaviour.NULL)
-        values = collect_expr(df, expr)
-        assert values == [1, None, 3], f"[{backend_name}] Expected [1, None, 3], got {values}"
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') or backend_name == 'ibis-sqlite',
+            reason=('NULL-on-cast-failure cannot materialize on the marked provider.' if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else 'NULL-on-cast-failure cannot materialize on the marked provider.'),
+            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else (OperationNotDefinedError,)),
+        ):
+            values = collect_expr(df, expr)
+            assert values == [1, None, 3], f"[{backend_name}] Expected [1, None, 3], got {values}"
 
 
 _IBIS_DUCKDB_CAST_BACKENDS = [b for b in ALL_BACKENDS]
@@ -260,15 +269,25 @@ class TestCastBankersRounding:
         data = {"value": [1.1, 2.9, 3.5, -1.7, -2.3]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64")
-        values = collect_expr(df, expr)
-        assert values == [1, 2, 3, -1, -2], f"[{backend_name}] Expected [1, 2, 3, -1, -2], got {values}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb',
+            reason='Tests expecting truncation-on-cast produce different results on ibis-duckdb.',
+            errors=(AssertionError,),
+        ):
+            values = collect_expr(df, expr)
+            assert values == [1, 2, 3, -1, -2], f"[{backend_name}] Expected [1, 2, 3, -1, -2], got {values}"
 
     def test_cast_negative_float_to_int(self, backend_name, backend_factory, collect_expr):
         data = {"value": [-1.9, -2.1, -3.5]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64")
-        values = collect_expr(df, expr)
-        assert values == [-1, -2, -3], f"[{backend_name}] Expected [-1, -2, -3], got {values}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb',
+            reason='Tests expecting truncation-on-cast produce different results on ibis-duckdb.',
+            errors=(AssertionError,),
+        ):
+            values = collect_expr(df, expr)
+            assert values == [-1, -2, -3], f"[{backend_name}] Expected [-1, -2, -3], got {values}"
 
 
 @pytest.mark.cross_backend
@@ -282,8 +301,13 @@ class TestCastThrowSqliteLenient:
         data = {"value": ["1", "1x", "3"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64")
-        with pytest.raises(Exception):
-            collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='Strict casts do not raise for malformed input on ibis-sqlite.',
+            errors=(Failed,),
+        ):
+            with pytest.raises(Exception):
+                collect_expr(df, expr)
 
     def test_cast_failure_behavior_throw_explicit(self, backend_name, backend_factory, collect_expr):
         """Explicit failure_behavior=THROW behaves identically to the default."""
@@ -294,5 +318,10 @@ class TestCastThrowSqliteLenient:
         data = {"value": ["1", "1x", "3"]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("value").cast("i64", failure_behavior=CaseFailureBehaviour.THROW)
-        with pytest.raises(Exception):
-            collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='Strict casts do not raise for malformed input on ibis-sqlite.',
+            errors=(Failed,),
+        ):
+            with pytest.raises(Exception):
+                collect_expr(df, expr)

@@ -7,6 +7,11 @@ from mountainash.expressions.backends.expression_systems.narwhals.base import Na
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
     MountainAshScalarGeospatialExpressionSystemProtocol,
 )
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
+)
+
 
 
 FRICTIONLESS_NUMBER = r"[+-]?(?:(?:[0-9]+(?:\.[0-9]*)?)|(?:\.[0-9]+))(?:E[+-]?[0-9]+)?"
@@ -37,6 +42,23 @@ class MountainAshNarwhalsScalarGeospatialExpressionSystem(
             marker = nw.when(x.is_null() | valid).then(nw.lit("0")).otherwise(nw.lit("__invalid__")).cast(nw.Int8)
             suffix = marker.cast(nw.String).str.replace("0", "")
             return x + suffix
+        if format == "array" and source_representation == "lexical":
+            raise BackendCapabilityError(
+                "Narwhals cannot parse lexical array geopoints.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+            )
+        if (
+            format == "array"
+            and source_representation == "native"
+            and failure_behavior == "null"
+        ):
+            raise BackendCapabilityError(
+                "Narwhals cannot implement failure_behavior='null' for native "
+                "array geopoint parsing. Use Polars or Ibis backend.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+            )
         if format == "array" and source_representation == "native":
             native = x.cast(nw.List(nw.Float64))
             lon = native.list.get(0)

@@ -7,6 +7,7 @@ zero references (closed-by-default: absence must be justified).
 """
 
 from pathlib import Path
+import json
 
 import yaml
 
@@ -27,7 +28,7 @@ _ZERO_REF_OK = {
     "resolved_in_mountainash",
 }
 
-_PENDING_MANIFESTATIONS: dict[str, str] = {
+_REFERENCE_ONLY: dict[str, str] = {
     "IB-CTE-01": "Reference-only: no current recursive-CTE public target; backlog 238, capability maintainers. Since 2026-09-17.",
     "IB-TYPE-04": "Reference-only: no concrete type-inference call/scenario; backlog 238, capability maintainers. Since 2026-09-17.",
 }
@@ -53,13 +54,20 @@ def _yaml_entries() -> dict[str, dict]:
 
 
 def _code_refs() -> set[str]:
-    from mountainash.core.capabilities.catalogue import CatalogueQuery, ManifestationQuery
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery, PolicyQuery
 
-    refs = {f.upstream_ref for f in CapabilityRegistry.facts() if f.upstream_ref is not None}
-    manifestations = (
-        CapabilityRegistry.capture().search(CatalogueQuery(manifestations=ManifestationQuery())).manifestations
-    )
-    refs |= {record.assertion.issue for record in manifestations if record.assertion.issue}
+    records = CapabilityRegistry.capture().search(CatalogueQuery(
+        information=InformationQuery(), policies=PolicyQuery(),
+    ))
+    information = {record.key: record for record in records.information}
+    refs = {record.assertion.issue for record in records.information if record.assertion.issue}
+    for policy in records.policies:
+        if policy.assertion.information is not None:
+            issue = information[policy.assertion.information].assertion.issue
+            if issue is not None:
+                refs.add(issue)
+    examples_path = Path(__file__).resolve().parents[2] / "scripts" / "fixtures" / "divergence_examples.json"
+    refs.update(example["issue"] for example in json.loads(examples_path.read_text()) if example.get("issue"))
     return refs
 
 
@@ -76,7 +84,7 @@ def test_every_open_yaml_entry_is_referenced_from_code():
         for entry_id, entry in entries.items()
         if (
             entry_id not in refs
-            and entry_id not in _PENDING_MANIFESTATIONS
+            and entry_id not in _REFERENCE_ONLY
             and entry_id not in _PENDING_CAPABILITY_FACTS
             and entry_id not in _PENDING_INTERNAL_GAPS
             and entry["status"] not in _ZERO_REF_OK
@@ -92,12 +100,12 @@ def test_every_open_yaml_entry_is_referenced_from_code():
 def test_pending_entries_are_real_open_and_justified():
     entries = _yaml_entries()
     all_pending = {
-        **_PENDING_MANIFESTATIONS,
+        **_REFERENCE_ONLY,
         **_PENDING_CAPABILITY_FACTS,
         **_PENDING_INTERNAL_GAPS,
     }
     # No id appears in two buckets.
-    keys = list(_PENDING_MANIFESTATIONS) + list(_PENDING_CAPABILITY_FACTS) + list(_PENDING_INTERNAL_GAPS)
+    keys = list(_REFERENCE_ONLY) + list(_PENDING_CAPABILITY_FACTS) + list(_PENDING_INTERNAL_GAPS)
     assert len(keys) == len(set(keys)), "an id is parked in more than one bucket"
     for entry_id, reason in all_pending.items():
         assert entry_id in entries, f"parked id not in registry: {entry_id}"

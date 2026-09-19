@@ -10,7 +10,10 @@ import pytest
 
 import mountainash as ma
 
+from ibis.common.exceptions import IbisTypeError
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -74,7 +77,12 @@ class TestEmptyDataFrame:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestAllNullColumns:
     def test_null_column_through_filter(self, backend_name, backend_factory):
-        df = backend_factory.create({"a": [1, 2, 3], "b": [None, None, None]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-duckdb",
+            errors=(IbisTypeError,),
+            reason="DuckDB cannot construct a native table with inferred Null column b",
+        ):
+            df = backend_factory.create({"a": [1, 2, 3], "b": [None, None, None]}, backend_name)
         result = ma.relation(df).filter(ma.col("a").gt(1)).to_dicts()
         assert result == [
             {"a": 2, "b": None},
@@ -82,7 +90,12 @@ class TestAllNullColumns:
         ]
 
     def test_null_column_through_sort(self, backend_name, backend_factory):
-        df = backend_factory.create({"a": [3, 1, 2], "b": [None, None, None]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-duckdb",
+            errors=(IbisTypeError,),
+            reason="DuckDB cannot construct a native table with inferred Null column b",
+        ):
+            df = backend_factory.create({"a": [3, 1, 2], "b": [None, None, None]}, backend_name)
         result = ma.relation(df).sort("a").to_dicts()
         assert result == [
             {"a": 1, "b": None},

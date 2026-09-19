@@ -56,9 +56,9 @@
   },
   {
     "module": "mountainash.expressions.backends.expression_systems.narwhals.base",
-    "owner": "NarwhalsBaseExpressionSystem.cast_nullable",
+    "owner": "NarwhalsBaseExpressionSystem.cast_object",
     "callee": "Series",
-    "fingerprint": "02b9b89509cfc64c",
+    "fingerprint": "fc6f9df7a1013bfe",
     "boundary_key": "EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Unwraps a compliant Narwhals-Pandas Series only for a vectorized nullable Boolean/String projection and immediately rewraps the same-index result; no native values escape as execution data.",
@@ -67,9 +67,9 @@
   },
   {
     "module": "mountainash.expressions.backends.expression_systems.narwhals.base",
-    "owner": "NarwhalsBaseExpressionSystem.cast_object",
+    "owner": "NarwhalsBaseExpressionSystem.cast_typed",
     "callee": "Series",
-    "fingerprint": "fc6f9df7a1013bfe",
+    "fingerprint": "02b9b89509cfc64c",
     "boundary_key": "EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK",
     "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
     "reason": "Unwraps a compliant Narwhals-Pandas Series only for a vectorized nullable Boolean/String projection and immediately rewraps the same-index result; no native values escape as execution data.",

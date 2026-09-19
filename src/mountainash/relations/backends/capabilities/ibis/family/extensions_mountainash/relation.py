@@ -5,25 +5,22 @@ from __future__ import annotations
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
 
 
-from mountainash.core.capabilities.schema import Enforcement
-from mountainash.core.capabilities.declarations import CapabilityAssertion
+from mountainash.core.capabilities.declarations import CapabilityInformation
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.RELATION,
-    capabilities=(
-        CapabilityAssertion(
+    information=(
+        CapabilityInformation(
             key=CapabilityKey(operation=RKEY_MOUNTAINASH_REL.READ_RESOURCE, subject="resource"),
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-30",
             message="CSV dialect fields require the portable provider fallback reader",
             workaround="none needed — mountainash routes automatically",
-            condition="resource.dialect.comment_char is set or resource.dialect.comment_rows is set or resource.dialect.delimiter is non-default or resource.dialect.double_quote is set or resource.dialect.escape_char is set or resource.dialect.header is false or resource.dialect.header_join is set or resource.dialect.header_rows is set or resource.dialect.line_terminator is set or resource.dialect.null_sequence is set or resource.dialect.quote_char is set or resource.dialect.skip_initial_space is set",
-            probe_exempt="router, not gate — fallback handles it; behaviour covered by relations resource tests",
-            enforcement=Enforcement.ROUTER_METADATA,
+            layer=InformationLayer.PUBLIC,
         ),
     ),
 )

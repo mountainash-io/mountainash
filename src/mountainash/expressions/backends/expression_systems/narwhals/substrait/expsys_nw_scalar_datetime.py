@@ -313,20 +313,22 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         timezone: str,
     ) -> NarwhalsExpr:
-        """Assume the timestamp is in the specified timezone.
+        """Refuse timezone assignment, which Narwhals cannot implement.
 
-        Args:
-            x: Datetime expression (timezone-naive).
-            timezone: Timezone to assume (IANA format).
-
-        Returns:
-            Timezone-aware datetime.
-
-        Note:
-            Narwhals may not have timezone assignment. Returns input as fallback.
+        Narwhals has no timezone-assignment primitive. Returning ``x`` would
+        silently leave the timestamp timezone-naive.
         """
-        # Narwhals doesn't have replace_time_zone - fallback
-        return x
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_DATETIME,
+        )
+
+        raise BackendCapabilityError(
+            "Narwhals does not implement assume_timezone; returning the input "
+            "would silently leave the timestamp timezone-naive.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
+        )
 
 
     def local_timestamp(
@@ -368,6 +370,19 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         format: str,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
+        """Parse a date, refusing the unavailable null-on-failure mode."""
+        if failure_behavior == "null":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
+
+            raise BackendCapabilityError(
+                "Narwhals cannot implement failure_behavior='null' for "
+                "strptime_date; native parsing raises on invalid input.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            )
         return x.str.to_date(format=format)
 
     def strptime_timestamp(
@@ -378,6 +393,19 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         timezone: str = None,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
+        """Parse a timestamp, refusing the unavailable null-on-failure mode."""
+        if failure_behavior == "null":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import (
+                FKEY_SUBSTRAIT_SCALAR_DATETIME,
+            )
+
+            raise BackendCapabilityError(
+                "Narwhals cannot implement failure_behavior='null' for "
+                "strptime_timestamp; native parsing raises on invalid input.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            )
         result = x.str.to_datetime(format=format)
         if timezone is not None:
             result = result.dt.replace_time_zone(timezone)
@@ -388,7 +416,14 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         /,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        return x.str.to_datetime()
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
+
+        raise BackendCapabilityError(
+            "Narwhals native datetime inference does not implement the strict default datetime lexical contract.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+        )
     def parse_datetime_default(
         self,
         x: NarwhalsExpr,
@@ -434,7 +469,18 @@ class SubstraitNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSyst
         kind: str,
         failure_behavior: str = "throw",
     ) -> NarwhalsExpr:
-        return x
+        """Refuse temporal-any parsing, which needs a row-wise native parser."""
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        )
+
+        raise BackendCapabilityError(
+            "Narwhals does not implement parse_temporal_any; it requires a "
+            "row-wise native parser.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+        )
 
 
     # =========================================================================

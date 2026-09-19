@@ -28,7 +28,12 @@ from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
+from ibis.common.exceptions import OperationNotDefinedError
+from mountainash.core.types import BackendCapabilityError
+
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 
 # Backends that compile conform's cast expressions through the Narwhals
@@ -119,11 +124,22 @@ class TestDiscardValuePolicy:
         df = backend_factory.create({"n": ["1", "bad", "3"]}, backend_name)
         spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
 
-        result = ma.relation(df).conform(spec, contract={"data_type": "discard_value"}).to_polars()
+        with expect_call_failure(
+            when=backend_name in (
+                "ibis-sqlite",
+                "narwhals-lazy",
+                "narwhals-polars",
+                "narwhals-pandas",
+                "pandas",
+            ),
+            errors=(OperationNotDefinedError,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
+            reason="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them",
+        ):
+            result = ma.relation(df).conform(spec, contract={"data_type": "discard_value"}).to_polars()
 
-        assert _as_float_list(result["n"].to_list()) == [1.0, None, 3.0], (
-            f"[{backend_name}] expected [1, None, 3], got {result['n'].to_list()}"
-        )
+            assert _as_float_list(result["n"].to_list()) == [1.0, None, 3.0], (
+                f"[{backend_name}] expected [1, None, 3], got {result['n'].to_list()}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -145,14 +161,25 @@ class TestDiscardRowPolicy:
             fields_match="open",
         )
 
-        result = ma.relation(df).conform(spec, contract={"data_type": "discard_row"}).to_polars()
+        with expect_call_failure(
+            when=backend_name in (
+                "ibis-sqlite",
+                "narwhals-lazy",
+                "narwhals-polars",
+                "narwhals-pandas",
+                "pandas",
+            ),
+            errors=(OperationNotDefinedError,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
+            reason="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them",
+        ):
+            result = ma.relation(df).conform(spec, contract={"data_type": "discard_row"}).to_polars()
 
-        assert result["id"].to_list() == [1, 3, 4], (
-            f"[{backend_name}] expected id row [1, 3, 4] (id=2 dropped), got {result['id'].to_list()}"
-        )
-        assert _as_float_list(result["n"].to_list()) == [1.0, None, 3.0], (
-            f"[{backend_name}] expected n [1, None, 3], got {result['n'].to_list()}"
-        )
+            assert result["id"].to_list() == [1, 3, 4], (
+                f"[{backend_name}] expected id row [1, 3, 4] (id=2 dropped), got {result['id'].to_list()}"
+            )
+            assert _as_float_list(result["n"].to_list()) == [1.0, None, 3.0], (
+                f"[{backend_name}] expected n [1, None, 3], got {result['n'].to_list()}"
+            )
 
 
 # ---------------------------------------------------------------------------

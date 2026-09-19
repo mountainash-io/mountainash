@@ -32,13 +32,23 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         delimiter: str = ",",
         failure_behavior: str = "throw",
     ):
+        if self.dialect == "ibis-sqlite" or self.dialect == "ibis-polars" and item_type != "string":
+            raise BackendCapabilityError(
+                "The selected Ibis engine cannot compile this list parser.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            )
         values = x.split(delimiter)
         if item_type == "string":
             return values
         if item_type == "boolean":
             true_values = ("true", "True", "TRUE", "1")
             false_values = ("false", "False", "FALSE", "0")
-            invalid = ibis.literal("__invalid_boolean_token__").cast("boolean")
+            invalid = (
+                ibis.null().cast("boolean")
+                if failure_behavior == "null"
+                else ibis.literal("__invalid_boolean_token__").cast("boolean")
+            )
             parsed = values.map(
                 lambda item: ibis.cases(
                     (item.isin(true_values), ibis.literal(True)),
@@ -80,15 +90,22 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if self.dialect == "ibis-sqlite" or failure_behavior == "null":
+            raise BackendCapabilityError(
+                "SQLite list casting is unavailable; other Ibis engines require throw mode "
+                "because native nested casts do not null the whole list on an invalid item.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            )
         if item_type is not None:
             from mountainash.typespec.universal_types import parse_universal, to_canonical
             from mountainash.core.dtypes import registry
             canonical = to_canonical(parse_universal(item_type))
             dtype = registry.to_native_schema(canonical, TypeTarget.IBIS)
-            return x.try_cast(f"array<{dtype}>") if failure_behavior == "null" else x.cast(f"array<{dtype}>")
+            return x.cast(f"array<{dtype}>")
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.IBIS)
-        return x.try_cast(dtype) if failure_behavior == "null" else x.cast(dtype)
+        return x.cast(dtype)
 
     def list_sum(self, x, /):
         return x.sums()

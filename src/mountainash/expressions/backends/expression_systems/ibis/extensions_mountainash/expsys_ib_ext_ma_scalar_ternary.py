@@ -34,6 +34,12 @@ T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE    # -1
 
 class MountainAshIbisScalarTernaryExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarTernaryExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of TernaryExpressionProtocol."""
+    def _prepare_call_collect_values(self, operands):
+        return [
+            operands.raw_literal_or_native(index)
+            for index in range(len(operands))
+        ]
+
 
     # ========================================
     # Helper Methods

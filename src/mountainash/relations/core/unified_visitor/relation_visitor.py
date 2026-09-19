@@ -248,7 +248,7 @@ class UnifiedRelationVisitor:
                 limitation=fact,
             )
 
-        # Whole-op wildcard fact (e.g. narwhals unnest)
+        # Whole-operation optional protection.
         fact = CapabilityRegistry.capability_for(
             op.operation_key, WILDCARD_PARAM, family, dialect
         )
@@ -257,8 +257,7 @@ class UnifiedRelationVisitor:
             _raise(fact)
 
         # Param-scoped facts — fire only when the node field is populated.
-        # Only GATE facts reach the gate; ROUTER_METADATA is consumed by the
-        # backend router and MATERIALIZE_RESIDUE enriches a later error.
+        # Only GATE facts reach this path; residue consumers remain separate.
         # gate_params keeps its narrowed job: declaring that a populated node
         # field is sufficient evidence for a GATE fact to fire on a
         # handler-routed op.
@@ -279,6 +278,7 @@ class UnifiedRelationVisitor:
             raise BackendCapabilityError(
                 combined, backend=self.backend.BACKEND_NAME,
                 function_key=op.operation_key, limitation=ordered[0],
+                candidate_fact_keys=tuple(fact.fact_key for fact in ordered),
             )
 
         for param in param_names:
@@ -746,7 +746,7 @@ class UnifiedRelationVisitor:
                         if not any(fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL for fact in facts):
                             continue
                         alias = self._marker_alias(node_id, index, occupied)
-                        marker_expr = self.compile_expression(check.marker).alias(alias)
+                        marker_expr = self.compile_expression(check.marker.name.alias(alias))
                         marker_exprs.append(marker_expr)
                         residue_checks.append(dataclasses.replace(check, marker=alias))
                         self.residue_check_nodes[alias] = node_id

@@ -5,8 +5,6 @@ import narwhals as nw
 import polars as pl
 import pytest
 import mountainash as ma
-from mountainash.core.capabilities import CapabilityRegistry
-from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
@@ -154,7 +152,7 @@ def test_public_default_datetime_accepts_mixed_naive_and_offset_values() -> None
         None,
     ]
 
-def test_public_conform_reports_exact_declared_capability_error() -> None:
+def test_public_conform_reports_intrinsic_capability_error() -> None:
     descriptor = {
         "name": "unit-c-capability-smoke",
         "resources": [
@@ -174,22 +172,9 @@ def test_public_conform_reports_exact_declared_capability_error() -> None:
     dag = package.to_relation_dag(
         overrides={"records": nw.from_native(pl.DataFrame({"point": ["[1,2]"]}))}
     )
-    matching_facts = [
-        candidate
-        for candidate in CapabilityRegistry.facts(
-            backend=CONST_BACKEND.NARWHALS
-        )
-        if candidate.operation_key is FK_GEO.PARSE_GEOPOINT
-        and candidate.param == "format"
-        and candidate.predicate is not None
-        and {(clause.path, clause.operand) for clause in candidate.predicate.clauses}
-        == {("format", "array"), ("source_representation", "lexical")}
-    ]
-    assert len(matching_facts) == 1
-    fact = matching_facts[0]
     with pytest.raises(BackendCapabilityError) as exc_info:
         dag.collect("records", backend="narwhals")
     error = exc_info.value
     assert error.backend == "narwhals"
     assert error.function_key is FK_GEO.PARSE_GEOPOINT
-    assert error.limitation is fact
+    assert error.limitation is None

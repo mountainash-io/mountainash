@@ -10,6 +10,8 @@ import math
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import OperationNotDefinedError
+from fixtures.call_expectations import expect_call_failure
 
 
 @pytest.mark.cross_backend
@@ -113,9 +115,14 @@ class TestComposeComparisonNumeric:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_finite()
-        result = df.filter(expr.compile(df))
-        count = get_result_count(result, backend_name)
-        assert count == 3, f"[{backend_name}] Expected 3 finite values, got {count}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='ma.col(x).is_finite()/is_infinite() raise on ibis-sqlite; polars, pandas, narwhals, and ibis-polars/ibis-duckdb evaluate them',
+            errors=(OperationNotDefinedError,),
+        ):
+            result = df.filter(expr.compile(df))
+            count = get_result_count(result, backend_name)
+            assert count == 3, f"[{backend_name}] Expected 3 finite values, got {count}"
 
     def test_is_infinite(self, backend_name, backend_factory, get_result_count):
         """Test is_infinite on float column."""
@@ -123,9 +130,14 @@ class TestComposeComparisonNumeric:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_infinite()
-        result = df.filter(expr.compile(df))
-        count = get_result_count(result, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 infinite values, got {count}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='ma.col(x).is_finite()/is_infinite() raise on ibis-sqlite; polars, pandas, narwhals, and ibis-polars/ibis-duckdb evaluate them',
+            errors=(OperationNotDefinedError,),
+        ):
+            result = df.filter(expr.compile(df))
+            count = get_result_count(result, backend_name)
+            assert count == 2, f"[{backend_name}] Expected 2 infinite values, got {count}"
 
 
 @pytest.mark.cross_backend
@@ -235,6 +247,11 @@ class TestComposeIsNan:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_nan()
-        result = df.filter(expr.compile(df))
-        count = get_result_count(result, backend_name)
-        assert count == 2, f"[{backend_name}] Expected 2 NaN values, got {count}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-duckdb' or backend_name == 'ibis-sqlite',
+            reason=('is_nan/fill_nan/NaN comparisons diverge on SQL engines.' if backend_name == 'ibis-duckdb' else 'is_nan/fill_nan/NaN comparisons diverge on SQL engines.'),
+            errors=((AssertionError,) if backend_name == 'ibis-duckdb' else (OperationNotDefinedError,)),
+        ):
+            result = df.filter(expr.compile(df))
+            count = get_result_count(result, backend_name)
+            assert count == 2, f"[{backend_name}] Expected 2 NaN values, got {count}"

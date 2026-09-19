@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Type-checker work (explicit request only)
+
+Do not run mypy or other static type checkers, compare diagnostic baselines,
+or fix type-checker-only findings during ordinary development, debugging,
+review or completion checks unless the user explicitly requests that work.
+Do not add casts, annotations, ignores or refactors solely to appease a checker.
+If CI reports a type-checker failure, report it without starting remediation.
+Verify requested behavior with targeted tests and runtime checks; fix actual
+runtime/import failures in scope. This policy supersedes type-checking gates
+in older plans and checklists.
+
 ## Superpowers Specs & Plans Location
 
 Save all superpowers specs and plans to the **mountainash-central** repo, not this repo:
@@ -202,7 +213,7 @@ specific affected test files/dirs, not the whole suite.
 hatch run test:test-target <path>    # Specific file or test  ← default during development
 hatch run test:test-target-quick <path>  # Specific, no coverage  ← default during development
 
-# Linting & type checking
+# Linting
 hatch run ruff:check                 # Check for issues
 hatch run ruff:fix                   # Auto-fix issues
 

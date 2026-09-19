@@ -7,6 +7,8 @@ import pytest
 import mountainash as ma
 from mountainash.relations import relation
 from fixtures.backend_registry import ALL_BACKENDS
+from narwhals.exceptions import InvalidOperationError
+from fixtures.call_expectations import expect_call_failure
 
 
 def _agg(df, expr_factory):
@@ -44,9 +46,15 @@ class TestFluentReducers:
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product(self, backend_name, backend_factory):
-        result = _agg(self._df(backend_name, backend_factory), lambda c: c.product())
-        # narwhals computes product via exp(sum(log(x))) which introduces float error
-        assert result["v"] == pytest.approx([6, 24]), f"[{backend_name}]"
+        df = self._df(backend_name, backend_factory)
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars',
+            reason='product() returns None on ibis-polars',
+            errors=(AssertionError,),
+        ):
+            result = _agg(df, lambda c: c.product())
+            # narwhals computes product via exp(sum(log(x))) which introduces float error
+            assert result["v"] == pytest.approx([6, 24]), f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_std_dev(self, backend_name, backend_factory):
@@ -66,21 +74,32 @@ class TestFluentReducers:
             {"g": ["a", "a", "a", "b"], "x": [1, 1, 2, 5]},
             backend_name,
         )
-        result = _agg(df, lambda c: c.mode())
-        a_val = result["v"][0]
-        b_val = result["v"][1]
-        if isinstance(a_val, list):
-            assert 1 in a_val, f"[{backend_name}]"
-            assert 5 in b_val, f"[{backend_name}]"
-        else:
-            assert a_val == 1, f"[{backend_name}]"
-            assert b_val == 5, f"[{backend_name}]"
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            result = _agg(df, lambda c: c.mode())
+            a_val = result["v"][0]
+            b_val = result["v"][1]
+            if isinstance(a_val, list):
+                assert 1 in a_val, f"[{backend_name}]"
+                assert 5 in b_val, f"[{backend_name}]"
+            else:
+                assert a_val == 1, f"[{backend_name}]"
+                assert b_val == 5, f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value(self, backend_name, backend_factory):
-        result = _agg(self._df(backend_name, backend_factory), lambda c: c.any_value())
-        assert result["v"][0] in {1, 2, 3}, f"[{backend_name}]"
-        assert result["v"][1] in {4, 6}, f"[{backend_name}]"
+        df = self._df(backend_name, backend_factory)
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            result = _agg(df, lambda c: c.any_value())
+            assert result["v"][0] in {1, 2, 3}, f"[{backend_name}]"
+            assert result["v"][1] in {4, 6}, f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_mean_alias_for_avg(self, backend_name, backend_factory):

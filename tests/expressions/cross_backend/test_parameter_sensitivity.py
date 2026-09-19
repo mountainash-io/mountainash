@@ -13,6 +13,9 @@ from datetime import datetime
 
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import UnsupportedArgumentError
+from mountainash.core.types import BackendCapabilityError
+from fixtures.call_expectations import expect_call_failure
 
 
 POLARS_IBIS = [
@@ -287,13 +290,18 @@ class TestRepeatParameterSensitivity:
         data = {"val": ["ab", "cd"]}
         df = backend_factory.create(data, backend_name)
 
-        assert_parameter_sensitivity(
-            df,
-            lambda n: ma.col("val").str.repeat(n),
-            2,
-            3,
-            backend_name,
-        )
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars'),
+            reason='str.repeat() raises on the marked providers.',
+            errors=(BackendCapabilityError,),
+        ):
+            assert_parameter_sensitivity(
+                df,
+                lambda n: ma.col("val").str.repeat(n),
+                2,
+                3,
+                backend_name,
+            )
 
 
 # =============================================================================
@@ -397,24 +405,33 @@ class TestCenterParameterSensitivity:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.center(7, "*")
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals') or backend_name == 'ibis-polars',
+            reason=('str.center() raises on the marked providers.' if backend_name in ('pandas', 'narwhals') else 'str.center() raises on the marked providers.'),
+            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals') else (UnsupportedArgumentError,)),
+        ):
+            actual = collect_expr(df, expr)
 
-        # "hi" centered in 7 with '*' → "**hi***" or "***hi**" (implementation may vary)
-        assert all(len(s) == 7 for s in actual), f"[{backend_name}] widths: {[len(s) for s in actual]}"
-        assert all("*" in s for s in actual), f"[{backend_name}] no padding chars: {actual}"
+            expected = ["***hi**", "**hey**"] if backend_name == "polars" else ["**hi***", "**hey**"]
+            assert actual == expected, f"[{backend_name}]"
 
     def test_center_width_sensitivity(self, backend_name, backend_factory, assert_parameter_sensitivity):
         """center(5) and center(9) must produce different results."""
         data = {"val": ["hi"]}
         df = backend_factory.create(data, backend_name)
 
-        assert_parameter_sensitivity(
-            df,
-            lambda w: ma.col("val").str.center(w, "*"),
-            5,
-            9,
-            backend_name,
-        )
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals') or backend_name == 'ibis-polars',
+            reason=('str.center() raises on the marked providers.' if backend_name in ('pandas', 'narwhals') else 'str.center() raises on the marked providers.'),
+            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals') else (UnsupportedArgumentError,)),
+        ):
+            assert_parameter_sensitivity(
+                df,
+                lambda w: ma.col("val").str.center(w, "*"),
+                5,
+                9,
+                backend_name,
+            )
 
 
 # =============================================================================
@@ -443,21 +460,31 @@ class TestReplaceSliceParameterSensitivity:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").str.replace_slice(1, 3, "XY")
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals'),
+            reason='str.replace_slice() returns input unchanged.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
 
-        # Key assertion: the result is NOT "hello" (parameter was used)
-        assert actual[0] != "hello", f"[{backend_name}] replace_slice had no effect: {actual}"
-        assert "XY" in actual[0], f"[{backend_name}] replacement not found in: {actual}"
+            # Key assertion: the result is NOT "hello" (parameter was used)
+            assert actual[0] != "hello", f"[{backend_name}] replace_slice had no effect: {actual}"
+            assert "XY" in actual[0], f"[{backend_name}] replacement not found in: {actual}"
 
     def test_replace_slice_length_sensitivity(self, backend_name, backend_factory, assert_parameter_sensitivity):
         """replace_slice with length 1 and length 3 must differ."""
         data = {"val": ["hello"]}
         df = backend_factory.create(data, backend_name)
 
-        assert_parameter_sensitivity(
-            df,
-            lambda l: ma.col("val").str.replace_slice(1, l, "X"),
-            1,
-            3,
-            backend_name,
-        )
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals'),
+            reason='str.replace_slice() returns input unchanged.',
+            errors=(AssertionError,),
+        ):
+            assert_parameter_sensitivity(
+                df,
+                lambda l: ma.col("val").str.replace_slice(1, l, "X"),
+                1,
+                3,
+                backend_name,
+            )

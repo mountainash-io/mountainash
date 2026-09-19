@@ -28,6 +28,15 @@ class MountainAshIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, Mou
         false_values: tuple[str, ...],
         failure_behavior: str = "throw",
     ) -> IbisBooleanExpr:
+        if self.dialect == "ibis-sqlite" and failure_behavior == "throw":
+            from mountainash.core.types import BackendCapabilityError
+            from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_BOOLEAN
+
+            raise BackendCapabilityError(
+                "SQLite casts invalid boolean tokens to false instead of raising; only null failure behavior is supported.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+            )
         text = x.cast("string")
         if failure_behavior == "null":
             return ibis.cases(
@@ -36,8 +45,8 @@ class MountainAshIbisScalarBooleanExpressionSystem(IbisBaseExpressionSystem, Mou
                 else_=ibis.null(),
             )
         parsed = ibis.cases(
-            (text.isin(true_values), ibis.literal(1)),
-            (text.isin(false_values), ibis.literal(0)),
+            (text.isin(true_values), ibis.literal("1")),
+            (text.isin(false_values), ibis.literal("0")),
             (text.isnull(), ibis.null()),
             else_=ibis.literal("__invalid_boolean_token__"),
         )

@@ -7,9 +7,6 @@ from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 from typing import Any
 
-from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.schema import Scenario
-
 
 def require_immutable(value: Any) -> None:
     """Reject mutable descendants, including fields inside frozen dataclasses."""
@@ -75,7 +72,7 @@ class CapturedAssertion:
     reference_context: tuple[CapturedAddress, ...] = ()
 
     def __post_init__(self) -> None:
-        if self.family not in {"capability", "manifestation", "gap"}:
+        if self.family not in {"capability", "gap"}:
             raise ValueError("unknown captured assertion family")
         if type(self.address) is not CapturedAddress:
             raise TypeError("assertion capture requires CapturedAddress")
@@ -85,108 +82,6 @@ class CapturedAssertion:
             raise TypeError("reference context requires captured addresses")
         require_immutable(self.key)
         require_immutable(self.payload)
-
-
-class BindingRole(Enum):
-    OPERATIONAL_CONTRACT = "operational_contract"
-    DIRECT_CURRENT_STATE = "direct_current_state"
-    STRUCTURAL_EVIDENCE = "structural_evidence"
-
-
-@dataclass(frozen=True)
-class VerificationBinding:
-    """An immutable association between a captured assertion and its observer."""
-
-    captured_claim: CapturedAssertion
-    scenario: Scenario
-    role: BindingRole
-    observer: CapturedAddress
-    scope: Scope
-    oracle: CapturedAddress
-    stage: str
-
-    def __post_init__(self) -> None:
-        if type(self.captured_claim) is not CapturedAssertion:
-            raise TypeError("verification binding requires a captured assertion")
-        if type(self.scenario) is not Scenario:
-            raise TypeError("verification binding scenario requires Scenario")
-        if type(self.role) is not BindingRole:
-            raise TypeError("verification binding requires BindingRole")
-        if type(self.observer) is not CapturedAddress or type(self.oracle) is not CapturedAddress:
-            raise TypeError("verification binding observer and oracle require captured addresses")
-        if self.observer == self.oracle:
-            raise ValueError("verification binding requires an independent oracle address")
-        if type(self.scope) is not Scope:
-            raise TypeError("verification binding scope requires Scope")
-        if type(self.stage) is not str:
-            raise TypeError("verification binding stage requires text")
-        if self.stage not in {"construction", "compilation", "materialization"}:
-            raise ValueError("unknown verification binding stage")
-
-        from mountainash.core.capabilities.declarations import (
-            DivergenceManifestation,
-            QualifiedCapabilityKey,
-            QualifiedManifestation,
-            QualifiedManifestationKey,
-        )
-        from mountainash.core.capabilities.gaps import GapKey, InventoryGap
-        from mountainash.core.capabilities.schema import (
-            CapabilityFact,
-            ExternalEntrypointTarget,
-            _validate_external_target_scope,
-        )
-
-        key = self.captured_claim.key
-        if type(key) is GapKey:
-            expected_family = "gap"
-            claim_scope = key.coverage_scope
-        elif type(key) is QualifiedCapabilityKey:
-            expected_family = "capability"
-            claim_scope = key.scope
-        elif type(key) is QualifiedManifestationKey:
-            expected_family = "manifestation"
-            claim_scope = key.scope
-        else:
-            raise ValueError("verification binding requires a resolved qualified claim key")
-        if self.captured_claim.family != expected_family:
-            raise ValueError("verification binding requires a resolved qualified claim key")
-        if type(claim_scope) is Scope and (
-            claim_scope.backend is not self.scope.backend
-            or (claim_scope.dialect is not None and claim_scope != self.scope)
-        ):
-            raise ValueError("verification binding scope contradicts captured assertion")
-        if type(key) is QualifiedManifestationKey and key.local.scenario != self.scenario:
-            raise ValueError("verification binding scenario contradicts captured manifestation")
-        target = (
-            key.local.target if type(key) is QualifiedManifestationKey else key.target if type(key) is GapKey else None
-        )
-        if type(target) is ExternalEntrypointTarget:
-            _validate_external_target_scope(target, self.scope)
-            if self.stage != target.stage.value:
-                raise ValueError("verification binding stage contradicts external entrypoint")
-
-        payload = self.captured_claim.payload
-        if type(key) is QualifiedCapabilityKey:
-            from mountainash.core.capabilities.declarations import CapabilityKey
-
-            if type(payload) is not CapabilityFact:
-                raise ValueError("verification binding capability payload requires CapabilityFact")
-            if CapabilityKey.from_fact(payload) != key.local:
-                raise ValueError("verification binding capability payload contradicts captured key")
-            if payload.backend is not key.scope.backend or payload.dialect != key.scope.dialect:
-                raise ValueError("verification binding capability payload contradicts captured scope")
-        elif type(key) is QualifiedManifestationKey:
-            if type(payload) is QualifiedManifestation:
-                if payload.key != key:
-                    raise ValueError("verification binding manifestation payload contradicts captured key")
-            elif type(payload) is DivergenceManifestation:
-                if payload.key != key.local:
-                    raise ValueError("verification binding manifestation payload contradicts captured key")
-            else:
-                raise ValueError("verification binding manifestation payload requires a complete manifestation")
-        elif type(payload) is not InventoryGap or payload.key != key:
-            raise ValueError("verification binding gap payload contradicts captured key")
-        require_immutable(self)
 
 
 @dataclass(frozen=True, order=True)
@@ -253,54 +148,3 @@ class SourceOrigin:
             raise TypeError("source origin requires validated scope, source and domain")
         if self.captured is not None and type(self.captured) is not CapturedAddress:
             raise TypeError("durable source origin requires CapturedAddress")
-
-
-@dataclass(frozen=True)
-class RuntimeOrigin:
-    generation: int
-    batch: int
-    ordinal: int
-
-    def __post_init__(self) -> None:
-        if any(type(value) is not int or value < 0 for value in (self.generation, self.batch, self.ordinal)):
-            raise ValueError("runtime origin requires nonnegative generation/batch/ordinal")
-
-
-@dataclass(frozen=True)
-class EvidenceCapture:
-    capture_ref: CapturedAddress
-    subjects: tuple[CapturedAssertion, ...]
-    observed_at: str | None
-    environment: Environment
-    fixtures: tuple[CapturedAddress | UnresolvedHistoricalValue, ...]
-    observation_layer: str
-    result: Any
-    provenance: tuple[CapturedAddress, ...]
-
-    def __post_init__(self) -> None:
-        from datetime import datetime
-
-        if type(self.capture_ref) is not CapturedAddress:
-            raise TypeError("evidence requires an immutable capture address")
-        if (
-            type(self.subjects) is not tuple
-            or not self.subjects
-            or any(type(subject) is not CapturedAssertion for subject in self.subjects)
-        ):
-            raise ValueError("evidence requires nonempty captured subjects")
-        if self.observed_at is not None:
-            datetime.fromisoformat(self.observed_at)
-        if type(self.environment) is not Environment:
-            raise TypeError("evidence requires an observed environment")
-        if self.observation_layer not in {"native", "public", "gate_disabled", "structural", "historical_unknown"}:
-            raise ValueError("unknown observation layer")
-        if self.result is None:
-            raise ValueError("evidence result requires an explicit CaptureValue null or unavailable historical value")
-        for values in (self.fixtures, self.provenance):
-            if type(values) is not tuple:
-                raise TypeError("evidence references require immutable tuples")
-        if any(type(ref) not in (CapturedAddress, UnresolvedHistoricalValue) for ref in self.fixtures):
-            raise TypeError("fixture references require captured or explicitly unresolved historical addresses")
-        if any(type(ref) is not CapturedAddress for ref in self.provenance):
-            raise TypeError("evidence provenance requires captured addresses")
-        require_immutable(self.result)

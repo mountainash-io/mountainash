@@ -11,6 +11,8 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import IbisTypeError
+from fixtures.call_expectations import expect_call_failure
 
 
 @pytest.mark.cross_backend
@@ -124,6 +126,13 @@ class TestCoalesceAllNull:
 
     def test_coalesce_all_null(self, backend_name, backend_factory, collect_expr):
         data = {"a": [None, None, None], "b": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.coalesce(ma.col("a"), ma.col("b")))
-        assert actual == [None, None, None]
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with inferred NULL-typed columns",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = collect_expr(df, ma.coalesce(ma.col("a"), ma.col("b")))
+            assert actual == [None, None, None]

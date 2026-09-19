@@ -37,7 +37,6 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
         FKEY_MOUNTAINASH_SCALAR_DATETIME,
-        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
         FKEY_MOUNTAINASH_SCALAR_LIST,
         FKEY_MOUNTAINASH_SCALAR_STRING,
         FKEY_SUBSTRAIT_CAST,
@@ -54,10 +53,6 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
                 "failure_behavior": ma.CaseFailureBehaviour.NULL,
             },
         ),
-        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: (
-            [ma.col("c")],
-            {"field_name": "c"},
-        ),
         FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION: (
             [ma.col("c")],
             {"field_name": "c"},
@@ -69,22 +64,6 @@ def _init_smoke_overrides() -> dict[Enum, tuple[list[Any], dict[str, Any]]]:
         FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY: (
             [ma.col("c"), "datetime"],
             {"field_name": "c"},
-        ),
-        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: (
-            [ma.col("c")],
-            {
-                "format": "array",
-                "source_representation": "lexical",
-                "field_name": "c",
-            },
-        ),
-        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON: (
-            [ma.col("c")],
-            {"format": "default", "field_name": "c"},
-        ),
-        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON: (
-            [ma.col("c")],
-            {"format": "default", "field_name": "c"},
         ),
         FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: (
             [ma.col("c")],
@@ -199,7 +178,19 @@ def build_args_for_fkey(
             continue
 
         if kind == "argument":
-            args.append(_pick_col(category, col_idx))
+            if col_idx == 0:
+                args.append(_pick_col(category, 0))
+            elif category == "datetime" and pname == "other":
+                args.append(ma.col("a"))
+            elif category == "list" and pname in {"other", "y"}:
+                args.append(ma.col("a"))
+            else:
+                numeric = {
+                    "length", "width", "start", "end", "offset", "count", "n",
+                    "index", "position", "times", "precision", "places",
+                }
+                value = 1 if pname in numeric or category not in _STRING_CATEGORIES else "x"
+                args.append(ma.lit(value))
             col_idx += 1
             continue
 
@@ -234,12 +225,7 @@ def _init_shared_fkey_builders() -> dict[Enum, Callable[[], Any]]:
     """FKEY -> public-call entries that are byte-identical between
     `tests/core/test_api_reachability._builders()` and
     `_smoke_helpers._init_smoke_expr_builders()`. Each consumer merges this
-    base with its own local overrides (divergent RANK + consumer-specific
-    arg-construction or composite patterns).
-
-    Intentionally excludes `SUBSTRAIT_ARITHMETIC_WINDOW.RANK` — that entry
-    is divergent: the reachability guard forces the canonical Substrait
-    `method="min"` form while the smoke harness uses the default form.
+    base with its own argument-construction or composite-call patterns.
     """
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
@@ -278,20 +264,30 @@ def _init_shared_fkey_builders() -> dict[Enum, Callable[[], Any]]:
 
 
 def _init_smoke_expr_builders() -> dict[Enum, Any]:
-    """FKEY -> expression factory for FKEYs where protocol method name
-    doesn't match the public API accessor.
-
-    Returns a dict mapping FKEY -> zero-arg callable returning an Expression,
-    or None for FKEYs not reachable via the public API.
-    """
+    """Return hand-authored public calls where signature inference is insufficient."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL,
+        FKEY_MOUNTAINASH_SCALAR_DATETIME,
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
+        FKEY_MOUNTAINASH_SCALAR_LIST,
+        FKEY_MOUNTAINASH_SCALAR_STRING,
+        FKEY_MOUNTAINASH_SCALAR_STRUCT,
+        FKEY_MOUNTAINASH_SCALAR_VALUE,
         FKEY_SUBSTRAIT_CONDITIONAL,
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
         SUBSTRAIT_ARITHMETIC_WINDOW,
     )
+    from mountainash.typespec.spec import FieldSpec
+    from mountainash.typespec.universal_types import UniversalType
+    import polars as pl
 
     c = ma.col("a")
+    s = ma.col("c")
     b = ma.col("e")
+    l = c
+    r = c
+    item_fields = (FieldSpec(name="id", type=UniversalType.INTEGER),)
 
     return {
         **_init_shared_fkey_builders(),
@@ -299,8 +295,56 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
         FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE: lambda: ma.when(b).then(c).otherwise(c),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT: lambda: c.dt.year(),
         FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN: lambda: c.dt.is_leap_year(),
-        # Divergent RANK: smoke harness uses the default form (no method=).
-        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank().over("b"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT: lambda: s.dt.parse_default(field_name="c"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND: lambda: c.dt.round("day"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL: lambda: c.dt.ceil("day"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR: lambda: c.dt.floor("day"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by("1d"),
+        FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE: lambda: c.dt.truncate("1d"),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: lambda: s.geo.parse_geopoint(
+            format="default", source_representation="lexical", field_name="c"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON: lambda: s.geo.parse_geojson(
+            format="default", field_name="c"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON: lambda: s.geo.serialize_geojson(
+            format="default", field_name="c"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: l.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.GATHER: lambda: l.list.gather(ma.col("b")),
+        FKEY_MOUNTAINASH_SCALAR_LIST.FILTER: lambda: l.list.filter(ma.lit(True)),
+        FKEY_MOUNTAINASH_SCALAR_LIST.AGG: lambda: l.list.agg(ma.lit(1)),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: l.list.to_array(width=2),
+        FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT: lambda: l.list.to_struct(upper_bound=2),
+        FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: l.list.cast_items(
+            item_object_fields=item_fields, field_name="a"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: r.struct.field("a"),
+        FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: r.struct.cast(
+            fields=item_fields, field_name="a"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
+            value_type="integer", categories=(1, 2), ordered=True, field_name="a"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE: lambda: s.str.json_decode(pl.Int64),
+        FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE: lambda: s.str.encode("hex"),
+        FKEY_MOUNTAINASH_SCALAR_STRING.DECODE: lambda: s.str.decode("hex"),
+        FKEY_MOUNTAINASH_SCALAR_VALUE.VALUE_KIND: lambda: ma.col("number").value_kind(),
+        FKEY_MOUNTAINASH_SCALAR_VALUE.BOOLEAN_VALUE: lambda: ma.col("number").boolean_value(
+            source="binary_number"
+        ),
+        FKEY_MOUNTAINASH_SCALAR_VALUE.TEXT_VALUE: lambda: ma.col("text").text_value(),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN: lambda: ma.median(0, c),
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE: lambda: ma.quantile(
+            [0.5], 2, 1, "LINEAR"
+        ),
+        SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE: lambda: c.first_value().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE: lambda: c.last_value().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE: lambda: c.nth_value(1).over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.LEAD: lambda: c.lead().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.LAG: lambda: c.lag().over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.NTILE: lambda: c.ntile(4).over("b"),
+        SUBSTRAIT_ARITHMETIC_WINDOW.RANK: lambda: c.rank(method="min").over("b"),
     }
 
 

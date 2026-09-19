@@ -4,12 +4,9 @@ from __future__ import annotations
 import pytest
 
 from expressions.argument_types.conftest import ALL_BACKENDS
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 
 TESTED_PARAMS: list[tuple] = [
     ("struct_field", "x"),
@@ -23,8 +20,8 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op, it)
-                marks = [mark] if mark else []
+                
+                marks = []
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )
