@@ -9,6 +9,9 @@ import pytest
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations import relation
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
 
 import mountainash.relations.backends.relation_systems.ibis  # noqa: F401
 import mountainash.relations.backends.relation_systems.narwhals  # noqa: F401
@@ -137,15 +140,15 @@ class TestUnnestIbis:
 
 
 class TestUnnestNarwhals:
-    @pytest.mark.xfail(
-        reason="Narwhals has no frame-level unnest — deferred to Phase 2",
-        raises=BackendCapabilityError,
-        strict=True,  # self-healing: XPASS => narwhals gained frame-level unnest, flip the park
-    )
     def test_unnest_not_supported(self):
-        """Narwhals unnest is enriched to BackendCapabilityError (spec §3.8)."""
+        """Narwhals reports its missing frame-level unnest at the operation boundary."""
         df = pd.DataFrame({
             "id": [1, 2, 3],
             "metadata": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}, {"x": 30, "y": "c"}],
         })
-        relation(df).unnest("metadata", separator="_").to_polars()
+        with pytest.raises(BackendCapabilityError) as excinfo:
+            relation(df).unnest("metadata", separator="_").to_polars()
+        error = excinfo.value
+        assert error.backend == "narwhals"
+        assert error.function_key is RKEY_MOUNTAINASH_REL.UNNEST
+        assert error.limitation is None

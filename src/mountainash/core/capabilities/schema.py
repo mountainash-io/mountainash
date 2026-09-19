@@ -1,10 +1,4 @@
-"""Fact types for the capability spine (spec 2026-07-05, Section 1).
-
-Three fact kinds:
-- CapabilityFact  — what a backend can/cannot do per (op, param); gates dispatch.
-- DivergenceKind  — result-difference classification; scoped assertions live in declarations.
-- KnownGap        — mountainash-side incompleteness; drives verification guards.
-"""
+"""Runtime policy facts, generic captures, and independent gap targets."""
 
 from __future__ import annotations
 
@@ -28,20 +22,6 @@ WILDCARD_PARAM = "*"
 _SINCE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _UPSTREAM_REF_RE = re.compile(r"^[A-Z]+-[A-Z]+-\d+$")  # e.g. NW-STR-01, IB-CAST-01
 _STALE_AFTER = timedelta(days=183)  # ~6 months (closed-by-default R2)
-
-
-@dataclass(frozen=True, order=True)
-class InputDataRef:
-    """Content-addressed immutable data used by a descriptive scenario."""
-
-    content: str
-    entry: str
-
-    def __post_init__(self) -> None:
-        if type(self.content) is not str or re.fullmatch(r"sha256:[0-9a-f]{64}", self.content) is None:
-            raise ValueError("input data content must be a lowercase sha256 address")
-        if type(self.entry) is not str or not self.entry:
-            raise ValueError("input data requires a nonempty entry locator")
 
 
 def _enum_authorities() -> dict[tuple[str, str], type[Enum]]:
@@ -70,7 +50,6 @@ def _enum_authorities() -> dict[tuple[str, str], type[Enum]]:
         Fidelity,
         ValueClass,
         ClauseOp,
-        DivergenceKind,
         GapKind,
         TargetSurface,
         EntrypointStage,
@@ -105,10 +84,10 @@ def _canonical_enum_capture(value: tuple) -> tuple[str, str, str]:
 
 @dataclass(frozen=True, order=True)
 class CaptureValue:
-    """Closed canonical value used by descriptive scenario identities."""
+    """Closed canonical value used by retained immutable metadata."""
 
     tag: str
-    value: str | tuple | InputDataRef
+    value: str | tuple
 
     def __post_init__(self) -> None:
         scalar_tags = {"null", "bool", "integer", "float", "text", "bytes"}
@@ -128,10 +107,6 @@ class CaptureValue:
                 valid = bytes.fromhex(self.value).hex() == self.value
             if not valid:
                 raise ValueError(f"noncanonical {self.tag} capture")
-            return
-        if self.tag == "input_data":
-            if type(self.value) is not InputDataRef:
-                raise TypeError("input-data capture requires InputDataRef")
             return
         if type(self.value) is not tuple:
             raise TypeError("capture containers require immutable tuples")
@@ -166,8 +141,6 @@ class CaptureValue:
             return cls("text", value)
         if type(value) is bytes:
             return cls("bytes", value.hex())
-        if type(value) is InputDataRef:
-            return cls("input_data", value)
         if type(value) in (tuple, list):
             return cls("sequence", tuple(cls.of(item) for item in value))
         if type(value) in (set, frozenset):
@@ -179,31 +152,18 @@ class CaptureValue:
 
 def _capture_fields(fields: tuple) -> tuple:
     if type(fields) is not tuple:
-        raise TypeError("scenario fields require an immutable tuple")
+        raise TypeError("capture mapping requires an immutable tuple")
     names: set[str] = set()
     for pair in fields:
         if type(pair) is not tuple or len(pair) != 2:
-            raise TypeError("scenario fields require (name, CaptureValue) pairs")
+            raise TypeError("capture mapping requires (name, CaptureValue) pairs")
         name, value = pair
         if type(name) is not str or type(value) is not CaptureValue:
-            raise TypeError("scenario fields require text names and CaptureValue values")
+            raise TypeError("capture mapping requires text names and CaptureValue values")
         if name in names:
-            raise ValueError(f"duplicate scenario field {name!r}")
+            raise ValueError(f"duplicate capture mapping field {name!r}")
         names.add(name)
     return tuple(sorted(fields))
-
-
-@dataclass(frozen=True, order=True)
-class Scenario:
-    arguments: tuple[tuple[str, CaptureValue], ...] = ()
-    options: tuple[tuple[str, CaptureValue], ...] = ()
-    input_schema: tuple[tuple[str, CaptureValue], ...] = ()
-    input_data: tuple[tuple[str, CaptureValue], ...] = ()
-    execution: tuple[tuple[str, CaptureValue], ...] = ()
-
-    def __post_init__(self) -> None:
-        for name in ("arguments", "options", "input_schema", "input_data", "execution"):
-            object.__setattr__(self, name, _capture_fields(getattr(self, name)))
 
 
 class TargetSurface(Enum):
@@ -721,30 +681,54 @@ class CapabilityLevel(Enum):
     UNSUPPORTED = "unsupported"  # op/param unavailable on this backend/dialect entirely
 
 
+class InformationKind(Enum):
+    """Historical semantic classification for descriptive information."""
+
+    SEMANTICS = "semantics"
+    TYPE_INFERENCE = "type_inference"
+    NAMING = "naming"
+    PRECISION = "precision"
+    ENGINE_LENIENCY = "engine_leniency"
+
+
+class InformationLayer(Enum):
+    """Descriptive observation surface; information never directs execution."""
+
+    NATIVE = "native"
+    PUBLIC = "public"
+
+class PolicyConsumer(Enum):
+    """The concrete runtime path that consumes an executable policy."""
+
+    GATE = "gate"
+    IMMEDIATE_ERROR = "immediate_error"
+    MATERIALIZATION_ERROR = "materialization_error"
+    RESULT_PROTECTION = "result_protection"
+
+
+class PolicyAction(Enum):
+    """The effect an explicit policy has at its consumer."""
+
+    BLOCK = "block"
+    PERMIT = "permit"
+    ENRICH = "enrich"
+    DETECT_NON_NULL_TO_NULL = "detect_non_null_to_null"
+
+
 class Boundary(Enum):
     BUILD = "build"  # gated at visitor dispatch
     MATERIALIZE = "materialize"  # runtime-enrichment residue (value/dtype-dependent)
 
 
 class Enforcement(Enum):
-    """What the system DOES about a limitation (spec 2026-07-28, backlog 66a).
+    """Prepared runtime-policy boundary; authored rules name their consumer/action.
 
-    A separate axis from Boundary, which says WHEN the limitation manifests.
-    The two are not orthogonal — each role admits exactly one boundary — but
-    Boundary.BUILD admits two roles, so it cannot distinguish a gate from a
-    router declaration on its own. The default is the strict role: a fact whose
-    author did not think about enforcement gates, rather than silently not
-    gating. `condition` is prose and is read by nothing that decides anything.
-
-    enforcement           | legal boundary
-    ----------------------|---------------
-    GATE                  | BUILD
-    ROUTER_METADATA       | BUILD
-    MATERIALIZE_RESIDUE   | MATERIALIZE
+    GATE acts before backend dispatch. MATERIALIZE_RESIDUE covers identified
+    native errors and selected silent-result checks. Backend routing is ordinary
+    implementation code, not a policy role.
     """
 
     GATE = "gate"  # visitor raises before backend dispatch
-    ROUTER_METADATA = "router_metadata"  # a backend router consumes this; never raises
     MATERIALIZE_RESIDUE = (
         "materialize_residue"  # enriches a native error raised during dispatch or materialization (item 88)
     )
@@ -757,7 +741,6 @@ class ResidueSignal(Enum):
 
 _LEGAL_BOUNDARY = {
     Enforcement.GATE: Boundary.BUILD,
-    Enforcement.ROUTER_METADATA: Boundary.BUILD,
     Enforcement.MATERIALIZE_RESIDUE: Boundary.MATERIALIZE,
 }
 
@@ -821,12 +804,12 @@ def _operand_key(operand: Operand) -> tuple:
     if operand is None:
         return (0,)
     if isinstance(operand, frozenset):
-        return (1, tuple(sorted(str(m) for m in operand)))
+        return (1, tuple(sorted(_operand_key(member) for member in operand)))
     if isinstance(operand, ValueClass):
         return (2, operand.value)
     if isinstance(operand, Enum):
-        return (3, type(operand).__name__, operand.value)
-    return (4, operand)
+        return (3, type(operand).__module__, type(operand).__qualname__, operand.name)
+    return (4, operand) if isinstance(operand, int) else (5, operand)
 
 
 def _clause_key(clause: "Clause") -> tuple:
@@ -915,9 +898,9 @@ class CapabilityFact:
     param: str  # param name, or WILDCARD_PARAM
     level: CapabilityLevel
     backend: CONST_BACKEND | str  # str only for SERIALIZE families via register_target
-    # (spec 2026-07-06; CONST_BACKEND is a StrEnum so mixed
-    #  keying is well-behaved; register_backend rejects str)
-    dialect: str | None = None  # None = whole family; set = dialect-scoped refinement
+    # Executable policies qualify this DTO with a concrete dialect; None does
+    # not grant family fallback or select a guessed execution target.
+    dialect: str | None = None
     message: str = ""
     workaround: str | None = None
     upstream_ref: str | None = None  # typed ID into registry/upstream-issues.yaml
@@ -928,13 +911,45 @@ class CapabilityFact:
     option_value: str | None = None  # value-scoped option gate; None = value-agnostic (arg facts)
     probe_exempt: str | None = None  # reason when no probe is possible
     fidelity: Fidelity | None = None  # SERIALIZE targets only; must be None on EXECUTE facts
-    # (validated in register_backend — spec 2026-07-06)
+    # Executable policy publication validates this separation.
     value_class: ValueClass | None = None  # value-class fact; option_value MUST be None
     enforcement: Enforcement = Enforcement.GATE  # what the system does; condition is prose only
     predicate: Predicate | None = None  # compound co-value limit (§4); None = param-keyed fact
     residue_signal: ResidueSignal = ResidueSignal.EXCEPTION
+    # Prepared explicit policy payload used by runtime consumers.
+    consumer: PolicyConsumer | None = None
+    action: PolicyAction | None = None
+    native_issue: str | None = None
 
     def __post_init__(self) -> None:
+        if self.consumer is None:
+            if self.action is not None or self.native_issue is not None:
+                raise ValueError("policy action/native issue requires an explicit policy consumer")
+        else:
+            if type(self.consumer) is not PolicyConsumer or type(self.action) is not PolicyAction:
+                raise TypeError("policy capability fact requires PolicyConsumer and PolicyAction")
+            if self.consumer is PolicyConsumer.GATE:
+                valid = (
+                    self.action in (PolicyAction.BLOCK, PolicyAction.PERMIT)
+                    and self.enforcement is Enforcement.GATE
+                    and self.native_issue is None
+                )
+            elif self.consumer in (PolicyConsumer.IMMEDIATE_ERROR, PolicyConsumer.MATERIALIZATION_ERROR):
+                valid = (
+                    self.action is PolicyAction.ENRICH
+                    and self.enforcement is Enforcement.MATERIALIZE_RESIDUE
+                    and type(self.native_issue) is str
+                    and bool(self.native_issue.strip())
+                )
+            else:
+                valid = (
+                    self.action is PolicyAction.DETECT_NON_NULL_TO_NULL
+                    and self.enforcement is Enforcement.MATERIALIZE_RESIDUE
+                    and self.residue_signal is ResidueSignal.NON_NULL_TO_NULL
+                    and self.native_issue is None
+                )
+            if not valid:
+                raise ValueError("policy consumer/action does not match its runtime capability fact")
         if self.residue_signal is not ResidueSignal.EXCEPTION and (
             self.enforcement is not Enforcement.MATERIALIZE_RESIDUE
         ):
@@ -1007,9 +1022,7 @@ class CapabilityFact:
             raise ValueError(
                 f"CapabilityFact({self.operation_key}, {self.param}): "
                 f"{self.enforcement.name} enforcement requires the "
-                f"{expected.name} boundary, got {self.boundary.name} — routing "
-                "is a build-time path choice and residue is a materialize-time "
-                "enrichment; see the 66a compatibility table"
+                f"{expected.name} boundary, got {self.boundary.name}"
             )
 
         if self.predicate is not None:
@@ -1030,12 +1043,6 @@ class CapabilityFact:
             if self.param == WILDCARD_PARAM:
                 raise ValueError(
                     f"CapabilityFact({self.operation_key}, {self.param}): a predicate fact cannot use WILDCARD_PARAM"
-                )
-            if self.enforcement is not Enforcement.GATE:
-                raise ValueError(
-                    f"CapabilityFact({self.operation_key}, {self.param}): a predicate "
-                    "fact has no consuming path for non-GATE enforcement roles — "
-                    "predicate facts gate"
                 )
             if self.level not in (CapabilityLevel.UNSUPPORTED, CapabilityLevel.EXPR_CAPABLE):
                 raise ValueError(
@@ -1073,14 +1080,6 @@ class CapabilityFact:
                 _predicate_digest(self),
             )
         )
-
-
-class DivergenceKind(Enum):
-    SEMANTICS = "semantics"
-    TYPE_INFERENCE = "type_inference"
-    NAMING = "naming"
-    PRECISION = "precision"
-    ENGINE_LENIENCY = "engine_leniency"
 
 
 class GapKind(Enum):

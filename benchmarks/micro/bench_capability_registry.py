@@ -26,7 +26,7 @@ import subprocess
 import tracemalloc
 from collections import Counter
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterator
 
 import pytest
@@ -259,16 +259,15 @@ def _assert_selected_interfaces() -> None:
 
     missing = [
         name
-        for name in ("metadata_operand_names", "_report_inputs")
+        for name in ("metadata_operand_names", "register_segment", "_report_inputs")
         if not callable(getattr(CapabilityRegistry, name, None))
     ]
     missing.extend(
         name
-        for name in ("_prepare_state", "_stage_batch", "_empty_state")
+        for name in ("_prepare_state", "_empty_state")
         if not callable(getattr(registry_module, name, None))
     )
-    state = getattr(CapabilityRegistry, "_state", None)
-    if state is None:
+    if getattr(CapabilityRegistry, "_state", None) is None:
         missing.append("CapabilityRegistry._state")
     if missing:
         raise UnsupportedCapsuleConfiguration(
@@ -276,20 +275,8 @@ def _assert_selected_interfaces() -> None:
         )
 
 
-def _source_metadata_names(operation_key, backend, dialect=None):
-    from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.capabilities.schema import Enforcement
-
-    return _metadata_names_for_facts(
-        CapabilityRegistry.facts(backend=backend, enforcement=Enforcement.GATE),
-        operation_key,
-        backend,
-        dialect,
-    )
-
-
 def _metadata_names_for_facts(
-    facts: tuple[Any, ...], operation_key: Any, backend: Any, dialect: str | None
+    facts: tuple[Any, ...], operation_key: Any, backend: Any, dialect: str
 ) -> frozenset[str]:
     from mountainash.core.capabilities.predicates import metadata_arguments
     from mountainash.core.capabilities.schema import Enforcement
@@ -300,33 +287,39 @@ def _metadata_names_for_facts(
             for fact in facts
             if fact.operation_key == operation_key
             and fact.backend is backend
+            and fact.dialect == dialect
             and fact.enforcement is Enforcement.GATE
             and fact.predicate is not None
-            and (fact.dialect is None or fact.dialect == dialect)
         )
     )
 
 
 def _install_predicate_only_adapter() -> Adapter:
-    """Reference repair: scan live predicates, preserving result/error behavior."""
+    """Reference model: scan the published policy view for each metadata query."""
     from mountainash.core.capabilities.registry import CapabilityRegistry
     from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
     from mountainash.expressions.core.expression_nodes import ExpressionNode
     from mountainash.expressions.core.unified_visitor.visitor import _param_name_for, _protocol_sig_params
     from mountainash.core.capabilities.predicates import metadata_arguments
+    from mountainash.core.capabilities.schema import Enforcement
 
     adapter = Adapter([])
-    original = UnifiedExpressionVisitor._required_operand_types
+    original_facts = CapabilityRegistry.facts
+
+    def predicate_facts():
+        return tuple(
+            fact for fact in original_facts(enforcement=Enforcement.GATE)
+            if fact.predicate is not None
+        )
 
     def required(self, func_def, protocol_method, arguments):
         required = set(func_def.type_arguments)
         if self.enforce_capabilities:
-            for fact in CapabilityRegistry._predicate_facts:
+            for fact in predicate_facts():
                 if (
                     fact.operation_key == func_def.function_key
                     and fact.backend is self.backend.backend_type
-                    and fact.predicate is not None
-                    and (fact.dialect is None or fact.dialect == getattr(self.backend, "dialect", None))
+                    and fact.dialect == getattr(self.backend, "dialect", None)
                 ):
                     required.update(metadata_arguments(fact.predicate))
         if not required:
@@ -349,20 +342,15 @@ def _install_predicate_only_adapter() -> Adapter:
         "metadata_operand_names",
         classmethod(
             lambda cls, operation_key, backend, dialect=None: _metadata_names_for_facts(
-                cls._predicate_facts, operation_key, backend, dialect
+                predicate_facts(), operation_key, backend, dialect
             )
         ),
     )
-    # Keep a reference so a future source that deletes the old private store fails loudly.
-    if not hasattr(CapabilityRegistry, "_predicate_facts"):
-        adapter.close()
-        raise UnsupportedCapsuleConfiguration("predicate-only baseline requires source _predicate_facts")
-    assert original is not required
     return adapter
 
 
 def _install_names_gates_adapter() -> Adapter:
-    """Reference model: local names/buckets rebuilt after each baseline publication."""
+    """Reference model: local names/buckets rebuilt after each segment publication."""
     from mountainash.core.capabilities.registry import CapabilityRegistry
     from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
     from mountainash.expressions.core.expression_nodes import ExpressionNode
@@ -370,39 +358,31 @@ def _install_names_gates_adapter() -> Adapter:
     from mountainash.core.capabilities.predicates import metadata_arguments, predicate_holds
     from mountainash.core.capabilities.schema import CapabilityLevel, Enforcement
 
-    if not hasattr(CapabilityRegistry, "_predicate_facts"):
-        raise UnsupportedCapsuleConfiguration("names-gates baseline requires the source predicate store")
     adapter = Adapter([])
+    original_facts = CapabilityRegistry.facts
     buckets: dict[tuple[Any, Any], tuple[tuple[Any, frozenset[str]], ...]] = {}
-    names: dict[tuple[Any, Any, str | None], frozenset[str]] = {}
+    names: dict[tuple[Any, Any, str], frozenset[str]] = {}
 
     def rebuild() -> None:
         nonlocal buckets, names
-        family_names: dict[tuple[Any, Any], frozenset[str]] = {}
-        dialect_names: dict[tuple[Any, Any, str], frozenset[str]] = {}
         buckets = {}
-        for fact in CapabilityRegistry._predicate_facts:
-            if fact.predicate is None:
+        names = {}
+        for fact in original_facts(enforcement=Enforcement.GATE):
+            if fact.predicate is None or fact.dialect is None:
                 continue
             extracted = metadata_arguments(fact.predicate)
             bucket_key = (fact.operation_key, fact.backend)
             buckets[bucket_key] = buckets.get(bucket_key, ()) + ((fact, extracted),)
-            if fact.dialect is None:
-                family_names[bucket_key] = family_names.get(bucket_key, frozenset()) | extracted
-            if fact.dialect is not None:
-                key = (*bucket_key, fact.dialect)
-                dialect_names[key] = dialect_names.get(key, frozenset()) | extracted
-        names = {(*key, None): value for key, value in family_names.items()}
-        for key, value in dialect_names.items():
-            names[key] = family_names.get((key[0], key[1]), frozenset()) | value
+            key = (*bucket_key, fact.dialect)
+            names[key] = names.get(key, frozenset()) | extracted
 
     rebuild()
-    original_register = CapabilityRegistry.register_backend
+    original_register = CapabilityRegistry.register_segment
     original_restore = CapabilityRegistry.restore
     original_reset = CapabilityRegistry.reset
 
     def lookup(operation_key, backend, dialect=None):
-        return names.get((operation_key, backend, dialect), names.get((operation_key, backend, None), frozenset()))
+        return names.get((operation_key, backend, dialect), frozenset())
 
     def required(self, func_def, protocol_method, arguments):
         declared = frozenset(func_def.type_arguments)
@@ -431,7 +411,7 @@ def _install_names_gates_adapter() -> Adapter:
             raise ValueError(f"unknown capability evaluation phase {phase!r}")
         out = set()
         for fact, extracted in buckets.get((bound_call.operation_key, bound_call.backend), ()):
-            if fact.dialect is not None and fact.dialect != bound_call.dialect:
+            if fact.dialect != bound_call.dialect:
                 continue
             if fact.enforcement is not Enforcement.GATE or fact.level is not CapabilityLevel.UNSUPPORTED:
                 continue
@@ -443,8 +423,8 @@ def _install_names_gates_adapter() -> Adapter:
                 out.add(fact)
         return frozenset(out)
 
-    def register(cls, family, facts):
-        result = original_register(family, facts)
+    def register(cls, segment):
+        result = original_register(segment)
         rebuild()
         return result
 
@@ -465,19 +445,19 @@ def _install_names_gates_adapter() -> Adapter:
     )
     adapter.replace(UnifiedExpressionVisitor, "_required_operand_types", required)
     adapter.replace(CapabilityRegistry, "violations_for", classmethod(violations))
-    adapter.replace(CapabilityRegistry, "register_backend", classmethod(register))
+    adapter.replace(CapabilityRegistry, "register_segment", classmethod(register))
     adapter.replace(CapabilityRegistry, "restore", classmethod(restore))
     adapter.replace(CapabilityRegistry, "reset", classmethod(reset))
     return adapter
 
 
 def _install_reporting_only_adapter() -> Adapter:
-    """Reference model: canonical report order prepared once per baseline publication."""
+    """Reference model: canonical policy-report order prepared per publication."""
     from mountainash.core.capabilities.registry import CapabilityRegistry
 
     adapter = Adapter([])
     original_facts = CapabilityRegistry.facts
-    original_register = CapabilityRegistry.register_backend
+    original_register = CapabilityRegistry.register_segment
     original_restore = CapabilityRegistry.restore
     original_reset = CapabilityRegistry.reset
     prepared: tuple[Any, ...] = ()
@@ -499,8 +479,8 @@ def _install_reporting_only_adapter() -> Adapter:
             and (enforcement is None or fact.enforcement is enforcement)
         ]
 
-    def register(cls, family, incoming):
-        result = original_register(family, incoming)
+    def register(cls, segment):
+        result = original_register(segment)
         rebuild()
         return result
 
@@ -515,7 +495,7 @@ def _install_reporting_only_adapter() -> Adapter:
         return result
 
     adapter.replace(CapabilityRegistry, "facts", classmethod(facts))
-    adapter.replace(CapabilityRegistry, "register_backend", classmethod(register))
+    adapter.replace(CapabilityRegistry, "register_segment", classmethod(register))
     adapter.replace(CapabilityRegistry, "restore", classmethod(restore))
     adapter.replace(CapabilityRegistry, "reset", classmethod(reset))
     return adapter
@@ -637,9 +617,9 @@ def _add_extra_info(benchmark: Any, capsule: dict[str, Any], **extra: Any) -> No
 
 
 def _cold_process() -> dict[str, float]:
-    """Independent fresh children measure real cold load and isolated base validation."""
+    """Independent fresh children measure cold load and immutable segment collection."""
     code = """
-import importlib, json, sys, time
+import json, sys, time
 start = time.perf_counter()
 import mountainash
 imports = time.perf_counter()
@@ -649,25 +629,13 @@ if sys.argv[1] == "load":
     print(json.dumps({"imports_s": imports-start, "registry_load_total_s": time.perf_counter()-imports}))
 else:
     import mountainash.core.capabilities.bootstrap as bootstrap
-    import mountainash.core.capabilities.registry as registry
-    if hasattr(bootstrap, "_load_segments"):
-        from mountainash.core.capabilities.capture import require_immutable
-        segments = bootstrap._load_segments()
-        collected = time.perf_counter()
-        for segment in segments:
-            require_immutable(segment)
-            for fact in segment.facts:
-                registry._validate_payload(fact)
-                registry._validate_fact(segment.scope.backend, fact)
-    else:
-        declarations = bootstrap._load_declarations()
-        collected = time.perf_counter()
-        for declaration in declarations:
-            registry._validate_declaration_payload(declaration)
-            for fact in declaration.facts:
-                registry._validate_fact(declaration.backend, fact)
+    from mountainash.core.capabilities.capture import require_immutable
+    segments = bootstrap._load_segments()
+    collected = time.perf_counter()
+    for segment in segments:
+        require_immutable(segment)
     print(json.dumps({"declaration_collection_s": collected-imports,
-                      "base_payload_fact_validation_s": time.perf_counter()-collected}))
+                      "immutable_segment_validation_s": time.perf_counter()-collected}))
 """
     samples = {}
     for stage in ("load", "validation"):
@@ -688,56 +656,99 @@ def _state_prepare_once() -> object:
     import mountainash.core.capabilities.registry as registry_module
 
     state = CapabilityRegistry._state
-    if not hasattr(state, "segments"):
-        return registry_module._prepare_state(
-            facts=state.facts,
-            kinds=state.kinds,
-            value_class_facts=state.value_class_facts,
-            predicate_facts=state.predicate_facts,
-            declarations=state.declarations,
-            load_state=state.load_state,
-            load_error=state.load_error,
-        )
     return registry_module._prepare_state(
-        facts=state.facts,
-        kinds=state.kinds,
-        value_class_facts=state.value_class_facts,
-        predicate_facts=state.predicate_facts,
         segments=state.segments,
-        stored=state.stored,
-        origins=state.origins,
-        manifestations=state.manifestations,
+        information=state.information,
+        policies=state.policies,
+        policy_origins={key: policy.origins for key, policy in state.policies.items()},
+        policy_facts=state.policy_facts,
+        policy_value_class_facts=state.policy_value_class_facts,
+        policy_predicate_facts=state.policy_predicate_facts,
         load_state=state.load_state,
         load_error=state.load_error,
     )
 
 
-def _metadata_gate_fact(*, backend_name: str = "polars", index: int = 0) -> Any:
-    from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate
+def _scope_for_backend(backend_name: str):
+    from mountainash.core.capabilities.identity import Dialect, Scope
     from mountainash.core.constants import CONST_BACKEND
+
+    families = {"polars": CONST_BACKEND.POLARS, "ibis-duckdb": CONST_BACKEND.IBIS}
+    try:
+        return Scope(families[backend_name], Dialect(backend_name))
+    except KeyError as exc:
+        raise UnsupportedCapsuleConfiguration(f"unknown benchmark dialect {backend_name!r}") from exc
+
+
+def _synthetic_segment(*, backend_name: str, policy: Any, label: str, index: int):
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        CapabilityInformation,
+        CapabilitySegment,
+        Domain,
+        QualifiedInformationKey,
+    )
+    from mountainash.core.capabilities.schema import InformationLayer
+
+    scope = _scope_for_backend(backend_name)
+    information = CapabilityInformation(
+        key=policy.key,
+        layer=InformationLayer.NATIVE,
+        level=policy.level,
+        since=policy.since,
+        message=policy.message,
+    )
+    qualified_information = QualifiedInformationKey(scope, information.key, information.layer)
+    return BoundSegment(
+        "mountainash.expressions.backends.capabilities."
+        f"{scope.backend.value}.dialects.{backend_name.replace('-', '_')}.substrait."
+        f"arithmetic.benchmark_{label.replace('-', '_')}_{index}",
+        scope,
+        CapabilitySegment(
+            Domain.ARITHMETIC,
+            information=(information,),
+            policies=(replace(policy, information=qualified_information),),
+        ),
+    )
+
+
+def _register_synthetic_policies(backend_name: str, policies: tuple[Any, ...], label: str) -> None:
+    from mountainash.core.capabilities import CapabilityRegistry
+
+    for index, policy in enumerate(policies):
+        CapabilityRegistry.register_segment(
+            _synthetic_segment(backend_name=backend_name, policy=policy, label=label, index=index)
+        )
+
+
+def _metadata_gate_policy(*, backend_name: str = "polars", index: int = 0) -> Any:
+    from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
+    from mountainash.core.capabilities.schema import CapabilityLevel, Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
     from mountainash.core.dtypes.metadata import STORAGE_KINDS
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    family = CONST_BACKEND.POLARS if backend_name == "polars" else CONST_BACKEND.IBIS
     alternatives = sorted(STORAGE_KINDS - {"native"})
     assert 0 <= index < 1 << len(alternatives)
     storage = frozenset({"native"} | {kind for bit, kind in enumerate(alternatives) if index & (1 << bit)})
-    return CapabilityFact(
-        operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-        param="x",
-        level=CapabilityLevel.UNSUPPORTED,
-        backend=family,
-        dialect=backend_name,
-        message=f"item231 benchmark metadata ABS blocker {index}",
-        since="2026-09-15",
-        # Distinct valid storage subsets preserve the native float/integer oracle.
-        # Every population uses the same two-clause shape on both source roots.
-        predicate=Predicate(
-            (
-                Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-                Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
-            )
+    return CapabilityPolicyRule(
+        key=CapabilityKey(
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            "x",
+            Selector(
+                "predicate",
+                Predicate(
+                    (
+                        Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+                        Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
+                    )
+                ),
+            ),
         ),
+        level=CapabilityLevel.UNSUPPORTED,
+        since="2026-09-15",
+        message=f"item231 benchmark metadata ABS blocker {index}",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
     )
 
 
@@ -747,9 +758,11 @@ def _metadata_population(backend: str, count: int) -> Iterator[None]:
 
     token = CapabilityRegistry.snapshot()
     try:
-        facts = tuple(_metadata_gate_fact(backend_name=backend, index=index) for index in range(count))
-        if facts:
-            CapabilityRegistry.register_backend(facts[0].backend, facts)
+        _register_synthetic_policies(
+            backend,
+            tuple(_metadata_gate_policy(backend_name=backend, index=index) for index in range(count)),
+            "metadata",
+        )
         yield
     finally:
         CapabilityRegistry.restore(token)
@@ -768,8 +781,7 @@ def _temporary_metadata_gate() -> Iterator[None]:
 
     token = CapabilityRegistry.snapshot()
     try:
-        fact = _metadata_gate_fact()
-        CapabilityRegistry.register_backend(fact.backend, [fact])
+        _register_synthetic_policies("polars", (_metadata_gate_policy(),), "metadata_gate")
         yield
     finally:
         CapabilityRegistry.restore(token)
@@ -788,27 +800,20 @@ def _verify_metadata_gate() -> tuple[str, str]:
         return type(raised.value).__qualname__, str(raised.value)
 
 
-def _residue_fact() -> Any:
-    from mountainash.core.capabilities.schema import (
-        Boundary,
-        CapabilityFact,
-        CapabilityLevel,
-        Enforcement,
-    )
-    from mountainash.core.constants import CONST_BACKEND
+def _residue_policy() -> Any:
+    from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule
+    from mountainash.core.capabilities.schema import CapabilityLevel, PolicyAction, PolicyConsumer
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    return CapabilityFact(
-        operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-        param="x",
+    return CapabilityPolicyRule(
+        key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, "x"),
         level=CapabilityLevel.UNSUPPORTED,
-        backend=CONST_BACKEND.POLARS,
-        dialect="polars",
-        message="item231 benchmark residue enrichment",
         since="2026-09-15",
-        boundary=Boundary.MATERIALIZE,
-        enforcement=Enforcement.MATERIALIZE_RESIDUE,
+        message="item231 benchmark residue enrichment",
+        consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+        action=PolicyAction.ENRICH,
         native_errors=(ValueError,),
+        native_issue="benchmark:item231-native-sentinel",
     )
 
 
@@ -818,17 +823,25 @@ def _enrichment_case(path: str):
     from mountainash.core.limitations import enrich_materialization
     from mountainash.core.types import BackendCapabilityError
 
+    policy = _residue_policy()
+    fact = policy.qualify(_scope_for_backend("polars"))
+
     class Backend:
         backend_type = CONST_BACKEND.POLARS
         dialect = "polars"
         BACKEND_NAME = "polars"
+
+        @staticmethod
+        def identify_native_issue(error):
+            if type(error) is ValueError and str(error) == "item231 native sentinel":
+                return "benchmark:item231-native-sentinel"
+            return None
 
     def native_failure():
         raise ValueError("item231 native sentinel")
 
     trace = None
     if path == "trace":
-        fact = _residue_fact()
         trace = OperationDiagnosticTrace()
         trace._records.append(
             OperationDiagnostic(
@@ -851,7 +864,12 @@ def _enrichment_case(path: str):
 
     def enrich_once():
         try:
-            enrich_materialization(backend, native_failure, diagnostic_trace=trace)
+            enrich_materialization(
+                backend,
+                native_failure,
+                prefer_operation_keys=frozenset({fact.operation_key}),
+                diagnostic_trace=trace,
+            )
         except BackendCapabilityError as raised:
             cause = raised.__cause__
             return (
@@ -860,7 +878,7 @@ def _enrichment_case(path: str):
                 type(cause).__qualname__ if cause is not None else "None",
                 raised.context,
             )
-        raise AssertionError("residue fact did not enrich the native sentinel")
+        raise AssertionError("residue policy did not enrich the native sentinel")
 
     return enrich_once
 
@@ -869,13 +887,9 @@ def _report_inputs() -> tuple[tuple[Any, ...], tuple[Any, ...]]:
     from mountainash.core.capabilities.registry import CapabilityRegistry
 
     helper = getattr(CapabilityRegistry, "_report_inputs", None)
-    if helper is not None:
-        return helper()
-    from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
-
-    load_all_capability_declarations()
-    return tuple(CapabilityRegistry.facts()), tuple(CapabilityRegistry.segments())
-
+    if not callable(helper):
+        raise UnsupportedCapsuleConfiguration("selected registry does not expose reporting inputs")
+    return helper()
 
 def _profile_call(call) -> dict[str, Any]:
     """Instrumentation uses sys.setprofile/tracemalloc, never selected code patches."""
@@ -925,17 +939,15 @@ def _bucket_candidate_count() -> int:
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    state = getattr(CapabilityRegistry, "_state", None)
-    if state is not None:
-        return len(state.predicate_buckets.get((FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, CONST_BACKEND.POLARS), ()))
-    return sum(
-        fact.operation_key is FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS and fact.backend is CONST_BACKEND.POLARS
-        for fact in getattr(CapabilityRegistry, "_predicate_facts", ())
+    return len(
+        CapabilityRegistry._state.predicate_buckets.get(
+            (FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, CONST_BACKEND.POLARS), ()
+        )
     )
 
 
 def _lifetime_memory() -> dict[str, int]:
-    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.capabilities import CapabilityRegistry
 
     original = CapabilityRegistry.snapshot()
     tracemalloc.start()
@@ -943,8 +955,14 @@ def _lifetime_memory() -> dict[str, int]:
     held = []
     try:
         for index in range(8):
-            fact = _metadata_gate_fact(index=index)
-            CapabilityRegistry.register_backend(fact.backend, [fact])
+            CapabilityRegistry.register_segment(
+                _synthetic_segment(
+                    backend_name="polars",
+                    policy=_metadata_gate_policy(index=index),
+                    label="lifetime",
+                    index=index,
+                )
+            )
             held.append(CapabilityRegistry.snapshot())
         CapabilityRegistry.restore(original)
         gc.collect()
@@ -974,7 +992,7 @@ def test_item231_cold_startup(benchmark, capsule, backend):
         "imports_s",
         "declaration_collection_s",
         "registry_load_total_s",
-        "base_payload_fact_validation_s",
+        "immutable_segment_validation_s",
     }
     assert set(first) == expected_keys
     benchmark.pedantic(cold, rounds=_ROUNDS, iterations=1)
@@ -986,7 +1004,7 @@ def test_item231_cold_startup(benchmark, capsule, backend):
         backend=backend,
         cold_child_samples=samples,
         cold_adapters_applied=False,
-        assertion="fresh load child measures total registry load; separate fresh child isolates declaration collection and base payload/fact validation",
+        assertion="fresh load child measures total registry load; separate fresh child isolates declaration collection and immutable segment validation",
     )
 
 
@@ -1071,19 +1089,15 @@ def test_item231_public_terminal(benchmark, capsule, backends, backend, workload
 
 @pytest.mark.perf
 def test_item231_reporting_inputs(benchmark, capsule):
-    facts, declarations = _report_inputs()
-    assert isinstance(facts, tuple) and isinstance(declarations, tuple)
-    assert tuple(sorted(fact.fact_key for fact in facts)) == tuple(
-        sorted(fact.fact_key for fact in _report_inputs()[0])
-    )
+    policy_facts, segments = _report_inputs()
     benchmark.pedantic(_report_inputs, rounds=_ROUNDS, iterations=_ITERATIONS)
     _add_extra_info(
         benchmark,
         capsule,
         stage="reporting-inputs",
-        assertion="report facts/declarations retain stable keys and tuple ownership",
-        facts=len(facts),
-        declarations=len(declarations),
+        assertion="reporting consumes the prepared policy view and bound segments",
+        policy_facts=len(policy_facts),
+        segments=len(segments),
     )
 
 
@@ -1094,17 +1108,17 @@ def _publication_attribution():
     try:
         CapabilityRegistry.restore(_empty_state())
         bulk = _profile_call(CapabilityRegistry.ensure_loaded)
-        fact = _exact_registration_fact()
-        accepted = _profile_call(lambda: CapabilityRegistry.register_backend(fact.backend, [fact]))
+        segment = _exact_registration_segment()
+        accepted = _profile_call(lambda: CapabilityRegistry.register_segment(segment))
 
         def rejected():
             with pytest.raises(ValueError):
-                CapabilityRegistry.register_backend(fact.backend, [fact])
+                CapabilityRegistry.register_segment(segment)
 
         failed = _profile_call(rejected)
         assert bulk["calls"]["_prepare_state"] == accepted["calls"]["_prepare_state"] == 1
         assert failed["calls"].get("_prepare_state", 0) == 0
-        return {"bulk_load": bulk, "accepted_batch": accepted, "rejected_batch": failed}
+        return {"bulk_load": bulk, "accepted_segment": accepted, "rejected_segment": failed}
     finally:
         CapabilityRegistry.restore(original)
 
@@ -1114,8 +1128,7 @@ def test_item231_selected_preparation(benchmark, capsule):
     from mountainash.core.capabilities.registry import CapabilityRegistry
 
     prepared = _state_prepare_once()
-    if hasattr(prepared, "manifestations"):
-        assert prepared.manifestations == CapabilityRegistry._state.manifestations
+    assert prepared.metadata_names == CapabilityRegistry._state.metadata_names
     benchmark.pedantic(_state_prepare_once, rounds=_ROUNDS, iterations=1)
     preparation = _profile_call(_state_prepare_once)
     publication = _publication_attribution()
@@ -1125,7 +1138,7 @@ def test_item231_selected_preparation(benchmark, capsule):
         stage="derived-state-preparation-private-boundary",
         preparation=preparation,
         publication=publication,
-        assertion="selected preparation accepts one captured immutable state's base stores",
+        assertion="selected preparation rebuilds the captured generation's metadata index",
     )
 
 
@@ -1135,9 +1148,12 @@ def test_item231_legacy_and_trace_error_enrichment(benchmark, capsule, path):
     from mountainash.core.capabilities import CapabilityRegistry
 
     token = CapabilityRegistry.snapshot()
-    fact = _residue_fact()
+    policy = _residue_policy()
+    fact = policy.qualify(_scope_for_backend("polars"))
     try:
-        CapabilityRegistry.register_backend(fact.backend, [fact])
+        CapabilityRegistry.register_segment(
+            _synthetic_segment(backend_name="polars", policy=policy, label="enrichment", index=0)
+        )
         enrich = _enrichment_case(path)
         outcome = enrich()
         assert outcome[:3] == ("BackendCapabilityError", fact.fact_key, "ValueError")
@@ -1156,7 +1172,7 @@ def test_item231_legacy_and_trace_error_enrichment(benchmark, capsule, path):
         benchmark,
         capsule,
         stage=f"{path}-error-enrichment",
-        assertion="legacy uses no trace; trace uses an actual matching nonempty OperationDiagnosticTrace",
+        assertion="legacy uses an explicit native issue; trace uses an actual matching nonempty OperationDiagnosticTrace",
         outcome=outcome,
     )
 
@@ -1168,11 +1184,7 @@ def test_item231_negative_lookup_scaling(benchmark, capsule, cardinality):
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    lookup = getattr(CapabilityRegistry, "metadata_operand_names", None)
-    if lookup is None:
-        # Source and reporting-only retain the old scan path by design.
-        def lookup(operation_key, backend, dialect=None):
-            return _source_metadata_names(operation_key, backend, dialect)
+    lookup = CapabilityRegistry.metadata_operand_names
 
     for _ in range(cardinality):
         assert lookup(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, CONST_BACKEND.POLARS, "missing-dialect") == frozenset()
@@ -1204,38 +1216,37 @@ def test_item231_negative_lookup_scaling(benchmark, capsule, cardinality):
 
 @contextmanager
 def _unrelated_registry_population(kind: str, count: int) -> Iterator[None]:
-    """Vary fact and predicate populations independently from the ABS lookup bucket."""
-    from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.capabilities.schema import (
-        CapabilityFact,
-        CapabilityLevel,
-        Clause,
-        ClauseOp,
-        Predicate,
-    )
-    from mountainash.core.constants import CONST_BACKEND
+    """Vary exact-policy and predicate-policy populations outside the ABS bucket."""
+    from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
+    from mountainash.core.capabilities.schema import CapabilityLevel, Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
     token = CapabilityRegistry.snapshot()
     try:
-        facts = []
+        policies = []
         for index in range(count):
-            common = dict(
-                operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
-                param="x",
-                level=CapabilityLevel.UNSUPPORTED,
-                backend=CONST_BACKEND.POLARS,
-                dialect="polars",
-                message=f"item231 unrelated {kind} {index}",
-                since="2026-09-15",
+            key = CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+                "x",
+                Selector("predicate", Predicate((Clause("x", ClauseOp.EQ, index),))),
+            ) if kind == "unrelated-predicates" else CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+                "x",
+                Selector("exact", str(index)),
             )
-            if kind == "unrelated-predicates":
-                facts.append(CapabilityFact(**common, predicate=Predicate((Clause("x", ClauseOp.EQ, index),))))
-            elif kind == "unrelated-facts":
-                facts.append(CapabilityFact(**common, option_value=str(index)))
-            else:
+            if kind not in {"unrelated-predicates", "unrelated-facts"}:
                 raise UnsupportedCapsuleConfiguration(f"unknown registry population axis {kind!r}")
-        CapabilityRegistry.register_backend(CONST_BACKEND.POLARS, facts)
+            policies.append(
+                CapabilityPolicyRule(
+                    key=key,
+                    level=CapabilityLevel.UNSUPPORTED,
+                    since="2026-09-15",
+                    message=f"item231 unrelated {kind} {index}",
+                    consumer=PolicyConsumer.GATE,
+                    action=PolicyAction.BLOCK,
+                )
+            )
+        _register_synthetic_policies("polars", tuple(policies), f"unrelated_{kind}")
         yield
     finally:
         CapabilityRegistry.restore(token)
@@ -1296,11 +1307,7 @@ def test_item231_independent_scaling_axes(benchmark, capsule, backends, axis, si
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    lookup = getattr(CapabilityRegistry, "metadata_operand_names", None)
-    if lookup is None:
-
-        def lookup(operation_key, backend, dialect=None):
-            return _source_metadata_names(operation_key, backend, dialect)
+    lookup = CapabilityRegistry.metadata_operand_names
 
     if axis.startswith("unrelated-"):
         with _unrelated_registry_population(axis, size):
@@ -1404,20 +1411,27 @@ def test_item231_metadata_gate_and_lifecycle(benchmark, capsule):
     )
 
 
-def _exact_registration_fact() -> Any:
-    from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel
-    from mountainash.core.constants import CONST_BACKEND
+def _exact_registration_segment():
+    from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
+    from mountainash.core.capabilities.schema import CapabilityLevel, PolicyAction, PolicyConsumer
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    return CapabilityFact(
-        operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-        param="x",
-        option_value="item231-registration-duplicate",
-        level=CapabilityLevel.UNSUPPORTED,
-        backend=CONST_BACKEND.POLARS,
-        dialect="polars",
-        message="item231 exact registration duplicate",
-        since="2026-09-15",
+    return _synthetic_segment(
+        backend_name="polars",
+        label="registration",
+        index=0,
+        policy=CapabilityPolicyRule(
+            key=CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                "x",
+                Selector("exact", "item231-registration-duplicate"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-09-15",
+            message="item231 exact registration duplicate",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+        ),
     )
 
 
@@ -1425,29 +1439,30 @@ def _exact_registration_fact() -> Any:
 def test_item231_registration_refresh_and_failures(benchmark, capsule):
     from mountainash.core.capabilities import CapabilityRegistry
 
-    fact = _exact_registration_fact()
+    segment = _exact_registration_segment()
+    policy = segment.segment.policies[0]
     base = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_backend(fact.backend, [fact])
-        assert fact in CapabilityRegistry.facts()
+        CapabilityRegistry.register_segment(segment)
+        assert policy.qualify(segment.scope) in CapabilityRegistry.facts()
         with pytest.raises(ValueError) as raised:
-            CapabilityRegistry.register_backend(fact.backend, [fact])
+            CapabilityRegistry.register_segment(segment)
         failure = type(raised.value).__qualname__
     finally:
         CapabilityRegistry.restore(base)
 
-    def accepted_batch():
+    def accepted_segment():
         CapabilityRegistry.restore(base)
-        CapabilityRegistry.register_backend(fact.backend, [fact])
+        CapabilityRegistry.register_segment(segment)
 
-    benchmark.pedantic(accepted_batch, rounds=_ROUNDS, iterations=1)
+    benchmark.pedantic(accepted_segment, rounds=_ROUNDS, iterations=1)
     CapabilityRegistry.restore(base)
     _add_extra_info(
         benchmark,
         capsule,
-        stage="accepted-batch-registration-refresh",
+        stage="accepted-segment-registration-refresh",
         failure_type=failure,
-        assertion="accepted fact is visible; duplicate raises the original registration error outside timing",
+        assertion="accepted policy segment is visible; duplicate segment address rejects outside timing",
     )
 
 

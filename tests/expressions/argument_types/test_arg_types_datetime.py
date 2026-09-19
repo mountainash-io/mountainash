@@ -1,23 +1,8 @@
-"""Argument channel tests for datetime operations.
+"""Argument and option channel tests for datetime operations.
 
-The add_* operations (add_days, add_hours, etc.) have KNOWN_EXPR_LIMITATIONS
-on narwhals (literal-only offset) and ibis (ibis.interval rejects expressions).
-On ibis, the TypeError fires at execution time (not compile time), so the test
-template fallback catch in _test_template.py:137-145 handles error enrichment.
-
-The diff_* operations (diff_days, diff_hours, etc.) take a second datetime
-expression as `other`.  The complex_builder offsets the `other` column by 1 day
-to exercise a genuine sub-expression rather than a bare column reference.
-
-Skipped params (not added as OP_SPECS):
-- diff_milliseconds.other: API builder has no diff_milliseconds method (returns None).
-- assume_timezone.timezone, to_timezone.timezone, local_timestamp.timezone, strftime.format,
-  truncate.unit, ceil.unit, floor.unit, round.unit: these are passed as options
-  (not visited expressions) in the API builder; lit/col/complex input types fail with TypeError.
-  ceil/floor/round are additionally broken even with raw args (name collision with numeric rounding).
-- extract.component, extract.timezone, extract_boolean.component: internal dispatch
-  params used by the visitor, not exposed via the fluent API.
-- round_temporal.*, round_calendar.*: options (int/str literals), not expression args.
+The matrix uses a dynamic second datetime operand and a complex one-day offset
+to exercise genuine expression lowering.  Option values retain independent
+case-local result or error assertions.
 """
 from __future__ import annotations
 
@@ -41,7 +26,6 @@ from expressions.argument_types._option_helpers import (
     OptionProbeDidNotDiscriminateError,
     OptionSpec,
     option_result,
-    xfail_option_unsupported,
 )
 from expressions.argument_types.option_disposition import (
     INVALID_OPTION_VALUE,
@@ -55,12 +39,9 @@ from expressions.argument_types.option_disposition import (
     param_taxonomy,
 )
 from mountainash.core.constants import CONST_BACKEND
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 
 TESTED_PARAMS: list[tuple] = [
     ("add", "x"),
@@ -384,14 +365,8 @@ OP_SPECS: list[OpSpec] = [
         },
         complex_builder=lambda cn: ma.col(cn),
     ),
-    # to_timezone.x / local_timestamp.x: item 71 — the receiver itself (not an
-    # ignored placeholder) varies raw/lit/col/complex; timezone is a FIXED
-    # emitted option (Australia/Sydney), so first_scalar_build_gate() sees the
-    # real IANA_TIMEZONE class fact regardless of input_type. build() returns
-    # the to_timezone/local_timestamp call directly (not wrapped in .dt.hour())
-    # so cell.node IS the gated ScalarFunctionNode, not an outer composition —
-    # first_scalar_build_gate() only inspects the top-level node's own
-    # arguments/options, matching production's per-node visitor dispatch.
+    # These timezone cases vary the receiver through raw/literal/column/complex
+    # forms while keeping Australia/Sydney as a concrete option boundary.
     OpSpec(
         function_key=FK_MA_DT.TO_TIMEZONE,
         op_name="to_timezone",
@@ -414,10 +389,7 @@ OP_SPECS: list[OpSpec] = [
         matrix_arg_is_input=True,
         complex_builder=lambda cn: ma.col(cn).dt.offset_by("1d"),
     ),
-    # round_temporal.x / round_calendar.x (item 74): rounding/unit/multiple are
-    # fixed options (rounding/unit reclassified as options, not expression args)
-    # so first_scalar_build_gate() sees the same ScalarFunctionNode shape as
-    # to_timezone/local_timestamp above regardless of input_type.
+    # These rounding calls retain concrete options while varying their receivers.
     OpSpec(
         function_key=FK_DT.ROUND_TEMPORAL,
         op_name="round_temporal",
@@ -443,60 +415,45 @@ OP_SPECS: list[OpSpec] = [
 ]
 
 
-_DIFF_NW_XFAIL = pytest.mark.xfail(
-    strict=False,
-    raises=AttributeError,
-    reason="Narwhals ExprDateTimeNamespace lacks total_days/total_hours/etc methods",
-)
-
-_NW_BACKENDS = {}#"narwhals-polars", "narwhals-pandas"}
-
 
 def _params():
-    cases = []
-    for op in OP_SPECS:
-        for bk in ALL_BACKENDS:
-            for it in INPUT_TYPES:
-                marks = []
-                mark = xfail_if_limited(bk, op, it)
-                if mark:
-                    marks.append(mark)
-                cases.append(
-                    pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
-                )
-    return cases
+    return [
+        pytest.param(op, backend, input_type, id=f"{op.op_name}-{backend}-{input_type}")
+        for op in OP_SPECS
+        for backend in ALL_BACKENDS
+        for input_type in INPUT_TYPES
+    ]
 
 
 if OP_SPECS:
 
     @pytest.mark.parametrize("op,backend,input_type", _params())
     def test_argument_channel(op: OpSpec, backend: str, input_type: str):
+        literal_offset = (
+            backend != "polars" and input_type in ("col", "complex")
+            and op.function_key in {
+                FK_MA_DT.ADD_DAYS, FK_MA_DT.ADD_HOURS, FK_MA_DT.ADD_MINUTES,
+                FK_MA_DT.ADD_SECONDS, FK_MA_DT.ADD_MILLISECONDS, FK_MA_DT.ADD_MICROSECONDS,
+                FK_MA_DT.ADD_MONTHS, FK_MA_DT.ADD_YEARS,
+            }
+        )
+        unavailable_zone = backend == "ibis" and op.function_key in {
+            FK_MA_DT.TO_TIMEZONE, FK_DT.LOCAL_TIMESTAMP,
+        }
+        if literal_offset or unavailable_zone:
+            with pytest.raises(BackendCapabilityError) as error:
+                run_argument_matrix(op, backend, input_type)
+            assert error.value.function_key is op.function_key
+            return
         run_argument_matrix(op, backend, input_type)
 
 
 # ============================================================================
-# Datetime `unit` option disposition (PR-C Task 3b)
-# ----------------------------------------------------------------------------
-# Verified matrix (controller Step-0 probe of all four fixtures, post-Task-3a):
-#
-#   | op          | polars | ibis (ibis-duckdb)         | narwhals (each dialect)    |
-#   |-------------|--------|----------------------------|----------------------------|
-#   | truncate    | ALL    | honor core+1w; declare 1q  | honor core+1q; declare 1w  |
-#   | floor_dt    | ALL    | honor core+1w; declare 1q  | honor core+1q; declare 1w  |
-#   | round_dt    | ALL    | declare EVERY value        | declare EVERY value        |
-#   | ceil_dt     | ALL    | declare EVERY value        | declare EVERY value        |
-#
-# Portable core = {1y, 1mo, 1d, 1h, 1m, 1s, 1ms, 1us}. 1ns was dropped in
-# Task 3a; the validator rejects it before the visitor. The visitor (with
-# enforce_capabilities=True) raises BackendCapabilityError from the value-scoped
-# UNSUPPORTED facts declared in capabilities/datetime/options.py. Backend
-# round/ceil/floor impls are NOT edited — the capability facts are the only
-# honesty mechanism. Per the brief, family / dialect separation mirrors the
-# string `padding` slice: ibis declared values get BOTH a family-default
-# (dialect=None) fact AND a dialect="ibis-duckdb" fact; narwhals declared
-# values get per-dialect facts only (NEVER a single dialect=None narwhals
-# family fact).
+# Datetime unit option boundaries
 # ============================================================================
+# These case-local outcomes keep one representative timestamp per supported
+# unit.  They exercise both the native honored values and Narwhals' known
+# week-unit failure without consulting declarations.
 
 _DATETIME_PROTOCOL = "MountainAshScalarDatetimeExpressionSystemProtocol"
 _DT = datetime(2026, 7, 21, 13, 37, 45)
@@ -723,14 +680,14 @@ _HONORED_RESULTS: dict[str, dict[str, datetime]] = {
 @pytest.mark.parametrize("op", sorted(_UNIT_OP_FKEYS))
 @pytest.mark.parametrize("value", _ALL_UNIT_VALUES)
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
-def test_datetime_unit_option_honored_or_declared(
-    op: str, value: str, backend: str, request
+def test_datetime_unit_option_honors_or_rejects_known_boundary(
+    op: str, value: str, backend: str
 ) -> None:
-    fkey = _UNIT_OP_FKEYS[op]
-    request.applymarker(
-        xfail_option_unsupported(fkey, "unit", value, backend)
-    )
     df = make_df(_DATETIME_UNIT_DATA, backend)
+    if _unit_disposition(op, value, backend) == "declared_unsupported":
+        with pytest.raises(BackendCapabilityError):
+            option_result(df, _unit_expr(op, value), backend)
+        return
     canonical = _FRIENDLY_TO_DURATION.get(value, value)
     expected = _HONORED_RESULTS[op][canonical]
     got = option_result(df, _unit_expr(op, value), backend)
@@ -757,19 +714,6 @@ OPTION_DISPOSITIONS.extend(
     for value in _ALL_UNIT_VALUES
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _unit_probe(op, value, backend),
-        backend,
-        _unit_disposition(op, value, backend),
-        _unit_native_failure(op, value, backend)
-        if _unit_disposition(op, value, backend) == "declared_unsupported"
-        else None,
-    )
-    for op in sorted(_UNIT_OP_FKEYS)
-    for backend in ALL_BACKENDS
-    for value in _ALL_UNIT_VALUES
-)
 
 
 def _datetime_unit_invalid_expr(op: str, value: str):
@@ -788,7 +732,7 @@ _INVALID_DATETIME_UNIT_REJECTIONS = [
     )
     for op in sorted(_UNIT_OP_FKEYS)
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_DATETIME_UNIT_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -897,18 +841,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _ASSUME_TZ_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _assume_tz_probe(tz, backend),
-        backend,
-        _assume_tz_disposition(backend),
-        OptionProbeDidNotDiscriminateError
-        if _assume_tz_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _ASSUME_TZ_DOMAIN
-)
 
 _ASSUME_TZ_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -921,7 +853,7 @@ _ASSUME_TZ_INVALID_REJECTIONS = [
         lambda: _assume_tz_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_ASSUME_TZ_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -978,25 +910,6 @@ OPTION_DISPOSITIONS.extend(
     for offset in _OFFSET_BY_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        OptionSpec(
-            FK_MA_DT.OFFSET_BY,
-            "offset",
-            offset,
-            "datetime",
-            lambda o=offset: _offset_by_expr(o),
-            lambda o=offset: _offset_by_ref_expr(o),
-            _DATETIME_UNIT_DATA,
-            expected_discriminates=True,
-        ),
-        backend,
-        "honored",
-        None,
-    )
-    for backend in ALL_BACKENDS
-    for offset in _OFFSET_BY_DOMAIN
-)
 
 _OFFSET_BY_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1009,7 +922,7 @@ _OFFSET_BY_INVALID_REJECTIONS = [
         lambda: _offset_by_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_OFFSET_BY_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1066,25 +979,6 @@ OPTION_DISPOSITIONS.extend(
     for fmt in _STRFTIME_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        OptionSpec(
-            FK_DT.STRFTIME,
-            "format",
-            fmt,
-            "datetime",
-            lambda f=fmt: _strftime_expr(f),
-            lambda f=fmt: _strftime_ref_expr(f),
-            _DATETIME_UNIT_DATA,
-            expected_discriminates=True,
-        ),
-        backend,
-        "honored",
-        None,
-    )
-    for backend in ALL_BACKENDS
-    for fmt in _STRFTIME_DOMAIN
-)
 
 
 # 4. to_timezone
@@ -1161,18 +1055,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _TO_TIMEZONE_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _to_tz_probe(tz, backend),
-        backend,
-        _to_tz_disposition(backend),
-        BackendCapabilityError
-        if _to_tz_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _TO_TIMEZONE_DOMAIN
-)
 
 _TO_TIMEZONE_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1185,7 +1067,7 @@ _TO_TIMEZONE_INVALID_REJECTIONS = [
         lambda: _to_tz_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_TO_TIMEZONE_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1287,18 +1169,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _IS_DST_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _is_dst_probe(tz, backend),
-        backend,
-        _is_dst_disposition(backend),
-        BackendCapabilityError
-        if _is_dst_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _IS_DST_DOMAIN
-)
 
 _IS_DST_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1311,7 +1181,7 @@ _IS_DST_INVALID_REJECTIONS = [
         lambda: _is_dst_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_IS_DST_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1410,18 +1280,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _LOCAL_TS_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _local_ts_probe(tz, backend),
-        backend,
-        _local_ts_disposition(backend),
-        BackendCapabilityError
-        if _local_ts_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _LOCAL_TS_DOMAIN
-)
 
 _LOCAL_TS_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1434,7 +1292,7 @@ _LOCAL_TS_INVALID_REJECTIONS = [
         lambda: _local_ts_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_LOCAL_TS_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1561,18 +1419,6 @@ OPTION_DISPOSITIONS.extend(
     for fmt in _STRPTIME_DATE_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _strptime_date_probe(fmt, backend),
-        backend,
-        _strptime_date_disposition(backend),
-        NotImplementedError
-        if _strptime_date_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for fmt in _STRPTIME_DATE_DOMAIN
-)
 
 OPTION_DISPOSITIONS.extend(
     OptionCell(
@@ -1591,16 +1437,6 @@ OPTION_DISPOSITIONS.extend(
     for fmt in _STRPTIME_TS_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _strptime_ts_probe(fmt, backend),
-        backend,
-        "honored",
-        None,
-    )
-    for backend in ALL_BACKENDS
-    for fmt in _STRPTIME_TS_DOMAIN
-)
 
 # 7. strptime_timestamp.timezone (item 62 — end-to-end wiring)
 _STRPTIME_TS_TZ_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
@@ -1657,18 +1493,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _STRPTIME_TS_TZ_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _strptime_ts_tz_probe(tz, backend),
-        backend,
-        _strptime_ts_tz_disposition(backend),
-        OptionProbeDidNotDiscriminateError
-        if _strptime_ts_tz_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _STRPTIME_TS_TZ_DOMAIN
-)
 
 _STRPTIME_TS_TZ_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1681,7 +1505,7 @@ _STRPTIME_TS_TZ_INVALID_REJECTIONS = [
         lambda: _strptime_ts_tz_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_STRPTIME_TS_TZ_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1800,26 +1624,8 @@ OPTION_DISPOSITIONS.extend(
     for comp in _EXTRACT_COMPONENT_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _extract_component_probe(comp, backend),
-        backend,
-        _extract_disposition(backend, comp),
-        BackendCapabilityError
-        if _extract_disposition(backend, comp) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for comp in _EXTRACT_COMPONENT_DOMAIN
-)
 
-OPTION_FAMILY_DEFAULT_FACT_KEYS.update(
-    (FK_DT.EXTRACT, "component", comp, CONST_BACKEND.IBIS, None)
-    for comp in sorted(_EXTRACT_DECLARED["ibis"])
-)
-OPTION_FAMILY_DEFAULT_FACT_KEYS.add(
-    (FK_DT.EXTRACT_BOOLEAN, "component", "IS_DST", CONST_BACKEND.IBIS, None)
-)
+
 
 _EXTRACT_COMPONENT_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1832,7 +1638,7 @@ _EXTRACT_COMPONENT_INVALID_REJECTIONS = [
         lambda: _extract_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_COMPONENT_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1890,16 +1696,6 @@ OPTION_DISPOSITIONS.extend(
     for idx in _EXTRACT_INDEXING_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _extract_indexing_probe(idx),
-        backend,
-        "honored",
-        None,
-    )
-    for backend in ALL_BACKENDS
-    for idx in _EXTRACT_INDEXING_DOMAIN
-)
 
 _EXTRACT_INDEXING_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -1912,7 +1708,7 @@ _EXTRACT_INDEXING_INVALID_REJECTIONS = [
         lambda: _extract_indexing_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_INDEXING_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -1989,18 +1785,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _EXTRACT_TZ_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _extract_tz_probe(tz, backend),
-        backend,
-        _extract_tz_disposition(backend),
-        OptionProbeDidNotDiscriminateError
-        if _extract_tz_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _EXTRACT_TZ_DOMAIN
-)
 
 _EXTRACT_TZ_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -2013,7 +1797,7 @@ _EXTRACT_TZ_INVALID_REJECTIONS = [
         lambda: _extract_tz_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_TZ_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -2087,18 +1871,6 @@ OPTION_DISPOSITIONS.extend(
     for comp in _EXTRACT_BOOL_COMPONENT_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _extract_boolean_component_probe(comp, backend),
-        backend,
-        _extract_boolean_disposition(comp),
-        BackendCapabilityError
-        if _extract_boolean_disposition(comp) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for comp in _EXTRACT_BOOL_COMPONENT_DOMAIN
-)
 
 _EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -2111,7 +1883,7 @@ _EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS = [
         lambda: ma.col("ts").dt.extract_boolean(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_BOOL_COMPONENT_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -2184,18 +1956,6 @@ OPTION_DISPOSITIONS.extend(
     for tz in _EXTRACT_TZ_DOMAIN
 )
 
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(
-        _extract_bool_tz_probe(tz, backend),
-        backend,
-        _extract_tz_disposition(backend),
-        OptionProbeDidNotDiscriminateError
-        if _extract_tz_disposition(backend) == "declared_unsupported"
-        else None,
-    )
-    for backend in ALL_BACKENDS
-    for tz in _EXTRACT_TZ_DOMAIN
-)
 
 _EXTRACT_BOOL_TZ_INVALID_REJECTIONS = [
     InvalidOptionRejection(
@@ -2208,7 +1968,7 @@ _EXTRACT_BOOL_TZ_INVALID_REJECTIONS = [
         lambda: _extract_bool_tz_expr(INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_EXTRACT_BOOL_TZ_INVALID_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,

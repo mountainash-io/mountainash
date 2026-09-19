@@ -18,6 +18,18 @@ if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
 
 class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[nw.Expr]):
+    def _prepare_call_list_contains(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals list membership items must be literals"),
+        ]
+
+    def _prepare_call_list_t_contains(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals list membership items must be literals"),
+        ]
+
     def parse_list(
         self,
         x,
@@ -27,6 +39,24 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         delimiter: str = ",",
         failure_behavior: str = "throw",
     ):
+        if item_type in ("datetime", "time"):
+            raise BackendCapabilityError(
+                "Narwhals list parsing does not implement timezone-correct datetime or time conversion.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            )
+        if failure_behavior == "null" and item_type in {
+            "integer",
+            "boolean",
+            "number",
+            "date",
+        }:
+            raise BackendCapabilityError(
+                f"Narwhals cannot implement failure_behavior='null' for "
+                f"list parsing item_type={item_type!r}. Use Polars or Ibis backend.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            )
         return self._call_with_expr_support(
             lambda: self._parse_list_impl(
                 x,
@@ -67,9 +97,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         target = {
             "integer": nw.Int64,
             "number": nw.Float64,
-            "datetime": nw.Datetime,
             "date": nw.Date,
-            "time": nw.Time,
         }[item_type]
         return values.cast(nw.List(target()))
 
@@ -82,6 +110,12 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if failure_behavior == "null":
+            raise BackendCapabilityError(
+                "Narwhals list casting does not implement whole-list null on an invalid item.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            )
         if item_type is not None:
             from mountainash.typespec.universal_types import parse_universal, to_canonical
             canonical = to_canonical(parse_universal(item_type))

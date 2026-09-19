@@ -8,12 +8,28 @@ pandas, narwhals-pandas, ibis-polars, and ibis-sqlite lack native array types.
 from __future__ import annotations
 
 import pytest
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import mountainash as ma
-from fixtures.capability_gating import assert_capability_gated, gate_family
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
 )
+from mountainash.core.types import BackendCapabilityError
+
+
+@contextmanager
+def _expect_intrinsic_refusal(*, when: bool, operation) -> Iterator[None]:
+    if not when:
+        yield
+        return
+    try:
+        yield
+    except BackendCapabilityError as error:
+        assert error.function_key is operation
+        assert error.limitation is None
+    else:
+        pytest.fail(f"expected BackendCapabilityError for {operation.name}", pytrace=False)
 
 
 LIST_BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
@@ -153,32 +169,28 @@ class TestListLast:
     def test_last_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[10, 20, 30], [40, 50], [60]]}
         df = backend_factory.create(data, backend_name)
-        expr = ma.col("arr").list.last()
-        result = assert_capability_gated(
-            FK_LIST.GET,
-            gate_family(backend_name),
-            dialect=backend_name,
-            param="index",
-            build=lambda: ma.relation(df).select(expr.name.alias("result")),
-            materialize=lambda rel: rel.to_dict()["result"],
-        )
-        if result is not None:
-            assert result == [30, 50, 60]
+        if backend_name == "narwhals-polars":
+            with pytest.raises(BackendCapabilityError) as raised:
+                collect_expr(df, ma.col("arr").list.last())
+            assert type(raised.value) is BackendCapabilityError
+            assert raised.value.function_key is FK_LIST.GET
+            assert raised.value.limitation.upstream_ref == "NW-LIST-04"
+            return
+        actual = collect_expr(df, ma.col("arr").list.last())
+        assert actual == [30, 50, 60]
 
     def test_last_with_null_last(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[10, 20, None], [None, 50]]}
         df = backend_factory.create(data, backend_name)
-        expr = ma.col("arr").list.last()
-        result = assert_capability_gated(
-            FK_LIST.GET,
-            gate_family(backend_name),
-            dialect=backend_name,
-            param="index",
-            build=lambda: ma.relation(df).select(expr.name.alias("result")),
-            materialize=lambda rel: rel.to_dict()["result"],
-        )
-        if result is not None:
-            assert result == [None, 50]
+        if backend_name == "narwhals-polars":
+            with pytest.raises(BackendCapabilityError) as raised:
+                collect_expr(df, ma.col("arr").list.last())
+            assert type(raised.value) is BackendCapabilityError
+            assert raised.value.function_key is FK_LIST.GET
+            assert raised.value.limitation.upstream_ref == "NW-LIST-04"
+            return
+        actual = collect_expr(df, ma.col("arr").list.last())
+        assert actual == [None, 50]
 
 
 @pytest.mark.cross_backend
@@ -203,14 +215,22 @@ class TestListReverse:
     def test_reverse_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3], [4, 5], [6]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.reverse())
-        assert actual == [[3, 2, 1], [5, 4], [6]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.REVERSE,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.reverse())
+            assert actual == [[3, 2, 1], [5, 4], [6]]
 
     def test_reverse_empty(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[], [1], [1, 2]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.reverse())
-        assert actual == [[], [1], [2, 1]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.REVERSE,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.reverse())
+            assert actual == [[], [1], [2, 1]]
 
 
 @pytest.mark.cross_backend
@@ -260,20 +280,32 @@ class TestListJoin:
     def test_join_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [["a", "b", "c"], ["x", "y"], ["hello"]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.join("-"))
-        assert actual == ["a-b-c", "x-y", "hello"]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars',
+            operation=FK_LIST.JOIN,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.join("-"))
+            assert actual == ["a-b-c", "x-y", "hello"]
 
     def test_join_empty_separator(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [["a", "b", "c"], ["x", "y"]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.join(""))
-        assert actual == ["abc", "xy"]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars',
+            operation=FK_LIST.JOIN,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.join(""))
+            assert actual == ["abc", "xy"]
 
     def test_join_single_element(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [["only"], ["one"]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.join(","))
-        assert actual == ["only", "one"]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars',
+            operation=FK_LIST.JOIN,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.join(","))
+            assert actual == ["only", "one"]
 
 
 @pytest.mark.cross_backend
@@ -282,14 +314,22 @@ class TestListSlice:
     def test_slice_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30, 40]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.slice(1, length=3))
-        assert actual == [[2, 3, 4], [20, 30, 40]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.SLICE,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.slice(1, length=3))
+            assert actual == [[2, 3, 4], [20, 30, 40]]
 
     def test_slice_from_start(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.slice(0, length=2))
-        assert actual == [[1, 2], [10, 20]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.SLICE,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.slice(0, length=2))
+            assert actual == [[1, 2], [10, 20]]
 
 
 @pytest.mark.cross_backend
@@ -298,14 +338,22 @@ class TestListHead:
     def test_head_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.head(3))
-        assert actual == [[1, 2, 3], [10, 20, 30]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.HEAD,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.head(3))
+            assert actual == [[1, 2, 3], [10, 20, 30]]
 
     def test_head_n_larger_than_list(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2], [10]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.head(5))
-        assert actual == [[1, 2], [10]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.HEAD,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.head(5))
+            assert actual == [[1, 2], [10]]
 
 
 @pytest.mark.cross_backend
@@ -314,11 +362,19 @@ class TestListTail:
     def test_tail_basic(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2, 3, 4, 5], [10, 20, 30]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.tail(2))
-        assert actual == [[4, 5], [20, 30]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.TAIL,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.tail(2))
+            assert actual == [[4, 5], [20, 30]]
 
     def test_tail_n_larger_than_list(self, backend_name, backend_factory, collect_expr):
         data = {"arr": [[1, 2], [10]]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("arr").list.tail(5))
-        assert actual == [[1, 2], [10]]
+        with _expect_intrinsic_refusal(
+            when=backend_name == 'narwhals-polars' or backend_name == 'ibis-duckdb',
+            operation=FK_LIST.TAIL,
+        ):
+            actual = collect_expr(df, ma.col("arr").list.tail(5))
+            assert actual == [[1, 2], [10]]

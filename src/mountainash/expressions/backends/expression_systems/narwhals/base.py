@@ -16,6 +16,25 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
 
 
+def _identify_native_issue(error, *, operation_key=None, arguments=None):
+    """Recognize native signals; unknown failures keep their native identity."""
+    if type(error) is ValueError and arguments is not None:
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_LIST,
+        )
+
+        index = arguments.get("index")
+        if operation_key is FKEY_MOUNTAINASH_SCALAR_LIST.GET and type(index) is int and index < 0:
+            return "narwhals:list-negative-index"
+    if type(error) is TypeError:
+        message = str(error)
+        if message == "Series must be of PyArrow List type to support list namespace.":
+            return "narwhals:arrow-list-storage"
+        if message.startswith("This operation requires a pyarrow-backed series. "):
+            return "narwhals:arrow-string-storage"
+    return None
+
+
 class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     """Base class for Narwhals expression system components.
 
@@ -24,6 +43,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     """
 
     BACKEND_NAME: str = "narwhals"
+    identify_native_issue = staticmethod(_identify_native_issue)
 
     @property
     def backend_type(self) -> CONST_BACKEND:
@@ -383,7 +403,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             and result_type.native_dtype is not None
         ):
             retained = [
-                self._pandas_nullable_expression(argument, result_type.native_dtype)
+                self._pandas_typed_expression(argument, result_type.native_dtype)
                 for argument in retained
             ]
         if null_scalars[0]:
@@ -418,7 +438,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             result_type.descriptor.logical_kind == "float"
             and result_type.native_dtype is not None
         ):
-            return self._pandas_nullable_expression(
+            return self._pandas_typed_expression(
                 expression, result_type.native_dtype
             )
         if storage == "pandas_object":
@@ -426,7 +446,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         return expression
 
     @staticmethod
-    def _pandas_nullable_expression(expression: Any, dtype: Any) -> Any:
+    def _pandas_typed_expression(expression: Any, dtype: Any) -> Any:
         """Reuse the typed elementwise adapter so Pandas keeps row metadata."""
         from mountainash.core.lazy_imports import import_pandas
         from mountainash.core.transit import BoundaryKey, transit_call
@@ -436,7 +456,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
 
         pandas = import_pandas()
 
-        def cast_nullable(series: Any) -> Any:
+        def cast_typed(series: Any) -> Any:
             native = series.native
             if native.dtype == dtype:
                 return series
@@ -450,7 +470,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             )
             return series._with_native(output)
 
-        return _pandas_elementwise_batches(expression, cast_nullable, None)
+        return _pandas_elementwise_batches(expression, cast_typed, None)
 
     @staticmethod
     def _pandas_object_expression(expression: Any) -> Any:
@@ -502,11 +522,11 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         """Materialize the exact Pandas carrier declared for a null branch."""
         if self.dialect != "narwhals-pandas" or not requires_null_carrier:
             return expression
-        if result_type.descriptor.storage_kind == "pandas_nullable" or (
+        if result_type.descriptor.storage_kind in {"pandas_nullable", "pandas_arrow"} or (
             result_type.descriptor.logical_kind == "float"
             and result_type.native_dtype is not None
         ):
-            return self._pandas_nullable_expression(
+            return self._pandas_typed_expression(
                 expression, result_type.native_dtype
             )
         if result_type.descriptor.storage_kind == "pandas_object":

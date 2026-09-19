@@ -16,6 +16,7 @@ import ibis
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_SUBSTRAIT_SCALAR_DATETIME,
 )
 from ..base import IbisBaseExpressionSystem
@@ -96,9 +97,14 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
     ) -> IbisValueExpr:
         """Extract a date/time component (Substrait: extract).
 
-        ``timezone`` is not honored on ibis (no timezone primitives); the
-        capability gate raises before this body is reached in production.
+        Explicit timezone conversion is unavailable on Ibis.
         """
+        if timezone is not None:
+            raise BackendCapabilityError(
+                "Ibis cannot apply a timezone before datetime extraction.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+            )
         comp = component.value if isinstance(component, DatetimeComponent) else str(component).upper()
 
         component_map = {
@@ -140,6 +146,12 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         timezone: str = None,
     ) -> IbisValueExpr:
         """Extract a boolean date/time component (Substrait: extract_boolean)."""
+        if timezone is not None:
+            raise BackendCapabilityError(
+                "Ibis cannot apply a timezone before boolean datetime extraction.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+            )
         comp = component.value if isinstance(component, BooleanComponent) else str(component).upper()
 
         if comp == "IS_LEAP_YEAR":
@@ -314,20 +326,21 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         timezone: str,
     ) -> IbisValueExpr:
-        """Assume the timestamp is in the specified timezone.
+        """Reject timezone attachment because Ibis has no equivalent lowering.
 
         Args:
             x: Datetime expression (timezone-naive).
             timezone: Timezone to assume (IANA format).
 
-        Returns:
-            Timezone-aware datetime.
-
-        Note:
-            Ibis may not have timezone assignment. Falls back to input.
+        Raises:
+            BackendCapabilityError: Ibis cannot attach a timezone without
+                changing the instant.
         """
-        # Ibis doesn't have replace_time_zone - fallback
-        return x
+        raise BackendCapabilityError(
+            "Ibis does not implement timezone attachment for assume_timezone.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
+        )
 
     def local_timestamp(
         self,
@@ -367,6 +380,24 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         format: str,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
+        """Parse a formatted date when the selected Ibis dialect supports it.
+
+        Raises:
+            BackendCapabilityError: Null-on-failure parsing is unavailable, or
+                Ibis SQLite cannot compile formatted date parsing.
+        """
+        if failure_behavior == "null":
+            raise BackendCapabilityError(
+                "Ibis formatted date parsing does not implement failure_behavior='null'.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            )
+        if self.dialect == "ibis-sqlite":
+            raise BackendCapabilityError(
+                "Ibis SQLite cannot compile formatted date parsing.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            )
         return x.as_date(format)
 
     def strptime_timestamp(
@@ -377,6 +408,31 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         timezone: str = None,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
+        """Parse a formatted timestamp when the selected Ibis dialect supports it.
+
+        Raises:
+            BackendCapabilityError: Null-on-failure parsing, timezone attachment,
+                or Ibis SQLite formatted timestamp parsing is unavailable.
+        """
+        if failure_behavior == "null":
+            raise BackendCapabilityError(
+                "Ibis formatted timestamp parsing does not implement "
+                "failure_behavior='null'.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            )
+        if timezone is not None:
+            raise BackendCapabilityError(
+                "Ibis formatted timestamp parsing does not implement timezone attachment.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            )
+        if self.dialect == "ibis-sqlite":
+            raise BackendCapabilityError(
+                "Ibis SQLite cannot compile formatted timestamp parsing.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            )
         return x.as_timestamp(format).cast("timestamp")
     def parse_default(
         self,
@@ -384,7 +440,11 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        return x.cast("timestamp")
+        raise BackendCapabilityError(
+            "Ibis native timestamp casts do not implement the strict default datetime lexical contract.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+        )
     def parse_datetime_default(
         self,
         x: IbisValueExpr,
@@ -399,6 +459,12 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         /,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
+        if self.dialect == "ibis-sqlite" and failure_behavior == "throw":
+            raise BackendCapabilityError(
+                "SQLite XSD duration parsing cannot raise for invalid lexicals; null mode is supported.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
+            )
         if failure_behavior in {"null", "throw"}:
             valid = x.re_search(r"^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)S)?)?$")
             valid = valid & ~x.isin(["P", "-P", "PT", "-PT"]) & ~x.re_search(r"T$")
@@ -411,6 +477,12 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         kind: str,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
+        if self.dialect == "ibis-sqlite" and failure_behavior == "throw":
+            raise BackendCapabilityError(
+                "SQLite XSD partial-date parsing cannot raise for invalid lexicals; null mode is supported.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+            )
         if failure_behavior in {"null", "throw"}:
             pattern = r"^(?:[0-9]{4}|[1-9][0-9]{4,}|-[0-9]{4}|-[1-9][0-9]{4,})"
             if kind == "yearmonth":
@@ -427,7 +499,17 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         kind: str,
         failure_behavior: str = "throw",
     ) -> IbisValueExpr:
-        return x
+        """Reject arbitrary temporal parsing because Ibis has no lowering.
+
+        Raises:
+            BackendCapabilityError: Ibis cannot parse the requested temporal kind
+                without an explicit format.
+        """
+        raise BackendCapabilityError(
+            "Ibis does not implement arbitrary temporal parsing.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+        )
 
 
     # =========================================================================
@@ -488,6 +570,12 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
                 backend="ibis",
                 function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
             )
+        if self.dialect == "ibis-sqlite" and (unit != "DAY" or multiple != 1):
+            raise BackendCapabilityError(
+                "Ibis SQLite supports fixed-duration rounding only to a single day.",
+                backend="ibis",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            )
         return _round_datetime(x, rounding, unit, multiple)
 
     def round_calendar(
@@ -516,4 +604,18 @@ class SubstraitIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Subs
         Returns:
             Rounded datetime.
         """
+        if self.dialect == "ibis-sqlite" and (
+            unit not in ("DAY", "WEEK", "MONTH", "YEAR") or multiple != 1
+        ):
+            raise BackendCapabilityError(
+                "Ibis SQLite supports calendar rounding only to a single day, week, month, or year.",
+                backend="ibis",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            )
+        if self.dialect == "ibis-polars" and unit in ("MONTH", "YEAR") and rounding != "FLOOR":
+            raise BackendCapabilityError(
+                "Ibis Polars cannot add calendar intervals for month/year ceil or nearest rounding; floor is supported.",
+                backend="ibis",
+                function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            )
         return _round_datetime(x, rounding, unit, multiple)

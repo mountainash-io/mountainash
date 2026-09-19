@@ -73,6 +73,18 @@ def _nw_membership_kernel(needle, members, needle_unknown_fs, member_unknown_fs)
 
 class SubstraitNarwhalsScalarSetExpressionSystem(NarwhalsBaseExpressionSystem, SubstraitScalarSetExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of ScalarSetExpressionProtocol."""
+    def _prepare_membership(self, operands):
+        return [operands.native(0)] + [
+            operands.raw_literal_or_native(index)
+            for index in range(1, len(operands))
+        ]
+
+    def _prepare_call_is_in(self, operands):
+        return self._prepare_membership(operands)
+
+    def _prepare_call_is_not_in(self, operands):
+        return self._prepare_membership(operands)
+
 
     # ------------------------------------------------------------------
     # normalisation

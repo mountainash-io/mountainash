@@ -7,8 +7,7 @@ import math
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities import Boundary, CapabilityLevel, Enforcement, ResidueSignal
-from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
     CaseFailureBehaviour,
 )
@@ -16,14 +15,13 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
-from tests.conform.cross_backend.test_v2_operations import _IDENTITIES, _SYSTEMS
+from tests.conform.cross_backend.test_v2_operations import _SYSTEMS
 from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResultHelper
 from tests.fixtures.backend_registry import ALL_BACKENDS
-from tests.fixtures.capability_gating import assert_capability_gated, capability_gate
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_default_datetime_all_backends_executes_or_gates(backend_name: str) -> None:
+def test_default_datetime_has_an_explicit_public_refusal_off_polars(backend_name: str) -> None:
     expr = ma.col("value").dt.parse_default(field_name="value")
     build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
     if backend_name in {"polars", "polars-lazy"}:
@@ -31,10 +29,9 @@ def test_default_datetime_all_backends_executes_or_gates(backend_name: str) -> N
         values = BackendResultHelper.select_and_extract(frame, build(), "value", backend_name)
         assert values[0].year == 2024
         return
-    backend, dialect = _IDENTITIES[backend_name]
-    assert_capability_gated(
-        FK_DT.PARSE_DEFAULT, backend, dialect=dialect, param="*", option_value=None, build=build
-    )
+    with pytest.raises(BackendCapabilityError) as error:
+        build()
+    assert error.value.function_key is FK_DT.PARSE_DEFAULT
 
 
 _XSD_CASES = (
@@ -78,7 +75,7 @@ _XSD_CASES = (
     _XSD_CASES,
     ids=["xsd-duration", "xsd-year", "xsd-yearmonth"],
 )
-def test_xsd_operations_all_backends_execute_or_hit_exact_gate(
+def test_xsd_operations_all_backends_execute_or_refuse_explicitly(
     backend_name: str,
     failure_behavior: CaseFailureBehaviour,
     operation_key,
@@ -89,24 +86,11 @@ def test_xsd_operations_all_backends_execute_or_hit_exact_gate(
 ) -> None:
     expr = make_expr(ma.col("value").dt, failure_behavior)
     build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
-    backend, dialect = _IDENTITIES[backend_name]
-    fact = capability_gate(
-        operation_key, backend, dialect=dialect, param="*", option_value=None
-    )
-    if fact is not None and fact.enforcement is Enforcement.GATE:
-        assert fact.level is CapabilityLevel.UNSUPPORTED
-        assert fact.enforcement is Enforcement.GATE
-        assert fact.boundary is Boundary.BUILD
-        assert_capability_gated(
-            operation_key,
-            backend,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=build,
-        )
+    if backend_name == "ibis-sqlite" and failure_behavior is CaseFailureBehaviour.THROW:
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is operation_key
         return
-
     frame = BackendDataFrameFactory.create(
         {"value": invalid_values if failure_behavior is CaseFailureBehaviour.NULL else valid_values},
         backend_name,
@@ -124,7 +108,7 @@ def test_xsd_operations_all_backends_execute_or_hit_exact_gate(
     [CaseFailureBehaviour.NULL, CaseFailureBehaviour.THROW],
 )
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_temporal_any_all_backends_execute_or_hit_exact_gate(
+def test_temporal_any_all_backends_execute_or_refuse_explicitly(
     backend_name: str,
     failure_behavior: CaseFailureBehaviour,
     kind: str,
@@ -135,23 +119,10 @@ def test_temporal_any_all_backends_execute_or_hit_exact_gate(
         failure_behavior=failure_behavior,
     )
     build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
-    backend, dialect = _IDENTITIES[backend_name]
-    fact = capability_gate(
-        FK_DT.PARSE_TEMPORAL_ANY,
-        backend,
-        dialect=dialect,
-        param="*",
-        option_value=None,
-    )
-    if fact is not None:
-        assert_capability_gated(
-            FK_DT.PARSE_TEMPORAL_ANY,
-            backend,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=build,
-        )
+    if backend_name not in {"polars", "polars-lazy"}:
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_DT.PARSE_TEMPORAL_ANY
         return
 
     valid_values = {
@@ -198,23 +169,10 @@ def test_partial_date_rejects_signed_fourteen_hour_offsets(
         failure_behavior=failure_behavior,
     )
     build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
-    backend, dialect = _IDENTITIES[backend_name]
-    fact = capability_gate(
-        FK_DT.PARSE_XSD_PARTIAL_DATE,
-        backend,
-        dialect=dialect,
-        param="*",
-        option_value=None,
-    )
-    if fact is not None and fact.enforcement is Enforcement.GATE:
-        assert_capability_gated(
-            FK_DT.PARSE_XSD_PARTIAL_DATE,
-            backend,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=build,
-        )
+    if backend_name == "ibis-sqlite" and failure_behavior is CaseFailureBehaviour.THROW:
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_DT.PARSE_XSD_PARTIAL_DATE
         return
 
     frame = BackendDataFrameFactory.create({"value": [value]}, backend_name)
@@ -226,50 +184,15 @@ def test_partial_date_rejects_signed_fourteen_hour_offsets(
     assert all(value is None or (isinstance(value, float) and math.isnan(value)) for value in values)
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "narwhals-polars", "narwhals-pandas"])
-@pytest.mark.parametrize("operation_key", [FK_DT.PARSE_XSD_DURATION, FK_DT.PARSE_XSD_PARTIAL_DATE])
-def test_xsd_throw_mode_keeps_exact_residue_facts(backend_name: str, operation_key) -> None:
-    from mountainash.core.capabilities import CapabilityRegistry
-
-    backend, dialect = _IDENTITIES[backend_name]
-    fact = CapabilityRegistry.capability_for(operation_key, "*", backend, dialect)
-    assert fact is not None
-    assert fact.level is CapabilityLevel.UNSUPPORTED
-    assert fact.enforcement is Enforcement.MATERIALIZE_RESIDUE
-    assert fact.boundary is Boundary.MATERIALIZE
-    assert fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL
-    assert not fact.native_errors
 
 
 @pytest.mark.parametrize("operation_key", [FK_DT.PARSE_XSD_DURATION, FK_DT.PARSE_XSD_PARTIAL_DATE])
-@pytest.mark.parametrize("failure_behavior", [CaseFailureBehaviour.NULL, CaseFailureBehaviour.THROW])
-def test_xsd_sqlite_has_exact_wildcard_gate(operation_key, failure_behavior) -> None:
+def test_xsd_sqlite_throw_mode_has_public_refusal(operation_key) -> None:
     expr = (
-        ma.col("value").dt.parse_xsd_duration(
-            field_name="value", failure_behavior=failure_behavior
-        )
+        ma.col("value").dt.parse_xsd_duration(field_name="value")
         if operation_key is FK_DT.PARSE_XSD_DURATION
-        else ma.col("value").dt.parse_xsd_partial_date(
-            kind="year", field_name="value", failure_behavior=failure_behavior
-        )
+        else ma.col("value").dt.parse_xsd_partial_date(kind="year", field_name="value")
     )
-    build = lambda: UnifiedExpressionVisitor(_SYSTEMS["ibis-sqlite"]).visit(expr._node)
-    fact = capability_gate(
-        operation_key,
-        CONST_BACKEND.IBIS,
-        dialect="ibis-sqlite",
-        param="*",
-        option_value=None,
-    )
-    assert fact is not None
-    assert fact.level is CapabilityLevel.UNSUPPORTED
-    assert fact.enforcement is Enforcement.GATE
-    assert fact.boundary is Boundary.BUILD
-    assert_capability_gated(
-        operation_key,
-        CONST_BACKEND.IBIS,
-        dialect="ibis-sqlite",
-        param="*",
-        option_value=None,
-        build=build,
-    )
+    with pytest.raises(BackendCapabilityError) as error:
+        UnifiedExpressionVisitor(_SYSTEMS["ibis-sqlite"]).visit(expr._node)
+    assert error.value.function_key is operation_key

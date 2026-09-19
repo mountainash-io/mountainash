@@ -1,4 +1,5 @@
 """Immutable assertion-change history captures."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -53,9 +54,7 @@ class AssertionChange:
             raise ValueError("successor cannot reuse the immutable predecessor address")
         if len(set(successor.address for successor in self.successors)) != len(self.successors):
             raise ValueError("duplicate successor address")
-        if type(self.evidence_refs) is not tuple or any(
-            type(ref) is not CapturedAddress for ref in self.evidence_refs
-        ):
+        if type(self.evidence_refs) is not tuple or any(type(ref) is not CapturedAddress for ref in self.evidence_refs):
             raise TypeError("change evidence requires captured addresses")
         if self.fixed_versions is not None and type(self.fixed_versions) is not Environment:
             raise TypeError("fixed versions require observed coordinates or explicit unknown")

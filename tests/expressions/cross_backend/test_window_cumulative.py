@@ -7,6 +7,9 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import OperationNotDefinedError
+from narwhals.exceptions import InvalidOperationError
+from fixtures.call_expectations import expect_call_failure
 
 # BACKENDS = ["polars", "polars-lazy", "narwhals-polars", "ibis-duckdb"]
 
@@ -23,16 +26,26 @@ class TestCumSum:
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_sum()
-        result = collect_expr(df, expr)
-        assert result == [10, 30, 60, 160, 210], f"[{backend_name}] got {result}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
+            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
+            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+        ):
+            result = collect_expr(df, expr)
+            assert result == [10, 30, 60, 160, 210], f"[{backend_name}] got {result}"
 
     def test_cum_sum_reverse(self, backend_name, backend_factory, collect_expr):
         """cum_sum(reverse=True) computes from bottom to top."""
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_sum(reverse=True)
-        result = collect_expr(df, expr)
-        assert result == [210, 200, 180, 150, 50], f"[{backend_name}] got {result}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
+            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
+            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+        ):
+            result = collect_expr(df, expr)
+            assert result == [210, 200, 180, 150, 50], f"[{backend_name}] got {result}"
 
 
 # =============================================================================
@@ -47,8 +60,13 @@ class TestCumMax:
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_max()
-        result = collect_expr(df, expr)
-        assert result == [10, 20, 30, 100, 100], f"[{backend_name}] got {result}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
+            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
+            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+        ):
+            result = collect_expr(df, expr)
+            assert result == [10, 20, 30, 100, 100], f"[{backend_name}] got {result}"
 
 
 # =============================================================================
@@ -63,8 +81,13 @@ class TestCumMin:
         data = {"sales": [10, 20, 30, 100, 50]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("sales").cum_min()
-        result = collect_expr(df, expr)
-        assert result == [10, 10, 10, 10, 10], f"[{backend_name}] got {result}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
+            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
+            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+        ):
+            result = collect_expr(df, expr)
+            assert result == [10, 10, 10, 10, 10], f"[{backend_name}] got {result}"
 
 
 # =============================================================================

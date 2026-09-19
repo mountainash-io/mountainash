@@ -47,6 +47,16 @@ class BaseExpressionSystem(ABC):
         self.dialect = dialect
         self._operand_type_stack: list[Mapping[str, Any]] = []
 
+    def prepare_call_arguments(
+        self, method_name: str, resolver_type: Any, visitor: Any,
+        function_key: Any, arguments: Any, compiled_arguments: Any,
+    ) -> list[Any] | None:
+        """Resolve the category companion before allocating its operand resolver."""
+        companion = getattr(self, f"_prepare_call_{method_name}", None)
+        if companion is None:
+            return None
+        return companion(resolver_type(visitor, function_key, arguments, compiled_arguments))
+
     @contextmanager
     def operand_types(self, named_operands: Mapping[str, Any]) -> Iterator[None]:
         """Expose resolved descriptors to one backend dispatch and restore nesting."""
@@ -249,14 +259,10 @@ class BaseExpressionSystem(ABC):
         function_key: Any,
         **named_args: Any,
     ) -> Any:
-        """Call a native backend op, enriching known-limitation failures.
-
-        Registry-sourced: only MATERIALIZE_RESIDUE facts participate;
-        GATE facts gate at the visitor and never reach here.
-        """
+        """Attach explanation only to an identified immediate native failure."""
         from mountainash.core.capabilities import (
             CapabilityRegistry,
-            Enforcement,
+            PolicyConsumer,
             WILDCARD_PARAM,
         )
         from mountainash.core.limitations import call_with_limitation_enrichment
@@ -264,11 +270,12 @@ class BaseExpressionSystem(ABC):
         limitations: dict[tuple[Any, str], Any] = {}
         for param in (*named_args, WILDCARD_PARAM):
             fact = CapabilityRegistry.capability_for(
-                function_key, param, self.backend_type, self.dialect
+                function_key, param, self.backend_type, self.dialect,
+                consumer=PolicyConsumer.IMMEDIATE_ERROR,
             )
             if (
                 fact is not None
-                and fact.enforcement is Enforcement.MATERIALIZE_RESIDUE
+                and fact.consumer is PolicyConsumer.IMMEDIATE_ERROR
             ):
                 limitations[(function_key, param)] = fact
         return call_with_limitation_enrichment(
@@ -276,5 +283,6 @@ class BaseExpressionSystem(ABC):
             limitations=limitations,
             backend_name=self.BACKEND_NAME,
             operation_key=function_key,
-            named_args=tuple(named_args),
+            named_args=named_args,
+            identify_issue=getattr(self, "identify_native_issue", None),
         )

@@ -7,7 +7,11 @@ from mountainash.datacontracts.compiler import compile_datacontract
 from mountainash.typespec import FieldConstraints, FieldSpec, TypeSpec, UniversalType
 from mountainash.validation import ValidationRunner
 
+from ibis.common.exceptions import UnsupportedBackendType
+
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -31,8 +35,14 @@ def test_compiled_json_schema_reports_logical_object_failure(backend_name, backe
         )
     )
 
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite does not support native Struct-column construction; this is native input construction, not ValidationRunner execution",
+    ):
+        df = backend_factory.create({"payload": [{"id": 0}]}, backend_name)
     result = ValidationRunner().validate_relation(
-        ma.relation(backend_factory.create({"payload": [{"id": 0}]}, backend_name)),
+        ma.relation(df),
         plan=plan,
     )
 

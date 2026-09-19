@@ -1,4 +1,4 @@
-"""Exact stored access, separate from effective capability resolution."""
+"""Immutable descriptive, policy and inventory views; never execution authority."""
 
 from __future__ import annotations
 
@@ -6,45 +6,39 @@ import inspect
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
-from mountainash.core.capabilities.capture import (
-    BindingRole, CapturedAddress, CapturedAssertion, EvidenceCapture,
-    VerificationBinding, require_immutable,
-)
+from mountainash.core.capabilities.capture import CapturedAddress, CapturedAssertion, require_immutable
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     CapabilityKey,
     QualifiedCapabilityKey,
+    QualifiedInformation,
+    QualifiedInformationKey,
+    QualifiedPolicy,
     Selector,
-    ManifestationKey,
-    QualifiedManifestation,
-    QualifiedManifestationKey,
 )
+from mountainash.core.capabilities.gaps import GapInventory, GapKey, InventoryGap, InventoryWide, gap_order_key
 from mountainash.core.capabilities.identity import Scope
-from mountainash.core.capabilities.gaps import GapKey, InventoryGap, InventoryWide, VerificationSnapshot
 from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.schema import (
     WILDCARD_PARAM,
     CaptureValue,
     _UPSTREAM_REF_RE,
     CapabilityLevel,
-    Enforcement,
-    DivergenceKind,
-    Scenario,
+    InformationKind,
+    InformationLayer,
+    PolicyAction,
+    PolicyConsumer,
     GapKind,
     Target,
     target_order_key,
-    Predicate,
-    ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-    from mountainash.core.capabilities.schema import CapabilityFact
-    from mountainash.core.capabilities.capture import RuntimeOrigin, SourceOrigin
+    from mountainash.core.capabilities.capture import SourceOrigin
 
 
 def _validate_operation_subject(operation: Enum, subject: str | None) -> None:
@@ -76,129 +70,81 @@ def _key_order(key: CapabilityKey) -> tuple:
 
 
 @dataclass(frozen=True)
-class CapabilityQuery:
+class InformationQuery:
     operation: Enum | None = None
     subject: str | None = None
-    selector_kind: Literal["unconditioned", "exact", "value_class", "predicate"] | None = None
-    selector_value: str | ValueClass | Predicate | None = None
+    layer: InformationLayer | None = None
     level: CapabilityLevel | None = None
-    enforcement: Enforcement | None = None
-    has_predicate: bool | None = None
-    has_condition_text: bool | None = None
-    _selector: Selector | None = field(init=False, repr=False)
+    kind: InformationKind | None = None
 
     def __post_init__(self) -> None:
         if self.subject is not None and (type(self.subject) is not str or not self.subject):
             raise ValueError("subject requires a nonempty protocol parameter")
         if self.operation is not None:
             _validate_operation_subject(self.operation, self.subject)
-        kinds = {"unconditioned", "exact", "value_class", "predicate"}
-        if self.selector_kind is not None and self.selector_kind not in kinds:
-            raise ValueError("unknown selector kind")
-        selector = None
-        if self.selector_value is not None:
-            value_kind = {str: "exact", ValueClass: "value_class", Predicate: "predicate"}.get(
-                type(self.selector_value)
-            )
-            if value_kind is None:
-                raise TypeError("selector value requires text, ValueClass or Predicate")
-            selector = Selector(self.selector_kind or value_kind, self.selector_value)
-        object.__setattr__(self, "_selector", selector)
+        if self.layer is not None and type(self.layer) is not InformationLayer:
+            raise TypeError("layer requires InformationLayer")
+        if self.level is not None and type(self.level) is not CapabilityLevel:
+            raise TypeError("level requires CapabilityLevel")
+        if self.kind is not None and type(self.kind) is not InformationKind:
+            raise TypeError("kind requires InformationKind")
+
+    def matches(self, record: QualifiedInformation) -> bool:
+        return (
+            (self.operation is None or self.operation == record.key.local.operation)
+            and (self.subject is None or self.subject == record.key.local.subject)
+            and (self.layer is None or self.layer is record.key.layer)
+            and (self.level is None or self.level is record.assertion.level)
+            and (self.kind is None or self.kind in record.assertion.kinds)
+        )
+
+
+@dataclass(frozen=True)
+class PolicyQuery:
+    operation: Enum | None = None
+    subject: str | None = None
+    level: CapabilityLevel | None = None
+    consumer: PolicyConsumer | None = None
+    action: PolicyAction | None = None
+
+    def __post_init__(self) -> None:
+        if self.subject is not None and (type(self.subject) is not str or not self.subject):
+            raise ValueError("subject requires a nonempty protocol parameter")
+        if self.operation is not None:
+            _validate_operation_subject(self.operation, self.subject)
         for name, expected in (
             ("level", CapabilityLevel),
-            ("enforcement", Enforcement),
-            ("has_predicate", bool),
-            ("has_condition_text", bool),
+            ("consumer", PolicyConsumer),
+            ("action", PolicyAction),
         ):
             value = getattr(self, name)
             if value is not None and type(value) is not expected:
                 raise TypeError(f"{name} requires {expected.__name__}")
 
-    def matches(self, key: CapabilityKey, fact: CapabilityFact) -> bool:
-        if self.operation is not None and key.operation != self.operation:
-            return False
-        if self.subject is not None and key.subject != self.subject:
-            return False
-        if self.selector_kind is not None and key.selector.kind != self.selector_kind:
-            return False
-        if self._selector is not None and key.selector != self._selector:
-            return False
+    def matches(self, record: QualifiedPolicy) -> bool:
         return (
-            (self.level is None or fact.level is self.level)
-            and (self.enforcement is None or fact.enforcement is self.enforcement)
-            and (self.has_predicate is None or (fact.predicate is not None) == self.has_predicate)
-            and (
-                self.has_condition_text is None
-                or (fact.condition is not None) == self.has_condition_text
-            )
-        )
-
-
-@dataclass(frozen=True)
-class ManifestationQuery:
-    target: Target | None = None
-    scenario: Scenario | None = None
-    kind: DivergenceKind | None = None
-    issue: str | None = None
-
-    def __post_init__(self) -> None:
-        if self.target is not None:
-            target_order_key(self.target)
-        if self.scenario is not None and type(self.scenario) is not Scenario:
-            raise TypeError("scenario requires Scenario")
-        if self.kind is not None and type(self.kind) is not DivergenceKind:
-            raise TypeError("kind requires DivergenceKind")
-        if self.issue is not None and (
-            type(self.issue) is not str or not _UPSTREAM_REF_RE.fullmatch(self.issue)
-        ):
-            raise ValueError("issue requires a valid upstream reference")
-
-    def matches(self, record: QualifiedManifestation) -> bool:
-        return (
-            (self.target is None or self.target == record.key.local.target)
-            and (self.scenario is None or self.scenario == record.key.local.scenario)
-            and (self.kind is None or self.kind is record.assertion.kind)
-            and (self.issue is None or self.issue == record.assertion.issue)
-        )
-
-
-@dataclass(frozen=True)
-class EvidenceQuery:
-    capture_ref: CapturedAddress | None = None
-    subject: CapturedAssertion | None = None
-    observation_layer: Literal["native", "public", "gate_disabled", "structural", "historical_unknown"] | None = None
-
-    def __post_init__(self) -> None:
-        if self.capture_ref is not None and type(self.capture_ref) is not CapturedAddress:
-            raise TypeError("capture_ref requires CapturedAddress")
-        if self.subject is not None and type(self.subject) is not CapturedAssertion:
-            raise TypeError("subject requires a complete CapturedAssertion")
-        if self.observation_layer is not None and self.observation_layer not in {
-            "native", "public", "gate_disabled", "structural", "historical_unknown",
-        }:
-            raise ValueError("unknown observation layer")
-
-    def matches(self, record: EvidenceCapture) -> bool:
-        return (
-            (self.capture_ref is None or self.capture_ref == record.capture_ref)
-            and (self.subject is None or self.subject in record.subjects)
-            and (self.observation_layer is None or self.observation_layer == record.observation_layer)
+            (self.operation is None or self.operation == record.key.local.operation)
+            and (self.subject is None or self.subject == record.key.local.subject)
+            and (self.level is None or self.level is record.assertion.level)
+            and (self.consumer is None or self.consumer is record.assertion.consumer)
+            and (self.action is None or self.action is record.assertion.action)
         )
 
 
 @dataclass(frozen=True)
 class ChangeQuery:
-    family: Literal["capability", "manifestation", "gap"] | None = None
+    family: Literal["capability", "gap"] | None = None
     prior: CapturedAssertion | None = None
     disposition: ChangeDisposition | None = None
     change_ref: CapturedAddress | None = None
     inventory: str | None = None
 
     def __post_init__(self) -> None:
-        if self.family is not None and self.family not in {"capability", "manifestation", "gap"}:
+        if self.family is not None and self.family not in {"capability", "gap"}:
             raise ValueError("unknown assertion family")
         for name, expected in (
-            ("prior", CapturedAssertion), ("disposition", ChangeDisposition),
+            ("prior", CapturedAssertion),
+            ("disposition", ChangeDisposition),
             ("change_ref", CapturedAddress),
         ):
             value = getattr(self, name)
@@ -224,80 +170,58 @@ class ChangeQuery:
 
 
 @dataclass(frozen=True)
-class BindingQuery:
-    captured_claim: CapturedAssertion | None = None
-    scenario: Scenario | None = None
-    role: BindingRole | None = None
-    observer: CapturedAddress | None = None
-    stage: Literal["construction", "compilation", "materialization"] | None = None
-
-    def __post_init__(self) -> None:
-        for name, expected in (
-            ("captured_claim", CapturedAssertion), ("scenario", Scenario),
-            ("role", BindingRole), ("observer", CapturedAddress),
-        ):
-            value = getattr(self, name)
-            if value is not None and type(value) is not expected:
-                raise TypeError(f"{name} requires {expected.__name__}")
-        if self.stage is not None and self.stage not in {"construction", "compilation", "materialization"}:
-            raise ValueError("unknown execution stage")
-
-    def matches(self, record: VerificationBinding) -> bool:
-        return (
-            (self.captured_claim is None or self.captured_claim == record.captured_claim)
-            and (self.scenario is None or self.scenario == record.scenario)
-            and (self.role is None or self.role is record.role)
-            and (self.observer is None or self.observer == record.observer)
-            and (self.stage is None or self.stage == record.stage)
-        )
-
-
-@dataclass(frozen=True)
 class ScopeReader:
     """One exact scope over retained immutable publication mappings."""
 
     scope: Scope
-    _records: Mapping[QualifiedCapabilityKey, CapabilityFact]
-    _manifestations: Mapping[QualifiedManifestationKey, QualifiedManifestation]
+    _information: Mapping[QualifiedInformationKey, QualifiedInformation]
+    _policies: Mapping[QualifiedCapabilityKey, QualifiedPolicy]
 
     def __post_init__(self) -> None:
         if type(self.scope) is not Scope:
             raise TypeError("reader scope requires Scope")
-        if type(self._records) is not MappingProxyType or type(self._manifestations) is not MappingProxyType:
+        if any(type(records) is not MappingProxyType for records in (self._information, self._policies)):
             raise TypeError("reader requires published immutable mappings")
 
-    def _locate(self, key: CapabilityKey | ManifestationKey):
-        if type(key) is CapabilityKey:
-            _validate_operation_subject(key.operation, key.subject)
-            return self._records, QualifiedCapabilityKey(self.scope, key)
-        if type(key) is ManifestationKey:
-            return self._manifestations, QualifiedManifestationKey(self.scope, key)
-        raise TypeError("scope reader requires a local capability or manifestation key")
+    def policy(self, key: CapabilityKey) -> QualifiedPolicy:
+        if type(key) is not CapabilityKey:
+            raise TypeError("scope policy requires CapabilityKey")
+        _validate_operation_subject(key.operation, key.subject)
+        return self._policies[QualifiedCapabilityKey(self.scope, key)]
 
-    def get(self, key: CapabilityKey | ManifestationKey) -> CapabilityFact | QualifiedManifestation:
-        records, qualified = self._locate(key)
-        return records[qualified]
+    def policy_optional(self, key: CapabilityKey) -> QualifiedPolicy | None:
+        if type(key) is not CapabilityKey:
+            raise TypeError("scope policy requires CapabilityKey")
+        _validate_operation_subject(key.operation, key.subject)
+        return self._policies.get(QualifiedCapabilityKey(self.scope, key))
 
-    def get_optional(self, key: CapabilityKey | ManifestationKey) -> CapabilityFact | QualifiedManifestation | None:
-        records, qualified = self._locate(key)
-        return records.get(qualified)
-
-    def search(self, query: CapabilityQuery | ManifestationQuery) -> tuple[CapabilityFact, ...] | tuple[QualifiedManifestation, ...]:
-        if type(query) is ManifestationQuery:
+    def search(
+        self,
+        query: InformationQuery | PolicyQuery,
+    ) -> tuple[QualifiedInformation, ...] | tuple[QualifiedPolicy, ...]:
+        if type(query) is InformationQuery:
             keys = sorted(
-                (key for key, record in self._manifestations.items()
-                 if key.scope == self.scope and query.matches(record)),
-                key=_manifestation_order,
+                (key for key, record in self._information.items() if key.scope == self.scope and query.matches(record)),
+                key=_information_order,
             )
-            return tuple(self._manifestations[key] for key in keys)
-        if type(query) is not CapabilityQuery:
-            raise TypeError("scope search requires a capability or manifestation query")
-        keys = sorted(
-            (key for key, fact in self._records.items()
-             if key.scope == self.scope and query.matches(key.local, fact)),
-            key=_qualified_order,
-        )
-        return tuple(self._records[key] for key in keys)
+            return tuple(self._information[key] for key in keys)
+        if type(query) is PolicyQuery:
+            policy_keys = sorted(
+                (key for key, record in self._policies.items() if key.scope == self.scope and query.matches(record)),
+                key=_qualified_order,
+            )
+            return tuple(self._policies[key] for key in policy_keys)
+        raise TypeError("scope search requires an information or policy query")
+
+
+def _information_order(key: QualifiedInformationKey) -> tuple:
+    return (
+        key.scope.backend.value,
+        type(key.scope.applicability).__name__,
+        key.scope.dialect or "",
+        _key_order(key.local),
+        key.layer.value,
+    )
 
 
 class UncapturedScopeError(ValueError):
@@ -305,9 +229,7 @@ class UncapturedScopeError(ValueError):
 
 
 def _validate_scopes(scopes: frozenset[Scope] | None) -> None:
-    if scopes is not None and (
-        type(scopes) is not frozenset or any(type(scope) is not Scope for scope in scopes)
-    ):
+    if scopes is not None and (type(scopes) is not frozenset or any(type(scope) is not Scope for scope in scopes)):
         raise TypeError("scopes requires a frozenset of Scope values or None")
 
 
@@ -320,19 +242,12 @@ def _qualified_order(key: QualifiedCapabilityKey) -> tuple:
     )
 
 
-def _manifestation_order(key: QualifiedManifestationKey) -> tuple:
-    return (
-        key.scope.backend.value, type(key.scope.applicability).__name__,
-        key.scope.dialect or "", target_order_key(key.local.target), key.local.scenario,
-    )
-
-
 def _address_order(address: CapturedAddress) -> tuple:
     return address.repository, address.path, address.entry, address.revision or "", address.artifact or b""
 
 
 def _claim_scope(claim: CapturedAssertion) -> Scope | InventoryWide | None:
-    if type(claim.key) in (QualifiedCapabilityKey, QualifiedManifestationKey):
+    if type(claim.key) in (QualifiedCapabilityKey, QualifiedInformationKey):
         return claim.key.scope
     if type(claim.key) is GapKey:
         return claim.key.coverage_scope
@@ -343,34 +258,6 @@ def _scope_matches(scope: Scope | InventoryWide | None, scopes: frozenset[Scope]
     if type(scope) is Scope:
         return scope in scopes and (query.backend is None or scope.backend is query.backend)
     return query.backend is None and query.scopes is None
-
-
-def _captured_claim_order(claim: CapturedAssertion) -> tuple:
-    key = claim.key
-    capture_context = (
-        _address_order(claim.address),
-        tuple(_address_order(reference) for reference in claim.reference_context),
-    )
-    if type(key) is QualifiedCapabilityKey:
-        return "capability", _qualified_order(key), capture_context
-    if type(key) is QualifiedManifestationKey:
-        return "manifestation", _manifestation_order(key), capture_context
-    if type(key) is GapKey:
-        scope = key.coverage_scope
-        scope_order = (
-            ("inventory",)
-            if type(scope) is InventoryWide
-            else ("scope", scope.backend.value, type(scope.applicability).__name__, scope.dialect or "")
-        )
-        return "gap", key.inventory, target_order_key(key.target), key.obligation, scope_order, capture_context
-    raise TypeError("binding claim requires a resolved qualified key")
-
-
-def _binding_order(binding: VerificationBinding) -> tuple:
-    return (
-        _captured_claim_order(binding.captured_claim), binding.scenario,
-        binding.role.value, _address_order(binding.observer),
-    )
 
 
 class UncapturedNamespaceError(ValueError):
@@ -392,8 +279,7 @@ class IssueSnapshot:
             if not _UPSTREAM_REF_RE.fullmatch(reference):
                 raise ValueError(f"invalid upstream issue reference: {reference!r}")
             if payload.tag != "mapping" or not any(
-                name == "id" and value.tag == "text" and value.value == reference
-                for name, value in payload.value
+                name == "id" and value.tag == "text" and value.value == reference for name, value in payload.value
             ):
                 raise ValueError("issue payload must retain its matching original id")
         object.__setattr__(self, "entries", entries)
@@ -440,20 +326,19 @@ class GapQuery:
 
 @dataclass(frozen=True)
 class CatalogueQuery:
-    capabilities: CapabilityQuery | None = None
+    information: InformationQuery | None = None
+    policies: PolicyQuery | None = None
     gaps: GapQuery | None = None
     backend: CONST_BACKEND | None = None
     scopes: frozenset[Scope] | None = None
-    manifestations: ManifestationQuery | None = None
-    evidence: EvidenceQuery | None = None
     changes: ChangeQuery | None = None
-    bindings: BindingQuery | None = None
 
     def __post_init__(self) -> None:
         for name, expected in (
-            ("capabilities", CapabilityQuery), ("gaps", GapQuery),
-            ("manifestations", ManifestationQuery), ("evidence", EvidenceQuery),
-            ("changes", ChangeQuery), ("bindings", BindingQuery),
+            ("information", InformationQuery),
+            ("policies", PolicyQuery),
+            ("gaps", GapQuery),
+            ("changes", ChangeQuery),
         ):
             value = getattr(self, name)
             if value is not None and type(value) is not expected:
@@ -465,104 +350,136 @@ class CatalogueQuery:
 
 @dataclass(frozen=True)
 class CatalogueResult:
-    capabilities: tuple[CapabilityFact, ...] | None
+    information: tuple[QualifiedInformation, ...] | None = None
+    policies: tuple[QualifiedPolicy, ...] | None = None
     gaps: tuple[InventoryGap, ...] | None = None
-    manifestations: tuple[QualifiedManifestation, ...] | None = None
-    evidence: tuple[EvidenceCapture, ...] | None = None
     changes: tuple[AssertionChange, ...] | None = None
-    bindings: tuple[VerificationBinding, ...] | None = None
 
 
 @dataclass(frozen=True)
 class CatalogueCapture:
-    """Retained publication records and origins, not a durable source export.
-
-    RuntimeOrigin remains explicitly session-local. Capturing this view does
-    not invent source artifacts or a historical execution for registered rows.
-    """
+    """Retained publication records and explicitly acquired external inventories."""
 
     scopes: frozenset[Scope]
     segments: tuple[BoundSegment, ...]
-    _records: Mapping[QualifiedCapabilityKey, CapabilityFact]
-    _origins: Mapping[QualifiedCapabilityKey, tuple[SourceOrigin | RuntimeOrigin, ...]]
-    _manifestations: Mapping[QualifiedManifestationKey, QualifiedManifestation]
-    verification: VerificationSnapshot | None = None
+    _information: Mapping[QualifiedInformationKey, QualifiedInformation]
+    _policies: Mapping[QualifiedCapabilityKey, QualifiedPolicy]
+    inventories: tuple[GapInventory, ...] | None = None
     issues: IssueSnapshot | None = None
-    evidence: tuple[EvidenceCapture, ...] | None = None
     _changes: tuple[AssertionChange, ...] = field(init=False, repr=False)
+    _gaps: tuple[InventoryGap, ...] | None = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         _validate_scopes(self.scopes)
         if self.scopes is None:
             raise TypeError("capture requires an explicit scope set")
         if type(self.segments) is not tuple or any(
-            type(segment) is not BoundSegment or segment.scope not in self.scopes
-            for segment in self.segments
+            type(segment) is not BoundSegment or segment.scope not in self.scopes for segment in self.segments
         ):
             raise TypeError("capture segments must belong to captured scopes")
-        if any(type(records) is not MappingProxyType for records in (
-            self._records, self._origins, self._manifestations,
-        )):
+        if any(type(records) is not MappingProxyType for records in (self._information, self._policies)):
             raise TypeError("capture requires published immutable mappings")
-        if self.verification is not None and type(self.verification) is not VerificationSnapshot:
-            raise TypeError("verification requires an explicit VerificationSnapshot")
-        if self.verification is not None and self.verification.bindings is not None:
-            captured_claims: dict[tuple, CapturedAssertion] = {}
-            for binding in self.verification.bindings:
-                identity = _captured_claim_order(binding.captured_claim)
-                previous = captured_claims.setdefault(identity, binding.captured_claim)
-                if previous != binding.captured_claim:
-                    raise ValueError("conflicting payload for one captured claim source")
+        if self.inventories is not None:
+            if type(self.inventories) is not tuple or any(
+                type(inventory) is not GapInventory for inventory in self.inventories
+            ):
+                raise TypeError("inventories requires an immutable GapInventory tuple")
+            if len({inventory.name for inventory in self.inventories}) != len(self.inventories):
+                raise ValueError("duplicate inventory name")
         if self.issues is not None and type(self.issues) is not IssueSnapshot:
             raise TypeError("issues requires an explicit IssueSnapshot")
-        if self.evidence is not None:
-            if type(self.evidence) is not tuple or any(
-                type(record) is not EvidenceCapture for record in self.evidence
-            ):
-                raise TypeError("evidence requires an explicit immutable capture tuple")
-            require_immutable(self.evidence)
-            if len({record.capture_ref for record in self.evidence}) != len(self.evidence):
-                raise ValueError("duplicate evidence capture address")
-            object.__setattr__(self, "evidence", tuple(sorted(
-                self.evidence, key=lambda record: _address_order(record.capture_ref),
-            )))
+        gaps = (
+            None
+            if self.inventories is None
+            else tuple(
+                sorted(
+                    (gap for inventory in self.inventories for gap in inventory.gaps),
+                    key=gap_order_key,
+                )
+            )
+        )
+        object.__setattr__(self, "_gaps", gaps)
         changes = tuple(
-            change for segment in self.segments for change in segment.segment.changes
-        ) + (() if self.verification is None else self.verification.changes)
+            change
+            for segment in self.segments
+            for change in segment.segment.changes
+            if change.prior.family == "capability"
+        ) + (
+            ()
+            if self.inventories is None
+            else tuple(change for inventory in self.inventories for change in inventory.changes)
+        )
         if len({change.change_ref for change in changes}) != len(changes):
             raise ValueError("duplicate assertion change address")
-        object.__setattr__(self, "_changes", tuple(sorted(
-            changes, key=lambda change: _address_order(change.change_ref),
-        )))
+        object.__setattr__(
+            self,
+            "_changes",
+            tuple(
+                sorted(
+                    changes,
+                    key=lambda change: _address_order(change.change_ref),
+                )
+            ),
+        )
 
     def reader(self, scope: Scope) -> ScopeReader:
         if type(scope) is not Scope:
             raise TypeError("reader requires Scope")
         if scope not in self.scopes:
             raise UncapturedScopeError(f"scope was not captured: {scope!r}")
-        return ScopeReader(scope, self._records, self._manifestations)
+        return ScopeReader(scope, self._information, self._policies)
 
-    def _locate(self, key: QualifiedCapabilityKey | QualifiedManifestationKey):
-        if type(key) not in (QualifiedCapabilityKey, QualifiedManifestationKey):
-            raise TypeError("catalogue requires a qualified capability or manifestation key")
+    def composed_information(self, dialect_scope: Scope) -> tuple[QualifiedInformation, ...]:
+        """Compose only captured family/local descriptions, preserving original keys."""
+        if type(dialect_scope) is not Scope:
+            raise TypeError("composed information requires Scope")
+        if dialect_scope not in self.scopes:
+            raise UncapturedScopeError(f"scope was not captured: {dialect_scope!r}")
+        scopes = {dialect_scope}
+        if dialect_scope.dialect is not None:
+            from mountainash.core.capabilities.identity import FamilyWide
+
+            family_scope = Scope(dialect_scope.backend, FamilyWide())
+            if family_scope in self.scopes:
+                scopes.add(family_scope)
+        keys = sorted(
+            (key for key in self._information if key.scope in scopes),
+            key=_information_order,
+        )
+        return tuple(self._information[key] for key in keys)
+
+    def _locate(self, key: QualifiedCapabilityKey | QualifiedInformationKey):
+        if type(key) not in (QualifiedCapabilityKey, QualifiedInformationKey):
+            raise TypeError("catalogue requires a qualified policy or information key")
         if key.scope not in self.scopes:
             raise UncapturedScopeError(f"scope was not captured: {key.scope!r}")
-        if type(key) is QualifiedCapabilityKey:
-            _validate_operation_subject(key.local.operation, key.local.subject)
-            return self._records
-        return self._manifestations
+        _validate_operation_subject(key.local.operation, key.local.subject)
+        return self._policies if type(key) is QualifiedCapabilityKey else self._information
 
-    def get(self, key: QualifiedCapabilityKey | QualifiedManifestationKey) -> CapabilityFact | QualifiedManifestation:
+    def get(self, key: QualifiedCapabilityKey | QualifiedInformationKey) -> QualifiedPolicy | QualifiedInformation:
         return self._locate(key)[key]
 
-    def get_optional(self, key: QualifiedCapabilityKey | QualifiedManifestationKey) -> CapabilityFact | QualifiedManifestation | None:
+    def get_optional(
+        self,
+        key: QualifiedCapabilityKey | QualifiedInformationKey,
+    ) -> QualifiedPolicy | QualifiedInformation | None:
         return self._locate(key).get(key)
 
-    def origins(self, key: QualifiedCapabilityKey | QualifiedManifestationKey) -> tuple[SourceOrigin | RuntimeOrigin, ...]:
-        record = self.get(key)
-        if type(key) is QualifiedManifestationKey:
-            return record.origins
-        return self._origins[key]
+    def policy(self, key: QualifiedCapabilityKey) -> QualifiedPolicy:
+        if type(key) is not QualifiedCapabilityKey:
+            raise TypeError("catalogue policy requires QualifiedCapabilityKey")
+        return self._locate(key)[key]
+
+    def policy_optional(self, key: QualifiedCapabilityKey) -> QualifiedPolicy | None:
+        if type(key) is not QualifiedCapabilityKey:
+            raise TypeError("catalogue policy requires QualifiedCapabilityKey")
+        return self._locate(key).get(key)
+
+    def origins(
+        self,
+        key: QualifiedCapabilityKey | QualifiedInformationKey,
+    ) -> tuple[SourceOrigin, ...]:
+        return self.get(key).origins
 
     def issue(self, reference: str) -> CaptureValue:
         if type(reference) is not str or not _UPSTREAM_REF_RE.fullmatch(reference):
@@ -572,11 +489,9 @@ class CatalogueCapture:
         return self.issues.get(reference)
 
     def _require_inventory(self, name: str | None) -> None:
-        if self.verification is None:
-            raise UncapturedNamespaceError("verification inventories were not captured")
-        if name is not None and not any(
-            inventory.name == name for inventory in self.verification.inventories
-        ):
+        if self.inventories is None:
+            raise UncapturedNamespaceError("gap inventories were not captured")
+        if name is not None and not any(inventory.name == name for inventory in self.inventories):
             raise UncapturedNamespaceError(f"inventory was not captured: {name!r}")
 
     def search(self, query: CatalogueQuery) -> CatalogueResult:
@@ -585,75 +500,50 @@ class CatalogueCapture:
         scopes = self.scopes if query.scopes is None else query.scopes
         if not scopes <= self.scopes:
             raise UncapturedScopeError("query includes scopes outside this capture")
-        capabilities = None
-        if query.capabilities is not None:
+        information = None
+        if query.information is not None:
             keys = sorted(
-                (key for key, fact in self._records.items()
-                 if _scope_matches(key.scope, scopes, query)
-                 and query.capabilities.matches(key.local, fact)),
+                (
+                    key
+                    for key, record in self._information.items()
+                    if _scope_matches(key.scope, scopes, query) and query.information.matches(record)
+                ),
+                key=_information_order,
+            )
+            information = tuple(self._information[key] for key in keys)
+        policies = None
+        if query.policies is not None:
+            policy_keys = sorted(
+                (
+                    key
+                    for key, record in self._policies.items()
+                    if _scope_matches(key.scope, scopes, query) and query.policies.matches(record)
+                ),
                 key=_qualified_order,
             )
-            capabilities = tuple(self._records[key] for key in keys)
-        manifestations = None
-        if query.manifestations is not None:
-            keys = sorted(
-                (key for key, record in self._manifestations.items()
-                 if _scope_matches(key.scope, scopes, query)
-                 and query.manifestations.matches(record)),
-                key=_manifestation_order,
-            )
-            manifestations = tuple(self._manifestations[key] for key in keys)
+            policies = tuple(self._policies[key] for key in policy_keys)
         gaps = None
         if query.gaps is not None:
             self._require_inventory(query.gaps.inventory)
             gaps = tuple(
-                record for record in self.verification.gaps
-                if query.gaps.matches(record)
-                and _scope_matches(record.key.coverage_scope, scopes, query)
-            )
-        evidence = None
-        if query.evidence is not None:
-            if self.evidence is None:
-                raise UncapturedNamespaceError("evidence captures were not supplied")
-            evidence = tuple(
-                record for record in self.evidence
-                if query.evidence.matches(record)
-                and any(
-                    (query.evidence.subject is None or query.evidence.subject == subject)
-                    and _scope_matches(_claim_scope(subject), scopes, query)
-                    for subject in record.subjects
-                )
+                record
+                for record in cast("tuple[InventoryGap, ...]", self._gaps)
+                if query.gaps.matches(record) and _scope_matches(record.key.coverage_scope, scopes, query)
             )
         changes = None
         if query.changes is not None:
-            requires_verification = (
+            if (
                 query.changes.family == "gap"
                 or query.changes.inventory is not None
                 or (
                     query.changes.family is None
-                    and (
-                        query.changes.prior is None
-                        or query.changes.prior.family == "gap"
-                    )
+                    and (query.changes.prior is None or query.changes.prior.family == "gap")
                 )
-            )
-            if requires_verification:
+            ):
                 self._require_inventory(query.changes.inventory)
             changes = tuple(
-                record for record in self._changes
-                if query.changes.matches(record)
-                and _scope_matches(_claim_scope(record.prior), scopes, query)
+                record
+                for record in self._changes
+                if query.changes.matches(record) and _scope_matches(_claim_scope(record.prior), scopes, query)
             )
-        bindings = None
-        if query.bindings is not None:
-            if self.verification is None or self.verification.bindings is None:
-                raise UncapturedNamespaceError("verification bindings were not captured")
-            bindings = tuple(sorted(
-                (record for record in self.verification.bindings
-                 if query.bindings.matches(record) and _scope_matches(record.scope, scopes, query)),
-                key=_binding_order,
-            ))
-        return CatalogueResult(
-            capabilities=capabilities, manifestations=manifestations, gaps=gaps,
-            evidence=evidence, changes=changes, bindings=bindings,
-        )
+        return CatalogueResult(information=information, policies=policies, gaps=gaps, changes=changes)

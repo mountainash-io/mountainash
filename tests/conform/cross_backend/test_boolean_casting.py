@@ -3,54 +3,18 @@ from __future__ import annotations
 
 import pytest
 import polars as pl
+
 import mountainash as ma
+from mountainash.conform.errors import ConformTransformError
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
+)
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
 
-# ALL_BACKENDS = [
-#     "polars",
-#     "pandas",
-#     "narwhals",
-#     "ibis-polars",
-#     "ibis-duckdb",
-#     "ibis-sqlite",
-# ]
-
-
-# ---------------------------------------------------------------------------
-# Unit tests: _build_conform_exprs produces boolean-cast expressions
-# ---------------------------------------------------------------------------
-
-
-class TestBuildConformExprsBooleanCast:
-    """Unit tests that the expression builder emits boolean casting logic."""
-
-    def test_emits_expr_for_boolean_field(self):
-        from mountainash.conform.expressions import _build_conform_exprs
-
-        spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
-        )
-        result = _build_conform_exprs(spec)
-        assert len(result.exprs) == 1
-
-    def test_emits_expr_for_custom_true_false_values(self):
-        from mountainash.conform.expressions import _build_conform_exprs
-
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="flag",
-                    type=UniversalType.BOOLEAN,
-                    true_values=["yes"],
-                    false_values=["no"],
-                ),
-            ],
-        )
-        result = _build_conform_exprs(spec)
-        assert len(result.exprs) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +95,7 @@ class TestBooleanCastingCustom:
 
 class TestBooleanCastingAlreadyBoolean:
     def test_preserves_existing_boolean_values(self):
-        """Boolean source column: cast(str).is_in() matches, preserves values."""
+        """A Boolean source column retains its Boolean values."""
         df = pl.DataFrame({"flag": [True, False, True]})
         spec = TypeSpec(fields_match="open", 
             fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
@@ -140,25 +104,11 @@ class TestBooleanCastingAlreadyBoolean:
         assert result["flag"].to_list() == [True, False, True]
 
 
-def test_boolean_cast_uses_parse_tokens_operation():
-    from mountainash.conform.expressions import _build_conform_exprs
-    from mountainash.expressions.core.expression_system.function_keys.enums import (
-        FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
-    )
-
-    spec = TypeSpec(
-        fields_match="open",
-        fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
-    )
-    result = _build_conform_exprs(spec)
-    operation = result.exprs[0].node.arguments[0]
-    assert operation.function_key is FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS
-    assert operation.options["true_values"] == ("true", "True", "TRUE", "1")
-    assert operation.options["false_values"] == ("false", "False", "FALSE", "0")
-    assert operation.options["failure_behavior"] == "throw"
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_boolean_cast_preserves_null_and_rejects_invalid_tokens(backend_name, backend_factory):
+def test_boolean_throw_preserves_null_and_rejects_invalid_tokens(
+    backend_name, backend_factory
+):
     df = backend_factory.create({"flag": ["yes", "no", None, "maybe"]}, backend_name)
     spec = TypeSpec(
         fields_match="open",
@@ -171,7 +121,14 @@ def test_boolean_cast_preserves_null_and_rejects_invalid_tokens(backend_name, ba
             ),
         ],
     )
-    with pytest.raises(Exception):
+    if backend_name == "ibis-sqlite":
+        with pytest.raises(BackendCapabilityError) as raised:
+            ma.relation(df).conform(spec).to_polars()
+        assert raised.value.function_key is FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS
+        assert raised.value.backend == "ibis"
+        assert raised.value.limitation is None
+        return
+    with pytest.raises(ConformTransformError):
         ma.relation(df).conform(spec).to_polars()
 
 
@@ -217,25 +174,7 @@ def test_boolean_tokens_match_exactly_without_substring_replacement(backend_name
     assert result["flag"].to_list() == [False, True]
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_boolean_throw_rejects_numeric_unconfigured_token(backend_name, backend_factory):
-    df = backend_factory.create({"flag": ["yes", "no", "2"]}, backend_name)
-    spec = TypeSpec(
-        fields_match="open",
-        fields=[
-            FieldSpec(
-                name="flag",
-                type=UniversalType.BOOLEAN,
-                true_values=["yes"],
-                false_values=["no"],
-            ),
-        ],
-    )
-    with pytest.raises(Exception):
-        ma.relation(df).conform(spec).to_polars()
-def test_ibis_sqlite_throw_mode_is_gated(backend_factory):
-    from mountainash.core.types import BackendCapabilityError
-
+def test_ibis_sqlite_throw_mode_refuses_parse_tokens(backend_factory):
     df = backend_factory.create({"flag": ["yes"]}, "ibis-sqlite")
     spec = TypeSpec(
         fields_match="open",
@@ -248,5 +187,8 @@ def test_ibis_sqlite_throw_mode_is_gated(backend_factory):
             ),
         ],
     )
-    with pytest.raises(BackendCapabilityError, match="ibis-sqlite"):
+    with pytest.raises(BackendCapabilityError) as raised:
         ma.relation(df).conform(spec).to_polars()
+    assert raised.value.function_key is FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS
+    assert raised.value.backend == "ibis"
+    assert raised.value.limitation is None

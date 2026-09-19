@@ -132,20 +132,23 @@ ma.relation(data)     -> capability facts     -> native plan         -> collect 
 
 Backend systems register with the expression and relation registries. This keeps backend selection out of API builders and makes capability differences explicit.
 
-Capability declarations are prepared once per registry publication. Compilation
-looks up operand names and operation/backend predicate candidates without
-enumerating the complete capability report; operand type descriptors are still
-resolved freshly in the current input scope, never cached across frames.
+Capability declarations are prepared once per `register_segment()` publication.
+The call accepts one validated `BoundSegment` and publishes its information and
+policy rules as one immutable generation, or leaves the preceding generation
+unchanged. Initial loading is likewise transactional; a failed load retains its
+original exception until reset or restore.
 
-`CapabilityRegistry.register_backend()` and `register_segment()` publish
-whole batches or leave the previous data unchanged. Initial loading is likewise
-transactional; a failed load retains its original exception until reset/restore.
-Registered facts, predicates, declarations, and evidence must use their exact
-supported dataclass types and immutable tuple/frozenset payloads. Enum operands
-must use homogeneous built-in scalar values (finite floats only); container
-values, mixed scalar domains, and scalar subclasses are rejected.
+A physical `SEGMENT` contains only two kinds of declaration:
+`CapabilityInformation` describes a native or public behavior, while a
+`CapabilityPolicyRule` gives one concrete dialect an explicit executable
+consumer and action. Information may be family-wide or dialect-specific and is
+available for inspection; only a concrete policy participates in execution.
+Compiler routing never infers a policy by executing a family description.
 
-Each registry accessor reads one immutable generation, not an entire
+Compilation looks up operand names and operation/backend predicate candidates
+without enumerating the complete catalogue. Operand type descriptors are still
+resolved freshly in the current input scope, never cached across frames. Each
+registry accessor reads one immutable generation, not an entire
 compilation-wide transaction. Finish registration before compiling if the whole
 compilation must use one configuration. Same-thread recursive mutations and
 recursive first-load queries raise `RuntimeError`; warm reads remain available
@@ -153,14 +156,15 @@ during registration. Snapshot tokens are opaque and must only be passed back to
 `restore()`. `reset()` enters isolated mode, which allows local queries but
 refuses production reporting.
 
-Behavioral divergences are published as scoped manifestations in physical
-`SEGMENT` homes under each backend's capability tree. Their natural identity is
-scope, target, and scenario—not an upstream issue ID. Cold catalogue captures
-retain claim payloads, source identity, explicit evidence, and correction
-history without importing tests or running probes. Test-owned bindings select
-exact observer cells; direct native evidence remains distinct from public
-execution and capability refusals. See the
-[manifestation guide](docs/guides/known-divergences.md) for authoring and retirement.
+Cold catalogue captures inspect information and policies independently with
+`InformationQuery` and `PolicyQuery`. Exact readers preserve their requested
+scope; `composed_information()` is the explicit inspection-only operation that
+adds captured family information to a captured dialect scope. Gap inventories
+are acquired separately and passed directly to `capture(inventories=...)`.
+Ordinary tests own their concrete inputs and oracles; capability declarations
+do not select, execute, or supply test cases. See the
+[known-divergences guide](docs/guides/known-divergences.md) for authoring and
+inspection.
 
 ## Top-level package map
 

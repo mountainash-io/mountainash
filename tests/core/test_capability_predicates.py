@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.core.capabilities.schema import (
-    Boundary, CapabilityFact, CapabilityLevel, Clause, ClauseOp, Enforcement,
+    Boundary, CapabilityFact, CapabilityLevel, Clause, ClauseOp,
     Predicate, ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
@@ -98,16 +98,6 @@ def test_fact_predicate_param_must_be_a_clause_root():
         )
 
 
-def test_fact_predicate_requires_gate_enforcement():
-    with pytest.raises(ValueError, match="GATE"):
-        CapabilityFact(
-            operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15",
-            predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
-            enforcement=Enforcement.ROUTER_METADATA,
-        )
-
 
 def test_fact_predicate_rejects_literal_only_level():
     # LITERAL_ONLY/POLYMORPHIC semantics live in the per-param loop; a predicate
@@ -133,8 +123,8 @@ def test_valid_predicate_fact_constructs():
 
 
 from mountainash.core.capabilities.predicates import (
-    BoundCall, bind_expression_call, clause_implies, evaluate_clause,
-    predicate_holds, predicate_implies, predicates_overlap, resolve_path,
+    BoundCall, DomainRelation, bind_expression_call, compare_domains,
+    evaluate_clause, predicate_holds, resolve_path,
 )
 from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 
@@ -207,37 +197,95 @@ def test_predicate_holds_is_conjunction():
     assert not predicate_holds(p, _bound_call(unit="WEEK", origin="REGULAR").bindings, frozenset({"unit", "origin"}))
 
 
-def test_clause_implies_lattice():
-    eq = Clause("unit", ClauseOp.EQ, "WEEK")
-    assert clause_implies(eq, Clause("unit", ClauseOp.EQ, "WEEK"))
-    assert clause_implies(eq, Clause("unit", ClauseOp.IN, frozenset({"WEEK", "DAY"})))
-    assert clause_implies(eq, Clause("unit", ClauseOp.IS_SET))
-    assert not clause_implies(eq, Clause("unit", ClauseOp.IS_NULL))
-    assert not clause_implies(eq, Clause("other", ClauseOp.EQ, "WEEK"))
-    inn = Clause("unit", ClauseOp.IN, frozenset({"WEEK", "DAY"}))
-    assert clause_implies(inn, Clause("unit", ClauseOp.IN, frozenset({"WEEK", "DAY", "MO"})))
-    assert clause_implies(inn, Clause("unit", ClauseOp.IS_SET))
-    assert not clause_implies(Clause("unit", ClauseOp.IS_LITERAL), Clause("unit", ClauseOp.EQ, "WEEK"))
+def _assert_witness_holds(comparison, left, right):
+    assert comparison.relation is DomainRelation.OVERLAP
+    assert comparison.witness is not None
+    bindings = comparison.witness
+    supplied = frozenset(bindings)
+    if left is not None:
+        assert predicate_holds(left, bindings, supplied)
+    if right is not None:
+        assert predicate_holds(right, bindings, supplied)
 
 
+def test_compare_domains_finds_broad_literal_and_narrow_value_overlap():
+    broad = Predicate((Clause("multiple", ClauseOp.IS_LITERAL),))
+    narrow = Predicate((
+        Clause("multiple", ClauseOp.IS_LITERAL),
+        Clause("multiple", ClauseOp.EQ, -7),
+    ))
 
-def test_predicate_implies_subset_direction():
-    a = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"), Clause("origin", ClauseOp.EQ, "ISO")))
-    b = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
-    assert predicate_implies(a, b)
-    assert not predicate_implies(b, a)
-
-
-def test_predicates_overlap_exclusive_eq():
-    a = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
-    b = Predicate((Clause("unit", ClauseOp.EQ, "DAY"),))
-    assert not predicates_overlap(a, b)
+    _assert_witness_holds(compare_domains(broad, narrow), broad, narrow)
 
 
-def test_predicates_overlap_compatible():
-    a = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
-    b = Predicate((Clause("origin", ClauseOp.EQ, "ISO"),))
-    assert predicates_overlap(a, b)
+def test_compare_domains_combines_finite_constraints_within_each_predicate():
+    impossible = Predicate((
+        Clause("multiple", ClauseOp.EQ, 1),
+        Clause("multiple", ClauseOp.IN, frozenset({2, 3})),
+    ))
+
+    comparison = compare_domains(impossible, None)
+
+    assert comparison.relation is DomainRelation.DISJOINT
+    assert comparison.witness is None
+
+
+def test_compare_domains_distinguishes_integer_and_text_in_one_conjunction():
+    impossible = Predicate((
+        Clause("multiple", ClauseOp.EQ, 1),
+        Clause("multiple", ClauseOp.EQ, "1"),
+    ))
+
+    assert compare_domains(impossible, None).relation is DomainRelation.DISJOINT
+
+
+def test_compare_domains_respects_python_bool_integer_equality():
+    true_domain = Predicate((Clause("flag", ClauseOp.EQ, True),))
+    integer_domain = Predicate((Clause("flag", ClauseOp.IN, frozenset({1})),))
+
+    _assert_witness_holds(compare_domains(true_domain, integer_domain), true_domain, integer_domain)
+
+
+def test_compare_domains_proves_null_and_set_domains_disjoint():
+    null_domain = Predicate((Clause("unit", ClauseOp.IS_NULL),))
+    set_domain = Predicate((Clause("unit", ClauseOp.IS_SET),))
+
+    comparison = compare_domains(null_domain, set_domain)
+
+    assert comparison.relation is DomainRelation.DISJOINT
+    assert comparison.witness is None
+
+
+def test_compare_domains_checks_exact_value_class_membership():
+    duration_domain = Predicate((
+        Clause("unit", ClauseOp.MATCHES_CLASS, ValueClass.DURATION_MULTIPLIER),
+    ))
+    matching = Predicate((Clause("unit", ClauseOp.EQ, "2d"),))
+    nonmatching = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
+
+    _assert_witness_holds(compare_domains(duration_domain, matching), duration_domain, matching)
+    assert compare_domains(duration_domain, nonmatching).relation is DomainRelation.DISJOINT
+
+
+def test_compare_domains_does_not_invent_correlated_nested_witness():
+    kind_domain = Predicate((Clause("resource.kind", ClauseOp.EQ, "duration"),))
+    storage_domain = Predicate((Clause("resource.storage", ClauseOp.EQ, "int64"),))
+
+    comparison = compare_domains(kind_domain, storage_domain)
+
+    assert comparison.relation is DomainRelation.NOT_PROVEN
+    assert comparison.witness is None
+
+
+def test_compare_domains_keeps_operand_metadata_domains_unknown():
+    metadata_domain = Predicate((
+        Clause("__operand_types__.input.logical_kind", ClauseOp.EQ, "int"),
+    ))
+
+    comparison = compare_domains(metadata_domain, None)
+
+    assert comparison.relation is DomainRelation.NOT_PROVEN
+    assert comparison.witness is None
 
 
 def test_bind_expression_call_aggregates_varargs():

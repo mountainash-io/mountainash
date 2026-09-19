@@ -3,6 +3,8 @@
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from polars.exceptions import SchemaError
+from fixtures.call_expectations import expect_call_failure
 
 
 T_TRUE = 1
@@ -24,14 +26,19 @@ class TestComposeTernary:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("score").t_gt(ma.col("threshold").fill_null(0))
-        actual = select_and_extract(df, expr.compile(df, booleanizer=None), "result", backend_name)
+        with expect_call_failure(
+            when=backend_name in ('polars', 'polars-lazy') or backend_name in ('pandas', 'narwhals-pandas'),
+            reason=('The null-safe ternary composition raises on the marked provider.' if backend_name in ('polars', 'polars-lazy') else 'The null-safe ternary composition raises on the marked provider.'),
+            errors=((SchemaError,) if backend_name in ('polars', 'polars-lazy') else (TypeError,)),
+        ):
+            actual = select_and_extract(df, expr.compile(df, booleanizer=None), "result", backend_name)
 
-        # Row 0: 80 > 70 -> TRUE (1)
-        # Row 1: NULL > 50 -> UNKNOWN (0)
-        # Row 2: 60 > 0 (filled) -> TRUE (1)
-        assert actual[0] == T_TRUE, f"[{backend_name}] Row 0: {actual[0]}"
-        assert actual[1] == T_UNKNOWN, f"[{backend_name}] Row 1: {actual[1]}"
-        assert actual[2] == T_TRUE, f"[{backend_name}] Row 2: {actual[2]}"
+            # Row 0: 80 > 70 -> TRUE (1)
+            # Row 1: NULL > 50 -> UNKNOWN (0)
+            # Row 2: 60 > 0 (filled) -> TRUE (1)
+            assert actual[0] == T_TRUE, f"[{backend_name}] Row 0: {actual[0]}"
+            assert actual[1] == T_UNKNOWN, f"[{backend_name}] Row 1: {actual[1]}"
+            assert actual[2] == T_TRUE, f"[{backend_name}] Row 2: {actual[2]}"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_ternary_logical_chain(self, backend_name, backend_factory, select_and_extract):

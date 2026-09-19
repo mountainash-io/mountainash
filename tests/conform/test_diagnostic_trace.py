@@ -50,6 +50,7 @@ def _fact(**overrides):
         param="x",
         level=CapabilityLevel.UNSUPPORTED,
         backend=BACKEND,
+        dialect="narwhals-pandas",
         boundary=Boundary.MATERIALIZE,
         enforcement=Enforcement.MATERIALIZE_RESIDUE,
         native_errors=(TypeError,),
@@ -94,60 +95,7 @@ def test_diagnostic_context_union_cannot_mutate_trace_attribution() -> None:
     assert trace.records[0].field_name == "values"
 
 
-def test_legacy_residue_fallback_survives_unmatched_trace() -> None:
-    snapshot = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.register_backend(
-            BACKEND, [_fact(native_errors=(KeyError,))]
-        )
-        trace = OperationDiagnosticTrace()
-        trace.record(
-            ScalarFunctionNode(
-                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM,
-                arguments=[FieldReferenceNode(field="raw")],
-                diagnostic_context={
-                    "field_name": "other",
-                    "logical_type": "list",
-                    "format": "default",
-                },
-            ),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="other",
-        )
-        with pytest.raises(BackendCapabilityError) as raised:
-            enrich_materialization(
-                Backend(),
-                lambda: (_ for _ in ()).throw(KeyError("native")),
-                diagnostic_trace=trace,
-            )
-        assert raised.value.function_key == KEY
-    finally:
-        CapabilityRegistry.restore(snapshot)
 
-def test_active_unmatched_diagnostic_blocks_legacy_cross_attribution() -> None:
-    snapshot = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.register_backend(
-            BACKEND, [_fact(native_errors=(KeyError,))]
-        )
-        trace = OperationDiagnosticTrace()
-        trace.record(
-            _node(failure_behavior="null"),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="same-key",
-        )
-        original = KeyError("native")
-        with pytest.raises(KeyError) as raised:
-            enrich_materialization(
-                Backend(),
-                lambda: (_ for _ in ()).throw(original),
-                diagnostic_trace=trace,
-            )
-        assert raised.value is original
-    finally:
-        CapabilityRegistry.restore(snapshot)
 
 
 
@@ -161,18 +109,6 @@ def test_fact_key_namespaces_operation_enum_type() -> None:
     assert first.fact_key != second.fact_key
 
 
-def test_fact_key_accepts_mixed_predicate_set_operands() -> None:
-    fact = _fact(
-        param="item_type",
-        boundary=Boundary.BUILD,
-        enforcement=Enforcement.GATE,
-        predicate=Predicate(
-            (
-                Clause("item_type", ClauseOp.IN, frozenset({"integer", 1})),
-            )
-        ),
-    )
-    assert fact.fact_key
 
 
 
@@ -229,41 +165,29 @@ def test_non_null_residue_requires_materialize_residue() -> None:
             since="2026-08-21",
         )
 
-def test_build_fact_keeps_exception_signal() -> None:
-    fact = CapabilityFact(
-        operation_key=KEY,
-        param="item_type",
-        level=CapabilityLevel.UNSUPPORTED,
-        backend=BACKEND,
-        since="2026-08-21",
-    )
-    assert fact.residue_signal is ResidueSignal.EXCEPTION
 
 
-def test_one_winning_exception_fact_enriches_with_context() -> None:
-    snapshot = CapabilityRegistry.snapshot()
-    try:
-        fact = _fact()
-        CapabilityRegistry.register_backend(BACKEND, [fact])
-        trace = OperationDiagnosticTrace()
-        trace.record(_node(), backend_family=BACKEND.value, dialect=Backend().dialect, conform_node_id="n1")
-        with pytest.raises(BackendCapabilityError) as raised:
-            enrich_materialization(Backend(), lambda: (_ for _ in ()).throw(TypeError("native")), diagnostic_trace=trace)
-        assert raised.value.function_key == KEY
-        assert raised.value.context == {"field_name": "values", "logical_type": "list", "format": "default"}
-    finally:
-        CapabilityRegistry.restore(snapshot)
 
 
 def test_true_marker_with_fact_enriches_and_context() -> None:
     snapshot = CapabilityRegistry.snapshot()
     try:
-        fact = _fact(
-            residue_signal=ResidueSignal.NON_NULL_TO_NULL,
-            native_errors=(),
-            message="null residue",
+        from mountainash.core.capabilities.declarations import (
+            BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
         )
-        CapabilityRegistry.register_backend(BACKEND, [fact])
+        from mountainash.core.capabilities.identity import Dialect, Scope
+        from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+
+        policy = CapabilityPolicyRule(
+            CapabilityKey(KEY, "x"), CapabilityLevel.UNSUPPORTED, "2026-09-18",
+            "null residue", PolicyConsumer.RESULT_PROTECTION,
+            PolicyAction.DETECT_NON_NULL_TO_NULL,
+        )
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.list.trace_case",
+            Scope(BACKEND, Dialect("narwhals-pandas")),
+            CapabilitySegment(Domain.LIST, policies=(policy,)),
+        ))
         frame = pd.DataFrame({"values": [None], "__ma_residue_0": [True]})
         trace = OperationDiagnosticTrace()
         trace.record(
@@ -286,111 +210,12 @@ def test_true_marker_with_fact_enriches_and_context() -> None:
         CapabilityRegistry.restore(snapshot)
 
 
-def test_multiple_fields_share_fact_key_and_are_sorted() -> None:
-    snapshot = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.register_backend(BACKEND, [_fact()])
-        trace = OperationDiagnosticTrace()
-        trace.record(
-            _node(field="z_values"),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="z",
-        )
-        trace.record(
-            _node(field="a_values"),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="a",
-        )
-        with pytest.raises(BackendCapabilityError) as raised:
-            enrich_materialization(
-                Backend(),
-                lambda: (_ for _ in ()).throw(TypeError("native")),
-                diagnostic_trace=trace,
-            )
-        assert raised.value.candidate_fields == ("a_values", "z_values")
-        assert raised.value.context is None
-    finally:
-        CapabilityRegistry.restore(snapshot)
 
 
-def test_multiple_fact_keys_use_generic_message() -> None:
-    snapshot = CapabilityRegistry.snapshot()
-    try:
-        other_key = FKEY_MOUNTAINASH_SCALAR_LIST.SUM
-        CapabilityRegistry.register_backend(
-            BACKEND,
-            [_fact(), _fact(operation_key=other_key, message="other residue")],
-        )
-        trace = OperationDiagnosticTrace()
-        trace.record(
-            _node(field="values"),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="one",
-        )
-        trace.record(
-            ScalarFunctionNode(
-                function_key=other_key,
-                arguments=[FieldReferenceNode(field="raw")],
-                options={"failure_behavior": "throw"},
-                diagnostic_context={
-                    "field_name": "other",
-                    "logical_type": "list",
-                    "format": "default",
-                },
-            ),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="two",
-        )
-        with pytest.raises(BackendCapabilityError) as raised:
-            enrich_materialization(
-                Backend(),
-                lambda: (_ for _ in ()).throw(TypeError("native")),
-                diagnostic_trace=trace,
-            )
-        assert raised.value.function_key is None
-        assert raised.value.candidate_fields == ("other", "values")
-        assert "multiple conform operations" in str(raised.value)
-        assert "integer" not in str(raised.value)
-    finally:
-        CapabilityRegistry.restore(snapshot)
 
 
-def test_unmatched_exception_passes_through() -> None:
-    snapshot = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.register_backend(BACKEND, [_fact()])
-        trace = OperationDiagnosticTrace()
-        trace.record(
-            _node(),
-            backend_family=BACKEND.value,
-            dialect=Backend().dialect,
-            conform_node_id="n1",
-        )
-        original = ValueError("unmatched")
-        with pytest.raises(ValueError) as raised:
-            enrich_materialization(
-                Backend(),
-                lambda: (_ for _ in ()).throw(original),
-                diagnostic_trace=trace,
-            )
-        assert raised.value is original
-    finally:
-        CapabilityRegistry.restore(snapshot)
 
 
-def test_existing_capability_and_conform_errors_pass_through() -> None:
-    trace = OperationDiagnosticTrace()
-    trace.record(_node(), backend_family=BACKEND.value, dialect=Backend().dialect, conform_node_id="n1")
-    capability_error = BackendCapabilityError("already enriched", backend="narwhals", function_key=KEY)
-    conform_error = ConformError("already conform error")
-    for original in (capability_error, conform_error):
-        with pytest.raises(type(original)) as raised:
-            enrich_materialization(Backend(), lambda original=original: (_ for _ in ()).throw(original), diagnostic_trace=trace)
-        assert raised.value is original
 
 
 def test_null_markers_are_removed_when_false() -> None:

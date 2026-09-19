@@ -5,6 +5,7 @@ The spec's BackendFamily is realized as the existing CONST_BACKEND enum
 constrains facts to these names; runtime detection may compute names
 outside it (e.g. narwhals-pyarrow), which simply never match a fact.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,9 +22,7 @@ class BackendIdentity:
 KNOWN_DIALECTS: dict[CONST_BACKEND, frozenset[str]] = {
     CONST_BACKEND.POLARS: frozenset({"polars"}),
     CONST_BACKEND.IBIS: frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
-    CONST_BACKEND.NARWHALS: frozenset(
-        {"narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
-    ),
+    CONST_BACKEND.NARWHALS: frozenset({"narwhals-polars", "narwhals-pandas", "narwhals-lazy"}),
     CONST_BACKEND.PANDAS: frozenset({"pandas"}),
     CONST_BACKEND.PYARROW: frozenset({"pyarrow"}),
 }
@@ -60,9 +59,7 @@ class Scope:
             raise TypeError("scope applicability must be FamilyWide or Dialect")
         if isinstance(self.applicability, Dialect):
             if self.applicability.name not in KNOWN_DIALECTS[self.backend]:
-                raise ValueError(
-                    f"unknown {self.backend.value} dialect {self.applicability.name!r}"
-                )
+                raise ValueError(f"unknown {self.backend.value} dialect {self.applicability.name!r}")
 
     @property
     def dialect(self) -> str | None:

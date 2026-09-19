@@ -1,7 +1,7 @@
-"""Local capability assertions and physical segment authoring contracts.
+"""Local capability records and physical segment authoring contracts.
 
 Leaves export SEGMENT without registration side effects. BoundSegment validates
-the enclosing scope, namespace and domain, then qualifies runtime facts once.
+the enclosing scope, namespace and domain.
 """
 
 from __future__ import annotations
@@ -11,20 +11,16 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from mountainash.core.capabilities.capture import CapturedAddress, SourceOrigin, require_immutable
-from mountainash.core.capabilities.schema import (
-    CaptureValue,
-    DivergenceKind,
-    Scenario,
-    Target,
-    _UPSTREAM_REF_RE,
-    _validate_external_target_scope,
-    target_home,
-)
+from mountainash.core.capabilities.schema import CaptureValue, _UPSTREAM_REF_RE
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
     Enforcement,
+    InformationKind,
+    InformationLayer,
+    PolicyAction,
+    PolicyConsumer,
     Predicate,
     ResidueSignal,
     ValueClass,
@@ -197,68 +193,152 @@ class QualifiedCapabilityKey:
 
 
 @dataclass(frozen=True)
-class QualifiedManifestationKey:
+class QualifiedInformationKey:
     scope: Scope
-    local: ManifestationKey
+    local: CapabilityKey
+    layer: InformationLayer
 
     def __post_init__(self) -> None:
         from mountainash.core.capabilities.identity import Scope
 
-        if type(self.scope) is not Scope or type(self.local) is not ManifestationKey:
-            raise TypeError("qualified key requires Scope and ManifestationKey")
-        _validate_external_target_scope(self.local.target, self.scope)
+        if type(self.scope) is not Scope or type(self.local) is not CapabilityKey:
+            raise TypeError("qualified information key requires Scope and CapabilityKey")
+        if type(self.layer) is not InformationLayer:
+            raise TypeError("qualified information key requires InformationLayer")
 
 
 @dataclass(frozen=True)
-class QualifiedManifestation:
-    key: QualifiedManifestationKey
-    assertion: DivergenceManifestation
-    origins: tuple[SourceOrigin, ...]
+class CapabilityInformation:
+    """Immutable descriptive information; it has no executable consumer."""
+
+    key: CapabilityKey
+    layer: InformationLayer
+    level: CapabilityLevel
+    since: str
+    message: str
+    workaround: str | None = None
+    issue: str | None = None
+    kinds: frozenset[InformationKind] = frozenset()
 
     def __post_init__(self) -> None:
-        if type(self.key) is not QualifiedManifestationKey:
-            raise TypeError("qualified manifestation requires a qualified key")
-        if type(self.assertion) is not DivergenceManifestation:
-            raise TypeError("qualified manifestation requires a divergence manifestation")
-        if self.key.local != self.assertion.key:
-            raise ValueError("qualified manifestation key disagrees with assertion")
-        if type(self.origins) is not tuple or not self.origins:
-            raise ValueError("qualified manifestation requires nonempty immutable origins")
-        if any(type(origin) is not SourceOrigin for origin in self.origins):
-            raise TypeError("qualified manifestation origins require source origins")
+        if type(self.key) is not CapabilityKey:
+            raise TypeError("information key requires CapabilityKey")
+        if type(self.layer) is not InformationLayer or type(self.level) is not CapabilityLevel:
+            raise TypeError("information requires InformationLayer and CapabilityLevel")
+        if type(self.kinds) is not frozenset or any(type(kind) is not InformationKind for kind in self.kinds):
+            raise TypeError("information kinds requires a frozenset of InformationKind")
+        if type(self.message) is not str or not self.message:
+            raise ValueError("information requires a descriptive message")
+        if self.workaround is not None and type(self.workaround) is not str:
+            raise TypeError("information workaround requires text or None")
+        _validate_since(self.since, "CapabilityInformation")
+        _validate_issue_reference(self.issue)
         require_immutable(self)
 
 
 @dataclass(frozen=True)
-class CapabilityAssertion:
+class QualifiedInformation:
+    key: QualifiedInformationKey
+    assertion: CapabilityInformation
+    origins: tuple[SourceOrigin, ...]
+
+    def __post_init__(self) -> None:
+        if type(self.key) is not QualifiedInformationKey:
+            raise TypeError("qualified information requires a qualified information key")
+        if type(self.assertion) is not CapabilityInformation:
+            raise TypeError("qualified information requires CapabilityInformation")
+        if self.key.local != self.assertion.key or self.key.layer is not self.assertion.layer:
+            raise ValueError("qualified information key disagrees with information")
+        if type(self.origins) is not tuple or not self.origins:
+            raise ValueError("qualified information requires nonempty immutable origins")
+        if any(type(origin) is not SourceOrigin for origin in self.origins):
+            raise TypeError("qualified information origins require source origins")
+        require_immutable(self)
+
+
+@dataclass(frozen=True)
+class CapabilityPolicyRule:
+    """Executable policy with an explicit consumer and action."""
+
     key: CapabilityKey
     level: CapabilityLevel
     since: str
-    message: str = ""
-    workaround: str | None = None
-    issue: str | None = None
-    boundary: Boundary = Boundary.BUILD
+    message: str
+    consumer: PolicyConsumer
+    action: PolicyAction
     native_errors: tuple[type[Exception], ...] = ()
-    condition: str | None = None
-    probe_exempt: str | None = None
-    enforcement: Enforcement = Enforcement.GATE
-    signal: ResidueSignal = ResidueSignal.EXCEPTION
+    native_issue: str | None = None
+    information: QualifiedInformationKey | None = None
 
     def __post_init__(self) -> None:
-        if type(self.key) is not CapabilityKey:
-            raise TypeError("assertion key requires CapabilityKey")
-        _validate_since(self.since, "CapabilityAssertion")
-        _validate_issue_reference(self.issue)
+        if type(self.key) is not CapabilityKey or type(self.level) is not CapabilityLevel:
+            raise TypeError("policy requires CapabilityKey and CapabilityLevel")
+        if type(self.message) is not str or not self.message:
+            raise ValueError("policy requires an intrinsic reason")
+        if type(self.consumer) is not PolicyConsumer or type(self.action) is not PolicyAction:
+            raise TypeError("policy requires explicit PolicyConsumer and PolicyAction")
+        if type(self.native_errors) is not tuple or any(
+            not isinstance(error, type) or not issubclass(error, Exception) for error in self.native_errors
+        ):
+            raise TypeError("policy native_errors requires exception classes")
+        if self.native_issue is not None and (type(self.native_issue) is not str or not self.native_issue.strip()):
+            raise ValueError("policy native_issue requires a nonempty code-owned identity")
+        if self.information is not None and type(self.information) is not QualifiedInformationKey:
+            raise TypeError("policy information requires QualifiedInformationKey or None")
+        _validate_since(self.since, "CapabilityPolicyRule")
+        if self.consumer is PolicyConsumer.GATE:
+            if (
+                self.action not in (PolicyAction.BLOCK, PolicyAction.PERMIT)
+                or self.native_errors
+                or self.native_issue is not None
+            ):
+                raise ValueError("gate policy requires BLOCK/PERMIT without native error identity")
+            blocking_level = self.level in (CapabilityLevel.UNSUPPORTED, CapabilityLevel.LITERAL_ONLY)
+            if (self.action is PolicyAction.BLOCK) != blocking_level:
+                raise ValueError(
+                    "gate BLOCK requires UNSUPPORTED or LITERAL_ONLY; PERMIT requires a non-blocking level"
+                )
+            if self.level is CapabilityLevel.LITERAL_ONLY and (
+                self.key.subject == "*" or self.key.selector.kind != "unconditioned"
+            ):
+                raise ValueError("literal-only protection requires an unconditioned argument key")
+        elif self.consumer in (PolicyConsumer.IMMEDIATE_ERROR, PolicyConsumer.MATERIALIZATION_ERROR):
+            if self.action is not PolicyAction.ENRICH or not self.native_errors or self.native_issue is None:
+                raise ValueError("error policy requires ENRICH, native exception classes and native_issue")
+        elif self.consumer is PolicyConsumer.RESULT_PROTECTION:
+            if (
+                self.action is not PolicyAction.DETECT_NON_NULL_TO_NULL
+                or self.native_errors
+                or self.native_issue is not None
+            ):
+                raise ValueError(
+                    "result-protection policy requires DETECT_NON_NULL_TO_NULL without native error identity"
+                )
         require_immutable(self)
 
     def qualify(self, scope: Scope) -> CapabilityFact:
         from mountainash.core.capabilities.identity import Scope
-        from mountainash.core.capabilities.registry import _validate_fact, _validate_payload
 
         if type(scope) is not Scope:
-            raise TypeError("qualification requires Scope")
+            raise TypeError("policy qualification requires Scope")
+        if scope.dialect is None:
+            raise ValueError("policy requires a concrete dialect scope")
+        if self.consumer is PolicyConsumer.GATE:
+            enforcement, boundary, signal = Enforcement.GATE, Boundary.BUILD, ResidueSignal.EXCEPTION
+        elif self.consumer in (PolicyConsumer.IMMEDIATE_ERROR, PolicyConsumer.MATERIALIZATION_ERROR):
+            enforcement, boundary, signal = (
+                Enforcement.MATERIALIZE_RESIDUE,
+                Boundary.MATERIALIZE,
+                ResidueSignal.EXCEPTION,
+            )
+        else:
+            enforcement, boundary, signal = (
+                Enforcement.MATERIALIZE_RESIDUE,
+                Boundary.MATERIALIZE,
+                ResidueSignal.NON_NULL_TO_NULL,
+            )
         selector = self.key.selector
-        fact = CapabilityFact(
+        return CapabilityFact(
             operation_key=self.key.operation,
             param=self.key.subject,
             backend=scope.backend,
@@ -266,146 +346,48 @@ class CapabilityAssertion:
             level=self.level,
             since=self.since,
             message=self.message,
-            workaround=self.workaround,
-            upstream_ref=self.issue,
-            boundary=self.boundary,
+            boundary=boundary,
             native_errors=self.native_errors,
-            condition=self.condition,
-            probe_exempt=self.probe_exempt,
-            enforcement=self.enforcement,
-            residue_signal=self.signal,
+            enforcement=enforcement,
+            residue_signal=signal,
+            consumer=self.consumer,
+            action=self.action,
+            native_issue=self.native_issue,
             option_value=selector.value if type(selector.value) is str else None,
             value_class=selector.value if type(selector.value) is ValueClass else None,
             predicate=selector.value if type(selector.value) is Predicate else None,
         )
-        _validate_payload(fact)
-        _validate_fact(scope.backend, fact)
-        return fact
-
-
-def _protocol_options(method) -> frozenset[str]:
-    """Return metadata-owned options for a protocol method, if any."""
-    from mountainash.expressions.core.expression_system.function_mapping.registry import (
-        ExpressionFunctionRegistry,
-    )
-    from mountainash.relations.core.relation_system.relation_mapping.registry import (
-        RelationOperationRegistry,
-    )
-
-    option_sets: set[frozenset[str]] = set()
-    registries: tuple[type[ExpressionFunctionRegistry] | type[RelationOperationRegistry], ...] = (
-        ExpressionFunctionRegistry,
-        RelationOperationRegistry,
-    )
-    for registry in registries:
-        for operation in registry.list_all():
-            definition = registry.get(operation)
-            if definition.protocol_method is method:
-                option_sets.add(frozenset(definition.options))
-    if len(option_sets) > 1:
-        raise ValueError("scenario options require unambiguous operation metadata")
-    return next(iter(option_sets), frozenset())
-
-
-def _scenario_authority(target: Target):
-    """Resolve a scenario signature from the target's captured authority."""
-    import inspect
-
-    from mountainash.core.capabilities.registry import _definition_for
-    from mountainash.core.capabilities.schema import (
-        ExternalEntrypointTarget,
-        OperationTarget,
-        ProtocolMethodTarget,
-        _EXTERNAL_TABLE_OPTIONS,
-        _EXTERNAL_TABLE_SIGNATURE,
-        _target_callable,
-    )
-
-    if type(target) is ExternalEntrypointTarget:
-        return _EXTERNAL_TABLE_SIGNATURE.parameters, _EXTERNAL_TABLE_OPTIONS
-    if type(target) is OperationTarget:
-        definition = _definition_for(target.operation)[1]
-        method = definition.protocol_method
-        options = frozenset(definition.options)
-    else:
-        method = _target_callable(target)
-        options = _protocol_options(method) if type(target) is ProtocolMethodTarget else frozenset()
-    if method is None:
-        raise ValueError("scenario parameters require a resolved protocol signature")
-    parameters = {
-        name: parameter
-        for name, parameter in inspect.signature(method).parameters.items()
-        if name not in {"self", "cls"}
-    }
-    if not options.issubset(parameters):
-        raise ValueError("operation option metadata disagrees with its protocol signature")
-    return parameters, options
 
 
 @dataclass(frozen=True)
-class ManifestationKey:
-    target: Target
-    scenario: Scenario
+class QualifiedPolicy:
+    key: QualifiedCapabilityKey
+    assertion: CapabilityPolicyRule
+    origins: tuple[SourceOrigin, ...]
 
     def __post_init__(self) -> None:
-        target_home(self.target)
-        if type(self.scenario) is not Scenario:
-            raise TypeError("manifestation scenario requires Scenario")
-        if not self.scenario.arguments and not self.scenario.options:
-            return
-        import inspect
-
-        parameters, options = _scenario_authority(self.target)
-        supplied = set()
-        for channel, fields in (
-            ("argument", self.scenario.arguments),
-            ("option", self.scenario.options),
-        ):
-            for name, value in fields:
-                parameter = parameters.get(name)
-                if parameter is None:
-                    raise ValueError(f"unknown scenario parameter {name!r}")
-                if name in supplied:
-                    raise ValueError(f"scenario parameter {name!r} occurs in both channels")
-                supplied.add(name)
-                if channel == "argument" and name in options:
-                    raise ValueError(f"scenario option {name!r} must use the options channel")
-                if channel == "option" and name not in options:
-                    raise ValueError(f"scenario argument {name!r} must not use the options channel")
-                if parameter.kind is inspect.Parameter.VAR_POSITIONAL and value.tag != "sequence":
-                    raise ValueError(f"varargs scenario parameter {name!r} requires a sequence")
-                if parameter.kind is inspect.Parameter.VAR_KEYWORD and value.tag != "mapping":
-                    raise ValueError(f"keyword scenario parameter {name!r} requires a mapping")
-
-
-@dataclass(frozen=True)
-class DivergenceManifestation:
-    key: ManifestationKey
-    kind: DivergenceKind
-    expected: CaptureValue
-    observed: CaptureValue
-    impact: str
-    since: str
-    workaround: str | None = None
-    issue: str | None = None
-
-    def __post_init__(self) -> None:
-        if type(self.key) is not ManifestationKey or type(self.kind) is not DivergenceKind:
-            raise TypeError("manifestation requires a typed key and divergence kind")
-        if type(self.expected) is not CaptureValue or type(self.observed) is not CaptureValue:
-            raise TypeError("manifestation outcomes require structured captured values")
-        if type(self.impact) is not str or not self.impact:
-            raise ValueError("manifestation requires an impact")
-        _validate_since(self.since, "DivergenceManifestation")
-        _validate_issue_reference(self.issue)
+        if type(self.key) is not QualifiedCapabilityKey:
+            raise TypeError("qualified policy requires a qualified capability key")
+        if type(self.assertion) is not CapabilityPolicyRule:
+            raise TypeError("qualified policy requires CapabilityPolicyRule")
+        if self.key.local != self.assertion.key:
+            raise ValueError("qualified policy key disagrees with policy")
+        if type(self.origins) is not tuple or not self.origins:
+            raise ValueError("qualified policy requires nonempty immutable origins")
+        if any(type(origin) is not SourceOrigin for origin in self.origins):
+            raise TypeError("qualified policy origins require source origins")
         require_immutable(self)
+
+    @property
+    def native_issue(self) -> str | None:
+        return self.assertion.native_issue
 
 
 @dataclass(frozen=True)
 class CapabilitySegment:
     domain: Domain
-    capabilities: tuple[CapabilityAssertion, ...] = ()
-    manifestations: tuple[DivergenceManifestation, ...] = ()
+    information: tuple[CapabilityInformation, ...] = ()
+    policies: tuple[CapabilityPolicyRule, ...] = ()
     changes: tuple[AssertionChange, ...] = ()
 
     def __post_init__(self) -> None:
@@ -413,35 +395,34 @@ class CapabilitySegment:
 
         if type(self.domain) is not Domain:
             raise TypeError("segment domain requires Domain")
-        for name in ("capabilities", "manifestations", "changes"):
+        for name in ("information", "policies", "changes"):
             if type(getattr(self, name)) is not tuple:
                 raise TypeError(f"segment {name} requires an immutable tuple")
-        keys: dict[CapabilityKey, int] = {}
-        for ordinal, assertion in enumerate(self.capabilities):
-            if type(assertion) is not CapabilityAssertion:
-                raise TypeError("segment capabilities require local assertions")
-            if classify_domain(assertion.key.operation) is not self.domain:
-                raise ValueError(f"segment domain disagrees with {assertion.key.operation}")
-            if assertion.key in keys:
+        information_keys: dict[tuple[CapabilityKey, InformationLayer], int] = {}
+        for ordinal, information in enumerate(self.information):
+            if type(information) is not CapabilityInformation:
+                raise TypeError("segment information requires local information")
+            if classify_domain(information.key.operation) is not self.domain:
+                raise ValueError(f"segment domain disagrees with {information.key.operation}")
+            key = information.key, information.layer
+            if key in information_keys:
                 raise ValueError(
-                    f"duplicate capability key {assertion.key!r}: "
-                    f"capabilities[{keys[assertion.key]}], capabilities[{ordinal}]"
+                    f"duplicate information key {key!r}: information[{information_keys[key]}], information[{ordinal}]"
                 )
-            keys[assertion.key] = ordinal
+            information_keys[key] = ordinal
+        policy_keys: dict[CapabilityKey, int] = {}
+        for ordinal, policy in enumerate(self.policies):
+            if type(policy) is not CapabilityPolicyRule:
+                raise TypeError("segment policies require explicit policy rules")
+            if classify_domain(policy.key.operation) is not self.domain:
+                raise ValueError(f"segment domain disagrees with {policy.key.operation}")
+            if policy.key in policy_keys:
+                raise ValueError(
+                    f"duplicate policy key {policy.key!r}: policies[{policy_keys[policy.key]}], policies[{ordinal}]"
+                )
+            policy_keys[policy.key] = ordinal
         if any(type(change) is not AssertionChange for change in self.changes):
             raise TypeError("segment changes require AssertionChange records")
-        manifestation_keys: dict[ManifestationKey, int] = {}
-        for ordinal, manifestation in enumerate(self.manifestations):
-            if type(manifestation) is not DivergenceManifestation:
-                raise TypeError("segment manifestations require local typed records")
-            if target_home(manifestation.key.target)[2] is not self.domain:
-                raise ValueError("manifestation home disagrees with segment domain")
-            if manifestation.key in manifestation_keys:
-                raise ValueError(
-                    f"duplicate manifestation key: manifestations[{manifestation_keys[manifestation.key]}], "
-                    f"manifestations[{ordinal}]"
-                )
-            manifestation_keys[manifestation.key] = ordinal
         require_immutable(self)
 
 
@@ -451,7 +432,6 @@ class BoundSegment:
     scope: Scope
     segment: CapabilitySegment
     source_capture: CapturedAddress | None = None
-    facts: tuple[CapabilityFact, ...] = field(init=False)
 
     def __post_init__(self) -> None:
         from mountainash.core.capabilities.identity import Scope
@@ -485,19 +465,20 @@ class BoundSegment:
             raise ValueError("segment module has unknown source namespace")
         if parts[source_index + 1] != self.segment.domain.value:
             raise ValueError("physical domain disagrees with segment domain")
-        for assertion in self.segment.capabilities:
-            if classify_source(assertion.key.operation) is not self.source:
-                raise ValueError("physical source disagrees with assertion source")
-            root = "relations" if type(assertion.key.operation).__name__.startswith("RKEY_") else "expressions"
+        for information in self.segment.information:
+            if classify_source(information.key.operation) is not self.source:
+                raise ValueError("physical source disagrees with information source")
+            root = "relations" if type(information.key.operation).__name__.startswith("RKEY_") else "expressions"
             if root != parts[1]:
-                raise ValueError("physical root disagrees with assertion operation")
-        for manifestation in self.segment.manifestations:
-            if target_home(manifestation.key.target) != (parts[1], self.source, self.segment.domain):
-                raise ValueError("manifestation home disagrees with physical segment")
-            _validate_external_target_scope(manifestation.key.target, self.scope)
-        object.__setattr__(
-            self, "facts", tuple(assertion.qualify(self.scope) for assertion in self.segment.capabilities)
-        )
+                raise ValueError("physical root disagrees with information operation")
+        for policy in self.segment.policies:
+            if self.scope.dialect is None:
+                raise ValueError("policy requires a concrete dialect scope")
+            if classify_source(policy.key.operation) is not self.source:
+                raise ValueError("physical source disagrees with policy source")
+            root = "relations" if type(policy.key.operation).__name__.startswith("RKEY_") else "expressions"
+            if root != parts[1]:
+                raise ValueError("physical root disagrees with policy operation")
 
     @property
     def source(self) -> FactSource:

@@ -38,7 +38,7 @@ class MountainAshNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSys
             if self.dialect == "narwhals-pandas":
                 from mountainash.core.lazy_imports import import_pandas
 
-                return self._pandas_nullable_expression(
+                return self._pandas_typed_expression(
                     result, import_pandas().BooleanDtype()
                 )
             return result
@@ -52,8 +52,8 @@ class MountainAshNarwhalsScalarBooleanExpressionSystem(NarwhalsBaseExpressionSys
             from mountainash.core.lazy_imports import import_pandas
 
             pandas = import_pandas()
-            result = self._pandas_nullable_expression(mapped, pandas.Int8Dtype())
-            return self._pandas_nullable_expression(
+            result = self._pandas_typed_expression(mapped, pandas.Int8Dtype())
+            return self._pandas_typed_expression(
                 result, pandas.BooleanDtype()
             )
         return mapped.cast(nw.Int8).cast(nw.Boolean)

@@ -6,17 +6,17 @@ from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
 
 
-from mountainash.core.capabilities.declarations import CapabilityAssertion
+from mountainash.core.capabilities.declarations import CapabilityInformation
 from mountainash.core.capabilities.schema import ValueClass
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.DATETIME,
-    capabilities=(
-        CapabilityAssertion(
+    information=(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -25,8 +25,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -35,8 +36,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -45,8 +47,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -55,8 +58,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -65,8 +69,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -75,8 +80,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="component",
@@ -85,8 +91,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
                 subject="component",
@@ -95,8 +102,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
                 subject="failure_behavior",
@@ -105,8 +113,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-21",
             message="null-on-invalid custom temporal parsing is supported only by Polars",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
                 subject="failure_behavior",
@@ -115,8 +124,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-21",
             message="null-on-invalid custom temporal parsing is supported only by Polars",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
                 subject="timezone",
@@ -125,8 +135,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-25",
             message="assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP,
                 subject="timezone",
@@ -135,8 +146,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-29",
             message="local_timestamp returns the UTC wall clock, not the target-zone wall clock -- ibis has no timezone method and the naive re-cast discards the conversion (verified 2026-07-29, ibis 12.0.0/duckdb: 12:00 instead of 17:30 for Asia/Kolkata)",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
                 subject="timezone",
@@ -145,8 +157,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
                 subject="timezone",
@@ -155,8 +168,9 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py",
+            layer=InformationLayer.NATIVE,
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
                 subject="timezone",
@@ -165,6 +179,7 @@ SEGMENT = CapabilitySegment(
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-15",
             message="ibis has no timezone primitives; extract/extract_boolean's timezone option is silently ignored (the local component is read from the stored value, not the target zone) -- see capabilities/datetime/extract.py",
+            layer=InformationLayer.NATIVE,
         ),
     ),
 )

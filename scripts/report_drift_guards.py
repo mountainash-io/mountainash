@@ -20,11 +20,6 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 TESTS_DIR = PROJECT_ROOT / "tests"
 ARG_TYPES_DIR = TESTS_DIR / "expressions" / "argument_types"
 PROTOCOL_ALIGNMENT_FILE = TESTS_DIR / "core" / "test_protocol_alignment.py"
-BACKEND_BASE_FILES = {
-    "polars": PROJECT_ROOT / "src/mountainash/expressions/backends/expression_systems/polars/base.py",
-    "narwhals": PROJECT_ROOT / "src/mountainash/expressions/backends/expression_systems/narwhals/base.py",
-    "ibis": PROJECT_ROOT / "src/mountainash/expressions/backends/expression_systems/ibis/base.py",
-}
 
 
 def git_sha() -> str:
@@ -113,125 +108,45 @@ class KelGap:
     est_cases: int
 
 
-def _attr_to_op_name(node: ast.expr) -> str:
-    """FK_STR.REPLACE → 'replace', 'substring' → 'substring'."""
-    if isinstance(node, ast.Attribute):
-        return node.attr.lower()
-    if isinstance(node, ast.Constant):
-        return str(node.value)
-    return repr(node)
-
-
-def _extract_message_from_kel_call(val: ast.expr) -> str:
-    """Extract message= from a KnownLimitation(...) call node."""
-    if not isinstance(val, ast.Call):
-        return ""
-    for kw in val.keywords:
-        if kw.arg == "message" and isinstance(kw.value, ast.Constant):
-            return str(kw.value.value)
-    return ""
-
-
-def _parse_kel_from_class_body(source: str, backend: str, est_cases: int) -> list[KelGap]:
-    tree = ast.parse(source)
-    gaps: list[KelGap] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.ClassDef):
-            continue
-
-        # Build a map of class-level variable name → message for Name-reference values
-        class_var_messages: dict[str, str] = {}
-        for item in node.body:
-            if not isinstance(item, ast.Assign):
-                continue
-            for target in item.targets:
-                if isinstance(target, ast.Name):
-                    msg = _extract_message_from_kel_call(item.value)
-                    if msg:
-                        class_var_messages[target.id] = msg
-
-        for item in node.body:
-            if isinstance(item, ast.Assign):
-                targets, value = item.targets, item.value
-            elif isinstance(item, ast.AnnAssign):
-                targets, value = [item.target], item.value
-            else:
-                continue
-            if not any(isinstance(t, ast.Name) and t.id == "KNOWN_EXPR_LIMITATIONS" for t in targets):
-                continue
-            if not isinstance(value, ast.Dict):
-                continue
-            for key, val in zip(value.keys, value.values):
-                if not isinstance(key, ast.Tuple) or len(key.elts) != 2:
-                    continue
-                fkey_node, param_node = key.elts
-                if not isinstance(param_node, ast.Constant):
-                    continue
-                op_name = _attr_to_op_name(fkey_node)
-                # Value may be a direct Call or a Name reference to a class variable
-                if isinstance(val, ast.Call):
-                    message = _extract_message_from_kel_call(val)
-                elif isinstance(val, ast.Name):
-                    message = class_var_messages.get(val.id, "")
-                else:
-                    message = ""
-                gaps.append(
-                    KelGap(
-                        backend=backend,
-                        op_name=op_name,
-                        param_name=str(param_node.value),
-                        message=message,
-                        est_cases=est_cases,
-                    )
-                )
-    return gaps
 
 
 def collect_kel_entries() -> list[KelGap]:
-    """Gating expression capability facts (LITERAL_ONLY / UNSUPPORTED), read
-    from the capability spine registry.
+    """Report public literal-only argument restrictions, not executable policies.
 
-    Capability data is authored in physical scope-owned segments and published
-    through CapabilityRegistry. Read the registry rather than parsing backend
-    classes or inferring support from source layout.
-
-    Est. cases per entry:
-      polars: 2 input types (col, complex) × 1 backend = 2
-      narwhals: 2 input types × 2 sub-backends (narwhals-polars + narwhals-pandas) = 4
-      ibis: 2 input types × 1 backend = 2
+    Concrete scopes estimate two expression input shapes; family descriptions
+    retain the report's existing backend weights. These are estimates, not test
+    expectations or evidence that a particular pytest cell executes.
     """
-    from mountainash.core.capabilities import (
-        CapabilityLevel,
-        CapabilityRegistry,
-    )
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery
+    from mountainash.core.capabilities.schema import InformationLayer
     from mountainash.expressions.core.expression_system.function_mapping.registry import (
         ExpressionFunctionRegistry,
     )
 
-    facts, _ = CapabilityRegistry._report_inputs()
+    capture = CapabilityRegistry.capture()
+    records = capture.search(CatalogueQuery(information=InformationQuery(
+        layer=InformationLayer.PUBLIC, level=CapabilityLevel.LITERAL_ONLY,
+    ))).information
+    assert records is not None
     backend_est = {"polars": 2, "narwhals": 4, "ibis": 2}
-    gating = (CapabilityLevel.LITERAL_ONLY, CapabilityLevel.UNSUPPORTED)
     gaps: list[KelGap] = []
-    for fact in facts:
-        if fact.level not in gating:
+    for record in records:
+        key = record.key.local
+        scope = record.key.scope
+        if scope.backend.value not in backend_est or key.selector.kind != "unconditioned":
             continue
-        backend = getattr(fact.backend, "value", fact.backend)
-        if backend not in backend_est:
-            continue
-        # KEL is an expression-domain concept — skip relation-domain facts.
         try:
-            ExpressionFunctionRegistry.get(fact.operation_key)
+            ExpressionFunctionRegistry.get(key.operation)
         except KeyError:
             continue
-        gaps.append(
-            KelGap(
-                backend=backend,
-                op_name=fact.operation_key.name.lower(),
-                param_name=fact.param,
-                message=fact.message,
-                est_cases=backend_est[backend],
-            )
-        )
+        gaps.append(KelGap(
+            backend=scope.dialect or scope.backend.value,
+            op_name=key.operation.name.lower(),
+            param_name=key.subject,
+            message=record.assertion.message,
+            est_cases=2 if scope.dialect is not None else backend_est[scope.backend.value],
+        ))
     return sorted(gaps, key=lambda g: (g.backend, g.op_name, g.param_name))
 
 
@@ -462,10 +377,10 @@ def render_report() -> str:
         "## Argument Types — Expression-Limited Operations (KEL)",
         "",
         "Operations that accept raw/lit arguments but reject `col`/`complex` expressions.",
-        "Source: gating expression `CapabilityFact`s (LITERAL_ONLY/UNSUPPORTED) in the capability registry.",
-        "Est. cases: polars=2, narwhals=4 (2 sub-backends), ibis=2 per entry.",
+        "Source: public-layer, unconditional LITERAL_ONLY capability information; executable protections are excluded.",
+        "Estimates are not xfail authority: concrete scopes=2; family scopes retain polars=2, narwhals=4, ibis=2.",
         "",
-        "| Backend | Operation | Param | Est. cases | Message |",
+        "| Scope | Operation | Param | Est. cases | Message |",
         "|---------|-----------|-------|-----------|---------|",
     ]
     for g in kel_gaps:

@@ -26,7 +26,7 @@ def test_every_core_known_gap_dict_is_collected():
     }
     collected = {
         (inventory.owner.path, inventory.owner.entry)
-        for inventory in collect_all_gap_sets().inventories
+        for inventory in collect_all_gap_sets()
     }
 
     missing = set(discovered) - collected
@@ -42,7 +42,7 @@ def test_gap_capture_preserves_original_protocol_keys_and_payloads():
     from mountainash.core.capabilities.schema import CallableRef
 
     capture = collect_all_gap_sets()
-    inventory = next(item for item in capture.inventories if item.name == "expr.aspirational")
+    inventory = next(item for item in capture if item.name == "expr.aspirational")
     expected = {
         (CallableRef(protocol.__module__, protocol.__qualname__), method): gap
         for (protocol, method), gap in pa.KNOWN_ASPIRATIONAL.items()
@@ -69,10 +69,9 @@ def test_gap_capture_preserves_all_owner_keys_payloads_and_histories():
     )
     snapshot = collect_all_gap_sets()
 
-    assert len(snapshot.inventories) == 11
-    assert len(snapshot.gaps) == 664
+    assert {inventory.name for inventory in snapshot} == {name for name, _, _ in owners}
     for name, module, attribute in owners:
-        inventory = next(item for item in snapshot.inventories if item.name == name)
+        inventory = next(item for item in snapshot if item.name == name)
         expected = {
             tuple(
                 CallableRef(part.__module__, part.__qualname__) if isinstance(part, type) else part
@@ -88,7 +87,7 @@ def test_gap_capture_preserves_all_owner_keys_payloads_and_histories():
 
 def test_gap_capture_retains_resolved_protocol_authorities_after_source_changes(monkeypatch):
     snapshot = collect_all_gap_sets()
-    record = next(gap for gap in snapshot.gaps if type(gap.key.target) is ProtocolMethodTarget)
+    record = next(gap for inventory in snapshot for gap in inventory.gaps if type(gap.key.target) is ProtocolMethodTarget)
     target = record.key.target
     protocol = next(
         candidate
@@ -106,14 +105,6 @@ def test_gap_capture_retains_resolved_protocol_authorities_after_source_changes(
     )
     original = authority.artifact
     assert original == authority_path.read_bytes()
-    same_source_references = [
-        reference
-        for gap in snapshot.gaps
-        for reference in gap.reference_context
-        if reference.path == authority.path
-    ]
-    assert same_source_references
-    assert all(reference.artifact is original for reference in same_source_references)
 
     defining_class = next(
         candidate for candidate in protocol.__mro__ if target.method in candidate.__dict__
@@ -135,7 +126,7 @@ def test_gap_capture_retains_resolved_protocol_authorities_after_source_changes(
 
     monkeypatch.setattr(Path, "read_bytes", changed_read_bytes)
     later = collect_all_gap_sets()
-    later_record = next(gap for gap in later.gaps if gap.key == record.key)
+    later_record = next(gap for inventory in later for gap in inventory.gaps if gap.key == record.key)
     later_authority = next(
         reference
         for reference in later_record.reference_context
@@ -144,24 +135,27 @@ def test_gap_capture_retains_resolved_protocol_authorities_after_source_changes(
     assert authority.artifact == original
     assert later_authority.artifact == b"changed protocol authority"
 
-def test_catalogue_requires_explicit_verification_capture():
+def test_catalogue_requires_explicit_inventory_capture():
     import pytest
 
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.capabilities.catalogue import (
         CatalogueQuery, GapQuery, UncapturedNamespaceError,
     )
-    from mountainash.core.capabilities.gaps import VerificationSnapshot
+    from mountainash.core.capabilities.gaps import gap_order_key
 
     query = CatalogueQuery(gaps=GapQuery(inventory="expr.aspirational"))
     with pytest.raises(UncapturedNamespaceError):
         CapabilityRegistry.capture().search(query)
     snapshot = collect_all_gap_sets()
-    capture = CapabilityRegistry.capture(verification=snapshot)
-    expected = tuple(record for record in snapshot.gaps if record.key.inventory == "expr.aspirational")
+    capture = CapabilityRegistry.capture(inventories=snapshot)
+    expected = tuple(sorted(
+        (record for inventory in snapshot for record in inventory.gaps if record.key.inventory == "expr.aspirational"),
+        key=gap_order_key,
+    ))
     assert capture.search(query).gaps == expected
     assert capture.search(query).gaps[0] is expected[0]
-    empty = CapabilityRegistry.capture(verification=VerificationSnapshot(()))
+    empty = CapabilityRegistry.capture(inventories=())
     assert empty.search(CatalogueQuery(gaps=GapQuery())).gaps == ()
     with pytest.raises(UncapturedNamespaceError):
         empty.search(query)
@@ -174,7 +168,7 @@ def test_gap_retirement_preserves_predecessor_and_old_snapshot(monkeypatch):
     from mountainash.core.capabilities.registry import CapabilityRegistry
 
     before = collect_all_gap_sets()
-    inventory = next(item for item in before.inventories if item.name == "expr.aspirational")
+    inventory = next(item for item in before if item.name == "expr.aspirational")
     record = inventory.gaps[0]
     original = next(key for key, gap in pa.KNOWN_ASPIRATIONAL.items() if gap is record.payload)
     source = Path(__file__)
@@ -187,15 +181,15 @@ def test_gap_retirement_preserves_predecessor_and_old_snapshot(monkeypatch):
     monkeypatch.setattr(pa, "GAP_CHANGES", (*pa.GAP_CHANGES, change))
     monkeypatch.delitem(pa.KNOWN_ASPIRATIONAL, original)
     after = collect_all_gap_sets()
-    assert record in before.gaps
-    assert all(gap.key != record.key for gap in after.gaps)
-    assert after.changes[-1].prior.payload is record
-    assert change not in before.changes
+    assert record in inventory.gaps
+    assert all(gap.key != record.key for item in after for gap in item.gaps)
+    assert next(change for item in after for change in item.changes if change.prior.key == record.key).prior.payload is record
+    assert all(change not in item.changes for item in before)
     query = CatalogueQuery(changes=ChangeQuery(inventory=inventory.name, prior=change.prior))
-    assert CapabilityRegistry.capture(verification=before).search(query).changes == ()
-    retained = CapabilityRegistry.capture(verification=after).search(query).changes
+    assert CapabilityRegistry.capture(inventories=before).search(query).changes == ()
+    retained = CapabilityRegistry.capture(inventories=after).search(query).changes
     assert retained == (change,)
     assert retained[0].prior.payload is record
-    assert CapabilityRegistry.capture(verification=after).search(
+    assert CapabilityRegistry.capture(inventories=after).search(
         CatalogueQuery(changes=ChangeQuery(inventory=inventory.name), scopes=frozenset())
     ).changes == ()

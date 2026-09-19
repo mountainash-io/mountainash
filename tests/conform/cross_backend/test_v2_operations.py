@@ -1,6 +1,8 @@
 """Cross-backend behavior smoke coverage for Unit C structural operations."""
 from __future__ import annotations
 
+from datetime import date, datetime, time
+
 import polars as pl
 import pandas as pd
 import pytest
@@ -10,6 +12,7 @@ from mountainash.expressions.backends.expression_systems.ibis import IbisExpress
 from mountainash.expressions.backends.expression_systems.narwhals import NarwhalsExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem
 from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_BOOLEAN as FK_BOOL,
     FKEY_MOUNTAINASH_SCALAR_CATEGORICAL as FK_CAT,
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
     FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT,
@@ -21,13 +24,8 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait.pr
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
-from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.types import BackendCapabilityError
 from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResultHelper
-from tests.fixtures.capability_gating import (
-    assert_capability_gated,
-    assert_predicate_capability_gated,
-    assert_predicate_clauses,
-)
 from fixtures.backend_registry import ALL_BACKENDS
 _SYSTEMS = {
     "polars": PolarsExpressionSystem("polars"),
@@ -41,17 +39,6 @@ _SYSTEMS = {
     "ibis-sqlite": IbisExpressionSystem("ibis-sqlite"),
 }
 
-_IDENTITIES = {
-    "polars": (CONST_BACKEND.POLARS, "polars"),
-    "polars-lazy": (CONST_BACKEND.POLARS, "polars"),
-    "pandas": (CONST_BACKEND.NARWHALS, "narwhals-pandas"),
-    "narwhals-polars": (CONST_BACKEND.NARWHALS, "narwhals-polars"),
-    "narwhals-pandas": (CONST_BACKEND.NARWHALS, "narwhals-pandas"),
-    "narwhals-lazy": (CONST_BACKEND.NARWHALS, "narwhals-lazy"),
-    "ibis-duckdb": (CONST_BACKEND.IBIS, "ibis-duckdb"),
-    "ibis-polars": (CONST_BACKEND.IBIS, "ibis-polars"),
-    "ibis-sqlite": (CONST_BACKEND.IBIS, "ibis-sqlite"),
-}
 
 
 def _compile_for(backend_name: str, expr):
@@ -63,28 +50,14 @@ def _extract(backend_name: str, data: dict, compiled, column: str):
     return BackendResultHelper.select_and_extract(frame, compiled, column, backend_name)
 
 
-def _gate(backend_name: str):
-    return _IDENTITIES[backend_name]
-
-
-
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_operation_executes_or_hits_exact_gate(backend_name: str) -> None:
-    systems = _SYSTEMS
+def test_list_parse_has_explicit_backend_contract(backend_name: str) -> None:
     expr = ma.col("values").str.parse_list(item_type="string", delimiter="|", field_name="values")
-    visitor = lambda: UnifiedExpressionVisitor(systems[backend_name]).visit(expr._node)
+    visitor = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
     if backend_name == "ibis-sqlite":
-        from mountainash.core.constants import CONST_BACKEND
-        from tests.fixtures.capability_gating import assert_capability_gated
-
-        assert_capability_gated(
-            FK_LIST.PARSE,
-            CONST_BACKEND.IBIS,
-            dialect="ibis-sqlite",
-            param="*",
-            option_value=None,
-            build=visitor,
-        )
+        with pytest.raises(BackendCapabilityError) as error:
+            visitor()
+        assert error.value.function_key is FK_LIST.PARSE
         return
     compiled = visitor()
     frame = BackendDataFrameFactory.create({"values": ["1|2", "3|4"]}, backend_name)
@@ -109,16 +82,55 @@ def test_polars_list_parse_covers_custom_delimiter_and_complete_null_failure() -
 
 
 
-def test_polars_boolean_invalid_item_invalidates_complete_list_in_null_mode() -> None:
+@pytest.mark.parametrize("backend_name", ("polars", "ibis-duckdb"))
+def test_boolean_invalid_item_invalidates_complete_list(backend_name: str) -> None:
+    """Exercise the two implementations with atomic nullable list parsing."""
     expr = ma.col("values").str.parse_list(
         item_type="boolean",
         delimiter="|",
         field_name="values",
         failure_behavior=CaseFailureBehaviour.NULL,
     )
-    frame = pl.DataFrame({"values": ["true|tRuE"]})
-    result = frame.select(_compile(expr))
-    assert result.to_series().to_list() == [None]
+    frame = BackendDataFrameFactory.create(
+        {"values": ["true|false", "true|tRuE", None]}, backend_name,
+    )
+    compiled = UnifiedExpressionVisitor(
+        _SYSTEMS[backend_name], input_data=frame,
+    ).visit(expr._node)
+    assert BackendResultHelper.select_and_extract(
+        frame, compiled, "values", backend_name,
+    ) == [[True, False], None, None]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_boolean_valid_tokens_preserve_null(backend_name: str) -> None:
+    if backend_name == "ibis-sqlite":
+        throw_expr = ma.col("values").parse_boolean(
+            true_values=("yes",), false_values=("no",), field_name="values",
+        )
+        with pytest.raises(BackendCapabilityError) as error:
+            _compile_for(backend_name, throw_expr)
+        assert error.value.function_key is FK_BOOL.PARSE_TOKENS
+
+    expr = ma.col("values").parse_boolean(
+        true_values=("yes",),
+        false_values=("no",),
+        field_name="values",
+        failure_behavior=(
+            CaseFailureBehaviour.NULL
+            if backend_name == "ibis-sqlite"
+            else CaseFailureBehaviour.THROW
+        ),
+    )
+    frame = BackendDataFrameFactory.create({"values": ["yes", "no", None]}, backend_name)
+    compiled = UnifiedExpressionVisitor(
+        _SYSTEMS[backend_name], input_data=frame,
+    ).visit(expr._node)
+    values = BackendResultHelper.select_and_extract(
+        frame, compiled, "values", backend_name,
+    )
+    assert values[:2] == [True, False]
+    assert len(values) == 3 and pd.isna(values[2])
 
 def test_ibis_boolean_list_parser_uses_closed_frictionless_tokens() -> None:
     expr = ma.col("values").str.parse_list(
@@ -197,10 +209,7 @@ def test_boolean_list_parser_uses_only_closed_frictionless_tokens(backend_name: 
     ) == [[True, True, True, True, False, False, False, False]]
 
 
-def test_narwhals_pandas_boolean_list_residue_is_materialization_scoped() -> None:
-    from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.constants import CONST_BACKEND
-
+def test_narwhals_pandas_boolean_list_fails_at_materialization() -> None:
     expr = ma.col("values").str.parse_list(
         item_type="boolean", delimiter="|", field_name="values",
     )
@@ -210,20 +219,9 @@ def test_narwhals_pandas_boolean_list_residue_is_materialization_scoped() -> Non
     ).visit(expr._node)
     with pytest.raises(TypeError):
         BackendResultHelper.select_and_extract(frame, compiled, "values", "narwhals-pandas")
-    residue = CapabilityRegistry.capability_for(
-        FK_LIST.PARSE,
-        "*",
-        CONST_BACKEND.NARWHALS,
-        dialect="narwhals-pandas",
-    )
-    assert residue is not None
-    assert residue.enforcement.value == "materialize_residue"
-    assert residue.level.value == "unsupported"
 
 
-def test_conditioned_null_list_fact_gates_matching_item_type() -> None:
-    from mountainash.core.types import BackendCapabilityError
-
+def test_null_list_item_type_refusal_is_public() -> None:
     expr = ma.col("values").str.parse_list(
         item_type="integer",
         delimiter="|",
@@ -234,9 +232,7 @@ def test_conditioned_null_list_fact_gates_matching_item_type() -> None:
         UnifiedExpressionVisitor(
             NarwhalsExpressionSystem("narwhals-polars")
         ).visit(expr._node)
-    limitation = error.value.limitation
-    assert limitation.param == "failure_behavior"
-    assert_predicate_clauses(limitation, item_type="integer", failure_behavior="null")
+    assert error.value.function_key is FK_LIST.PARSE
 
 
 def test_conditioned_null_list_fact_does_not_block_supported_item_type() -> None:
@@ -270,62 +266,10 @@ def test_boolean_list_parser_rejects_mixed_case_tokens(backend_name: str) -> Non
         BackendResultHelper.select_and_extract(frame, compiled, "values", backend_name)
 
 
-def test_list_null_capability_uses_predicate_failure_selector_without_duplicates() -> None:
-    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities.schema import ClauseOp
-    from mountainash.core.constants import CONST_BACKEND
-
-    matching = [
-        item for item in CapabilityRegistry.facts()
-        if item.operation_key is FK_LIST.PARSE
-        and item.backend is CONST_BACKEND.NARWHALS
-        and item.dialect == "narwhals-polars"
-        and item.param == "failure_behavior"
-        and item.predicate is not None
-        and any(
-            clause.op is ClauseOp.EQ
-            and clause.path == "failure_behavior"
-            and clause.operand == "null"
-            for clause in item.predicate.clauses
-        )
-    ]
-    assert matching
-    assert all(item.level is CapabilityLevel.UNSUPPORTED for item in matching)
-    assert all(item.option_value is None for item in matching)
-    gated_types = [
-        clause.operand
-        for item in matching
-        for clause in item.predicate.clauses
-        if clause.path == "item_type"
-    ]
-    assert len(set(gated_types)) == len(gated_types)
-    keys = {(item.param, item.option_value, item.predicate) for item in matching}
-    assert len(keys) == len(matching)
+ 
 
 
 _LIST_ITEM_TYPES = ("string", "integer", "boolean", "number", "datetime", "date", "time")
-_LIST_THROW_SUPPORTED = {
-    "polars": set(_LIST_ITEM_TYPES),
-    "polars-lazy": set(_LIST_ITEM_TYPES),
-    "pandas": {"string", "integer", "boolean", "number", "date"},
-    "narwhals-polars": {"string", "integer", "boolean", "number", "date"},
-    "narwhals-pandas": {"string", "integer", "boolean", "number", "date"},
-    "narwhals-lazy": {"string", "integer", "boolean", "number", "date"},
-    "ibis-duckdb": {"string", "integer", "boolean", "number", "date", "time"},
-    "ibis-polars": {"string"},
-    "ibis-sqlite": set(),
-}
-_LIST_NULL_SUPPORTED = {
-    "polars": set(_LIST_ITEM_TYPES),
-    "polars-lazy": set(_LIST_ITEM_TYPES),
-    "pandas": {"string"},
-    "narwhals-polars": {"string"},
-    "narwhals-pandas": {"string"},
-    "narwhals-lazy": {"string"},
-    "ibis-duckdb": {"string"},
-    "ibis-polars": {"string"},
-    "ibis-sqlite": set(),
-}
 _LIST_INPUTS = {
     "string": ("a|b", "c|d"),
     "integer": ("1|2", "3|4"),
@@ -346,30 +290,19 @@ def test_list_parse_matrix_covers_every_item_type(
         item_type=item_type, delimiter="|", field_name="values",
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
-    if backend_name == "ibis-sqlite":
-        assert_capability_gated(
-            FK_LIST.PARSE, family, dialect=dialect,
-            param="*", option_value=None, build=build,
+    if (
+        backend_name == "ibis-sqlite"
+        or (backend_name == "ibis-polars" and item_type != "string")
+        or (
+            backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+            and item_type in {"datetime", "time"}
         )
-        return
-    if item_type not in _LIST_THROW_SUPPORTED[backend_name]:
-        assert_capability_gated(
-            FK_LIST.PARSE, family, dialect=dialect,
-            param="item_type", option_value=item_type, build=build,
-        )
+    ):
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_LIST.PARSE
         return
     if backend_name in {"pandas", "narwhals-pandas"}:
-        from mountainash.core.capabilities import CapabilityRegistry
-        from mountainash.core.capabilities import CapabilityLevel, Enforcement, Boundary
-
-        residue = CapabilityRegistry.capability_for(
-            FK_LIST.PARSE, "*", family, dialect=dialect,
-        )
-        assert residue is not None
-        assert residue.level is CapabilityLevel.UNSUPPORTED
-        assert residue.enforcement is Enforcement.MATERIALIZE_RESIDUE
-        assert residue.boundary is Boundary.MATERIALIZE
         compiled = build()
         with pytest.raises(TypeError):
             _extract(
@@ -391,6 +324,21 @@ def test_list_parse_matrix_covers_every_item_type(
     elif item_type == "number":
         assert values == [[1.5, 2.5], [3.5, 4.5]]
 
+    elif item_type == "datetime":
+        assert values == [
+            [datetime(2024, 1, 2, 3, 4, 5), datetime(2024, 1, 3, 3, 4, 5)],
+            [datetime(2024, 1, 2, 3, 4, 5), datetime(2024, 1, 3, 3, 4, 5)],
+        ]
+    elif item_type == "date":
+        assert values == [
+            [date(2024, 1, 2), date(2024, 1, 3)],
+            [date(2024, 1, 4), date(2024, 1, 5)],
+        ]
+    elif item_type == "time":
+        assert values == [
+            [time(3, 4, 5), time(4, 5, 6)],
+            [time(5, 6, 7), time(6, 7, 8)],
+        ]
 _LIST_INVALID_INPUTS = {
     "integer": ("1|bad", "3|4"),
     "boolean": ("true|tRuE", "false|0"),
@@ -415,39 +363,23 @@ def test_list_parse_invalid_item_is_complete_value_failure(
         failure_behavior=failure_behavior,
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
-    if backend_name == "ibis-sqlite":
-        assert_capability_gated(
-            FK_LIST.PARSE, family, dialect=dialect,
-            param="*", option_value=None, build=build,
-        )
-        return
-    if item_type not in _LIST_THROW_SUPPORTED[backend_name]:
-        assert_capability_gated(
-            FK_LIST.PARSE, family, dialect=dialect,
-            param="item_type", option_value=item_type, build=build,
-        )
-        return
     if (
-        failure_behavior is CaseFailureBehaviour.NULL
-        and item_type not in _LIST_NULL_SUPPORTED[backend_name]
+        backend_name == "ibis-sqlite"
+        or (backend_name == "ibis-polars" and item_type != "string")
+        or (
+            backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
+            and (
+                item_type in {"datetime", "time"}
+                or failure_behavior is CaseFailureBehaviour.NULL
+            )
+        )
     ):
-        error = assert_predicate_capability_gated(build)
-        fact = error.limitation
-        assert fact.operation_key is FK_LIST.PARSE
-        assert fact.param == "failure_behavior"
-        assert_predicate_clauses(fact, item_type=item_type, failure_behavior="null")
-        assert fact.backend is family
-        assert fact.dialect == dialect
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_LIST.PARSE
         return
     if backend_name in {"pandas", "narwhals-pandas"}:
         compiled = build()
-        from mountainash.core.capabilities import CapabilityRegistry
-
-        residue = CapabilityRegistry.capability_for(
-            FK_LIST.PARSE, "*", family, dialect=dialect,
-        )
-        assert residue is not None
         with pytest.raises(TypeError):
             _extract(
                 backend_name,
@@ -472,32 +404,17 @@ def test_list_parse_invalid_item_is_complete_value_failure(
             "values",
         )
         assert values[0] is None
-        assert values[1] is not None and len(values[1]) == 2
+        expected_valid_value = {
+            "integer": [3, 4],
+            "boolean": [False, False],
+            "number": [3.5, 4.5],
+            "datetime": [datetime(2024, 1, 3, 3, 4, 5), datetime(2024, 1, 4, 3, 4, 5)],
+            "date": [date(2024, 1, 3), date(2024, 1, 4)],
+            "time": [time(4, 5, 6), time(5, 6, 7)],
+        }[item_type]
+        assert values == [None, expected_valid_value]
 
 
-
-_CAST_THROW_SUPPORTED = {
-    "polars": True,
-    "polars-lazy": True,
-    "pandas": False,
-    "narwhals-polars": True,
-    "narwhals-pandas": False,
-    "narwhals-lazy": False,
-    "ibis-duckdb": True,
-    "ibis-polars": True,
-    "ibis-sqlite": False,
-}
-_CAST_NULL_SUPPORTED = {
-    "polars": True,
-    "polars-lazy": True,
-    "pandas": False,
-    "narwhals-polars": False,
-    "narwhals-pandas": False,
-    "narwhals-lazy": False,
-    "ibis-duckdb": False,
-    "ibis-polars": False,
-    "ibis-sqlite": False,
-}
 
 
 def _recursive_item_fields() -> tuple[FieldSpec, ...]:
@@ -534,19 +451,16 @@ def test_list_cast_items_recursive_matrix(
         field_name="items",
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
-    supported = (
-        _CAST_THROW_SUPPORTED[backend_name]
-        if failure_behavior is CaseFailureBehaviour.THROW
-        else _CAST_NULL_SUPPORTED[backend_name]
-    )
-    if not supported:
-        assert_capability_gated(
-            FK_LIST.CAST_ITEMS, family, dialect=dialect,
-            param="failure_behavior",
-            option_value=failure_behavior.value,
-            build=build,
+    if (
+        backend_name == "ibis-sqlite"
+        or (
+            failure_behavior is CaseFailureBehaviour.NULL
+            and backend_name not in {"polars", "polars-lazy"}
         )
+    ):
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_LIST.CAST_ITEMS
         return
     values = _extract(
         backend_name,
@@ -567,12 +481,10 @@ def test_list_cast_items_null_mode_invalidates_complete_recursive_value(
         field_name="items",
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
-    if not _CAST_NULL_SUPPORTED[backend_name]:
-        assert_capability_gated(
-            FK_LIST.CAST_ITEMS, family, dialect=dialect,
-            param="failure_behavior", option_value="null", build=build,
-        )
+    if backend_name not in {"polars", "polars-lazy"}:
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_LIST.CAST_ITEMS
         return
     values = _extract(
         backend_name,
@@ -597,20 +509,16 @@ def test_struct_cast_recursive_matrix(
         field_name="payload",
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
-    supported = (
-        backend_name not in {"narwhals-pandas", "pandas", "narwhals-lazy", "ibis-sqlite"}
-        if failure_behavior is CaseFailureBehaviour.THROW
-        else backend_name in {"polars", "polars-lazy"}
-    )
-    if not supported:
-        error = assert_predicate_capability_gated(build)
-        fact = error.limitation
-        assert fact.operation_key is FK_STRUCT.CAST
-        assert fact.param == "failure_behavior"
-        assert fact.backend is family
-        assert fact.dialect == dialect
-        assert_predicate_clauses(fact, failure_behavior=failure_behavior.value)
+    if (
+        (
+            failure_behavior is CaseFailureBehaviour.NULL
+            and backend_name not in {"polars", "polars-lazy"}
+        )
+        or backend_name in {"pandas", "narwhals-pandas", "ibis-sqlite"}
+    ):
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_STRUCT.CAST
         return
     values = _extract(
         backend_name,
@@ -629,15 +537,10 @@ def test_struct_cast_null_mode_invalidates_recursive_value(backend_name: str) ->
         field_name="payload",
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
     if backend_name not in {"polars", "polars-lazy"}:
-        error = assert_predicate_capability_gated(build)
-        fact = error.limitation
-        assert fact.operation_key is FK_STRUCT.CAST
-        assert fact.param == "failure_behavior"
-        assert fact.backend is family
-        assert fact.dialect == dialect
-        assert_predicate_clauses(fact, failure_behavior="null")
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_STRUCT.CAST
         return
     values = _extract(
         backend_name,
@@ -646,7 +549,6 @@ def test_struct_cast_null_mode_invalidates_recursive_value(backend_name: str) ->
         "payload",
     )
     assert values == [None, None]
-
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("value_type", ("string", "integer"))
@@ -667,74 +569,22 @@ def test_categorical_cast_preserves_supported_base_values(
         field_name="status",
     )
     build = lambda: _compile_for(backend_name, expr)
-    family, dialect = _gate(backend_name)
-    if backend_name == "ibis-sqlite" and value_type == "integer":
-        error = assert_predicate_capability_gated(build)
-        fact = error.limitation
-        assert fact.operation_key is FK_CAT.CAST
-        assert fact.param == "value_type"
-        assert fact.backend is family
-        assert fact.dialect == dialect
-        assert_predicate_clauses(fact, value_type="integer")
-        return
     if (
-        backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}
-        and value_type == "integer"
-        and failure_behavior is CaseFailureBehaviour.NULL
+        (backend_name == "ibis-sqlite" and value_type == "integer")
+        or (
+            backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}
+            and value_type == "integer"
+            and failure_behavior is CaseFailureBehaviour.NULL
+        )
     ):
-        error = assert_predicate_capability_gated(build)
-        fact = error.limitation
-        assert fact.operation_key is FK_CAT.CAST
-        assert fact.param == "value_type"
-        assert fact.backend is family
-        assert fact.dialect == dialect
-        assert_predicate_clauses(fact, value_type="integer", failure_behavior="null")
+        with pytest.raises(BackendCapabilityError) as error:
+            build()
+        assert error.value.function_key is FK_CAT.CAST
         return
     values = _extract(
         backend_name, {"status": [source_value]}, build(), "status",
     )
     assert values == ([source_value] if value_type == "string" else [2])
-
-@pytest.mark.parametrize("backend_name", ("pandas", "narwhals-pandas"))
-def test_narwhals_pandas_categorical_integer_nulls_invalid_values(
-    backend_name: str,
-) -> None:
-    expr = ma.col("status").cat.cast(
-        value_type="integer",
-        categories=(1, 2),
-        ordered=True,
-        failure_behavior=CaseFailureBehaviour.NULL,
-        field_name="status",
-    )
-    family, dialect = _gate(backend_name)
-    error = assert_predicate_capability_gated(lambda: _compile_for(backend_name, expr))
-    fact = error.limitation
-    assert fact.operation_key is FK_CAT.CAST
-    assert fact.backend is family
-    assert fact.dialect == dialect
-    assert fact.param == "value_type"
-    assert_predicate_clauses(fact, value_type="integer", failure_behavior="null")
-
-
-@pytest.mark.parametrize("backend_name", ("pandas", "narwhals-pandas"))
-def test_narwhals_pandas_categorical_integer_nulls_signed_int64_overflow(
-    backend_name: str,
-) -> None:
-    expr = ma.col("status").cat.cast(
-        value_type="integer",
-        categories=(1, 2),
-        ordered=True,
-        failure_behavior=CaseFailureBehaviour.NULL,
-        field_name="status",
-    )
-    family, dialect = _gate(backend_name)
-    error = assert_predicate_capability_gated(lambda: _compile_for(backend_name, expr))
-    fact = error.limitation
-    assert fact.operation_key is FK_CAT.CAST
-    assert fact.backend is family
-    assert fact.dialect == dialect
-    assert fact.param == "value_type"
-    assert_predicate_clauses(fact, value_type="integer", failure_behavior="null")
 
 
 def test_polars_geopoint_default_preserves_valid_text_and_nulls() -> None:
@@ -789,28 +639,16 @@ def test_polars_geojson_parse_and_serialize() -> None:
     assert serialized.to_series().to_list() == ['{"type":"Point","coordinates":[1.0,2.0]}']
 
 
-def test_geospatial_capability_predicate_gates_unsupported_cells() -> None:
-    lexical_array = ma.col("point").geo.parse_geopoint(
-        format="array",
-        source_representation="lexical",
-        field_name="point",
-    )
-    assert_predicate_capability_gated(
-        lambda: UnifiedExpressionVisitor(NarwhalsExpressionSystem("narwhals-polars")).visit(
-            lexical_array._node
-        )
-    )
 
-
-def test_ibis_sqlite_geopoint_default_throw_is_gated() -> None:
+def test_ibis_sqlite_geopoint_default_throw_has_public_refusal() -> None:
     expr = ma.col("point").geo.parse_geopoint(
         format="default",
         source_representation="lexical",
         field_name="point",
     )
-    assert_predicate_capability_gated(
-        lambda: UnifiedExpressionVisitor(IbisExpressionSystem("ibis-sqlite")).visit(expr._node)
-    )
+    with pytest.raises(BackendCapabilityError) as error:
+        UnifiedExpressionVisitor(IbisExpressionSystem("ibis-sqlite")).visit(expr._node)
+    assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -827,13 +665,26 @@ def test_geopoint_default_null_mode_all_backends(backend_name: str) -> None:
     assert values[0] == "1.0, 2.0"
     assert all(pd.isna(value) for value in values[1:])
 
+@pytest.mark.parametrize("backend_name", ("narwhals-polars", "ibis-sqlite"))
+def test_lexical_array_geopoint_has_public_refusal(backend_name: str) -> None:
+    lexical_array = ma.col("point").geo.parse_geopoint(
+        format="array",
+        source_representation="lexical",
+        field_name="point",
+    )
+    with pytest.raises(BackendCapabilityError) as error:
+        _compile_for(backend_name, lexical_array)
+    assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_geojson_is_polars_only_with_exact_backend_gates(backend_name: str) -> None:
+def test_geojson_is_polars_only(backend_name: str) -> None:
     expr = ma.col("geometry").geo.parse_geojson(
-        format="default", field_name="geometry", failure_behavior=CaseFailureBehaviour.NULL
+        format="default",
+        field_name="geometry",
+        failure_behavior=CaseFailureBehaviour.NULL,
     )
-    visitor = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    visitor = lambda: _compile_for(backend_name, expr)
     if backend_name in {"polars", "polars-lazy"}:
         compiled = visitor()
         frame = BackendDataFrameFactory.create(
@@ -843,16 +694,9 @@ def test_geojson_is_polars_only_with_exact_backend_gates(backend_name: str) -> N
         assert BackendResultHelper.select_and_extract(
             frame, compiled, "geometry", backend_name
         ) == ['{"type":"Point","coordinates":[1,2]}', None]
-    else:
-        family, dialect = _gate(backend_name)
-        assert_capability_gated(
-            FK_GEO.PARSE_GEOJSON,
-            family,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=visitor,
-        )
+        return
+    with pytest.raises(NotImplementedError):
+        visitor()
 
 
 @pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas", "ibis-duckdb", "ibis-polars"])
@@ -878,92 +722,6 @@ def _geopoint_expression(
     )
 
 
-def _geopoint_supported(backend_name: str, format_name: str, source_representation: str, failure_behavior: CaseFailureBehaviour) -> bool:
-    if format_name == "default":
-        return not (backend_name == "ibis-sqlite" and failure_behavior is CaseFailureBehaviour.THROW)
-    if format_name == "array" and source_representation == "lexical":
-        return backend_name in {"polars", "polars-lazy"}
-    if format_name == "array" and source_representation == "native":
-        if failure_behavior is CaseFailureBehaviour.NULL:
-            return backend_name in {"polars", "polars-lazy"}
-        return backend_name not in {"ibis-sqlite"}
-    if format_name == "object" and source_representation == "native":
-        if failure_behavior is CaseFailureBehaviour.NULL:
-            return backend_name in {"polars", "polars-lazy"}
-        return backend_name in {
-            "polars",
-            "polars-lazy",
-            "ibis-duckdb",
-            "ibis-polars",
-        }
-    raise AssertionError((format_name, source_representation))
-
-
-def _geopoint_gate_predicate(
-    backend_name: str,
-    format_name: str,
-    source_representation: str,
-    failure_behavior: CaseFailureBehaviour,
-) -> set[tuple[str, object]]:
-    expected = {
-        ("format", format_name),
-        ("source_representation", source_representation),
-    }
-    if (
-        backend_name != "ibis-sqlite"
-        and backend_name.startswith(("pandas", "narwhals-", "ibis-"))
-        and format_name == "array"
-        and source_representation == "native"
-        and failure_behavior is CaseFailureBehaviour.NULL
-    ):
-        expected.add(("failure_behavior", "null"))
-    elif (
-        backend_name != "ibis-sqlite"
-        and backend_name.startswith("ibis-")
-        and format_name == "object"
-        and source_representation == "native"
-        and failure_behavior is CaseFailureBehaviour.NULL
-    ):
-        expected.add(("failure_behavior", "null"))
-    elif (
-        backend_name == "ibis-sqlite"
-        and format_name == "default"
-        and failure_behavior is CaseFailureBehaviour.THROW
-    ):
-        expected.add(("failure_behavior", "throw"))
-    return expected
-
-
-def _assert_geopoint_gate(
-    visitor,
-    backend_name: str,
-    format_name: str,
-    source_representation: str,
-    failure_behavior: CaseFailureBehaviour,
-) -> None:
-    error = assert_predicate_capability_gated(visitor)
-    assert error.function_key is FK_GEO.PARSE_GEOPOINT
-    actual = {
-        (clause.path, clause.operand)
-        for clause in error.limitation.predicate.clauses
-    }
-    expected = _geopoint_gate_predicate(
-        backend_name,
-        format_name,
-        source_representation,
-        failure_behavior,
-    )
-    if (
-        backend_name == "ibis-sqlite"
-        and source_representation == "native"
-        and failure_behavior is CaseFailureBehaviour.NULL
-    ):
-        # SQLite has both a format/source gate and a broader null-mode
-        # predicate declaration in the executable matrix. Either declaration
-        # may be the first sorted violation; both are exact registered facts.
-        assert actual == expected or actual == expected | {("failure_behavior", "null")}
-    else:
-        assert actual == expected
 
 
 _GEOPOINT_CELLS = (
@@ -987,18 +745,55 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
     failure_behavior: CaseFailureBehaviour,
 ) -> None:
     expr = _geopoint_expression(format_name, source_representation, failure_behavior)
-    visitor = lambda: _compile_for(backend_name, expr)
-    if not _geopoint_supported(
-        backend_name, format_name, source_representation, failure_behavior
+    if (
+        format_name == "default"
+        and backend_name == "ibis-sqlite"
+        and failure_behavior is CaseFailureBehaviour.THROW
     ):
-        _assert_geopoint_gate(
-            visitor,
-            backend_name,
-            format_name,
-            source_representation,
-            failure_behavior,
-        )
+        with pytest.raises(BackendCapabilityError) as error:
+            _compile_for(backend_name, expr)
+        assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
         return
+    if (format_name, source_representation) == ("array", "lexical"):
+        if backend_name in {"polars", "polars-lazy"}:
+            pass
+        elif backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+        }:
+            with pytest.raises(BackendCapabilityError) as error:
+                _compile_for(backend_name, expr)
+            assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+            return
+        else:
+            with pytest.raises(NotImplementedError):
+                _compile_for(backend_name, expr)
+            return
+    elif (format_name, source_representation) == ("array", "native") and (
+        backend_name == "ibis-sqlite"
+        or (
+            failure_behavior is CaseFailureBehaviour.NULL
+            and backend_name not in {"polars", "polars-lazy", "ibis-duckdb"}
+        )
+    ):
+        with pytest.raises(BackendCapabilityError) as error:
+            _compile_for(backend_name, expr)
+        assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+        return
+    elif (format_name, source_representation) == ("object", "native"):
+        if backend_name in {"polars", "polars-lazy", "ibis-duckdb"} or (
+            backend_name == "ibis-polars"
+            and failure_behavior is CaseFailureBehaviour.THROW
+        ):
+            pass
+        elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
+            with pytest.raises(NotImplementedError):
+                _compile_for(backend_name, expr)
+            return
+        else:
+            with pytest.raises(BackendCapabilityError) as error:
+                _compile_for(backend_name, expr)
+            assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+            return
 
     valid = {
         ("default", "lexical"): ["1.0, 2.0", "NaN, inf"],
@@ -1006,8 +801,7 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
         ("array", "native"): [[1.0, 2.0]],
         ("object", "native"): [{"lon": 1.0, "lat": 2.0}],
     }[(format_name, source_representation)]
-    compiled = visitor()
-    values = _extract(backend_name, {"point": [*valid, None]}, compiled, "point")
+    values = _extract(backend_name, {"point": [*valid, None]}, _compile_for(backend_name, expr), "point")
     expected = (
         [[1.0, -250.0]]
         if (format_name, source_representation) == ("array", "lexical")
@@ -1035,18 +829,55 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
     failure_behavior: CaseFailureBehaviour,
 ) -> None:
     expr = _geopoint_expression(format_name, source_representation, failure_behavior)
-    visitor = lambda: _compile_for(backend_name, expr)
-    if not _geopoint_supported(
-        backend_name, format_name, source_representation, failure_behavior
+    if (
+        format_name == "default"
+        and backend_name == "ibis-sqlite"
+        and failure_behavior is CaseFailureBehaviour.THROW
     ):
-        _assert_geopoint_gate(
-            visitor,
-            backend_name,
-            format_name,
-            source_representation,
-            failure_behavior,
-        )
+        with pytest.raises(BackendCapabilityError) as error:
+            _compile_for(backend_name, expr)
+        assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
         return
+    if (format_name, source_representation) == ("array", "lexical"):
+        if backend_name in {"polars", "polars-lazy"}:
+            pass
+        elif backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+        }:
+            with pytest.raises(BackendCapabilityError) as error:
+                _compile_for(backend_name, expr)
+            assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+            return
+        else:
+            with pytest.raises(NotImplementedError):
+                _compile_for(backend_name, expr)
+            return
+    elif (format_name, source_representation) == ("array", "native") and (
+        backend_name == "ibis-sqlite"
+        or (
+            failure_behavior is CaseFailureBehaviour.NULL
+            and backend_name not in {"polars", "polars-lazy", "ibis-duckdb"}
+        )
+    ):
+        with pytest.raises(BackendCapabilityError) as error:
+            _compile_for(backend_name, expr)
+        assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+        return
+    elif (format_name, source_representation) == ("object", "native"):
+        if backend_name in {"polars", "polars-lazy", "ibis-duckdb"} or (
+            backend_name == "ibis-polars"
+            and failure_behavior is CaseFailureBehaviour.THROW
+        ):
+            pass
+        elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
+            with pytest.raises(NotImplementedError):
+                _compile_for(backend_name, expr)
+            return
+        else:
+            with pytest.raises(BackendCapabilityError) as error:
+                _compile_for(backend_name, expr)
+            assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
+            return
 
     invalid_values = {
         ("default", "lexical"): ["bad", "1.0,  2.0", None],
@@ -1063,7 +894,7 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
             _extract(
                 backend_name,
                 {"point": invalid_values},
-                visitor(),
+                _compile_for(backend_name, expr),
                 "point",
             )
         return
@@ -1071,7 +902,7 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
     values = _extract(
         backend_name,
         {"point": invalid_values},
-        visitor(),
+        _compile_for(backend_name, expr),
         "point",
     )
     assert all(value is None or bool(pd.isna(value)) for value in values)
@@ -1118,15 +949,8 @@ def test_geojson_parse_exceptional_documents_one_per_test(
     )
     visitor = lambda: _compile_for(backend_name, expr)
     if backend_name not in {"polars", "polars-lazy"}:
-        family, dialect = _gate(backend_name)
-        assert_capability_gated(
-            FK_GEO.PARSE_GEOJSON,
-            family,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=visitor,
-        )
+        with pytest.raises(NotImplementedError):
+            visitor()
         return
 
     if valid:
@@ -1158,7 +982,7 @@ def test_geojson_parse_exceptional_documents_one_per_test(
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("format_name", ("default", "topojson"))
 @pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
-def test_geojson_serialization_matrix_and_topojson_gates(
+def test_geojson_serialization_matrix_and_topojson_refusals(
     backend_name: str,
     format_name: str,
     failure_behavior: CaseFailureBehaviour,
@@ -1170,15 +994,8 @@ def test_geojson_serialization_matrix_and_topojson_gates(
     )
     visitor = lambda: _compile_for(backend_name, expr)
     if backend_name not in {"polars", "polars-lazy"}:
-        family, dialect = _gate(backend_name)
-        assert_capability_gated(
-            FK_GEO.SERIALIZE_GEOJSON,
-            family,
-            dialect=dialect,
-            param="*",
-            option_value=None,
-            build=visitor,
-        )
+        with pytest.raises(NotImplementedError):
+            visitor()
         return
 
     compiled = visitor()

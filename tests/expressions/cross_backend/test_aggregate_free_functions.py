@@ -12,6 +12,8 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import OperationNotDefinedError, UnsupportedOperationError
+from fixtures.call_expectations import expect_call_failure
 
 
 @pytest.mark.cross_backend
@@ -24,8 +26,13 @@ class TestCorr:
             "y": [2.0, 4.0, 6.0, 8.0],
         }
         df = backend_factory.create(data, backend_name)
-        result = ma.relation(df).group_by("g").agg(ma.corr(ma.col("x"), ma.col("y")).alias("c")).to_dicts()
-        assert result[0]["c"] == pytest.approx(1.0)
+        with expect_call_failure(
+            when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') or backend_name == 'ibis-duckdb' or backend_name == 'ibis-sqlite',
+            reason=('ma.corr() raises on all backends except ibis-polars' if backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else ('ma.corr() raises on all backends except ibis-polars' if backend_name == 'ibis-duckdb' else 'ma.corr() raises on all backends except ibis-polars')),
+            errors=((NotImplementedError,) if backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else ((UnsupportedOperationError,) if backend_name == 'ibis-duckdb' else (OperationNotDefinedError,))),
+        ):
+            result = ma.relation(df).group_by("g").agg(ma.corr(ma.col("x"), ma.col("y")).alias("c")).to_dicts()
+            assert result[0]["c"] == pytest.approx(1.0)
 
 
 @pytest.mark.cross_backend

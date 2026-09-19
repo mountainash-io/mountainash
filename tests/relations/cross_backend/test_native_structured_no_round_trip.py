@@ -20,7 +20,11 @@ import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
+from ibis.common.exceptions import UnsupportedBackendType
+
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 _NATIVE_CONTAINER_BACKENDS = [b for b in ALL_BACKENDS if b not in ("pandas", "narwhals-pandas")]
 
@@ -60,7 +64,12 @@ class TestSchemaBearingNativeContainersNeverParseJSON:
         json_calls = _patch_json_loads(monkeypatch)
         shape_calls = _patch_extract_source_shapes(monkeypatch)
 
-        df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite cannot construct the native Array source; this is not a conform execution",
+        ):
+            df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
@@ -75,7 +84,12 @@ class TestSchemaBearingNativeContainersNeverParseJSON:
         json_calls = _patch_json_loads(monkeypatch)
         shape_calls = _patch_extract_source_shapes(monkeypatch)
 
-        df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(UnsupportedBackendType,),
+            reason="SQLite cannot construct the native Struct source; this is not a conform execution",
+        ):
+            df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()

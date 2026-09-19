@@ -1,163 +1,115 @@
-"""Relation-subsystem MATERIALIZE_RESIDUE enrichment (item 98).
-
-The per-op narrowing is dead: _dispatch passes prefer_operation_keys=frozenset()
-for handler ops and expression FKEYs (never an RKEY) for declarative ops, so a
-dialect-scoped relation residue fact can never fire. This item carries the op's
-RKEY into the filter and threads the authoritative dialect into
-enrich_materialization.
-
-Design: mountainash-central
-2026-08-14-relation-materialize-residue-enrichment-design.md
-(Revision 6, 6 GLM-5.2 adversarial review rounds -- SOUND_WITH_CONCERNS).
-"""
+"""Native relation errors require identified issues and reachable consumers."""
 from __future__ import annotations
 
-import pandas as pd
 import narwhals as nw
+import pandas as pd
+import polars as pl
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities import (
-    Boundary,
-    CapabilityFact,
-    CapabilityLevel,
-    CapabilityRegistry,
-    Enforcement,
+from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.declarations import (
+    BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
 )
+from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
-from mountainash.relations.core.relation_system.relation_keys.enums import (
-    RKEY_SUBSTRAIT_REL,
-)
-from mountainash.relations.backends.relation_systems.narwhals.substrait.relsys_nw_set import (
-    SubstraitNarwhalsSetRelationSystem,
-)
-
-import mountainash.relations.backends  # noqa: F401
-import mountainash.expressions.backends  # noqa: F401
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 
 
-class TestDeclarativeUnionResidueFires:
-    def test_union_all_residue_fact_enriches_forced_native_error(self, monkeypatch):
-        snap = CapabilityRegistry.snapshot()
-        try:
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.NARWHALS,
-                [
-                    CapabilityFact(
-                        operation_key=RKEY_SUBSTRAIT_REL.UNION_ALL,
-                        param="*",
-                        level=CapabilityLevel.UNSUPPORTED,
-                        backend=CONST_BACKEND.NARWHALS,
-                        dialect="narwhals-pandas",
-                        enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                        boundary=Boundary.MATERIALIZE,
-                        native_errors=(TypeError,),
-                        message="union_all residue fired (test)",
-                        since="2026-08-14",
-                    )
-                ],
-            )
-
-            def _boom(self, relations):
-                raise TypeError("forced union_all failure")
-
-            monkeypatch.setattr(
-                SubstraitNarwhalsSetRelationSystem, "union_all", _boom
-            )
-
-            nw_df = nw.from_native(pd.DataFrame({"a": [1]}), eager_only=True)
-            with pytest.raises(BackendCapabilityError, match="union_all residue fired"):
-                ma.concat([ma.relation(nw_df), ma.relation(nw_df)]).to_polars()
-        finally:
-            CapabilityRegistry.restore(snap)
-
-
-class TestDeadDeclarationEnforcement:
-    def test_handler_routed_residue_fact_requires_wraps_native_call(self):
-        from mountainash.relations.core.relation_system.relation_keys.enums import (
-            RKEY_MOUNTAINASH_REL,
+def test_error_policy_cannot_target_a_handler_without_native_dispatch():
+    snapshot = CapabilityRegistry.snapshot()
+    scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
+    key = CapabilityKey(RKEY_MOUNTAINASH_REL.REF, "*")
+    try:
+        segment = BoundSegment(
+            "mountainash.relations.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.relation",
+            scope,
+            CapabilitySegment(Domain.RELATION, policies=(
+                CapabilityPolicyRule(
+                    key=key,
+                    level=CapabilityLevel.UNSUPPORTED,
+                    since="2026-09-18",
+                    message="A reference cannot produce a native storage issue.",
+                    consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+                    action=PolicyAction.ENRICH,
+                    native_errors=(TypeError,),
+                    native_issue="narwhals:arrow-list-storage",
+                ),
+            )),
         )
-        snap = CapabilityRegistry.snapshot()
-        try:
-            with pytest.raises(ValueError, match="wraps_native_call"):
-                CapabilityRegistry.register_backend(
-                    CONST_BACKEND.NARWHALS,
-                    [
-                        CapabilityFact(
-                            operation_key=RKEY_MOUNTAINASH_REL.REF,
-                            param="*",
-                            level=CapabilityLevel.UNSUPPORTED,
-                            backend=CONST_BACKEND.NARWHALS,
-                            enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                            boundary=Boundary.MATERIALIZE,
-                            native_errors=(TypeError,),
-                            since="2026-08-14",
-                        )
-                    ],
+        with pytest.raises(ValueError):
+            CapabilityRegistry.register_segment(segment)
+        assert CapabilityRegistry.reader(scope).policy_optional(key) is None
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+@pytest.mark.parametrize("backend_name,native_error", [
+    ("polars", pl.exceptions.SchemaError),
+    ("narwhals-polars", nw.exceptions.NarwhalsError),
+    ("narwhals-pandas", TypeError),
+])
+def test_invalid_split_delimiter_is_not_a_storage_limitation(backend_name, native_error, backend_factory):
+    """An invalid delimiter on valid string storage keeps the native error."""
+    if backend_name == "narwhals-pandas":
+        import pyarrow as pa
+
+        dataframe = nw.from_native(pd.DataFrame({
+            "text": pd.Series(["a,b", "c"], dtype=pd.ArrowDtype(pa.string())),
+        }))
+    else:
+        dataframe = backend_factory.create({"text": ["a,b", "c"]}, backend_name)
+    expression = ma.col("text").str.string_split(1)
+    with pytest.raises(native_error) as raised:
+        ma.relation(dataframe).select(expression).collect()
+    assert not isinstance(raised.value, BackendCapabilityError)
+
+
+@pytest.mark.parametrize("backend_name", [
+    "ibis-duckdb", "ibis-polars", "narwhals-polars", "narwhals-pandas",
+])
+def test_native_collect_protects_xsd_results_without_exposing_markers(backend_name, backend_factory):
+    """Only scopes with explicit XSD residue policies participate."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
+    )
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    snapshot = CapabilityRegistry.snapshot()
+    family = CONST_BACKEND.IBIS if backend_name.startswith("ibis-") else CONST_BACKEND.NARWHALS
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_segment(BoundSegment(
+            f"mountainash.expressions.backends.capabilities.{family.value}.dialects.{backend_name.replace('-', '_')}.extensions_mountainash.datetime",
+            Scope(family, Dialect(backend_name)),
+            CapabilitySegment(Domain.DATETIME, policies=tuple(
+                CapabilityPolicyRule(
+                    key=CapabilityKey(operation, "*"),
+                    level=CapabilityLevel.UNSUPPORTED,
+                    since="2026-09-18",
+                    message="Invalid lexical input became null.",
+                    consumer=PolicyConsumer.RESULT_PROTECTION,
+                    action=PolicyAction.DETECT_NON_NULL_TO_NULL,
                 )
-        finally:
-            CapabilityRegistry.restore(snap)
+                for operation in (FK.PARSE_XSD_DURATION, FK.PARSE_XSD_PARTIAL_DATE)
+            )),
+        ))
+        spec = TypeSpec(fields_match="open", fields=[
+            FieldSpec(name="duration", type=UniversalType.DURATION),
+            FieldSpec(name="year", type=UniversalType.YEAR),
+        ])
+        values = {"duration": ["P1D", None], "year": ["2024", None]}
+        native = ma.relation(backend_factory.create(values, backend_name)).conform(spec).collect()
+        assert ma.relation(native).to_polars().to_dict(as_series=False) == values
 
-
-class TestHandlerPathAndBoundaries:
-    def test_handler_join_residue_fires(self, monkeypatch):
-        from mountainash.relations.backends.relation_systems.narwhals.substrait.relsys_nw_join import (
-            SubstraitNarwhalsJoinRelationSystem,
-        )
-        snap = CapabilityRegistry.snapshot()
-        try:
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.NARWHALS,
-                [
-                    CapabilityFact(
-                        operation_key=RKEY_SUBSTRAIT_REL.JOIN, param="*",
-                        level=CapabilityLevel.UNSUPPORTED,
-                        backend=CONST_BACKEND.NARWHALS, dialect="narwhals-pandas",
-                        enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                        boundary=Boundary.MATERIALIZE, native_errors=(TypeError,),
-                        message="join residue fired (test)",
-                        since="2026-08-14",
-                    )
-                ],
-            )
-            def _boom(self, *a, **k):
-                raise TypeError("forced join failure")
-            monkeypatch.setattr(SubstraitNarwhalsJoinRelationSystem, "join", _boom)
-            nw_df = nw.from_native(pd.DataFrame({"id": [1]}), eager_only=True)
-            with pytest.raises(BackendCapabilityError, match="join residue fired"):
-                ma.relation(nw_df).join(ma.relation(nw_df), on="id").to_polars()
-        finally:
-            CapabilityRegistry.restore(snap)
-
-    def test_child_visit_error_not_narrowed(self, monkeypatch):
-        from mountainash.relations.core.unified_visitor import relation_visitor as rv
-        snap = CapabilityRegistry.snapshot()
-        try:
-            CapabilityRegistry.register_backend(
-                CONST_BACKEND.NARWHALS,
-                [
-                    CapabilityFact(
-                        operation_key=RKEY_SUBSTRAIT_REL.JOIN, param="*",
-                        level=CapabilityLevel.UNSUPPORTED,
-                        backend=CONST_BACKEND.NARWHALS, dialect="narwhals-pandas",
-                        enforcement=Enforcement.MATERIALIZE_RESIDUE,
-                        boundary=Boundary.MATERIALIZE, native_errors=(TypeError,),
-                        message="join residue fired (test)",
-                        since="2026-08-14",
-                    )
-                ],
-            )
-            # Force the RIGHT-side child visit/coercion to raise BEFORE the
-            # join's native call -- the join's (JOIN, *) fact must NOT enrich
-            # this child-visit error (children compile outside the wrap).
-            monkeypatch.setattr(
-                rv.UnifiedRelationVisitor,
-                "_visit_and_coerce_right",
-                lambda self, right, left: (_ for _ in ()).throw(TypeError("child visit failure")),
-            )
-            nw_df = nw.from_native(pd.DataFrame({"id": [1]}), eager_only=True)
-            with pytest.raises(TypeError, match="child visit failure"):
-                ma.relation(nw_df).join(ma.relation(nw_df), on="id").to_polars()
-        finally:
-            CapabilityRegistry.restore(snap)
+        invalid = backend_factory.create({"duration": ["P1D"], "year": ["invalid"]}, backend_name)
+        with pytest.raises(BackendCapabilityError) as raised:
+            ma.relation(invalid).conform(spec).collect()
+        assert raised.value.context["field_name"] == "year"
+        assert raised.value.function_key is FK.PARSE_XSD_PARTIAL_DATE
+        assert raised.value.limitation.consumer is PolicyConsumer.RESULT_PROTECTION
+    finally:
+        CapabilityRegistry.restore(snapshot)

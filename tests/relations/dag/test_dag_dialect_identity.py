@@ -8,7 +8,7 @@ in the dependency-materialisation loop. A DAG mixing dialects within the
 same family (e.g. one ref reads narwhals-pandas, another narwhals-polars)
 gated/enriched every dependency against the ANCHOR's dialect, not its own
 -- confirmed live: a narwhals-pandas ``string_split`` MATERIALIZE_RESIDUE
-fact leaked its raw native TypeError under a narwhals-polars anchor (see
+policy leaked its raw native TypeError under a narwhals-polars anchor (see
 the acceptance test in ``tests/relations/test_rel_limitations.py``).
 
 Fix: one combined per-name identity resolver
@@ -435,55 +435,50 @@ class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:
 
 
 @pytest.fixture
-def _narwhals_pandas_filter_gate_fact():
-    """Register an isolated, dialect-scoped BUILD-time GATE fact: filter()
-    is UNSUPPORTED on narwhals-pandas specifically (not a real production
-    limitation -- test-only, to deterministically exercise the per-ref
-    GATE path without depending on any real backend quirk or native
-    exception)."""
-    from mountainash.core.capabilities import (
-        CapabilityFact,
-        CapabilityLevel,
-        CapabilityRegistry,
-        Enforcement,
-        WILDCARD_PARAM,
+def _narwhals_pandas_filter_gate_policy():
+    """Publish an isolated concrete BUILD-time GATE policy for filter()."""
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
     )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
     from mountainash.relations.core.relation_system.relation_keys.enums import (
         RKEY_SUBSTRAIT_REL,
     )
 
+    scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
+    policy = CapabilityPolicyRule(
+        key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+        level=CapabilityLevel.UNSUPPORTED,
+        since="2026-09-18",
+        message="test-only BUILD-time gate for narwhals-pandas filter",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+    )
     snap = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_backend(
-            CONST_BACKEND.NARWHALS,
-            [
-                CapabilityFact(
-                    operation_key=RKEY_SUBSTRAIT_REL.FILTER,
-                    param=WILDCARD_PARAM,
-                    level=CapabilityLevel.UNSUPPORTED,
-                    backend=CONST_BACKEND.NARWHALS,
-                    dialect="narwhals-pandas",
-                    message="test-only BUILD-time gate for narwhals-pandas filter",
-                    enforcement=Enforcement.GATE,
-                    since="2026-08-13",
-                )
-            ],
-        )
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.relations.backends.capabilities.narwhals.dialects."
+            "narwhals_pandas.substrait.relation.test_dag_dialect_identity",
+            scope,
+            CapabilitySegment(Domain.RELATION, policies=(policy,)),
+        ))
         yield
     finally:
         CapabilityRegistry.restore(snap)
 
 
 class TestPerRefBuildTimeGateFiresOnNonAnchorRefsOwnDialect:
-    """Testing plan #1/#5's missing half: item 89's fix covers BUILD-time
-    GATE facts too, not just MATERIALIZE_RESIDUE -- a dialect-scoped GATE
-    fact on the NON-anchor ref's own dialect must fire during that ref's
-    own compile, even though the anchor's dialect differs. GATE facts
-    fire before any native call, so this test is fully deterministic --
-    no native-exception timing/flakiness concern."""
+    """A dialect-scoped GATE policy on a non-anchor ref must fire during
+    that ref's own compile, before any native call."""
 
     def test_gate_fires_on_non_anchor_pandas_ref_filter(
-        self, _narwhals_pandas_filter_gate_fact
+        self, _narwhals_pandas_filter_gate_policy
     ):
         dag = RelationDAG()
         anchor_rel = ma.relation(_nw_polars({"k": [1, 2]}))  # anchor: narwhals-polars

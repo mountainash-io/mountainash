@@ -16,6 +16,10 @@ from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
 from fixtures.backend_registry import ALL_BACKENDS
+from duckdb.duckdb import OutOfRangeException
+from ibis.common.exceptions import IbisTypeError
+from narwhals.exceptions import InvalidOperationError
+from fixtures.call_expectations import expect_call_failure
 
 
 def _collect_agg(df, expr, alias="__value__"):
@@ -69,9 +73,21 @@ class TestAggregateSum:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_sum_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").sum())
-        assert actual is None or actual == 0
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with expect_call_failure(
+                when=backend_name in ("ibis-polars", "ibis-sqlite"),
+                reason="all-null sum raises on ibis-polars/ibis-sqlite",
+                errors=(AttributeError,),
+            ):
+                actual = _collect_agg(df, ma.col("a").sum())
+                assert actual is None or actual == 0
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_sum_single_value(self, backend_name, backend_factory):
@@ -100,9 +116,21 @@ class TestAggregateMean:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_mean_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").mean())
-        assert actual is None
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with expect_call_failure(
+                when=backend_name in ("ibis-polars", "ibis-sqlite"),
+                reason="all-null mean raises on ibis-polars/ibis-sqlite",
+                errors=(AttributeError,),
+            ):
+                actual = _collect_agg(df, ma.col("a").mean())
+                assert actual is None
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_mean_single_value(self, backend_name, backend_factory):
@@ -131,9 +159,16 @@ class TestAggregateMin:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_min_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").min())
-        assert actual is None
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = _collect_agg(df, ma.col("a").min())
+            assert actual is None
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_min_single_value(self, backend_name, backend_factory):
@@ -162,9 +197,16 @@ class TestAggregateMax:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_max_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").max())
-        assert actual is None
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = _collect_agg(df, ma.col("a").max())
+            assert actual is None
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_max_single_value(self, backend_name, backend_factory):
@@ -193,9 +235,16 @@ class TestAggregateCount:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_count_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").count())
-        assert actual == 0
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = _collect_agg(df, ma.col("a").count())
+            assert actual == 0
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_count_single_value(self, backend_name, backend_factory):
@@ -234,9 +283,21 @@ class TestAggregateStdDev:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_std_dev_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").std_dev())
-        assert actual is None
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with expect_call_failure(
+                when=backend_name in ("ibis-polars", "ibis-sqlite"),
+                reason="all-null std_dev raises on ibis-polars/ibis-sqlite",
+                errors=(AttributeError,),
+            ):
+                actual = _collect_agg(df, ma.col("a").std_dev())
+                assert actual is None
 
 
 @pytest.mark.cross_backend
@@ -259,9 +320,21 @@ class TestAggregateVariance:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_variance_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").variance())
-        assert actual is None
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with expect_call_failure(
+                when=backend_name in ("ibis-polars", "ibis-sqlite"),
+                reason="all-null variance raises on ibis-polars/ibis-sqlite",
+                errors=(AttributeError,),
+            ):
+                actual = _collect_agg(df, ma.col("a").variance())
+                assert actual is None
 
 
 @pytest.mark.cross_backend
@@ -293,12 +366,19 @@ class TestAggregateMedian:
 class TestAggregateMedianAllNulls:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_median_all_nulls(self, backend_name, backend_factory):
-        # ibis-duckdb rejects the all-null table (IB-REL-06) before median is
-        # reached; every other backend raises AttributeError on col().median().
+        # ibis-duckdb rejects all-NULL table construction (IB-REL-06); every
+        # other backend raises AttributeError on col().median().
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        with pytest.raises(AttributeError):
-            _collect_agg(df, ma.col("a").median())
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with pytest.raises(AttributeError):
+                _collect_agg(df, ma.col("a").median())
 
 
 @pytest.mark.cross_backend
@@ -329,10 +409,17 @@ class TestAggregateNUnique:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_n_unique_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").n_unique())
-        # Either 0 (SQL) or 1 (Polars counts NULL as unique)
-        assert actual in [0, 1]
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = _collect_agg(df, ma.col("a").n_unique())
+            # Either 0 (SQL) or 1 (Polars counts NULL as unique)
+            assert actual in [0, 1]
 
 
 # ─── First ──────────────────────────────────────────────────────────────────
@@ -365,12 +452,19 @@ class TestAggregateFirst:
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_first_all_nulls(self, backend_name, backend_factory):
-        # ibis-duckdb rejects the all-null table (IB-REL-06); the others raise
-        # ValueError (first requires .over()).
+        # ibis-duckdb rejects all-NULL table construction (IB-REL-06); the
+        # others raise ValueError because first requires .over().
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        with pytest.raises(ValueError):
-            _collect_agg(df, ma.col("a").first())
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with pytest.raises(ValueError):
+                _collect_agg(df, ma.col("a").first())
 
 
 # ─── Last ───────────────────────────────────────────────────────────────────
@@ -403,9 +497,16 @@ class TestAggregateLast:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_last_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        with pytest.raises(ValueError):
-            _collect_agg(df, ma.col("a").last())
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with pytest.raises(ValueError):
+                _collect_agg(df, ma.col("a").last())
 
 
 # ─── Mode ───────────────────────────────────────────────────────────────────
@@ -417,30 +518,45 @@ class TestAggregateMode:
     def test_mode_single_mode(self, backend_name, backend_factory):
         data = {"a": [1, 2, 2, 3, 3, 3, 4]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").mode())
-        # Handle structural differences — Polars may return list, others scalar
-        if isinstance(actual, list):
-            assert 3 in actual
-        else:
-            assert actual == 3
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").mode())
+            # Handle structural differences — Polars may return list, others scalar
+            if isinstance(actual, list):
+                assert 3 in actual
+            else:
+                assert actual == 3
 
     def test_mode_all_same(self, backend_name, backend_factory):
         data = {"a": [7, 7, 7, 7]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").mode())
-        if isinstance(actual, list):
-            assert 7 in actual
-        else:
-            assert actual == 7
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").mode())
+            if isinstance(actual, list):
+                assert 7 in actual
+            else:
+                assert actual == 7
 
     def test_mode_strings(self, backend_name, backend_factory):
         data = {"a": ["x", "y", "y", "z", "y"]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").mode())
-        if isinstance(actual, list):
-            assert "y" in actual
-        else:
-            assert actual == "y"
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").mode())
+            if isinstance(actual, list):
+                assert "y" in actual
+            else:
+                assert actual == "y"
 
 
 # ─── Product ────────────────────────────────────────────────────────────────
@@ -452,30 +568,50 @@ class TestAggregateProduct:
     def test_product_integers(self, backend_name, backend_factory):
         data = {"a": [2, 3, 4]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").product())
-        # pandas/narwhals compute via log/exp — allow float approximation
-        assert actual == pytest.approx(24)
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars',
+            reason='product() returns None on ibis-polars',
+            errors=(AssertionError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").product())
+            # pandas/narwhals compute via log/exp — allow float approximation
+            assert actual == pytest.approx(24)
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_with_one(self, backend_name, backend_factory):
         data = {"a": [5, 1, 1, 1]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").product())
-        assert actual == pytest.approx(5)
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars',
+            reason='product() returns None on ibis-polars',
+            errors=(AssertionError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").product())
+            assert actual == pytest.approx(5)
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_with_zero(self, backend_name, backend_factory):
         data = {"a": [10, 20, 0, 30]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").product())
-        assert actual == 0
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'ibis-duckdb' or backend_name == 'ibis-sqlite',
+            reason=('product() returns None on ibis-polars' if backend_name == 'ibis-polars' else ('product() over a zero factor fails/diverges on ibis SQL' if backend_name == 'ibis-duckdb' else 'product() over a zero factor fails/diverges on ibis SQL')),
+            errors=((AssertionError,) if backend_name == 'ibis-polars' else ((OutOfRangeException,) if backend_name == 'ibis-duckdb' else (AssertionError,))),
+        ):
+            actual = _collect_agg(df, ma.col("a").product())
+            assert actual == 0
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product_single_element(self, backend_name, backend_factory):
         data = {"a": [42]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").product())
-        assert actual == pytest.approx(42)
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars',
+            reason='product() returns None on ibis-polars',
+            errors=(AssertionError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").product())
+            assert actual == pytest.approx(42)
 
 
 # ─── AnyValue ───────────────────────────────────────────────────────────────
@@ -487,27 +623,54 @@ class TestAggregateAnyValue:
     def test_any_value_returns_valid_element(self, backend_name, backend_factory):
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").any_value())
-        assert actual in [10, 20, 30, 40, 50]
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").any_value())
+            assert actual in [10, 20, 30, 40, 50]
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_strings(self, backend_name, backend_factory):
         data = {"a": ["alpha", "beta", "gamma"]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").any_value())
-        assert actual in ["alpha", "beta", "gamma"]
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").any_value())
+            assert actual in ["alpha", "beta", "gamma"]
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_with_nulls(self, backend_name, backend_factory):
         data = {"a": [None, 20, None, 40]}
         df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").any_value())
-        # May return None or any non-null value
-        assert actual in [None, 20, 40]
+        with expect_call_failure(
+            when=backend_name == 'narwhals-lazy',
+            reason='mode() and any_value() raise on narwhals-lazy',
+            errors=(InvalidOperationError,),
+        ):
+            actual = _collect_agg(df, ma.col("a").any_value())
+            # May return None or any non-null value
+            assert actual in [None, 20, 40]
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_any_value_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").any_value())
-        assert actual is None
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            with expect_call_failure(
+                when=backend_name == "narwhals-lazy",
+                reason="any_value() raises on narwhals-lazy",
+                errors=(InvalidOperationError,),
+            ):
+                actual = _collect_agg(df, ma.col("a").any_value())
+                assert actual is None

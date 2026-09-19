@@ -5,13 +5,11 @@ split). round_temporal declares YEAR/MONTH/WEEK UNSUPPORTED (ambiguous
 fixed-duration length in v1); round_calendar covers all nine. See
 2026-08-15-round-temporal-calendar-real-implementation-design.md.
 
-Known per-dialect gaps (2026-08-16 probe, capabilities/datetime/rounding.py):
-- ibis-sqlite: TimestampTruncate has no HOUR/MINUTE/SECOND/MILLISECOND/
-  MICROSECOND support, and TimestampBucket (multiple > 1) has no
-  compilation rule at all.
-- ibis-polars: CEIL/tie modes on MONTH/YEAR need interval addition, which
-  ibis's polars sub-backend cannot translate (polars.duration() has no
-  months/years kwarg) -- the whole unit is declared UNSUPPORTED there.
+Known per-dialect gaps:
+- ibis-sqlite: sub-day temporal rounding and calendar multiples greater than
+  one have no native implementation.
+- ibis-polars: MONTH/YEAR calendar FLOOR is supported; CEIL and tie modes
+  require unavailable calendar-interval addition.
 """
 
 from __future__ import annotations
@@ -21,10 +19,10 @@ from datetime import datetime
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities import load_all_capability_declarations
 from mountainash.core.types import BackendCapabilityError
-
-load_all_capability_declarations()
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_DATETIME,
+)
 
 TEMPORAL_BACKENDS = [
     "polars",
@@ -41,9 +39,9 @@ TEMPORAL_BACKENDS = [
 # round_temporal case below is UNSUPPORTED there.
 HOUR_CAPABLE_BACKENDS = [b for b in TEMPORAL_BACKENDS if b != "ibis-sqlite"]
 
-# ibis-polars declares MONTH/YEAR UNSUPPORTED on round_calendar (CEIL/tie
-# modes cannot translate a calendar-length interval); ibis-sqlite has no
-# TimestampBucket rule, so multiple > 1 is UNSUPPORTED there for every unit.
+# ibis-polars supports calendar FLOOR for MONTH/YEAR, but cannot add a
+# calendar interval for CEIL or nearest rounding. ibis-sqlite has no
+# TimestampBucket rule, so multiple > 1 is unsupported there for every unit.
 MONTH_YEAR_CAPABLE_BACKENDS = [b for b in TEMPORAL_BACKENDS if b != "ibis-polars"]
 QUARTER_MULTIPLE_CAPABLE_BACKENDS = [
     b for b in TEMPORAL_BACKENDS if b not in ("ibis-polars", "ibis-sqlite")
@@ -146,8 +144,9 @@ class TestRoundTemporalYearMonthWeekUnsupported:
     def test_raises_capability_error(self, backend_name, unit, backend_factory, collect_expr):
         df = backend_factory.create(_TIE_DATA, backend_name)
         expr = ma.col("ts").dt.round_temporal(rounding="FLOOR", unit=unit)
-        with pytest.raises(BackendCapabilityError, match="round_temporal"):
+        with pytest.raises(BackendCapabilityError) as raised:
             collect_expr(df, expr)
+        assert raised.value.function_key is FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL
 
 
 @pytest.mark.cross_backend
@@ -161,8 +160,9 @@ class TestRoundTemporalSqliteSubDayUnsupported:
     def test_raises_capability_error(self, backend_name, rounding, backend_factory, collect_expr):
         df = backend_factory.create(_TIE_DATA, backend_name)
         expr = ma.col("ts").dt.round_temporal(rounding=rounding, unit="HOUR")
-        with pytest.raises(BackendCapabilityError, match="sqlite"):
+        with pytest.raises(BackendCapabilityError) as raised:
             collect_expr(df, expr)
+        assert raised.value.function_key is FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL
 
 
 WEEK_CAPABLE_BACKENDS = [
@@ -203,8 +203,9 @@ class TestRoundCalendarNarwhalsWeekUnsupported:
     def test_raises_capability_error(self, backend_name, backend_factory, collect_expr):
         df = backend_factory.create(_TIE_DATA, backend_name)
         expr = ma.col("ts").dt.round_calendar(rounding="FLOOR", unit="WEEK")
-        with pytest.raises(BackendCapabilityError, match="round_calendar"):
+        with pytest.raises(BackendCapabilityError) as raised:
             collect_expr(df, expr)
+        assert raised.value.function_key is FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", MONTH_YEAR_CAPABLE_BACKENDS)
@@ -239,14 +240,22 @@ class TestRoundCalendarFloorCeilMonthYear:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ["ibis-polars"])
-class TestRoundCalendarPolarsMonthYearUnsupported:
-    @pytest.mark.parametrize("unit", ["MONTH", "YEAR"])
-    def test_raises_capability_error(self, backend_name, unit, backend_factory, collect_expr):
-        df = backend_factory.create(_TIE_DATA, backend_name)
-        expr = ma.col("ts").dt.round_calendar(rounding="FLOOR", unit=unit)
-        with pytest.raises(BackendCapabilityError, match="polars sub-backend"):
-            collect_expr(df, expr)
+@pytest.mark.parametrize(
+    ("unit", "expected"),
+    [
+        ("MONTH", datetime(2026, 3, 1, 0, 0, 0)),
+        ("YEAR", datetime(2026, 1, 1, 0, 0, 0)),
+    ],
+)
+class TestRoundCalendarPolarsMonthYearFloor:
+    def test_floor_has_native_value_oracle(
+        self, unit, expected, backend_factory, collect_expr
+    ):
+        df = backend_factory.create(_TIE_DATA, "ibis-polars")
+        actual = collect_expr(
+            df, ma.col("ts").dt.round_calendar(rounding="FLOOR", unit=unit)
+        )
+        assert actual == [expected]
 
 
 @pytest.mark.cross_backend
@@ -279,42 +288,51 @@ class TestRoundCalendarSqliteMultipleUnsupported:
     def test_raises_capability_error(self, backend_name, backend_factory, collect_expr):
         df = backend_factory.create(_MULTI_DATA, backend_name)
         expr = ma.col("ts").dt.round_calendar(rounding="FLOOR", unit="MONTH", multiple=3)
-        with pytest.raises(BackendCapabilityError, match="TimestampBucket"):
+        with pytest.raises(BackendCapabilityError) as raised:
             collect_expr(df, expr)
+        assert raised.value.function_key is FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ["ibis-sqlite"])
-class TestMaMultiplierIbisSqliteGate:
-    """Backlog item 99: the MA wrappers (dt.truncate/round/ceil/floor) accept
-    multiplier durations ("2d"/"3h"/"12mo") and on ibis-sqlite those reach
-    TimestampBucket, which has no sqlite compilation rule. The
-    DURATION_MULTIPLIER value-class fact must raise a clean
-    BackendCapabilityError at build time, never a raw
-    OperationNotDefinedError. Single-unit durations ("1d") are unaffected."""
+class TestMaMultiplierIbisSqliteUnsupported:
+    """Ibis SQLite refuses multi-unit MA datetime wrappers natively.
+
+    Single-unit wrappers retain their public values; the multi-unit calls
+    dispatch to the exact temporal or calendar rounding implementation that
+    cannot lower them.
+    """
 
     @pytest.mark.parametrize(
-        ("op", "unit"),
+        ("op", "unit", "function_key"),
         [
-            ("truncate", "2d"),
-            ("round", "3h"),
-            ("ceil", "12mo"),
-            ("floor", "2w"),
+            ("truncate", "2d", FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL),
+            ("round", "3h", FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL),
+            ("ceil", "12mo", FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR),
+            ("floor", "2w", FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR),
         ],
     )
     def test_multiplier_unit_raises_capability_error(
-        self, backend_name, op, unit, backend_factory, collect_expr
+        self, backend_name, op, unit, function_key, backend_factory, collect_expr
     ):
         df = backend_factory.create(_MULTI_DATA, backend_name)
         expr = getattr(ma.col("ts").dt, op)(unit)
-        with pytest.raises(BackendCapabilityError, match="TimestampBucket"):
+        with pytest.raises(BackendCapabilityError) as raised:
             collect_expr(df, expr)
+        assert raised.value.function_key is function_key
 
-    @pytest.mark.parametrize("op", ["truncate", "round", "ceil", "floor"])
-    def test_single_unit_still_compiles(
-        self, backend_name, op, backend_factory, collect_expr
+    @pytest.mark.parametrize(
+        ("op", "expected"),
+        [
+            ("truncate", datetime(2026, 3, 15, 0, 0, 0)),
+            ("round", datetime(2026, 3, 15, 0, 0, 0)),
+            ("ceil", datetime(2026, 3, 16, 0, 0, 0)),
+            ("floor", datetime(2026, 3, 15, 0, 0, 0)),
+        ],
+    )
+    def test_single_unit_has_native_value(
+        self, backend_name, op, expected, backend_factory, collect_expr
     ):
         df = backend_factory.create(_MULTI_DATA, backend_name)
-        expr = getattr(ma.col("ts").dt, op)("1d")
-        actual = collect_expr(df, expr)
-        assert len(actual) == 1
+        actual = collect_expr(df, getattr(ma.col("ts").dt, op)("1d"))
+        assert actual == [expected]

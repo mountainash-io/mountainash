@@ -32,7 +32,6 @@ def discover_declaration_modules() -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
-
 def _source_path(name: str) -> Path:
     """Locate a declaration leaf beneath its imported declared package root."""
     roots = tuple(root for root in _ROOTS if name.startswith(root + "."))
@@ -47,9 +46,7 @@ def _source_path(name: str) -> Path:
         try:
             source_path.relative_to(root_path)
         except ValueError:
-            raise ValueError(
-                f"capability module {name!r} resolves outside declared root {root!r}"
-            ) from None
+            raise ValueError(f"capability module {name!r} resolves outside declared root {root!r}") from None
         if source_path.is_file():
             return source_path
     raise ValueError(f"capability module {name!r} has no source file")
@@ -82,7 +79,9 @@ def _load_segments() -> tuple[BoundSegment, ...]:
         source_index = 6 if parts[5] == "family" else 7
         scope_module = importlib.import_module(".".join(parts[:source_index]) + "._scope")
         source = CapturedAddress(
-            "mountainash", "src/" + name.replace(".", "/") + ".py", "SEGMENT",
+            "mountainash",
+            "src/" + name.replace(".", "/") + ".py",
+            "SEGMENT",
             artifact=source_bytes,
         )
         collected.append(BoundSegment(name, getattr(scope_module, "SCOPE", None), segment, source))

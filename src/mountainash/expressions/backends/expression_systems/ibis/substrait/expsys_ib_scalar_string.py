@@ -39,25 +39,23 @@ def _escape_char_class(characters: str) -> str:
 
 _ASCII_UPPER_STR = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 _ASCII_LOWER_STR = "abcdefghijklmnopqrstuvwxyz"
+_ASCII_FOLD_TABLE = str.maketrans(_ASCII_UPPER_STR, _ASCII_LOWER_STR)
 
 
-def _ib_fold(expr: "IbisValueExpr", case_sensitivity: Any) -> "IbisValueExpr":
-    """Apply the fold a case_sensitivity option value implies. CASE_SENSITIVE
-    (and any other/omitted value) leaves expr unchanged; CASE_INSENSITIVE
-    applies full Unicode lowercasing; CASE_INSENSITIVE_ASCII folds only
-    A-Z/a-z via DuckDB/SQLite's native translate(), leaving every other code
-    point (Kelvin Sign, Turkish I-with-dot, ...) untouched -- see backlog
-    item 75. No `_lift_deferred`/`_lift_deferred_receiver` bridging is needed
-    here: `.lower()`/`.translate()` take no Deferred-typed arguments, so the
-    concrete-receiver-plus-Deferred-argument crash (item 226b/226c) cannot
-    occur on this call shape; the caller lifts `input` once via
-    `_lift_deferred_receiver` before folding either side.
+def _ib_fold(expr: "IbisValueExpr | str | None", case_sensitivity: Any) -> "IbisValueExpr":
+    """Fold raw search literals before constructing native literal expressions.
 
-    Casts to string first (a no-op for an already-string expr) so an
-    untyped null literal (`ibis.literal(None)` for the search operand --
-    item 80) has a `.lower()`/`.translate()` to call instead of raising
-    AttributeError on a bare NullScalar; the null itself still propagates
-    through either call unchanged."""
+    Ibis-Polars cannot consume Lowercase(Literal(...)) as a search pattern.
+    Dynamic/native operands retain native folding; null literals stay typed.
+    """
+    if isinstance(expr, str):
+        if case_sensitivity == "CASE_INSENSITIVE":
+            expr = expr.lower()
+        elif case_sensitivity == "CASE_INSENSITIVE_ASCII":
+            expr = expr.translate(_ASCII_FOLD_TABLE)
+        return ibis.literal(expr)
+    if expr is None:
+        return ibis.literal(None, type="string")
     if case_sensitivity == "CASE_INSENSITIVE":
         return expr.cast("string").lower()
     if case_sensitivity == "CASE_INSENSITIVE_ASCII":
@@ -78,6 +76,101 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     - Pattern: like, regexp_match_substring, regexp_replace, regexp_strpos
     - Split: string_split, regexp_string_split, string_agg
     """
+    def _prepare_call_trim(self, operands):
+        return [operands.native(0)] + (
+            [operands.raw_literal(1, "Ibis trim character sets must be literals")]
+            if len(operands) > 1
+            else []
+        )
+
+    def _prepare_call_ltrim(self, operands):
+        return [operands.native(0)] + (
+            [operands.raw_literal(1, "Ibis ltrim character sets must be literals")]
+            if len(operands) > 1
+            else []
+        )
+
+    def _prepare_call_rtrim(self, operands):
+        return [operands.native(0)] + (
+            [operands.raw_literal(1, "Ibis rtrim character sets must be literals")]
+            if len(operands) > 1
+            else []
+        )
+
+    def _prepare_call_center(self, operands):
+        prepared = [
+            operands.native(0),
+            operands.raw_literal(1, "Ibis center length must be a literal"),
+        ]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Ibis center padding character must be a literal")
+            )
+        return prepared
+
+    def _prepare_call_replace_slice(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Ibis slice start must be a literal"),
+            operands.raw_literal(2, "Ibis slice length must be a literal"),
+            operands.raw_literal(3, "Ibis slice replacement must be a literal"),
+        ]
+
+    def _prepare_literal_pattern(self, operands, literal_message: str):
+        pattern = (
+            operands.raw_literal(1, literal_message)
+            if self.dialect == "ibis-polars"
+            else operands.raw_literal_or_native(1)
+        )
+        return [operands.native(0), pattern] + [
+            operands.native(index) for index in range(2, len(operands))
+        ]
+
+    def _prepare_call_replace(self, operands):
+        return self._prepare_literal_pattern(
+            operands, "Ibis Polars replace substring must be a literal"
+        )
+
+    def _prepare_call_count_substring(self, operands):
+        return self._prepare_literal_pattern(
+            operands, "Ibis Polars substring count pattern must be a literal"
+        )
+
+    def _prepare_call_regexp_replace(self, operands):
+        return self._prepare_literal_pattern(
+            operands, "Ibis Polars regex replacement pattern must be a literal"
+        )
+
+    def _prepare_call_regexp_match_substring(self, operands):
+        return self._prepare_literal_pattern(
+            operands, "Ibis Polars regex match pattern must be a literal"
+        )
+
+    def _prepare_call_string_split(self, operands):
+        return self._prepare_literal_pattern(
+            operands, "Ibis Polars split separator must be a literal"
+        )
+
+    def _prepare_call_regexp_string_split(self, operands):
+        return self._prepare_literal_pattern(
+            operands, "Ibis Polars regex split pattern must be a literal"
+        )
+
+    def _prepare_search_pattern(self, operands):
+        pattern = operands.raw_literal_or_native(1)
+        if pattern is not None and not isinstance(pattern, str):
+            pattern = operands.native(1)
+        return [operands.native(0), pattern]
+
+    def _prepare_call_contains(self, operands):
+        return self._prepare_search_pattern(operands)
+
+    def _prepare_call_starts_with(self, operands):
+        return self._prepare_search_pattern(operands)
+
+    def _prepare_call_ends_with(self, operands):
+        return self._prepare_search_pattern(operands)
+
 
     # =========================================================================
     # Case Transformation Operations
@@ -93,11 +186,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Ibis).
+            char_set: ASCII_ONLY on SQLite, UTF8 elsewhere; omit for native behavior.
 
         Returns:
             Lowercase string.
         """
+        if char_set is not None and char_set != (
+            "ASCII_ONLY" if self.dialect == "ibis-sqlite" else "UTF8"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this character-set mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
+            )
         return input.lower()
 
     def upper(
@@ -110,11 +213,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Ibis).
+            char_set: ASCII_ONLY on SQLite, UTF8 elsewhere; omit for native behavior.
 
         Returns:
             Uppercase string.
         """
+        if char_set is not None and char_set != (
+            "ASCII_ONLY" if self.dialect == "ibis-sqlite" else "UTF8"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this character-set mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
+            )
         return input.upper()
 
     def swapcase(
@@ -123,20 +236,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         char_set: Any = None,
     ) -> IbisValueExpr:
-        """Swap case of characters (lowercase to uppercase and vice versa).
+        """Reject swapcase without a Mountainash Ibis implementation."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            char_set: Character set (ignored in Ibis).
-
-        Returns:
-            String with swapped case.
-
-        Note:
-            Ibis doesn't have swapcase. Returns input unchanged.
-        """
-        # Ibis doesn't have swapcase - fallback
-        return input
+        raise BackendCapabilityError(
+            "The Mountainash Ibis backend does not implement swapcase.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+        )
 
     def capitalize(
         self,
@@ -148,11 +255,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Ibis).
+            char_set: ASCII_ONLY on SQLite, UTF8 elsewhere; omit for native behavior.
 
         Returns:
             String with first character capitalized.
         """
+        if char_set is not None and char_set != (
+            "ASCII_ONLY" if self.dialect == "ibis-sqlite" else "UTF8"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this character-set mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+            )
         return input.capitalize()
 
     def title(
@@ -161,20 +278,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         char_set: Any = None,
     ) -> IbisValueExpr:
-        """Convert to title case (capitalize first char of each word except articles).
+        """Reject title without a Mountainash Ibis implementation."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            char_set: Character set (ignored in Ibis).
-
-        Returns:
-            Title-cased string.
-
-        Note:
-            Ibis may not have title. Falls back to capitalize.
-        """
-        # Ibis may not have title - use capitalize
-        return input.capitalize()
+        raise BackendCapabilityError(
+            "The Mountainash Ibis backend does not implement title.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+        )
 
     def initcap(
         self,
@@ -182,18 +293,14 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         /,
         char_set: Any = None,
     ) -> IbisValueExpr:
-        """Capitalize first character of each word.
+        """Reject initcap without a Mountainash Ibis implementation."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Unlike title(), this includes articles.
-
-        Args:
-            input: String expression.
-            char_set: Character set (ignored in Ibis).
-
-        Returns:
-            String with each word capitalized.
-        """
-        return input.initcap()
+        raise BackendCapabilityError(
+            "The Mountainash Ibis backend does not implement initcap.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+        )
 
     # =========================================================================
     # Trim and Pad Operations
@@ -207,8 +314,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Remove characters from both sides of the string.
 
-        `characters` arrives as a raw literal (visitor gate, LITERAL_ONLY);
-        composed via anchored re_replace since Ibis strip() takes no charset.
+        The category companion supplies a raw character set before native
+        compilation; Ibis strip() itself takes no charset.
         """
         if characters is None:
             return input.strip()
@@ -223,8 +330,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Remove characters from the left side of the string.
 
-        `characters` arrives as a raw literal (visitor gate, LITERAL_ONLY);
-        composed via anchored re_replace since Ibis lstrip() takes no charset.
+        The category companion supplies a raw character set before native
+        compilation; Ibis lstrip() itself takes no charset.
         """
         if characters is None:
             return input.lstrip()
@@ -239,8 +346,8 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     ) -> IbisValueExpr:
         """Remove characters from the right side of the string.
 
-        `characters` arrives as a raw literal (visitor gate, LITERAL_ONLY);
-        composed via anchored re_replace since Ibis rstrip() takes no charset.
+        The category companion supplies a raw character set before native
+        compilation; Ibis rstrip() itself takes no charset.
         """
         if characters is None:
             return input.rstrip()
@@ -297,13 +404,20 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         character: IbisValueExpr | str | None = None,
         padding: Any = None,
     ) -> IbisValueExpr:
-        """Center the input string (Python str.center semantics: extra pad
-        goes right; strings already >= length are returned unchanged).
+        """Center the input string with extra padding on the right.
 
-        Oracle: today's cross-backend behaviour per parameter-sensitivity
-        tests (approved B2 semantics decision — NOT the Substrait docstring
-        edge semantics; see spec Disposition table).
+        Omit padding or use RIGHT. Strings already at least length characters
+        long are returned unchanged. Python str.center has different odd-width
+        padding behavior; this implementation does not claim that equivalence.
         """
+        if padding not in (None, "RIGHT"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Ibis center only implements RIGHT padding.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+            )
         char = " " if character is None else str(character)
         n = int(length)
         cur_len = input.length()
@@ -329,11 +443,19 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             input: String expression.
             start: Starting position (0-indexed for API consistency).
             length: Length of substring.
-            negative_start: How to handle negative start values.
+            negative_start: Only WRAP_FROM_END or omission is supported.
 
         Returns:
             Substring expression.
         """
+        if negative_start not in (None, "WRAP_FROM_END"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The Mountainash Ibis backend supports only wrapped negative substring starts.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            )
         input = self._lift_deferred_receiver(input, start, length)
         if length is None:
             return input.substr(start)
@@ -384,10 +506,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        substring: IbisValueExpr,
+        substring: IbisValueExpr | str | None,
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether the input string contains the substring."""
+        if (
+            case_sensitivity == "CASE_INSENSITIVE" and self.dialect == "ibis-sqlite"
+            or case_sensitivity == "CASE_INSENSITIVE_ASCII" and self.dialect == "ibis-polars"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this search case-folding mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            )
         input = self._lift_deferred_receiver(input, substring)
         return _ib_fold(input, case_sensitivity).contains(
             _ib_fold(substring, case_sensitivity)
@@ -396,11 +529,22 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
     def starts_with(
         self,
         input: IbisValueExpr,
-        substring: IbisValueExpr,
+        substring: IbisValueExpr | str | None,
         /,
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether input string starts with the substring."""
+        if (
+            case_sensitivity == "CASE_INSENSITIVE" and self.dialect == "ibis-sqlite"
+            or case_sensitivity == "CASE_INSENSITIVE_ASCII" and self.dialect == "ibis-polars"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this search case-folding mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+            )
         input = self._lift_deferred_receiver(input, substring)
         return _ib_fold(input, case_sensitivity).startswith(
             _ib_fold(substring, case_sensitivity)
@@ -410,10 +554,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input: IbisValueExpr,
         /,
-        substring: IbisValueExpr,
+        substring: IbisValueExpr | str | None,
         case_sensitivity: Any = None,
     ) -> IbisValueExpr:
         """Whether input string ends with the substring."""
+        if (
+            case_sensitivity == "CASE_INSENSITIVE" and self.dialect == "ibis-sqlite"
+            or case_sensitivity == "CASE_INSENSITIVE_ASCII" and self.dialect == "ibis-polars"
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this search case-folding mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+            )
         input = self._lift_deferred_receiver(input, substring)
         return _ib_fold(input, case_sensitivity).endswith(
             _ib_fold(substring, case_sensitivity)
@@ -431,11 +586,19 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             substring: Substring to find.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Only CASE_SENSITIVE or omission is supported.
 
         Returns:
             Position (1-indexed), or 0 if not found.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "This Ibis string operation supports only CASE_SENSITIVE or omission.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+            )
         input = self._lift_deferred_receiver(input, substring)
         # Ibis find returns 0-based or -1; add 1 to make 1-indexed
         return input.find(substring) + ibis.literal(1)
@@ -452,9 +615,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             substring: Substring to count.
-            case_sensitivity: Case sensitivity option (gated UNSUPPORTED for
-                any non-default value; count_substring was not one of the 3
-                string ops given a real ASCII-fold implementation in item 75).
+            case_sensitivity: Only CASE_SENSITIVE or omission is supported.
 
         Returns:
             Count of occurrences.
@@ -475,31 +636,30 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             to a null result directly, without ever calling `.replace()`.
             This is required, not just tidy: on ibis-polars specifically,
             `.replace()` with a null pattern raises `pattern cannot be
-            'null' in 'replace' expression` (verified empirically) --
-            the SAME dynamic-pattern limitation the ordinary
-            column-valued dynamic branch below already has there (shared
-            with `replace`; see backlog item 81), but this path avoids it
-            entirely rather than merely accepting it, since a null
-            pattern's result is unconditionally null regardless of what
-            `.replace()` would have done.
+            'null' in 'replace' expression`, while a null pattern's result
+            is unconditionally null regardless of what `.replace()` would
+            have done.
 
             A literal (build-time-known) NON-null substring is
             regex-escaped and removed via `re_replace` (mirrors
             `replace`'s own literal-escape technique above -- see its
-            docstring for why `.replace()` alone isn't used there). A
-            genuinely dynamic (column-valued) substring instead uses
-            Ibis's plain, non-regex `.replace()`: verified empirically
-            (duckdb + sqlite, both with a Deferred receiver and a
-            Deferred/column pattern) to remove EVERY literal occurrence,
-            not just the first, so no regex-escaping is needed or
-            possible for a value only known at execution time. This
-            dynamic `.replace()` call itself still crashes with a raw,
-            unenriched native error on ibis-polars for a genuinely
-            per-row-varying column pattern (the pre-existing gap `replace`
-            already has there; not something this item fixes or asserts
-            around; see backlog item 81) -- only the null-literal case
-            above is fully closed.
+            docstring for why `.replace()` alone isn't used there).
+            ibis-polars requires that build-time literal during backend
+            operand preparation. On ibis-duckdb and ibis-sqlite, a genuinely
+            dynamic (column-valued) substring instead uses Ibis's plain,
+            non-regex `.replace()`: verified empirically (with a Deferred
+            receiver and a Deferred/column pattern) to remove EVERY literal
+            occurrence, not just the first, so no regex-escaping is needed
+            or possible for a value only known at execution time.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "This Ibis string operation supports only CASE_SENSITIVE or omission.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+            )
         input = self._lift_deferred_receiver(input, substring)
         pattern = self._extract_literal_if_possible(substring)
         if pattern is None:
@@ -653,7 +813,7 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             input: String expression.
             substring: Substring to replace.
             replacement: Replacement string.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Only CASE_SENSITIVE or omission is supported.
 
         Returns:
             String with replacements.
@@ -665,13 +825,21 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             deferred expression (mountainash always compiles to deferreds), while
             `.re_replace()` reliably replaces all. To keep literal semantics we
             `re.escape()` the pattern so metacharacters (e.g. ".") are matched
-            literally rather than as a regex. Column-ref patterns (no extractable
-            literal) fall back to the raw expression.
+            literally rather than as a regex. ibis-polars requires a
+            build-time literal substring during backend operand preparation;
+            other Ibis dialects retain the column-ref raw-expression path.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "This Ibis string operation supports only CASE_SENSITIVE or omission.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            )
         input = self._lift_deferred_receiver(input, substring, replacement)
-        # A3 permanent exception: `replace` extracts the literal pattern when
-        # available so it can be regex-escaped; dynamic column patterns still
-        # fall through to the raw expression path.
+        # Extract a literal pattern when available so it can be regex-escaped.
+        # Other Ibis dialects may pass a dynamic column pattern through raw.
         pattern = self._extract_literal_if_possible(substring)
         if isinstance(pattern, str):
             escaped = re.escape(pattern)
@@ -723,11 +891,19 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             match: SQL LIKE pattern.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Only CASE_SENSITIVE or omission is supported.
 
         Returns:
             Boolean expression.
         """
+        if self.dialect == "ibis-polars" or case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Ibis-Polars LIKE is unavailable; other Ibis engines support only CASE_SENSITIVE.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+            )
         input = self._lift_deferred_receiver(input, match)
         return input.like(match)
 
@@ -748,16 +924,31 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             pattern: Regex pattern.
-            position: Starting position (ignored in basic impl).
-            occurrence: Which occurrence (ignored in basic impl).
+            position: Starting position; only None or 1 is supported.
+            occurrence: Match occurrence; only None or 1 is supported.
             group: Capture group number.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            case_sensitivity: Explicitly supports only CASE_SENSITIVE.
+            multiline: Explicitly supports only MULTILINE_DISABLED.
+            dotall: Explicitly supports only DOTALL_DISABLED.
 
         Returns:
             Matched substring or null.
         """
+        from mountainash.core.types import BackendCapabilityError
+        if (
+            position not in (None, 1)
+            or occurrence not in (None, 1)
+            or case_sensitivity not in (None, "CASE_SENSITIVE")
+            or multiline not in (None, "MULTILINE_DISABLED")
+            or dotall not in (None, "DOTALL_DISABLED")
+        ):
+            raise BackendCapabilityError(
+                "Ibis regexp_match_substring supports only position=None/1, "
+                "occurrence=None/1, case_sensitivity=CASE_SENSITIVE, "
+                "multiline=MULTILINE_DISABLED, and dotall=DOTALL_DISABLED.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            )
         input = self._lift_deferred_receiver(input, pattern)
         # group is a raw int|None option (arguments-vs-options.md); no Expr to guard.
         group_index = 0 if group is None else group
@@ -887,15 +1078,30 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
             input: String expression.
             pattern: Regex pattern.
             replacement: Replacement string.
-            position: Starting position.
-            occurrence: Which occurrence (0 = all).
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            position: Starting position; only None or 1 is supported.
+            occurrence: Replacement occurrence; only None or 0 (replace all) is supported.
+            case_sensitivity: Explicitly supports only CASE_SENSITIVE.
+            multiline: Explicitly supports only MULTILINE_DISABLED.
+            dotall: Explicitly supports only DOTALL_DISABLED.
 
         Returns:
             String with replacements.
         """
+        from mountainash.core.types import BackendCapabilityError
+        if (
+            position not in (None, 1)
+            or occurrence not in (None, 0)
+            or case_sensitivity not in (None, "CASE_SENSITIVE")
+            or multiline not in (None, "MULTILINE_DISABLED")
+            or dotall not in (None, "DOTALL_DISABLED")
+        ):
+            raise BackendCapabilityError(
+                "Ibis regexp_replace supports only position=None/1, "
+                "occurrence=None/0 (replace all), case_sensitivity=CASE_SENSITIVE, "
+                "multiline=MULTILINE_DISABLED, and dotall=DOTALL_DISABLED.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
         input = self._lift_deferred_receiver(input, pattern, replacement)
         return input.re_replace(pattern, replacement)
 
@@ -935,20 +1141,32 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         Args:
             input: String expression.
             pattern: Regex pattern for separator.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            case_sensitivity: Explicitly supports only CASE_SENSITIVE.
+            multiline: Explicitly supports only MULTILINE_DISABLED.
+            dotall: Explicitly supports only DOTALL_DISABLED.
 
         Returns:
             List of strings.
-
-        Note:
-            Uses Ibis's native re_split. Works on ibis-duckdb (literal +
-            dynamic pattern) and ibis-polars (literal pattern only -- a
-            dynamic pattern is gated as a dialect-scoped LITERAL_ONLY
-            CapabilityFact, IB-STR-13). ibis-sqlite has no RegexSplit
-            compilation rule at all -- gated as a dialect-scoped
-            UNSUPPORTED whole-op CapabilityFact (IB-STR-12).
         """
+        from mountainash.core.types import BackendCapabilityError
+        if self.dialect == "ibis-sqlite":
+            raise BackendCapabilityError(
+                "Ibis SQLite does not support regexp_string_split because it has no "
+                "RegexSplit compilation rule.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+            )
+        if (
+            case_sensitivity not in (None, "CASE_SENSITIVE")
+            or multiline not in (None, "MULTILINE_DISABLED")
+            or dotall not in (None, "DOTALL_DISABLED")
+        ):
+            raise BackendCapabilityError(
+                "Ibis regexp_string_split supports only "
+                "case_sensitivity=CASE_SENSITIVE, multiline=MULTILINE_DISABLED, "
+                "and dotall=DOTALL_DISABLED.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+            )
         input = self._lift_deferred_receiver(input, pattern)
         return input.re_split(pattern)

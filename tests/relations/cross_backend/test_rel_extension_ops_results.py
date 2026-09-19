@@ -10,17 +10,16 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
-from fixtures.capability_gating import (
-    assert_capability_gated,
-    assert_predicate_capability_gated,
-    gate_dialect,
-    gate_family,
-)
+
+from ibis.common.exceptions import OperationNotDefinedError
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -80,10 +79,15 @@ class TestDropNans:
             {"a": [1.0, float("nan"), 3.0], "b": [10.0, 20.0, 30.0]},
             backend_name,
         )
-        result = ma.relation(df).drop_nans().to_dicts()
-        assert len(result) == 2
-        assert result[0]["a"] == 1.0
-        assert result[1]["a"] == 3.0
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(OperationNotDefinedError,),
+            reason="Relation.drop_nans()/unpivot()/melt() raise on ibis-sqlite; other backends compute them",
+        ):
+            result = ma.relation(df).drop_nans().to_dicts()
+            assert len(result) == 2
+            assert result[0]["a"] == 1.0
+            assert result[1]["a"] == 3.0
 
 
 # ---------------------------------------------------------------------------
@@ -96,35 +100,29 @@ class TestDropNans:
 class TestWithRowIndex:
     def test_with_row_index_default_name(self, backend_name, backend_factory):
         df = backend_factory.create({"a": [10, 20, 30]}, backend_name)
-        result = assert_capability_gated(
-            RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
-            gate_family(backend_name),
-            dialect=gate_dialect(backend_name),
-            build=lambda: ma.relation(df).with_row_index().to_dicts(),
-        )
-        if backend_name == "ibis-polars":
-            return
-        assert result == [
-            {"index": 0, "a": 10},
-            {"index": 1, "a": 20},
-            {"index": 2, "a": 30},
-        ]
+        with expect_call_failure(
+            when=backend_name in {"narwhals-lazy", "ibis-polars"},
+            errors=(TypeError,) if backend_name == "narwhals-lazy" else (BackendCapabilityError,),
+            reason="Relation.with_row_index() is unavailable on narwhals-lazy and ibis-polars; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
+        ):
+            result = ma.relation(df).with_row_index().to_dicts()
+            assert result == [
+                {"index": 0, "a": 10},
+                {"index": 1, "a": 20},
+                {"index": 2, "a": 30},
+            ]
 
-    def test_with_row_index_custom_name(self, backend_name, backend_factory):
-        df = backend_factory.create({"a": [10, 20, 30]}, backend_name)
-        result = assert_capability_gated(
-            RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
-            gate_family(backend_name),
-            dialect=gate_dialect(backend_name),
-            build=lambda: ma.relation(df).with_row_index(name="row_num").to_dicts(),
-        )
-        if backend_name == "ibis-polars":
-            return
-        assert result == [
-            {"row_num": 0, "a": 10},
-            {"row_num": 1, "a": 20},
-            {"row_num": 2, "a": 30},
-        ]
+        with expect_call_failure(
+            when=backend_name in {"narwhals-lazy", "ibis-polars"},
+            errors=(TypeError,) if backend_name == "narwhals-lazy" else (BackendCapabilityError,),
+            reason="Relation.with_row_index() is unavailable on narwhals-lazy and ibis-polars; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
+        ):
+            result = ma.relation(df).with_row_index(name="row_num").to_dicts()
+            assert result == [
+                {"row_num": 0, "a": 10},
+                {"row_num": 1, "a": 20},
+                {"row_num": 2, "a": 30},
+            ]
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +157,7 @@ class TestExplode:
                 overwrite=True,
             )
         else:
-            pytest.skip(f"List columns not supported on {backend_name}")
+            raise AssertionError(f"uncovered list backend: {backend_name}")
 
         result = ma.relation(df).explode("vals").to_dicts()
         result_sorted = sorted_dicts(result, ["id", "vals"])
@@ -171,7 +169,7 @@ class TestExplode:
 
 
 # ---------------------------------------------------------------------------
-# Unnest (struct columns — reduced backend set, xfail on narwhals)
+# Unnest (struct columns — reduced backend set, intrinsic refusal on Narwhals)
 # ---------------------------------------------------------------------------
 
 
@@ -181,7 +179,7 @@ class TestUnnest:
     def test_unnest_struct_column(self, backend_name, backend_factory):
         """Unnest a struct column into separate columns.
 
-        Narwhals raises NotImplementedError for unnest.
+        Narwhals reports an intrinsic unsupported-operation boundary.
         The separator="" produces flat field names (x, y) with no prefix.
         """
         import polars as pl
@@ -229,6 +227,13 @@ class TestUnnest:
         else:
             raise ValueError(f"Unexpected unnest provider: {backend_name}")
 
+        if backend_name == "narwhals-polars":
+            with pytest.raises(BackendCapabilityError) as raised:
+                ma.relation(df).unnest("info", separator="").to_dicts()
+            assert type(raised.value) is BackendCapabilityError
+            assert raised.value.function_key is RKEY_MOUNTAINASH_REL.UNNEST
+            assert raised.value.limitation is None
+            return
         result = ma.relation(df).unnest("info", separator="").to_dicts()
         result_sorted = sorted_dicts(result, "id")
         assert result_sorted == [
@@ -250,14 +255,19 @@ class TestUnpivot:
             {"id": [1, 2], "x": [10, 20], "y": [30, 40]},
             backend_name,
         )
-        result = ma.relation(df).unpivot(on=["x", "y"], index="id").to_dicts()
-        result_sorted = sorted_dicts(result, ["id", "variable"])
-        assert result_sorted == [
-            {"id": 1, "variable": "x", "value": 10},
-            {"id": 1, "variable": "y", "value": 30},
-            {"id": 2, "variable": "x", "value": 20},
-            {"id": 2, "variable": "y", "value": 40},
-        ]
+        with expect_call_failure(
+            when=backend_name == "ibis-sqlite",
+            errors=(OperationNotDefinedError,),
+            reason="Relation.drop_nans()/unpivot()/melt() raise on ibis-sqlite; other backends compute them",
+        ):
+            result = ma.relation(df).unpivot(on=["x", "y"], index="id").to_dicts()
+            result_sorted = sorted_dicts(result, ["id", "variable"])
+            assert result_sorted == [
+                {"id": 1, "variable": "x", "value": 10},
+                {"id": 1, "variable": "y", "value": 30},
+                {"id": 2, "variable": "x", "value": 20},
+                {"id": 2, "variable": "y", "value": 40},
+            ]
 
 
 # ---------------------------------------------------------------------------
@@ -277,15 +287,20 @@ class TestPivot:
             },
             backend_name,
         )
-        result = ma.relation(df).pivot(on="category", index="id", values="value").to_dicts()
-        result_sorted = sorted_dicts(result, "id")
-        # Sort column keys too for deterministic comparison
-        for row in result_sorted:
-            assert row["id"] in (1, 2)
-        assert result_sorted[0]["x"] == 10
-        assert result_sorted[0]["y"] == 20
-        assert result_sorted[1]["x"] == 30
-        assert result_sorted[1]["y"] == 40
+        with expect_call_failure(
+            when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite", "narwhals-lazy"),
+            errors=(AttributeError,) if backend_name == "narwhals-lazy" else (TypeError,),
+            reason="Relation.pivot() raises on all ibis backends and narwhals-lazy; polars and eager narwhals compute it",
+        ):
+            result = ma.relation(df).pivot(on="category", index="id", values="value").to_dicts()
+            result_sorted = sorted_dicts(result, "id")
+            # Sort column keys too for deterministic comparison
+            for row in result_sorted:
+                assert row["id"] in (1, 2)
+            assert result_sorted[0]["x"] == 10
+            assert result_sorted[0]["y"] == 20
+            assert result_sorted[1]["x"] == 30
+            assert result_sorted[1]["y"] == 40
 
 
 # ---------------------------------------------------------------------------
@@ -373,8 +388,8 @@ class TestSample:
 
 
 @pytest.mark.cross_backend
-class TestJoinAsofStrategyGate:
-    def test_ibis_polars_forward_nearest_gated(self):
+class TestJoinAsofStrategyRefusal:
+    def test_ibis_polars_forward_nearest_refuse(self):
         import ibis
         import polars as pl
 
@@ -387,10 +402,11 @@ class TestJoinAsofStrategyGate:
             def _build(strategy=strategy):
                 return ma.relation(left).join_asof(right, on="t", strategy=strategy).to_polars()
 
-            err = assert_predicate_capability_gated(_build)
-            assert err.function_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
+            with pytest.raises(BackendCapabilityError) as error:
+                _build()
+            assert error.value.function_key is RKEY_MOUNTAINASH_REL.JOIN_ASOF
 
-    def test_ibis_polars_backward_not_gated(self):
+    def test_ibis_polars_backward_executes(self):
         import ibis
         import polars as pl
 

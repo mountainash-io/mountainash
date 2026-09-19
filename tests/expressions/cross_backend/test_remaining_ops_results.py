@@ -20,6 +20,8 @@ from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import IbisTypeError
+from fixtures.call_expectations import expect_call_failure
 
 
 TEMPORAL_BACKENDS = [
@@ -195,12 +197,26 @@ class TestRemainingAllNulls:
 
     def test_null_count_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").null_count())
-        assert actual == 3
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = _collect_agg(df, ma.col("a").null_count())
+            assert actual == 3
 
     def test_has_nulls_all_nulls(self, backend_name, backend_factory):
         data = {"a": [None, None, None]}
-        df = backend_factory.create(data, backend_name)
-        actual = _collect_agg(df, ma.col("a").has_nulls())
-        assert actual is True
+        if backend_name == "ibis-duckdb":
+            with expect_call_failure(
+                reason="DuckDB cannot construct a table with an inferred NULL-typed column",
+                errors=(IbisTypeError,),
+            ):
+                backend_factory.create(data, backend_name)
+        else:
+            df = backend_factory.create(data, backend_name)
+            actual = _collect_agg(df, ma.col("a").has_nulls())
+            assert actual is True

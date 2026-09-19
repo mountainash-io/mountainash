@@ -14,6 +14,34 @@ import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
 
 
+def test_sqlite_abs_error_checks_declared_width_without_catalogue(backend_factory):
+    # SQLite-specific: its Int64 storage and narrower Ibis result conversion
+    # have different overflow behavior; other engines have different contracts.
+    import ibis
+
+    from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.core.types import BackendCapabilityError
+    from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
+    from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+
+    dataframe = backend_factory.create({"x": [-7, -8]}, "ibis-sqlite")
+    system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-sqlite")
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False, input_data=dataframe)
+        valid = visitor.visit(ma.col("x").abs(overflow="ERROR")._node)
+        assert dataframe.select(valid.name("result")).to_pyarrow()["result"].to_pylist() == [7, 8]
+
+        for operand in (ma.native(ibis.literal(-128, type="int8")), ma.col("x").cast("i8")):
+            with pytest.raises(BackendCapabilityError):
+                compiled = visitor.visit(operand.abs(overflow="ERROR")._node)
+                dataframe.select(compiled.name("result")).to_pyarrow()
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestDivisionByZero:
@@ -154,9 +182,14 @@ class TestOverflow:
         actual = aggregated.item("p")
         # 10^6 * 10^6 * 10^6 = 10^18 — fits in int64
         # Some backends compute product as float64 (precision loss), ibis-polars returns None
-        if actual is None:
-            pytest.skip("backend returned NULL for integer product")
-        assert actual == pytest.approx(1_000_000_000_000_000_000, rel=1e-6)
+        from fixtures.call_expectations import expect_call_failure
+
+        with expect_call_failure(
+            when=backend_name == "ibis-polars",
+            errors=(AssertionError,),
+            reason="The Ibis Polars aggregate product returns NULL for this non-null Int64 input",
+        ):
+            assert actual == pytest.approx(1_000_000_000_000_000_000, rel=1e-6)
 
     def test_large_sum(self, backend_name, backend_factory):
         from mountainash.relations.core.relation_api.relation import Relation

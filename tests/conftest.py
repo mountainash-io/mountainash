@@ -536,7 +536,7 @@ def pytest_configure(config):
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
-    """Attach closed observers before any backend, ``-k``, or ``-m`` deselection.
+    """Select backend scope and assign tiers without catalogue-owned expectations.
 
     Backend scope (MA_BACKEND_SCOPE=pr) then DESELECTS cross-backend
     parametrized cases for out-of-scope backends — ALL_BACKENDS stays the full
@@ -545,14 +545,6 @@ def pytest_collection_modifyitems(config, items):
     """
     from selection.tiers import TIERS, resolve_tier
     from fixtures.backend_registry import active_scope, partition_items_by_scope
-
-    from mountainash.core.capabilities.registry import CapabilityRegistry
-    from tests.fixtures.verification_bindings import attach_expectations, observer_specs
-
-    specs = observer_specs()
-    catalogue = CapabilityRegistry.capture()
-    reasons = {spec.key: catalogue.get(spec.key).assertion.impact for spec in specs}
-    attach_expectations(items, specs, reasons=reasons, requested=config.args)
 
     # --- backend-scope deselection (pr scope drops out-of-scope backend params) ---
     kept, deselected = partition_items_by_scope(items, active_scope())
@@ -577,9 +569,3 @@ def pytest_collection_modifyitems(config, items):
     config._ma_tier_multi = multi
 
 
-@pytest.hookimpl(hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    from tests.fixtures.verification_bindings import classify_call
-
-    outcome = yield
-    classify_call(item, call, outcome.get_result())

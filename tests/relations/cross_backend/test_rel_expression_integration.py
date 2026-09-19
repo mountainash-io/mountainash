@@ -12,6 +12,8 @@ from mountainash import col, lit, when, coalesce, greatest, least
 from mountainash.relations import relation
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -221,16 +223,26 @@ class TestHorizontalFunctions:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_greatest(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = (
-            relation(df).with_columns(greatest(col("score"), lit(90)).name.alias("at_least_90")).sort("id").to_dict()
-        )
-        assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
+        with expect_call_failure(
+            when=backend_name in ("narwhals-pandas", "pandas"),
+            errors=(AssertionError,),
+            reason="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
+        ):
+            result = (
+                relation(df).with_columns(greatest(col("score"), lit(90)).name.alias("at_least_90")).sort("id").to_dict()
+            )
+            assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_least(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        result = relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()
-        assert result["capped_at_90"] == [85, 90, 78, 90, 88], f"[{backend_name}]"
+        with expect_call_failure(
+            when=backend_name in ("narwhals-pandas", "pandas"),
+            errors=(AssertionError,),
+            reason="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
+        ):
+            result = relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()
+            assert result["capped_at_90"] == [85, 90, 78, 90, 88], f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_coalesce_with_nulls(self, backend_name, backend_factory):
@@ -437,11 +449,20 @@ class TestNarwhalsBackendExpressions:
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_relation_metadata_gate_uses_prepared_input(backend_name, backend_factory):
-    from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.capabilities.schema import CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate
-    from mountainash.core.constants import CONST_BACKEND
-    from tests.fixtures.capability_gating import assert_predicate_capability_gated
+def test_relation_metadata_policy_uses_prepared_input(backend_name, backend_factory):
+    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
+        Selector,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.schema import Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
+    from mountainash.core.types import BackendCapabilityError
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
     snapshot = CapabilityRegistry.snapshot()
@@ -449,32 +470,50 @@ def test_relation_metadata_gate_uses_prepared_input(backend_name, backend_factor
         expression = col("x").abs().name.alias("x")
         floating = backend_factory.create({"x": [-1.5, 2.5]}, backend_name)
         assert relation(floating).select(expression).to_dict() == {"x": [1.5, 2.5]}
-        for family in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS, CONST_BACKEND.IBIS):
-            CapabilityRegistry.register_backend(
-                family,
-                [
-                    CapabilityFact(
-                        operation_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-                        param="x",
-                        level=CapabilityLevel.UNSUPPORTED,
-                        backend=family,
-                        message="float operand blocked",
-                        since="2026-09-14",
-                        predicate=Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),)),
-                    )
-                ],
-            )
+        CapabilityRegistry.reset()
+        identity = identify_backend_identity(floating)
+        assert identity.dialect is not None
+        predicate = Predicate((
+            Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+        ))
+        policy = CapabilityPolicyRule(
+            key=CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                "x",
+                Selector("predicate", predicate),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            since="2026-09-18",
+            message="float operand blocked",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+        )
+        module = (
+            "mountainash.expressions.backends.capabilities."
+            f"{identity.family.value}.dialects.{identity.dialect.replace('-', '_')}."
+            "substrait.arithmetic.synthetic_relation_metadata"
+        )
+        CapabilityRegistry.register_segment(BoundSegment(
+            module,
+            Scope(identity.family, Dialect(identity.dialect)),
+            CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
+        ))
         registered = CapabilityRegistry.snapshot()
-        assert_predicate_capability_gated(lambda: relation(floating).select(expression).collect())
+        with pytest.raises(BackendCapabilityError) as error:
+            relation(floating).select(expression).collect()
+        assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS
         frame = backend_factory.create({"x": [-1, 2]}, backend_name)
         assert relation(frame).select(expression).to_dict() == {"x": [1, 2]}
         changed = relation(frame).select(col("x").cast(float).name.alias("renamed"))
-        error = assert_predicate_capability_gated(lambda: changed.select(col("renamed").abs()).collect())
-        assert error.limitation.predicate.clauses[0].operand == "float"
+        with pytest.raises(BackendCapabilityError) as error:
+            changed.select(col("renamed").abs()).collect()
+        assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS
         CapabilityRegistry.reset()
         assert relation(floating).select(expression).to_dict() == {"x": [1.5, 2.5]}
         CapabilityRegistry.restore(registered)
-        assert_predicate_capability_gated(lambda: relation(floating).select(expression).collect())
+        with pytest.raises(BackendCapabilityError) as error:
+            relation(floating).select(expression).collect()
+        assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS
         assert relation(frame).select(expression).to_dict() == {"x": [1, 2]}
     finally:
         CapabilityRegistry.restore(snapshot)

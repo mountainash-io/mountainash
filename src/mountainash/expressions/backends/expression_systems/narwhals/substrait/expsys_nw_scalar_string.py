@@ -96,6 +96,142 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     Note: Narwhals has a more limited string API than Polars. Some methods
     use workarounds or simplified implementations.
     """
+    def _prepare_literal_or_native_second(self, operands):
+        second = (
+            operands.raw_literal(
+                1, "Narwhals pandas search substrings must be literals"
+            )
+            if self.dialect == "narwhals-pandas"
+            else operands.raw_literal_or_native(1)
+        )
+        return [operands.native(0), second] + [
+            operands.native(index) for index in range(2, len(operands))
+        ]
+
+    def _prepare_optional_trim(self, operands):
+        return [operands.native(0)] + (
+            [
+                operands.raw_literal(
+                    1, "Narwhals trim character sets must be literals"
+                )
+            ]
+            if len(operands) > 1
+            else []
+        )
+
+    def _prepare_call_trim(self, operands):
+        return self._prepare_optional_trim(operands)
+
+    def _prepare_call_ltrim(self, operands):
+        return self._prepare_optional_trim(operands)
+
+    def _prepare_call_rtrim(self, operands):
+        return self._prepare_optional_trim(operands)
+
+    def _prepare_call_contains(self, operands):
+        return self._prepare_literal_or_native_second(operands)
+
+    def _prepare_call_starts_with(self, operands):
+        return self._prepare_literal_or_native_second(operands)
+
+    def _prepare_call_ends_with(self, operands):
+        return self._prepare_literal_or_native_second(operands)
+
+    def _prepare_call_replace(self, operands):
+        replacement = (
+            operands.raw_literal(
+                2, "Narwhals pandas replacements must be literals"
+            )
+            if self.dialect == "narwhals-pandas"
+            else operands.raw_literal_or_native(2)
+        )
+        return [
+            operands.native(0),
+            operands.raw_literal(
+                1, "Narwhals replacement substrings must be literals"
+            ),
+            replacement,
+        ] + [operands.native(index) for index in range(3, len(operands))]
+
+    def _prepare_call_regexp_replace(self, operands):
+        replacement = (
+            operands.raw_literal(
+                2, "Narwhals pandas regex replacements must be literals"
+            )
+            if self.dialect == "narwhals-pandas"
+            else operands.raw_literal_or_native(2)
+        )
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals regex patterns must be literals"),
+            replacement,
+        ] + [operands.native(index) for index in range(3, len(operands))]
+
+    def _prepare_call_substring(self, operands):
+        prepared = [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals substring start must be a literal"),
+        ]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Narwhals substring length must be a literal")
+            )
+        return prepared
+
+    def _prepare_call_lpad(self, operands):
+        prepared = [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals padding length must be a literal"),
+        ]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Narwhals padding characters must be literals")
+            )
+        return prepared
+
+    def _prepare_call_rpad(self, operands):
+        prepared = [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals padding length must be a literal"),
+        ]
+        if len(operands) > 2:
+            prepared.append(
+                operands.raw_literal(2, "Narwhals padding characters must be literals")
+            )
+        return prepared
+
+    def _prepare_call_left(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals left count must be a literal"),
+        ]
+
+    def _prepare_call_right(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals right count must be a literal"),
+        ]
+
+    def _prepare_call_count_substring(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals substring count pattern must be a literal"),
+        ]
+
+    def _prepare_call_like(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(1, "Narwhals LIKE pattern must be a literal"),
+        ]
+
+    def _prepare_call_string_split(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(
+                1, "Narwhals split separators must be literals"
+            ),
+        ]
+
 
     # =========================================================================
     # Case Transformation Operations
@@ -111,11 +247,19 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Narwhals).
-
+            char_set: Omit it or use UTF8 for native Narwhals behavior.
         Returns:
             Lowercase string.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Narwhals only supports UTF8 char_set. Omit char_set or use UTF8 "
+                "for native Narwhals behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
+            )
         return input.str.to_lowercase()
 
     def upper(
@@ -128,11 +272,19 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Narwhals).
-
+            char_set: Omit it or use UTF8 for native Narwhals behavior.
         Returns:
             Uppercase string.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Narwhals only supports UTF8 char_set. Omit char_set or use UTF8 "
+                "for native Narwhals behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
+            )
         return input.str.to_uppercase()
 
     def swapcase(
@@ -141,20 +293,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         char_set: Any = None,
     ) -> NarwhalsExpr:
-        """Swap case of characters (lowercase to uppercase and vice versa).
+        """Swap case of characters (lowercase to uppercase and vice versa)."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            char_set: Character set (ignored in Narwhals).
-
-        Returns:
-            String with swapped case.
-
-        Note:
-            Narwhals doesn't have swapcase. Returns input unchanged as fallback.
-        """
-        # Narwhals doesn't have swapcase - fallback to no-op
-        return input
+        raise BackendCapabilityError(
+            "Mountainash Narwhals implementation of swapcase is unavailable.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+        )
 
     def capitalize(
         self,
@@ -162,20 +308,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         /,
         char_set: Any = None,
     ) -> NarwhalsExpr:
-        """Capitalize the first character of the input string.
+        """Capitalize the first character of the input string."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            char_set: Character set (ignored in Narwhals).
-
-        Returns:
-            String with first character capitalized.
-
-        Note:
-            Narwhals doesn't have capitalize. Returns input unchanged as fallback.
-        """
-        # Narwhals doesn't have capitalize - fallback
-        return input
+        raise BackendCapabilityError(
+            "Mountainash Narwhals implementation of capitalize is unavailable.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+        )
 
     def title(
         self,
@@ -187,8 +327,7 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Narwhals).
-
+            char_set: Omit it or use UTF8 for native Narwhals behavior.
         Returns:
             Title-cased string.
 
@@ -196,6 +335,15 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             Maps to Narwhals str.to_titlecase(), matching Polars' documented
             non-article-aware simplification.
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Narwhals only supports UTF8 char_set. Omit char_set or use UTF8 "
+                "for native Narwhals behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+            )
         return input.str.to_titlecase()
 
     def initcap(
@@ -208,14 +356,22 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
         Args:
             input: String expression.
-            char_set: Character set (ignored in Narwhals).
-
+            char_set: Omit it or use UTF8 for native Narwhals behavior.
         Returns:
             String with each word capitalized.
 
         Note:
             Maps to Narwhals str.to_titlecase().
         """
+        if char_set is not None and char_set != "UTF8":
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Narwhals only supports UTF8 char_set. Omit char_set or use UTF8 "
+                "for native Narwhals behavior.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+            )
         return input.str.to_titlecase()
 
     # =========================================================================
@@ -319,22 +475,14 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         character: NarwhalsExpr = None,
         padding: Any = None,
     ) -> NarwhalsExpr:
-        """Center the input string by padding both sides.
+        """Center the input string by padding both sides."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            length: Target length.
-            character: Single padding character (default: space).
-            padding: Which side gets extra padding (ignored).
-
-        Returns:
-            Centered string.
-
-        Note:
-            Narwhals doesn't have center. Returns input as fallback.
-        """
-        # Narwhals doesn't have center - fallback
-        return input
+        raise BackendCapabilityError(
+            "Mountainash Narwhals implementation of center is unavailable.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+        )
 
     # =========================================================================
     # Substring Operations
@@ -354,11 +502,22 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             input: String expression.
             start: Starting position (0-indexed for API consistency).
             length: Length of substring.
-            negative_start: How to handle negative start values.
+            negative_start: None or WRAP_FROM_END retains native negative-slice
+                behavior; other negative-start modes are unavailable in this
+                implementation.
 
         Returns:
             Substring expression.
         """
+        if negative_start not in (None, "WRAP_FROM_END"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Mountainash Narwhals substring supports negative_start only as "
+                "None or WRAP_FROM_END.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            )
         if length is None:
             return input.str.slice(int(start))
         return input.str.slice(int(start), int(length))
@@ -513,21 +672,17 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         substring: NarwhalsExpr,
         case_sensitivity: Any = None,
     ) -> NarwhalsExpr:
-        """Return position of first occurrence of substring (1-indexed).
+        """Return the position of the first occurrence of substring (1-indexed).
 
-        Args:
-            input: String expression.
-            substring: Substring to find.
-            case_sensitivity: Case sensitivity option.
-
-        Returns:
-            Position (1-indexed), or 0 if not found.
-
-        Note:
-            Narwhals may not have find. Returns 0 as fallback.
+        This Mountainash Narwhals implementation is unavailable.
         """
-        # Narwhals doesn't have find - fallback
-        return nw.lit(0)
+        from mountainash.core.types import BackendCapabilityError
+
+        raise BackendCapabilityError(
+            "Mountainash Narwhals implementation of strpos is unavailable.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+        )
 
     def count_substring(
         self,
@@ -540,24 +695,19 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
         Args:
             input: String expression.
-            substring: Literal substring to count (LITERAL_ONLY-gated -- a
-                dynamic column-valued substring is rejected before reaching
-                this method; narwhals' str.replace_all() pattern argument
-                does not accept an expression on any dialect, matching
-                sibling `replace`'s substring param, NW-STR-03).
-            case_sensitivity: Case sensitivity option.
+            substring: Literal substring to count. The category companion
+                enforces the native scalar requirement before this method.
+            case_sensitivity: Only None or CASE_SENSITIVE is supported.
 
         Returns:
             Count of occurrences.
 
         Note:
-            No native count-non-overlapping-matches primitive exists in the
-            narwhals str namespace, so this computes it via length
+            This implementation computes non-overlapping matches via length
             arithmetic: (len(input) - len(input with every occurrence
-            removed)) / len(substring) -- matching Polars' own
-            str.count_matches(literal=True) semantics exactly (verified
-            empirically), including its len(input) + 1 convention for an
-            empty substring.
+            removed)) / len(substring), matching Polars'
+            str.count_matches(literal=True) semantics, including its
+            len(input) + 1 convention for an empty substring.
 
             A null literal substring short-circuits to a null result
             before the native call rather than crashing on `len(None)`
@@ -569,9 +719,17 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             regardless of input length); wrapping the null result in a
             `when` whose CONDITION references `input` gives it a row-shape
             to broadcast against, independent of the condition's truth
-            value. `_nw_fold` isn't reused here -- it also folds
-            `case_sensitivity`, which count_substring doesn't wire.
+            value. Case sensitivity is not lowered by this implementation.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Mountainash Narwhals count_substring supports case_sensitivity "
+                "only as None or CASE_SENSITIVE.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+            )
         if substring is None:
             return nw.when(input.is_null()).then(nw.lit(None)).otherwise(nw.lit(None))
         if substring == "":
@@ -678,11 +836,20 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             input: String expression.
             substring: Substring to replace.
             replacement: Replacement string.
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Only None or CASE_SENSITIVE is supported.
 
         Returns:
             String with replacements.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Mountainash Narwhals replace supports case_sensitivity only as "
+                "None or CASE_SENSITIVE.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            )
         # Substrait `replace` is literal substring substitution (regex is the
         # separate `regexp_replace`). replace_all defaults to literal=False, so
         # a regex metacharacter in the pattern (e.g. ".") would match wrongly.
@@ -731,18 +898,26 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
     ) -> NarwhalsExpr:
         """SQL LIKE pattern matching (% and _ wildcards).
 
-        The SQL-LIKE -> regex conversion is Python-side and requires a literal
-        pattern (gated LITERAL_ONLY on every narwhals dialect), so `match`
-        always arrives as a raw string here.
+        The SQL-LIKE -> regex conversion is Python-side and the category
+        companion supplies its required literal pattern.
 
         Args:
             input: String expression.
             match: SQL LIKE pattern (literal string).
-            case_sensitivity: Case sensitivity option.
+            case_sensitivity: Only None or CASE_SENSITIVE is supported.
 
         Returns:
             Boolean expression.
         """
+        if case_sensitivity not in (None, "CASE_SENSITIVE"):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Mountainash Narwhals like supports case_sensitivity only as "
+                "None or CASE_SENSITIVE.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+            )
         # Convert SQL LIKE pattern to regex
         like_pattern = match.replace("%", "\x00PERCENT\x00").replace("_", "\x00UNDERSCORE\x00")
         regex_pattern = re.escape(like_pattern)
@@ -762,26 +937,15 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
         multiline: Any = None,
         dotall: Any = None,
     ) -> NarwhalsExpr:
-        """Extract substring matching regex pattern.
+        """Extract substring matching regex pattern."""
+        from mountainash.core.types import BackendCapabilityError
 
-        Args:
-            input: String expression.
-            pattern: Regex pattern.
-            position: Starting position (ignored in basic impl).
-            occurrence: Which occurrence (ignored in basic impl).
-            group: Capture group number.
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
-
-        Returns:
-            Matched substring or null.
-
-        Note:
-            Narwhals may not have extract. Returns input as fallback.
-        """
-        # Narwhals doesn't have extract - fallback
-        return input
+        raise BackendCapabilityError(
+            "Mountainash Narwhals implementation of regexp_match_substring is "
+            "unavailable.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+        )
 
     def regexp_match_substring_all(
         self,
@@ -910,15 +1074,30 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
             input: String expression.
             pattern: Regex pattern.
             replacement: Replacement string.
-            position: Starting position.
-            occurrence: Which occurrence (0 = all).
-            case_sensitivity: Case sensitivity option.
-            multiline: Multiline mode.
-            dotall: Dotall mode.
+            position: Starting position; only 1 or omission is supported.
+            occurrence: Only 0 (all matches) or omission is supported.
+            case_sensitivity: Only CASE_SENSITIVE or omission is supported.
+            multiline: Only MULTILINE_DISABLED or omission is supported.
+            dotall: Only DOTALL_DISABLED or omission is supported.
 
         Returns:
             String with replacements.
         """
+        if (
+            position not in (None, 1)
+            or occurrence not in (None, 0)
+            or case_sensitivity not in (None, "CASE_SENSITIVE")
+            or multiline not in (None, "MULTILINE_DISABLED")
+            or dotall not in (None, "DOTALL_DISABLED")
+        ):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "The Mountainash Narwhals backend supports regex replacement only "
+                "from position 1, for all occurrences, with default regex flags.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            )
         return input.str.replace_all(pattern, replacement)
 
     # =========================================================================

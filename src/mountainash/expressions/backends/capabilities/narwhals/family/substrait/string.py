@@ -5,207 +5,75 @@ from __future__ import annotations
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
 
 
-from mountainash.core.capabilities.declarations import CapabilityAssertion
+from mountainash.core.capabilities.declarations import CapabilityInformation
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.STRING,
-    capabilities=(
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH, subject="substring"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-01",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH, subject="substring"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-01",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS, subject="substring"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-01",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject="substring"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-03",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject="replacement"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-03",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject="match"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-01",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="pattern"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-05",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="replacement"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-05",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject="start"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-06",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject="length"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-06",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, subject="length"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-06",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, subject="length"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-06",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT, subject="count"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-06",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT, subject="count"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-06",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM, subject="characters"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-07",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM, subject="characters"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-07",
-        ),
-        CapabilityAssertion(
-            key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM, subject="characters"),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
-            message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
-            workaround="Use a literal string value instead of a column reference",
-            issue="NW-STR-07",
-        ),
-        CapabilityAssertion(
+    information=(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING, subject="substring"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
             since="2026-07-05",
             message="Narwhals str.replace_all()'s pattern argument does not accept a column expression on any dialect (pandas or polars-backed) -- count_substring's fold is built on replace_all, unlike sibling search-operand params that are pandas-only restricted.",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-03",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, subject="characters"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
             since="2026-07-05",
             message="Narwhals str.lpad() requires a single literal fill character, not a column expression",
             workaround="Use a literal single-character string",
             issue="NW-STR-06",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, subject="characters"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
             since="2026-07-05",
             message="Narwhals str.rpad() requires a single literal fill character, not a column expression",
             workaround="Use a literal single-character string",
             issue="NW-STR-06",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE, subject="*"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-23",
             message="This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data",
-            probe_exempt="whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER, subject="*"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-23",
             message="This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data",
-            probe_exempt="whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE, subject="*"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-23",
             message="This string operation has no correct native implementation on this backend at the pinned floor; it is gated to fail loudly rather than return wrong data",
-            probe_exempt="whole-op gate; verified by the dedicated op-level probe suite (test_op_level_gate_probes.py), which cannot be keyed on an OpSpec param",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT, subject="*"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-08-13",
             message="Narwhals has no regex-split primitive at the pinned version -- ExprStringNamespace.split(by) is literal-substring-only, no other method performs regex splitting on any narwhals dialect",
             workaround="Use a Polars or ibis-duckdb/ibis-polars(literal) backend for regex split",
             issue="NW-STR-20",
-            probe_exempt="whole-op gate on a family-wide WILDCARD_PARAM fact; no OpSpec exists since narwhals genuinely has no candidate method to probe -- verified by a dedicated native-API-surface self-healing probe (not a re-invocation of the mountainash wrapper's own hard-coded raise)",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT, subject="separator"),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
             since="2026-08-13",
             message="Narwhals str.split() requires a literal separator string, not an Expr -- raises TypeError even for an Expr-wrapped literal",

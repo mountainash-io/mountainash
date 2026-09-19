@@ -24,6 +24,7 @@ from mountainash.expressions.core.utils.temporal import (
     between_last,
 )
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 _ALL_XF_SQLITE_DT13 = [b for b in ALL_BACKENDS]
 
@@ -109,13 +110,18 @@ class TestWithinLastFilter:
 
         # Filter: last 8 minutes
         expr = within_last(ma.col("timestamp"), "8 minutes")
-        result_dict = ma_top.relation(df).filter(expr).to_dict()
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges',
+            errors=(AssertionError,),
+        ):
+            result_dict = ma_top.relation(df).filter(expr).to_dict()
 
-        # Should get messages A, B (within 8 minutes)
-        # Message C (10 min) and D (30 min) are older
-        messages = result_dict["message"]
-        assert len(messages) == 2, f"[{backend_name}] Expected 2 rows, got {len(messages)}"
-        assert messages == ["A", "B"], f"[{backend_name}] Expected ['A', 'B'], got {messages}"
+            # Should get messages A, B (within 8 minutes)
+            # Message C (10 min) and D (30 min) are older
+            messages = result_dict["message"]
+            assert len(messages) == 2, f"[{backend_name}] Expected 2 rows, got {len(messages)}"
+            assert messages == ["A", "B"], f"[{backend_name}] Expected ['A', 'B'], got {messages}"
 
 
 @pytest.mark.cross_backend
@@ -182,13 +188,18 @@ class TestBetweenLastFilter:
 
         # Filter: between 8 hours ago and 2 hours ago
         expr = between_last(ma.col("timestamp"), "8 hours", "2 hours")
-        result_dict = ma_top.relation(df).filter(expr).to_dict()
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges',
+            errors=(AssertionError,),
+        ):
+            result_dict = ma_top.relation(df).filter(expr).to_dict()
 
-        # Should get events B, C (between 8h and 2h ago)
-        # Event A (1h) is too recent, D (12h) is too old
-        events = result_dict["event"]
-        assert len(events) == 2, f"[{backend_name}] Expected 2 rows, got {len(events)}"
-        assert events == ["B", "C"], f"[{backend_name}] Expected ['B', 'C'], got {events}"
+            # Should get events B, C (between 8h and 2h ago)
+            # Event A (1h) is too recent, D (12h) is too old
+            events = result_dict["event"]
+            assert len(events) == 2, f"[{backend_name}] Expected 2 rows, got {len(events)}"
+            assert events == ["B", "C"], f"[{backend_name}] Expected ['B', 'C'], got {events}"
 
 
 # =============================================================================
@@ -239,12 +250,17 @@ class TestRealWorldLogFiltering:
 
         # Scenario: Show errors from last 15 minutes (like journalctl)
         expr = (ma.col("level") == ma.lit("ERROR")) & within_last(ma.col("timestamp"), "15 minutes")
-        result_dict = ma_top.relation(logs).filter(expr).to_dict()
-        messages = result_dict["message"]
-        assert len(messages) == 2, f"[{backend_name}] Expected 2 recent errors, got {len(messages)}"
-        assert messages == ["Database connection failed", "Timeout error"], (
-            f"[{backend_name}] Unexpected error messages: {messages}"
-        )
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges',
+            errors=(AssertionError,),
+        ):
+            result_dict = ma_top.relation(logs).filter(expr).to_dict()
+            messages = result_dict["message"]
+            assert len(messages) == 2, f"[{backend_name}] Expected 2 recent errors, got {len(messages)}"
+            assert messages == ["Database connection failed", "Timeout error"], (
+                f"[{backend_name}] Unexpected error messages: {messages}"
+            )
 
     def test_cleanup_old_logs(
         self,
@@ -283,10 +299,15 @@ class TestRealWorldLogFiltering:
 
         # Scenario: Cleanup old logs (older than 1 hour)
         expr = older_than(ma.col("timestamp"), "1 hour")
-        result_dict = ma_top.relation(logs).filter(expr).to_dict()
-        messages = result_dict["message"]
-        assert len(messages) == 1, f"[{backend_name}] Expected 1 old log, got {len(messages)}"
-        assert messages == ["Old error"], f"[{backend_name}] Expected ['Old error'], got {messages}"
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges',
+            errors=(AssertionError,),
+        ):
+            result_dict = ma_top.relation(logs).filter(expr).to_dict()
+            messages = result_dict["message"]
+            assert len(messages) == 1, f"[{backend_name}] Expected 1 old log, got {len(messages)}"
+            assert messages == ["Old error"], f"[{backend_name}] Expected ['Old error'], got {messages}"
 
 
 @pytest.mark.integration

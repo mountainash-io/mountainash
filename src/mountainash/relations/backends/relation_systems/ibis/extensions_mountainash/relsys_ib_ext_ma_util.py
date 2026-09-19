@@ -8,6 +8,8 @@ import ibis
 import ibis.expr.types as ir
 
 from mountainash.core.transit import BoundaryKey, transit_call
+from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
@@ -18,6 +20,8 @@ from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import 
 
 class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemProtocol[ir.Table]):
     """Mountainash-specific relation operations for the Ibis backend."""
+
+    dialect: str | None
 
     def drop_nulls(self, relation: ir.Table, /, *, subset: Optional[list[str]] = None) -> ir.Table:
         return relation.drop_null(subset)
@@ -40,6 +44,12 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         return relation.filter(combined)
 
     def with_row_index(self, relation: ir.Table, /, *, name: str = "index") -> ir.Table:
+        if self.dialect == "ibis-polars":
+            raise BackendCapabilityError(
+                "Ibis Polars cannot compile the window function needed for row indices.",
+                backend="ibis",
+                function_key=RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
+            )
         return relation.mutate(**{name: ibis.row_number()})
 
     def explode(self, relation: ir.Table, /, *, columns: list[str]) -> ir.Table:
@@ -207,6 +217,12 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         strategy: str,
         tolerance: Any,
     ) -> ir.Table:
+        if self.dialect == "ibis-polars" and strategy in ("forward", "nearest"):
+            raise BackendCapabilityError(
+                "Ibis Polars cannot compile forward or nearest asof join emulation; backward is supported.",
+                backend="ibis",
+                function_key=RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+            )
         # backward has a native ASOF JOIN translation on duckdb and polars;
         # sqlite has none, and forward/nearest have no native direction
         # control anywhere -- those route through the emulation.
@@ -307,10 +323,6 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         """
         from datetime import timedelta
 
-        from mountainash.core.types import BackendCapabilityError
-        from mountainash.relations.core.relation_system.relation_keys.enums import (
-            RKEY_MOUNTAINASH_REL,
-        )
 
         left_cols = list(left.columns)
         right_cols = list(right.columns)

@@ -7,12 +7,9 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NULL as FK_NULL,
 )
 from expressions.argument_types.conftest import ALL_BACKENDS
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 
 TESTED_PARAMS: list[tuple] = [
     (FK_NULL.FILL_NAN, "replacement"),
@@ -59,8 +56,8 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op, it)
-                marks = [mark] if mark else []
+                
+                marks = []
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )

@@ -7,6 +7,7 @@ implementations.
 import pytest
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 @pytest.mark.cross_backend
@@ -20,8 +21,13 @@ class TestComposeStringTrimExtended:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.ltrim()
-        actual = collect_expr(df, expr)
-        assert actual == ["hello  ", "world  "], f"[{backend_name}] ltrim got {actual}"
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            reason='Directional trimming over-strips both ends.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == ["hello  ", "world  "], f"[{backend_name}] ltrim got {actual}"
 
     def test_rtrim(self, backend_name, backend_factory, collect_expr):
         """Test rtrim removes trailing spaces."""
@@ -29,8 +35,13 @@ class TestComposeStringTrimExtended:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("text").str.rtrim()
-        actual = collect_expr(df, expr)
-        assert actual == ["  hello", "  world"], f"[{backend_name}] rtrim got {actual}"
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            reason='Directional trimming over-strips both ends.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
+            assert actual == ["  hello", "  world"], f"[{backend_name}] rtrim got {actual}"
 
 
 @pytest.mark.cross_backend

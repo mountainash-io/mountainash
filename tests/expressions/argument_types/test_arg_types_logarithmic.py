@@ -1,10 +1,7 @@
-"""Argument channel tests for logarithmic operations.
+"""Argument channel coverage for logarithmic operations.
 
-OP_SPECS is intentionally empty: the make_df helper uses eager-pandas Narwhals
-which does not trigger several KNOWN_EXPR_LIMITATIONS registry entries (those
-apply to lazy backends), causing strict-xfail XPASS noise. The full
-TESTED_PARAMS list still satisfies the coverage guard. Once the test
-infrastructure can route through lazy backends, OP_SPECS can be filled in.
+The covered logarithmic forms require a relation-level fixture rather than
+this eager scalar matrix.
 """
 from __future__ import annotations
 
@@ -14,12 +11,9 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC as FK_LOG,
 )
 from expressions.argument_types.conftest import ALL_BACKENDS
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 
 TESTED_PARAMS: list[tuple] = [
     ("ln", "x"),
@@ -38,8 +32,8 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op, it)
-                marks = [mark] if mark else []
+                
+                marks = []
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )

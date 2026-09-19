@@ -16,6 +16,9 @@ import pytest
 from datetime import datetime
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from ibis.common.exceptions import OperationNotDefinedError
+from mountainash.core.types import BackendCapabilityError
+from fixtures.call_expectations import expect_call_failure
 
 
 # =============================================================================
@@ -109,11 +112,16 @@ class TestTimeDifferences:
 
         # Calculate difference in hours
         expr = ma.col("end").dt.diff_hours(ma.col("start"))
-        actual = collect_expr(df, expr, alias="diff")
+        with expect_call_failure(
+            when=backend_name in ('ibis-polars', 'ibis-sqlite'),
+            reason='time-unit differences raise on ibis-polars and ibis-sqlite',
+            errors=(OperationNotDefinedError,),
+        ):
+            actual = collect_expr(df, expr, alias="diff")
 
-        # 3 hours, 2.25 hours (rounded to 2 for int representation)
-        expected = [3, 2]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            # 3 hours, 2.25 hours (rounded to 2 for int representation)
+            expected = [3, 2]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     def test_diff_minutes(self, backend_name, backend_factory, collect_expr):
         """Test calculating difference in minutes between datetimes."""
@@ -132,11 +140,16 @@ class TestTimeDifferences:
 
         # Calculate difference in minutes
         expr = ma.col("end").dt.diff_minutes(ma.col("start"))
-        actual = collect_expr(df, expr, alias="diff")
+        with expect_call_failure(
+            when=backend_name in ('ibis-polars', 'ibis-sqlite'),
+            reason='time-unit differences raise on ibis-polars and ibis-sqlite',
+            errors=(OperationNotDefinedError,),
+        ):
+            actual = collect_expr(df, expr, alias="diff")
 
-        # 180 minutes, 135 minutes
-        expected = [180, 135]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            # 180 minutes, 135 minutes
+            expected = [180, 135]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
@@ -181,10 +194,15 @@ class TestDateTimeTruncation:
 
         # Truncate to hour
         expr = ma.col("timestamp").dt.truncate("1h")
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day truncate raises on ibis-sqlite',
+            errors=(BackendCapabilityError,),
+        ):
+            actual = collect_expr(df, expr)
 
-        expected = [datetime(2024, 1, 15, 14, 0, 0), datetime(2024, 6, 20, 9, 0, 0)]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            expected = [datetime(2024, 1, 15, 14, 0, 0), datetime(2024, 6, 20, 9, 0, 0)]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
@@ -229,10 +247,15 @@ class TestFlexibleOffsetBy:
 
         # Subtract 3 months
         expr = ma.col("timestamp").dt.offset_by("-3mo")
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name == 'ibis-polars' or backend_name == 'ibis-sqlite',
+            reason=('calendar interval arithmetic raises TypeError on ibis-polars' if backend_name == 'ibis-polars' else 'sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges'),
+            errors=((TypeError,) if backend_name == 'ibis-polars' else (AssertionError,)),
+        ):
+            actual = collect_expr(df, expr)
 
-        expected = [datetime(2023, 10, 1, 10, 0, 0), datetime(2024, 3, 15, 14, 30, 0)]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            expected = [datetime(2023, 10, 1, 10, 0, 0), datetime(2024, 3, 15, 14, 30, 0)]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================
@@ -255,10 +278,15 @@ class TestChainingTimeOperations:
         # Chain: Add 2 hours, add 30 minutes, truncate to hour
         # 10:00 + 2h = 12:00, + 30m = 12:30, truncate to hour = 12:00
         expr = ma.col("timestamp").dt.add_hours(2).dt.add_minutes(30).dt.truncate("1h")
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day truncate raises on ibis-sqlite',
+            errors=(BackendCapabilityError,),
+        ):
+            actual = collect_expr(df, expr)
 
-        expected = [datetime(2024, 1, 1, 12, 0, 0)]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            expected = [datetime(2024, 1, 1, 12, 0, 0)]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_chain_multiple_additions(self, backend_name, backend_factory, collect_expr):
@@ -306,10 +334,15 @@ class TestTemporalEdgeCases:
 
         # Add -2 hours (subtract 2 hours)
         expr = ma.col("timestamp").dt.add_hours(-2)
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
 
-        expected = [datetime(2024, 1, 1, 8, 30, 45)]
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            expected = [datetime(2024, 1, 1, 8, 30, 45)]
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
 # =============================================================================

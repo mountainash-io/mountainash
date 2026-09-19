@@ -1,12 +1,4 @@
-"""Shared limitation-enrichment machinery (spec relations-dispatch-parity §3.8).
-
-Extracted from expressions' BaseExpressionSystem._call_with_expr_support so
-both subsystems enrich known backend quirks identically. Lookup order per
-failure: each named arg's ``(operation_key, param)`` entry, then the
-``(operation_key, "*")`` wildcard (how handler-routed relation operations
-and the materialization boundary participate). The *limitations* mapping
-holds :class:`CapabilityFact` entries (the spine's MATERIALIZE residue).
-"""
+"""Attribute identified native issues independently of silent-result protection."""
 from __future__ import annotations
 
 from enum import Enum, auto
@@ -28,6 +20,8 @@ class _Boundary(Enum):
 #: ``(MATERIALIZE_BOUNDARY, "*")``.
 MATERIALIZE_BOUNDARY = _Boundary.MATERIALIZE
 
+_UNSPECIFIED_DIALECT = object()
+
 
 def call_with_limitation_enrichment(
     fn: Callable[[], Any],
@@ -35,34 +29,35 @@ def call_with_limitation_enrichment(
     limitations: Mapping[tuple, Any],
     backend_name: str,
     operation_key: Any,
-    named_args: Iterable[str],
+    named_args: Mapping[str, Any],
+    identify_issue: Callable[..., str | None] | None,
 ) -> Any:
-    """Call *fn*, enriching known-limitation failures into
-    :class:`BackendCapabilityError`.
-
-    Args:
-        fn: Zero-arg callable invoking the native backend operation.
-        limitations: A ``(operation_key, param) -> CapabilityFact`` table
-            (the spine's MATERIALIZE residue).
-        backend_name: Backend identifier for the raised error.
-        operation_key: FKEY/RKEY enum member (or a boundary sentinel).
-        named_args: Parameter names that may identify the failing entry;
-            the ``"*"`` wildcard is always consulted last.
-    """
+    """Enrich an identified native issue, never a merely matching error class."""
     try:
         return fn()
     except BackendCapabilityError:
         raise  # already enriched (e.g. by a nested visit) — never re-wrap
     except Exception as exc:
-        for param_name in (*named_args, WILDCARD_PARAM):
-            limitation = limitations.get((operation_key, param_name))
-            if limitation and isinstance(exc, limitation.native_errors):
-                raise BackendCapabilityError(
-                    limitation.message,
-                    backend=backend_name,
-                    function_key=operation_key,
-                    limitation=limitation,
-                ) from exc
+        from mountainash.core.capabilities.schema import PolicyConsumer
+
+        issue = (
+            identify_issue(exc, operation_key=operation_key, arguments=named_args)
+            if identify_issue is not None else None
+        )
+        if issue is None:
+            raise
+        matches = [
+            fact for (key, param), fact in limitations.items()
+            if key == operation_key and (param in named_args or param == WILDCARD_PARAM)
+            and fact.consumer is PolicyConsumer.IMMEDIATE_ERROR
+            and fact.native_issue == issue and isinstance(exc, fact.native_errors)
+            and _routing_matches(fact, named_args)
+        ]
+        if len(matches) == 1:
+            fact = matches[0]
+            raise BackendCapabilityError(
+                fact.message, backend=backend_name, function_key=operation_key, limitation=fact,
+            ) from exc
         raise
 
 
@@ -83,8 +78,9 @@ def _diagnostic_matches(
     *,
     signal: Any,
     error: BaseException | None = None,
+    native_issue: str | None = None,
 ) -> list[tuple[Any, Any]]:
-    from mountainash.core.capabilities.schema import ResidueSignal
+    from mountainash.core.capabilities.schema import PolicyConsumer, ResidueSignal
 
     matches: list[tuple[Any, Any]] = []
     family = diagnostic.backend_family
@@ -92,7 +88,7 @@ def _diagnostic_matches(
         fact_family = getattr(fact.backend, "value", fact.backend)
         if fact_family != family:
             continue
-        if fact.dialect is not None and fact.dialect != diagnostic.dialect:
+        if fact.dialect != diagnostic.dialect:
             continue
         if fact.operation_key != diagnostic.function_key:
             continue
@@ -102,23 +98,14 @@ def _diagnostic_matches(
             continue
         if signal is ResidueSignal.EXCEPTION and (
             error is None or not isinstance(error, fact.native_errors)
+            or native_issue is None or fact.native_issue != native_issue
+            or fact.consumer is not PolicyConsumer.MATERIALIZATION_ERROR
         ):
             continue
         if signal is ResidueSignal.EXCEPTION and diagnostic.failure_behavior != "throw":
             continue
         matches.append((diagnostic, fact))
-    if not matches:
-        return []
-    winning_rank = max(_fact_specificity(fact) for _, fact in matches)
-    return [match for match in matches if _fact_specificity(match[1]) == winning_rank]
-
-
-def _fact_specificity(fact: Any) -> tuple[int, int, int]:
-    return (
-        int(fact.dialect is not None),
-        int(fact.param != "*"),
-        len(fact.predicate.clauses) if fact.predicate is not None else int(fact.option_value is not None),
-    )
+    return matches
 
 
 def _is_true_marker(result: Any, marker: str) -> bool:
@@ -147,54 +134,27 @@ def enrich_materialization(
     fn: Callable[[], Any],
     *,
     prefer_operation_keys: "frozenset | None" = None,
-    dialect: "str | None" = None,
+    dialect: Any = _UNSPECIFIED_DIALECT,
     diagnostic_trace: Any = None,
     residue_checks: Iterable[Any] = (),
 ) -> Any:
     """Enrich deterministic capability residue at a materialization boundary."""
     from mountainash.conform.errors import ConformError
     from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.capabilities.schema import ResidueSignal
+    from mountainash.core.capabilities.schema import PolicyConsumer, ResidueSignal
     from mountainash.core.errors import CapabilityResidueInvariantError
     from mountainash.core.types import BackendCapabilityError
 
     family = getattr(backend, "backend_type", None)
-    active_dialect = dialect if dialect is not None else getattr(backend, "dialect", None)
+    active_dialect = getattr(backend, "dialect", None) if dialect is _UNSPECIFIED_DIALECT else dialect
     checks = tuple(residue_checks)
     if family is None:
         return fn()
 
-    if diagnostic_trace is None and not checks:
-        residue = CapabilityRegistry.residue_for(family, active_dialect)
-        if not residue:
-            return fn()
-        try:
-            return fn()
-        except BackendCapabilityError:
-            raise
-        except Exception as exc:
-            candidates = residue.items()
-            if prefer_operation_keys is not None:
-                candidates = [
-                    item for item in candidates
-                    if item[0][0] in prefer_operation_keys
-                ]
-            matches = [
-                (op_key, fact) for (op_key, _param), fact in candidates
-                if isinstance(exc, fact.native_errors)
-            ]
-            if len(matches) == 1:
-                op_key, fact = matches[0]
-                raise BackendCapabilityError(
-                    fact.message,
-                    backend=getattr(backend, "BACKEND_NAME", "unknown"),
-                    function_key=op_key,
-                    limitation=fact,
-                ) from exc
-            raise
-
     diagnostics = tuple(getattr(diagnostic_trace, "records", ()))
     facts = CapabilityRegistry.residue_candidates(family, active_dialect)
+    if not facts and not diagnostics and not checks:
+        return fn()
     try:
         result = fn()
     except BackendCapabilityError:
@@ -202,6 +162,8 @@ def enrich_materialization(
     except ConformError:
         raise
     except Exception as exc:
+        identify = getattr(backend, "identify_native_issue", None)
+        native_issue = identify(exc) if identify is not None else None
         matched: list[tuple[Any, Any]] = []
         for diagnostic in diagnostics:
             if prefer_operation_keys is not None and diagnostic.function_key not in prefer_operation_keys:
@@ -212,8 +174,25 @@ def enrich_materialization(
                     facts,
                     signal=ResidueSignal.EXCEPTION,
                     error=exc,
+                    native_issue=native_issue,
                 )
             )
+        if not matched and native_issue is not None and prefer_operation_keys:
+            identified = [
+                fact for fact in facts
+                if fact.operation_key in prefer_operation_keys
+                and fact.dialect == active_dialect
+                and fact.consumer is PolicyConsumer.MATERIALIZATION_ERROR
+                and fact.native_issue == native_issue
+                and isinstance(exc, fact.native_errors)
+                and fact.option_value is None and fact.predicate is None and fact.value_class is None
+            ]
+            if len(identified) == 1:
+                fact = identified[0]
+                raise BackendCapabilityError(
+                    fact.message, backend=getattr(backend, "BACKEND_NAME", "unknown"),
+                    function_key=fact.operation_key, limitation=fact,
+                ) from exc
         if not matched:
             from mountainash.relations.core.unified_visitor.relation_visitor import (
                 CONFORM_TRANSFORM_KEYS,
@@ -239,30 +218,6 @@ def enrich_materialization(
                 raise ConformTransformError(
                     original_error=exc,
                     candidates=eligible,
-                ) from exc
-            active_operation_keys = {diagnostic.function_key for diagnostic in diagnostics}
-            residue = CapabilityRegistry.residue_for(family, active_dialect)
-            candidates = [
-                item for item in residue.items()
-                if item[0][0] not in active_operation_keys
-            ]
-            if prefer_operation_keys is not None:
-                candidates = [
-                    item for item in candidates
-                    if item[0][0] in prefer_operation_keys
-                ]
-            legacy_matches = [
-                (op_key, fact)
-                for (op_key, _param), fact in candidates
-                if isinstance(exc, fact.native_errors)
-            ]
-            if len(legacy_matches) == 1:
-                op_key, fact = legacy_matches[0]
-                raise BackendCapabilityError(
-                    fact.message,
-                    backend=getattr(backend, "BACKEND_NAME", "unknown"),
-                    function_key=op_key,
-                    limitation=fact,
                 ) from exc
             raise
         fact_keys = tuple(sorted({fact.fact_key for _, fact in matched}))
@@ -297,11 +252,33 @@ def enrich_materialization(
             candidate_fields=fields,
             candidate_fact_keys=fact_keys,
         ) from exc
-    true_checks = tuple(check for check in checks if _is_true_marker(result, check.marker))
+    marker_result = result
+    if checks:
+        from mountainash.core.types import is_ibis_table
+
+        if is_ibis_table(result):
+            from mountainash.core.capabilities.identity import BackendIdentity
+            from mountainash.relations.core.materialization import (
+                MaterializationPurpose,
+                diagnostic_polars_view,
+                materialize_native,
+            )
+
+            # Aggregate all markers in one query without transporting data columns.
+            marker_summary = result.aggregate(**{
+                check.marker: result[check.marker].any() for check in checks
+            })
+            marker_native = materialize_native(
+                marker_summary,
+                BackendIdentity(family, active_dialect),
+                MaterializationPurpose.DIAGNOSTIC_VIEW,
+            )
+            marker_result = diagnostic_polars_view(marker_native).frame
+    true_checks = tuple(check for check in checks if _is_true_marker(marker_result, check.marker))
     if not true_checks:
         return _drop_markers(result, (check.marker for check in checks))
 
-    matched: list[tuple[Any, Any]] = []
+    matched = []
     for check in true_checks:
         check_matches = []
         for diagnostic in diagnostics:

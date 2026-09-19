@@ -16,6 +16,7 @@ import pytest
 import mountainash.expressions as ma
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 # =============================================================================
 # Cross-Backend Tests - Basic Arithmetic
@@ -40,6 +41,34 @@ class TestBasicArithmetic:
 
         expected = [12, 23, 34, 45, 56]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+
+    @pytest.mark.parametrize(
+        ("values", "other", "options", "expected"),
+        [
+            pytest.param([0.25, 0.75], 0.5, {"rounding": "CEILING"}, [0.75, 1.25], id="rounding"),
+            pytest.param([2, 3], 1, {"overflow": "SATURATE"}, [3, 4], id="overflow"),
+        ],
+    )
+    def test_unsupported_arithmetic_option_requires_backend_support_without_catalogue(
+        self, backend_name, backend_factory, collect_expr, values, other, options, expected,
+    ):
+        from mountainash.core.capabilities import CapabilityRegistry
+        from mountainash.core.types import BackendCapabilityError
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+        )
+
+        df = backend_factory.create({"v": values}, backend_name)
+        snapshot = CapabilityRegistry.snapshot()
+        try:
+            CapabilityRegistry.reset()
+            assert collect_expr(df, ma.col("v").add(other)) == expected
+            with pytest.raises(BackendCapabilityError) as caught:
+                collect_expr(df, ma.col("v").add(other, **options))
+            assert caught.value.function_key is FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD
+            assert caught.value.limitation is None
+        finally:
+            CapabilityRegistry.restore(snapshot)
 
     def test_subtraction(self, backend_name, backend_factory, collect_expr):
         """Test subtraction operation."""
@@ -396,9 +425,14 @@ class TestModuloWithNegatives:
 
         expr = ma.col("a") % ma.col("b")
 
-        actual = collect_expr(df, expr)
+        with expect_call_failure(
+            when=backend_name in ('ibis-sqlite', 'ibis-duckdb'),
+            reason='Cyclic calculations and hash bucketing with negative dividends diverge',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, expr)
 
-        # Python modulo: result has same sign as the divisor
-        expected = [2, -2, -1]
+            # Python modulo: result has same sign as the divisor
+            expected = [2, -2, -1]
 
-        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"

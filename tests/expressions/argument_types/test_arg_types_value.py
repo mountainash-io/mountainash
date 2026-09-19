@@ -8,12 +8,9 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_VALUE as FK_VALUE,
 )
 from expressions.argument_types._option_helpers import OptionSpec
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 from expressions.argument_types.conftest import ALL_BACKENDS
 from expressions.argument_types.option_disposition import (
     INVALID_OPTION_VALUE,
@@ -75,11 +72,6 @@ OPTION_DISPOSITIONS.extend(
     for backend in ALL_BACKENDS
     for source in _VALUE_SOURCES
 )
-REGISTERED_OPTION_PROBES.extend(
-    OptionProbeRegistration(_source_probe(source), backend, "honored")
-    for backend in ALL_BACKENDS
-    for source in _VALUE_SOURCES
-)
 
 _INVALID_VALUE_SOURCE_REJECTIONS = [
     InvalidOptionRejection(
@@ -92,7 +84,7 @@ _INVALID_VALUE_SOURCE_REJECTIONS = [
         lambda: ma.col("value").boolean_value(source=INVALID_OPTION_VALUE),
     )
 ]
-REGISTERED_INVALID_OPTION_REJECTIONS.extend(_INVALID_VALUE_SOURCE_REJECTIONS)
+
 OPTION_DISPOSITIONS.extend(
     OptionCell(
         rejection.fkey,
@@ -120,6 +112,10 @@ OP_SPECS: list[OpSpec] = [
         data={"kind_input": ["text", "other"]},
         complex_builder=lambda name: ma.col(name).text_value().str.strip_chars(" "),
         matrix_arg_is_input=True,
+        expected_by_input={
+            "raw": ["text"], "lit": ["text"],
+            "col": ["text", "text"], "complex": ["text", "text"],
+        },
     ),
     OpSpec(
         function_key=FK_VALUE.BOOLEAN_VALUE,
@@ -131,6 +127,10 @@ OP_SPECS: list[OpSpec] = [
         data={"boolean_input": [True, False]},
         complex_builder=lambda name: ma.col(name).boolean_value(),
         matrix_arg_is_input=True,
+        expected_by_input={
+            "raw": [True], "lit": [True],
+            "col": [True, False], "complex": [True, False],
+        },
     ),
     OpSpec(
         function_key=FK_VALUE.TEXT_VALUE,
@@ -142,6 +142,10 @@ OP_SPECS: list[OpSpec] = [
         data={"text_input": ["text", "other"]},
         complex_builder=lambda name: ma.col(name).text_value().str.strip_chars(" "),
         matrix_arg_is_input=True,
+        expected_by_input={
+            "raw": ["text"], "lit": ["text"],
+            "col": ["text", "other"], "complex": ["text", "other"],
+        },
     ),
 ]
 
@@ -151,8 +155,7 @@ def _params():
     for op in OP_SPECS:
         for backend in ALL_BACKENDS:
             for input_type in INPUT_TYPES:
-                mark = xfail_if_limited(backend, op, input_type)
-                marks = [mark] if mark else []
+                marks = []
                 cases.append(
                     pytest.param(
                         op,

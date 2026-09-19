@@ -6,1699 +6,1833 @@ from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 from mountainash.core.capabilities.declarations import Selector
 from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
 
 
-from mountainash.core.capabilities.declarations import CapabilityAssertion
+from mountainash.core.capabilities.declarations import CapabilityInformation
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.ARITHMETIC,
-    capabilities=(
-        CapabilityAssertion(
+    information=(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
                 subject="overflow",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait i64 power overflow mode",
             workaround="Pre-check the i64 base and exponent and handle out-of-range powers before calling power()",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SATURATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait i64 power overflow mode",
             workaround="Pre-check the i64 base and exponent and handle out-of-range powers before calling power()",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="Explicit SILENT selects the native backend's i64 power wrapping behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Pre-check the i64 base and exponent and handle out-of-range powers before calling power()",
-            probe_exempt="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NAN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NULL"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_division_by_zero",
                 selector=Selector(kind="exact", value="IEEE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_division_by_zero",
                 selector=Selector(kind="exact", value="LIMIT"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_division_by_zero",
                 selector=Selector(kind="exact", value="NULL"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="on_division_by_zero",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="division_type",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="division_type",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="NULL"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
             since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
-            probe_exempt="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
                 subject="on_domain_error",
                 selector=Selector(kind="exact", value="ERROR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
-            message="The native backend does not implement the requested Substrait arithmetic option semantics",
-            workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            message="Polars intrinsically refuses MODULO on_domain_error=ERROR; no floating NULL mitigation was certified.",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="CEILING"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="FLOOR"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_AWAY_FROM_ZERO"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TIE_TO_EVEN"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
         ),
-        CapabilityAssertion(
+        CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
                 subject="rounding",
                 selector=Selector(kind="exact", value="TRUNCATE"),
             ),
+            layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",

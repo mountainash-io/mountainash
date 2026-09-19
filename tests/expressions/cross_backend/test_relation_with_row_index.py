@@ -1,31 +1,20 @@
-"""Cross-backend regression pin for `Relation.with_row_index`.
+"""Cross-backend regression coverage for ``Relation.with_row_index``.
 
-Tracks mountainash#78 and the upstream gap
-https://github.com/ibis-project/ibis/issues/10513 — the Ibis Polars
-backend has no translator for `WindowFunction`, so `ibis.row_number()`
-(which our `with_row_index` lowers to) cannot compile on `ibis-polars`.
-
-ibis-polars is gated through the capability spine (RKEY_MOUNTAINASH_REL.
-WITH_ROW_INDEX, BUILD boundary) — asserted via ``assert_capability_gated``.
-narwhals-lazy diverges (with_row_index requires an explicit ``order_by=``);
-the exact affected cells are selected by scoped manifestation bindings.
-
-See principle `d.cross-backend/known-divergences.md` §8.
+Ibis Polars cannot compile the WindowFunction used for row indices
+(https://github.com/ibis-project/ibis/issues/10513).  Narwhals lazy requires
+an explicit ``order_by`` and remains a strict native failure.
 """
 
 from __future__ import annotations
 
 import pytest
 
+from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+from mountainash.core.types import BackendCapabilityError
 from mountainash.relations import relation
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
-)
-from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.capability_gating import (
-    assert_capability_gated,
-    gate_dialect,
-    gate_family,
 )
 
 
@@ -33,23 +22,31 @@ from fixtures.capability_gating import (
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithRowIndex:
     def test_with_row_index_adds_zero_based_sequence(self, backend_name, backend_factory):
-        """`with_row_index` adds a 0..N-1 column on every backend (ibis-polars gated)."""
+        """Each supported backend adds a zero-based index; known failures
+        exercise their exact public/native boundary."""
         data = {"name": ["a", "b", "c", "d"]}
         df = backend_factory.create(data, backend_name)
 
-        result = assert_capability_gated(
-            RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX,
-            gate_family(backend_name),
-            dialect=gate_dialect(backend_name),
-            build=lambda: relation(df).with_row_index(name="idx").collect(),
-        )
         if backend_name == "ibis-polars":
-            return  # gate asserted the BUILD-time BackendCapabilityError
+            with pytest.raises(BackendCapabilityError) as error:
+                relation(df).with_row_index(name="idx").collect()
+            assert error.value.function_key is RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX
+            assert error.value.limitation is None
+            return
 
-        # Result type varies by backend; extract the idx column to a plain list.
-        if hasattr(result, "execute"):
-            idx_values = result.execute()["idx"].tolist()
-        else:
-            idx_values = list(result["idx"])
+        with expect_call_failure(
+            when=backend_name == "narwhals-lazy",
+            reason="Narwhals LazyFrame.with_row_index() requires an explicit order_by.",
+            errors=(TypeError,),
+        ):
+            result = relation(df).with_row_index(name="idx").collect()
 
-        assert idx_values == [0, 1, 2, 3], f"[{backend_name}] Expected [0, 1, 2, 3], got {idx_values}"
+            # Result type varies by backend; extract the idx column to a plain list.
+            if hasattr(result, "execute"):
+                idx_values = result.execute()["idx"].tolist()
+            else:
+                idx_values = list(result["idx"])
+
+            assert idx_values == [0, 1, 2, 3], (
+                f"[{backend_name}] Expected [0, 1, 2, 3], got {idx_values}"
+            )

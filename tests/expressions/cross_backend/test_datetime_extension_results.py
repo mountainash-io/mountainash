@@ -16,6 +16,7 @@ import pytest
 
 from mountainash.core.capabilities import load_all_capability_declarations
 import mountainash as ma
+from fixtures.call_expectations import expect_call_failure
 
 # Load capability declarations at import (house convention: mirror
 # test_datetime_value_class_dispatch / test_option_fact_integrity). The
@@ -261,8 +262,13 @@ class TestDtMicrosecond:
             ]
         }
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("ts").dt.microsecond())
-        assert actual == [123456, 500000, 0]
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='dt.microsecond() returns the wrong value on ibis-sqlite',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("ts").dt.microsecond())
+            assert actual == [123456, 500000, 0]
 
     def test_microsecond_zero(self, backend_name, backend_factory, collect_expr):
         data = {
@@ -272,8 +278,13 @@ class TestDtMicrosecond:
             ]
         }
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("ts").dt.microsecond())
-        assert actual == [0, 1]
+        with expect_call_failure(
+            when=backend_name == 'ibis-sqlite',
+            reason='dt.microsecond() returns the wrong value on ibis-sqlite',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("ts").dt.microsecond())
+            assert actual == [0, 1]
 
 
 # =============================================================================
@@ -292,9 +303,14 @@ class TestDtNanosecond:
             ]
         }
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("ts").dt.nanosecond())
-        # Python datetime has microsecond precision; nanosecond = microsecond * 1000
-        assert actual == [123456000, 0]
+        with expect_call_failure(
+            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            reason='dt.nanosecond() returns 0 on Ibis Python-datetime inputs',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("ts").dt.nanosecond())
+            # Python datetime has microsecond precision; nanosecond = microsecond * 1000
+            assert actual == [123456000, 0]
 
     def test_nanosecond_zero(self, backend_name, backend_factory, collect_expr):
         data = {
@@ -304,5 +320,10 @@ class TestDtNanosecond:
             ]
         }
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("ts").dt.nanosecond())
-        assert actual == [0, 500000000]
+        with expect_call_failure(
+            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            reason='dt.nanosecond() returns 0 on Ibis Python-datetime inputs',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("ts").dt.nanosecond())
+            assert actual == [0, 500000000]

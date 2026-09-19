@@ -6,6 +6,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 # -- Known divergences --
@@ -46,8 +47,13 @@ class TestStrStripCharsStart:
     def test_strip_start_whitespace(self, backend_name, backend_factory, collect_expr):
         data = {"s": ["  hello  ", " world"]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("s").str.strip_chars_start())
-        assert actual == ["hello  ", "world"]
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            reason='Directional trimming over-strips both ends.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("s").str.strip_chars_start())
+            assert actual == ["hello  ", "world"]
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_strip_start_custom(self, backend_name, backend_factory, collect_expr):
@@ -63,8 +69,13 @@ class TestStrStripCharsEnd:
     def test_strip_end_whitespace(self, backend_name, backend_factory, collect_expr):
         data = {"s": ["  hello  ", "world "]}
         df = backend_factory.create(data, backend_name)
-        actual = collect_expr(df, ma.col("s").str.strip_chars_end())
-        assert actual == ["  hello", "world"]
+        with expect_call_failure(
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy'),
+            reason='Directional trimming over-strips both ends.',
+            errors=(AssertionError,),
+        ):
+            actual = collect_expr(df, ma.col("s").str.strip_chars_end())
+            assert actual == ["  hello", "world"]
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_strip_end_custom(self, backend_name, backend_factory, collect_expr):

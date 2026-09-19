@@ -11,9 +11,34 @@ from typing import Any, TYPE_CHECKING
 from ..base import IbisBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitScalarArithmeticExpressionSystemProtocol
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
 if TYPE_CHECKING:
     from mountainash.core.types import IbisNumericExpr
+
+
+def _sqlite_abs_error(x: IbisNumericExpr) -> IbisNumericExpr:
+    dtype = x.type()
+    if dtype.is_integer() and not dtype.is_int64():
+
+        raise BackendCapabilityError(
+            f"SQLite ABS cannot enforce overflow=ERROR for declared {dtype}; "
+            "use Int64 operands or an engine preserving that integer width.",
+            backend="ibis",
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+        )
+    return x.abs()
+
+
+def _modulus_null(result: IbisNumericExpr) -> IbisNumericExpr:
+    if result.type().is_floating():
+        raise BackendCapabilityError(
+            "Ibis floating remainder does not implement on_domain_error=NULL for zero and infinite operands.",
+            backend="ibis",
+            function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+        )
+    return result
 
 
 class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, SubstraitScalarArithmeticExpressionSystemProtocol["IbisNumericExpr"]):
@@ -28,103 +53,169 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     - power: Exponentiation
     - negate: Negation
 
-    Substrait ``overflow``, ``rounding``, ``on_domain_error``,
-    ``on_division_by_zero``, and ``division_type`` options are accepted for
-    protocol alignment. Native Ibis/DuckDB behavior is used; capability facts
-    gate modes that do not match it.
+    Omitted options use native Ibis behavior. Explicit rounding is unsupported.
+    Integer overflow validation belongs to these methods and uses the bound
+    engine's implemented modes, not optional capability policy.
     """
 
-    def add(
-        self,
-        x: IbisNumericExpr,
-        y: IbisNumericExpr,
-        /,
-        overflow: Any = None,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def add(self,
+    x: IbisNumericExpr,
+    y: IbisNumericExpr,
+    /,
+    overflow: Any = None,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Add two values.
-
+    
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Ibis).
-            rounding: IEEE rounding mode (ignored in Ibis).
-
+            overflow: ERROR on DuckDB, SILENT on Polars; otherwise omit.
+            rounding: Unsupported when explicit; omission uses native rounding.
+    
         Returns:
             Sum of x and y.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            )
+        if overflow is not None and not (
+            overflow == "ERROR" and self.dialect == "ibis-duckdb"
+            or overflow == "SILENT" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this integer overflow mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            )
         x, y = self._lift_deferred(x, y)
         return x + y
 
-    def subtract(
-        self,
-        x: IbisNumericExpr,
-        y: IbisNumericExpr,
-        /,
-        overflow: Any = None,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def subtract(self,
+    x: IbisNumericExpr,
+    y: IbisNumericExpr,
+    /,
+    overflow: Any = None,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Subtract y from x.
-
+    
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Ibis).
-            rounding: IEEE rounding mode (ignored in Ibis).
-
+            overflow: ERROR on DuckDB, SILENT on Polars; otherwise omit.
+            rounding: Unsupported when explicit; omission uses native rounding.
+    
         Returns:
             Difference x - y.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            )
+        if overflow is not None and not (
+            overflow == "ERROR" and self.dialect == "ibis-duckdb"
+            or overflow == "SILENT" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this integer overflow mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            )
         x, y = self._lift_deferred(x, y)
         return x - y
 
-    def multiply(
-        self,
-        x: IbisNumericExpr,
-        y: IbisNumericExpr,
-        /,
-        overflow: Any = None,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def multiply(self,
+    x: IbisNumericExpr,
+    y: IbisNumericExpr,
+    /,
+    overflow: Any = None,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Multiply two values.
-
+    
         Args:
             x: First operand.
             y: Second operand.
-            overflow: Overflow handling (ignored in Ibis).
-            rounding: IEEE rounding mode (ignored in Ibis).
-
+            overflow: ERROR on DuckDB, SILENT on Polars; otherwise omit.
+            rounding: Unsupported when explicit; omission uses native rounding.
+    
         Returns:
             Product of x and y.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            )
+        if overflow is not None and not (
+            overflow == "ERROR" and self.dialect == "ibis-duckdb"
+            or overflow == "SILENT" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this integer overflow mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            )
         x, y = self._lift_deferred(x, y)
         return x * y
 
-    def divide(
-        self,
-        x: IbisNumericExpr,
-        y: IbisNumericExpr,
-        /,
-        overflow: Any = None,
-        on_domain_error: Any = None,
-        on_division_by_zero: Any = None,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def divide(self,
+    x: IbisNumericExpr,
+    y: IbisNumericExpr,
+    /,
+    overflow: Any = None,
+    on_domain_error: Any = None,
+    on_division_by_zero: Any = None,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Divide x by y.
-
-        For integer division, results are truncated toward zero.
-
+    
+        Native Ibis division produces a floating-point quotient.
+    
         Args:
             x: Dividend.
             y: Divisor.
-            overflow: Overflow handling (ignored in Ibis).
-            on_domain_error: Domain error handling (ignored in Ibis).
-            on_division_by_zero: Division by zero handling (ignored in Ibis).
-            rounding: IEEE rounding mode (ignored in Ibis).
-
+            overflow: Unsupported when explicit; omission uses native behavior.
+            on_domain_error: NAN on DuckDB/Polars, NULL on SQLite; otherwise omit.
+            on_division_by_zero: IEEE on DuckDB/Polars, NULL on SQLite; otherwise omit.
+            rounding: Unsupported when explicit; omission uses native rounding.
+    
         Returns:
             Quotient x / y.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if overflow is not None:
+            raise BackendCapabilityError(
+                "Ibis divide does not implement integer overflow modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "NAN" and self.dialect in ("ibis-duckdb", "ibis-polars")
+            or on_domain_error == "NULL" and self.dialect == "ibis-sqlite"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this division domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
+        if on_division_by_zero is not None and not (
+            on_division_by_zero == "IEEE" and self.dialect in ("ibis-duckdb", "ibis-polars")
+            or on_division_by_zero == "NULL" and self.dialect == "ibis-sqlite"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this division-by-zero mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            )
         x, y = self._lift_deferred(x, y)
         return x / y
 
@@ -142,15 +233,40 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Args:
             x: Dividend.
             y: Divisor.
-            division_type: TRUNCATE or FLOOR (Ibis uses backend default).
-            overflow: Overflow handling (ignored in Ibis).
-            on_domain_error: Domain error handling (ignored in Ibis).
+            division_type: TRUNCATE on DuckDB/SQLite, FLOOR on Polars; otherwise omit.
+            overflow: ERROR on DuckDB, SILENT on Polars; otherwise omit.
+            on_domain_error: NULL for non-floating remainder; ERROR is unavailable.
 
         Returns:
             Remainder of x / y.
         """
+        if overflow is not None and not (
+            overflow == "ERROR" and self.dialect == "ibis-duckdb"
+            or overflow == "SILENT" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this integer overflow mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
+        if division_type is not None and not (
+            division_type == "TRUNCATE" and self.dialect in ("ibis-duckdb", "ibis-sqlite")
+            or division_type == "FLOOR" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this remainder division mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
+        if on_domain_error is not None and on_domain_error != "NULL":
+            raise BackendCapabilityError(
+                "Ibis remainder cannot raise on domain errors.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            )
         x, y = self._lift_deferred(x, y)
-        return x % y
+        result = x % y
+        return result.pipe(_modulus_null) if on_domain_error == "NULL" else result
 
     def power(
         self,
@@ -164,11 +280,17 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         Args:
             x: Base.
             y: Exponent.
-            overflow: Overflow handling (ignored in Ibis).
+            overflow: Unsupported when explicit; omission uses native behavior.
 
         Returns:
             x raised to the power y.
         """
+        if overflow is not None:
+            raise BackendCapabilityError(
+                "Ibis power does not implement integer overflow modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
+            )
         x, y = self._lift_deferred(x, y)
         return x.pow(y)
 
@@ -182,45 +304,71 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
         Args:
             x: Value to negate.
-            overflow: Overflow handling (ignored in Ibis).
+            overflow: ERROR on DuckDB, SILENT on Polars; otherwise omit.
 
         Returns:
             Negated value (-x).
         """
+        if overflow is not None and not (
+            overflow == "ERROR" and self.dialect == "ibis-duckdb"
+            or overflow == "SILENT" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this integer overflow mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            )
         return -x
 
     # =========================================================================
     # Math Functions
     # =========================================================================
 
-    def sqrt(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-        on_domain_error: Any = None,
-    ) -> IbisNumericExpr:
+    def sqrt(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,
+    on_domain_error: Any = None,) -> IbisNumericExpr:
         """Square root of the value.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
-            on_domain_error: Domain error policy (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
+            on_domain_error: ERROR on DuckDB, NAN on Polars; otherwise omit.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "ERROR" and self.dialect == "ibis-duckdb"
+            or on_domain_error == "NAN" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this square-root domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            )
         return x.sqrt()
 
-    def exp(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def exp(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """The mathematical constant e raised to the power of x.
-
+    
         Args:
             x: Exponent value.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
+            )
         return x.exp()
 
     def abs(
@@ -233,8 +381,21 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
         Args:
             x: Input value.
-            overflow: Overflow mode (ignored in Ibis).
+            overflow: Native overflow mode; SQLite ERROR requires Int64 integer operands.
         """
+        if overflow == "ERROR" and self.dialect == "ibis-sqlite":
+            # Ibis Deferred.pipe resolves the operand before inspecting its
+            # declared type, without evaluating rows or guessing table storage.
+            return x.pipe(_sqlite_abs_error)
+        if overflow is not None and not (
+            overflow == "ERROR" and self.dialect == "ibis-duckdb"
+            or overflow == "SILENT" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this integer overflow mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            )
         return x.abs()
 
     def sign(
@@ -265,46 +426,58 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Trigonometric Functions
     # =========================================================================
 
-    def sin(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def sin(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Get the sine of a value in radians.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
+            )
         return x.sin()
 
-    def cos(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def cos(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Get the cosine of a value in radians.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
+            )
         return x.cos()
 
-    def tan(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def tan(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Get the tangent of a value in radians.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
+            )
         return x.tan()
 
     def sinh(
@@ -359,50 +532,80 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Inverse Trigonometric Functions
     # =========================================================================
 
-    def asin(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-        on_domain_error: Any = None,
-    ) -> IbisNumericExpr:
+    def asin(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,
+    on_domain_error: Any = None,) -> IbisNumericExpr:
         """Get the arcsine of a value in radians.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
-            on_domain_error: Domain error policy (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
+            on_domain_error: ERROR on DuckDB, NAN on Polars; otherwise omit.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "ERROR" and self.dialect == "ibis-duckdb"
+            or on_domain_error == "NAN" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this arcsine domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            )
         return x.asin()
 
-    def acos(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-        on_domain_error: Any = None,
-    ) -> IbisNumericExpr:
+    def acos(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,
+    on_domain_error: Any = None,) -> IbisNumericExpr:
         """Get the arccosine of a value in radians.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
-            on_domain_error: Domain error policy (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
+            on_domain_error: ERROR on DuckDB, NAN on Polars; otherwise omit.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "ERROR" and self.dialect == "ibis-duckdb"
+            or on_domain_error == "NAN" and self.dialect == "ibis-polars"
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this arccosine domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            )
         return x.acos()
 
-    def atan(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def atan(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Get the arctangent of a value in radians.
-
+    
         Args:
             x: Input value.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
+            )
         return x.atan()
 
     def asinh(
@@ -457,22 +660,34 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             "atanh() is not directly supported by the Ibis backend."
         )
 
-    def atan2(
-        self,
-        x: IbisNumericExpr,
-        y: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-        on_domain_error: Any = None,
-    ) -> IbisNumericExpr:
+    def atan2(self,
+    x: IbisNumericExpr,
+    y: IbisNumericExpr,
+    /,
+    rounding: Any = None,
+    on_domain_error: Any = None,) -> IbisNumericExpr:
         """Get the arctangent of y/x, using signs to determine the quadrant.
-
+    
         Args:
             x: First coordinate.
             y: Second coordinate.
-            rounding: IEEE rounding mode (ignored in Ibis).
-            on_domain_error: Domain error policy (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
+            on_domain_error: NAN on DuckDB/Polars; otherwise omit.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            )
+        if on_domain_error is not None and not (
+            on_domain_error == "NAN" and self.dialect in ("ibis-duckdb", "ibis-polars")
+        ):
+            raise BackendCapabilityError(
+                "The selected Ibis engine does not implement this atan2 domain-error mode.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            )
         x, y = self._lift_deferred(x, y)
         return x.atan2(y)
 
@@ -480,32 +695,40 @@ class SubstraitIbisScalarArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Angular Conversions
     # =========================================================================
 
-    def radians(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def radians(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Convert angle from degrees to radians.
-
+    
         Args:
             x: Input angle.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
+            )
         return x.radians()
 
-    def degrees(
-        self,
-        x: IbisNumericExpr,
-        /,
-        rounding: Any = None,
-    ) -> IbisNumericExpr:
+    def degrees(self,
+    x: IbisNumericExpr,
+    /,
+    rounding: Any = None,) -> IbisNumericExpr:
         """Convert angle from radians to degrees.
-
+    
         Args:
             x: Input angle.
-            rounding: IEEE rounding mode (ignored in Ibis).
+            rounding: Unsupported when explicit; omission uses native rounding.
         """
+        if rounding is not None:
+            raise BackendCapabilityError(
+                "Ibis does not implement explicit arithmetic rounding modes.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
+            )
         return x.degrees()
 
     # =========================================================================

@@ -32,6 +32,38 @@ class MountainAshNarwhalsScalarDatetimeExpressionSystem(NarwhalsBaseExpressionSy
     Note: Narwhals has a more limited datetime API than Polars. Some methods
     use workarounds or simplified implementations.
     """
+    def _prepare_date_offset(self, operands):
+        return [
+            operands.native(0),
+            operands.raw_literal(
+                1, "Narwhals datetime offsets require a literal interval amount"
+            ),
+        ]
+
+    def _prepare_call_add_years(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_months(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_days(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_hours(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_minutes(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_seconds(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_milliseconds(self, operands):
+        return self._prepare_date_offset(operands)
+
+    def _prepare_call_add_microseconds(self, operands):
+        return self._prepare_date_offset(operands)
+
 
     # =========================================================================
     # Convenience Extraction Methods

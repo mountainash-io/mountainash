@@ -4,16 +4,14 @@ from __future__ import annotations
 import pytest
 
 from mountainash.core.types import BackendCapabilityError
+from tests.fixtures.call_expectations import expect_call_failure
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST as FK_LIST,
 )
 from expressions.argument_types.conftest import ALL_BACKENDS
-from expressions.argument_types._test_template import (
-    INPUT_TYPES,
-    OpSpec,
-    run_argument_matrix,
-    xfail_if_limited,
-)
+from expressions.argument_types._test_template import (INPUT_TYPES,
+OpSpec,
+run_argument_matrix, )
 
 TESTED_PARAMS: list[tuple] = [
     ("list_contains", "item"),
@@ -41,6 +39,10 @@ OP_SPECS: list[OpSpec] = [
         param_name="item",
         input_col="a",
         data={"a": [[1, 2, 3], [4, 5, 6], [7, 8, 9]], "item": [2, 5, 1]},
+        expected_by_input={
+            "raw": [True, False, False], "lit": [True, False, False],
+            "col": [True, True, False], "complex": [True, True, False],
+        },
     ),
     OpSpec(
         function_key=FK_LIST.T_CONTAINS,
@@ -59,8 +61,8 @@ def _params():
     for op in OP_SPECS:
         for bk in ALL_BACKENDS:
             for it in INPUT_TYPES:
-                mark = xfail_if_limited(bk, op, it)
-                marks = [mark] if mark else []
+                
+                marks = []
                 cases.append(
                     pytest.param(op, bk, it, marks=marks, id=f"{op.op_name}-{bk}-{it}")
                 )
@@ -71,4 +73,14 @@ if OP_SPECS:
 
     @pytest.mark.parametrize("op,backend,input_type", _params())
     def test_argument_channel(op: OpSpec, backend: str, input_type: str):
-        run_argument_matrix(op, backend, input_type)
+        if backend.startswith("narwhals") and input_type in ("col", "complex"):
+            with pytest.raises(BackendCapabilityError) as error:
+                run_argument_matrix(op, backend, input_type)
+            assert error.value.function_key is op.function_key
+            return
+        with expect_call_failure(
+            when=backend == "narwhals-pandas",
+            reason="NW-LIST-01: pandas object-list storage has no Arrow list namespace",
+            errors=(TypeError,),
+        ):
+            run_argument_matrix(op, backend, input_type)

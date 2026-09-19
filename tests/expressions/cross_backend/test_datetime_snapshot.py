@@ -9,6 +9,7 @@ import pytest
 import mountainash as ma
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 # A fixed non-UTC clock makes IB-DT-09 observable even on UTC CI runners.
@@ -46,10 +47,15 @@ class TestNowSnapshot:
     def test_now_returns_recent_datetime(self, backend_name, backend_factory, non_utc_timezone):
         before = datetime.now()
         df = backend_factory.create({"a": [1, 2, 3]}, backend_name)
-        result = ma.relation(df).with_columns(ma.now().name.alias("ts")).to_polars()
-        after = datetime.now()
-        ts = result["ts"][0]
-        assert before - timedelta(seconds=5) <= ts <= after + timedelta(seconds=5)
+        with expect_call_failure(
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason='now() differs from the local naive datetime snapshot on non-UTC hosts',
+            errors=(AssertionError,),
+        ):
+            result = ma.relation(df).with_columns(ma.now().name.alias("ts")).to_polars()
+            after = datetime.now()
+            ts = result["ts"][0]
+            assert before - timedelta(seconds=5) <= ts <= after + timedelta(seconds=5)
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

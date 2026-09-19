@@ -14,19 +14,14 @@ from typing import Any, Callable
 import pytest
 
 import mountainash as ma
-
-from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
+from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
+from ibis.common.exceptions import UnsupportedBackendType
+from narwhals.exceptions import InvalidOperationError
+from tests.fixtures.call_expectations import expect_call_failure
 
-from tests.fixtures.capability_gating import (
-    assert_capability_gated,
-    gate_dialect,
-    gate_family,
-)
-
-load_all_capability_declarations()
 
 
 ALL_BACKENDS = [
@@ -228,23 +223,6 @@ _OPERATIONS: dict[str, Callable[..., Any]] = {
 # ── Exception set ────────────────────────────────────────────────────────
 # (operation_name, backend_name) → "reason. Since YYYY-MM-DD."
 _KNOWN_REL_SMOKE_FAILURES: dict[tuple[str, str], str] = {
-    # join_asof: Narwhals/pandas backends pass an unexpected `tolerance` kwarg
-    # to the underlying DataFrame.join_asof() call.
-    ("join_asof", "pandas"): (
-        "TypeError: DataFrame.join_asof() got an unexpected keyword argument "
-        "'tolerance'. Narwhals backend passes tolerance kwarg unconditionally. "
-        "Since 2026-05-18."
-    ),
-    ("join_asof", "narwhals-polars"): (
-        "TypeError: DataFrame.join_asof() got an unexpected keyword argument "
-        "'tolerance'. Narwhals backend passes tolerance kwarg unconditionally. "
-        "Since 2026-05-18."
-    ),
-    ("join_asof", "narwhals-pandas"): (
-        "TypeError: DataFrame.join_asof() got an unexpected keyword argument "
-        "'tolerance'. Narwhals backend passes tolerance kwarg unconditionally. "
-        "Since 2026-05-18."
-    ),
     # explode: pandas/narwhals-pandas wraps pandas which has Object dtype for
     # Python lists — Narwhals InvalidOperationError: explode requires List type.
     ("explode", "pandas"): (
@@ -279,33 +257,21 @@ _KNOWN_REL_SMOKE_FAILURES: dict[tuple[str, str], str] = {
         "Ibis pivot_wider() uses different param names than mountainash relay. "
         "Since 2026-05-18."
     ),
-    # unnest: Narwhals backend not yet implemented (Phase 2 work).
-    ("unnest", "pandas"): (
-        "NotImplementedError: unnest is not supported on the Narwhals backend — "
-        "requires schema introspection synthesis (Phase 2). Since 2026-05-18."
-    ),
-    ("unnest", "narwhals-polars"): (
-        "NotImplementedError: unnest is not supported on the Narwhals backend — "
-        "requires schema introspection synthesis (Phase 2). Since 2026-05-18."
-    ),
-    ("unnest", "narwhals-pandas"): (
-        "NotImplementedError: unnest is not supported on the Narwhals backend — "
-        "requires schema introspection synthesis (Phase 2). Since 2026-05-18."
-    ),
     # unnest: SQLite does not support Struct column types.
     ("unnest", "ibis-sqlite"): (
         "UnsupportedBackendType: Struct types aren't supported in SQLite. "
         "Since 2026-05-18."
     ),
-    # source: SourceRelNode always materialises via Polars (pydata ingress).
-    # Non-Polars backends pass silently without exercising their backend path.
-    ("source", "pandas"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
-    ("source", "narwhals-polars"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
-    ("source", "narwhals-pandas"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
-    ("source", "ibis-polars"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
-    ("source", "ibis-duckdb"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
-    ("source", "ibis-sqlite"): "SourceRelNode always routes through Polars, not this backend. Since 2026-05-18.",
 }
+
+
+def _smoke_failure_error(key: tuple[str, str]) -> type[BaseException]:
+    operation, backend = key
+    if operation == "pivot":
+        return TypeError
+    if operation == "explode" and backend in {"pandas", "narwhals-pandas"}:
+        return InvalidOperationError
+    return UnsupportedBackendType
 
 
 # ── Collect test cases ───────────────────────────────────────────────────
@@ -337,8 +303,6 @@ class TestRelCollectSmoke:
         self, op_name: str, backend_name: str, backend_factory
     ) -> None:
         key = (op_name, backend_name)
-        if key in _KNOWN_REL_SMOKE_FAILURES:
-            pytest.xfail(_KNOWN_REL_SMOKE_FAILURES[key])
 
         override = _SMOKE_FIXTURE_OVERRIDES.get(op_name, {})
         data = override.get("data", _DEFAULT_DATA)
@@ -346,54 +310,50 @@ class TestRelCollectSmoke:
 
         # For join operations on ibis backends both tables must share a
         # connection — use create_pair so the visitor can execute cross-table
-        # operations without a "table not found" error.
-        join_ops = {"join_inner", "join_left", "join_asof"}
-        if op_name in join_ops and backend_name.startswith("ibis-"):
-            df, df_right = backend_factory.create_pair(
-                data, right_data, backend_name
-            )
-        else:
-            df = backend_factory.create(data, backend_name)
-            df_right = backend_factory.create(right_data, backend_name)
+        # operations without a "table not found" error. SQLite cannot construct
+        # the native list/struct fixture for its two recorded cells; that is a
+        # strict construction-stage expectation, not a skipped collection.
+        native_construction_failure = key in {
+            ("explode", "ibis-sqlite"),
+            ("unnest", "ibis-sqlite"),
+        }
+        with expect_call_failure(
+            when=native_construction_failure,
+            errors=(UnsupportedBackendType,),
+            reason=_KNOWN_REL_SMOKE_FAILURES[key] if native_construction_failure else "fixture construction succeeds",
+        ):
+            join_ops = {"join_inner", "join_left", "join_asof"}
+            if op_name in join_ops and backend_name.startswith("ibis-"):
+                df, df_right = backend_factory.create_pair(
+                    data, right_data, backend_name
+                )
+            else:
+                df = backend_factory.create(data, backend_name)
+                df_right = backend_factory.create(right_data, backend_name)
 
         builder = _OPERATIONS[op_name]
-
-        def _build() -> Any:
-            return builder(df, df_right)
-
-        def _collect(plan: Any) -> Any:
-            return plan.collect()
-
-        def _build_and_collect() -> Any:
-            return _collect(_build())
-
-        # Dogfood the shared spine gate. When the op maps 1:1 to a relation
-        # key, assert_capability_gated owns the raise/success decision: a gated
-        # op must raise BackendCapabilityError carrying the gate fact as
-        # ``.limitation``; an ungated op must build + collect cleanly. The
-        # relation gate facts are declared at the BUILD boundary, but the lazy
-        # backends enforce them at collect time (e.g. ibis compiles the plan
-        # during ``.collect()``), so build+collect is the single callback whose
-        # success/raise the gate owns — identical to the pre-migration wrap.
-        # Ops with no 1:1 key (read/filter/join_inner/…) can carry no relation
-        # fact and must simply succeed.
-        op_key = RKEY_MOUNTAINASH_REL.__members__.get(op_name.upper())
-        if op_key is None:
-            try:
-                _build_and_collect()
-            except Exception as e:
-                pytest.fail(
-                    f"{op_name} on {backend_name}: collect() raised "
-                    f"{type(e).__name__}: {e}"
-                )
+        if key == ("with_row_index", "ibis-polars"):
+            with pytest.raises(BackendCapabilityError) as raised:
+                builder(df, df_right).collect()
+            assert type(raised.value) is BackendCapabilityError
+            assert raised.value.function_key is RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX
+            assert raised.value.limitation is None
             return
-
-        assert_capability_gated(
-            op_key,
-            gate_family(backend_name),
-            dialect=gate_dialect(backend_name),
-            build=_build_and_collect,
-        )
+        if op_name == "unnest" and backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas"
+        }:
+            with pytest.raises(BackendCapabilityError) as raised:
+                builder(df, df_right).collect()
+            assert type(raised.value) is BackendCapabilityError
+            assert raised.value.function_key is RKEY_MOUNTAINASH_REL.UNNEST
+            assert raised.value.limitation is None
+            return
+        with expect_call_failure(
+            when=key in _KNOWN_REL_SMOKE_FAILURES,
+            errors=(_smoke_failure_error(key),),
+            reason=_KNOWN_REL_SMOKE_FAILURES[key] if key in _KNOWN_REL_SMOKE_FAILURES else "collection succeeds",
+        ):
+            builder(df, df_right).collect()
 
 
 # ── Meta-tests ───────────────────────────────────────────────────────────

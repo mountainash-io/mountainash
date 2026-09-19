@@ -1,74 +1,50 @@
-"""Consumer audit for predicate facts (backlog 66b)."""
+"""Predicate policies evaluate the supplied concrete call without cross-axis leakage."""
 from __future__ import annotations
 
-from mountainash.core.capabilities import CapabilityRegistry
-from mountainash.core.capabilities.schema import (
-    CapabilityFact, CapabilityLevel, Clause, ClauseOp, Predicate,
-)
+import pytest
+
+from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector
+from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.predicates import BoundCall
+from mountainash.core.capabilities.schema import Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
+_SCOPE = Scope(CONST_BACKEND.IBIS, Dialect("ibis-polars"))
 
 
-def test_join_asof_predicate_gate_is_registered():
-    """The original join_asof predicate remains present alongside Unit C predicates."""
-    from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
-    from mountainash.relations.core.relation_system.relation_keys.enums import (
-        RKEY_MOUNTAINASH_REL,
+@pytest.fixture(autouse=True)
+def isolate():
+    snapshot = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
+    try:
+        yield
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+def test_strategy_predicate_ignores_co_bound_tolerance():
+    rule = CapabilityPolicyRule(
+        CapabilityKey(
+            RKEY_MOUNTAINASH_REL.JOIN_ASOF,
+            "strategy",
+            Selector("predicate", Predicate((Clause("strategy", ClauseOp.EQ, "forward"),))),
+        ),
+        CapabilityLevel.UNSUPPORTED, "2026-09-18", "forward as-of joins are unavailable",
+        PolicyConsumer.GATE, PolicyAction.BLOCK,
     )
-
-    load_all_capability_declarations()
-    facts = [
-        f
-        for f in CapabilityRegistry.facts()
-        if f.predicate is not None
-        and f.operation_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
-        and f.param == "strategy"
-        and f.dialect == "ibis-polars"
-    ]
-    assert len(facts) == 1
-
-def test_first_predicate_fact_is_compound_cell_safe():
-    """The §6 compound-cell probe: gate_params=("tolerance", "strategy") binds
-    BOTH params conjunctively into the BoundCall, but the predicate clause only
-    inspects `strategy`. A call that also sets `tolerance` must not spuriously
-    trigger or suppress the gate — the two gate_params are independent axes."""
-    import polars as pl
-    import mountainash as ma
-    from fixtures.capability_gating import assert_predicate_capability_gated
-    from mountainash.relations.core.relation_system.relation_keys.enums import (
-        RKEY_MOUNTAINASH_REL,
+    CapabilityRegistry.register_segment(BoundSegment(
+        "mountainash.relations.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.relation",
+        _SCOPE, CapabilitySegment(Domain.RELATION, policies=(rule,)),
+    ))
+    backward = BoundCall(
+        RKEY_MOUNTAINASH_REL.JOIN_ASOF, CONST_BACKEND.IBIS, "ibis-polars",
+        {"strategy": "backward", "tolerance": 1}, frozenset({"strategy", "tolerance"}),
     )
-
-    left = pl.DataFrame({"t": [1, 3]})
-    right = pl.DataFrame({"t": [2, 4]})
-
-    # backward + tolerance on ibis-polars: NOT gated (predicate only checks strategy).
-    import ibis
-    con = ibis.polars.connect()
-    L = con.create_table("cp_l", left, overwrite=True)
-    R = con.create_table("cp_r", right, overwrite=True)
-    ma.relation(L).join_asof(R, on="t", strategy="backward", tolerance=1).to_polars()
-
-    # forward + tolerance on ibis-polars: IS gated (strategy predicate fires
-    # regardless of the co-bound tolerance value).
-    err = assert_predicate_capability_gated(
-        lambda: ma.relation(L).join_asof(R, on="t", strategy="forward", tolerance=1).to_polars()
+    forward = BoundCall(
+        RKEY_MOUNTAINASH_REL.JOIN_ASOF, CONST_BACKEND.IBIS, "ibis-polars",
+        {"strategy": "forward", "tolerance": 1}, frozenset({"strategy", "tolerance"}),
     )
-    assert err.function_key == RKEY_MOUNTAINASH_REL.JOIN_ASOF
-
-
-def test_fact_sort_key_is_total_over_predicate_facts():
-    """Two predicate facts on the same key differing only in clause content
-    must not tie (review finding 8)."""
-    from mountainash.core.capabilities.coverage import fact_sort_key
-
-    def _make(value):
-        return CapabilityFact(
-            operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15",
-            predicate=Predicate((Clause("unit", ClauseOp.EQ, value),)),
-        )
-
-    assert fact_sort_key(_make("WEEK")) != fact_sort_key(_make("MONTH"))
-
-
+    assert CapabilityRegistry.violations_for(backward) == frozenset()
+    assert CapabilityRegistry.violations_for(forward) == frozenset({rule.qualify(_SCOPE)})

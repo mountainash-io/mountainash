@@ -11,7 +11,6 @@ from mountainash.core.capabilities.gaps import (
     GapKey,
     InventoryGap,
     InventoryWide,
-    VerificationSnapshot,
 )
 from mountainash.core.capabilities.schema import CallableRef, ProtocolMethodTarget
 
@@ -50,7 +49,7 @@ def _target_and_obligation(name, original, guard, protocols, method_aliases):
     return protocols[protocol_name], method, obligation
 
 
-def collect_all_gap_sets() -> VerificationSnapshot:
+def collect_all_gap_sets() -> tuple[GapInventory, ...]:
     """Acquire original keyed data and owned changes with retained source bytes."""
     import core.test_protocol_alignment as pa
     from expressions.argument_types import test_coverage_guard as cg
@@ -157,15 +156,4 @@ def collect_all_gap_sets() -> VerificationSnapshot:
             )
         changes = tuple(change for change in histories[module] if change.prior.key.inventory == name)
         inventories.append(GapInventory(name, owner, tuple(records), changes))
-    from mountainash.core.capabilities.registry import CapabilityRegistry
-    from tests.fixtures.verification_bindings import (
-        capture_bindings,
-        capture_native_observations,
-        capture_selected_observations,
-    )
-
-    catalogue = CapabilityRegistry.capture()
-    native_bindings, _ = capture_native_observations(catalogue)
-    selected_bindings, _ = capture_selected_observations(catalogue)
-    bindings = capture_bindings(catalogue) + native_bindings + selected_bindings
-    return VerificationSnapshot(tuple(inventories), bindings=bindings)
+    return tuple(inventories)
