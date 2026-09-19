@@ -18,8 +18,16 @@ Before renaming or changing a function signature, use
 Use Grep/Glob only for text/pattern searches (comments,
 strings, config values) where LSP doesn't help.
 
-After writing or editing code, check LSP diagnostics before
-moving on. Fix any type errors or missing imports immediately.
+## Type-checker work (explicit request only)
+
+Do not run mypy or other static type checkers, compare diagnostic baselines,
+or fix type-checker-only findings during ordinary development, debugging,
+review or completion checks unless the user explicitly requests that work.
+Do not add casts, annotations, ignores or refactors solely to appease a checker.
+If CI reports a type-checker failure, report it without starting remediation.
+Verify requested behavior with targeted tests and runtime checks; fix actual
+runtime/import failures in scope. This policy supersedes type-checking gates
+in older plans and checklists.
 
 
 ## Superpowers Specs & Plans Location
@@ -30,6 +38,15 @@ Save all superpowers specs and plans to the **mountainash-central** repo, not th
 - **Plans:** `mountainash-central/04.planning/mountainash/superpowers/plans/YYYY-MM-DD-<topic>.md`
 
 Never save specs or plans under `docs/superpowers/` in this repo. The central repo is the single source of truth for all planning documents.
+
+## Central Documentation Workflow (MANDATORY)
+
+- Work on central documentation only in the primary local `../mountainash-central` checkout, on its `main` branch.
+- Edit and commit documentation directly to `main`. Do not create or use documentation branches, additional worktrees, or docs PRs.
+- A code implementation branch/worktree does not change the documentation location: specs, plans, principles, backlog records and other central docs still go to the primary `mountainash-central` checkout.
+- Stage and commit only the documentation changes owned by the current task. Preserve unrelated local commits and uncommitted work; do not stash, reset or overwrite another thread's work to synchronize the checkout.
+- This directive overrides generic branching, worktree and PR workflows for central documentation. Do not move docs into another checkout to avoid a synchronization issue.
+
 
 
 ## Design Principles (MANDATORY)
@@ -206,10 +223,9 @@ hatch run test:test-quick            # Fast iteration (no coverage)
 hatch run test:test-target <path>    # Specific file or test
 hatch run test:test-target-quick <path>  # Specific, no coverage
 
-# Linting & type checking
+# Linting
 hatch run ruff:check                 # Check for issues
 hatch run ruff:fix                   # Auto-fix issues
-hatch run mypy:check                 # Type safety validation
 
 # Building
 hatch build

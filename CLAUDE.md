@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Type-checker work (explicit request only)
+
+Do not run mypy or other static type checkers, compare diagnostic baselines,
+or fix type-checker-only findings during ordinary development, debugging,
+review or completion checks unless the user explicitly requests that work.
+Do not add casts, annotations, ignores or refactors solely to appease a checker.
+If CI reports a type-checker failure, report it without starting remediation.
+Verify requested behavior with targeted tests and runtime checks; fix actual
+runtime/import failures in scope. This policy supersedes type-checking gates
+in older plans and checklists.
+
 ## Superpowers Specs & Plans Location
 
 Save all superpowers specs and plans to the **mountainash-central** repo, not this repo:
@@ -10,6 +21,15 @@ Save all superpowers specs and plans to the **mountainash-central** repo, not th
 - **Plans:** `mountainash-central/04.planning/mountainash/superpowers/plans/YYYY-MM-DD-<topic>.md`
 
 Never save specs or plans under `docs/superpowers/` in this repo. The central repo is the single source of truth for all planning documents.
+
+## Central Documentation Workflow (MANDATORY)
+
+- Work on central documentation only in the primary local `../mountainash-central` checkout, on its `main` branch.
+- Edit and commit documentation directly to `main`. Do not create or use documentation branches, additional worktrees, or docs PRs.
+- A code implementation branch/worktree does not change the documentation location: specs, plans, principles, backlog records and other central docs still go to the primary `mountainash-central` checkout.
+- Stage and commit only the documentation changes owned by the current task. Preserve unrelated local commits and uncommitted work; do not stash, reset or overwrite another thread's work to synchronize the checkout.
+- This directive overrides generic branching, worktree and PR workflows for central documentation. Do not move docs into another checkout to avoid a synchronization issue.
+
 
 
 ## Design Principles (MANDATORY)
@@ -202,7 +222,7 @@ specific affected test files/dirs, not the whole suite.
 hatch run test:test-target <path>    # Specific file or test  ← default during development
 hatch run test:test-target-quick <path>  # Specific, no coverage  ← default during development
 
-# Linting & type checking
+# Linting
 hatch run ruff:check                 # Check for issues
 hatch run ruff:fix                   # Auto-fix issues
 
