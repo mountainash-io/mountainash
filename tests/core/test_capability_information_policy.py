@@ -407,6 +407,67 @@ def test_adjacent_version_policies_publish_and_overlap_rolls_back():
     } == {"older", "newer"}
 
 
+def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        ComparisonScheme,
+        CoordinateConstraint,
+        Region,
+        prepare_environment,
+    )
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import (
+        CapabilityPolicy,
+        _CapabilityTarget,
+        _ExecutionContext,
+    )
+
+    claim = Applicability(tuple(Region((
+        CoordinateConstraint("package", "ibis", ComparisonScheme.PEP440, equal="12"),
+        CoordinateConstraint(
+            "engine",
+            "duckdb",
+            ComparisonScheme.NUMERIC_RELEASE,
+            lower=lower,
+            upper=upper,
+            upper_inclusive=False,
+        ),
+    )) for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))))
+    # Coordinates are deliberately test-owned, not claimed Polars/Ibis evidence.
+    rule = replace(_policy(), applicability=claim)
+    CapabilityRegistry.register_segment(_segment(policies=(rule,)))
+    target = _CapabilityTarget(BackendIdentity(CONST_BACKEND.POLARS, "polars"), object())
+    for engine, expected in (
+        ("1.1", False),
+        ("1.2", True),
+        ("1.3", False),
+        ("1.4", True),
+        (None, False),
+        ("vendor", False),
+    ):
+        observed = Environment((
+            EnvironmentCoordinate("package", "ibis", "12"),
+            EnvironmentCoordinate("engine", "duckdb", engine),
+        ))
+        context = _ExecutionContext(
+            CapabilityPolicy.checked(),
+            target,
+            observed,
+            prepare_environment(observed, claim.requirements),
+        )
+        selected = CapabilityRegistry.capability_for(
+            FK.CONTAINS,
+            "substring",
+            CONST_BACKEND.POLARS,
+            "polars",
+            execution_context=context,
+        )
+        assert (selected is not None) is expected
+
+
 @pytest.mark.parametrize(
     ("information_variant", "policy_variant"),
     (("native-description", "gate-rule"), (None, "named-gate-rule")),
