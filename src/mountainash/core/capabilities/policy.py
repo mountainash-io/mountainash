@@ -258,7 +258,11 @@ def _loaded_module_version(name: str) -> str | None:
 
 
 def _polars_engine_version(target: _CapabilityTarget) -> str | None:
-    if target.identity.family is CONST_BACKEND.NARWHALS:
+    if target.identity.family is CONST_BACKEND.POLARS:
+        polars = sys.modules.get("polars")
+        if polars is None or not isinstance(target.owner, (polars.DataFrame, polars.LazyFrame)):
+            return None
+    elif target.identity.family is CONST_BACKEND.NARWHALS:
         implementation = getattr(target.owner, "implementation", None)
         if getattr(implementation, "value", None) != "polars":
             return None

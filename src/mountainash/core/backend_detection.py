@@ -138,9 +138,16 @@ def narwhals_dialect(nw_frame: Any) -> str | None:
 
 def bound_ibis_backend(dataframe: Any) -> Any | None:
     """Return an already-bound Ibis backend without creating a default one."""
+    from ibis.common.exceptions import IbisError
+
     try:
         return dataframe._find_backend(use_default=False)
-    except Exception:
+    except IbisError:
+        # Ibis uses the same exception type for unbound and ambiguous targets.
+        # Inspect only the failure path; never repeat a successful discovery.
+        backends, _ = dataframe._find_backends()
+        if backends:
+            raise
         return None
 
 

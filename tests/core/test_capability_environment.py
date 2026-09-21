@@ -140,6 +140,45 @@ def test_non_native_ibis_targets_have_unknown_engines_and_fresh_owners(unbound):
     assert _engine_version(first, "sqlite") is None
 
 
+@pytest.mark.parametrize("selector", (None, "polars"), ids=("override-only", "bare-selector"))
+def test_synthetic_polars_target_cannot_borrow_loaded_engine(selector):
+    from importlib import import_module
+
+    import_module("polars")
+    from mountainash.core.capabilities.policy import _engine_version, _identify_capability_target
+    from mountainash.core.constants import CONST_BACKEND
+
+    target = _identify_capability_target(selector, family_override=CONST_BACKEND.POLARS)
+    assert _engine_version(target, "polars") is None
+
+
+def test_actual_polars_frames_retain_their_engine_observation():
+    import polars as pl
+    from mountainash.core.capabilities.policy import _engine_version, _identify_capability_target
+
+    frame = pl.DataFrame({"x": [1]})
+    for native in (frame, frame.lazy()):
+        assert _engine_version(_identify_capability_target(native), "polars") == pl.__version__
+
+
+def test_multibackend_ibis_expression_propagates_native_target_error():
+    import ibis
+    import polars as pl
+    from ibis.common.exceptions import IbisError
+    from mountainash.core.capabilities.policy import _new_execution_context
+
+    first = ibis.duckdb.connect(":memory:")
+    second = ibis.sqlite.connect(":memory:")
+    try:
+        left = first.create_table("left_target", obj=pl.DataFrame({"x": [1]}))
+        right = second.create_table("right_target", obj=pl.DataFrame({"y": [2]}))
+        with pytest.raises(IbisError):
+            _new_execution_context(left.cross_join(right))
+    finally:
+        first.con.close()
+        second.con.close()
+
+
 def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
     """A first checked request loads declarations before its environment is fixed."""
     import duckdb
