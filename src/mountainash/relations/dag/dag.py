@@ -453,8 +453,16 @@ class RelationDAG:
                         )
 
             relation_system = get_relation_system(resolved_backend)(dialect=dialect)
+            from mountainash.core.capabilities.policy import _new_execution_context
+
+            execution_context = _new_execution_context(
+                None, family_override=resolved_backend,
+            )
             expr_visitor = UnifiedExpressionVisitor(
-                get_expression_system(resolved_backend)(dialect=dialect)
+                get_expression_system(resolved_backend)(
+                    dialect=dialect, execution_context=execution_context,
+                ),
+                execution_context=execution_context,
             )
 
             ref_resolver = _SessionRefResolver(session, resolved_backend, dialect)

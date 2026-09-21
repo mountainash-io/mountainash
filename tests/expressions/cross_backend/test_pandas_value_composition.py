@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.core.dtypes.metadata import OperandType
 from mountainash.expressions.backends.expression_systems.narwhals import (
@@ -15,6 +16,12 @@ from mountainash.expressions.backends.expression_systems.narwhals import (
 from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
 from mountainash.expressions.core.expression_nodes.substrait.exn_literal import LiteralNode
 from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
+
+
+def _visitor_for(frame: pd.DataFrame) -> UnifiedExpressionVisitor:
+    execution_context = _new_execution_context(frame)
+    system = NarwhalsExpressionSystem(dialect="narwhals-pandas", execution_context=execution_context)
+    return UnifiedExpressionVisitor(system, input_data=frame, execution_context=execution_context)
 
 
 def _select(frame: pd.DataFrame, expression: ma.BaseExpressionAPI) -> pd.Series:
@@ -48,9 +55,7 @@ def test_conditional_null_branch_uses_nullable_boolean_storage() -> None:
         .then(ma.col("value"))
         .otherwise(ma.lit(None))
     )
-    visitor = UnifiedExpressionVisitor(
-        NarwhalsExpressionSystem(dialect="narwhals-pandas"), input_data=frame
-    )
+    visitor = _visitor_for(frame)
 
     with visitor.input_scope(frame):
         assert visitor.type_context.resolve_native(expression.node).descriptor == OperandType(
@@ -92,9 +97,7 @@ def test_explicit_typed_null_literal_remains_nullable_boolean() -> None:
     """Declared literal metadata and Narwhals lowering must agree on null."""
     frame = pd.DataFrame({"value": pd.Series([True], dtype=bool)})
     expression = BaseExpressionAPI(LiteralNode(value=None, dtype=D.BOOL))
-    visitor = UnifiedExpressionVisitor(
-        NarwhalsExpressionSystem(dialect="narwhals-pandas"), input_data=frame
-    )
+    visitor = _visitor_for(frame)
 
     with visitor.input_scope(frame):
         assert visitor.type_context.resolve_native(expression.node).descriptor == OperandType(
@@ -147,7 +150,8 @@ def test_parser_projection_preserves_boolean_inversion(failure, last) -> None:
 
 
 @pytest.mark.parametrize("null_first", [False, True])
-def test_aliased_null_conditional_preserves_uint64_cast(null_first) -> None:
+@pytest.mark.parametrize("policy_name", ["checked", "trusted"])
+def test_aliased_null_conditional_preserves_uint64_cast(null_first, policy_name) -> None:
     frame = pd.DataFrame({
         "condition": [True, False],
         "value": pd.Series([np.iinfo(np.uint64).max] * 2, dtype=np.uint64),
@@ -160,7 +164,8 @@ def test_aliased_null_conditional_preserves_uint64_cast(null_first) -> None:
         .otherwise(value if null_first else missing)
         .cast(D.U64).boolean_value(source="finite_number")
     )
-    result = _select(frame, expression)
+    with ma.capability_policy(getattr(ma.CapabilityPolicy, policy_name)()):
+        result = _select(frame, expression)
     assert bool(result.iloc[1 if null_first else 0]) is True
     assert result.isna().tolist() == ([True, False] if null_first else [False, True])
 
@@ -212,7 +217,8 @@ def test_floating_common_carrier_preserves_tiny_nonzero(composition, arrow) -> N
     assert result.tolist() == [True, False]
 
 
-def test_common_arrow_float_preserves_concrete_nan_validity() -> None:
+@pytest.mark.parametrize("policy_name", ["checked", "trusted"])
+def test_common_arrow_float_preserves_concrete_nan_validity(policy_name) -> None:
     import pyarrow as pa
 
     values = pd.arrays.ArrowExtensionArray(pa.array([float("nan"), None], type=pa.float64()))
@@ -221,7 +227,9 @@ def test_common_arrow_float_preserves_concrete_nan_validity() -> None:
         "large": pd.Series(values),
     })
     expression = ma.coalesce(ma.col("small"), ma.col("large")).value_kind()
-    assert _select(frame, expression).tolist() == ["float", "absent"]
+    with ma.capability_policy(getattr(ma.CapabilityPolicy, policy_name)()):
+        result = _select(frame, expression)
+    assert result.tolist() == ["float", "absent"]
 
 
 def test_aliased_float_literal_retains_native_width() -> None:

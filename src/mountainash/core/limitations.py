@@ -31,15 +31,18 @@ def call_with_limitation_enrichment(
     operation_key: Any,
     named_args: Mapping[str, Any],
     identify_issue: Callable[..., str | None] | None,
+    execution_context: Any,
 ) -> Any:
     """Enrich an identified native issue, never a merely matching error class."""
+    from mountainash.core.capabilities.schema import PolicyConsumer
+
+    if not execution_context.policy.has_demand(PolicyConsumer.IMMEDIATE_ERROR):
+        return fn()
     try:
         return fn()
     except BackendCapabilityError:
         raise  # already enriched (e.g. by a nested visit) — never re-wrap
     except Exception as exc:
-        from mountainash.core.capabilities.schema import PolicyConsumer
-
         issue = (
             identify_issue(exc, operation_key=operation_key, arguments=named_args)
             if identify_issue is not None else None

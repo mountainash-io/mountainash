@@ -11,6 +11,7 @@ from mountainash.core.capabilities import (
 from mountainash.core.capabilities.declarations import (
     BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector,
 )
+from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
@@ -54,8 +55,12 @@ def _abs_node_with_options(options):
 def _compile_node(node, df, backend):
     identity = identify_backend_identity(df)
     assert identity.family is CONST_BACKEND(backend)
+    context = _new_execution_context(df)
     system_cls = get_expression_system(identity.family)
-    visitor = UnifiedExpressionVisitor(system_cls(dialect=identity.dialect))
+    system = system_cls(dialect=identity.dialect, execution_context=context)
+    visitor = UnifiedExpressionVisitor(
+        system, input_data=df, execution_context=context,
+    )
     return visitor.visit(node)
 
 

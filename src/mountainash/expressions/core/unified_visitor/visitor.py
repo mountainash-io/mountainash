@@ -30,6 +30,7 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
+from mountainash.core.capabilities.schema import PolicyConsumer
 from .type_context import TypeContext
 
 # Alias for compatibility
@@ -152,8 +153,8 @@ class UnifiedExpressionVisitor:
     def __init__(
         self,
         expression_system: Any,
-        enforce_capabilities: bool = True,
         *,
+        execution_context: Any,
         diagnostic_trace: Any = None,
         conform_node_id: str | None = None,
         input_data: Any = None,
@@ -165,22 +166,21 @@ class UnifiedExpressionVisitor:
         compilation exactly as before.
         """
         self.backend = expression_system
-        self.enforce_capabilities = enforce_capabilities
+        self.execution_context = execution_context
         self.diagnostic_trace = diagnostic_trace
         self.conform_node_id = conform_node_id
         self.raising_diagnostic = None
         self._input_data = input_data
         self.type_context = TypeContext(expression_system, self.visit)
-        if enforce_capabilities:
-            # A gating consumer must ensure the capability declaration modules
-            # are imported before querying the registry (bootstrap.py contract):
-            # otherwise a gate silently no-ops on a cold path where nothing has
-            # imported the declaration module. Query-path autoload — a no-op
-            # in LOADED and ISOLATED states, so test fixtures that reset()
-            # into ISOLATED do not break the visitor.
-            from mountainash.core.capabilities.registry import CapabilityRegistry
+        # A gating consumer must ensure the capability declaration modules
+        # are imported before querying the registry (bootstrap.py contract):
+        # otherwise a gate silently no-ops on a cold path where nothing has
+        # imported the declaration module. Query-path autoload — a no-op
+        # in LOADED and ISOLATED states, so test fixtures that reset()
+        # into ISOLATED do not break the visitor.
+        from mountainash.core.capabilities.registry import CapabilityRegistry
 
-            CapabilityRegistry.ensure_loaded()
+        CapabilityRegistry.ensure_loaded()
 
     @contextmanager
     def input_scope(self, native_input: Any) -> Iterator[None]:
@@ -316,7 +316,7 @@ class UnifiedExpressionVisitor:
         never decide how an accepted literal is lowered: that is the category
         companion's ordinary backend responsibility.
         """
-        if self.enforce_capabilities:
+        if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             from mountainash.core.capabilities import (
                 CapabilityLevel,
                 CapabilityRegistry,
@@ -331,7 +331,10 @@ class UnifiedExpressionVisitor:
             for i, arg in enumerate(arguments):
                 param_name = _param_name_for(sig_params, i)
                 fact = (
-                    CapabilityRegistry.capability_for(function_key, param_name, backend_family, dialect)
+                    CapabilityRegistry.capability_for(
+                        function_key, param_name, backend_family, dialect,
+                        execution_context=self.execution_context,
+                    )
                     if param_name is not None
                     else None
                 )
@@ -378,12 +381,14 @@ class UnifiedExpressionVisitor:
 
     def _gate_predicate_violations(self, bound, *, phase: str) -> None:
         """Collect capability blockers in the requested metadata-resolution phase."""
-        if not self.enforce_capabilities:
+        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             return
         from mountainash.core.capabilities import CapabilityRegistry
         from mountainash.core.types import BackendCapabilityError
 
-        violations = CapabilityRegistry.violations_for(bound, phase=phase)
+        violations = CapabilityRegistry.violations_for(
+            bound, phase=phase, execution_context=self.execution_context,
+        )
         if violations:
             ordered = sorted(violations, key=lambda f: (f.param, f.message))
             combined = "; ".join(f.message for f in ordered)
@@ -396,7 +401,7 @@ class UnifiedExpressionVisitor:
             )
 
     def _gate_operation(self, function_key) -> None:
-        if not self.enforce_capabilities:
+        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             return
         from mountainash.core.capabilities import (
             CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
@@ -406,6 +411,7 @@ class UnifiedExpressionVisitor:
         fact = CapabilityRegistry.capability_for(
             function_key, WILDCARD_PARAM, self.backend.backend_type,
             getattr(self.backend, "dialect", None),
+            execution_context=self.execution_context,
         )
         if (
             fact is not None
@@ -419,7 +425,7 @@ class UnifiedExpressionVisitor:
             )
 
     def _gate_options(self, function_key, options) -> None:
-        if not options or not self.enforce_capabilities:
+        if not options or not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             return
         from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement
         from mountainash.core.types import BackendCapabilityError
@@ -429,6 +435,7 @@ class UnifiedExpressionVisitor:
             fact = CapabilityRegistry.capability_for(
                 function_key, name, self.backend.backend_type, dialect,
                 option_value=str(value.value if isinstance(value, Enum) else value),
+                execution_context=self.execution_context,
             )
             if (
                 fact is not None
@@ -447,13 +454,14 @@ class UnifiedExpressionVisitor:
     def _required_operand_types(self, func_def, protocol_method, arguments, options=None) -> dict[str, Any]:
         """Resolve function-declared and capability metadata operands."""
         required = func_def.type_arguments
-        if self.enforce_capabilities:
+        if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             from mountainash.core.capabilities import CapabilityRegistry
 
             capability_names = CapabilityRegistry.metadata_operand_names(
                 func_def.function_key,
                 self.backend.backend_type,
                 getattr(self.backend, "dialect", None),
+                execution_context=self.execution_context,
             )
             if capability_names:
                 required = capability_names if not required else capability_names.union(required)
@@ -570,7 +578,10 @@ class UnifiedExpressionVisitor:
         function_key = FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE
         func_def = FunctionRegistry.get(function_key)
         protocol_method = func_def.protocol_method
-        needs_binding = self.enforce_capabilities or bool(func_def.type_arguments)
+        needs_binding = (
+            self.execution_context.policy.has_demand(PolicyConsumer.GATE)
+            or bool(func_def.type_arguments)
+        )
         result_type, requires_null_carrier = self._conditional_result_metadata(node)
         logical_else = node.else_clause
         last_index = len(node.conditions) - 1

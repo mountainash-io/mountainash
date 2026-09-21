@@ -301,7 +301,7 @@ def _install_predicate_only_adapter() -> Adapter:
     from mountainash.expressions.core.expression_nodes import ExpressionNode
     from mountainash.expressions.core.unified_visitor.visitor import _param_name_for, _protocol_sig_params
     from mountainash.core.capabilities.predicates import metadata_arguments
-    from mountainash.core.capabilities.schema import Enforcement
+    from mountainash.core.capabilities.schema import Enforcement, PolicyConsumer
 
     adapter = Adapter([])
     original_facts = CapabilityRegistry.facts
@@ -314,7 +314,7 @@ def _install_predicate_only_adapter() -> Adapter:
 
     def required(self, func_def, protocol_method, arguments):
         required = set(func_def.type_arguments)
-        if self.enforce_capabilities:
+        if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             for fact in predicate_facts():
                 if (
                     fact.operation_key == func_def.function_key
@@ -356,7 +356,7 @@ def _install_names_gates_adapter() -> Adapter:
     from mountainash.expressions.core.expression_nodes import ExpressionNode
     from mountainash.expressions.core.unified_visitor.visitor import _param_name_for, _protocol_sig_params
     from mountainash.core.capabilities.predicates import metadata_arguments, predicate_holds
-    from mountainash.core.capabilities.schema import CapabilityLevel, Enforcement
+    from mountainash.core.capabilities.schema import CapabilityLevel, Enforcement, PolicyConsumer
 
     adapter = Adapter([])
     original_facts = CapabilityRegistry.facts
@@ -388,7 +388,7 @@ def _install_names_gates_adapter() -> Adapter:
         declared = frozenset(func_def.type_arguments)
         required_names = (
             lookup(func_def.function_key, self.backend.backend_type, getattr(self.backend, "dialect", None))
-            if self.enforce_capabilities
+            if self.execution_context.policy.has_demand(PolicyConsumer.GATE)
             else frozenset()
         )
         required = declared if not required_names else (required_names if not declared else declared | required_names)

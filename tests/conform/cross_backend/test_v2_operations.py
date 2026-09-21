@@ -8,6 +8,12 @@ import pandas as pd
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.identity import BackendIdentity
+from mountainash.core.capabilities.policy import (
+    _CapabilityTarget, _new_execution_context, _prepare_capability_context,
+    _resolve_policy,
+)
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.ibis import IbisExpressionSystem
 from mountainash.expressions.backends.expression_systems.narwhals import NarwhalsExpressionSystem
 from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem
@@ -27,22 +33,41 @@ from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.types import BackendCapabilityError
 from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResultHelper
 from fixtures.backend_registry import ALL_BACKENDS
-_SYSTEMS = {
-    "polars": PolarsExpressionSystem("polars"),
-    "polars-lazy": PolarsExpressionSystem("polars"),
-    "pandas": NarwhalsExpressionSystem("narwhals-pandas"),
-    "narwhals-pandas": NarwhalsExpressionSystem("narwhals-pandas"),
-    "narwhals-polars": NarwhalsExpressionSystem("narwhals-polars"),
-    "narwhals-lazy": NarwhalsExpressionSystem("narwhals-lazy"),
-    "ibis-duckdb": IbisExpressionSystem("ibis-duckdb"),
-    "ibis-polars": IbisExpressionSystem("ibis-polars"),
-    "ibis-sqlite": IbisExpressionSystem("ibis-sqlite"),
+
+_SYSTEM_SPECS = {
+    "polars": (PolarsExpressionSystem, CONST_BACKEND.POLARS, "polars"),
+    "polars-lazy": (PolarsExpressionSystem, CONST_BACKEND.POLARS, "polars"),
+    "pandas": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-pandas"),
+    "narwhals-pandas": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-pandas"),
+    "narwhals-polars": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-polars"),
+    "narwhals-lazy": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-lazy"),
+    "ibis-duckdb": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-duckdb"),
+    "ibis-polars": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-polars"),
+    "ibis-sqlite": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-sqlite"),
 }
 
 
+def _visitor_for(backend_name, *, input_data=None):
+    system_cls, family, dialect = _SYSTEM_SPECS[backend_name]
+    policy = _resolve_policy()
+    if input_data is None:
+        # A dialect-only compile fixture has no actual native engine owner.
+        target = _CapabilityTarget(BackendIdentity(family, dialect), owner=object())
+        context = _prepare_capability_context(policy, target, package_versions={})
+    else:
+        context = _new_execution_context(input_data, policy=policy)
+    system = system_cls(dialect=dialect, execution_context=context)
+    return UnifiedExpressionVisitor(
+        system, input_data=input_data, execution_context=context,
+    )
+
 
 def _compile_for(backend_name: str, expr):
-    return UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    return _visitor_for(backend_name).visit(expr._node)
+
+
+def _compile(expr):
+    return _compile_for("polars", expr)
 
 
 def _extract(backend_name: str, data: dict, compiled, column: str):
@@ -53,7 +78,7 @@ def _extract(backend_name: str, data: dict, compiled, column: str):
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_list_parse_has_explicit_backend_contract(backend_name: str) -> None:
     expr = ma.col("values").str.parse_list(item_type="string", delimiter="|", field_name="values")
-    visitor = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    visitor = lambda: _compile_for(backend_name, expr)
     if backend_name == "ibis-sqlite":
         with pytest.raises(BackendCapabilityError) as error:
             visitor()
@@ -69,8 +94,6 @@ def test_list_parse_has_explicit_backend_contract(backend_name: str) -> None:
             frame, compiled, "values", backend_name,
         ) == [["1", "2"], ["3", "4"]]
 
-def _compile(expr):
-    return UnifiedExpressionVisitor(PolarsExpressionSystem()).visit(expr._node)
 
 
 def test_polars_list_parse_covers_custom_delimiter_and_complete_null_failure() -> None:
@@ -94,9 +117,7 @@ def test_boolean_invalid_item_invalidates_complete_list(backend_name: str) -> No
     frame = BackendDataFrameFactory.create(
         {"values": ["true|false", "true|tRuE", None]}, backend_name,
     )
-    compiled = UnifiedExpressionVisitor(
-        _SYSTEMS[backend_name], input_data=frame,
-    ).visit(expr._node)
+    compiled = _visitor_for(backend_name, input_data=frame).visit(expr._node)
     assert BackendResultHelper.select_and_extract(
         frame, compiled, "values", backend_name,
     ) == [[True, False], None, None]
@@ -123,9 +144,7 @@ def test_boolean_valid_tokens_preserve_null(backend_name: str) -> None:
         ),
     )
     frame = BackendDataFrameFactory.create({"values": ["yes", "no", None]}, backend_name)
-    compiled = UnifiedExpressionVisitor(
-        _SYSTEMS[backend_name], input_data=frame,
-    ).visit(expr._node)
+    compiled = _visitor_for(backend_name, input_data=frame).visit(expr._node)
     values = BackendResultHelper.select_and_extract(
         frame, compiled, "values", backend_name,
     )
@@ -140,9 +159,7 @@ def test_ibis_boolean_list_parser_uses_closed_frictionless_tokens() -> None:
         {"values": ["true|True|TRUE|1|false|False|FALSE|0"]},
         "ibis-duckdb",
     )
-    compiled = UnifiedExpressionVisitor(
-        IbisExpressionSystem("ibis-duckdb")
-    ).visit(expr._node)
+    compiled = _visitor_for("ibis-duckdb", input_data=frame).visit(expr._node)
     assert BackendResultHelper.select_and_extract(
         frame, compiled, "values", "ibis-duckdb",
     ) == [[True, True, True, True, False, False, False, False]]
@@ -153,9 +170,7 @@ def test_ibis_boolean_list_parser_rejects_mixed_case_tokens() -> None:
         item_type="boolean", delimiter="|", field_name="values",
     )
     frame = BackendDataFrameFactory.create({"values": ["tRuE|false"]}, "ibis-duckdb")
-    compiled = UnifiedExpressionVisitor(
-        IbisExpressionSystem("ibis-duckdb")
-    ).visit(expr._node)
+    compiled = _visitor_for("ibis-duckdb", input_data=frame).visit(expr._node)
     with pytest.raises(Exception):
         BackendResultHelper.select_and_extract(frame, compiled, "values", "ibis-duckdb")
 def test_polars_recursive_array_struct_cast() -> None:
@@ -192,10 +207,6 @@ def test_polars_struct_and_categorical_preserve_base_values() -> None:
 
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars"])
 def test_boolean_list_parser_uses_only_closed_frictionless_tokens(backend_name: str) -> None:
-    systems = {
-        "polars": PolarsExpressionSystem("polars"),
-        "narwhals-polars": NarwhalsExpressionSystem("narwhals-polars"),
-    }
     expr = ma.col("values").str.parse_list(
         item_type="boolean", delimiter="|", field_name="values",
     )
@@ -203,7 +214,7 @@ def test_boolean_list_parser_uses_only_closed_frictionless_tokens(backend_name: 
         {"values": ["true|True|TRUE|1|false|False|FALSE|0"]},
         backend_name,
     )
-    compiled = UnifiedExpressionVisitor(systems[backend_name]).visit(expr._node)
+    compiled = _visitor_for(backend_name, input_data=frame).visit(expr._node)
     assert BackendResultHelper.select_and_extract(
         frame, compiled, "values", backend_name,
     ) == [[True, True, True, True, False, False, False, False]]
@@ -214,9 +225,7 @@ def test_narwhals_pandas_boolean_list_fails_at_materialization() -> None:
         item_type="boolean", delimiter="|", field_name="values",
     )
     frame = BackendDataFrameFactory.create({"values": ["true|false"]}, "narwhals-pandas")
-    compiled = UnifiedExpressionVisitor(
-        NarwhalsExpressionSystem("narwhals-pandas")
-    ).visit(expr._node)
+    compiled = _visitor_for("narwhals-pandas", input_data=frame).visit(expr._node)
     with pytest.raises(TypeError):
         BackendResultHelper.select_and_extract(frame, compiled, "values", "narwhals-pandas")
 
@@ -229,9 +238,7 @@ def test_null_list_item_type_refusal_is_public() -> None:
         failure_behavior=CaseFailureBehaviour.NULL,
     )
     with pytest.raises(BackendCapabilityError) as error:
-        UnifiedExpressionVisitor(
-            NarwhalsExpressionSystem("narwhals-polars")
-        ).visit(expr._node)
+        _visitor_for("narwhals-polars").visit(expr._node)
     assert error.value.function_key is FK_LIST.PARSE
 
 
@@ -243,9 +250,7 @@ def test_conditioned_null_list_fact_does_not_block_supported_item_type() -> None
         failure_behavior=CaseFailureBehaviour.NULL,
     )
     frame = BackendDataFrameFactory.create({"values": ["a|b"]}, "narwhals-polars")
-    compiled = UnifiedExpressionVisitor(
-        NarwhalsExpressionSystem("narwhals-polars")
-    ).visit(expr._node)
+    compiled = _visitor_for("narwhals-polars", input_data=frame).visit(expr._node)
     assert BackendResultHelper.select_and_extract(
         frame, compiled, "values", "narwhals-polars",
     ) == [["a", "b"]]
@@ -253,15 +258,11 @@ def test_conditioned_null_list_fact_does_not_block_supported_item_type() -> None
 
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars"])
 def test_boolean_list_parser_rejects_mixed_case_tokens(backend_name: str) -> None:
-    systems = {
-        "polars": PolarsExpressionSystem("polars"),
-        "narwhals-polars": NarwhalsExpressionSystem("narwhals-polars"),
-    }
     expr = ma.col("values").str.parse_list(
         item_type="boolean", delimiter="|", field_name="values",
     )
     frame = BackendDataFrameFactory.create({"values": ["tRuE|false"]}, backend_name)
-    compiled = UnifiedExpressionVisitor(systems[backend_name]).visit(expr._node)
+    compiled = _visitor_for(backend_name, input_data=frame).visit(expr._node)
     with pytest.raises(Exception):
         BackendResultHelper.select_and_extract(frame, compiled, "values", backend_name)
 
@@ -647,7 +648,7 @@ def test_ibis_sqlite_geopoint_default_throw_has_public_refusal() -> None:
         field_name="point",
     )
     with pytest.raises(BackendCapabilityError) as error:
-        UnifiedExpressionVisitor(IbisExpressionSystem("ibis-sqlite")).visit(expr._node)
+        _visitor_for("ibis-sqlite").visit(expr._node)
     assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
 
 
@@ -659,7 +660,7 @@ def test_geopoint_default_null_mode_all_backends(backend_name: str) -> None:
         field_name="point",
         failure_behavior=CaseFailureBehaviour.NULL,
     )
-    compiled = UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    compiled = _visitor_for(backend_name).visit(expr._node)
     frame = BackendDataFrameFactory.create({"point": ["1.0, 2.0", "bad", None]}, backend_name)
     values = BackendResultHelper.select_and_extract(frame, compiled, "point", backend_name)
     assert values[0] == "1.0, 2.0"
@@ -704,7 +705,7 @@ def test_native_geopoint_array_throw_executes_supported_backends(backend_name: s
     expr = ma.col("point").geo.parse_geopoint(
         format="array", source_representation="native", field_name="point"
     )
-    compiled = UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    compiled = _visitor_for(backend_name).visit(expr._node)
     frame = BackendDataFrameFactory.create({"point": [[1.0, 2.0], None]}, backend_name)
     values = BackendResultHelper.select_and_extract(frame, compiled, "point", backend_name)
     assert list(values[0]) == [1.0, 2.0]

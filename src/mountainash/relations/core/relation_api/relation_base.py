@@ -67,8 +67,18 @@ class RelationBase:
         relation_system_cls = get_relation_system(resolved_backend)
         relation_system = relation_system_cls(dialect=dialect)
         expression_system_cls = get_expression_system(resolved_backend)
-        expression_system = expression_system_cls(dialect=dialect)
-        expr_visitor = UnifiedExpressionVisitor(expression_system)
+        from mountainash.core.capabilities.policy import _new_execution_context
+
+        execution_context = _new_execution_context(
+            leaf.dataframe if leaf is not None else None,
+            family_override=resolved_backend,
+        )
+        expression_system = expression_system_cls(
+            dialect=dialect, execution_context=execution_context,
+        )
+        expr_visitor = UnifiedExpressionVisitor(
+            expression_system, execution_context=execution_context,
+        )
         visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
         return visitor.visit(node), visitor
 

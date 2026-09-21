@@ -317,8 +317,17 @@ class DAGMaterializationSession:
         from mountainash.relations.dag.key_context import KeyDriftContext
 
         relation_system = get_relation_system(resolved_backend)(dialect=dialect)
+        from mountainash.core.capabilities.policy import _new_execution_context
+
+        execution_context = _new_execution_context(
+            anchor_leaf.dataframe if anchor_leaf is not None else None,
+            family_override=resolved_backend,
+        )
         expr_visitor = UnifiedExpressionVisitor(
-            get_expression_system(resolved_backend)(dialect=dialect)
+            get_expression_system(resolved_backend)(
+                dialect=dialect, execution_context=execution_context,
+            ),
+            execution_context=execution_context,
         )
         # Every dependency is key-assessed against ITS OWN constraints,
         # unconditionally -- including a no-leaf ref -- regardless of

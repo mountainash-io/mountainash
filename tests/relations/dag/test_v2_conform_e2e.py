@@ -9,6 +9,8 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
 )
+from mountainash.core.capabilities.policy import _new_execution_context
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
 from mountainash.typespec.datapackage import DataPackage
@@ -117,9 +119,11 @@ def test_public_descriptor_dag_conform_collect() -> None:
     assert result["geometry"].to_list()[1] is None
     assert result["topology"].to_list()[0] == '{"type":"Topology","objects":{}}'
     native_geojson = ma.col("native").geo.serialize_geojson(format="default", field_name="native")
-    native_compiled = UnifiedExpressionVisitor(PolarsExpressionSystem("polars")).visit(
-        native_geojson._node
-    )
+    native_context = _new_execution_context(None, family_override=CONST_BACKEND.POLARS)
+    native_system = PolarsExpressionSystem("polars", execution_context=native_context)
+    native_compiled = UnifiedExpressionVisitor(
+        native_system, execution_context=native_context,
+    ).visit(native_geojson._node)
     native_result = pl.DataFrame(
         {"native": [{"type": "Point", "coordinates": [1.0, 2.0]}, None]}
     ).select(native_compiled.alias("native"))
