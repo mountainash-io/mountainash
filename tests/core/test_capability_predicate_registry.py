@@ -137,6 +137,41 @@ def test_later_cross_segment_ambiguity_rolls_back_and_names_both_origins(isolate
     assert reader.policy_optional(narrow_permit.key) is None
 
 
+def test_trusted_scope_cannot_publish_ambiguous_policy_alternatives(isolated):
+    from mountainash.core.capabilities.policy import CapabilityPolicy, capability_policy
+
+    broad = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="all literal inputs are protected",
+    )
+    broad = replace(broad, key=replace(broad.key, variant="trusted-broad"))
+    initial = _segment(broad, suffix=".trusted_initial")
+    CapabilityRegistry.register_segment(initial)
+    narrow = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+        message="minus seven would cancel the protection",
+    )
+    narrow = replace(narrow, key=replace(narrow.key, variant="trusted-narrow"))
+    later = _segment(narrow, suffix=".trusted_rejected")
+
+    with capability_policy(CapabilityPolicy.trusted()):
+        with pytest.raises(ValueError) as raised:
+            CapabilityRegistry.register_segment(later)
+
+    message = str(raised.value)
+    assert initial.module in message
+    assert later.module in message
+    assert "call=overlap" in message
+    assert "environment=overlap" in message
+    assert CapabilityRegistry.segments() == (initial,)
+    assert CapabilityRegistry.reader(_SCOPE).policy(broad.key).assertion == broad
+    assert CapabilityRegistry.reader(_SCOPE).policy_optional(narrow.key) is None
+
+
 def test_not_proven_predicate_intersection_rejects_later_segment_without_inventing_witness(isolated):
     prior = _policy(
         "x",
