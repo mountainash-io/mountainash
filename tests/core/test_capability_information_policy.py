@@ -220,3 +220,272 @@ def test_policy_explanation_scope_must_cover_its_dialect(reference_home):
     else:
         CapabilityRegistry.register_segment(target)
         assert CapabilityRegistry.capture().reader(target.scope).policy(policy_key).assertion == policy
+
+def test_information_variants_do_not_overwrite_or_become_unqualified_fallback():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery
+    from mountainash.core.capabilities.declarations import QualifiedInformationKey
+    from mountainash.core.capabilities.schema import InformationLayer
+
+    first = replace(
+        _information("substring", "First named description"),
+        key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="first"),
+    )
+    second = replace(
+        first,
+        key=replace(first.key, variant="second"),
+        message="Second named description",
+    )
+    segment = _segment(information=(first, second))
+    CapabilityRegistry.register_segment(segment)
+
+    captured = CapabilityRegistry.capture()
+    assert {
+        item.key.local.variant
+        for item in captured.search(CatalogueQuery(information=InformationQuery())).information
+    } == {"first", "second"}
+    assert captured.get_optional(
+        QualifiedInformationKey(
+            segment.scope,
+            CapabilityKey(FK.CONTAINS, "substring"),
+            InformationLayer.NATIVE,
+        )
+    ) is None
+    assert captured.get(
+        QualifiedInformationKey(segment.scope, second.key, InformationLayer.NATIVE)
+    ).assertion is second
+
+
+def test_duplicate_full_keys_roll_back_information_and_policy_publication():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery, PolicyQuery
+
+    information = replace(
+        _information("substring", "Initially published named information"),
+        key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="duplicate-information"),
+    )
+    policy = replace(
+        _policy(),
+        key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="duplicate-policy"),
+    )
+    CapabilityRegistry.register_segment(_segment(information=(information,), policies=(policy,)))
+    before = CapabilityRegistry.capture().search(CatalogueQuery(
+        information=InformationQuery(),
+        policies=PolicyQuery(),
+    ))
+
+    with pytest.raises(ValueError, match="duplicate information key"):
+        CapabilityRegistry.register_segment(
+            _segment(information=(information,), suffix=".duplicate_information")
+        )
+    assert CapabilityRegistry.capture().search(CatalogueQuery(
+        information=InformationQuery(),
+        policies=PolicyQuery(),
+    )) == before
+
+    with pytest.raises(ValueError, match="duplicate policy key"):
+        CapabilityRegistry.register_segment(_segment(
+            information=(
+                replace(
+                    information,
+                    key=replace(information.key, variant="separate-information"),
+                ),
+            ),
+            policies=(policy,),
+            suffix=".duplicate_policy",
+        ))
+    assert CapabilityRegistry.capture().search(CatalogueQuery(
+        information=InformationQuery(),
+        policies=PolicyQuery(),
+    )) == before
+
+
+def test_disjoint_policy_variants_coexist_and_require_exact_lookup():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        ComparisonScheme,
+        CoordinateConstraint,
+        Region,
+    )
+
+    older = Applicability((
+        Region((
+            CoordinateConstraint(
+                "engine",
+                "polars",
+                ComparisonScheme.NUMERIC_RELEASE,
+                upper="1.0.0",
+                upper_inclusive=False,
+            ),
+        )),
+    ))
+    newer = Applicability((
+        Region((
+            CoordinateConstraint(
+                "engine",
+                "polars",
+                ComparisonScheme.NUMERIC_RELEASE,
+                lower="1.0.0",
+            ),
+        )),
+    ))
+    first = replace(
+        _policy(),
+        key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="older-engine"),
+        applicability=older,
+    )
+    second = replace(
+        first,
+        key=replace(first.key, variant="newer-engine"),
+        applicability=newer,
+    )
+    segment = _segment(policies=(first, second))
+    CapabilityRegistry.register_segment(segment)
+
+    reader = CapabilityRegistry.capture().reader(segment.scope)
+    assert reader.policy(first.key).assertion is first
+    assert reader.policy(second.key).assertion is second
+    assert reader.policy_optional(CapabilityKey(FK.CONTAINS, "substring")) is None
+
+
+@pytest.mark.parametrize(
+    ("information_variant", "policy_variant"),
+    (("native-description", "gate-rule"), (None, "named-gate-rule")),
+    ids=("named-information", "unqualified-information"),
+)
+def test_policy_can_reference_independently_named_or_unqualified_information(
+    information_variant,
+    policy_variant,
+):
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.declarations import QualifiedInformationKey
+    from mountainash.core.capabilities.schema import InformationLayer
+
+    information = replace(
+        _information("substring", "Explanation belongs to this exact information record"),
+        key=replace(
+            CapabilityKey(FK.CONTAINS, "substring"),
+            variant=information_variant,
+        ),
+    )
+    reference = QualifiedInformationKey(
+        _segment().scope,
+        information.key,
+        InformationLayer.NATIVE,
+    )
+    policy = replace(
+        _policy(information=reference),
+        key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant=policy_variant),
+    )
+    segment = _segment(information=(information,), policies=(policy,))
+    CapabilityRegistry.register_segment(segment)
+
+    capture = CapabilityRegistry.capture()
+    assert capture.get(reference).assertion is information
+    assert capture.reader(segment.scope).policy(policy.key).assertion.information is reference
+
+
+def test_missing_named_information_reference_rolls_back_entire_segment():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery
+    from mountainash.core.capabilities.declarations import QualifiedInformationKey
+    from mountainash.core.capabilities.schema import InformationLayer
+
+    initial = _segment(information=(_information("input", "Previously published"),))
+    CapabilityRegistry.register_segment(initial)
+    before = CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery()))
+    missing = QualifiedInformationKey(
+        initial.scope,
+        CapabilityKey(FK.CONTAINS, "substring", variant="missing-explanation"),
+        InformationLayer.NATIVE,
+    )
+    invalid = _segment(
+        information=(_information("substring", "Must not leak from failed publication"),),
+        policies=(
+            replace(
+                _policy(information=missing),
+                key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="missing-reference"),
+            ),
+        ),
+        suffix=".missing_variant",
+    )
+
+    with pytest.raises(ValueError, match="information reference"):
+        CapabilityRegistry.register_segment(invalid)
+
+    assert CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery())) == before
+    assert CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars") is None
+
+
+def test_policy_reference_with_wrong_base_identity_rolls_back_publication():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery
+    from mountainash.core.capabilities.declarations import QualifiedInformationKey
+    from mountainash.core.capabilities.schema import InformationLayer
+
+    prior = _segment(information=(_information("input", "Existing different subject"),))
+    CapabilityRegistry.register_segment(prior)
+    before = CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery()))
+    reference = QualifiedInformationKey(
+        prior.scope,
+        CapabilityKey(FK.CONTAINS, "input"),
+        InformationLayer.NATIVE,
+    )
+    invalid = _segment(
+        information=(_information("substring", "Must not leak from failed publication"),),
+        policies=(
+            replace(
+                _policy(information=reference),
+                key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="wrong-base"),
+            ),
+        ),
+        suffix=".wrong_base",
+    )
+
+    with pytest.raises(ValueError, match="call identity"):
+        CapabilityRegistry.register_segment(invalid)
+
+    assert CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery())) == before
+
+
+def test_policy_reference_with_wrong_scope_rolls_back_publication():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, InformationQuery
+    from mountainash.core.capabilities.declarations import QualifiedInformationKey
+    from mountainash.core.capabilities.schema import InformationLayer
+
+    foreign_scope = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
+    foreign_information = _information("substring", "Foreign backend explanation")
+    CapabilityRegistry.register_segment(BoundSegment(
+        "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.reference",
+        foreign_scope,
+        CapabilitySegment(Domain.STRING, information=(foreign_information,)),
+    ))
+    before = CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery()))
+    invalid = _segment(
+        information=(_information("substring", "Must not leak from failed publication"),),
+        policies=(
+            replace(
+                _policy(information=QualifiedInformationKey(
+                    foreign_scope,
+                    foreign_information.key,
+                    InformationLayer.NATIVE,
+                )),
+                key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="wrong-scope"),
+            ),
+        ),
+        suffix=".wrong_scope",
+    )
+
+    with pytest.raises(ValueError, match="backend"):
+        CapabilityRegistry.register_segment(invalid)
+
+    assert CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery())) == before

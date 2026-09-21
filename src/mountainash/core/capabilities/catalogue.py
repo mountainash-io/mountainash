@@ -26,7 +26,7 @@ from mountainash.core.capabilities.schema import (
     CaptureValue,
     _UPSTREAM_REF_RE,
     CapabilityLevel,
-    InformationKind,
+    CapabilityIssueClass,
     InformationLayer,
     PolicyAction,
     PolicyConsumer,
@@ -66,6 +66,7 @@ def _key_order(key: CapabilityKey) -> tuple:
         operation.name,
         key.subject,
         _selector_order(key.selector),
+        key.variant or "",
     )
 
 
@@ -75,7 +76,7 @@ class InformationQuery:
     subject: str | None = None
     layer: InformationLayer | None = None
     level: CapabilityLevel | None = None
-    kind: InformationKind | None = None
+    kind: CapabilityIssueClass | None = None
 
     def __post_init__(self) -> None:
         if self.subject is not None and (type(self.subject) is not str or not self.subject):
@@ -86,8 +87,8 @@ class InformationQuery:
             raise TypeError("layer requires InformationLayer")
         if self.level is not None and type(self.level) is not CapabilityLevel:
             raise TypeError("level requires CapabilityLevel")
-        if self.kind is not None and type(self.kind) is not InformationKind:
-            raise TypeError("kind requires InformationKind")
+        if self.kind is not None and type(self.kind) is not CapabilityIssueClass:
+            raise TypeError("kind requires CapabilityIssueClass")
 
     def matches(self, record: QualifiedInformation) -> bool:
         return (

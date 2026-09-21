@@ -11,13 +11,15 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from mountainash.core.capabilities.capture import CapturedAddress, SourceOrigin, require_immutable
+from mountainash.core.capabilities.applicability import Applicability
+
 from mountainash.core.capabilities.schema import CaptureValue, _UPSTREAM_REF_RE
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
     Enforcement,
-    InformationKind,
+    CapabilityIssueClass,
     InformationLayer,
     PolicyAction,
     PolicyConsumer,
@@ -25,6 +27,7 @@ from mountainash.core.capabilities.schema import (
     ResidueSignal,
     ValueClass,
     _validate_since,
+    _validate_variant,
 )
 
 if TYPE_CHECKING:
@@ -156,6 +159,8 @@ class CapabilityKey:
     operation: Enum
     subject: str
     selector: Selector = Selector()
+    variant: str | None = None
+
 
     def __post_init__(self) -> None:
         if not isinstance(self.operation, Enum):
@@ -164,6 +169,7 @@ class CapabilityKey:
             raise ValueError("subject requires a nonempty protocol parameter")
         if type(self.selector) is not Selector:
             raise TypeError("selector requires Selector")
+        _validate_variant(self.variant)
         classify_source(self.operation)
         classify_domain(self.operation)
 
@@ -177,7 +183,7 @@ class CapabilityKey:
             selector = Selector("exact", fact.option_value)
         else:
             selector = Selector()
-        return cls(fact.operation_key, fact.param, selector)
+        return cls(fact.operation_key, fact.param, selector, fact.variant)
 
 
 @dataclass(frozen=True)
@@ -218,19 +224,23 @@ class CapabilityInformation:
     message: str
     workaround: str | None = None
     issue: str | None = None
-    kinds: frozenset[InformationKind] = frozenset()
+    kinds: frozenset[CapabilityIssueClass] = frozenset()
+    applicability: Applicability = Applicability()
+
 
     def __post_init__(self) -> None:
         if type(self.key) is not CapabilityKey:
             raise TypeError("information key requires CapabilityKey")
         if type(self.layer) is not InformationLayer or type(self.level) is not CapabilityLevel:
             raise TypeError("information requires InformationLayer and CapabilityLevel")
-        if type(self.kinds) is not frozenset or any(type(kind) is not InformationKind for kind in self.kinds):
-            raise TypeError("information kinds requires a frozenset of InformationKind")
+        if type(self.kinds) is not frozenset or any(type(kind) is not CapabilityIssueClass for kind in self.kinds):
+            raise TypeError("information kinds requires a frozenset of CapabilityIssueClass")
         if type(self.message) is not str or not self.message:
             raise ValueError("information requires a descriptive message")
         if self.workaround is not None and type(self.workaround) is not str:
             raise TypeError("information workaround requires text or None")
+        if type(self.applicability) is not Applicability:
+            raise TypeError("information applicability requires Applicability")
         _validate_since(self.since, "CapabilityInformation")
         _validate_issue_reference(self.issue)
         require_immutable(self)
@@ -269,6 +279,9 @@ class CapabilityPolicyRule:
     native_errors: tuple[type[Exception], ...] = ()
     native_issue: str | None = None
     information: QualifiedInformationKey | None = None
+    applicability: Applicability = Applicability()
+    issue_classes: frozenset[CapabilityIssueClass] = frozenset({CapabilityIssueClass.UNCLASSIFIED})
+
 
     def __post_init__(self) -> None:
         if type(self.key) is not CapabilityKey or type(self.level) is not CapabilityLevel:
@@ -285,6 +298,14 @@ class CapabilityPolicyRule:
             raise ValueError("policy native_issue requires a nonempty code-owned identity")
         if self.information is not None and type(self.information) is not QualifiedInformationKey:
             raise TypeError("policy information requires QualifiedInformationKey or None")
+        if type(self.applicability) is not Applicability:
+            raise TypeError("policy applicability requires Applicability")
+        if type(self.issue_classes) is not frozenset or not self.issue_classes or any(
+            type(issue_class) is not CapabilityIssueClass for issue_class in self.issue_classes
+        ):
+            raise TypeError("policy issue classes require a nonempty frozen enum set")
+        if CapabilityIssueClass.UNCLASSIFIED in self.issue_classes and len(self.issue_classes) != 1:
+            raise ValueError("unclassified cannot accompany a specific issue class")
         _validate_since(self.since, "CapabilityPolicyRule")
         if self.consumer is PolicyConsumer.GATE:
             if (
@@ -353,6 +374,9 @@ class CapabilityPolicyRule:
             consumer=self.consumer,
             action=self.action,
             native_issue=self.native_issue,
+            variant=self.key.variant,
+            applicability=self.applicability,
+            issue_classes=self.issue_classes,
             option_value=selector.value if type(selector.value) is str else None,
             value_class=selector.value if type(selector.value) is ValueClass else None,
             predicate=selector.value if type(selector.value) is Predicate else None,

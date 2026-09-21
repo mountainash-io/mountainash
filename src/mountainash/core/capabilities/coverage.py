@@ -262,6 +262,7 @@ def _declaration_order(record: QualifiedInformation | QualifiedPolicy) -> tuple:
         local.subject,
         selector.kind,
         repr(selector.value),
+        local.variant or "",
     )
     if isinstance(record, QualifiedInformation):
         return (*base, record.key.layer.value)

@@ -36,7 +36,7 @@ def _segment(information):
 def test_one_information_record_has_two_descriptive_kind_views_without_execution_effect():
     from mountainash.core.capabilities.catalogue import InformationQuery
     from mountainash.core.capabilities.declarations import CapabilityInformation
-    from mountainash.core.capabilities.schema import InformationKind, InformationLayer
+    from mountainash.core.capabilities.schema import CapabilityIssueClass, InformationLayer
 
     information = CapabilityInformation(
         key=CapabilityKey(FK.CONTAINS, "substring"),
@@ -44,21 +44,21 @@ def test_one_information_record_has_two_descriptive_kind_views_without_execution
         level=CapabilityLevel.UNSUPPORTED,
         since="2026-09-18",
         message="Classified descriptive claim",
-        kinds=frozenset({InformationKind.PRECISION, InformationKind.SEMANTICS}),
+        kinds=frozenset({CapabilityIssueClass.PRECISION, CapabilityIssueClass.SEMANTICS}),
     )
     segment = _segment(information)
     CapabilityRegistry.register_segment(segment)
 
     capture = CapabilityRegistry.capture()
-    semantic = capture.reader(segment.scope).search(InformationQuery(kind=InformationKind.SEMANTICS))
-    precision = capture.reader(segment.scope).search(InformationQuery(kind=InformationKind.PRECISION))
+    semantic = capture.reader(segment.scope).search(InformationQuery(kind=CapabilityIssueClass.SEMANTICS))
+    precision = capture.reader(segment.scope).search(InformationQuery(kind=CapabilityIssueClass.PRECISION))
     composed = capture.composed_information(segment.scope)
 
     assert semantic == precision == composed
     assert semantic[0] is precision[0] is composed[0]
     assert semantic[0].key.scope is segment.scope
     assert semantic[0].key.local is information.key
-    assert semantic[0].assertion.kinds == frozenset({InformationKind.PRECISION, InformationKind.SEMANTICS})
+    assert semantic[0].assertion.kinds == frozenset({CapabilityIssueClass.PRECISION, CapabilityIssueClass.SEMANTICS})
     assert CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars") is None
 
 

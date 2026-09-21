@@ -50,8 +50,8 @@ if TYPE_CHECKING:
     from mountainash.core.capabilities.identity import Scope
     from mountainash.core.capabilities.gaps import GapInventory
 
-_Key = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
-_ValueClassBucketKey = Tuple[Any, str, CONST_BACKEND, Optional[str]]
+_Key = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str], Optional[str]]
+_ValueClassBucketKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
 
 
 class _LoadState(_Enum):
@@ -104,6 +104,7 @@ def _enum_key(fact: CapabilityFact):
         str(fact.backend.value if hasattr(fact.backend, "value") else fact.backend),
         fact.dialect or "",
         fact.option_value or "",
+        fact.variant or "",
         fact.value_class.value if fact.value_class is not None else "",
         fact.residue_signal.value,
         fact.fact_key,
@@ -288,6 +289,8 @@ def _prepare_state(
     buckets: dict[tuple[Any, CONST_BACKEND], list[tuple[CapabilityFact, bool]]] = {}
     names: dict[tuple[Any, CONST_BACKEND, str | None], set[str]] = {}
     for fact in policy_predicate_facts:
+        if fact.variant is not None:
+            continue
         if fact.consumer is not PolicyConsumer.GATE:
             continue
         metadata = metadata_arguments(fact.predicate)
@@ -470,6 +473,26 @@ def _literal_only_disjoint(protection, other):
     return False
 
 
+
+
+def _base_key(key):
+    return key.operation, key.subject, key.selector
+
+
+def _resolve_information_reference(reference, information, policy_key, policy_scope):
+    try:
+        record = information[reference]
+    except KeyError:
+        raise ValueError(f"policy information reference was not published: {reference!r}") from None
+    if _base_key(reference.local) != _base_key(policy_key):
+        raise ValueError("policy information reference has a different call identity")
+    if reference.scope.backend is not policy_scope.backend:
+        raise ValueError("policy information reference has a different backend")
+    if reference.scope.dialect not in (None, policy_scope.dialect):
+        raise ValueError("policy information reference has a different dialect")
+    return record
+
+
 def _check_policy_conflicts(key, policy, incoming_origins, policies):
     from mountainash.core.capabilities.predicates import DomainRelation
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -481,6 +504,13 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies):
             or other.key.operation != policy.key.operation
             or other.consumer is not policy.consumer
         ):
+            continue
+        from mountainash.core.capabilities.applicability import (
+            EnvironmentDomainRelation,
+            compare_applicability,
+        )
+
+        if compare_applicability(policy.applicability, other.applicability) is EnvironmentDomainRelation.DISJOINT:
             continue
         if policy.consumer is PolicyConsumer.GATE:
             both_block = policy.action is PolicyAction.BLOCK and other.action is PolicyAction.BLOCK
@@ -529,6 +559,7 @@ def _stage_information(segment, information):
 
     for ordinal, assertion in enumerate(segment.segment.information):
         _validate_operation_subject(assertion.key.operation, assertion.key.subject)
+        assertion.applicability.prepare()
         key = QualifiedInformationKey(segment.scope, assertion.key, assertion.layer)
         origins = _source_origins(segment, "information", ordinal)
         if key in information:
@@ -561,28 +592,25 @@ def _stage_segment_policies(
                 f"existing origins={_origin_labels(policy_origins[key])!r}; "
                 f"incoming origins={_origin_labels(origins_for_policy)!r}"
             )
-        if policy.information is not None and (
-            policy.information.scope.backend is not segment.scope.backend
-            or policy.information.scope.dialect not in (None, segment.scope.dialect)
-            or policy.information.local != policy.key
-        ):
-            raise ValueError("policy information reference must describe its exact local key and applicable scope")
-        if policy.information is not None and policy.information not in information:
-            raise ValueError(f"policy information reference was not published: {policy.information!r}")
+        explanation = (
+            _resolve_information_reference(policy.information, information, policy.key, segment.scope)
+            if policy.information is not None
+            else None
+        )
         _check_policy_conflicts(key, policy, origins_for_policy, policies)
+        policy.applicability.prepare()
         fact = policy.qualify(segment.scope)
-        if policy.information is not None:
-            explanation = information[policy.information].assertion
-            fact = replace(fact, workaround=explanation.workaround, upstream_ref=explanation.issue)
+        if explanation is not None:
+            fact = replace(fact, workaround=explanation.assertion.workaround, upstream_ref=explanation.assertion.issue)
         _validate_payload(fact)
         _validate_fact(family, fact)
         if fact.predicate is not None:
             policy_predicate_facts.append(fact)
         elif fact.value_class is not None:
-            bucket = (fact.operation_key, fact.param, fact.backend, fact.dialect)
+            bucket = (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.variant)
             policy_value_class_facts[bucket] = policy_value_class_facts.get(bucket, ()) + (fact,)
         else:
-            fact_key = (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.option_value)
+            fact_key = (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.option_value, fact.variant)
             if fact_key in policy_facts:
                 raise ValueError(f"duplicate prepared policy fact: {key!r}")
             policy_facts[fact_key] = fact
@@ -761,7 +789,7 @@ class CapabilityRegistry:
         from mountainash.core.capabilities.value_classes import matches
 
         answer = None
-        for fact in buckets.get((operation_key, param, backend, dialect), ()):
+        for fact in buckets.get((operation_key, param, backend, dialect, None), ()):
             if fact.consumer is not consumer or not matches(fact.value_class, value):
                 continue
             if answer is not None:
@@ -783,12 +811,12 @@ class CapabilityRegistry:
     ):
         if type(backend) is not CONST_BACKEND or dialect is None:
             return None
-        answer = state.policy_facts.get((operation_key, param, backend, dialect, None))
+        answer = state.policy_facts.get((operation_key, param, backend, dialect, None, None))
         if answer is not None and answer.consumer is not consumer:
             answer = None
         if option_value is None:
             return answer
-        exact = state.policy_facts.get((operation_key, param, backend, dialect, option_value))
+        exact = state.policy_facts.get((operation_key, param, backend, dialect, option_value, None))
         if exact is not None and exact.consumer is consumer:
             if answer is not None:
                 raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {exact.fact_key!r}")
@@ -887,7 +915,7 @@ class CapabilityRegistry:
         state = cls._acquire_state()
         out: dict[tuple[Any, str], CapabilityFact] = {}
         for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE):
-            if fact.dialect == dialect:
+            if fact.variant is None and fact.dialect == dialect:
                 key = (fact.operation_key, fact.param)
                 if key in out:
                     raise ValueError(f"ambiguous MATERIALIZE_RESIDUE policies for {key}")
@@ -914,6 +942,8 @@ class CapabilityRegistry:
         state = cls._acquire_state()
         out = set()
         for fact, needs_metadata in state.predicate_buckets.get((bound_call.operation_key, bound_call.backend), ()):
+            if fact.variant is not None:
+                continue
             if fact.backend is not bound_call.backend:
                 continue
             if fact.dialect != bound_call.dialect:

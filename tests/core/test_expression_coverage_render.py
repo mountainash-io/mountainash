@@ -31,7 +31,7 @@ from mountainash.core.capabilities.render_markdown import (
     render_markdown,
     render_scoped,
 )
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationKind, InformationLayer, PolicyAction, PolicyConsumer
+from mountainash.core.capabilities.schema import CapabilityLevel, CapabilityIssueClass, InformationLayer, PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR
 
@@ -134,7 +134,7 @@ def test_scoped_renderer_keeps_policy_rows_out_of_the_information_section():
 
 
 def test_reports_keep_multiple_information_kinds_on_one_record():
-    classified = _report(kinds=frozenset({InformationKind.PRECISION, InformationKind.SEMANTICS}))
+    classified = _report(kinds=frozenset({CapabilityIssueClass.PRECISION, CapabilityIssueClass.SEMANTICS}))
 
     scoped = render_scoped(classified)
     assert scoped.count("precision, semantics") == 1
