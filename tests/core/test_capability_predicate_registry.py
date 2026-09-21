@@ -25,6 +25,7 @@ from mountainash.core.capabilities.schema import (
     PolicyAction,
     PolicyConsumer,
     Predicate,
+    ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.dtypes.metadata import OperandType
@@ -135,6 +136,68 @@ def test_later_cross_segment_ambiguity_rolls_back_and_names_both_origins(isolate
     reader = CapabilityRegistry.reader(_SCOPE)
     assert reader.policy(broad_block.key).assertion is broad_block
     assert reader.policy_optional(narrow_permit.key) is None
+
+
+def test_duplicate_predicate_blocker_rejects_later_segment_and_preserves_prior(isolated):
+    predicate = Predicate((Clause("x", ClauseOp.IS_LITERAL),))
+    prior = replace(
+        _policy("x", PolicyAction.BLOCK, predicate, message="literal abs is blocked"),
+        key=replace(
+            CapabilityKey(_OP, "x", Selector("predicate", predicate)),
+            variant="initial-literal-block",
+        ),
+    )
+    initial = _segment(prior, suffix=".duplicate_block_initial")
+    CapabilityRegistry.register_segment(initial)
+    duplicate = replace(
+        prior,
+        key=replace(prior.key, variant="duplicate-literal-block"),
+        message="the same literal restriction is repeated",
+    )
+    later = _segment(duplicate, suffix=".duplicate_block_later")
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    assert initial.module in str(raised.value)
+    assert later.module in str(raised.value)
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(prior.key).assertion is prior
+    assert reader.policy_optional(duplicate.key) is None
+
+
+def test_null_predicate_and_value_class_partition_publish_as_independent_domains(isolated):
+    null_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_NULL),)),
+        message="null abs input is blocked",
+    )
+    value_class_block = CapabilityPolicyRule(
+        key=CapabilityKey(
+            _OP,
+            "x",
+            Selector("value_class", ValueClass.DURATION_MULTIPLIER),
+        ),
+        level=CapabilityLevel.UNSUPPORTED,
+        since="2026-09-18",
+        message="duration multiplier abs input is blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+    )
+    segment = _segment(
+        null_block,
+        value_class_block,
+        suffix=".null_value_class_partition",
+    )
+
+    CapabilityRegistry.register_segment(segment)
+
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert CapabilityRegistry.segments() == (segment,)
+    assert reader.policy(null_block.key).assertion is null_block
+    assert reader.policy(value_class_block.key).assertion is value_class_block
 
 
 def test_trusted_scope_cannot_publish_ambiguous_policy_alternatives(isolated):

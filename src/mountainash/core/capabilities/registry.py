@@ -271,7 +271,7 @@ class _RegistryState:
     prepared_applicability: Mapping[CapabilityFact, Any]
     load_state: _LoadState
     load_error: BaseException | None
-    predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, bool], ...]]
+    predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, frozenset[str]], ...]]
     views: Mapping[tuple[CONST_BACKEND | None, Enforcement | None], tuple[CapabilityFact, ...]]
 
 
@@ -307,13 +307,16 @@ def _prepare_state(
                 [],
             ).append(fact)
 
-    buckets: dict[tuple[Any, CONST_BACKEND], list[tuple[CapabilityFact, bool]]] = {}
+    buckets: dict[
+        tuple[Any, CONST_BACKEND],
+        list[tuple[CapabilityFact, frozenset[str]]],
+    ] = {}
     for fact in policy_predicate_facts:
         prepared_applicability[fact] = fact.applicability.prepare()
         if fact.consumer is not PolicyConsumer.GATE:
             continue
         metadata = metadata_arguments(fact.predicate)
-        buckets.setdefault((fact.operation_key, fact.backend), []).append((fact, bool(metadata)))
+        buckets.setdefault((fact.operation_key, fact.backend), []).append((fact, metadata))
     ordered = tuple(
         sorted(
             (
@@ -450,13 +453,15 @@ def _compare_policy_domains(left, right):
     # bound-call predicates use actual values. Never prove disjointness by
     # pretending that these two domains have identical equality semantics.
     if (left.selector.kind == "predicate") != (right.selector.kind == "predicate"):
-        predicate_key, option_key = (left, right) if left.selector.kind == "predicate" else (right, left)
+        predicate_key, option_key = (
+            (left, right) if left.selector.kind == "predicate" else (right, left)
+        )
         if option_key.selector.kind != "unconditioned":
             for clause in predicate_key.selector.value.clauses:
                 if clause.path.split(".")[0] != option_key.subject:
                     continue
                 if (
-                    clause.op in (ClauseOp.IS_LITERAL, ClauseOp.IS_NULL)
+                    clause.op is ClauseOp.IS_LITERAL
                     or (clause.op is ClauseOp.EQ and type(clause.operand) is not str)
                     or (clause.op is ClauseOp.IN and any(type(value) is not str for value in clause.operand))
                 ):
@@ -533,7 +538,11 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies):
             continue
         if policy.consumer is PolicyConsumer.GATE:
             both_block = policy.action is PolicyAction.BLOCK and other.action is PolicyAction.BLOCK
-            if both_block and (
+            same_restriction = (
+                policy.key.subject == other.key.subject
+                and policy.key.selector == other.key.selector
+            )
+            if both_block and not same_restriction and (
                 (policy.key.selector.kind == "predicate" and other.key.selector.kind == "predicate")
                 or policy.key.subject != other.key.subject
             ):
@@ -830,20 +839,17 @@ class CapabilityRegistry:
         execution_context=None,
     ) -> frozenset[str]:
         """Return selected declaration-derived names, never input descriptors."""
-        from mountainash.core.capabilities.predicates import metadata_arguments
-
         state = cls._acquire_state()
         if type(backend) is not CONST_BACKEND:
             return _EMPTY_NAMES
         names = set()
-        for fact, _ in state.predicate_buckets.get((operation_key, backend), ()):
+        for fact, metadata in state.predicate_buckets.get((operation_key, backend), ()):
             if (
                 fact.dialect == dialect
                 and fact.consumer is PolicyConsumer.GATE
                 and _selected(state, fact, execution_context)
             ):
-                assert fact.predicate is not None
-                names.update(metadata_arguments(fact.predicate))
+                names.update(metadata)
         return frozenset(names) if names else _EMPTY_NAMES
 
     @staticmethod
