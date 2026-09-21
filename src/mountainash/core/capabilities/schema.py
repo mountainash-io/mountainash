@@ -51,6 +51,7 @@ def _enum_authorities() -> dict[tuple[str, str], type[Enum]]:
         TargetKind,
         Fidelity,
         ValueClass,
+        ClauseOp,
         CapabilityIssueClass,
         GapKind,
         TargetSurface,

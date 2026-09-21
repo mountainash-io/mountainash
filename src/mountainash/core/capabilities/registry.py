@@ -915,7 +915,7 @@ class CapabilityRegistry:
         state = cls._acquire_state()
         out: dict[tuple[Any, str], CapabilityFact] = {}
         for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE):
-            if fact.variant is None and fact.dialect == dialect:
+            if fact.variant is None and fact.applicability.regions is None and fact.dialect == dialect:
                 key = (fact.operation_key, fact.param)
                 if key in out:
                     raise ValueError(f"ambiguous MATERIALIZE_RESIDUE policies for {key}")
@@ -930,7 +930,12 @@ class CapabilityRegistry:
         return tuple(
             fact
             for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE)
-            if fact.dialect == dialect and (operation_key is None or fact.operation_key == operation_key)
+            if (
+                fact.variant is None
+                and fact.applicability.regions is None
+                and fact.dialect == dialect
+                and (operation_key is None or fact.operation_key == operation_key)
+            )
         )
 
     @classmethod

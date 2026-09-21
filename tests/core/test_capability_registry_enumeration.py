@@ -100,3 +100,38 @@ def test_issue_snapshot_is_retained_and_missing_metadata_stays_distinct(isolated
     assert dict(captured.issue("IB-STR-01").value)["status"] == CaptureValue("text", "open")
     with pytest.raises(UncapturedNamespaceError):
         CapabilityRegistry.capture().issue("IB-STR-01")
+
+
+def test_version_conditioned_residue_requires_observed_context(isolated):
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        ComparisonScheme,
+        CoordinateConstraint,
+        Region,
+    )
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+
+    version_conditioned_residue = CapabilityPolicyRule(
+        CapabilityKey(FK_STR.CENTER, "length", variant="ibis-10"),
+        CapabilityLevel.UNSUPPORTED,
+        "2026-09-18",
+        "Version-conditioned residue policy requires an observed execution context",
+        PolicyConsumer.MATERIALIZATION_ERROR,
+        PolicyAction.ENRICH,
+        native_errors=(RuntimeError,),
+        native_issue="IB-STR-01",
+        applicability=Applicability((
+            Region((
+                CoordinateConstraint(
+                    "package",
+                    "ibis-framework",
+                    ComparisonScheme.PEP440,
+                    lower="10.0.0",
+                ),
+            )),
+        )),
+    )
+    CapabilityRegistry.register_segment(_segment(policies=(version_conditioned_residue,)))
+
+    assert CapabilityRegistry.residue_candidates(CONST_BACKEND.IBIS, "ibis-duckdb") == ()
+    assert CapabilityRegistry.residue_for(CONST_BACKEND.IBIS, "ibis-duckdb") == {}

@@ -189,3 +189,40 @@ def test_implementation_discovery_ignores_protocol_carriers():
 
     assert _resolve_concrete_owner(Leaf, "lpad") is None
     assert _resolve_concrete_owner(Concrete, "lpad") is Concrete
+
+
+def test_markdown_distinguishes_variants_and_renders_policy_issue_classes():
+    from dataclasses import replace
+
+    report = _report()
+    information = report.information[0]
+    policy = report.policies[0]
+
+    def named_information(variant):
+        local = replace(information.key.local, variant=variant)
+        return replace(
+            information,
+            key=replace(information.key, local=local),
+            assertion=replace(information.assertion, key=local),
+        )
+
+    policy_local = replace(policy.key.local, variant="policy-variant")
+    named_policy = replace(
+        policy,
+        key=replace(policy.key, local=policy_local),
+        assertion=replace(
+            policy.assertion,
+            key=policy_local,
+            issue_classes=frozenset({CapabilityIssueClass.SEMANTICS}),
+        ),
+    )
+    rendered = render_scoped(replace(
+        report,
+        information=(named_information("first-variant"), named_information("second-variant")),
+        policies=(named_policy,),
+    ))
+
+    assert "first-variant" in rendered
+    assert "second-variant" in rendered
+    assert "policy-variant" in rendered
+    assert "semantics" in rendered

@@ -248,8 +248,8 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
     if not records:
         return lines + ["None recorded; absence remains unknown.", ""]
     lines += [
-        "| Scope | Operation | Subject | Selector | Layer / consumer-action | Level | Categories | Message | Provenance |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Scope | Operation | Subject | Selector | Variant | Layer / consumer-action | Level | Categories | Message | Provenance |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for record in records:
         payload = serializer(record)
@@ -265,12 +265,14 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
             f"{payload['selector']['kind']}: "
             f"{json.dumps(payload['selector']['value'], ensure_ascii=False, sort_keys=True)}"
         )
-        categories = ", ".join(payload["kinds"]) if "kinds" in payload else "—"
-        if categories == "":
+        variant = payload["variant"] if payload["variant"] is not None else "unqualified"
+        categories = ", ".join(payload.get("kinds", payload.get("issue_classes", ())))
+        if not categories:
             categories = "unclassified"
         lines.append(
-            f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | {aspect} | "
-            f"{payload['level']} | {categories} | {_escape(payload['message'])} | {_escape(provenance)} |"
+            f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | "
+            f"{_escape(variant)} | {aspect} | {payload['level']} | {categories} | "
+            f"{_escape(payload['message'])} | {_escape(provenance)} |"
         )
     lines.append("")
     return lines
