@@ -351,6 +351,61 @@ def test_disjoint_policy_variants_coexist_and_require_exact_lookup():
     assert reader.policy(second.key).assertion is second
     assert reader.policy_optional(CapabilityKey(FK.CONTAINS, "substring")) is None
 
+def test_adjacent_version_policies_publish_and_overlap_rolls_back():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        ComparisonScheme,
+        CoordinateConstraint,
+        Region,
+    )
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, PolicyQuery
+
+    def interval(lower, upper):
+        return Applicability((
+            Region((
+                CoordinateConstraint(
+                    "package",
+                    "polars",
+                    ComparisonScheme.PEP440,
+                    lower=lower,
+                    upper=upper,
+                    upper_inclusive=False,
+                ),
+            )),
+        ))
+
+    first = replace(
+        _policy(),
+        key=replace(_policy().key, variant="older"),
+        applicability=interval("1", "2"),
+    )
+    second = replace(
+        first,
+        key=replace(first.key, variant="newer"),
+        applicability=interval("2", "3"),
+    )
+    CapabilityRegistry.register_segment(_segment(policies=(first, second)))
+    before = CapabilityRegistry.capture()
+    overlapping = replace(
+        first,
+        key=replace(first.key, variant="overlap"),
+        applicability=interval("1.5", "2.5"),
+    )
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(
+            _segment(policies=(overlapping,), suffix=".overlap")
+        )
+
+    current = CapabilityRegistry.capture()
+    query = CatalogueQuery(policies=PolicyQuery())
+    assert current.search(query).policies == before.search(query).policies
+    assert {
+        record.key.local.variant for record in current.search(query).policies
+    } == {"older", "newer"}
+
 
 @pytest.mark.parametrize(
     ("information_variant", "policy_variant"),

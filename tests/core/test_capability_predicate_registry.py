@@ -137,6 +137,45 @@ def test_later_cross_segment_ambiguity_rolls_back_and_names_both_origins(isolate
     assert reader.policy_optional(narrow_permit.key) is None
 
 
+def test_not_proven_predicate_intersection_rejects_later_segment_without_inventing_witness(isolated):
+    prior = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="literals remain protected",
+    )
+    initial = _segment(prior, suffix=".not_proven_initial")
+    CapabilityRegistry.register_segment(initial)
+    nested_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x.logical_kind", ClauseOp.EQ, "integer"),)),
+        message="nested logical-kind policy",
+    )
+    nested_permit = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x.storage_kind", ClauseOp.EQ, "native"),)),
+        message="nested storage-kind policy",
+    )
+    later = _segment(nested_block, nested_permit, suffix=".not_proven_later")
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    message = str(raised.value)
+    assert initial.module in message
+    assert later.module in message
+    assert "call=not_proven" in message
+    assert "environment=overlap" in message
+    assert "call_witness" not in message
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(prior.key).assertion == prior
+    assert reader.policy_optional(nested_block.key) is None
+    assert reader.policy_optional(nested_permit.key) is None
+
+
 def test_opposing_predicate_policies_compete_across_subject_labels(isolated):
     broad_block = _policy(
         "x",

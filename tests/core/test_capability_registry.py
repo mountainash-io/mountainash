@@ -82,3 +82,90 @@ def test_lookup_is_exact_to_the_concrete_dialect_and_consumer():
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "input", CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.IMMEDIATE_ERROR).native_issue == "POLARS-CONTAINS-NATIVE"
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars-unknown") is None
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS) is None
+
+
+def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_versioned_variant():
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        ComparisonScheme,
+        CoordinateConstraint,
+        Region,
+        prepare_environment,
+    )
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.policy import CapabilityPolicy
+
+    def interval(lower, upper):
+        return Applicability((
+            Region((
+                CoordinateConstraint(
+                    "package",
+                    "polars",
+                    ComparisonScheme.PEP440,
+                    lower=lower,
+                    upper=upper,
+                    upper_inclusive=False,
+                ),
+            )),
+        ))
+
+    earlier = replace(
+        _policy(),
+        key=replace(_policy().key, variant="earlier"),
+        applicability=interval("1", "2"),
+    )
+    later = replace(
+        earlier,
+        key=replace(earlier.key, variant="later"),
+        applicability=interval("2", "3"),
+    )
+    CapabilityRegistry.register_segment(_segment(earlier, later, suffix=".versioned_direct"))
+    requirements = earlier.applicability.requirements
+
+    def context(version, policy=CapabilityPolicy.checked()):
+        observed = Environment((EnvironmentCoordinate("package", "polars", version),))
+        return SimpleNamespace(
+            policy=policy,
+            environment=prepare_environment(observed, requirements),
+        )
+
+    assert CapabilityRegistry.capability_for(
+        FK_STR.CONTAINS,
+        "substring",
+        CONST_BACKEND.POLARS,
+        "polars",
+        execution_context=context("1.5"),
+    ) == earlier.qualify(_SCOPE)
+    assert CapabilityRegistry.capability_for(
+        FK_STR.CONTAINS,
+        "substring",
+        CONST_BACKEND.POLARS,
+        "polars",
+        execution_context=context("2.5"),
+    ) == later.qualify(_SCOPE)
+    assert CapabilityRegistry.capability_for(
+        FK_STR.CONTAINS,
+        "substring",
+        CONST_BACKEND.POLARS,
+        "polars",
+        execution_context=SimpleNamespace(
+            policy=CapabilityPolicy.checked(),
+            environment=prepare_environment(Environment(), requirements),
+        ),
+    ) is None
+    assert CapabilityRegistry.capability_for(
+        FK_STR.CONTAINS,
+        "substring",
+        CONST_BACKEND.POLARS,
+        "polars",
+        execution_context=context("1.5", CapabilityPolicy.trusted()),
+    ) is None
+    assert CapabilityRegistry.capability_for(
+        FK_STR.CONTAINS,
+        "substring",
+        CONST_BACKEND.POLARS,
+        "polars",
+    ) is None

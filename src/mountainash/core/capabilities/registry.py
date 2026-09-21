@@ -52,6 +52,8 @@ if TYPE_CHECKING:
 
 _Key = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str], Optional[str]]
 _ValueClassBucketKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
+_PolicyCandidateKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
+_ValueClassCandidateKey = Tuple[Any, str, CONST_BACKEND, Optional[str]]
 
 
 class _LoadState(_Enum):
@@ -264,10 +266,12 @@ class _RegistryState:
     policy_facts: Mapping[_Key, CapabilityFact]
     policy_value_class_facts: Mapping[_ValueClassBucketKey, tuple[CapabilityFact, ...]]
     policy_predicate_facts: tuple[CapabilityFact, ...]
+    policy_candidate_buckets: Mapping[_PolicyCandidateKey, tuple[CapabilityFact, ...]]
+    policy_value_class_buckets: Mapping[_ValueClassCandidateKey, tuple[CapabilityFact, ...]]
+    prepared_applicability: Mapping[CapabilityFact, Any]
     load_state: _LoadState
     load_error: BaseException | None
     predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, bool], ...]]
-    metadata_names: Mapping[tuple[Any, CONST_BACKEND, str | None], frozenset[str]]
     views: Mapping[tuple[CONST_BACKEND | None, Enforcement | None], tuple[CapabilityFact, ...]]
 
 
@@ -286,20 +290,30 @@ def _prepare_state(
     """Own all backing maps and prepare finite declaration-derived views once."""
     from mountainash.core.capabilities.predicates import metadata_arguments
 
+    direct_buckets: dict[_PolicyCandidateKey, list[CapabilityFact]] = {}
+    value_class_buckets: dict[_ValueClassCandidateKey, list[CapabilityFact]] = {}
+    prepared_applicability: dict[CapabilityFact, Any] = {}
+    for fact in policy_facts.values():
+        prepared_applicability[fact] = fact.applicability.prepare()
+        direct_buckets.setdefault(
+            (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.option_value),
+            [],
+        ).append(fact)
+    for bucket in policy_value_class_facts.values():
+        for fact in bucket:
+            prepared_applicability[fact] = fact.applicability.prepare()
+            value_class_buckets.setdefault(
+                (fact.operation_key, fact.param, fact.backend, fact.dialect),
+                [],
+            ).append(fact)
+
     buckets: dict[tuple[Any, CONST_BACKEND], list[tuple[CapabilityFact, bool]]] = {}
-    names: dict[tuple[Any, CONST_BACKEND, str | None], set[str]] = {}
     for fact in policy_predicate_facts:
-        if fact.variant is not None:
-            continue
+        prepared_applicability[fact] = fact.applicability.prepare()
         if fact.consumer is not PolicyConsumer.GATE:
             continue
         metadata = metadata_arguments(fact.predicate)
         buckets.setdefault((fact.operation_key, fact.backend), []).append((fact, bool(metadata)))
-        key = (fact.operation_key, fact.backend, fact.dialect)
-        names.setdefault(key, set()).update(metadata)
-    frozen_names: dict[tuple[Any, CONST_BACKEND, str | None], frozenset[str]] = {}
-    for (op, backend, dialect), required in names.items():
-        frozen_names[op, backend, dialect] = frozenset(required) if required else _EMPTY_NAMES
     ordered = tuple(
         sorted(
             (
@@ -324,10 +338,12 @@ def _prepare_state(
         MappingProxyType(dict(policy_facts)),
         MappingProxyType(dict(policy_value_class_facts)),
         tuple(policy_predicate_facts),
+        MappingProxyType({key: tuple(value) for key, value in direct_buckets.items()}),
+        MappingProxyType({key: tuple(value) for key, value in value_class_buckets.items()}),
+        MappingProxyType(dict(prepared_applicability)),
         load_state,
         load_error,
         MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
-        MappingProxyType(frozen_names),
         MappingProxyType(views),
     )
 
@@ -494,6 +510,10 @@ def _resolve_information_reference(reference, information, policy_key, policy_sc
 
 
 def _check_policy_conflicts(key, policy, incoming_origins, policies):
+    from mountainash.core.capabilities.applicability import (
+        EnvironmentDomainRelation,
+        compare_applicability,
+    )
     from mountainash.core.capabilities.predicates import DomainRelation
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
@@ -505,12 +525,11 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies):
             or other.consumer is not policy.consumer
         ):
             continue
-        from mountainash.core.capabilities.applicability import (
-            EnvironmentDomainRelation,
-            compare_applicability,
-        )
-
-        if compare_applicability(policy.applicability, other.applicability) is EnvironmentDomainRelation.DISJOINT:
+        environment_relation = compare_applicability(policy.applicability, other.applicability)
+        if environment_relation is EnvironmentDomainRelation.DISJOINT:
+            continue
+        call_comparison = _compare_policy_domains(policy.key, other.key)
+        if call_comparison.relation is DomainRelation.DISJOINT:
             continue
         if policy.consumer is PolicyConsumer.GATE:
             both_block = policy.action is PolicyAction.BLOCK and other.action is PolicyAction.BLOCK
@@ -518,19 +537,22 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies):
                 (policy.key.selector.kind == "predicate" and other.key.selector.kind == "predicate")
                 or policy.key.subject != other.key.subject
             ):
-                # These consumers collect refusals; neither can cancel or
-                # select an alternative answer in place of the other.
+                # These consumers collect independent refusals; neither can
+                # cancel or select an alternative answer in place of the other.
                 continue
         if _literal_only_disjoint(policy, other) or _literal_only_disjoint(other, policy):
             continue
-        comparison = _compare_policy_domains(policy.key, other.key)
-        if comparison.relation is DomainRelation.DISJOINT:
-            continue
-        raise ValueError(
+        message = (
             f"conflicting policies: {previous.key!r} from {_origin_labels(previous.origins)!r} "
             f"and {key!r} from {_origin_labels(incoming_origins)!r}; "
-            f"domain={comparison.relation.value}; witness={comparison.witness!r}"
+            f"call={call_comparison.relation.value}; "
+            f"environment={environment_relation.value}; "
+            f"selectors=({other.key.selector!r}, {policy.key.selector!r}); "
+            f"applicability=({other.applicability!r}, {policy.applicability!r})"
         )
+        if call_comparison.witness is not None:
+            message += f"; call_witness={call_comparison.witness!r}"
+        raise ValueError(message)
 
 
 def _source_origins(segment, family, ordinal):
@@ -598,7 +620,6 @@ def _stage_segment_policies(
             else None
         )
         _check_policy_conflicts(key, policy, origins_for_policy, policies)
-        policy.applicability.prepare()
         fact = policy.qualify(segment.scope)
         if explanation is not None:
             fact = replace(fact, workaround=explanation.assertion.workaround, upstream_ref=explanation.assertion.issue)
@@ -617,6 +638,29 @@ def _stage_segment_policies(
         policies[key] = QualifiedPolicy(key, policy, origins_for_policy)
         policy_origins[key] = origins_for_policy
 
+
+def _selected(state, fact, execution_context):
+    from mountainash.core.capabilities.applicability import ApplicabilityResult
+
+    if execution_context is None:
+        return fact.applicability.regions is None
+    if not execution_context.policy.selects(fact.consumer, fact.issue_classes):
+        return False
+    return (
+        state.prepared_applicability[fact].match(execution_context.environment)
+        is ApplicabilityResult.APPLICABLE
+    )
+
+
+def _single_selected(state, candidates, consumer, execution_context):
+    answer = None
+    for fact in candidates:
+        if fact.consumer is not consumer or not _selected(state, fact, execution_context):
+            continue
+        if answer is not None:
+            raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {fact.fact_key!r}")
+        answer = fact
+    return answer
 
 class CapabilityRegistry:
     """Transactional declarations with accessor-level immutable snapshots.
@@ -777,20 +821,53 @@ class CapabilityRegistry:
         return state.views[None, None], state.segments
 
     @classmethod
-    def metadata_operand_names(cls, operation_key, backend, dialect=None) -> frozenset[str]:
-        """Return declaration-derived names, never input-dependent descriptors."""
+    def metadata_operand_names(
+        cls,
+        operation_key,
+        backend,
+        dialect=None,
+        *,
+        execution_context=None,
+    ) -> frozenset[str]:
+        """Return selected declaration-derived names, never input descriptors."""
+        from mountainash.core.capabilities.predicates import metadata_arguments
+
         state = cls._acquire_state()
         if type(backend) is not CONST_BACKEND:
             return _EMPTY_NAMES
-        return state.metadata_names.get((operation_key, backend, dialect), _EMPTY_NAMES)
+        names = set()
+        for fact, _ in state.predicate_buckets.get((operation_key, backend), ()):
+            if (
+                fact.dialect == dialect
+                and fact.consumer is PolicyConsumer.GATE
+                and _selected(state, fact, execution_context)
+            ):
+                assert fact.predicate is not None
+                names.update(metadata_arguments(fact.predicate))
+        return frozenset(names) if names else _EMPTY_NAMES
 
     @staticmethod
-    def _value_class_fact(buckets, operation_key, param, backend, dialect, value, consumer):
+    def _value_class_fact(
+        state,
+        operation_key,
+        param,
+        backend,
+        dialect,
+        value,
+        consumer,
+        execution_context,
+    ):
         from mountainash.core.capabilities.value_classes import matches
 
         answer = None
-        for fact in buckets.get((operation_key, param, backend, dialect, None), ()):
-            if fact.consumer is not consumer or not matches(fact.value_class, value):
+        for fact in state.policy_value_class_buckets.get(
+            (operation_key, param, backend, dialect),
+            (),
+        ):
+            if fact.consumer is not consumer or not _selected(state, fact, execution_context):
+                continue
+            assert fact.value_class is not None
+            if not matches(fact.value_class, value):
                 continue
             if answer is not None:
                 raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {fact.fact_key!r}")
@@ -808,21 +885,43 @@ class CapabilityRegistry:
         option_value=None,
         *,
         consumer=PolicyConsumer.GATE,
+        execution_context=None,
     ):
         if type(backend) is not CONST_BACKEND or dialect is None:
             return None
-        answer = state.policy_facts.get((operation_key, param, backend, dialect, None, None))
-        if answer is not None and answer.consumer is not consumer:
-            answer = None
+        answer = _single_selected(
+            state,
+            state.policy_candidate_buckets.get(
+                (operation_key, param, backend, dialect, None),
+                (),
+            ),
+            consumer,
+            execution_context,
+        )
         if option_value is None:
             return answer
-        exact = state.policy_facts.get((operation_key, param, backend, dialect, option_value, None))
-        if exact is not None and exact.consumer is consumer:
+        exact = _single_selected(
+            state,
+            state.policy_candidate_buckets.get(
+                (operation_key, param, backend, dialect, option_value),
+                (),
+            ),
+            consumer,
+            execution_context,
+        )
+        if exact is not None:
             if answer is not None:
                 raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {exact.fact_key!r}")
             answer = exact
         classified = cls._value_class_fact(
-            state.policy_value_class_facts, operation_key, param, backend, dialect, option_value, consumer
+            state,
+            operation_key,
+            param,
+            backend,
+            dialect,
+            option_value,
+            consumer,
+            execution_context,
         )
         if classified is not None:
             if answer is not None:
@@ -840,10 +939,18 @@ class CapabilityRegistry:
         option_value: str | None = None,
         *,
         consumer: PolicyConsumer = PolicyConsumer.GATE,
+        execution_context=None,
     ) -> CapabilityFact | None:
         _require_type(consumer, PolicyConsumer, "consumer")
         return cls._capability_for(
-            cls._acquire_state(), operation_key, param, backend, dialect, option_value, consumer=consumer
+            cls._acquire_state(),
+            operation_key,
+            param,
+            backend,
+            dialect,
+            option_value,
+            consumer=consumer,
+            execution_context=execution_context,
         )
 
     @staticmethod
@@ -910,56 +1017,77 @@ class CapabilityRegistry:
         ]
 
     @classmethod
-    def residue_for(cls, backend: CONST_BACKEND, dialect: str | None = None) -> Dict[Tuple[Any, str], CapabilityFact]:
+    def residue_for(
+        cls,
+        backend: CONST_BACKEND,
+        dialect: str | None = None,
+        *,
+        execution_context=None,
+    ) -> Dict[Tuple[Any, str], CapabilityFact]:
         """Fresh enrichment mapping for one exact concrete scope."""
         state = cls._acquire_state()
         out: dict[tuple[Any, str], CapabilityFact] = {}
         for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE):
-            if fact.variant is None and fact.applicability.regions is None and fact.dialect == dialect:
-                key = (fact.operation_key, fact.param)
-                if key in out:
-                    raise ValueError(f"ambiguous MATERIALIZE_RESIDUE policies for {key}")
-                out[key] = fact
+            if fact.dialect != dialect or not _selected(state, fact, execution_context):
+                continue
+            key = (fact.operation_key, fact.param)
+            if key in out:
+                raise ValueError(f"ambiguous MATERIALIZE_RESIDUE policies for {key}")
+            out[key] = fact
         return out
 
     @classmethod
     def residue_candidates(
-        cls, backend: CONST_BACKEND, dialect: str | None = None, *, operation_key: Any | None = None
+        cls,
+        backend: CONST_BACKEND,
+        dialect: str | None = None,
+        *,
+        operation_key: Any | None = None,
+        execution_context=None,
     ) -> tuple[CapabilityFact, ...]:
         state = cls._acquire_state()
         return tuple(
             fact
             for fact in cls._view(state, backend, Enforcement.MATERIALIZE_RESIDUE)
             if (
-                fact.variant is None
-                and fact.applicability.regions is None
-                and fact.dialect == dialect
+                fact.dialect == dialect
                 and (operation_key is None or fact.operation_key == operation_key)
+                and _selected(state, fact, execution_context)
             )
         )
 
     @classmethod
-    def violations_for(cls, bound_call: BoundCall, *, phase: str = "complete") -> frozenset[CapabilityFact]:
+    def violations_for(
+        cls,
+        bound_call: BoundCall,
+        *,
+        phase: str = "complete",
+        execution_context=None,
+    ) -> frozenset[CapabilityFact]:
         from mountainash.core.capabilities.predicates import predicate_holds
 
         if phase not in ("raw", "complete"):
             raise ValueError(f"unknown capability evaluation phase {phase!r}")
         state = cls._acquire_state()
         out = set()
-        for fact, needs_metadata in state.predicate_buckets.get((bound_call.operation_key, bound_call.backend), ()):
-            if fact.variant is not None:
-                continue
-            if fact.backend is not bound_call.backend:
-                continue
-            if fact.dialect != bound_call.dialect:
+        for fact, needs_metadata in state.predicate_buckets.get(
+            (bound_call.operation_key, bound_call.backend),
+            (),
+        ):
+            if fact.backend is not bound_call.backend or fact.dialect != bound_call.dialect:
                 continue
             if fact.enforcement is not Enforcement.GATE or fact.level is not CapabilityLevel.UNSUPPORTED:
+                continue
+            if not _selected(state, fact, execution_context):
                 continue
             if phase == "raw" and needs_metadata:
                 continue
             assert fact.predicate is not None
             if predicate_holds(
-                fact.predicate, bound_call.bindings, bound_call.supplied, operand_types=bound_call.operand_types
+                fact.predicate,
+                bound_call.bindings,
+                bound_call.supplied,
+                operand_types=bound_call.operand_types,
             ):
                 out.add(fact)
         return frozenset(out)
