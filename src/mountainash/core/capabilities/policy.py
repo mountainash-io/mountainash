@@ -1,13 +1,20 @@
 """Immutable execution-policy preferences and request-local scopes."""
 from __future__ import annotations
 
+import sys
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, fields
 from enum import Enum
-from typing import Iterator
+from typing import TYPE_CHECKING, Any, Iterator
 
 from mountainash.core.capabilities.schema import CapabilityIssueClass, PolicyConsumer
+from mountainash.core.constants import CONST_BACKEND
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.applicability import PreparedEnvironment
+    from mountainash.core.capabilities.capture import Environment
+    from mountainash.core.capabilities.identity import BackendIdentity
 
 
 class ProtectionMechanism(Enum):
@@ -193,3 +200,232 @@ def capability_policy(policy: CapabilityPolicy) -> Iterator[CapabilityPolicy]:
         yield resolved
     finally:
         _AMBIENT_POLICY.reset(token)
+
+
+@dataclass(frozen=True, eq=False)
+class _CapabilityTarget:
+    """The actual native owner that supplies one execution environment."""
+
+    identity: "BackendIdentity"
+    owner: object
+
+    def __post_init__(self) -> None:
+        from mountainash.core.capabilities.identity import BackendIdentity
+
+        if type(self.identity) is not BackendIdentity:
+            raise TypeError("capability target requires BackendIdentity")
+
+    @property
+    def cache_token(self) -> tuple[CONST_BACKEND, str | None, int]:
+        return self.identity.family, self.identity.dialect, id(self.owner)
+
+    def __eq__(self, other: object) -> bool:
+        if type(other) is not _CapabilityTarget:
+            return NotImplemented
+        return self.cache_token == other.cache_token
+
+    def __hash__(self) -> int:
+        return hash(self.cache_token)
+
+
+@dataclass(frozen=True)
+class _ExecutionContext:
+    """Resolved policy and immutable observations for one actual target."""
+
+    policy: CapabilityPolicy
+    target: _CapabilityTarget
+    observations: "Environment"
+    environment: "PreparedEnvironment"
+
+    def __post_init__(self) -> None:
+        from mountainash.core.capabilities.applicability import PreparedEnvironment
+        from mountainash.core.capabilities.capture import Environment
+
+        if type(self.policy) is not CapabilityPolicy:
+            raise TypeError("execution context requires CapabilityPolicy")
+        if type(self.target) is not _CapabilityTarget:
+            raise TypeError("execution context requires _CapabilityTarget")
+        if type(self.observations) is not Environment:
+            raise TypeError("execution context requires Environment observations")
+        if type(self.environment) is not PreparedEnvironment:
+            raise TypeError("execution context requires PreparedEnvironment")
+
+
+def _loaded_module_version(name: str) -> str | None:
+    module = sys.modules.get(name)
+    version = getattr(module, "__version__", None)
+    return version if type(version) is str else None
+
+
+def _polars_engine_version(target: _CapabilityTarget) -> str | None:
+    if target.identity.family is CONST_BACKEND.NARWHALS:
+        implementation = getattr(target.owner, "implementation", None)
+        if getattr(implementation, "value", None) != "polars":
+            return None
+    return _loaded_module_version("polars")
+
+
+def _engine_version(target: _CapabilityTarget, name: str) -> str | None:
+    """Read a requested engine version only from an already-bound driver."""
+    if type(target) is not _CapabilityTarget or type(name) is not str:
+        return None
+    identity = target.identity
+    if name == "polars":
+        if identity.family is CONST_BACKEND.POLARS:
+            return _polars_engine_version(target)
+        if identity.family is CONST_BACKEND.NARWHALS:
+            return _polars_engine_version(target)
+        if (
+            identity.family is CONST_BACKEND.IBIS
+            and identity.dialect == "ibis-polars"
+            and type(target.owner).__module__.startswith("ibis.backends.polars")
+        ):
+            return _polars_engine_version(target)
+        return None
+    if (
+        name == "duckdb"
+        and identity.family is CONST_BACKEND.IBIS
+        and identity.dialect == "ibis-duckdb"
+    ):
+        module = sys.modules.get("duckdb")
+        connection_type = getattr(module, "DuckDBPyConnection", None)
+        native_connection = getattr(target.owner, "con", None)
+        if isinstance(connection_type, type) and isinstance(native_connection, connection_type):
+            return _loaded_module_version("duckdb")
+        return None
+    if (
+        name == "sqlite"
+        and identity.family is CONST_BACKEND.IBIS
+        and identity.dialect == "ibis-sqlite"
+    ):
+        import sqlite3
+
+        if isinstance(getattr(target.owner, "con", None), sqlite3.Connection):
+            return sqlite3.sqlite_version
+    return None
+
+
+def _identify_capability_target(
+    data: object | None,
+    *,
+    family_override: CONST_BACKEND | None = None,
+) -> _CapabilityTarget:
+    """Bind target identity to its real native owner without opening connections."""
+    from mountainash.core.backend_detection import (
+        bound_ibis_backend,
+        identify_backend,
+        identify_backend_identity,
+    )
+    from mountainash.core.capabilities.identity import BackendIdentity
+
+    if family_override is not None and type(family_override) is not CONST_BACKEND:
+        raise TypeError("family_override requires CONST_BACKEND or None")
+    if data is None:
+        if family_override is None:
+            raise ValueError("capability target requires data or family_override")
+        return _CapabilityTarget(BackendIdentity(family_override, None), object())
+
+    try:
+        detected_family = identify_backend(data)
+    except ValueError:
+        if family_override is None:
+            raise
+        return _CapabilityTarget(BackendIdentity(family_override, None), object())
+    if family_override is not None and family_override is not detected_family:
+        return _CapabilityTarget(BackendIdentity(family_override, None), object())
+    if isinstance(data, (str, CONST_BACKEND)):
+        return _CapabilityTarget(identify_backend_identity(data), object())
+
+    if detected_family is CONST_BACKEND.IBIS:
+        backend = bound_ibis_backend(data)
+        name = getattr(backend, "name", None)
+        if backend is None or type(name) is not str or not name:
+            return _CapabilityTarget(BackendIdentity(CONST_BACKEND.IBIS, None), object())
+        return _CapabilityTarget(
+            BackendIdentity(CONST_BACKEND.IBIS, f"ibis-{name}"),
+            backend,
+        )
+    return _CapabilityTarget(identify_backend_identity(data), data)
+
+
+def _prepare_capability_context(
+    policy: CapabilityPolicy,
+    target: _CapabilityTarget,
+    *,
+    package_versions: dict[str, str | None],
+    diagnostics_requested: bool = False,
+) -> _ExecutionContext:
+    """Acquire only selected policy coordinates for an actual target."""
+    from importlib.metadata import PackageNotFoundError, version as distribution_version
+
+    from mountainash.core.capabilities.applicability import prepare_environment
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+
+    if type(policy) is not CapabilityPolicy:
+        raise TypeError("policy requires CapabilityPolicy")
+    if type(target) is not _CapabilityTarget:
+        raise TypeError("target requires _CapabilityTarget")
+    if type(package_versions) is not dict:
+        raise TypeError("package_versions requires a request-local dict")
+    if type(diagnostics_requested) is not bool:
+        raise TypeError("diagnostics_requested must be bool")
+
+    demanded = any(policy.has_demand(consumer) for consumer in PolicyConsumer)
+    disclosure = diagnostics_requested and policy.disclosure != "none" and bool(policy.disclosure)
+    if not demanded and not disclosure:
+        observations = Environment()
+        prepared = prepare_environment(observations, frozenset())
+        return _ExecutionContext(policy, target, observations, prepared)
+
+    CapabilityRegistry.ensure_loaded()
+    requirements = CapabilityRegistry.environment_requirements(
+        target.identity.family,
+        target.identity.dialect,
+        policy,
+        diagnostics_requested,
+    )
+    coordinates = []
+    for kind, name in sorted({(kind, name) for kind, name, _ in requirements}):
+        value = None
+        if kind == "package":
+            if name not in package_versions:
+                try:
+                    package_versions[name] = distribution_version(name)
+                except PackageNotFoundError:
+                    package_versions[name] = None
+            value = package_versions[name]
+        elif kind == "engine":
+            value = _engine_version(target, name)
+        elif kind == "interpreter" and name == "python":
+            release = sys.version_info
+            suffix = {
+                "alpha": "a",
+                "beta": "b",
+                "candidate": "rc",
+                "final": "",
+            }[release.releaselevel]
+            value = f"{release.major}.{release.minor}.{release.micro}"
+            if suffix:
+                value += f"{suffix}{release.serial}"
+        coordinates.append(EnvironmentCoordinate(kind, name, value))
+    observations = Environment(tuple(coordinates))
+    prepared = prepare_environment(observations, requirements)
+    return _ExecutionContext(policy, target, observations, prepared)
+
+
+def _new_execution_context(
+    data: object | None,
+    *,
+    family_override: CONST_BACKEND | None = None,
+    policy: CapabilityPolicy | None = None,
+    package_versions: dict[str, str | None] | None = None,
+) -> _ExecutionContext:
+    """Resolve one request's policy and context for a concrete target."""
+    resolved = _resolve_policy() if policy is None else policy
+    target = _identify_capability_target(data, family_override=family_override)
+    return _prepare_capability_context(
+        resolved,
+        target,
+        package_versions={} if package_versions is None else package_versions,
+    )

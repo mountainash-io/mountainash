@@ -54,6 +54,13 @@ _Key = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str], Optional[str
 _ValueClassBucketKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
 _PolicyCandidateKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
 _ValueClassCandidateKey = Tuple[Any, str, CONST_BACKEND, Optional[str]]
+_EnvironmentSummary = tuple[
+    PolicyConsumer,
+    frozenset[Any],
+    frozenset[tuple[str, str, Any]],
+]
+
+
 
 
 class _LoadState(_Enum):
@@ -269,6 +276,10 @@ class _RegistryState:
     policy_candidate_buckets: Mapping[_PolicyCandidateKey, tuple[CapabilityFact, ...]]
     policy_value_class_buckets: Mapping[_ValueClassCandidateKey, tuple[CapabilityFact, ...]]
     prepared_applicability: Mapping[CapabilityFact, Any]
+    environment_summaries: Mapping[
+        tuple[CONST_BACKEND, str | None],
+        tuple[_EnvironmentSummary, ...],
+    ]
     load_state: _LoadState
     load_error: BaseException | None
     predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, frozenset[str]], ...]]
@@ -333,6 +344,16 @@ def _prepare_state(
         for view_key in ((fact.backend, None), (None, fact.enforcement), (fact.backend, fact.enforcement)):
             groups.setdefault(view_key, []).append(fact)
     views.update((key, tuple(value)) for key, value in groups.items())
+    environment_summaries: dict[
+        tuple[CONST_BACKEND, str | None],
+        list[_EnvironmentSummary],
+    ] = {}
+    for fact in ordered:
+        requirements = fact.applicability.requirements
+        summary = (fact.consumer, fact.issue_classes, requirements)
+        summaries = environment_summaries.setdefault((fact.backend, fact.dialect), [])
+        if requirements and summary not in summaries:
+            summaries.append(summary)
     return _RegistryState(
         tuple(segments),
         MappingProxyType(dict(information)),
@@ -344,6 +365,10 @@ def _prepare_state(
         MappingProxyType({key: tuple(value) for key, value in direct_buckets.items()}),
         MappingProxyType({key: tuple(value) for key, value in value_class_buckets.items()}),
         MappingProxyType(dict(prepared_applicability)),
+        MappingProxyType({
+            key: tuple(value)
+            for key, value in environment_summaries.items()
+        }),
         load_state,
         load_error,
         MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
@@ -829,6 +854,34 @@ class CapabilityRegistry:
     def _report_inputs(cls):
         state = cls._acquire_state(enumeration=True)
         return state.views[None, None], state.segments
+
+    @classmethod
+    def environment_requirements(
+        cls,
+        backend: CONST_BACKEND,
+        dialect: str | None,
+        policy,
+        diagnostics_requested: bool = False,
+    ) -> frozenset[tuple[str, str, Any]]:
+        """Return publication-prepared coordinates for selected consumers only."""
+        from mountainash.core.capabilities.policy import CapabilityPolicy
+
+        _require_type(backend, CONST_BACKEND, "backend")
+        _require_type(policy, CapabilityPolicy, "policy")
+        if type(diagnostics_requested) is not bool:
+            raise TypeError("diagnostics_requested must be bool")
+        requirements: set[tuple[str, str, Any]] = set()
+        state = cls._acquire_state()
+        for consumer, issue_classes, summary in state.environment_summaries.get(
+            (backend, dialect),
+            (),
+        ):
+            if policy.selects(consumer, issue_classes) or (
+                diagnostics_requested and policy.discloses(issue_classes)
+            ):
+                requirements.update(summary)
+        return frozenset(requirements)
+
 
     @classmethod
     def metadata_operand_names(
