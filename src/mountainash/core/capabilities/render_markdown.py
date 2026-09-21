@@ -265,10 +265,10 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
             f"{payload['selector']['kind']}: "
             f"{json.dumps(payload['selector']['value'], ensure_ascii=False, sort_keys=True)}"
         )
-        variant = payload["variant"] if payload["variant"] is not None else "unqualified"
+        variant = json.dumps(payload["variant"], ensure_ascii=False)
         categories = ", ".join(payload.get("kinds", payload.get("issue_classes", ())))
         if not categories:
-            categories = "unclassified"
+            categories = "—"
         lines.append(
             f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | "
             f"{_escape(variant)} | {aspect} | {payload['level']} | {categories} | "

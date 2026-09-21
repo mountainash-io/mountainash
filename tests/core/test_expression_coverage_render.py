@@ -226,3 +226,34 @@ def test_markdown_distinguishes_variants_and_renders_policy_issue_classes():
     assert "second-variant" in rendered
     assert "policy-variant" in rendered
     assert "semantics" in rendered
+
+
+def test_markdown_distinguishes_absent_variant_from_authored_sentinel_names():
+    from dataclasses import replace
+
+    report = _report()
+    original = report.information[0]
+    records = []
+    for variant in (None, "unqualified", "null"):
+        local = replace(original.key.local, variant=variant)
+        records.append(replace(
+            original,
+            key=replace(original.key, local=local),
+            assertion=replace(original.assertion, key=local),
+        ))
+    report = replace(report, information=tuple(records))
+    for renderer in (render_markdown, render_scoped):
+        rows = [
+            line for line in renderer(report).splitlines()
+            if line.startswith("| polars/family |")
+        ]
+        assert len(set(rows)) == 3
+
+
+def test_markdown_does_not_invent_classification_for_unlabelled_information():
+    for renderer in (render_markdown, render_scoped):
+        document = renderer(_report())
+        information = document.split("## Information", 1)[1].split("## Policies", 1)[0]
+        policies = document.split("## Policies", 1)[1]
+        assert "unclassified" not in information
+        assert "unclassified" in policies
