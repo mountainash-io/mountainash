@@ -200,6 +200,24 @@ def test_null_predicate_and_value_class_partition_publish_as_independent_domains
     assert reader.policy(value_class_block.key).assertion is value_class_block
 
 
+def test_exact_string_and_null_predicate_cannot_cancel_after_normalization(isolated):
+    literal_block = _policy(
+        "x", PolicyAction.BLOCK, Predicate((Clause("x", ClauseOp.EQ, "None"),)),
+    )
+    literal_block = replace(
+        literal_block, key=CapabilityKey(_OP, "x", Selector("exact", "None")),
+    )
+    initial = _segment(literal_block, suffix=".normalized_null_block")
+    CapabilityRegistry.register_segment(initial)
+    null_permit = _policy("x", PolicyAction.PERMIT, Predicate((Clause("x", ClauseOp.IS_NULL),)))
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(null_permit, suffix=".normalized_null_permit"))
+
+    assert CapabilityRegistry.segments() == (initial,)
+    assert CapabilityRegistry.reader(_SCOPE).policy_optional(null_permit.key) is None
+
+
 def test_trusted_scope_cannot_publish_ambiguous_policy_alternatives(isolated):
     from mountainash.core.capabilities.policy import CapabilityPolicy, capability_policy
 

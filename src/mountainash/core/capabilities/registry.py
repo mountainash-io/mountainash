@@ -462,6 +462,7 @@ def _compare_policy_domains(left, right):
                     continue
                 if (
                     clause.op is ClauseOp.IS_LITERAL
+                    or (clause.op is ClauseOp.IS_NULL and option_key.selector.kind == "exact")
                     or (clause.op is ClauseOp.EQ and type(clause.operand) is not str)
                     or (clause.op is ClauseOp.IN and any(type(value) is not str for value in clause.operand))
                 ):
