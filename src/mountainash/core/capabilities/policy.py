@@ -21,7 +21,7 @@ Selection = str | frozenset[CapabilityIssueClass] | None
 
 
 def _validate_selection(selection: Selection, field_name: str) -> None:
-    if selection is None or selection in ("all", "none"):
+    if selection is None or (type(selection) is str and selection in ("all", "none")):
         return
     if type(selection) is not frozenset:
         raise TypeError(f"{field_name} requires 'all', 'none', or a frozen issue-class set")
@@ -97,7 +97,9 @@ class CapabilityPolicy:
         defaults: dict[str, object],
         overrides: dict[str, object],
     ) -> "CapabilityPolicy":
-        defaults.update(overrides)
+        for name, value in overrides.items():
+            if value is not None or name not in defaults:
+                defaults[name] = value
         return cls(**defaults)
 
     def _resolved(self) -> None:

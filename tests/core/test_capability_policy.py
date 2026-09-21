@@ -184,3 +184,29 @@ def test_explicit_thread_scopes_remain_independent():
         trusted = pool.submit(selected, CapabilityPolicy.trusted())
         assert checked.result(timeout=15) is True
         assert trusted.result(timeout=15) is False
+
+
+def test_preset_none_overrides_inherit_preset_not_ambient_preferences():
+    from mountainash.core.capabilities.policy import CapabilityPolicy, capability_policy
+    from mountainash.core.capabilities.schema import CapabilityIssueClass, PolicyConsumer
+
+    classes = frozenset({CapabilityIssueClass.SEMANTICS})
+    with capability_policy(CapabilityPolicy.trusted()):
+        with capability_policy(CapabilityPolicy.checked(protection=None, mechanisms=None)) as checked:
+            assert checked.selects(PolicyConsumer.GATE, classes)
+    with capability_policy(CapabilityPolicy.checked()):
+        with capability_policy(CapabilityPolicy.native_debugging(error_enrichment=None)) as debugging:
+            assert not debugging.selects(PolicyConsumer.IMMEDIATE_ERROR, classes)
+
+
+def test_policy_rejects_objects_with_callback_like_literal_equality():
+    import pytest
+
+    from mountainash.core.capabilities.policy import CapabilityPolicy
+
+    class PretendsToBeAll:
+        def __eq__(self, other):
+            return other == "all"
+
+    with pytest.raises(TypeError):
+        CapabilityPolicy(protection=PretendsToBeAll())
