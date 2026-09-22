@@ -658,3 +658,28 @@ def test_backend_override_uses_destination_not_source_coordinates():
             assert ma.relation(native).to_polars()["found"].to_list() == [True, False]
     finally:
         connection.con.close()
+
+
+def test_direct_validation_keeps_entry_policy_during_preparation(monkeypatch):
+    import polars as pl
+    import mountainash as ma
+    from mountainash.validation import RelationRule, ValidationRunner
+    import mountainash.validation.prepared as prepared_module
+    CapabilityRegistry.register_segment(_segment(policies=(_policy(),)))
+    relation = ma.relation(pl.DataFrame({"text": ["a"]})).select(
+        ma.col("text").str.contains("a").alias("found")
+    )
+    checks = [RelationRule(id="no_failures", plan=lambda rel: rel.head(0))]
+    original = prepared_module.prepare_validation_input
+    def inside_trusted_scope(*args, **kwargs):
+        with ma.capability_policy(ma.CapabilityPolicy.trusted()):
+            return original(*args, **kwargs)
+    monkeypatch.setattr(prepared_module, "prepare_validation_input", inside_trusted_scope)
+    with ma.capability_policy(ma.CapabilityPolicy.checked()):
+        checked = ValidationRunner().validate_relation(relation, checks)
+    assert checked.passes is False
+    assert checked.check_summaries["status"].to_list() == ["error"]
+    with ma.capability_policy(ma.CapabilityPolicy.trusted()):
+        trusted = ValidationRunner().validate_relation(relation, checks)
+    assert trusted.passes is True
+    assert trusted.failure_cases.height == 0

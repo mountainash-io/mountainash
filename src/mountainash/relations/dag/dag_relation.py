@@ -43,12 +43,17 @@ class DAGRelation(Relation):
         return result
 
     def _compile_and_execute_with_visitor(
-        self, backend: "str | None" = None
+        self,
+        backend: "str | None" = None,
+        execution_context: Any = None,
     ) -> "tuple[Any, Any]":
         from mountainash.core.capabilities.policy import _resolve_policy
 
+        execution_policy = (
+            execution_context.policy if execution_context is not None else _resolve_policy()
+        )
         return self._dag._execute_with_visitor(
-            self, backend=backend, execution_policy=_resolve_policy(),
+            self, backend=backend, execution_policy=execution_policy,
         )
 
     @property

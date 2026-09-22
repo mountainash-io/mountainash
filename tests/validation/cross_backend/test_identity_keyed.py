@@ -20,9 +20,14 @@ from fixtures.backend_registry import ALL_BACKENDS
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestKeyedValidation:
     def _snapshot(self, data, backend_name, backend_factory):
-        rel = ma.relation(backend_factory.create(data, backend_name))
+        from mountainash.core.capabilities.policy import _new_execution_context
+        frame = backend_factory.create(data, backend_name)
+        execution_context = _new_execution_context(frame)
+        rel = ma.relation(frame)
         with MaterializationScope() as scope:
-            prepared = prepare_validation_input(rel, scope=scope)
+            prepared = prepare_validation_input(
+                rel, scope=scope, execution_context=execution_context,
+            )
         return prepared.logical_snapshot
 
     def test_valid_key_returns_zero_diagnostics(self, backend_name, backend_factory):

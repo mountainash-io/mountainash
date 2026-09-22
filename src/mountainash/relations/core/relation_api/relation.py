@@ -815,7 +815,22 @@ class Relation(RelationBase):
                 measures=[ma.count_records().alias("__count_rows__")],
             )
         )
-        return int(counted.item("__count_rows__"))
+        return counted._count_rows_result()
+
+    def _count_rows(self, *, execution_context) -> int:
+        import mountainash as ma
+
+        counted = self._make(
+            AggregateRelNode(
+                input=self._node,
+                keys=[],
+                measures=[ma.count_records().alias("__count_rows__")],
+            )
+        )
+        return int(counted._to_polars(execution_context=execution_context).item(0, "__count_rows__"))
+
+    def _count_rows_result(self) -> int:
+        return int(self.to_polars().item(0, "__count_rows__"))
 
     # ------------------------------------------------------------------
     # Scalar aggregate terminals
@@ -826,7 +841,7 @@ class Relation(RelationBase):
     # via the existing visitor pipeline, extract via ``.item(...)``.
     # ------------------------------------------------------------------
 
-    def _scalar_aggregate(self, agg_expr: Any) -> Any:
+    def _scalar_aggregate(self, agg_expr: Any, *, execution_context=None) -> Any:
         """Internal helper: aggregate the relation to one row, extract scalar."""
         aggregated = self._make(
             AggregateRelNode(
@@ -835,7 +850,9 @@ class Relation(RelationBase):
                 measures=[agg_expr.alias("__value__")],
             )
         )
-        return aggregated.item("__value__")
+        if execution_context is None:
+            return aggregated.item("__value__")
+        return aggregated._to_polars(execution_context=execution_context).item(0, "__value__")
 
     def sum(self, col: str) -> Any:
         """Return the sum of ``col`` as a Python scalar."""
@@ -901,6 +918,16 @@ class Relation(RelationBase):
         Narwhals uses its own ``to_polars()``. No non-pandas fallback: a
         source with no declared route raises ``BackendConversionError``.
         """
+        result, visitor = self._compile_and_execute_with_visitor()
+        return self._polars_from_compiled(result, visitor)
+
+    def _to_polars(self, *, execution_context) -> Any:
+        result, visitor = self._compile_and_execute_with_visitor(
+            execution_context=execution_context,
+        )
+        return self._polars_from_compiled(result, visitor)
+
+    def _polars_from_compiled(self, result: Any, visitor: Any) -> Any:
         from mountainash.core.limitations import enrich_materialization
         from mountainash.relations.core.materialization import (
             MaterializationPurpose,
@@ -908,7 +935,6 @@ class Relation(RelationBase):
             materialize_native,
         )
 
-        result, visitor = self._compile_and_execute_with_visitor()
         compiler_identity = _compiler_identity(visitor)
 
         def _egress_thunk() -> Any:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.errors import BackendConversionError
 from mountainash.relations.core.materialization import (
     ExecutionForm,
@@ -41,7 +42,10 @@ def test_prepare_validation_input_uses_one_native_ibis_cache(
 
     monkeypatch.setattr(type(table), "cache", counted_cache)
     with MaterializationScope() as scope:
-        prepared = prepare_validation_input(ma.relation(table), scope=scope)
+        prepared = prepare_validation_input(
+            ma.relation(table), scope=scope,
+            execution_context=_new_execution_context(table, policy=CapabilityPolicy.trusted()),
+        )
         assert prepared.native.value_identity.dialect == backend_name
         assert cache_calls == 1
 
@@ -73,7 +77,10 @@ def test_prepare_validation_input_snapshot_uses_one_arrow_extraction(
 
     monkeypatch.setattr(type(table), "cache", spy_cache)
     with MaterializationScope() as scope:
-        prepared = prepare_validation_input(ma.relation(table), scope=scope)
+        prepared = prepare_validation_input(
+            ma.relation(table), scope=scope,
+            execution_context=_new_execution_context(table, policy=CapabilityPolicy.trusted()),
+        )
         assert to_pyarrow_calls == 1
         assert prepared.snapshot.columns["age"].to_pylist() == [30, -1, None]
         assert prepared.logical_snapshot.logical_columns["age"] is prepared.snapshot.columns["age"]
@@ -107,7 +114,10 @@ def test_prepared_identity_match_is_silent():
 
     df = pl.DataFrame({"x": [1, 2]})
     with MaterializationScope() as scope:
-        prepared = prepare_validation_input(ma.relation(df), scope=scope)
+        prepared = prepare_validation_input(
+            ma.relation(df), scope=scope,
+            execution_context=_new_execution_context(df, policy=CapabilityPolicy.trusted()),
+        )
         assert_prepared_identity(prepared.native, prepared.native.value)
 
 
@@ -116,7 +126,10 @@ def test_prepare_validation_input_returns_frozen_dataclass_shape():
 
     df = pl.DataFrame({"x": [1]})
     with MaterializationScope() as scope:
-        prepared = prepare_validation_input(ma.relation(df), scope=scope)
+        prepared = prepare_validation_input(
+            ma.relation(df), scope=scope,
+            execution_context=_new_execution_context(df, policy=CapabilityPolicy.trusted()),
+        )
         assert isinstance(prepared, PreparedValidationInput)
         assert prepared.snapshot.columns["x"].to_list() == [1]
         assert prepared.logical_snapshot.logical_columns["x"] is prepared.snapshot.columns["x"]
@@ -130,5 +143,8 @@ def test_prepared_relation_collects_same_rows():
 
     df = pl.DataFrame({"x": [1, 2, 3]})
     with MaterializationScope() as scope:
-        prepared = prepare_validation_input(ma.relation(df), scope=scope)
+        prepared = prepare_validation_input(
+            ma.relation(df), scope=scope,
+            execution_context=_new_execution_context(df, policy=CapabilityPolicy.trusted()),
+        )
         assert prepared.relation.to_polars().to_dict(as_series=False) == {"x": [1, 2, 3]}

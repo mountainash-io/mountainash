@@ -28,12 +28,14 @@ def validate(
     backend: str | None = None,
     failure_sample: int | None = None,
     allow_imperfect_key: bool = False,
+    execution_policy: Any = None,
 ) -> DAGValidationResult:
     """Full validation — all per-resource checks, then all FK checks."""
     return _run(
         dag, specs, context=context, backend=backend,
         fail_fast=False, failure_sample=failure_sample,
         allow_imperfect_key=allow_imperfect_key,
+        execution_policy=execution_policy,
     )
 
 
@@ -45,12 +47,14 @@ def validate_quick(
     backend: str | None = None,
     failure_sample: int | None = None,
     allow_imperfect_key: bool = False,
+    execution_policy: Any = None,
 ) -> DAGValidationResult:
     """Fast validation — same runner, fail_fast=True. Identical shapes."""
     return _run(
         dag, specs, context=context, backend=backend,
         fail_fast=True, failure_sample=failure_sample,
         allow_imperfect_key=allow_imperfect_key,
+        execution_policy=execution_policy,
     )
 
 
@@ -63,6 +67,7 @@ def _run(
     fail_fast: bool,
     failure_sample: int | None,
     allow_imperfect_key: bool = False,
+    execution_policy: Any,
 ) -> DAGValidationResult:
     from mountainash.datacontracts.compiler import compile_datacontract
     from mountainash.datacontracts.contract import BaseDataContract
@@ -109,7 +114,7 @@ def _run(
     for rule in fk_rules:
         checks_by_resource.setdefault(rule.child, []).append(rule)
 
-    return ValidationRunner().validate_dag(
+    return ValidationRunner()._validate_dag(
         dag,
         checks_by_resource,
         identity_by_resource=identity_by_resource,
@@ -120,4 +125,5 @@ def _run(
         backend=backend,
         fk_error_summaries=fk_errors,
         allow_imperfect_key=allow_imperfect_key,
+        execution_policy=execution_policy,
     )

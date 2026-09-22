@@ -10,6 +10,8 @@ These are closed-by-default guards: if per-check re-collection ever regresses,
 ``_build_conform_exprs`` is invoked once per check again and the ``== 1``
 assertions fail loudly (the call count scales with the number of checks).
 """
+import pytest
+
 import polars as pl
 
 import mountainash as ma
@@ -22,6 +24,9 @@ from mountainash.datacontracts.validator import Validator
 from mountainash.typespec import FieldSpec, TypeSpec
 from mountainash.validation import RowRule, ValidationRunner
 
+
+
+pytestmark = pytest.mark.usefixtures("validation_execution_scope")
 
 class WideContract(BaseDataContract):
     a: str = Field(nullable=True)

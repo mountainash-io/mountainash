@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         MaterializationScope,
         NativeExecutionValue,
     )
+    from mountainash.core.capabilities.policy import _ExecutionContext
     from mountainash.relations.dag.materialization import DAGMaterializationSession
 
 __all__ = [
@@ -52,6 +53,7 @@ class PreparedValidationInput:
     structured_field_plans: "StructuredFieldPlanMap"
     snapshot: "LogicalTerminalSnapshot"
     logical_snapshot: "ResolvedLogicalSnapshot"
+    execution_context: "_ExecutionContext"
 
 
 def assert_prepared_identity(native: "NativeExecutionValue", value: Any) -> None:
@@ -144,6 +146,7 @@ def prepare_validation_input(
     *,
     backend: str | None = None,
     scope: "MaterializationScope",
+    execution_context: "_ExecutionContext",
 ) -> PreparedValidationInput:
     """Compile *relation* once and materialize it with the dedicated
     ``VALIDATION_SOURCE`` purpose (spec section 6).
@@ -164,7 +167,9 @@ def prepare_validation_input(
     )
 
     rel = relation if isinstance(relation, Relation) else as_relation(relation)
-    result, visitor = rel._compile_and_execute_with_visitor(backend=backend)
+    result, visitor = rel._compile_and_execute_with_visitor(
+        backend=backend, execution_context=execution_context,
+    )
     compiler_identity = BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
     native = materialize_native(
         result, compiler_identity, MaterializationPurpose.VALIDATION_SOURCE,
@@ -178,6 +183,7 @@ def prepare_validation_input(
         structured_field_plans=visitor.structured_field_plans,
         snapshot=snapshot,
         logical_snapshot=logical_snapshot,
+        execution_context=visitor.execution_context,
     )
 
 
@@ -218,4 +224,5 @@ def prepare_validation_input_from_session(
         structured_field_plans=visitor.structured_field_plans,
         snapshot=snapshot,
         logical_snapshot=logical_snapshot,
+        execution_context=visitor.execution_context,
     )

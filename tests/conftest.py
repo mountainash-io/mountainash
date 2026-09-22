@@ -569,3 +569,16 @@ def pytest_collection_modifyitems(config, items):
     config._ma_tier_multi = multi
 
 
+
+
+@pytest.fixture(params=("checked", "trusted"))
+def validation_execution_policy(request):
+    import mountainash as ma
+    return getattr(ma.CapabilityPolicy, request.param)()
+
+
+@pytest.fixture
+def validation_execution_scope(validation_execution_policy):
+    import mountainash as ma
+    with ma.capability_policy(validation_execution_policy):
+        yield validation_execution_policy

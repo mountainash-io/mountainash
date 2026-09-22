@@ -17,6 +17,9 @@ from mountainash.datacontracts.compiler import compile_datacontract
 from mountainash.exceptions import InvalidTypeSpecSemantics
 
 
+
+pytestmark = pytest.mark.usefixtures("validation_execution_scope")
+
 def _build_dag(tables: dict[str, pl.DataFrame]) -> RelationDAG:
     dag = RelationDAG()
     for name, df in tables.items():
@@ -483,8 +486,8 @@ class TestSharedMaterializationSession:
                 compile_calls[name] += 1
             return original_compile(self, name, **kwargs)
 
-        def checked_resolve(self, name, family, dialect):
-            value = original_resolve(self, name, family, dialect)
+        def checked_resolve(self, name, consumer_context):
+            value = original_resolve(self, name, consumer_context)
             assert not isinstance(value, DiagnosticFrameView)
             return value
 

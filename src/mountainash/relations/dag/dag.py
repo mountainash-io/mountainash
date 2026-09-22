@@ -586,11 +586,13 @@ class RelationDAG:
         own failing result (check_id="__identity__") rather than raised out
         of this call - every other resource still validates (spec item 8j §3.2).
         """
+        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.validation import validate
 
         return validate(
             self, specs, context=context, backend=backend, failure_sample=failure_sample,
             allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
         )
 
     def validate_quick(
@@ -603,11 +605,13 @@ class RelationDAG:
         allow_imperfect_key: bool = False,
     ) -> "DAGValidationResult":
         """Fast validation via the ValidationRunner (fail_fast=True; identical shapes)."""
+        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.validation import validate_quick
 
         return validate_quick(
             self, specs, context=context, backend=backend, failure_sample=failure_sample,
             allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
         )
 
     def _unknown_ref_error(self, missing: str) -> "UnknownRelationRef":
