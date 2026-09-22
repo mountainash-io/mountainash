@@ -268,6 +268,8 @@ class BaseExpressionSystem(ABC):
         )
         from mountainash.core.limitations import call_with_limitation_enrichment
 
+        if not self.execution_context.policy.has_demand(PolicyConsumer.IMMEDIATE_ERROR):
+            return fn()
         limitations: dict[tuple[Any, str], Any] = {}
         for param in (*named_args, WILDCARD_PARAM):
             fact = CapabilityRegistry.capability_for(
