@@ -6,6 +6,8 @@ crashing ordering) is lifted; all working orderings are returned untouched.
 import ibis
 from ibis.common.deferred import Deferred
 
+from mountainash.core.capabilities.policy import _new_execution_context
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.ibis.base import (
     IbisBaseExpressionSystem,
 )
@@ -15,8 +17,12 @@ class _Sys(IbisBaseExpressionSystem):
     """Minimal concrete subclass for exercising the base helper."""
 
 
+def _sys():
+    return _Sys(execution_context=_new_execution_context(None, family_override=CONST_BACKEND.IBIS))
+
+
 def _lift(x, y):
-    return _Sys()._lift_deferred(x, y)
+    return _sys()._lift_deferred(x, y)
 
 
 def test_concrete_left_deferred_right_lifts_left():
@@ -56,7 +62,7 @@ def test_lifted_op_preserves_order_and_executes():
 
 
 def _lift_recv(receiver, *args):
-    return _Sys()._lift_deferred_receiver(receiver, *args)
+    return _sys()._lift_deferred_receiver(receiver, *args)
 
 
 def test_receiver_concrete_deferred_arg_lifts():
