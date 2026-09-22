@@ -1,6 +1,8 @@
 """Unit tests for _call_with_expr_support error enrichment and _extract_literal_if_possible."""
 
 import pytest
+from mountainash.core.capabilities.policy import _new_execution_context
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK,
@@ -19,7 +21,9 @@ from mountainash.expressions.backends.expression_systems.narwhals.base import (
 class TestCallWithExprSupport:
 
     def test_polars_success_passes_through(self):
-        sys = PolarsBaseExpressionSystem()
+        sys = PolarsBaseExpressionSystem(
+            execution_context=_new_execution_context(None, family_override=CONST_BACKEND.POLARS),
+        )
         result = sys._call_with_expr_support(
             lambda: "ok",
             function_key=FK.CONTAINS,
@@ -28,7 +32,9 @@ class TestCallWithExprSupport:
         assert result == "ok"
 
     def test_polars_unknown_error_propagates(self):
-        sys = PolarsBaseExpressionSystem()
+        sys = PolarsBaseExpressionSystem(
+            execution_context=_new_execution_context(None, family_override=CONST_BACKEND.POLARS),
+        )
 
         def raise_runtime():
             raise RuntimeError("unrelated")
@@ -41,7 +47,9 @@ class TestCallWithExprSupport:
             )
 
     def test_narwhals_build_fact_does_not_enrich(self):
-        sys = NarwhalsBaseExpressionSystem()
+        sys = NarwhalsBaseExpressionSystem(
+            execution_context=_new_execution_context(None, family_override=CONST_BACKEND.NARWHALS),
+        )
 
         def raise_type_error():
             raise TypeError("expected a string")
@@ -55,7 +63,9 @@ class TestCallWithExprSupport:
             )
 
     def test_ibis_no_limitations(self):
-        sys = IbisBaseExpressionSystem()
+        sys = IbisBaseExpressionSystem(
+            execution_context=_new_execution_context(None, family_override=CONST_BACKEND.IBIS),
+        )
 
         def raise_type_error():
             raise TypeError("some error")
@@ -78,7 +88,9 @@ class TestExtractLiteralIfPossible:
     def test_ibis_extracts_literal(self):
         import ibis
 
-        sys = IbisBaseExpressionSystem()
+        sys = IbisBaseExpressionSystem(
+            execution_context=_new_execution_context(None, family_override=CONST_BACKEND.IBIS),
+        )
         lit_expr = ibis.literal("hello")
         result = sys._extract_literal_if_possible(lit_expr)
         assert result == "hello"
@@ -86,7 +98,9 @@ class TestExtractLiteralIfPossible:
     def test_ibis_column_ref_passes_through(self):
         import ibis
 
-        sys = IbisBaseExpressionSystem()
+        sys = IbisBaseExpressionSystem(
+            execution_context=_new_execution_context(None, family_override=CONST_BACKEND.IBIS),
+        )
         # Column references (non-literal Scalars) should pass through
         raw_val = 42
         result = sys._extract_literal_if_possible(raw_val)
