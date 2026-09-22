@@ -815,7 +815,7 @@ class Relation(RelationBase):
                 measures=[ma.count_records().alias("__count_rows__")],
             )
         )
-        return counted._count_rows_result()
+        return int(counted.item("__count_rows__"))
 
     def _count_rows(self, *, execution_context) -> int:
         import mountainash as ma
@@ -828,9 +828,6 @@ class Relation(RelationBase):
             )
         )
         return int(counted._to_polars(execution_context=execution_context).item(0, "__count_rows__"))
-
-    def _count_rows_result(self) -> int:
-        return int(self.to_polars().item(0, "__count_rows__"))
 
     # ------------------------------------------------------------------
     # Scalar aggregate terminals

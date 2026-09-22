@@ -257,9 +257,8 @@ def test_nested_object_rule_executes_instead_of_isolating_an_error() -> None:
     ].item() == "passed"
 
 
-@pytest.mark.usefixtures("validation_execution_scope")
 def test_value_rule_fallback_keeps_checked_context_when_inner_scope_changes(
-    monkeypatch, validation_execution_policy,
+    monkeypatch, validation_execution_scope,
 ):
     import polars as pl
     import pytest
@@ -311,11 +310,11 @@ def test_value_rule_fallback_keeps_checked_context_when_inner_scope_changes(
         source = pl.DataFrame({"state": ["closed"]})
         relation = ma.relation(source).head(1)
         execution_context = _new_execution_context(
-            source, policy=validation_execution_policy,
+            source, policy=validation_execution_scope,
         )
         runner = ValidationRunner()
         runner._materialized_value_frame = None
-        if validation_execution_policy == ma.CapabilityPolicy.checked():
+        if validation_execution_scope == ma.CapabilityPolicy.checked():
             with pytest.raises(BackendCapabilityError):
                 runner._run_value_rule(
                     relation, check, RowIdentity("none"), failure_sample=None,

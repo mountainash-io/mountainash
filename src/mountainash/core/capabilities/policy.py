@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, fields
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Iterator
 
 from mountainash.core.capabilities.schema import CapabilityIssueClass, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND

@@ -38,7 +38,9 @@ import mountainash.relations.backends  # noqa: F401
 import mountainash.expressions.backends  # noqa: F401
 
 
-pytestmark = pytest.mark.usefixtures("validation_execution_scope")
+@pytest.fixture(autouse=True)
+def _validation_execution_scope(validation_execution_scope):
+    yield validation_execution_scope
 
 def _structured_dag():
     dag = RelationDAG()

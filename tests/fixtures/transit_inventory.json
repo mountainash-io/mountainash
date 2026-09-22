@@ -1527,49 +1527,5 @@
     "reason": "Unwraps a Narwhals frame to its native value for schema/dtype inspection only; the unwrapped value (including a pandas DataFrame when the source is pandas-backed) never escapes as data, only as SourceShape metadata.",
     "since": "2026-08-27",
     "legacy_unwrapped": false
-  },
-  {
-    "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner._collect_row_failures",
-    "callee": "to_polars",
-    "fingerprint": "f0ea0d1a0a64a73b",
-    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "A declared Polars-producing terminal or intermediate call on a Relation, egress/ingress converter, validator, or processor; its result is never pandas by contract.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": false
-  },
-  {
-    "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner._run_relation_rule",
-    "callee": "to_polars",
-    "fingerprint": "cb0654ee8f6316f8",
-    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "A declared Polars-producing terminal or intermediate call on a Relation, egress/ingress converter, validator, or processor; its result is never pandas by contract.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": false
-  },
-  {
-    "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner._run_row_rule",
-    "callee": "to_polars",
-    "fingerprint": "ae4d66489d2edca2",
-    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "A declared Polars-producing terminal or intermediate call on a Relation, egress/ingress converter, validator, or processor; its result is never pandas by contract.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": false
-  },
-  {
-    "module": "mountainash.validation.runner",
-    "owner": "ValidationRunner._run_value_rule",
-    "callee": "to_polars",
-    "fingerprint": "e2ae319d7eb0ee1a",
-    "boundary_key": "RELATION_TO_POLARS_TERMINAL",
-    "transit_class": "NON_PANDAS_OPERATION",
-    "reason": "A declared Polars-producing terminal or intermediate call on a Relation, egress/ingress converter, validator, or processor; its result is never pandas by contract.",
-    "since": "2026-08-27",
-    "legacy_unwrapped": false
   }
 ]

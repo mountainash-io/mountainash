@@ -519,11 +519,13 @@ class DAGMaterializationSession:
         active identity if needed (spec 10.3), memoized per distinct
         ``(name, consumer_context.target.token, consumer_context.observations)``
         triple.
-
-        An Ibis native whose actual connection owner differs from
-        *consumer_context*'s own owner is refused even when family and
-        dialect otherwise match -- same dialect is not the same owner,
-        and no new cross-connection transport is in scope (spec 10.3).
+        A refusal only applies between *established* Ibis connection
+        owners: both sides carry a bound backend (dialect
+        ``ibis-<name>``) and their owner objects differ. A synthetic or
+        unbound target (dialect ``None``, e.g. a join-of-refs resource
+        with no own leaf, or a bare pandas dependency coerced toward an
+        Ibis anchor) is not an owner and must never trigger the
+        cross-connection refusal (spec 10.3).
         """
         entry = self._compile_named(name)
         native = entry.native
@@ -533,9 +535,16 @@ class DAGMaterializationSession:
             return native.value  # no-leaf ref: already anchor-family
         consumer_family = consumer_context.target.identity.family
         consumer_dialect = consumer_context.target.identity.dialect
+        def _ibis_owner_dialect(target) -> "str | None":
+            """Dialect only when *target* is a real bound Ibis backend."""
+            identity = target.identity
+            if identity.family is CONST_BACKEND.IBIS and identity.dialect is not None:
+                return identity.dialect
+            return None
+
         if (
-            native.value_identity.family is CONST_BACKEND.IBIS
-            and consumer_family is CONST_BACKEND.IBIS
+            _ibis_owner_dialect(native.target) is not None
+            and _ibis_owner_dialect(consumer_context.target) is not None
             and native.target.token != consumer_context.target.token
         ):
             raise BackendConversionError(

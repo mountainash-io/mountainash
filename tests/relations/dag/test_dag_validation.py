@@ -18,7 +18,9 @@ from mountainash.exceptions import InvalidTypeSpecSemantics
 
 
 
-pytestmark = pytest.mark.usefixtures("validation_execution_scope")
+@pytest.fixture(autouse=True)
+def _validation_execution_scope(validation_execution_scope):
+    yield validation_execution_scope
 
 def _build_dag(tables: dict[str, pl.DataFrame]) -> RelationDAG:
     dag = RelationDAG()

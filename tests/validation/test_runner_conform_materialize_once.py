@@ -26,7 +26,9 @@ from mountainash.validation import RowRule, ValidationRunner
 
 
 
-pytestmark = pytest.mark.usefixtures("validation_execution_scope")
+@pytest.fixture(autouse=True)
+def _validation_execution_scope(validation_execution_scope):
+    yield validation_execution_scope
 
 class WideContract(BaseDataContract):
     a: str = Field(nullable=True)
