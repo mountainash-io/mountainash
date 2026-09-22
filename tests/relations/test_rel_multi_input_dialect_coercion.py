@@ -443,4 +443,6 @@ class TestGatingUsesAuthoritativeDialectNotAnchor:
         # Item 95: the gate now fires against the authoritative left operand's
         # dialect (narwhals-pandas), not the anchor's (narwhals-polars).
         with pytest.raises(BackendCapabilityError):
-            dag._execute_with_visitor(joined)
+            dag._execute_with_visitor(
+                joined, execution_policy=ma.CapabilityPolicy.checked(),
+            )

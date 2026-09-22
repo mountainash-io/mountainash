@@ -219,7 +219,11 @@ class TestExplicitBackendAnchorCoherence:
         # actually succeed end-to-end (no mismatch to raise on here).
         dag = RelationDAG()
         rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
-        _result, visitor = dag._execute_with_visitor(rel)
+        from mountainash.core.capabilities.policy import CapabilityPolicy
+
+        _result, visitor = dag._execute_with_visitor(
+            rel, execution_policy=CapabilityPolicy.trusted(),
+        )
         assert visitor.backend.backend_type == CONST_BACKEND.NARWHALS
         assert visitor.backend.dialect == "narwhals-pandas"
         assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.NARWHALS

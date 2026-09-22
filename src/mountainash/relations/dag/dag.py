@@ -10,6 +10,7 @@ from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection
+    from mountainash.core.capabilities.policy import CapabilityPolicy
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.core.relation_api.relation import Relation
@@ -197,7 +198,12 @@ class RelationDAG:
 
     def collect(self, name: str, *, backend: Optional[str] = None) -> Any:
         """Topologically walk dependencies and materialize residue once."""
-        result, visitor = self._collect_with_visitor(name, backend=backend)
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        execution_policy = _resolve_policy()
+        result, visitor = self._collect_with_visitor(
+            name, backend=backend, execution_policy=execution_policy,
+        )
         has_trace = any(
             trace.records for trace in visitor.diagnostic_traces.values()
         )
@@ -239,8 +245,11 @@ class RelationDAG:
         from mountainash.conform.drift import ConformCollection
         from mountainash.relations.schema_inference import _schema_from_dataframe
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.capabilities.policy import _resolve_policy
 
-        result, visitor = self._collect_with_visitor(name, backend=backend)
+        result, visitor = self._collect_with_visitor(
+            name, backend=backend, execution_policy=_resolve_policy(),
+        )
         frame = enrich_materialization(
             visitor.backend,
             lambda: _force_eager(result, unwrap=True),
@@ -255,7 +264,11 @@ class RelationDAG:
         )
 
     def _collect_with_visitor(
-        self, name: str, *, backend: Optional[str] = None
+        self,
+        name: str,
+        *,
+        backend: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """Shared core for :meth:`collect` / :meth:`collect_with_drift`."""
         if name not in self.relations:
@@ -276,6 +289,7 @@ class RelationDAG:
             backend=backend,
             backend_target_name=name,
             key_target_name=name,
+            execution_policy=execution_policy,
         )
 
     def execute(self, relation: Relation, *, backend: Optional[str] = None) -> Any:
@@ -289,11 +303,19 @@ class RelationDAG:
         Raises ``ValueError`` if the relation has no ``_node`` attribute.
         Raises ``KeyError`` if a referenced name is not in the DAG.
         """
-        result, _visitor = self._execute_with_visitor(relation, backend=backend)
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        result, _visitor = self._execute_with_visitor(
+            relation, backend=backend, execution_policy=_resolve_policy(),
+        )
         return result
 
     def _execute_with_visitor(
-        self, relation: "Relation", *, backend: Optional[str] = None
+        self,
+        relation: "Relation",
+        *,
+        backend: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """``execute()`` variant returning ``(result, visitor)`` for terminals
         needing post-compile visitor state (e.g. ``collect_with_drift``).
@@ -335,6 +357,7 @@ class RelationDAG:
             backend=backend,
             backend_target_name=target_name,
             key_target_name=None,
+            execution_policy=execution_policy,
         )
 
     def _compile_with_refs(
@@ -345,6 +368,7 @@ class RelationDAG:
         backend: Optional[str] = None,
         backend_target_name: Optional[str] = None,
         key_target_name: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """Compile ``node`` after materialising all relations in ``ref_names``.
 
@@ -368,7 +392,6 @@ class RelationDAG:
         if missing_refs:
             raise self._unknown_ref_error(missing_refs[0])
 
-        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.materialization import (
             DAGMaterializationSession,
             _is_lazy_narwhals,
@@ -377,7 +400,7 @@ class RelationDAG:
         )
 
         session = DAGMaterializationSession(
-            self, execution_policy=_resolve_policy(), backend=backend,
+            self, execution_policy=execution_policy, backend=backend,
         )
         try:
             if key_target_name is not None:
@@ -469,11 +492,17 @@ class RelationDAG:
                     anchor_leaf = None
 
             relation_system = get_relation_system(resolved_backend)(dialect=dialect)
-            from mountainash.core.capabilities.policy import _new_execution_context
+            from mountainash.core.capabilities.policy import (
+                _identify_capability_target,
+                _prepare_capability_context,
+            )
 
             target_data = anchor_leaf.dataframe if anchor_leaf is not None else None
-            execution_context = _new_execution_context(
+            target = _identify_capability_target(
                 target_data, family_override=resolved_backend,
+            )
+            execution_context = _prepare_capability_context(
+                execution_policy, target, package_versions=session._package_versions,
             )
             expr_visitor = UnifiedExpressionVisitor(
                 get_expression_system(resolved_backend)(
