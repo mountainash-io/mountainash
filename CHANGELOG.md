@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — 2026-09-22
+
+### Added
+- Version-aware capability applicability: authored finite unions of environment regions with PEP 440 package/interpreter ordering, numeric-release engine ordering, and opaque exact equality; matching is three-valued (applicable / not applicable / indeterminate), and explicitly unconstrained declarations match without acquiring version coordinates.
+- Optional stable `variant` qualifier on capability declaration keys with full-identity exact lookup; same-key variants coexist without overwrite, unqualified lookup never falls back to a variant, and declaration history preserves narrowing, splits and merges as immutable captures.
+- Shared `CapabilityIssueClass` taxonomy on descriptive information and executable policy rules; information labels are never copied into executable classification.
+- Execution policies `CapabilityPolicy.checked()`, `native_debugging()`, and `trusted()` with the request-local `capability_policy()` scope. Runtime consumers — gates, immediate and materialization error enrichment, and result protection — are selected via policy demand; the frozen execution context threads compile → visitor → backend systems, DAG execution freezes the policy at public collect/execute, and validation freezes it at validate entry.
+- Opt-in coverage diagnostics exposing applicability and policy selection per record: render CLI `--environment`/`--policy` views with `--output`, and `build_coverage_report(environment=..., policy=...)`. Default coverage artifacts remain unchanged.
+
+### Changed
+- Optional protection and enrichment actions run only when the active policy demands them. Trusted execution does not disable required backend conversion, ordinary argument validation, or explicitly requested conformance; unknown version coordinates neither manufacture a policy outcome nor certify support, and native construction observations are never attributed to later Mountainash execution.
+
 ## Unreleased — 2026-09-19
 
 ### Changed

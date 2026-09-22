@@ -209,6 +209,66 @@ visitor.visit(ScalarFunctionNode(...))
 
 Same AST, same dispatch, different native call.
 
+## Execution policies and their freeze points
+
+Every public execution terminal resolves the ambient capability policy once,
+at its own boundary, and threads the frozen context through the visitor and
+backend systems:
+
+- `ExpressionNode.compile(dataframe)` and relation terminals
+  (`Relation.collect()`, `to_polars()`, …) each prepare one immutable
+  `_ExecutionContext` — the resolved policy plus the actual native target's
+  observations — before the visitor runs.
+- Named and ad-hoc DAG execution freezes the policy at the public
+  `collect`/`execute` entry; validation freezes it at validate entry.
+- The frozen `_ExecutionContext` threads compile → visitor → backend
+  systems. The four runtime consumers — `GATE`, `IMMEDIATE_ERROR`,
+  `MATERIALIZATION_ERROR` and `RESULT_PROTECTION` — are selected via
+  `policy.has_demand(...)`, so a consumer that the policy does not demand
+  never manufactures a policy outcome.
+
+Executable public example:
+
+```python
+import mountainash as ma
+import polars as pl
+
+data = pl.DataFrame({"x": [1, 2]})
+with ma.capability_policy(ma.CapabilityPolicy.native_debugging()):
+    result = ma.relation(data).select((ma.col("x") + 1).alias("y")).to_polars()
+assert result["y"].to_list() == [2, 3]
+```
+
+Boundaries (each is an observed behavior, not a promise to keep in mind):
+
+- `native_debugging()` disables exception enrichment, not protection: gate
+  blocking and result protection remain active.
+- `trusted()` disables optional actions — protection, enrichment and
+  disclosure — not required backend conversion or explicit validation.
+  Backend code owns ordinary validation, native argument conversion and
+  required adaptation regardless of the active policy.
+- Unknown version coordinates neither manufacture a policy nor certify
+  support: applicability matching is three-valued, and *indeterminate* is
+  distinct from applicable and not applicable.
+- Executing an extracted native object outside Mountainash is outside later
+  interception guarantees. Construction observations belong to the declared
+  native construction stage and are never attributed to later Mountainash
+  execution.
+
+Distinguish exact observations from authored ranges: the example above is an
+exact observation of public behavior on this branch (verified result
+`[2, 3]`). Authored applicability — version regions and declaration
+variants, documented in [known-divergences.md](known-divergences.md) — is a
+claim matched against the frozen execution environment. No range is derived
+from a `since` date, upstream issue status, or a single environment's
+observation.
+
+Coverage diagnostics that expose applicability and policy selection are
+opt-in: pass `--environment`/`--policy` together with `--output` to
+`python -m mountainash.core.capabilities.render_markdown`, or the
+`environment=`/`policy=` keyword arguments of `build_coverage_report()`.
+Default coverage artifacts remain unchanged.
+
 ## Why this matters for correctness
 
 The "same expression must produce the same logical result on all backends" guarantee is principle `e.cross-backend/consistency-guarantees.md`. Mechanically:

@@ -132,6 +132,116 @@ composed_information = capture.composed_information(scope)
 Exact `get()` raises on a missing qualified key and `get_optional()` returns
 `None`; neither method falls back from a dialect to its family.
 
+## Execution policies
+
+Capability declarations are data. An execution policy is the separate,
+request-local statement of which optional actions the runtime may take for
+one request. Wrap a public terminal in `ma.capability_policy()`; the ambient
+default is `ma.CapabilityPolicy.checked()`.
+
+```python
+import mountainash as ma
+import polars as pl
+
+data = pl.DataFrame({"x": [1, 2]})
+with ma.capability_policy(ma.CapabilityPolicy.native_debugging()):
+    result = ma.relation(data).select((ma.col("x") + 1).alias("y")).to_polars()
+assert result["y"].to_list() == [2, 3]
+```
+
+This is an executable public example: inside the scope the request runs with
+gate blocking and result protection active and exception enrichment off, and
+the projected result is `[2, 3]`. The presets differ only in which optional
+actions they demand:
+
+- `CapabilityPolicy.checked()` — every consumer active (the ambient default).
+- `CapabilityPolicy.native_debugging()` — protection stays on; exception
+  enrichment is disabled so native error surfaces reach you unmodified.
+  It disables enrichment, not protection.
+- `CapabilityPolicy.trusted()` — no optional action runs. It disables
+  optional actions only: required backend conversion, ordinary argument
+  validation, and explicitly requested conformance still execute, because
+  they belong to backend code rather than to a policy.
+
+Each preset accepts keyword overrides, for example
+`native_debugging(protection="none")`. Consumers are selected by demand:
+without a demanded gate a declared block is not applied, and without
+demanded enrichment a native failure is not rewritten into a public
+capability error.
+
+Two boundaries are deliberate and observed, not authored:
+
+- **Unknown version coordinates.** A declaration that constrains a version
+  coordinate the observed environment does not supply matches as
+  *indeterminate*: an unknown version neither manufactures a policy outcome
+  nor certifies support. Explicitly unconstrained declarations match without
+  acquiring version coordinates.
+- **Extracted native objects.** Executing a native object that was produced
+  inside Mountainash and then invoked outside it is outside later
+  interception guarantees. Native construction observations are captured at
+  the declared construction stage and are never attributed to later
+  Mountainash execution.
+
+### Authoring applicability and variants
+
+The examples above are observations. Applicability and variants are the two
+authored shapes that scope a declaration; both are claims that must carry
+their own evidence.
+
+Regions (`Region`, `CoordinateConstraint`, `Applicability`) are authored
+finite unions of environment regions. One record with identical behavior
+over several intervals carries a union of regions, not one variant per
+interval:
+
+```python
+from mountainash.core.capabilities.applicability import (
+    Applicability,
+    ComparisonScheme,
+    CoordinateConstraint,
+    Region,
+)
+
+APPLICABILITY = Applicability(regions=(
+    Region(constraints=(
+        CoordinateConstraint(
+            "package", "ibis-framework", ComparisonScheme.PEP440,
+            equal="12.0.0",
+        ),
+        CoordinateConstraint(
+            "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
+            lower="1.2", upper="1.3", upper_inclusive=False,
+        ),
+    )),
+    Region(constraints=(
+        CoordinateConstraint(
+            "package", "ibis-framework", ComparisonScheme.PEP440,
+            equal="12.0.0",
+        ),
+        CoordinateConstraint(
+            "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
+            lower="1.4", upper="1.5", upper_inclusive=False,
+        ),
+    )),
+))
+```
+
+Pass `applicability=APPLICABILITY` on a `CapabilityInformation` or
+`CapabilityPolicyRule`. Variants (`CapabilityKey(..., variant="...")`) name
+records that genuinely need to coexist; a variant name identifies a record,
+never applicability, priority or fallback, and exact unqualified lookup
+never falls back to a variant or vice versa.
+
+Keep the two sides distinct:
+
+- An **exact observation** is an `Environment` of typed coordinates that
+  preserves raw version text and original labels. It states what one
+  concrete environment supplied.
+- An **authored range** is a `Region`/`Applicability` claim matched against
+  observations. No `since` date, upstream issue status, evidence timestamp,
+  or fixed-version value becomes a range automatically; author production
+  version regions only with their own concrete evidence, and never infer a
+  family-wide range from one dialect or environment.
+
 ## Observations and tests
 
 Tests are ordinary case-owned tests. Each test supplies its concrete input,
