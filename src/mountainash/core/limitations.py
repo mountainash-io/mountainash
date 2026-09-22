@@ -140,6 +140,7 @@ def enrich_materialization(
     dialect: Any = _UNSPECIFIED_DIALECT,
     diagnostic_trace: Any = None,
     residue_checks: Iterable[Any] = (),
+    execution_context: Any = None,
 ) -> Any:
     """Enrich deterministic capability residue at a materialization boundary."""
     from mountainash.conform.errors import ConformError
@@ -155,7 +156,20 @@ def enrich_materialization(
         return fn()
 
     diagnostics = tuple(getattr(diagnostic_trace, "records", ()))
-    facts = CapabilityRegistry.residue_candidates(family, active_dialect)
+    # Registry access is itself a demanded-loading trigger (bootstrap
+    # autoload from UNINITIALIZED) -- skip it entirely when neither residue
+    # consumer this function serves is demanded, so a trusted()/no-demand
+    # caller never forces a cold registry to load its optional declaration
+    # source (T08 item 13, mirrors the GATE-demand check in _dispatch).
+    if execution_context is not None and not (
+        execution_context.policy.has_demand(PolicyConsumer.MATERIALIZATION_ERROR)
+        or execution_context.policy.has_demand(PolicyConsumer.RESULT_PROTECTION)
+    ):
+        facts = ()
+    else:
+        facts = CapabilityRegistry.residue_candidates(
+            family, active_dialect, execution_context=execution_context,
+        )
     if not facts and not diagnostics and not checks:
         return fn()
     try:
@@ -165,6 +179,10 @@ def enrich_materialization(
     except ConformError:
         raise
     except Exception as exc:
+        if execution_context is not None and not execution_context.policy.has_demand(
+            PolicyConsumer.MATERIALIZATION_ERROR
+        ):
+            raise
         identify = getattr(backend, "identify_native_issue", None)
         native_issue = identify(exc) if identify is not None else None
         matched: list[tuple[Any, Any]] = []

@@ -213,6 +213,7 @@ class RelationDAG:
             lambda: _force_eager(result, unwrap=False),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
         if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
             result = result.lazy()
@@ -245,6 +246,7 @@ class RelationDAG:
             lambda: _force_eager(result, unwrap=True),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
         return ConformCollection(
             frame=frame,
@@ -439,6 +441,7 @@ class RelationDAG:
 
             # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
             # must reject before caching.
+            anchor_leaf = None
             if backend_target_name is not None or ref_names:
                 anchor_name = backend_target_name or sorted(ref_names)[0]
                 _anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
@@ -451,12 +454,23 @@ class RelationDAG:
                         raise TypeError(
                             "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
                         )
+            else:
+                from mountainash.relations.core.relation_api.relation_base import (
+                    RelationBase,
+                )
+                from mountainash.relations.dag.errors import RelationDAGRequired
+
+                try:
+                    anchor_leaf = RelationBase._find_leaf_read_node(node)
+                except (ValueError, AttributeError, RelationDAGRequired):
+                    anchor_leaf = None
 
             relation_system = get_relation_system(resolved_backend)(dialect=dialect)
             from mountainash.core.capabilities.policy import _new_execution_context
 
+            target_data = anchor_leaf.dataframe if anchor_leaf is not None else None
             execution_context = _new_execution_context(
-                None, family_override=resolved_backend,
+                target_data, family_override=resolved_backend,
             )
             expr_visitor = UnifiedExpressionVisitor(
                 get_expression_system(resolved_backend)(
@@ -473,6 +487,7 @@ class RelationDAG:
                 ref_resolver=ref_resolver,
                 key_context=None,  # ad-hoc execute() target: no DAG identity to assess
                 identity_resolver=lambda n: self.relations[n]._node,
+                execution_context=execution_context,
             )
             return node.accept(visitor), visitor
         finally:

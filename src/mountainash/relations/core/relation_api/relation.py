@@ -695,6 +695,7 @@ class Relation(RelationBase):
             _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
 
     def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
@@ -740,6 +741,7 @@ class Relation(RelationBase):
             _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
         return ConformCollection(
             frame=frame,
@@ -924,6 +926,7 @@ class Relation(RelationBase):
             _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
 
     def to_pandas(self) -> Any:
@@ -963,6 +966,7 @@ class Relation(RelationBase):
             _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
 
     def to_dict(self) -> dict[str, list[Any]]:

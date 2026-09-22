@@ -88,16 +88,21 @@ def test_resource_read_validation_copy_skips_builtin_conform():
     from mountainash.relations.core.relation_protocols.relsys_base import (
         get_relation_system,
     )
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.typespec.spec import FieldSpec, TypeSpec
     from mountainash.typespec.universal_types import UniversalType
 
     backend = CONST_BACKEND.POLARS
+    context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=CapabilityPolicy.trusted(),
+    )
     rel_sys = get_relation_system(backend)()
-    expr_sys = get_expression_system(backend)()
+    expr_sys = get_expression_system(backend)(execution_context=context)
     visitor = UnifiedRelationVisitor(
         rel_sys,
-        UnifiedExpressionVisitor(expr_sys),
+        UnifiedExpressionVisitor(expr_sys, execution_context=context),
+        execution_context=context,
     )
     calls = []
     visitor.apply_conform = lambda *args, **kwargs: calls.append((args, kwargs))
@@ -140,15 +145,19 @@ def test_resource_read_rel_node_threads_resource_name_into_drift():
     from mountainash.relations.core.relation_protocols.relsys_base import (
         get_relation_system,
     )
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.typespec.spec import FieldSpec, TypeSpec
     from mountainash.typespec.universal_types import UniversalType
 
     backend = CONST_BACKEND.POLARS
+    context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=CapabilityPolicy.trusted(),
+    )
     rel_sys = get_relation_system(backend)()
-    expr_sys = get_expression_system(backend)()
-    expr_visitor = UnifiedExpressionVisitor(expr_sys)
-    visitor = UnifiedRelationVisitor(rel_sys, expr_visitor)
+    expr_sys = get_expression_system(backend)(execution_context=context)
+    expr_visitor = UnifiedExpressionVisitor(expr_sys, execution_context=context)
+    visitor = UnifiedRelationVisitor(rel_sys, expr_visitor, execution_context=context)
 
     spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
     res = DataResource(name="orders", type="table", data=[{"n": "1"}, {"n": "2"}], schema=spec)

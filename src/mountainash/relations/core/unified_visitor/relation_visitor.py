@@ -30,10 +30,13 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_DATETIME,
 )
 
+from mountainash.core.capabilities.schema import PolicyConsumer
+
 from ..relation_nodes import RelationNode, ReadRelNode
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
+    from mountainash.core.capabilities.policy import _ExecutionContext
     from mountainash.relations.dag.key_context import KeyDriftContext
 
 
@@ -156,7 +159,7 @@ class UnifiedRelationVisitor:
         ref_resolver: Optional[Callable[[str], Any]] = None,
         key_context: Optional["KeyDriftContext"] = None,
         identity_resolver: Optional[Callable[[str], Any]] = None,
-        enforce_capabilities: bool = True,
+        execution_context: "_ExecutionContext",
     ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
@@ -168,18 +171,10 @@ class UnifiedRelationVisitor:
         # stays None (not assessed).
         self.key_context = key_context
         self.identity_resolver = identity_resolver
-        self.enforce_capabilities = enforce_capabilities
+        self.execution_context = execution_context
         self.diagnostic_traces: dict[tuple[Any, Any], Any] = {}
         self.residue_checks: list[Any] = []
         self.residue_check_nodes: dict[str, str] = {}
-        if enforce_capabilities:
-            # A gating consumer must ensure the capability declaration modules
-            # are imported before querying the registry (bootstrap.py contract);
-            # idempotent under the registry's load lock. Covers _gate_capabilities
-            # below. Query-path autoload — a no-op in LOADED and ISOLATED states,
-            # so test fixtures that reset() into ISOLATED do not break the visitor.
-            from mountainash.core.capabilities.registry import CapabilityRegistry
-            CapabilityRegistry.ensure_loaded()
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id
@@ -250,7 +245,8 @@ class UnifiedRelationVisitor:
 
         # Whole-operation optional protection.
         fact = CapabilityRegistry.capability_for(
-            op.operation_key, WILDCARD_PARAM, family, dialect
+            op.operation_key, WILDCARD_PARAM, family, dialect,
+            consumer=PolicyConsumer.GATE, execution_context=self.execution_context,
         )
         if fact is not None and fact.predicate is None and fact.enforcement is Enforcement.GATE \
                 and fact.level is CapabilityLevel.UNSUPPORTED:
@@ -271,7 +267,9 @@ class UnifiedRelationVisitor:
             operation_key=op.operation_key, backend=family, dialect=dialect,
             bindings=bindings, supplied=supplied,
         )
-        violations = CapabilityRegistry.violations_for(bound)
+        violations = CapabilityRegistry.violations_for(
+            bound, execution_context=self.execution_context,
+        )
         if violations:
             ordered = sorted(violations, key=lambda f: (f.param, f.message))
             combined = "; ".join(f.message for f in ordered)
@@ -282,7 +280,10 @@ class UnifiedRelationVisitor:
             )
 
         for param in param_names:
-            fact = CapabilityRegistry.capability_for(op.operation_key, param, family, dialect)
+            fact = CapabilityRegistry.capability_for(
+                op.operation_key, param, family, dialect,
+                consumer=PolicyConsumer.GATE, execution_context=self.execution_context,
+            )
             if fact is None or fact.predicate is not None or fact.level is not CapabilityLevel.UNSUPPORTED:
                 continue
             if fact.enforcement is not Enforcement.GATE:
@@ -426,7 +427,7 @@ class UnifiedRelationVisitor:
         self.structured_field_plans = plans
 
     def _dispatch(self, node: RelationNode, op: Any) -> Any:
-        if self.enforce_capabilities:
+        if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             self._gate_capabilities(node, op)
 
         from mountainash.core.limitations import enrich_materialization
@@ -466,6 +467,7 @@ class UnifiedRelationVisitor:
             self.backend, lambda: method(*args, **kwargs),
             prefer_operation_keys=prefer,
             dialect=dialect,
+            execution_context=self.execution_context,
         )
         self._complete_transport_lineage(node, op)
         return result
@@ -484,6 +486,7 @@ class UnifiedRelationVisitor:
             self.backend, fn,
             prefer_operation_keys=frozenset({operation_key}),
             dialect=dialect,
+            execution_context=self.execution_context,
         )
 
     def _bind(self, node: RelationNode, binding: Any) -> Any:
@@ -731,28 +734,33 @@ class UnifiedRelationVisitor:
                 occupied = set(available or ())
                 occupied.update(getattr(field, "name", "") for field in schema.fields)
                 marker_exprs = []
-                import dataclasses
-                from mountainash.core.capabilities import CapabilityRegistry, ResidueSignal
                 residue_checks = []
-                marker_trace = self.expr_visitor.diagnostic_trace
-                self.expr_visitor.diagnostic_trace = None
-                try:
-                    for index, check in enumerate(conform_result.residue_checks):
-                        facts = CapabilityRegistry.residue_candidates(
-                            self.backend.backend_type,
-                            getattr(self.backend, "dialect", None),
-                            operation_key=check.function_key,
-                        )
-                        if not any(fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL for fact in facts):
-                            continue
-                        alias = self._marker_alias(node_id, index, occupied)
-                        marker_expr = self.compile_expression(check.marker.name.alias(alias))
-                        marker_exprs.append(marker_expr)
-                        residue_checks.append(dataclasses.replace(check, marker=alias))
-                        self.residue_check_nodes[alias] = node_id
-                finally:
-                    self.expr_visitor.diagnostic_trace = marker_trace
-                self.residue_checks.extend(residue_checks)
+                result_protection_enabled = self.execution_context.policy.has_demand(
+                    PolicyConsumer.RESULT_PROTECTION
+                )
+                if result_protection_enabled:
+                    import dataclasses
+                    from mountainash.core.capabilities import CapabilityRegistry, ResidueSignal
+                    marker_trace = self.expr_visitor.diagnostic_trace
+                    self.expr_visitor.diagnostic_trace = None
+                    try:
+                        for index, check in enumerate(conform_result.residue_checks):
+                            facts = CapabilityRegistry.residue_candidates(
+                                self.backend.backend_type,
+                                getattr(self.backend, "dialect", None),
+                                operation_key=check.function_key,
+                                execution_context=self.execution_context,
+                            )
+                            if not any(fact.residue_signal is ResidueSignal.NON_NULL_TO_NULL for fact in facts):
+                                continue
+                            alias = self._marker_alias(node_id, index, occupied)
+                            marker_expr = self.compile_expression(check.marker.name.alias(alias))
+                            marker_exprs.append(marker_expr)
+                            residue_checks.append(dataclasses.replace(check, marker=alias))
+                            self.residue_check_nodes[alias] = node_id
+                    finally:
+                        self.expr_visitor.diagnostic_trace = marker_trace
+                    self.residue_checks.extend(residue_checks)
         except (BackendCapabilityError, ConformError):
             raise
         except Exception as e:
@@ -804,6 +812,7 @@ class UnifiedRelationVisitor:
                 self.backend,
                 _raise_native,
                 diagnostic_trace=trace,
+                execution_context=self.execution_context,
             )
 
     def _visit_and_coerce_right(self, right_node: RelationNode, left_result: Any) -> Any:

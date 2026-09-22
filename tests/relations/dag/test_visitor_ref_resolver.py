@@ -8,6 +8,8 @@ from __future__ import annotations
 import pytest
 import polars as pl
 
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.unified_visitor.relation_visitor import (
     UnifiedRelationVisitor,
 )
@@ -23,13 +25,19 @@ from mountainash.typespec.datapackage import DataResource
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_polars_visitor(ref_resolver=None):
+def _make_polars_visitor(ref_resolver=None, *, native_input=None):
     """Build a UnifiedRelationVisitor wired to the Polars relation system."""
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    rs = PolarsRelationSystem()
-    return UnifiedRelationVisitor(rs, expression_visitor=None, ref_resolver=ref_resolver)
+    context = _new_execution_context(
+        native_input, family_override=CONST_BACKEND.POLARS,
+        policy=CapabilityPolicy.trusted(),
+    )
+    return UnifiedRelationVisitor(
+        PolarsRelationSystem(), expression_visitor=None,
+        ref_resolver=ref_resolver, execution_context=context,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +52,7 @@ def test_ref_without_resolver_raises():
 
 def test_ref_with_resolver_returns_cached_value():
     cached = pl.DataFrame({"x": [1, 2]}).lazy()
-    visitor = _make_polars_visitor(ref_resolver=lambda n: cached)
+    visitor = _make_polars_visitor(ref_resolver=lambda n: cached, native_input=cached)
     result = visitor.visit(RefRelNode(name="orders"))
     assert result.collect()["x"].to_list() == [1, 2]
 
@@ -58,7 +66,7 @@ def test_ref_resolver_receives_correct_name():
         called_with.append(name)
         return cached
 
-    visitor = _make_polars_visitor(ref_resolver=resolver)
+    visitor = _make_polars_visitor(ref_resolver=resolver, native_input=cached)
     visitor.visit(RefRelNode(name="customers"))
     assert called_with == ["customers"]
 
@@ -83,18 +91,3 @@ def test_resource_read_rel_loads_csv_path(tmp_path):
     result = visitor.visit(ResourceReadRelNode(resource=res))
     df = result.collect() if isinstance(result, pl.LazyFrame) else result
     assert df.shape == (2, 2)
-
-
-
-# ---------------------------------------------------------------------------
-# Task 13: existing positional constructor still works (no regression)
-# ---------------------------------------------------------------------------
-
-def test_existing_positional_constructor_unchanged():
-    """UnifiedRelationVisitor(rs, expr_visitor) still works without ref_resolver."""
-    from mountainash.relations.backends.relation_systems.polars import (
-        PolarsRelationSystem,
-    )
-    rs = PolarsRelationSystem()
-    visitor = UnifiedRelationVisitor(rs, None)
-    assert visitor.ref_resolver is None

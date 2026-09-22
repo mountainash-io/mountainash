@@ -86,8 +86,15 @@ class TestProtection:
             assert node_type in _PROTECTED_NODE_TYPES, f"{node_type.__name__} not protected"
 
 
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.relation_nodes.reln_base import RelationNode
+
+
+def _polars_context():
+    return _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=CapabilityPolicy.trusted(),
+    )
 
 
 class _LeafNodeWithBackend(RelationNode):
@@ -134,6 +141,7 @@ class TestVisitorDispatch:
             visitor = UnifiedRelationVisitor(
                 relation_system=PolarsRelationSystem(),
                 expression_visitor=None,
+                execution_context=_polars_context(),
             )
             result = visitor.visit(_RegistryTestNode())
             assert result == "from_registry"
@@ -147,6 +155,7 @@ class TestVisitorDispatch:
         visitor = UnifiedRelationVisitor(
             relation_system=PolarsRelationSystem(),
             expression_visitor=None,
+            execution_context=_polars_context(),
         )
         node = _RegistryTestNode()
         with pytest.raises(UnregisteredRelationNodeError, match="_RegistryTestNode"):
@@ -166,6 +175,7 @@ class TestVisitorDispatch:
             visitor = UnifiedRelationVisitor(
                 relation_system=PolarsRelationSystem(),
                 expression_visitor=None,
+                execution_context=_polars_context(),
             )
             node = _RegistryTestNode()
             assert node.accept(visitor) == "from_registry"
@@ -182,6 +192,7 @@ class TestVisitorDispatch:
             visitor = UnifiedRelationVisitor(
                 relation_system=PolarsRelationSystem(),
                 expression_visitor=None,
+                execution_context=_polars_context(),
             )
             with pytest.raises(RuntimeError, match="_RegistryTestNode"):
                 visitor.visit(_RegistryTestNode())
@@ -205,6 +216,7 @@ class TestCoreHandlers:
         visitor = UnifiedRelationVisitor(
             relation_system=PolarsRelationSystem(),
             expression_visitor=None,
+            execution_context=_polars_context(),
         )
         with pytest.raises(RelationDAGRequired):
             handlers.visit_ref(node, visitor)
@@ -216,6 +228,7 @@ class TestCoreHandlers:
             relation_system=PolarsRelationSystem(),
             expression_visitor=None,
             ref_resolver=lambda name: f"resolved:{name}",
+            execution_context=_polars_context(),
         )
         result = handlers.visit_ref(node, visitor)
         assert result == "resolved:orders"
@@ -233,5 +246,6 @@ class TestCoreHandlers:
             relation_system=PolarsRelationSystem(),
             expression_visitor=None,
             ref_resolver=lambda name: f"resolved:{name}",
+            execution_context=_polars_context(),
         )
         assert visitor.visit(RefRelNode(name="orders")) == "resolved:orders"

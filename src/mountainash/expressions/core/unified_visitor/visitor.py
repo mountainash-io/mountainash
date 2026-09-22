@@ -172,15 +172,13 @@ class UnifiedExpressionVisitor:
         self.raising_diagnostic = None
         self._input_data = input_data
         self.type_context = TypeContext(expression_system, self.visit)
-        # A gating consumer must ensure the capability declaration modules
-        # are imported before querying the registry (bootstrap.py contract):
-        # otherwise a gate silently no-ops on a cold path where nothing has
-        # imported the declaration module. Query-path autoload — a no-op
-        # in LOADED and ISOLATED states, so test fixtures that reset()
-        # into ISOLATED do not break the visitor.
-        from mountainash.core.capabilities.registry import CapabilityRegistry
-
-        CapabilityRegistry.ensure_loaded()
+        # Discovery is the execution context factory's job (T06): every
+        # caller now constructs an already-prepared execution_context
+        # before this visitor, and _prepare_capability_context() already
+        # loads declarations exactly when some consumer demands them --
+        # this constructor must not repeat that discovery independently
+        # (T08 item 13), or a `trusted()`/no-demand caller would still
+        # force a cold registry to load its optional declaration source.
 
     @contextmanager
     def input_scope(self, native_input: Any) -> Iterator[None]:

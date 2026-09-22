@@ -38,3 +38,7 @@ class TestNativeErrorEnrichment:
         assert raised.value.function_key is operation
         assert raised.value.limitation.native_issue == native_issue
         assert isinstance(raised.value.__cause__, TypeError)
+        with ma.capability_policy(ma.CapabilityPolicy.native_debugging()):
+            with pytest.raises(TypeError) as native:
+                ma.relation(dataframe).select(*expressions).collect()
+        assert type(native.value) is TypeError

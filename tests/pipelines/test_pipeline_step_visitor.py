@@ -21,6 +21,8 @@ def test_visit_pipeline_step_rel_with_executor():
     from mountainash.pipelines.integration.relation import PipelineStepRelNode
     from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
     from mountainash.relations.backends.relation_systems.polars import PolarsRelationSystem
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
+    from mountainash.core.constants import CONST_BACKEND
 
     node = PipelineStepRelNode(
         step_name="fetch",
@@ -28,9 +30,13 @@ def test_visit_pipeline_step_rel_with_executor():
         executor=MockExecutor(),
     )
 
+    context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=CapabilityPolicy.trusted(),
+    )
     visitor = UnifiedRelationVisitor(
         relation_system=PolarsRelationSystem(),
         expression_visitor=None,
+        execution_context=context,
     )
 
     result = visitor.visit(node)
@@ -44,12 +50,18 @@ def test_visit_pipeline_step_rel_no_executor_raises():
     from mountainash.pipelines.integration.relation import PipelineStepRelNode
     from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
     from mountainash.relations.backends.relation_systems.polars import PolarsRelationSystem
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
+    from mountainash.core.constants import CONST_BACKEND
 
     node = PipelineStepRelNode(step_name="fetch", pipeline=_make_spec())
 
+    context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=CapabilityPolicy.trusted(),
+    )
     visitor = UnifiedRelationVisitor(
         relation_system=PolarsRelationSystem(),
         expression_visitor=None,
+        execution_context=context,
     )
 
     with pytest.raises(ValueError, match="[Nn]o executor"):

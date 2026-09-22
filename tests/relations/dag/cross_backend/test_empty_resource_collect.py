@@ -205,17 +205,23 @@ def test_uninspectable_columns_does_not_trigger_empty_frame():
     from mountainash.expressions.core.unified_visitor.visitor import (
         UnifiedExpressionVisitor,
     )
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
 
+    context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=CapabilityPolicy.trusted(),
+    )
     relation_system = MountainashPolarsExtensionRelationSystem()
     expression_system_cls = get_expression_system(CONST_BACKEND.POLARS)
-    expr_visitor = UnifiedExpressionVisitor(expression_system_cls())
+    expr_visitor = UnifiedExpressionVisitor(
+        expression_system_cls(execution_context=context), execution_context=context,
+    )
 
     class NoMetadata:
         """A native object exposing neither collect_schema nor columns."""
 
-    visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
+    visitor = UnifiedRelationVisitor(relation_system, expr_visitor, execution_context=context)
     sentinel = NoMetadata()
     # Correct behaviour: with available=None (uninspectable), the zero-column
     # branch MUST NOT fire (trigger is `available == []`, not `is None`/falsy).

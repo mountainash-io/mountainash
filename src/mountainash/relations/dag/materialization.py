@@ -347,6 +347,7 @@ class DAGMaterializationSession:
             ref_resolver=ref_resolver,
             key_context=key_context,
             identity_resolver=lambda n: self.dag.relations[n]._node,
+            execution_context=execution_context,
         )
 
         checks_start = len(visitor.residue_checks)
@@ -387,6 +388,7 @@ class DAGMaterializationSession:
             native = enrich_materialization(
                 visitor.backend, _thunk,
                 diagnostic_trace=trace, residue_checks=residue_checks_this,
+                execution_context=execution_context,
             )
         elif residue_checks_this or (trace is not None and trace.records):
             # Polars/Narwhals: materialize only as a vehicle to trigger
@@ -405,6 +407,7 @@ class DAGMaterializationSession:
             forced = enrich_materialization(
                 visitor.backend, _thunk,
                 diagnostic_trace=trace, residue_checks=residue_checks_this,
+                execution_context=execution_context,
             )
             if was_lazy:
                 relazified = forced.value.lazy()
