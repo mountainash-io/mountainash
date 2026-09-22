@@ -235,6 +235,7 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
 ):
     """Spec Task 4 step 2: one cache(), one to_pyarrow() for one snapshot, zero to_pandas()."""
     from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.relations.core.materialization import (
         MaterializationPurpose,
         MaterializationScope,
@@ -244,6 +245,7 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
 
     table = backend_factory.create({"age": [30, -1, None], "name": ["a", "b", "c"]}, backend_name)
     identity = identify_backend_identity(table)
+    context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
 
     cache_calls = []
     to_pyarrow_calls = []
@@ -272,7 +274,8 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
 
     with MaterializationScope() as scope:
         native = materialize_native(
-            table, identity, MaterializationPurpose.LOGICAL_TERMINAL, scope=scope
+            table, identity, MaterializationPurpose.LOGICAL_TERMINAL,
+            execution_context=context, scope=scope,
         )
         result = logical_terminal_snapshot(native)
 

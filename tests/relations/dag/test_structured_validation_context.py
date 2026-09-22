@@ -20,6 +20,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.materialization import DiagnosticFrameView
 from mountainash.relations.dag import DAGMaterializationSession, RelationDAG
@@ -34,7 +35,6 @@ from mountainash.validation.runner import ValidationRunner
 # Trigger backend registration (side-effect imports)
 import mountainash.relations.backends  # noqa: F401
 import mountainash.expressions.backends  # noqa: F401
-
 
 def _structured_dag():
     dag = RelationDAG()
@@ -52,7 +52,7 @@ class TestDAGCacheSeparation:
 
     def test_cached_values_are_only_native_execution_values(self):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted(), backend="polars")
         session.compile_registered("resource")
         for value in session.cached_values:
             assert not isinstance(value, DiagnosticFrameView)
@@ -61,7 +61,7 @@ class TestDAGCacheSeparation:
 
     def test_canonical_entry_carries_immutable_field_plans(self):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted(), backend="polars")
         entry = session._compile_named("resource")
         assert isinstance(entry.structured_field_plans, MappingProxyType)
         assert "meta" in entry.structured_field_plans
@@ -72,7 +72,7 @@ class TestDAGCacheSeparation:
 
     def test_diagnostic_frames_and_decoded_columns_never_enter_canonical_or_coerced(self):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted(), backend="polars")
         session.compile_registered("resource")
         for entry in session._canonical.values():
             assert not isinstance(entry.native.value, DiagnosticFrameView)
@@ -84,9 +84,12 @@ class TestDAGCacheSeparation:
 
     def test_ref_resolver_call_returns_only_the_native_value(self):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        policy = CapabilityPolicy.trusted()
+        session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
         session.compile_registered("resource")
-        resolver = _SessionRefResolver(session, CONST_BACKEND.POLARS, "polars")
+        _, _, leaf = dag._resolve_identity_leaf("resource")
+        consumer_context = _new_execution_context(leaf.dataframe, policy=policy)
+        resolver = _SessionRefResolver(session, consumer_context)
         value = resolver("resource")
         assert not isinstance(value, DiagnosticFrameView)
         assert not hasattr(value, "logical_columns")
@@ -94,9 +97,12 @@ class TestDAGCacheSeparation:
 
     def test_ref_resolver_structured_plans_is_a_separate_method(self):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        policy = CapabilityPolicy.trusted()
+        session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
         session.compile_registered("resource")
-        resolver = _SessionRefResolver(session, CONST_BACKEND.POLARS, "polars")
+        _, _, leaf = dag._resolve_identity_leaf("resource")
+        consumer_context = _new_execution_context(leaf.dataframe, policy=policy)
+        resolver = _SessionRefResolver(session, consumer_context)
         plans = resolver.structured_plans("resource")
         assert isinstance(plans, MappingProxyType)
         assert "meta" in plans
@@ -157,7 +163,7 @@ class TestPerCallValidationContext:
 
         dag = RelationDAG()
         dag.add("resource", rel)
-        session = DAGMaterializationSession(dag)
+        session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
         context = DAGValidationContext(session)
 
         first = context.prepare("resource")

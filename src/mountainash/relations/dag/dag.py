@@ -368,6 +368,7 @@ class RelationDAG:
         if missing_refs:
             raise self._unknown_ref_error(missing_refs[0])
 
+        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.materialization import (
             DAGMaterializationSession,
             _is_lazy_narwhals,
@@ -375,7 +376,9 @@ class RelationDAG:
             _SessionRefResolver,
         )
 
-        session = DAGMaterializationSession(self, backend=backend)
+        session = DAGMaterializationSession(
+            self, execution_policy=_resolve_policy(), backend=backend,
+        )
         try:
             if key_target_name is not None:
                 # collect()'s case: the target IS itself a registered
@@ -479,7 +482,7 @@ class RelationDAG:
                 execution_context=execution_context,
             )
 
-            ref_resolver = _SessionRefResolver(session, resolved_backend, dialect)
+            ref_resolver = _SessionRefResolver(session, execution_context)
 
             visitor = UnifiedRelationVisitor(
                 relation_system,

@@ -816,6 +816,7 @@ class ValidationRunner:
         (spec'd) resource and a dependency or foreign-key parent of
         another compiles exactly once, shared across every consumer.
         """
+        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.materialization import (
             DAGMaterializationSession,
             SessionMode,
@@ -835,6 +836,7 @@ class ValidationRunner:
 
         session = DAGMaterializationSession(
             dag,
+            execution_policy=_resolve_policy(),
             backend=backend,
             isolate_failures=True,
             node_transforms={

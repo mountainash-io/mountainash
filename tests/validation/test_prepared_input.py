@@ -84,14 +84,19 @@ def test_prepared_identity_mismatch_raises_backend_conversion_error():
     import pandas as pd
 
     from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.core.constants import CONST_BACKEND
 
     identity = BackendIdentity(CONST_BACKEND.IBIS, "ibis-duckdb")
+    context = _new_execution_context(
+        None, family_override=CONST_BACKEND.IBIS, policy=CapabilityPolicy.trusted(),
+    )
     native = NativeExecutionValue(
         value=object(),
         compiler_identity=identity,
         value_identity=identity,
         form=ExecutionForm.DEFERRED,
+        target=context.target,
     )
     with pytest.raises(BackendConversionError):
         assert_prepared_identity(native, pd.DataFrame({"x": [1]}))

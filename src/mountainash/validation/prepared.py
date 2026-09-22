@@ -167,7 +167,8 @@ def prepare_validation_input(
     result, visitor = rel._compile_and_execute_with_visitor(backend=backend)
     compiler_identity = BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
     native = materialize_native(
-        result, compiler_identity, MaterializationPurpose.VALIDATION_SOURCE, scope=scope
+        result, compiler_identity, MaterializationPurpose.VALIDATION_SOURCE,
+        execution_context=visitor.execution_context, scope=scope,
     )
     assert_prepared_identity(native, native.value)
     snapshot, logical_snapshot = _resolve_prepared_snapshot(native, visitor.structured_field_plans)

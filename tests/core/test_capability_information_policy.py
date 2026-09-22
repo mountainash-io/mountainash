@@ -605,3 +605,56 @@ def test_policy_reference_with_wrong_scope_rolls_back_publication():
         CapabilityRegistry.register_segment(invalid)
 
     assert CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery())) == before
+
+
+def test_backend_override_uses_destination_not_source_coordinates():
+    from mountainash.core.capabilities.registry import _LoadState, _empty_state
+    from dataclasses import replace
+    from importlib.metadata import version
+    import duckdb
+    import ibis
+    import polars as pl
+    import mountainash as ma
+    from mountainash.core.capabilities.applicability import Applicability, ComparisonScheme, CoordinateConstraint, Region
+    from mountainash.core.types import BackendCapabilityError
+    source_only = Applicability((Region((CoordinateConstraint(
+        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE, equal=duckdb.__version__,
+    ),)),))
+    destination_only = Applicability((Region((CoordinateConstraint(
+        "package", "polars", ComparisonScheme.PEP440, equal=version("polars"),
+    ),)),))
+    connection = ibis.duckdb.connect(":memory:")
+    try:
+        source = connection.create_table("destination_context", obj=pl.DataFrame({"text": ["a", "b"]}))
+        dag = ma.RelationDAG()
+        dag.add("source", ma.relation(source))
+        dag.add("result", dag.ref("source").select(ma.col("text").str.contains("a").alias("found")))
+        # A source-side policy for an UNUSED operation requires actual DuckDB
+        # coordinates, without gating this pipeline. Thus borrowing that
+        # source context in the Polars destination is observably wrong.
+        source_rule = replace(
+            _policy(), key=CapabilityKey(FK.CENTER, "length"), applicability=source_only,
+        )
+        source_segment = BoundSegment(
+            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string",
+            Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
+            CapabilitySegment(Domain.STRING, policies=(source_rule,)),
+        )
+        with ma.capability_policy(ma.CapabilityPolicy.checked()):
+            CapabilityRegistry.register_segment(source_segment)
+            CapabilityRegistry.register_segment(_segment(policies=(
+                replace(_policy(), applicability=source_only),
+            )))
+            converted = dag.collect("result", backend="polars")
+            assert ma.relation(converted).to_polars()["found"].to_list() == [True, False]
+            CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))  # explicit setup BETWEEN requests
+            CapabilityRegistry.register_segment(source_segment)
+            CapabilityRegistry.register_segment(_segment(policies=(
+                replace(_policy(), applicability=destination_only),
+            )))
+            with pytest.raises(BackendCapabilityError):
+                dag.collect("result", backend="polars")
+            native = dag.collect("result")
+            assert ma.relation(native).to_polars()["found"].to_list() == [True, False]
+    finally:
+        connection.con.close()

@@ -216,16 +216,16 @@ class _CapabilityTarget:
             raise TypeError("capability target requires BackendIdentity")
 
     @property
-    def cache_token(self) -> tuple[CONST_BACKEND, str | None, int]:
+    def token(self) -> tuple[CONST_BACKEND, str | None, int]:
         return self.identity.family, self.identity.dialect, id(self.owner)
 
     def __eq__(self, other: object) -> bool:
         if type(other) is not _CapabilityTarget:
             return NotImplemented
-        return self.cache_token == other.cache_token
+        return self.token == other.token
 
     def __hash__(self) -> int:
-        return hash(self.cache_token)
+        return hash(self.token)
 
 
 @dataclass(frozen=True)
@@ -324,19 +324,25 @@ def _identify_capability_target(
 
     if family_override is not None and type(family_override) is not CONST_BACKEND:
         raise TypeError("family_override requires CONST_BACKEND or None")
+    # Polars has exactly one dialect (mirrors _resolve_backend_and_dialect's
+    # own rule): a placeholder target for an overridden or otherwise
+    # data-less Polars destination must still carry "polars", never an
+    # unnecessarily lossy None that hides its own environment requirements
+    # (spec 10.3: destination applicability, not source borrowing).
+    placeholder_dialect = "polars" if family_override is CONST_BACKEND.POLARS else None
     if data is None:
         if family_override is None:
             raise ValueError("capability target requires data or family_override")
-        return _CapabilityTarget(BackendIdentity(family_override, None), object())
+        return _CapabilityTarget(BackendIdentity(family_override, placeholder_dialect), object())
 
     try:
         detected_family = identify_backend(data)
     except ValueError:
         if family_override is None:
             raise
-        return _CapabilityTarget(BackendIdentity(family_override, None), object())
+        return _CapabilityTarget(BackendIdentity(family_override, placeholder_dialect), object())
     if family_override is not None and family_override is not detected_family:
-        return _CapabilityTarget(BackendIdentity(family_override, None), object())
+        return _CapabilityTarget(BackendIdentity(family_override, placeholder_dialect), object())
     if isinstance(data, (str, CONST_BACKEND)):
         return _CapabilityTarget(identify_backend_identity(data), object())
 

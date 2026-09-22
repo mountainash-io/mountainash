@@ -165,6 +165,7 @@ def _resolve_logical_egress(
     visitor: Any,
     compiler_identity: "BackendIdentity",
     *,
+    execution_context: Any,
     to_native: Callable[[Any], Any],
 ) -> Any:
     """One logical-terminal snapshot, resolved once, handed to the
@@ -185,7 +186,8 @@ def _resolve_logical_egress(
 
     with MaterializationScope() as scope:
         native = materialize_native(
-            result, compiler_identity, MaterializationPurpose.LOGICAL_TERMINAL, scope=scope
+            result, compiler_identity, MaterializationPurpose.LOGICAL_TERMINAL,
+            execution_context=execution_context, scope=scope,
         )
         snapshot = logical_terminal_snapshot(native)
         resolved = resolve_logical_snapshot(snapshot, visitor.structured_field_plans)
@@ -686,7 +688,8 @@ class Relation(RelationBase):
 
         def _materialize_thunk() -> Any:
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
+                execution_context=visitor.execution_context,
             )
             return _unwrap_native(native.value, unwrap=unwrap)
 
@@ -732,7 +735,8 @@ class Relation(RelationBase):
 
         def _materialize_thunk() -> Any:
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
+                execution_context=visitor.execution_context,
             )
             return _unwrap_native(native.value, unwrap=True)
 
@@ -914,10 +918,13 @@ class Relation(RelationBase):
                 )
 
                 return _resolve_logical_egress(
-                    result, visitor, compiler_identity, to_native=resolved_snapshot_to_polars
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_polars,
                 )
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
             )
             return explicit_polars_egress(native)
 
@@ -954,10 +961,13 @@ class Relation(RelationBase):
                 )
 
                 return _resolve_logical_egress(
-                    result, visitor, compiler_identity, to_native=resolved_snapshot_to_pandas
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_pandas,
                 )
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
             )
             return explicit_pandas_egress(native)
 

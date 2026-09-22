@@ -293,6 +293,7 @@ def enrich_materialization(
                 marker_summary,
                 BackendIdentity(family, active_dialect),
                 MaterializationPurpose.DIAGNOSTIC_VIEW,
+                execution_context=execution_context,
             )
             marker_result = diagnostic_polars_view(marker_native).frame
     true_checks = tuple(check for check in checks if _is_true_marker(marker_result, check.marker))
