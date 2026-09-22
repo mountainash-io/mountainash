@@ -26,6 +26,10 @@ from mountainash.core.capabilities.retired import AssertionChange
 from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
+    from mountainash.core.capabilities.applicability import ApplicabilityResult, ComparisonScheme
+    from mountainash.core.capabilities.capture import Environment
+    from mountainash.core.capabilities.declarations import QualifiedCapabilityKey, QualifiedInformationKey
+    from mountainash.core.capabilities.policy import CapabilityPolicy
     from mountainash.core.capabilities.schema import InformationLayer, PolicyAction, PolicyConsumer
 
 
@@ -217,6 +221,40 @@ class CoverageStats:
 
 
 @dataclass(frozen=True)
+class UnresolvedCoordinate:
+    kind: str
+    name: str
+    scheme: "ComparisonScheme"
+    observed: str | None
+    status: str
+
+    def __post_init__(self) -> None:
+        if self.status not in {"missing", "unknown", "unparseable"}:
+            raise ValueError("unresolved coordinate status must be missing, unknown, or unparseable")
+
+
+@dataclass(frozen=True)
+class ApplicabilityDiagnostic:
+    applicability: "ApplicabilityResult | None"
+    unresolved_coordinates: tuple[UnresolvedCoordinate, ...]
+    action_selection: str | None
+
+    def __post_init__(self) -> None:
+        if self.action_selection not in {None, "selected", "excluded"}:
+            raise ValueError("action selection must be selected, excluded, or absent")
+        if type(self.unresolved_coordinates) is not tuple:
+            raise TypeError("unresolved coordinates require an immutable tuple")
+
+
+@dataclass(frozen=True)
+class CoverageDiagnostics:
+    environment: "Environment"
+    policy: "CapabilityPolicy | None"
+    information: Mapping["QualifiedInformationKey", ApplicabilityDiagnostic]
+    policies: Mapping["QualifiedCapabilityKey", ApplicabilityDiagnostic]
+
+
+@dataclass(frozen=True)
 class CoverageReport:
     families: tuple[FamilyCoverage, ...]
     segments: tuple[BoundSegment, ...]
@@ -225,6 +263,7 @@ class CoverageReport:
     gaps: tuple[InventoryGap, ...] | None
     changes: tuple[AssertionChange, ...]
     stats: CoverageStats
+    diagnostics: CoverageDiagnostics | None = None
 
 
 def _check_date(value: str, owner: str) -> None:
@@ -358,6 +397,9 @@ def build_coverage_report(
     gaps: tuple[InventoryGap, ...] | None,
     changes: tuple[AssertionChange, ...],
     implementations: tuple[ImplementationRecord, ...],
+    *,
+    environment: "Environment | None" = None,
+    policy: "CapabilityPolicy | None" = None,
 ) -> CoverageReport:
     """Build a descriptive report without turning declarations into evidence.
 
@@ -417,6 +459,7 @@ def build_coverage_report(
         policies=policies,
         gaps=None if gaps is None else tuple(sorted(gaps, key=gap_order_key)),
         changes=tuple(sorted(changes, key=_change_sort_key)),
+        diagnostics=_build_diagnostics(information, policies, environment, policy),
         stats=CoverageStats(
             ops_total=len(universe),
             by_impl={key: by_impl.get(key, 0) for key in ((b, s) for b in RENDERED_BACKENDS for s in ImplState)},
@@ -427,3 +470,72 @@ def build_coverage_report(
             policies_total=len(policies),
         ),
     )
+
+def _unresolved_coordinates(claim, environment):
+    from mountainash.core.capabilities.applicability import _parse_version
+
+    observed = {(item.kind, item.name): item.version for item in environment.coordinates}
+    unresolved = []
+    for kind, name, scheme in sorted(claim.requirements, key=lambda item: (item[0], item[1], item[2].value)):
+        if (kind, name) not in observed:
+            unresolved.append(UnresolvedCoordinate(kind, name, scheme, None, "missing"))
+            continue
+        raw = observed[(kind, name)]
+        if raw is None:
+            unresolved.append(UnresolvedCoordinate(kind, name, scheme, None, "unknown"))
+            continue
+        try:
+            _parse_version(raw, scheme)
+        except ValueError:
+            unresolved.append(UnresolvedCoordinate(kind, name, scheme, raw, "unparseable"))
+    return tuple(unresolved)
+
+
+def _diagnose_record(claim, environment, action_selection):
+    from mountainash.core.capabilities.applicability import prepare_environment
+
+    if action_selection == "excluded":
+        return ApplicabilityDiagnostic(None, (), "excluded")
+    unresolved = _unresolved_coordinates(claim, environment)
+    prepared = prepare_environment(environment, claim.requirements)
+    applicability = claim.match(prepared)
+    return ApplicabilityDiagnostic(applicability, unresolved, action_selection)
+
+
+def _build_diagnostics(information, policies, environment, policy):
+    from types import MappingProxyType
+
+    from mountainash.core.capabilities.capture import Environment
+    from mountainash.core.capabilities.policy import CapabilityPolicy
+
+    if environment is None:
+        if policy is not None:
+            raise ValueError("runtime policy diagnostics require an explicit environment")
+        return None
+    if type(environment) is not Environment:
+        raise TypeError("coverage diagnostics require an Environment")
+    if policy is not None and type(policy) is not CapabilityPolicy:
+        raise TypeError("coverage diagnostics require CapabilityPolicy or None")
+
+    information_map = {}
+    for record in information:
+        selection = None
+        if policy is not None:
+            selection = "selected" if policy.discloses(record.assertion.kinds) else "excluded"
+        information_map[record.key] = _diagnose_record(record.assertion.applicability, environment, selection)
+
+    policy_map = {}
+    for record in policies:
+        selection = None
+        if policy is not None:
+            selection = (
+                "selected"
+                if policy.selects(record.assertion.consumer, record.assertion.issue_classes)
+                else "excluded"
+            )
+        policy_map[record.key] = _diagnose_record(record.assertion.applicability, environment, selection)
+
+    return CoverageDiagnostics(
+        environment, policy, MappingProxyType(information_map), MappingProxyType(policy_map),
+    )
+
