@@ -9,6 +9,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.types import is_ibis_table
 from mountainash.relations.core.materialization import (
     DiagnosticFrameView,
@@ -27,11 +28,13 @@ def test_validation_materialization_caches_ibis_without_changing_identity(
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
     identity = identify_backend_identity(table)
+    context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
     with MaterializationScope() as scope:
         native = materialize_native(
             table,
             identity,
             MaterializationPurpose.VALIDATION_SOURCE,
+            execution_context=context,
             scope=scope,
         )
         assert identify_backend_identity(native.value) == identity
@@ -47,12 +50,14 @@ def test_logical_terminal_materialization_caches_ibis_once_per_scope(
     """Logical terminal snapshots force a cache without executing through pandas."""
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
     identity = identify_backend_identity(table)
+    context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
 
     with MaterializationScope() as scope:
         native = materialize_native(
             table,
             identity,
             MaterializationPurpose.LOGICAL_TERMINAL,
+            execution_context=context,
             scope=scope,
         )
 
@@ -72,12 +77,14 @@ def test_materialization_scope_releases_owned_callbacks_once():
 def test_repeated_ibis_cache_lifetime_releases_after_use(backend_name, backend_factory):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
     identity = identify_backend_identity(table)
+    context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
     for _ in range(5):
         with MaterializationScope() as scope:
             native = materialize_native(
                 table,
                 identity,
                 MaterializationPurpose.VALIDATION_SOURCE,
+                execution_context=context,
                 scope=scope,
             )
             result = native.value.mutate(ok=native.value.age >= 0)
@@ -88,7 +95,8 @@ def test_repeated_ibis_cache_lifetime_releases_after_use(backend_name, backend_f
 def test_ordinary_collect_purpose_returns_eager_native(backend_name, backend_factory):
     df = backend_factory.create({"x": [1, 2, 3]}, backend_name)
     identity = identify_backend_identity(df)
-    native = materialize_native(df, identity, MaterializationPurpose.NATIVE_COLLECT)
+    context = _new_execution_context(df, policy=CapabilityPolicy.trusted())
+    native = materialize_native(df, identity, MaterializationPurpose.NATIVE_COLLECT, execution_context=context)
     assert native.form is ExecutionForm.EAGER
     assert native.compiler_identity == identity
 
@@ -99,7 +107,8 @@ def test_ordinary_native_collect_purpose_leaves_ibis_table_uncached(
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
     identity = identify_backend_identity(table)
-    native = materialize_native(table, identity, MaterializationPurpose.NATIVE_COLLECT)
+    context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
+    native = materialize_native(table, identity, MaterializationPurpose.NATIVE_COLLECT, execution_context=context)
     assert native.value is table
     assert native.form is ExecutionForm.DEFERRED
 
@@ -118,7 +127,8 @@ def test_diagnostic_polars_view_from_polars_eager_native():
 
     df = pl.DataFrame({"x": [1, 2, 3]})
     identity = identify_backend_identity(df)
-    native = materialize_native(df, identity, MaterializationPurpose.DIAGNOSTIC_VIEW)
+    context = _new_execution_context(df, policy=CapabilityPolicy.trusted())
+    native = materialize_native(df, identity, MaterializationPurpose.DIAGNOSTIC_VIEW, execution_context=context)
     view = diagnostic_polars_view(native)
     assert isinstance(view, DiagnosticFrameView)
     assert view.frame.to_dict(as_series=False) == {"x": [1, 2, 3]}
@@ -130,7 +140,8 @@ def test_diagnostic_polars_view_from_ibis_uses_arrow_not_pandas(
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
     identity = identify_backend_identity(table)
-    native = materialize_native(table, identity, MaterializationPurpose.DIAGNOSTIC_VIEW)
+    context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
+    native = materialize_native(table, identity, MaterializationPurpose.DIAGNOSTIC_VIEW, execution_context=context)
 
     def _boom(*args, **kwargs):
         raise AssertionError("to_pandas() must not be called for a diagnostic view")

@@ -12,6 +12,8 @@ from enum import Enum
 from functools import lru_cache
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, TypeAlias
+from mountainash.core.capabilities.applicability import Applicability
+
 
 if TYPE_CHECKING:
     from mountainash.core.capabilities.identity import Scope
@@ -50,6 +52,7 @@ def _enum_authorities() -> dict[tuple[str, str], type[Enum]]:
         Fidelity,
         ValueClass,
         ClauseOp,
+        CapabilityIssueClass,
         GapKind,
         TargetSurface,
         EntrypointStage,
@@ -681,14 +684,17 @@ class CapabilityLevel(Enum):
     UNSUPPORTED = "unsupported"  # op/param unavailable on this backend/dialect entirely
 
 
-class InformationKind(Enum):
-    """Historical semantic classification for descriptive information."""
+class CapabilityIssueClass(Enum):
+    """Shared closed classification for descriptive information and policy rules."""
 
+    AVAILABILITY = "availability"
+    ARGUMENT_CONTRACT = "argument_contract"
     SEMANTICS = "semantics"
     TYPE_INFERENCE = "type_inference"
     NAMING = "naming"
     PRECISION = "precision"
     ENGINE_LENIENCY = "engine_leniency"
+    UNCLASSIFIED = "unclassified"
 
 
 class InformationLayer(Enum):
@@ -892,6 +898,11 @@ def _validate_since(since: str, owner: str) -> None:
         raise ValueError(f"{owner}: since must be YYYY-MM-DD, got {since!r}")
 
 
+def _validate_variant(variant: str | None) -> None:
+    if variant is not None and (type(variant) is not str or not variant):
+        raise ValueError("variant requires nonempty immutable text")
+
+
 @dataclass(frozen=True)
 class CapabilityFact:
     operation_key: Any  # FKEY or RKEY enum member
@@ -920,8 +931,21 @@ class CapabilityFact:
     consumer: PolicyConsumer | None = None
     action: PolicyAction | None = None
     native_issue: str | None = None
+    variant: str | None = None
+    applicability: Applicability = Applicability()
+    issue_classes: frozenset[CapabilityIssueClass] = frozenset({CapabilityIssueClass.UNCLASSIFIED})
+
 
     def __post_init__(self) -> None:
+        _validate_variant(self.variant)
+        if type(self.applicability) is not Applicability:
+            raise TypeError("capability fact applicability requires Applicability")
+        if type(self.issue_classes) is not frozenset or not self.issue_classes or any(
+            type(issue_class) is not CapabilityIssueClass for issue_class in self.issue_classes
+        ):
+            raise TypeError("policy issue classes require a nonempty frozen enum set")
+        if CapabilityIssueClass.UNCLASSIFIED in self.issue_classes and len(self.issue_classes) != 1:
+            raise ValueError("unclassified cannot accompany a specific issue class")
         if self.consumer is None:
             if self.action is not None or self.native_issue is not None:
                 raise ValueError("policy action/native issue requires an explicit policy consumer")
@@ -1075,6 +1099,7 @@ class CapabilityFact:
                 self.param,
                 str(backend),
                 dialect,
+                self.variant or "",
                 self.boundary.value,
                 self.residue_signal.value,
                 _predicate_digest(self),

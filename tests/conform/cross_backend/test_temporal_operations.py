@@ -14,8 +14,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait.pr
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
-from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
-from tests.conform.cross_backend.test_v2_operations import _SYSTEMS
+from tests.conform.cross_backend.test_v2_operations import _visitor_for
 from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResultHelper
 from tests.fixtures.backend_registry import ALL_BACKENDS
 
@@ -23,7 +22,7 @@ from tests.fixtures.backend_registry import ALL_BACKENDS
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_default_datetime_has_an_explicit_public_refusal_off_polars(backend_name: str) -> None:
     expr = ma.col("value").dt.parse_default(field_name="value")
-    build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    build = lambda: _visitor_for(backend_name).visit(expr._node)
     if backend_name in {"polars", "polars-lazy"}:
         frame = BackendDataFrameFactory.create({"value": ["2024-01-02T03:04:05"]}, backend_name)
         values = BackendResultHelper.select_and_extract(frame, build(), "value", backend_name)
@@ -85,7 +84,7 @@ def test_xsd_operations_all_backends_execute_or_refuse_explicitly(
     invalid_values: list[str],
 ) -> None:
     expr = make_expr(ma.col("value").dt, failure_behavior)
-    build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    build = lambda: _visitor_for(backend_name).visit(expr._node)
     if backend_name == "ibis-sqlite" and failure_behavior is CaseFailureBehaviour.THROW:
         with pytest.raises(BackendCapabilityError) as error:
             build()
@@ -118,7 +117,7 @@ def test_temporal_any_all_backends_execute_or_refuse_explicitly(
         field_name="value",
         failure_behavior=failure_behavior,
     )
-    build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    build = lambda: _visitor_for(backend_name).visit(expr._node)
     if backend_name not in {"polars", "polars-lazy"}:
         with pytest.raises(BackendCapabilityError) as error:
             build()
@@ -168,7 +167,7 @@ def test_partial_date_rejects_signed_fourteen_hour_offsets(
         field_name="value",
         failure_behavior=failure_behavior,
     )
-    build = lambda: UnifiedExpressionVisitor(_SYSTEMS[backend_name]).visit(expr._node)
+    build = lambda: _visitor_for(backend_name).visit(expr._node)
     if backend_name == "ibis-sqlite" and failure_behavior is CaseFailureBehaviour.THROW:
         with pytest.raises(BackendCapabilityError) as error:
             build()
@@ -194,5 +193,5 @@ def test_xsd_sqlite_throw_mode_has_public_refusal(operation_key) -> None:
         else ma.col("value").dt.parse_xsd_partial_date(kind="year", field_name="value")
     )
     with pytest.raises(BackendCapabilityError) as error:
-        UnifiedExpressionVisitor(_SYSTEMS["ibis-sqlite"]).visit(expr._node)
+        _visitor_for("ibis-sqlite").visit(expr._node)
     assert error.value.function_key is operation_key

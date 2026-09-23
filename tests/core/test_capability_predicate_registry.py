@@ -25,6 +25,7 @@ from mountainash.core.capabilities.schema import (
     PolicyAction,
     PolicyConsumer,
     Predicate,
+    ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.dtypes.metadata import OperandType
@@ -135,6 +136,160 @@ def test_later_cross_segment_ambiguity_rolls_back_and_names_both_origins(isolate
     reader = CapabilityRegistry.reader(_SCOPE)
     assert reader.policy(broad_block.key).assertion is broad_block
     assert reader.policy_optional(narrow_permit.key) is None
+
+
+def test_duplicate_predicate_blocker_rejects_later_segment_and_preserves_prior(isolated):
+    predicate = Predicate((Clause("x", ClauseOp.IS_LITERAL),))
+    prior = replace(
+        _policy("x", PolicyAction.BLOCK, predicate, message="literal abs is blocked"),
+        key=replace(
+            CapabilityKey(_OP, "x", Selector("predicate", predicate)),
+            variant="initial-literal-block",
+        ),
+    )
+    initial = _segment(prior, suffix=".duplicate_block_initial")
+    CapabilityRegistry.register_segment(initial)
+    duplicate = replace(
+        prior,
+        key=replace(prior.key, variant="duplicate-literal-block"),
+        message="the same literal restriction is repeated",
+    )
+    later = _segment(duplicate, suffix=".duplicate_block_later")
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    assert initial.module in str(raised.value)
+    assert later.module in str(raised.value)
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(prior.key).assertion is prior
+    assert reader.policy_optional(duplicate.key) is None
+
+
+def test_null_predicate_and_value_class_partition_publish_as_independent_domains(isolated):
+    null_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_NULL),)),
+        message="null abs input is blocked",
+    )
+    value_class_block = CapabilityPolicyRule(
+        key=CapabilityKey(
+            _OP,
+            "x",
+            Selector("value_class", ValueClass.DURATION_MULTIPLIER),
+        ),
+        level=CapabilityLevel.UNSUPPORTED,
+        since="2026-09-18",
+        message="duration multiplier abs input is blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+    )
+    segment = _segment(
+        null_block,
+        value_class_block,
+        suffix=".null_value_class_partition",
+    )
+
+    CapabilityRegistry.register_segment(segment)
+
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert CapabilityRegistry.segments() == (segment,)
+    assert reader.policy(null_block.key).assertion is null_block
+    assert reader.policy(value_class_block.key).assertion is value_class_block
+
+
+def test_exact_string_and_null_predicate_cannot_cancel_after_normalization(isolated):
+    literal_block = _policy(
+        "x", PolicyAction.BLOCK, Predicate((Clause("x", ClauseOp.EQ, "None"),)),
+    )
+    literal_block = replace(
+        literal_block, key=CapabilityKey(_OP, "x", Selector("exact", "None")),
+    )
+    initial = _segment(literal_block, suffix=".normalized_null_block")
+    CapabilityRegistry.register_segment(initial)
+    null_permit = _policy("x", PolicyAction.PERMIT, Predicate((Clause("x", ClauseOp.IS_NULL),)))
+
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(null_permit, suffix=".normalized_null_permit"))
+
+    assert CapabilityRegistry.segments() == (initial,)
+    assert CapabilityRegistry.reader(_SCOPE).policy_optional(null_permit.key) is None
+
+
+def test_trusted_scope_cannot_publish_ambiguous_policy_alternatives(isolated):
+    from mountainash.core.capabilities.policy import CapabilityPolicy, capability_policy
+
+    broad = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="all literal inputs are protected",
+    )
+    broad = replace(broad, key=replace(broad.key, variant="trusted-broad"))
+    initial = _segment(broad, suffix=".trusted_initial")
+    CapabilityRegistry.register_segment(initial)
+    narrow = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x", ClauseOp.EQ, -7),)),
+        message="minus seven would cancel the protection",
+    )
+    narrow = replace(narrow, key=replace(narrow.key, variant="trusted-narrow"))
+    later = _segment(narrow, suffix=".trusted_rejected")
+
+    with capability_policy(CapabilityPolicy.trusted()):
+        with pytest.raises(ValueError) as raised:
+            CapabilityRegistry.register_segment(later)
+
+    message = str(raised.value)
+    assert initial.module in message
+    assert later.module in message
+    assert "call=overlap" in message
+    assert "environment=overlap" in message
+    assert CapabilityRegistry.segments() == (initial,)
+    assert CapabilityRegistry.reader(_SCOPE).policy(broad.key).assertion == broad
+    assert CapabilityRegistry.reader(_SCOPE).policy_optional(narrow.key) is None
+
+
+def test_not_proven_predicate_intersection_rejects_later_segment_without_inventing_witness(isolated):
+    prior = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.IS_LITERAL),)),
+        message="literals remain protected",
+    )
+    initial = _segment(prior, suffix=".not_proven_initial")
+    CapabilityRegistry.register_segment(initial)
+    nested_block = _policy(
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x.logical_kind", ClauseOp.EQ, "integer"),)),
+        message="nested logical-kind policy",
+    )
+    nested_permit = _policy(
+        "x",
+        PolicyAction.PERMIT,
+        Predicate((Clause("x.storage_kind", ClauseOp.EQ, "native"),)),
+        message="nested storage-kind policy",
+    )
+    later = _segment(nested_block, nested_permit, suffix=".not_proven_later")
+
+    with pytest.raises(ValueError) as raised:
+        CapabilityRegistry.register_segment(later)
+
+    message = str(raised.value)
+    assert initial.module in message
+    assert later.module in message
+    assert "call=not_proven" in message
+    assert "environment=overlap" in message
+    assert "call_witness" not in message
+    assert CapabilityRegistry.segments() == (initial,)
+    reader = CapabilityRegistry.reader(_SCOPE)
+    assert reader.policy(prior.key).assertion == prior
+    assert reader.policy_optional(nested_block.key) is None
+    assert reader.policy_optional(nested_permit.key) is None
 
 
 def test_opposing_predicate_policies_compete_across_subject_labels(isolated):

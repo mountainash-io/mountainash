@@ -6,6 +6,8 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.policy import _new_execution_context
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.dtypes.metadata import OperandType
 from mountainash.core.types import BackendCapabilityError
 from fixtures.backend_registry import ALL_BACKENDS
@@ -14,7 +16,9 @@ from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisito
 
 
 def _visitor() -> UnifiedExpressionVisitor:
-    return UnifiedExpressionVisitor(PolarsExpressionSystem(dialect="polars"))
+    execution_context = _new_execution_context(None, family_override=CONST_BACKEND.POLARS)
+    system = PolarsExpressionSystem(dialect="polars", execution_context=execution_context)
+    return UnifiedExpressionVisitor(system, execution_context=execution_context)
 
 
 def test_input_scope_resolves_field_metadata_without_selection(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -119,13 +123,11 @@ def test_null_branches_do_not_make_homogeneous_result_ambiguous() -> None:
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_declared_type_arguments_resolve_when_enforcement_disabled(backend_name, backend_factory, select_and_extract):
-    from mountainash.core.backend_detection import identify_backend_identity
-    from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
-
+@pytest.mark.parametrize("policy_name", ["checked", "trusted"])
+def test_declared_type_arguments_resolve_under_execution_policy(
+    backend_name, backend_factory, select_and_extract, policy_name,
+):
     frame = backend_factory.create({"value": [1, 2]}, backend_name)
-    identity = identify_backend_identity(frame)
-    backend = get_expression_system(identity.family)(dialect=identity.dialect)
-    visitor = UnifiedExpressionVisitor(backend, enforce_capabilities=False, input_data=frame)
-    compiled = visitor.visit(ma.col("value").value_kind().node)
+    with ma.capability_policy(getattr(ma.CapabilityPolicy, policy_name)()):
+        compiled = ma.col("value").value_kind().compile(frame)
     assert select_and_extract(frame, compiled, "kind", backend_name) == ["integer", "integer"]

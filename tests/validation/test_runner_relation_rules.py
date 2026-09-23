@@ -7,6 +7,11 @@ from fixtures.backend_registry import ALL_BACKENDS
 from mountainash.validation import RelationRule, ValidationRunner
 
 
+
+@pytest.fixture(autouse=True)
+def _validation_execution_scope(validation_execution_scope):
+    yield validation_execution_scope
+
 def _unique_plan(column):
     """Failure plan for a uniqueness check: rows of duplicated values."""
     def plan(rel):
@@ -65,3 +70,59 @@ def test_relation_rule_plan_exception_is_isolated():
     )
     assert result.check_summaries["status"][0] == "error"
     assert "boom" in result.check_summaries["error"][0]
+
+
+def test_row_failure_collection_keeps_checked_context_when_inner_scope_changes(
+    monkeypatch, validation_execution_policy,
+):
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_SUBSTRAIT_REL,
+    )
+    from mountainash.validation import RowRule
+
+    before = CapabilityRegistry.snapshot()
+    original_compile = Relation._compile_and_execute_with_visitor
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.relations.backends.capabilities.polars.dialects.polars"
+            ".substrait.relation.validation_row_filter",
+            Scope(CONST_BACKEND.POLARS, Dialect("polars")),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
+                key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+                level=CapabilityLevel.UNSUPPORTED,
+                since="2026-09-21",
+                message="controlled row-failure collection refusal",
+                consumer=PolicyConsumer.GATE,
+                action=PolicyAction.BLOCK,
+            ),)),
+        ))
+
+        def compile_inside_trusted_scope(self, *args, **kwargs):
+            with ma.capability_policy(ma.CapabilityPolicy.trusted()):
+                return original_compile(self, *args, **kwargs)
+
+        monkeypatch.setattr(Relation, "_compile_and_execute_with_visitor", compile_inside_trusted_scope)
+        checks = [RowRule(id="positive", expr=ma.col("score").gt(0), fields=("score",))]
+        relation = ma.relation(pl.DataFrame({"score": [-1, 1]}))
+        result = ValidationRunner().validate_relation(relation, checks)
+
+        if validation_execution_policy == ma.CapabilityPolicy.checked():
+            assert result.passes is False
+            assert result.check_summaries["status"].to_list() == ["error"]
+            assert result.failure_cases.height == 0
+        else:
+            assert result.passes is False
+            assert result.check_summaries["status"].to_list() == ["failed"]
+            assert result.check_summaries["fail_count"].to_list() == [1]
+            assert result.failure_cases["row"].struct.unnest()["score"].to_list() == [-1]
+    finally:
+        CapabilityRegistry.restore(before)

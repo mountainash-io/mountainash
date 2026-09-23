@@ -35,13 +35,26 @@ class DAGRelation(Relation):
         return DAGRelation(node, self._dag)
 
     def _compile_and_execute(self) -> Any:
-        result, _visitor = self._dag._execute_with_visitor(self)
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        result, _visitor = self._dag._execute_with_visitor(
+            self, execution_policy=_resolve_policy(),
+        )
         return result
 
     def _compile_and_execute_with_visitor(
-        self, backend: "str | None" = None
+        self,
+        backend: "str | None" = None,
+        execution_context: Any = None,
     ) -> "tuple[Any, Any]":
-        return self._dag._execute_with_visitor(self, backend=backend)
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        execution_policy = (
+            execution_context.policy if execution_context is not None else _resolve_policy()
+        )
+        return self._dag._execute_with_visitor(
+            self, backend=backend, execution_policy=execution_policy,
+        )
 
     @property
     def schema(self) -> dict:

@@ -14,12 +14,14 @@ same immutable prepared input on repeated calls.
 """
 from __future__ import annotations
 
+import pytest
+
 from types import MappingProxyType
 
 import polars as pl
-import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.materialization import DiagnosticFrameView
 from mountainash.relations.dag import DAGMaterializationSession, RelationDAG
@@ -36,6 +38,10 @@ import mountainash.relations.backends  # noqa: F401
 import mountainash.expressions.backends  # noqa: F401
 
 
+@pytest.fixture(autouse=True)
+def _validation_execution_scope(validation_execution_scope):
+    yield validation_execution_scope
+
 def _structured_dag():
     dag = RelationDAG()
     df = pl.DataFrame({"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']})
@@ -50,18 +56,18 @@ def _structured_dag():
 class TestDAGCacheSeparation:
     """Step 1: the native cache never leaks validation-domain state."""
 
-    def test_cached_values_are_only_native_execution_values(self):
+    def test_cached_values_are_only_native_execution_values(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, backend="polars")
         session.compile_registered("resource")
         for value in session.cached_values:
             assert not isinstance(value, DiagnosticFrameView)
             assert not hasattr(value, "logical_columns")
         session.close(release_owned=False)
 
-    def test_canonical_entry_carries_immutable_field_plans(self):
+    def test_canonical_entry_carries_immutable_field_plans(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, backend="polars")
         entry = session._compile_named("resource")
         assert isinstance(entry.structured_field_plans, MappingProxyType)
         assert "meta" in entry.structured_field_plans
@@ -70,9 +76,9 @@ class TestDAGCacheSeparation:
             entry.structured_field_plans["extra"] = None  # type: ignore[index]
         session.close(release_owned=False)
 
-    def test_diagnostic_frames_and_decoded_columns_never_enter_canonical_or_coerced(self):
+    def test_diagnostic_frames_and_decoded_columns_never_enter_canonical_or_coerced(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy, backend="polars")
         session.compile_registered("resource")
         for entry in session._canonical.values():
             assert not isinstance(entry.native.value, DiagnosticFrameView)
@@ -82,21 +88,27 @@ class TestDAGCacheSeparation:
             assert not hasattr(coerced.value, "logical_columns")
         session.close(release_owned=False)
 
-    def test_ref_resolver_call_returns_only_the_native_value(self):
+    def test_ref_resolver_call_returns_only_the_native_value(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        policy = validation_execution_policy
+        session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
         session.compile_registered("resource")
-        resolver = _SessionRefResolver(session, CONST_BACKEND.POLARS, "polars")
+        _, _, leaf = dag._resolve_identity_leaf("resource")
+        consumer_context = _new_execution_context(leaf.dataframe, policy=policy)
+        resolver = _SessionRefResolver(session, consumer_context)
         value = resolver("resource")
         assert not isinstance(value, DiagnosticFrameView)
         assert not hasattr(value, "logical_columns")
         session.close(release_owned=False)
 
-    def test_ref_resolver_structured_plans_is_a_separate_method(self):
+    def test_ref_resolver_structured_plans_is_a_separate_method(self, validation_execution_policy):
         dag = _structured_dag()
-        session = DAGMaterializationSession(dag, backend="polars")
+        policy = validation_execution_policy
+        session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
         session.compile_registered("resource")
-        resolver = _SessionRefResolver(session, CONST_BACKEND.POLARS, "polars")
+        _, _, leaf = dag._resolve_identity_leaf("resource")
+        consumer_context = _new_execution_context(leaf.dataframe, policy=policy)
+        resolver = _SessionRefResolver(session, consumer_context)
         plans = resolver.structured_plans("resource")
         assert isinstance(plans, MappingProxyType)
         assert "meta" in plans
@@ -109,7 +121,7 @@ class TestPerCallValidationContext:
     """Step 2: two local validation consumers share one prepared input."""
 
     def test_two_consumers_share_one_compile_one_cache_one_arrow_extraction(
-        self, backend_factory, monkeypatch
+        self, backend_factory, monkeypatch, validation_execution_policy
     ):
         table = backend_factory.create(
             {"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']}, "ibis-duckdb"
@@ -157,7 +169,7 @@ class TestPerCallValidationContext:
 
         dag = RelationDAG()
         dag.add("resource", rel)
-        session = DAGMaterializationSession(dag)
+        session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy)
         context = DAGValidationContext(session)
 
         first = context.prepare("resource")
@@ -171,7 +183,7 @@ class TestPerCallValidationContext:
         session.close(release_owned=False)
 
     def test_two_local_checks_on_the_same_resource_share_the_prepared_snapshot(
-        self, backend_factory
+        self, backend_factory, validation_execution_policy
     ):
         """An end-to-end proof through `ValidationRunner.validate_dag()`:
         a value-rule check and a keyed-identity check for the same

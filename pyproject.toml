@@ -27,6 +27,7 @@ dependencies = [
     "polars>=1.35.1",
     "narwhals>=2.20.0",
     "pydantic>=2.2,<3",
+    "packaging>=24",
     "typing_extensions>=4.0.0",
     "lazy_loader>=0.3",
     "universal-pathlib>=0.2.0",

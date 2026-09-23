@@ -136,6 +136,21 @@ def narwhals_dialect(nw_frame: Any) -> str | None:
     return f"narwhals-{impl_name}"
 
 
+def bound_ibis_backend(dataframe: Any) -> Any | None:
+    """Return an already-bound Ibis backend without creating a default one."""
+    from ibis.common.exceptions import IbisError
+
+    try:
+        return dataframe._find_backend(use_default=False)
+    except IbisError:
+        # Ibis uses the same exception type for unbound and ambiguous targets.
+        # Inspect only the failure path; never repeat a successful discovery.
+        backends, _ = dataframe._find_backends()
+        if backends:
+            raise
+        return None
+
+
 def identify_backend_identity(dataframe_or_backend: Any) -> "BackendIdentity":
     """Resolve (family, dialect) from a DataFrame/Table (spec Section 1).
 
@@ -171,11 +186,10 @@ def identify_backend_identity(dataframe_or_backend: Any) -> "BackendIdentity":
         return BackendIdentity(family, dialect)
 
     if family is CONST_BACKEND.IBIS:
-        try:
-            backend = obj._find_backend(use_default=False)
+        backend = bound_ibis_backend(obj)
+        if backend is not None:
             return BackendIdentity(family, f"ibis-{backend.name}")
-        except Exception:
-            # Unbound tables / memtables — dialect unknown at compile time.
-            return BackendIdentity(family, None)
+        # Unbound tables / memtables — dialect unknown at compile time.
+        return BackendIdentity(family, None)
 
     return BackendIdentity(family, None)

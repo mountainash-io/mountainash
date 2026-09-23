@@ -49,6 +49,18 @@ def test_negative_list_index_attribution_without_information():
             ma.col("values").list.get(-1).compile(dataframe)
         assert type(raised.value.__cause__) is ValueError
 
+        with ma.capability_policy(ma.CapabilityPolicy.native_debugging()):
+            with pytest.raises(ValueError) as native:
+                ma.col("values").list.get(-1).compile(dataframe)
+            assert type(native.value) is ValueError
+            compiled = ma.col("values").list.get(0).compile(dataframe)
+            assert dataframe.select(compiled.alias("result"))["result"].to_list() == [1, 3]
+
+        with ma.capability_policy(ma.CapabilityPolicy.trusted()):
+            with pytest.raises(ValueError) as native:
+                ma.col("values").list.get(-1).compile(dataframe)
+            assert type(native.value) is ValueError
+
         compiled = ma.col("values").list.get(0).compile(dataframe)
         assert dataframe.select(compiled.alias("result"))["result"].to_list() == [1, 3]
 

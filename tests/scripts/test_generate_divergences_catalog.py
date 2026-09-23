@@ -17,7 +17,7 @@ from mountainash.core.capabilities.declarations import (
     QualifiedInformation, QualifiedInformationKey,
 )
 from mountainash.core.capabilities.identity import Dialect, Scope
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationKind, InformationLayer
+from mountainash.core.capabilities.schema import CapabilityLevel, CapabilityIssueClass, InformationLayer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK
 
@@ -71,7 +71,7 @@ def test_catalogue_preserves_scope_and_joins_only_explicit_issue():
 
 def test_catalogue_renders_multiple_information_kinds_once_in_sorted_order():
     information = (
-        _information("ibis-duckdb", kinds=frozenset({InformationKind.SEMANTICS, InformationKind.PRECISION})),
+        _information("ibis-duckdb", kinds=frozenset({CapabilityIssueClass.SEMANTICS, CapabilityIssueClass.PRECISION})),
     )
     examples = (_example("ibis-duckdb"),)
 

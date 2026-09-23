@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     import polars as pl
 
     from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import _CapabilityTarget, _ExecutionContext
 
 
 class ExecutionForm(Enum):
@@ -74,6 +75,7 @@ class NativeExecutionValue:
     compiler_identity: "BackendIdentity"
     value_identity: "BackendIdentity"
     form: ExecutionForm
+    target: "_CapabilityTarget"
 
 
 @dataclass(frozen=True)
@@ -152,6 +154,7 @@ def materialize_native(
     compiler_identity: "BackendIdentity",
     purpose: MaterializationPurpose,
     *,
+    execution_context: "_ExecutionContext",
     scope: "MaterializationScope | None" = None,
 ) -> NativeExecutionValue:
     """Force *value* into its native execution form (spec 7.2's table).
@@ -162,6 +165,9 @@ def materialize_native(
     eager via ``.cache()`` instead — never ``.execute()``, which would
     silently convert it to pandas. Any other native value (including a
     pandas-selected source) passes through with its identity re-detected.
+
+    ``execution_context.target`` becomes every resulting carrier's own
+    ``target`` -- the actual native owner this value was produced for.
     """
     from mountainash.core.backend_detection import identify_backend_identity
     from mountainash.core.types import (
@@ -172,23 +178,25 @@ def materialize_native(
         is_polars_lazyframe,
     )
 
+    target = execution_context.target
+
     if is_polars_dataframe(value):
-        return NativeExecutionValue(value, compiler_identity, compiler_identity, ExecutionForm.EAGER)
+        return NativeExecutionValue(value, compiler_identity, compiler_identity, ExecutionForm.EAGER, target=target)
 
     if is_polars_lazyframe(value):
         polars_native = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
-        return NativeExecutionValue(polars_native, compiler_identity, compiler_identity, ExecutionForm.EAGER)
+        return NativeExecutionValue(polars_native, compiler_identity, compiler_identity, ExecutionForm.EAGER, target=target)
 
     if is_narwhals_lazyframe(value):
         narwhals_native = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
         lazy_identity = identify_backend_identity(narwhals_native)
         _assert_declared_family(compiler_identity, lazy_identity)
-        return NativeExecutionValue(narwhals_native, compiler_identity, lazy_identity, ExecutionForm.EAGER)
+        return NativeExecutionValue(narwhals_native, compiler_identity, lazy_identity, ExecutionForm.EAGER, target=target)
 
     if is_narwhals_dataframe(value):
         eager_identity = identify_backend_identity(value)
         _assert_declared_family(compiler_identity, eager_identity)
-        return NativeExecutionValue(value, compiler_identity, eager_identity, ExecutionForm.EAGER)
+        return NativeExecutionValue(value, compiler_identity, eager_identity, ExecutionForm.EAGER, target=target)
 
     if is_ibis_table(value):
         if purpose in _IBIS_FORCE_CACHE_PURPOSES:
@@ -197,17 +205,17 @@ def materialize_native(
                 scope.own(cached.release)
             value_identity = identify_backend_identity(cached)
             _assert_declared_family(compiler_identity, value_identity)
-            return NativeExecutionValue(cached, compiler_identity, value_identity, ExecutionForm.DEFERRED)
+            return NativeExecutionValue(cached, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)
         value_identity = identify_backend_identity(value)
         _assert_declared_family(compiler_identity, value_identity)
-        return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.DEFERRED)
+        return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)
 
     # A pandas-selected (or otherwise unclassified) native value: preserve
     # or unwrap by caller policy upstream, retaining whatever identity is
     # actually observed (spec 7.2's "pandas source" row — a pandas family
     # here is expected, not an undeclared change).
     value_identity = identify_backend_identity(value)
-    return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.EAGER)
+    return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.EAGER, target=target)
 
 
 def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:

@@ -10,6 +10,7 @@ from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformCollection
+    from mountainash.core.capabilities.policy import CapabilityPolicy
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.core.relation_api.relation import Relation
@@ -197,7 +198,12 @@ class RelationDAG:
 
     def collect(self, name: str, *, backend: Optional[str] = None) -> Any:
         """Topologically walk dependencies and materialize residue once."""
-        result, visitor = self._collect_with_visitor(name, backend=backend)
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        execution_policy = _resolve_policy()
+        result, visitor = self._collect_with_visitor(
+            name, backend=backend, execution_policy=execution_policy,
+        )
         has_trace = any(
             trace.records for trace in visitor.diagnostic_traces.values()
         )
@@ -213,6 +219,7 @@ class RelationDAG:
             lambda: _force_eager(result, unwrap=False),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
         if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
             result = result.lazy()
@@ -238,13 +245,17 @@ class RelationDAG:
         from mountainash.conform.drift import ConformCollection
         from mountainash.relations.schema_inference import _schema_from_dataframe
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.capabilities.policy import _resolve_policy
 
-        result, visitor = self._collect_with_visitor(name, backend=backend)
+        result, visitor = self._collect_with_visitor(
+            name, backend=backend, execution_policy=_resolve_policy(),
+        )
         frame = enrich_materialization(
             visitor.backend,
             lambda: _force_eager(result, unwrap=True),
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
         return ConformCollection(
             frame=frame,
@@ -253,7 +264,11 @@ class RelationDAG:
         )
 
     def _collect_with_visitor(
-        self, name: str, *, backend: Optional[str] = None
+        self,
+        name: str,
+        *,
+        backend: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """Shared core for :meth:`collect` / :meth:`collect_with_drift`."""
         if name not in self.relations:
@@ -274,6 +289,7 @@ class RelationDAG:
             backend=backend,
             backend_target_name=name,
             key_target_name=name,
+            execution_policy=execution_policy,
         )
 
     def execute(self, relation: Relation, *, backend: Optional[str] = None) -> Any:
@@ -287,11 +303,19 @@ class RelationDAG:
         Raises ``ValueError`` if the relation has no ``_node`` attribute.
         Raises ``KeyError`` if a referenced name is not in the DAG.
         """
-        result, _visitor = self._execute_with_visitor(relation, backend=backend)
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        result, _visitor = self._execute_with_visitor(
+            relation, backend=backend, execution_policy=_resolve_policy(),
+        )
         return result
 
     def _execute_with_visitor(
-        self, relation: "Relation", *, backend: Optional[str] = None
+        self,
+        relation: "Relation",
+        *,
+        backend: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """``execute()`` variant returning ``(result, visitor)`` for terminals
         needing post-compile visitor state (e.g. ``collect_with_drift``).
@@ -333,6 +357,7 @@ class RelationDAG:
             backend=backend,
             backend_target_name=target_name,
             key_target_name=None,
+            execution_policy=execution_policy,
         )
 
     def _compile_with_refs(
@@ -343,6 +368,7 @@ class RelationDAG:
         backend: Optional[str] = None,
         backend_target_name: Optional[str] = None,
         key_target_name: Optional[str] = None,
+        execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """Compile ``node`` after materialising all relations in ``ref_names``.
 
@@ -373,7 +399,9 @@ class RelationDAG:
             _SessionRefResolver,
         )
 
-        session = DAGMaterializationSession(self, backend=backend)
+        session = DAGMaterializationSession(
+            self, execution_policy=execution_policy, backend=backend,
+        )
         try:
             if key_target_name is not None:
                 # collect()'s case: the target IS itself a registered
@@ -439,6 +467,7 @@ class RelationDAG:
 
             # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
             # must reject before caching.
+            anchor_leaf = None
             if backend_target_name is not None or ref_names:
                 anchor_name = backend_target_name or sorted(ref_names)[0]
                 _anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
@@ -451,13 +480,38 @@ class RelationDAG:
                         raise TypeError(
                             "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
                         )
+            else:
+                from mountainash.relations.core.relation_api.relation_base import (
+                    RelationBase,
+                )
+                from mountainash.relations.dag.errors import RelationDAGRequired
+
+                try:
+                    anchor_leaf = RelationBase._find_leaf_read_node(node)
+                except (ValueError, AttributeError, RelationDAGRequired):
+                    anchor_leaf = None
 
             relation_system = get_relation_system(resolved_backend)(dialect=dialect)
-            expr_visitor = UnifiedExpressionVisitor(
-                get_expression_system(resolved_backend)(dialect=dialect)
+            from mountainash.core.capabilities.policy import (
+                _identify_capability_target,
+                _prepare_capability_context,
             )
 
-            ref_resolver = _SessionRefResolver(session, resolved_backend, dialect)
+            target_data = anchor_leaf.dataframe if anchor_leaf is not None else None
+            target = _identify_capability_target(
+                target_data, family_override=resolved_backend,
+            )
+            execution_context = _prepare_capability_context(
+                execution_policy, target, package_versions=session._package_versions,
+            )
+            expr_visitor = UnifiedExpressionVisitor(
+                get_expression_system(resolved_backend)(
+                    dialect=dialect, execution_context=execution_context,
+                ),
+                execution_context=execution_context,
+            )
+
+            ref_resolver = _SessionRefResolver(session, execution_context)
 
             visitor = UnifiedRelationVisitor(
                 relation_system,
@@ -465,6 +519,7 @@ class RelationDAG:
                 ref_resolver=ref_resolver,
                 key_context=None,  # ad-hoc execute() target: no DAG identity to assess
                 identity_resolver=lambda n: self.relations[n]._node,
+                execution_context=execution_context,
             )
             return node.accept(visitor), visitor
         finally:
@@ -531,11 +586,13 @@ class RelationDAG:
         own failing result (check_id="__identity__") rather than raised out
         of this call - every other resource still validates (spec item 8j §3.2).
         """
+        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.validation import validate
 
         return validate(
             self, specs, context=context, backend=backend, failure_sample=failure_sample,
             allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
         )
 
     def validate_quick(
@@ -548,11 +605,13 @@ class RelationDAG:
         allow_imperfect_key: bool = False,
     ) -> "DAGValidationResult":
         """Fast validation via the ValidationRunner (fail_fast=True; identical shapes)."""
+        from mountainash.core.capabilities.policy import _resolve_policy
         from mountainash.relations.dag.validation import validate_quick
 
         return validate_quick(
             self, specs, context=context, backend=backend, failure_sample=failure_sample,
             allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
         )
 
     def _unknown_ref_error(self, missing: str) -> "UnknownRelationRef":

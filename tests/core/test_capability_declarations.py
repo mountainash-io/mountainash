@@ -74,3 +74,27 @@ def test_bound_segment_qualifies_policy_only_for_its_concrete_scope():
             "mountainash.expressions.backends.capabilities.ibis.family.substrait.string",
             Scope(CONST_BACKEND.IBIS, FamilyWide()), segment,
         )
+
+
+@pytest.mark.parametrize("variant", ("", 1, False), ids=("empty", "integer", "boolean"))
+def test_capability_key_rejects_malformed_variant(variant):
+    with pytest.raises(ValueError, match="variant"):
+        CapabilityKey(FK_STR.CENTER, "length", variant=variant)
+
+
+def test_policy_issue_classes_reject_unknown_and_mixed_unclassified_inputs():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.schema import CapabilityIssueClass
+
+    rule = _policy()
+    with pytest.raises(TypeError, match="issue classes"):
+        replace(rule, issue_classes=frozenset({"semantics"}))
+    with pytest.raises(ValueError, match="unclassified"):
+        replace(
+            rule,
+            issue_classes=frozenset({
+                CapabilityIssueClass.UNCLASSIFIED,
+                CapabilityIssueClass.SEMANTICS,
+            }),
+        )

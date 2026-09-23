@@ -6,6 +6,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.materialization import DiagnosticFrameView
 from mountainash.relations.dag import DAGMaterializationSession, RelationDAG
@@ -32,16 +33,20 @@ def test_session_compiles_each_resource_once_and_memoizes_consumer_coercion(monk
         return original_accept(self, visitor)
 
     monkeypatch.setattr(source_node_type, "accept", counted_accept)
-    session = DAGMaterializationSession(dag, backend="polars")
+    policy = CapabilityPolicy.trusted()
+    session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
     first, visitor = session.compile_registered("target")
-    second = session.resolve("source", CONST_BACKEND.POLARS, "polars")
-    third = session.resolve("source", CONST_BACKEND.POLARS, "polars")
+    consumer_context = visitor.execution_context
+    second = session.resolve("source", consumer_context)
+    third = session.resolve("source", consumer_context)
 
     assert first.value_identity.family is CONST_BACKEND.POLARS
     assert second is third
     assert compile_calls == 1
     assert session.canonical_keys == frozenset({"source", "target"})
-    assert session.coercion_keys == frozenset({("source", CONST_BACKEND.POLARS, "polars")})
+    assert session.coercion_keys == frozenset(
+        {("source", consumer_context.target.token, consumer_context.observations)}
+    )
     assert all(not isinstance(value, DiagnosticFrameView) for value in session.cached_values)
     session.close(release_owned=False)
 
@@ -51,7 +56,8 @@ def test_same_family_same_dialect_ref_is_not_coerced():
     dag.add("source", ma.relation(pl.DataFrame({"id": [1, 2]})))
     dag.add("target", dag.ref("source").select("id"))
 
-    session = DAGMaterializationSession(dag, backend="polars")
+    policy = CapabilityPolicy.trusted()
+    session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
     native, _visitor = session.compile_registered("target")
     assert native.value_identity.family is CONST_BACKEND.POLARS
     # No coercion needed: source is already polars/polars, matching target's
@@ -64,8 +70,12 @@ def test_resolve_before_compile_registered_still_memoizes():
     dag = RelationDAG()
     dag.add("source", ma.relation(pl.DataFrame({"id": [1, 2]})))
 
-    session = DAGMaterializationSession(dag)
-    value = session.resolve("source", CONST_BACKEND.POLARS, "polars")
+    policy = CapabilityPolicy.trusted()
+    session = DAGMaterializationSession(dag, execution_policy=policy)
+    consumer_context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=policy,
+    )
+    value = session.resolve("source", consumer_context)
     assert value is not None
     assert session.canonical_keys == frozenset({"source"})
     session.close(release_owned=False)
@@ -75,7 +85,7 @@ def test_diagnostic_view_is_polars_frame_and_not_reused_by_resolve():
     dag = RelationDAG()
     dag.add("source", ma.relation(pl.DataFrame({"id": [1, 2]})))
 
-    session = DAGMaterializationSession(dag)
+    session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
     session.compile_registered("source")
     view = session.diagnostic_view("source")
     assert isinstance(view, DiagnosticFrameView)
@@ -88,23 +98,28 @@ def test_diagnostic_view_is_polars_frame_and_not_reused_by_resolve():
 def test_diagnostic_view_unknown_name_returns_none():
     dag = RelationDAG()
     dag.add("source", ma.relation(pl.DataFrame({"id": [1]})))
-    session = DAGMaterializationSession(dag)
+    session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
     assert session.diagnostic_view("source") is None
     session.close(release_owned=False)
 
 
 def test_unknown_ref_name_raises():
     dag = RelationDAG()
-    session = DAGMaterializationSession(dag)
+    policy = CapabilityPolicy.trusted()
+    session = DAGMaterializationSession(dag, execution_policy=policy)
+    consumer_context = _new_execution_context(
+        None, family_override=CONST_BACKEND.POLARS, policy=policy,
+    )
     with pytest.raises(Exception, match="not in DAG"):
-        session.resolve("missing", CONST_BACKEND.POLARS, "polars")
+        session.resolve("missing", consumer_context)
     session.close(release_owned=False)
 
 
 def test_close_is_idempotent():
     dag = RelationDAG()
     dag.add("source", ma.relation(pl.DataFrame({"id": [1]})))
-    session = DAGMaterializationSession(dag)
+    session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
     session.compile_registered("source")
     session.close(release_owned=True)
     session.close(release_owned=True)  # no error on second close
+

@@ -97,6 +97,36 @@ class ValidationRunner:
         datacontract_name: str | None = None,
         fk_resolver: Any = None,
     ) -> ValidationResult:
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        return self._validate_relation(
+            relation, checks, plan=plan, apply_value_transforms=apply_value_transforms,
+            conform_contract=conform_contract, identity=identity,
+            allow_imperfect_key=allow_imperfect_key, context=context, fail_fast=fail_fast,
+            failure_sample=failure_sample, backend=backend, validator_name=validator_name,
+            datacontract_name=datacontract_name, fk_resolver=fk_resolver,
+            execution_policy=_resolve_policy(),
+        )
+
+    def _validate_relation(
+        self,
+        relation: "Relation | Any",
+        checks: Sequence[Any] = (),
+        *,
+        plan: Any = None,
+        apply_value_transforms: bool = True,
+        conform_contract: "str | Mapping[str, str] | None" = None,
+        identity: RowIdentity | None = None,
+        allow_imperfect_key: bool = False,
+        context: dict[str, Any] | None = None,
+        fail_fast: bool = False,
+        failure_sample: int | None = None,
+        backend: str | None = None,
+        validator_name: str = "",
+        datacontract_name: str | None = None,
+        fk_resolver: Any = None,
+        execution_policy: Any,
+    ) -> ValidationResult:
         """Prepare *relation* exactly once, then run *checks* against it.
 
         Compiles the plan and materializes it with the dedicated
@@ -144,7 +174,25 @@ class ValidationRunner:
         identity = identity or RowIdentity("none")
         scope = MaterializationScope()
         try:
-            prepared = prepare_validation_input(rel, backend=backend, scope=scope)
+            from mountainash.core.capabilities.policy import _new_execution_context
+            from mountainash.relations.core.relation_api.relation_base import RelationBase
+
+            leaf = None
+            try:
+                leaf = RelationBase._find_leaf_read_node(rel._node)
+            except Exception:
+                leaf = None
+            target_data = leaf.dataframe if leaf is not None else None
+            family_override = None
+            if backend is not None:
+                from mountainash.core.constants import CONST_BACKEND
+                family_override = CONST_BACKEND(backend.lower())
+            execution_context = _new_execution_context(
+                target_data, family_override=family_override, policy=execution_policy,
+            )
+            prepared = prepare_validation_input(
+                rel, backend=backend, scope=scope, execution_context=execution_context,
+            )
         except Exception as exc:  # noqa: BLE001 — isolation is the contract
             scope.close()
             summaries = [
@@ -217,7 +265,9 @@ class ValidationRunner:
         failure_frames: list[pl.DataFrame] = []
         for check in checks:
             kind = check_kind(check)  # raises UnknownCheckTypeError (declaration phase)
-            executor = self._executor_for(kind, fk_resolver)  # ditto
+            executor = self._executor_for(
+                kind, fk_resolver, execution_context=prepared.execution_context,
+            )  # ditto
             summary, failures = self._guarded(executor, rel, check, kind, identity, failure_sample)
             summaries.append(summary)
             if failures.height:
@@ -240,7 +290,9 @@ class ValidationRunner:
 
     # -- dispatch -----------------------------------------------------------
 
-    def _executor_for(self, kind: str, fk_resolver: Any = None) -> Any:
+    def _executor_for(
+        self, kind: str, fk_resolver: Any = None, *, execution_context: Any = None,
+    ) -> Any:
         executors = {
             "row": self._run_row_rule,
             "scalar": self._run_scalar_rule,
@@ -251,7 +303,7 @@ class ValidationRunner:
             ),
         }
         try:
-            return executors[kind]
+            return functools.partial(executors[kind], execution_context=execution_context)
         except KeyError:
             raise UnknownCheckTypeError(
                 f"check kind {kind!r} has no executor"
@@ -288,7 +340,7 @@ class ValidationRunner:
 
     def _run_row_rule(
         self, rel: "Relation", check: Any, identity: RowIdentity,
-        failure_sample: int | None,
+        failure_sample: int | None, *, execution_context=None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
         if (
             check.metadata.get("standard_constraint") == "required"
@@ -305,7 +357,10 @@ class ValidationRunner:
         )
 
         chain = projected.group_by(_OUTCOME).agg(ma.count_records().alias("__ma_n__"))
-        counts_pl = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, chain.to_polars)
+        counts_pl = transit_call(
+            BoundaryKey.RELATION_TO_POLARS_TERMINAL,
+            lambda: chain._to_polars(execution_context=execution_context),
+        )
         counts = dict(zip(counts_pl[_OUTCOME].to_list(), counts_pl["__ma_n__"].to_list()))
         pass_count = int(counts.get("pass", 0))
         fail_count = int(counts.get("fail", 0))
@@ -323,7 +378,8 @@ class ValidationRunner:
         failures = pl.DataFrame()
         if total - passing_count > 0:
             failures = self._collect_row_failures(
-                projected, check, identity, passing, failure_sample
+                projected, check, identity, passing, failure_sample,
+                execution_context=execution_context,
             )
 
         summary = CheckSummary(
@@ -439,6 +495,7 @@ class ValidationRunner:
     def _collect_row_failures(
         self, projected: "Relation", check: Any, identity: RowIdentity,
         passing: "frozenset[str]", failure_sample: int | None,
+        *, execution_context=None,
     ) -> pl.DataFrame:
         import mountainash as ma
 
@@ -469,7 +526,10 @@ class ValidationRunner:
             select_cols.append(value_column)
 
         fail_pl = transit_call(
-            BoundaryKey.RELATION_TO_POLARS_TERMINAL, failing.select(*select_cols, _OUTCOME).to_polars
+            BoundaryKey.RELATION_TO_POLARS_TERMINAL,
+            lambda: failing.select(*select_cols, _OUTCOME)._to_polars(
+                execution_context=execution_context,
+            ),
         )
 
         out = fail_pl.rename({_OUTCOME: "outcome"})
@@ -508,7 +568,7 @@ class ValidationRunner:
         rel: "Relation",
         check: Any,
         identity: RowIdentity,
-        failure_sample: int | None,
+        failure_sample: int | None, *, execution_context=None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
         from mountainash.validation.result import rows_as_struct_failures
         from mountainash.validation.value import (
@@ -522,7 +582,10 @@ class ValidationRunner:
         frame = (
             self._materialized_value_frame
             if self._materialized_value_frame is not None
-            else transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, rel.to_polars)
+            else transit_call(
+                BoundaryKey.RELATION_TO_POLARS_TERMINAL,
+                lambda: rel._to_polars(execution_context=execution_context),
+            )
         )
         missing_fields = set(check.fields) - set(frame.columns)
         if missing_fields:
@@ -679,9 +742,9 @@ class ValidationRunner:
 
     def _run_scalar_rule(
         self, rel: "Relation", check: Any, identity: RowIdentity,
-        failure_sample: int | None,
+        failure_sample: int | None, *, execution_context=None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
-        value = rel._scalar_aggregate(check.expr)
+        value = rel._scalar_aggregate(check.expr, execution_context=execution_context)
         if value is None:
             status = "failed"  # NULL scalar -> unknown verdict; not-passing (spec §6.3)
             diagnostic = "null (unknown verdict)"
@@ -698,17 +761,20 @@ class ValidationRunner:
 
     def _run_relation_rule(
         self, rel: "Relation", check: Any, identity: RowIdentity,
-        failure_sample: int | None,
+        failure_sample: int | None, *, execution_context=None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
         failing = check.plan(rel)
-        fail_count = failing.count_rows()
+        fail_count = failing._count_rows(execution_context=execution_context)
         status = "passed" if fail_count == 0 else "failed"
 
         failures = pl.DataFrame()
         if fail_count:
             sampled = failing.head(failure_sample) if failure_sample is not None else failing
             failures = rows_as_struct_failures(
-                transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, sampled.to_polars),
+                transit_call(
+                    BoundaryKey.RELATION_TO_POLARS_TERMINAL,
+                    lambda: sampled._to_polars(execution_context=execution_context),
+                ),
                 check_id=check.id, check_kind="relation",
             )
 
@@ -723,6 +789,7 @@ class ValidationRunner:
     def _run_foreign_key_rule(
         self, rel: "Relation", check: Any, identity: RowIdentity,
         failure_sample: int | None, *, fk_resolver: Any = None,
+        execution_context=None,
     ) -> "tuple[CheckSummary, pl.DataFrame]":
         """Compare canonical logical keys (spec 15.2, Task 9) -- never a
         backend join. A JSON-text/opaque carrier's raw bytes cannot define
@@ -809,6 +876,31 @@ class ValidationRunner:
         fk_error_summaries: "list[CheckSummary] | None" = None,
         allow_imperfect_key: bool = False,
     ) -> "DAGValidationResult":
+        from mountainash.core.capabilities.policy import _resolve_policy
+
+        return self._validate_dag(
+            dag, checks_by_resource, identity_by_resource=identity_by_resource,
+            plans_by_resource=plans_by_resource, context=context, fail_fast=fail_fast,
+            failure_sample=failure_sample, backend=backend,
+            fk_error_summaries=fk_error_summaries, allow_imperfect_key=allow_imperfect_key,
+            execution_policy=_resolve_policy(),
+        )
+
+    def _validate_dag(
+        self,
+        dag: Any,
+        checks_by_resource: "dict[str, list[Any]]",
+        *,
+        identity_by_resource: "dict[str, RowIdentity] | None" = None,
+        plans_by_resource: "dict[str, Any] | None" = None,
+        context: "dict[str, Any] | None" = None,
+        fail_fast: bool = False,
+        failure_sample: int | None = None,
+        backend: str | None = None,
+        fk_error_summaries: "list[CheckSummary] | None" = None,
+        allow_imperfect_key: bool = False,
+        execution_policy: Any,
+    ) -> "DAGValidationResult":
         """Validate every resource in *checks_by_resource*, then every
         foreign-key rule, through ONE shared
         :class:`~mountainash.relations.dag.materialization.DAGMaterializationSession`
@@ -835,6 +927,7 @@ class ValidationRunner:
 
         session = DAGMaterializationSession(
             dag,
+            execution_policy=execution_policy,
             backend=backend,
             isolate_failures=True,
             node_transforms={

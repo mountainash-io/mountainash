@@ -43,8 +43,9 @@ class BaseExpressionSystem(ABC):
 
     BACKEND_NAME: str = "unknown"
 
-    def __init__(self, dialect: str | None = None) -> None:
+    def __init__(self, dialect: str | None = None, *, execution_context: Any) -> None:
         self.dialect = dialect
+        self.execution_context = execution_context
         self._operand_type_stack: list[Mapping[str, Any]] = []
 
     def prepare_call_arguments(
@@ -267,11 +268,14 @@ class BaseExpressionSystem(ABC):
         )
         from mountainash.core.limitations import call_with_limitation_enrichment
 
+        if not self.execution_context.policy.has_demand(PolicyConsumer.IMMEDIATE_ERROR):
+            return fn()
         limitations: dict[tuple[Any, str], Any] = {}
         for param in (*named_args, WILDCARD_PARAM):
             fact = CapabilityRegistry.capability_for(
                 function_key, param, self.backend_type, self.dialect,
                 consumer=PolicyConsumer.IMMEDIATE_ERROR,
+                execution_context=self.execution_context,
             )
             if (
                 fact is not None
@@ -285,4 +289,5 @@ class BaseExpressionSystem(ABC):
             operation_key=function_key,
             named_args=named_args,
             identify_issue=getattr(self, "identify_native_issue", None),
+            execution_context=self.execution_context,
         )

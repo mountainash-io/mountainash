@@ -20,17 +20,27 @@ def test_sqlite_abs_error_checks_declared_width_without_catalogue(backend_factor
     import ibis
 
     from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.policy import (
+        CapabilityPolicy, ProtectionMechanism, _new_execution_context,
+    )
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.core.types import BackendCapabilityError
     from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
     from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 
     dataframe = backend_factory.create({"x": [-7, -8]}, "ibis-sqlite")
-    system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-sqlite")
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
-        visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False, input_data=dataframe)
+        # gate-only bypass: disable GATE protection, keep error enrichment active.
+        policy = CapabilityPolicy.checked(mechanisms=frozenset({ProtectionMechanism.MATERIALIZATION}))
+        execution_context = _new_execution_context(dataframe, policy=policy)
+        system = get_expression_system(CONST_BACKEND.IBIS)(
+            dialect="ibis-sqlite", execution_context=execution_context,
+        )
+        visitor = UnifiedExpressionVisitor(
+            system, input_data=dataframe, execution_context=execution_context,
+        )
         valid = visitor.visit(ma.col("x").abs(overflow="ERROR")._node)
         assert dataframe.select(valid.name("result")).to_pyarrow()["result"].to_pylist() == [7, 8]
 

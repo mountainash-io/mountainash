@@ -180,21 +180,27 @@ class BaseExpressionAPI(ABC):
         """
         from ..expression_system.expsys_base import get_expression_system
         from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.capabilities.policy import _new_execution_context
 
         # Auto-booleanize non-terminal ternary expressions
         node_to_compile = self._maybe_booleanize(booleanizer)
 
         # Detect backend and get ExpressionSystem
         identity = identify_backend_identity(dataframe)
+        execution_context = _new_execution_context(dataframe)
         expression_system_class = get_expression_system(identity.family)
-        expression_system = expression_system_class(dialect=identity.dialect)
+        expression_system = expression_system_class(
+            dialect=identity.dialect, execution_context=execution_context,
+        )
 
         # Check if this is an ExpressionNode
         from ..expression_nodes import ExpressionNode
         if isinstance(node_to_compile, ExpressionNode):
             # Use unified visitor for all expression nodes
             from ..unified_visitor import UnifiedExpressionVisitor
-            visitor = UnifiedExpressionVisitor(expression_system, input_data=dataframe)
+            visitor = UnifiedExpressionVisitor(
+                expression_system, input_data=dataframe, execution_context=execution_context,
+            )
             return visitor.visit(node_to_compile)
 
         # Handle raw values (should not normally reach here)
@@ -202,7 +208,9 @@ class BaseExpressionAPI(ABC):
         from ..expression_nodes import LiteralNode
         lit_node = LiteralNode(value=node_to_compile)
         from ..unified_visitor import UnifiedExpressionVisitor
-        visitor = UnifiedExpressionVisitor(expression_system, input_data=dataframe)
+        visitor = UnifiedExpressionVisitor(
+            expression_system, input_data=dataframe, execution_context=execution_context,
+        )
         return visitor.visit(lit_node)
 
     def _maybe_booleanize(

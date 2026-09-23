@@ -31,15 +31,18 @@ def call_with_limitation_enrichment(
     operation_key: Any,
     named_args: Mapping[str, Any],
     identify_issue: Callable[..., str | None] | None,
+    execution_context: Any,
 ) -> Any:
     """Enrich an identified native issue, never a merely matching error class."""
+    from mountainash.core.capabilities.schema import PolicyConsumer
+
+    if not execution_context.policy.has_demand(PolicyConsumer.IMMEDIATE_ERROR):
+        return fn()
     try:
         return fn()
     except BackendCapabilityError:
         raise  # already enriched (e.g. by a nested visit) — never re-wrap
     except Exception as exc:
-        from mountainash.core.capabilities.schema import PolicyConsumer
-
         issue = (
             identify_issue(exc, operation_key=operation_key, arguments=named_args)
             if identify_issue is not None else None
@@ -137,6 +140,7 @@ def enrich_materialization(
     dialect: Any = _UNSPECIFIED_DIALECT,
     diagnostic_trace: Any = None,
     residue_checks: Iterable[Any] = (),
+    execution_context: Any = None,
 ) -> Any:
     """Enrich deterministic capability residue at a materialization boundary."""
     from mountainash.conform.errors import ConformError
@@ -152,7 +156,20 @@ def enrich_materialization(
         return fn()
 
     diagnostics = tuple(getattr(diagnostic_trace, "records", ()))
-    facts = CapabilityRegistry.residue_candidates(family, active_dialect)
+    # Registry access is itself a demanded-loading trigger (bootstrap
+    # autoload from UNINITIALIZED) -- skip it entirely when neither residue
+    # consumer this function serves is demanded, so a trusted()/no-demand
+    # caller never forces a cold registry to load its optional declaration
+    # source (T08 item 13, mirrors the GATE-demand check in _dispatch).
+    if execution_context is not None and not (
+        execution_context.policy.has_demand(PolicyConsumer.MATERIALIZATION_ERROR)
+        or execution_context.policy.has_demand(PolicyConsumer.RESULT_PROTECTION)
+    ):
+        facts = ()
+    else:
+        facts = CapabilityRegistry.residue_candidates(
+            family, active_dialect, execution_context=execution_context,
+        )
     if not facts and not diagnostics and not checks:
         return fn()
     try:
@@ -162,6 +179,10 @@ def enrich_materialization(
     except ConformError:
         raise
     except Exception as exc:
+        if execution_context is not None and not execution_context.policy.has_demand(
+            PolicyConsumer.MATERIALIZATION_ERROR
+        ):
+            raise
         identify = getattr(backend, "identify_native_issue", None)
         native_issue = identify(exc) if identify is not None else None
         matched: list[tuple[Any, Any]] = []
@@ -272,6 +293,7 @@ def enrich_materialization(
                 marker_summary,
                 BackendIdentity(family, active_dialect),
                 MaterializationPurpose.DIAGNOSTIC_VIEW,
+                execution_context=execution_context,
             )
             marker_result = diagnostic_polars_view(marker_native).frame
     true_checks = tuple(check for check in checks if _is_true_marker(marker_result, check.marker))

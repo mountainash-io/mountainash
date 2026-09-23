@@ -205,3 +205,49 @@ def test_disjoint_finite_predicate_partition_gates_the_relation_visitor():
         assert raised.value.limitation.message == "the selected finite remainder is unavailable"
     finally:
         CapabilityRegistry.restore(snap)
+
+
+@pytest.mark.parametrize("mode", ["checked", "trusted"])
+def test_cold_relation_gate_obeys_request_policy(mode, monkeypatch):
+    import mountainash as ma
+    import polars as pl
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, bootstrap
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.registry import _empty_state
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.core.types import BackendCapabilityError
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
+
+    declaration = BoundSegment(
+        "mountainash.relations.backends.capabilities.polars.dialects.polars.substrait.relation.cold_gate",
+        Scope(CONST_BACKEND.POLARS, Dialect("polars")),
+        CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
+            CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
+            CapabilityLevel.UNSUPPORTED, "2026-09-21", "controlled relation refusal",
+            PolicyConsumer.GATE, PolicyAction.BLOCK,
+        ),)),
+    )
+    def load_declarations():
+        if mode == "trusted":
+            raise RuntimeError("optional catalogue unavailable")
+        return (declaration,)
+
+    before = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.restore(_empty_state())  # UNINITIALIZED, not ISOLATED
+        monkeypatch.setattr(bootstrap, "_load_segments", load_declarations)
+        relation = ma.relation(pl.DataFrame({"value": [1, 2, 3]})).head(2)
+        with ma.capability_policy(getattr(ma.CapabilityPolicy, mode)()):
+            if mode == "checked":
+                with pytest.raises(BackendCapabilityError) as error:
+                    relation.collect()
+                assert error.value.function_key is RKEY_SUBSTRAIT_REL.FETCH
+                assert error.value.limitation.consumer is PolicyConsumer.GATE
+            else:
+                assert relation.collect().to_dicts() == [{"value": 1}, {"value": 2}]
+    finally:
+        CapabilityRegistry.restore(before)

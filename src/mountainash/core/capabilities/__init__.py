@@ -22,6 +22,11 @@ from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALEC
 from mountainash.core.capabilities.predicates import BoundCall
 from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
 from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
+from mountainash.core.capabilities.policy import (
+    CapabilityPolicy,
+    ProtectionMechanism,
+    capability_policy,
+)
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
@@ -30,7 +35,7 @@ from mountainash.core.capabilities.schema import (
     ClauseOp,
     Enforcement,
     InformationLayer,
-    InformationKind,
+    CapabilityIssueClass,
     PolicyAction,
     PolicyConsumer,
     Fidelity,
@@ -54,6 +59,9 @@ __all__ = [
     "CapabilitySegment",
     "CapabilitySegmentModule",
     "CapabilityPolicyRule",
+    "CapabilityPolicy",
+    "ProtectionMechanism",
+    "capability_policy",
     "QualifiedCapabilityKey",
     "Selector",
     "CapabilityFact",
@@ -73,7 +81,7 @@ __all__ = [
     "GapKind",
     "KNOWN_DIALECTS",
     "InformationLayer",
-    "InformationKind",
+    "CapabilityIssueClass",
     "KnownGap",
     "Predicate",
     "ResidueSignal",

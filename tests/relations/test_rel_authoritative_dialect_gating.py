@@ -132,14 +132,17 @@ class TestAuthoritativeDialectCases:
             UnifiedRelationVisitor,
         )
         from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 
         class _FakeBackend:
             backend_type = CONST_BACKEND.IBIS
             dialect = "ibis-duckdb"   # anchor has a KNOWN dialect
 
         ib = ibis.memtable({"k": [1]})   # unbound -> (IBIS, None)
+        context = _new_execution_context(ib, policy=CapabilityPolicy.trusted())
         visitor = UnifiedRelationVisitor(
-            _FakeBackend(), expression_visitor=None, identity_resolver=None
+            _FakeBackend(), expression_visitor=None, identity_resolver=None,
+            execution_context=context,
         )
         family, dialect = visitor._physical_identity(ReadRelNode(dataframe=ib))
         assert family is CONST_BACKEND.IBIS
@@ -152,15 +155,20 @@ class TestAuthoritativeDialectCases:
         from mountainash.relations.core.relation_nodes.extensions_mountainash import (
             RefRelNode,
         )
+        from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 
         class _FakeBackend:
             backend_type = CONST_BACKEND.NARWHALS
             dialect = "narwhals-pandas"
 
         nodes = {"a": RefRelNode(name="b"), "b": RefRelNode(name="a")}
+        context = _new_execution_context(
+            None, family_override=CONST_BACKEND.NARWHALS, policy=CapabilityPolicy.trusted(),
+        )
         visitor = UnifiedRelationVisitor(
             _FakeBackend(), expression_visitor=None,
             identity_resolver=lambda name: nodes[name],
+            execution_context=context,
         )
         family, dialect = visitor._physical_identity(nodes["a"])
         assert family is None and dialect is None   # cycle -> unresolved, no recursion

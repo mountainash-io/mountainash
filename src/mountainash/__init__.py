@@ -29,6 +29,12 @@ import lazy_loader
 __getattr__, _lazy_dir, _LAZY_EXPORTS = lazy_loader.attach(
     __name__,
     submod_attrs={
+        "core.capabilities": [
+            "CapabilityIssueClass",
+            "CapabilityPolicy",
+            "ProtectionMechanism",
+            "capability_policy",
+        ],
         "expressions": [
             "CONST_EXPRESSION_NODE_TYPES",
             "CONST_LOGIC_TYPES",
@@ -170,6 +176,10 @@ __all__ = [
     "TypeSpec",
     "typespec",
     "datacontract",
+    "CapabilityIssueClass",
+    "CapabilityPolicy",
+    "ProtectionMechanism",
+    "capability_policy",
     "CONST_EXPRESSION_NODE_TYPES",
     "CONST_LOGIC_TYPES",
     "BaseExpressionAPI",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.backend_detection import identify_backend
@@ -15,6 +15,9 @@ from ..relation_nodes.extensions_mountainash import RefRelNode
 from ..relation_protocols.relsys_base import get_relation_system
 from ..unified_visitor.relation_visitor import UnifiedRelationVisitor
 from ...dag.errors import RelationDAGRequired
+
+if TYPE_CHECKING:
+    from mountainash.core.capabilities.policy import _ExecutionContext
 
 
 class RelationBase:
@@ -34,7 +37,7 @@ class RelationBase:
         return result
 
     def _compile_and_execute_with_visitor(
-        self, backend: "str | None" = None
+        self, backend: "str | None" = None, execution_context: "_ExecutionContext | None" = None,
     ) -> "tuple[Any, UnifiedRelationVisitor]":
         """Compile the relational AST and return ``(result, visitor)``.
 
@@ -49,6 +52,10 @@ class RelationBase:
                 ...), overriding auto-detection from the plan's leaf
                 ``ReadRelNode``. ``None`` (default) preserves the existing
                 auto-detect behaviour.
+            execution_context: Already-prepared context to reuse instead of
+                freezing a new one. Only the outer delegation boundary (a
+                public terminal's first, and only, call for its own request)
+                leaves this ``None`` and lets this method prepare it.
         """
         node = self._apply_optimisations(self._node)
         if backend is not None:
@@ -67,9 +74,22 @@ class RelationBase:
         relation_system_cls = get_relation_system(resolved_backend)
         relation_system = relation_system_cls(dialect=dialect)
         expression_system_cls = get_expression_system(resolved_backend)
-        expression_system = expression_system_cls(dialect=dialect)
-        expr_visitor = UnifiedExpressionVisitor(expression_system)
-        visitor = UnifiedRelationVisitor(relation_system, expr_visitor)
+        from mountainash.core.capabilities.policy import _new_execution_context
+
+        target_data = leaf.dataframe if leaf is not None else None
+        if execution_context is None:  # only the outer delegation boundary may prepare
+            execution_context = _new_execution_context(
+                target_data, family_override=resolved_backend,
+            )
+        expression_system = expression_system_cls(
+            dialect=dialect, execution_context=execution_context,
+        )
+        expr_visitor = UnifiedExpressionVisitor(
+            expression_system, input_data=target_data, execution_context=execution_context,
+        )
+        visitor = UnifiedRelationVisitor(
+            relation_system, expr_visitor, execution_context=execution_context,
+        )
         return visitor.visit(node), visitor
 
     def _apply_optimisations(self, node: RelationNode) -> RelationNode:

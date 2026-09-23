@@ -15,6 +15,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.errors import BackendConversionError
 from mountainash.relations.core.materialization import (
     ExecutionForm,
     MaterializationPurpose,
@@ -27,7 +28,9 @@ from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
     from mountainash.conform.structured_transport import StructuredFieldPlanMap
+    from mountainash.core.capabilities.capture import Environment
     from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _ExecutionContext
     from mountainash.relations.core.materialization import DiagnosticFrameView
     from mountainash.relations.core.unified_visitor.relation_visitor import (
         UnifiedRelationVisitor,
@@ -150,15 +153,13 @@ class _SessionRefResolver:
     def __init__(
         self,
         session: "DAGMaterializationSession",
-        family: CONST_BACKEND,
-        dialect: "str | None",
+        consumer_context: "_ExecutionContext",
     ) -> None:
         self._session = session
-        self._family = family
-        self._dialect = dialect
+        self._consumer_context = consumer_context
 
     def __call__(self, name: str) -> Any:
-        return self._session.resolve(name, self._family, self._dialect)
+        return self._session.resolve(name, self._consumer_context)
 
     def structured_plans(self, name: str) -> "StructuredFieldPlanMap":
         return self._session._compile_named(name).structured_field_plans
@@ -206,6 +207,7 @@ class DAGMaterializationSession:
         self,
         dag: "RelationDAG",
         *,
+        execution_policy: "CapabilityPolicy",
         backend: "str | None" = None,
         isolate_failures: bool = False,
         node_transforms: "Mapping[str, Callable[[Any], Any]] | None" = None,
@@ -216,8 +218,10 @@ class DAGMaterializationSession:
         self.isolate_failures = isolate_failures
         self.mode = mode
         self._node_transforms = dict(node_transforms or {})
+        self._execution_policy = execution_policy
+        self._package_versions: "dict[str, str | None]" = {}
         self._canonical: "dict[str, CanonicalEntry]" = {}
-        self._coerced: "dict[tuple[str, CONST_BACKEND, str | None], NativeExecutionValue]" = {}
+        self._coerced: "dict[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment], NativeExecutionValue]" = {}
         self._diagnostic_views: "dict[str, DiagnosticFrameView]" = {}
         self._visitors: "dict[str, UnifiedRelationVisitor]" = {}
         self._validation_native: "dict[str, NativeExecutionValue]" = {}
@@ -229,7 +233,7 @@ class DAGMaterializationSession:
         return frozenset(self._canonical)
 
     @property
-    def coercion_keys(self) -> "frozenset[tuple[str, CONST_BACKEND, str | None]]":
+    def coercion_keys(self) -> "frozenset[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment]]":
         return frozenset(self._coerced)
 
     @property
@@ -317,8 +321,23 @@ class DAGMaterializationSession:
         from mountainash.relations.dag.key_context import KeyDriftContext
 
         relation_system = get_relation_system(resolved_backend)(dialect=dialect)
+        from mountainash.core.capabilities.policy import (
+            _identify_capability_target,
+            _prepare_capability_context,
+        )
+
+        target = _identify_capability_target(
+            anchor_leaf.dataframe if anchor_leaf is not None else None,
+            family_override=resolved_backend,
+        )
+        execution_context = _prepare_capability_context(
+            self._execution_policy, target, package_versions=self._package_versions,
+        )
         expr_visitor = UnifiedExpressionVisitor(
-            get_expression_system(resolved_backend)(dialect=dialect)
+            get_expression_system(resolved_backend)(
+                dialect=dialect, execution_context=execution_context,
+            ),
+            execution_context=execution_context,
         )
         # Every dependency is key-assessed against ITS OWN constraints,
         # unconditionally -- including a no-leaf ref -- regardless of
@@ -330,7 +349,7 @@ class DAGMaterializationSession:
             schema_of=self.dag.schema,
         )
 
-        ref_resolver = _SessionRefResolver(self, resolved_backend, dialect)
+        ref_resolver = _SessionRefResolver(self, execution_context)
 
         visitor = UnifiedRelationVisitor(
             relation_system,
@@ -338,6 +357,7 @@ class DAGMaterializationSession:
             ref_resolver=ref_resolver,
             key_context=key_context,
             identity_resolver=lambda n: self.dag.relations[n]._node,
+            execution_context=execution_context,
         )
 
         checks_start = len(visitor.residue_checks)
@@ -372,12 +392,13 @@ class DAGMaterializationSession:
             def _thunk() -> NativeExecutionValue:
                 return materialize_native(
                     compiled, compiler_identity, MaterializationPurpose.DAG_CANONICAL,
-                    scope=self._scope,
+                    execution_context=execution_context, scope=self._scope,
                 )
 
             native = enrich_materialization(
                 visitor.backend, _thunk,
                 diagnostic_trace=trace, residue_checks=residue_checks_this,
+                execution_context=execution_context,
             )
         elif residue_checks_this or (trace is not None and trace.records):
             # Polars/Narwhals: materialize only as a vehicle to trigger
@@ -390,19 +411,20 @@ class DAGMaterializationSession:
             def _thunk() -> NativeExecutionValue:
                 return materialize_native(
                     compiled, compiler_identity, MaterializationPurpose.DAG_CANONICAL,
-                    scope=self._scope,
+                    execution_context=execution_context, scope=self._scope,
                 )
 
             forced = enrich_materialization(
                 visitor.backend, _thunk,
                 diagnostic_trace=trace, residue_checks=residue_checks_this,
+                execution_context=execution_context,
             )
             if was_lazy:
                 relazified = forced.value.lazy()
                 native = NativeExecutionValue(
                     relazified, forced.compiler_identity,
                     identify_backend_identity(relazified),
-                    ExecutionForm.LAZY,
+                    ExecutionForm.LAZY, target=forced.target,
                 )
             else:
                 native = forced
@@ -411,7 +433,7 @@ class DAGMaterializationSession:
             # (possibly still lazy), only detecting its identity.
             value_identity = identify_backend_identity(compiled)
             form = ExecutionForm.LAZY if was_lazy else ExecutionForm.EAGER
-            native = NativeExecutionValue(compiled, compiler_identity, value_identity, form)
+            native = NativeExecutionValue(compiled, compiler_identity, value_identity, form, target=execution_context.target)
 
         diagnostic_records = tuple(getattr(trace, "records", ()))
 
@@ -482,7 +504,8 @@ class DAGMaterializationSession:
             if native.form is ExecutionForm.LAZY:
                 native = materialize_native(
                     native.value, native.compiler_identity,
-                    MaterializationPurpose.VALIDATION_SOURCE, scope=self._scope,
+                    MaterializationPurpose.VALIDATION_SOURCE,
+                    execution_context=visitor.execution_context, scope=self._scope,
                 )
             self._validation_native[name] = native
         return self._validation_native[name], visitor
@@ -490,25 +513,58 @@ class DAGMaterializationSession:
     def resolve(
         self,
         name: str,
-        consumer_family: CONST_BACKEND,
-        consumer_dialect: "str | None",
+        consumer_context: "_ExecutionContext",
     ) -> Any:
         """The raw native value for *name*, coerced to match a consumer's
         active identity if needed (spec 10.3), memoized per distinct
-        ``(name, consumer_family, consumer_dialect)`` triple."""
+        ``(name, consumer_context.target.token, consumer_context.observations)``
+        triple.
+        A refusal only applies between *established* Ibis connection
+        owners: both sides carry a bound backend (dialect
+        ``ibis-<name>``) and their owner objects differ. A synthetic or
+        unbound target (dialect ``None``, e.g. a join-of-refs resource
+        with no own leaf, or a bare pandas dependency coerced toward an
+        Ibis anchor) is not an owner and must never trigger the
+        cross-connection refusal (spec 10.3).
+        """
         entry = self._compile_named(name)
         native = entry.native
         src_family = native.value_identity.family
         src_dialect = native.value_identity.dialect
         if src_family is None:
             return native.value  # no-leaf ref: already anchor-family
+        consumer_family = consumer_context.target.identity.family
+        consumer_dialect = consumer_context.target.identity.dialect
+        def _ibis_owner_dialect(target) -> "str | None":
+            """Dialect only when *target* is a real bound Ibis backend."""
+            identity = target.identity
+            if identity.family is CONST_BACKEND.IBIS and identity.dialect is not None:
+                return identity.dialect
+            return None
+
+        if (
+            _ibis_owner_dialect(native.target) is not None
+            and _ibis_owner_dialect(consumer_context.target) is not None
+            and native.target.token != consumer_context.target.token
+        ):
+            raise BackendConversionError(
+                "Cross-connection Ibis DAG coercion is unsupported",
+                boundary_key=None,
+                source_family=native.value_identity.family.value,
+                source_dialect=native.value_identity.dialect,
+                destination_family=consumer_family.value,
+                destination_dialect=consumer_dialect,
+                source_type=type(native.value).__name__,
+                route="_coerce_to_match",
+                reason="no declared Ibis conversion route between distinct connection owners",
+            )
         needs_coercion = src_family != consumer_family or (
             src_family is CONST_BACKEND.NARWHALS and src_dialect != consumer_dialect
         )
         if not needs_coercion:
             return native.value
 
-        key = (name, consumer_family, consumer_dialect)
+        key = (name, consumer_context.target.token, consumer_context.observations)
         if key not in self._coerced:
             from mountainash.relations.core.unified_visitor.relation_visitor import (
                 UnifiedRelationVisitor,
@@ -520,7 +576,8 @@ class DAGMaterializationSession:
                 consumer_family, consumer_dialect
             )
             self._coerced[key] = NativeExecutionValue(
-                coerced_value, native.value_identity, destination_identity, ExecutionForm.EAGER
+                coerced_value, native.value_identity, destination_identity, ExecutionForm.EAGER,
+                target=consumer_context.target,
             )
         return self._coerced[key].value
 

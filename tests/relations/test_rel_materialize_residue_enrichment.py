@@ -67,10 +67,11 @@ def test_invalid_split_delimiter_is_not_a_storage_limitation(backend_name, nativ
     assert not isinstance(raised.value, BackendCapabilityError)
 
 
+@pytest.mark.parametrize("policy_factory", [ma.CapabilityPolicy.checked, ma.CapabilityPolicy.native_debugging])
 @pytest.mark.parametrize("backend_name", [
     "ibis-duckdb", "ibis-polars", "narwhals-polars", "narwhals-pandas",
 ])
-def test_native_collect_protects_xsd_results_without_exposing_markers(backend_name, backend_factory):
+def test_native_collect_protects_xsd_results_without_exposing_markers(backend_name, backend_factory, policy_factory):
     """Only scopes with explicit XSD residue policies participate."""
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
@@ -106,8 +107,10 @@ def test_native_collect_protects_xsd_results_without_exposing_markers(backend_na
         assert ma.relation(native).to_polars().to_dict(as_series=False) == values
 
         invalid = backend_factory.create({"duration": ["P1D"], "year": ["invalid"]}, backend_name)
-        with pytest.raises(BackendCapabilityError) as raised:
-            ma.relation(invalid).conform(spec).collect()
+        with ma.capability_policy(policy_factory()):
+            with pytest.raises(BackendCapabilityError) as raised:
+                ma.relation(invalid).conform(spec).collect()
+        assert raised.value.__cause__ is None
         assert raised.value.context["field_name"] == "year"
         assert raised.value.function_key is FK.PARSE_XSD_PARTIAL_DATE
         assert raised.value.limitation.consumer is PolicyConsumer.RESULT_PROTECTION

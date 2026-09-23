@@ -1,6 +1,8 @@
 """Logical value-rule declaration and canonical-key behavior."""
 
 from decimal import Decimal
+
+import pytest
 from types import MappingProxyType
 
 from mountainash.core.transit import BoundaryKey, capture_conversion_trace
@@ -44,7 +46,8 @@ def test_value_rule_fallback_materialization_records_terminal_boundary() -> None
     import mountainash as ma
     from mountainash.validation import RowIdentity, ValidationRunner
 
-    relation = ma.relation(pl.DataFrame({"state": ["open"]}))
+    source = pl.DataFrame({"state": ["open"]})
+    relation = ma.relation(source)
     check = ValueRule(
         id="state_membership",
         fields=["state"],
@@ -54,8 +57,10 @@ def test_value_rule_fallback_materialization_records_terminal_boundary() -> None
     runner = ValidationRunner()
     with capture_conversion_trace() as trace:
         runner._materialized_value_frame = None
+        from mountainash.core.capabilities.policy import _new_execution_context
         summary, failures = runner._run_value_rule(
-            relation, check, RowIdentity("none"), failure_sample=None
+            relation, check, RowIdentity("none"), failure_sample=None,
+            execution_context=_new_execution_context(source),
         )
     assert summary.status == "passed"
     assert failures.height == 0
@@ -250,3 +255,78 @@ def test_nested_object_rule_executes_instead_of_isolating_an_error() -> None:
     assert result.check_summaries.filter(pl.col("check_id") == "payload_nested")[
         "status"
     ].item() == "passed"
+
+
+def test_value_rule_fallback_keeps_checked_context_when_inner_scope_changes(
+    monkeypatch, validation_execution_scope,
+):
+    import polars as pl
+    import pytest
+    from mountainash.core.types import BackendCapabilityError
+    import mountainash as ma
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.policy import _new_execution_context
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_system.relation_keys.enums import (
+        RKEY_SUBSTRAIT_REL,
+    )
+    from mountainash.validation import RowIdentity, ValidationRunner
+
+    before = CapabilityRegistry.snapshot()
+    original_compile = Relation._compile_and_execute_with_visitor
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.relations.backends.capabilities.polars.dialects.polars"
+            ".substrait.relation.validation_value_fetch",
+            Scope(CONST_BACKEND.POLARS, Dialect("polars")),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
+                key=CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
+                level=CapabilityLevel.UNSUPPORTED,
+                since="2026-09-21",
+                message="controlled value-fallback refusal",
+                consumer=PolicyConsumer.GATE,
+                action=PolicyAction.BLOCK,
+            ),)),
+        ))
+
+        def compile_inside_trusted_scope(self, *args, **kwargs):
+            with ma.capability_policy(ma.CapabilityPolicy.trusted()):
+                return original_compile(self, *args, **kwargs)
+
+        monkeypatch.setattr(Relation, "_compile_and_execute_with_visitor", compile_inside_trusted_scope)
+        check = ValueRule(
+            id="state_membership",
+            fields=["state"],
+            validator=ValueValidatorKey.MEMBERSHIP,
+            options={"allowed": ["open"]},
+        )
+        source = pl.DataFrame({"state": ["closed"]})
+        relation = ma.relation(source).head(1)
+        execution_context = _new_execution_context(
+            source, policy=validation_execution_scope,
+        )
+        runner = ValidationRunner()
+        runner._materialized_value_frame = None
+        if validation_execution_scope == ma.CapabilityPolicy.checked():
+            with pytest.raises(BackendCapabilityError):
+                runner._run_value_rule(
+                    relation, check, RowIdentity("none"), failure_sample=None,
+                    execution_context=execution_context,
+                )
+        else:
+            summary, failures = runner._run_value_rule(
+                relation, check, RowIdentity("none"), failure_sample=None,
+                execution_context=execution_context,
+            )
+            assert summary.status == "failed"
+            assert summary.fail_count == 1
+            assert failures["row"].struct.unnest()["state"].to_list() == ["closed"]
+    finally:
+        CapabilityRegistry.restore(before)

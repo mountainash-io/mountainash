@@ -43,6 +43,10 @@ def _scope_dict(scope: Any) -> dict[str, Any]:
 
 def _capture_value(value: Any) -> Any:
     """Render immutable capture values without using them as current evidence."""
+    from mountainash.core.capabilities.capture import CapturedAddress
+
+    if isinstance(value, CapturedAddress):
+        return _address_dict(value)
     if value is None or type(value) in (str, bool, int, float):
         return value
     if type(value) is bytes:
@@ -104,6 +108,7 @@ def _information_dict(record: Any) -> dict[str, Any]:
         "operation": {"family": type(record.key.local.operation).__name__, "op": record.key.local.operation.name},
         "subject": record.key.local.subject,
         "selector": _selector_dict(record.key.local.selector),
+        "variant": record.key.local.variant,
         "layer": assertion.layer.value,
         "level": assertion.level.value,
         "message": assertion.message,
@@ -121,6 +126,7 @@ def _policy_dict(record: Any) -> dict[str, Any]:
         "operation": {"family": type(record.key.local.operation).__name__, "op": record.key.local.operation.name},
         "subject": record.key.local.subject,
         "selector": _selector_dict(record.key.local.selector),
+        "variant": record.key.local.variant,
         "level": assertion.level.value,
         "message": assertion.message,
         "consumer": assertion.consumer.value,
@@ -137,8 +143,10 @@ def _policy_dict(record: Any) -> dict[str, Any]:
             },
             "subject": assertion.information.local.subject,
             "selector": _selector_dict(assertion.information.local.selector),
+            "variant": assertion.information.local.variant,
             "layer": assertion.information.layer.value,
         },
+        "issue_classes": sorted(issue_class.value for issue_class in assertion.issue_classes),
         "since": assertion.since,
         "origins": [_origin_dict(origin) for origin in record.origins],
     }
@@ -244,8 +252,8 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
     if not records:
         return lines + ["None recorded; absence remains unknown.", ""]
     lines += [
-        "| Scope | Operation | Subject | Selector | Layer / consumer-action | Level | Categories | Message | Provenance |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Scope | Operation | Subject | Selector | Variant | Layer / consumer-action | Level | Categories | Message | Provenance |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for record in records:
         payload = serializer(record)
@@ -261,12 +269,14 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
             f"{payload['selector']['kind']}: "
             f"{json.dumps(payload['selector']['value'], ensure_ascii=False, sort_keys=True)}"
         )
-        categories = ", ".join(payload["kinds"]) if "kinds" in payload else "—"
-        if categories == "":
-            categories = "unclassified"
+        variant = json.dumps(payload["variant"], ensure_ascii=False)
+        categories = ", ".join(payload.get("kinds", payload.get("issue_classes", ())))
+        if not categories:
+            categories = "—"
         lines.append(
-            f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | {aspect} | "
-            f"{payload['level']} | {categories} | {_escape(payload['message'])} | {_escape(provenance)} |"
+            f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | "
+            f"{_escape(variant)} | {aspect} | {payload['level']} | {categories} | "
+            f"{_escape(payload['message'])} | {_escape(provenance)} |"
         )
     lines.append("")
     return lines
@@ -302,11 +312,31 @@ def _changes_section(report: CoverageReport) -> list[str]:
     lines = ["## Assertion change history", ""]
     if not report.changes:
         return lines + ["None recorded.", ""]
-    lines += ["| Recorded at | Disposition | Prior address | Reason |", "| --- | --- | --- | --- |"]
+    lines += [
+        "| Recorded at | Disposition | Prior address | Reason | Fixed versions | Evidence | Successors | Unresolved |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
     for change in report.changes:
+        fixed = "" if change.fixed_versions is None else "; ".join(
+            f"{item.kind}/{item.name} ({item.original_label})={item.version}"
+            for item in change.fixed_versions.coordinates
+        )
+        evidence = "; ".join(f"{ref.repository}:{ref.path}:{ref.entry}" for ref in change.evidence_refs)
+        successors = "; ".join(
+            f"{item.address.repository}:{item.address.path}:{item.address.entry}"
+            for item in change.successors
+        )
+        unresolved = "; ".join(
+            f"{boundary.kind}/{boundary.name} owner={boundary.owner} "
+            f"until={boundary.exception_until or ''} "
+            f"{boundary.backtesting_obligation.entry}"
+            for boundary in change.unresolved_boundaries
+        )
+        history_cells = tuple(map(_escape, (fixed, evidence, successors, unresolved)))
         lines.append(
             f"| {change.recorded_at} | {change.disposition.value} | "
-            f"{_escape(json.dumps(_address_dict(change.prior.address), sort_keys=True))} | {_escape(change.reason)} |"
+            f"{_escape(json.dumps(_address_dict(change.prior.address), sort_keys=True))} | {_escape(change.reason)} | "
+            f"{history_cells[0]} | {history_cells[1]} | {history_cells[2]} | {history_cells[3]} |"
         )
     return lines + [""]
 
@@ -335,6 +365,7 @@ def render_scoped(report: CoverageReport) -> str:
     ]
     lines += _declaration_rows("## Information", report.information, _information_dict)
     lines += _declaration_rows("## Policies", report.policies, _policy_dict)
+    lines += _changes_section(report)
     return "\n".join(lines) + "\n"
 
 
@@ -367,8 +398,26 @@ def _gap_dict(record: Any) -> dict[str, Any]:
     }
 
 
-def _change_dict(change: Any) -> dict[str, Any]:
+def _environment_dict(environment) -> dict[str, Any]:
+    return {"coordinates": [
+        {"kind": item.kind, "name": item.name, "version": item.version,
+         "original_label": item.original_label}
+        for item in environment.coordinates
+    ]}
+
+
+def _boundary_dict(boundary) -> dict[str, Any]:
     return {
+        "kind": boundary.kind, "name": boundary.name, "side": boundary.side,
+        "owner": boundary.owner, "next_release": boundary.next_release,
+        "backtesting_obligation": _address_dict(boundary.backtesting_obligation),
+        "evidence_refs": [_address_dict(ref) for ref in boundary.evidence_refs],
+        "exception_reason": boundary.exception_reason, "exception_until": boundary.exception_until,
+    }
+
+
+def _change_dict(change: Any) -> dict[str, Any]:
+    result = {
         "change_ref": _address_dict(change.change_ref),
         "prior": _capture_value(change.prior),
         "disposition": change.disposition.value,
@@ -377,6 +426,13 @@ def _change_dict(change: Any) -> dict[str, Any]:
         "successors": [_capture_value(successor) for successor in change.successors],
         "evidence_refs": [_address_dict(address) for address in change.evidence_refs],
     }
+    result["fixed_versions"] = (
+        None if change.fixed_versions is None else _environment_dict(change.fixed_versions)
+    )
+    result["unresolved_boundaries"] = [
+        _boundary_dict(boundary) for boundary in change.unresolved_boundaries
+    ]
+    return result
 
 
 def _cell_dict(cell: OpCoverage) -> dict[str, Any]:
@@ -410,6 +466,52 @@ def _family_dict(family: Any) -> dict[str, Any]:
     }
 
 
+
+def _diagnostic_dict(diagnostic) -> dict[str, Any]:
+    return {
+        "applicability": None if diagnostic.applicability is None else diagnostic.applicability.value,
+        "unresolved_coordinates": [
+            {
+                "kind": item.kind,
+                "name": item.name,
+                "scheme": item.scheme.value,
+                "observed": item.observed,
+                "status": item.status,
+            }
+            for item in diagnostic.unresolved_coordinates
+        ],
+        "action_selection": diagnostic.action_selection,
+    }
+
+
+def _record_with_diagnostic(record, serializer, report, collection):
+    payload = serializer(record)
+    if report.diagnostics is None:
+        return payload
+    mapping = getattr(report.diagnostics, collection)
+    payload["diagnostic"] = _diagnostic_dict(mapping[record.key])
+    return payload
+
+
+def _selection_export(value):
+    if value in {"all", "none"}:
+        return value
+    return sorted(item.name for item in value)
+
+
+def _diagnostics_dict(diagnostics) -> dict[str, Any]:
+    policy = diagnostics.policy
+    return {
+        "environment": _environment_dict(diagnostics.environment),
+        "effective_policy": None if policy is None else {
+            "protection": _selection_export(policy.protection),
+            "error_enrichment": _selection_export(policy.error_enrichment),
+            "disclosure": _selection_export(policy.disclosure),
+            "mechanisms": sorted(item.name for item in policy.mechanisms),
+        },
+    }
+
+
 def render_json(report: CoverageReport) -> str:
     """Stable JSON projection; records retain their original qualified scope."""
     payload = {
@@ -433,11 +535,13 @@ def render_json(report: CoverageReport) -> str:
         },
         "families": [_family_dict(family) for family in report.families],
         "segments": [_segment_dict(segment) for segment in report.segments],
-        "information": [_information_dict(record) for record in report.information],
-        "policies": [_policy_dict(record) for record in report.policies],
+        "information": [_record_with_diagnostic(record, _information_dict, report, "information") for record in report.information],
+        "policies": [_record_with_diagnostic(record, _policy_dict, report, "policies") for record in report.policies],
         "gaps": None if report.gaps is None else [_gap_dict(gap) for gap in report.gaps],
         "changes": [_change_dict(change) for change in report.changes],
     }
+    if report.diagnostics is not None:
+        payload["diagnostics"] = _diagnostics_dict(report.diagnostics)
     return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -566,16 +670,107 @@ def write_coverage_artifacts(base: Path, report: CoverageReport) -> tuple[Path, 
     rendered = tuple((base / relative_path, renderer(report)) for relative_path, renderer in _ARTIFACT_RENDERERS)
     changed: list[Path] = []
     for path, content in rendered:
+        path.parent.mkdir(parents=True, exist_ok=True)
         if write_text_if_changed(path, content):
             changed.append(path)
     return tuple(changed)
 
 
-def main() -> None:
+def _load_environment_file(path: Path):
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+
+    payload = json.loads(path.read_text())
+    if type(payload) is not dict or set(payload) != {"coordinates"}:
+        raise ValueError("environment file requires a coordinates object")
+    rows = payload["coordinates"]
+    if type(rows) is not list:
+        raise ValueError("environment coordinates must be an array")
+    coordinates = []
+    seen = set()
+    for row in rows:
+        if type(row) is not dict:
+            raise ValueError("environment coordinate must be an object")
+        extra = set(row) - {"kind", "name", "version", "original_label"}
+        if extra:
+            raise ValueError(f"unknown environment coordinate keys {sorted(extra)}")
+        for required in ("kind", "name", "version"):
+            if required not in row:
+                raise ValueError(f"environment coordinate missing {required}")
+        key = (row["kind"], row["name"], row.get("original_label", row["name"]))
+        if key in seen:
+            raise ValueError("duplicate contradictory environment coordinates")
+        seen.add(key)
+        kwargs = {"kind": row["kind"], "name": row["name"], "version": row["version"]}
+        if "original_label" in row:
+            kwargs["original_label"] = row["original_label"]
+        coordinates.append(EnvironmentCoordinate(**kwargs))
+    return Environment(tuple(coordinates))
+
+
+def _load_policy_file(path: Path):
+    from mountainash.core.capabilities.policy import CapabilityPolicy, ProtectionMechanism
+    from mountainash.core.capabilities.schema import CapabilityIssueClass
+
+    payload = json.loads(path.read_text())
+    if type(payload) is not dict:
+        raise ValueError("policy file must be an object")
+    allowed = {"protection", "error_enrichment", "disclosure", "mechanisms"}
+    extra = set(payload) - allowed
+    if extra:
+        raise ValueError(f"unknown policy keys {sorted(extra)}")
+    defaults = CapabilityPolicy.checked()
+
+    def parse_selection(name, fallback):
+        if name not in payload:
+            return fallback
+        value = payload[name]
+        if value in {"all", "none"}:
+            return value
+        if type(value) is not list:
+            raise ValueError(f"{name} must be all, none, or an array of issue class names")
+        members = []
+        for item in value:
+            if type(item) is not str or item not in CapabilityIssueClass.__members__:
+                raise ValueError(f"unknown CapabilityIssueClass member {item!r}")
+            members.append(CapabilityIssueClass[item])
+        return frozenset(members)
+
+    if "mechanisms" not in payload:
+        mechanisms = defaults.mechanisms
+    else:
+        raw = payload["mechanisms"]
+        if type(raw) is not list:
+            raise ValueError("mechanisms must be an array of member names")
+        mechanisms = []
+        for item in raw:
+            if type(item) is not str or item not in ProtectionMechanism.__members__:
+                raise ValueError(f"unknown ProtectionMechanism member {item!r}")
+            mechanisms.append(ProtectionMechanism[item])
+        mechanisms = frozenset(mechanisms)
+    return CapabilityPolicy(
+        protection=parse_selection("protection", defaults.protection),
+        error_enrichment=parse_selection("error_enrichment", defaults.error_enrichment),
+        disclosure=parse_selection("disclosure", defaults.disclosure),
+        mechanisms=mechanisms,
+    )
+
+
+def main(argv: list[str] | None = None) -> None:
+    import argparse
     from mountainash.core.capabilities.coverage import build_coverage_report
 
-    report = build_coverage_report(**gather_coverage_inputs())
-    base = Path(__file__).resolve().parents[4]
+    parser = argparse.ArgumentParser(prog="mountainash.core.capabilities.render_markdown")
+    parser.add_argument("--environment", type=Path)
+    parser.add_argument("--policy", type=Path)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args(argv)
+    if (args.environment is not None or args.policy is not None) and args.output is None:
+        raise SystemExit("explicit environment/policy views require --output")
+    environment = None if args.environment is None else _load_environment_file(args.environment)
+    policy = None if args.policy is None else _load_policy_file(args.policy)
+    inputs = gather_coverage_inputs()
+    report = build_coverage_report(**inputs, environment=environment, policy=policy)
+    base = args.output if args.output is not None else Path(__file__).resolve().parents[4]
     changed = write_coverage_artifacts(base, report)
     for relative_path, _renderer in _ARTIFACT_RENDERERS:
         path = base / relative_path

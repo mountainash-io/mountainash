@@ -165,6 +165,7 @@ def _resolve_logical_egress(
     visitor: Any,
     compiler_identity: "BackendIdentity",
     *,
+    execution_context: Any,
     to_native: Callable[[Any], Any],
 ) -> Any:
     """One logical-terminal snapshot, resolved once, handed to the
@@ -185,7 +186,8 @@ def _resolve_logical_egress(
 
     with MaterializationScope() as scope:
         native = materialize_native(
-            result, compiler_identity, MaterializationPurpose.LOGICAL_TERMINAL, scope=scope
+            result, compiler_identity, MaterializationPurpose.LOGICAL_TERMINAL,
+            execution_context=execution_context, scope=scope,
         )
         snapshot = logical_terminal_snapshot(native)
         resolved = resolve_logical_snapshot(snapshot, visitor.structured_field_plans)
@@ -686,7 +688,8 @@ class Relation(RelationBase):
 
         def _materialize_thunk() -> Any:
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
+                execution_context=visitor.execution_context,
             )
             return _unwrap_native(native.value, unwrap=unwrap)
 
@@ -695,6 +698,7 @@ class Relation(RelationBase):
             _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
 
     def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
@@ -731,7 +735,8 @@ class Relation(RelationBase):
 
         def _materialize_thunk() -> Any:
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT
+                result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
+                execution_context=visitor.execution_context,
             )
             return _unwrap_native(native.value, unwrap=True)
 
@@ -740,6 +745,7 @@ class Relation(RelationBase):
             _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
         return ConformCollection(
             frame=frame,
@@ -811,6 +817,18 @@ class Relation(RelationBase):
         )
         return int(counted.item("__count_rows__"))
 
+    def _count_rows(self, *, execution_context) -> int:
+        import mountainash as ma
+
+        counted = self._make(
+            AggregateRelNode(
+                input=self._node,
+                keys=[],
+                measures=[ma.count_records().alias("__count_rows__")],
+            )
+        )
+        return int(counted._to_polars(execution_context=execution_context).item(0, "__count_rows__"))
+
     # ------------------------------------------------------------------
     # Scalar aggregate terminals
     #
@@ -820,7 +838,7 @@ class Relation(RelationBase):
     # via the existing visitor pipeline, extract via ``.item(...)``.
     # ------------------------------------------------------------------
 
-    def _scalar_aggregate(self, agg_expr: Any) -> Any:
+    def _scalar_aggregate(self, agg_expr: Any, *, execution_context=None) -> Any:
         """Internal helper: aggregate the relation to one row, extract scalar."""
         aggregated = self._make(
             AggregateRelNode(
@@ -829,7 +847,9 @@ class Relation(RelationBase):
                 measures=[agg_expr.alias("__value__")],
             )
         )
-        return aggregated.item("__value__")
+        if execution_context is None:
+            return aggregated.item("__value__")
+        return aggregated._to_polars(execution_context=execution_context).item(0, "__value__")
 
     def sum(self, col: str) -> Any:
         """Return the sum of ``col`` as a Python scalar."""
@@ -895,6 +915,16 @@ class Relation(RelationBase):
         Narwhals uses its own ``to_polars()``. No non-pandas fallback: a
         source with no declared route raises ``BackendConversionError``.
         """
+        result, visitor = self._compile_and_execute_with_visitor()
+        return self._polars_from_compiled(result, visitor)
+
+    def _to_polars(self, *, execution_context) -> Any:
+        result, visitor = self._compile_and_execute_with_visitor(
+            execution_context=execution_context,
+        )
+        return self._polars_from_compiled(result, visitor)
+
+    def _polars_from_compiled(self, result: Any, visitor: Any) -> Any:
         from mountainash.core.limitations import enrich_materialization
         from mountainash.relations.core.materialization import (
             MaterializationPurpose,
@@ -902,7 +932,6 @@ class Relation(RelationBase):
             materialize_native,
         )
 
-        result, visitor = self._compile_and_execute_with_visitor()
         compiler_identity = _compiler_identity(visitor)
 
         def _egress_thunk() -> Any:
@@ -912,10 +941,13 @@ class Relation(RelationBase):
                 )
 
                 return _resolve_logical_egress(
-                    result, visitor, compiler_identity, to_native=resolved_snapshot_to_polars
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_polars,
                 )
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
             )
             return explicit_polars_egress(native)
 
@@ -924,6 +956,7 @@ class Relation(RelationBase):
             _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
 
     def to_pandas(self) -> Any:
@@ -951,10 +984,13 @@ class Relation(RelationBase):
                 )
 
                 return _resolve_logical_egress(
-                    result, visitor, compiler_identity, to_native=resolved_snapshot_to_pandas
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_pandas,
                 )
             native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
             )
             return explicit_pandas_egress(native)
 
@@ -963,6 +999,7 @@ class Relation(RelationBase):
             _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.residue_checks,
+            execution_context=visitor.execution_context,
         )
 
     def to_dict(self) -> dict[str, list[Any]]:

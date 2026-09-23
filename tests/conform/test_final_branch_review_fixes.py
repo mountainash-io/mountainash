@@ -15,6 +15,7 @@ from mountainash.conform.errors import (
     UnresolvedSourceTypeError,
 )
 from mountainash.conform.expressions import _build_conform_exprs, resolve_conform_output
+from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.dtypes import MountainashDtype
 from mountainash.core.limitations import enrich_materialization
@@ -40,7 +41,9 @@ def _contract(action: str):
 
 
 def _compile(expr):
-    return UnifiedExpressionVisitor(PolarsExpressionSystem("polars")).visit(expr._node)
+    context = _new_execution_context(None, family_override=CONST_BACKEND.POLARS)
+    system = PolarsExpressionSystem("polars", execution_context=context)
+    return UnifiedExpressionVisitor(system, execution_context=context).visit(expr._node)
 
 
 def test_unknown_list_and_default_geopoint_use_lexical_operations() -> None:

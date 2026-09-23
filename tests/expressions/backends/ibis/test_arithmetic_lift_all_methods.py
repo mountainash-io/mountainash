@@ -2,9 +2,15 @@
 import ibis
 import pytest
 
+from mountainash.core.capabilities.policy import _new_execution_context
+from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_arithmetic import (
     SubstraitIbisScalarArithmeticExpressionSystem as Sys,
 )
+
+
+def _ibis_context():
+    return _new_execution_context(None, family_override=CONST_BACKEND.IBIS)
 
 
 def _exec(built):
@@ -32,14 +38,14 @@ def _exec(built):
     ],
 )
 def test_literal_left_routed_method(method, lit, expected):
-    sys = Sys()
+    sys = Sys(execution_context=_ibis_context())
     built = getattr(sys, method)(lit, ibis._["n"])
     assert _exec(built) == expected
 
 
 def test_atan2_literal_left():
     import math
-    sys = Sys()
+    sys = Sys(execution_context=_ibis_context())
     built = sys.atan2(ibis.literal(1.0), ibis._["n"])
     out = _exec(built)
     # ibis atan2(x, y) computes atan2 of the two operands; assert exact values,
@@ -56,7 +62,7 @@ def test_datetime_interval_methods_literal_left():
     from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_ib_scalar_datetime import (
         SubstraitIbisScalarDatetimeExpressionSystem as DtSys,
     )
-    dt = DtSys()
+    dt = DtSys(execution_context=_ibis_context())
     con = ibis.duckdb.connect()
     t = con.create_table(
         "iv",

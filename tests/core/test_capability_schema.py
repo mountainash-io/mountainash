@@ -47,3 +47,14 @@ def test_capture_values_preserve_known_enum_identity():
 
     with pytest.raises(ValueError, match="unknown enum"):
         CaptureValue.of(UnknownEnum.VALUE)
+
+
+def test_capture_values_round_trip_clause_operator_authority():
+    from mountainash.core.capabilities.schema import ClauseOp
+
+    captured = CaptureValue.of(ClauseOp.EQ)
+    assert captured == CaptureValue(
+        "enum",
+        (type(ClauseOp.EQ).__module__, type(ClauseOp.EQ).__qualname__, "EQ"),
+    )
+    assert CaptureValue("enum", captured.value) == captured

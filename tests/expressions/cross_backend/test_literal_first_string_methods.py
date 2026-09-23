@@ -58,6 +58,9 @@ def test_required_arguments_without_catalogue(
     """Internal argument preparation must survive absent declarations and guards."""
     from mountainash.core.backend_detection import identify_backend_identity
     from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.policy import (
+        CapabilityPolicy, ProtectionMechanism, _new_execution_context,
+    )
     from mountainash.core.types import BackendCapabilityError
     from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
     from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
@@ -67,11 +70,18 @@ def test_required_arguments_without_catalogue(
     df = backend_factory.create({"s": ["'-abc-'", "--xyz--"]}, backend_name)
     expression = getattr(ma.col("s").str, operation)(*arguments)
     identity = identify_backend_identity(df)
-    system = get_expression_system(identity.family)(dialect=identity.dialect)
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
-        visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False, input_data=df)
+        # gate-only bypass: disable GATE protection, keep error enrichment active.
+        policy = CapabilityPolicy.checked(mechanisms=frozenset({ProtectionMechanism.MATERIALIZATION}))
+        execution_context = _new_execution_context(df, policy=policy)
+        system = get_expression_system(identity.family)(
+            dialect=identity.dialect, execution_context=execution_context,
+        )
+        visitor = UnifiedExpressionVisitor(
+            system, input_data=df, execution_context=execution_context,
+        )
         if backend_name == "narwhals-polars" and operation == "center":
             with pytest.raises(BackendCapabilityError) as caught:
                 visitor.visit(expression._node)
@@ -97,6 +107,9 @@ def test_dynamic_replacement_operands_without_catalogue(
 ):
     from mountainash.core.backend_detection import identify_backend_identity
     from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.policy import (
+        CapabilityPolicy, ProtectionMechanism, _new_execution_context,
+    )
     from mountainash.core.types import BackendCapabilityError
     from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
     from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -117,11 +130,18 @@ def test_dynamic_replacement_operands_without_catalogue(
         unsupported = backend_name in ("pandas", "narwhals-pandas")
         expected = ["xbx", "bby"]
     identity = identify_backend_identity(df)
-    system = get_expression_system(identity.family)(dialect=identity.dialect)
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
-        visitor = UnifiedExpressionVisitor(system, enforce_capabilities=False, input_data=df)
+        # gate-only bypass: disable GATE protection, keep error enrichment active.
+        policy = CapabilityPolicy.checked(mechanisms=frozenset({ProtectionMechanism.MATERIALIZATION}))
+        execution_context = _new_execution_context(df, policy=policy)
+        system = get_expression_system(identity.family)(
+            dialect=identity.dialect, execution_context=execution_context,
+        )
+        visitor = UnifiedExpressionVisitor(
+            system, input_data=df, execution_context=execution_context,
+        )
         if unsupported:
             with pytest.raises(BackendCapabilityError) as caught:
                 visitor.visit(expression._node)

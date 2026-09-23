@@ -219,7 +219,11 @@ class TestExplicitBackendAnchorCoherence:
         # actually succeed end-to-end (no mismatch to raise on here).
         dag = RelationDAG()
         rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
-        _result, visitor = dag._execute_with_visitor(rel)
+        from mountainash.core.capabilities.policy import CapabilityPolicy
+
+        _result, visitor = dag._execute_with_visitor(
+            rel, execution_policy=CapabilityPolicy.trusted(),
+        )
         assert visitor.backend.backend_type == CONST_BACKEND.NARWHALS
         assert visitor.backend.dialect == "narwhals-pandas"
         assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.NARWHALS
@@ -567,3 +571,38 @@ class TestUnknownDialectStringRefNotSilentlyInherited:
         assert captured["completed"] is True
         assert captured["entry"]["backend_dialect"] == "narwhals-pyarrow"
         assert captured["entry"]["backend_dialect"] != "narwhals-polars"  # not inherited
+
+
+def test_same_dialect_connections_preserve_native_ownership():
+    import ibis
+    import polars as pl
+    import pytest
+    import mountainash as ma
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
+    from mountainash.core.errors import BackendConversionError
+    from mountainash.relations.dag.materialization import DAGMaterializationSession
+    left_connection = ibis.duckdb.connect(":memory:")
+    right_connection = ibis.duckdb.connect(":memory:")
+    session = None
+    try:
+        left = left_connection.create_table("same_name", obj=pl.DataFrame({"x": [11]}))
+        right = right_connection.create_table("same_name", obj=pl.DataFrame({"x": [22]}))
+        policy = CapabilityPolicy.checked()
+        left_context = _new_execution_context(left, policy=policy)
+        right_context = _new_execution_context(right, policy=policy)
+        dag = ma.RelationDAG()
+        dag.add("left", ma.relation(left))
+        dag.add("right", ma.relation(right))
+        session = DAGMaterializationSession(dag, execution_policy=policy)
+        assert session.resolve("left", left_context).execute()["x"].tolist() == [11]
+        assert session.resolve("right", right_context).execute()["x"].tolist() == [22]
+        # No new cross-connection transport is in scope. Use the existing
+        # coerce_to_ibis conversion-error boundary, never return foreign data.
+        with pytest.raises(BackendConversionError):
+            session.resolve("left", right_context)
+        assert session.resolve("right", right_context).execute()["x"].tolist() == [22]
+    finally:
+        if session is not None:
+            session.close(release_owned=True)
+        left_connection.con.close()
+        right_connection.con.close()

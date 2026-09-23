@@ -31,12 +31,14 @@ from mountainash.core.capabilities.render_markdown import (
     render_markdown,
     render_scoped,
 )
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationKind, InformationLayer, PolicyAction, PolicyConsumer
+from mountainash.core.capabilities.schema import CapabilityLevel, CapabilityIssueClass, InformationLayer, PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR
 
 
-def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None):
+def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None, environment=None, policy=None, applicability=None):
+    from dataclasses import replace
+
     family = Scope(CONST_BACKEND.POLARS, FamilyWide())
     concrete = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
     origin = SourceOrigin(
@@ -51,14 +53,17 @@ def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None):
         "native limitation",
         kinds=kinds,
     )
-    information = QualifiedInformation(
-        QualifiedInformationKey(family, information_key, InformationLayer.NATIVE), information_assertion, (origin,)
-    )
     policy_key = CapabilityKey(FK_STR.LPAD, "input")
     policy_assertion = CapabilityPolicyRule(
         policy_key, CapabilityLevel.UNSUPPORTED, "2026-09-18", "public block", PolicyConsumer.GATE, PolicyAction.BLOCK
     )
-    policy = QualifiedPolicy(
+    if applicability is not None:
+        information_assertion = replace(information_assertion, applicability=applicability)
+        policy_assertion = replace(policy_assertion, applicability=applicability)
+    information = QualifiedInformation(
+        QualifiedInformationKey(family, information_key, InformationLayer.NATIVE), information_assertion, (origin,)
+    )
+    qualified_policy = QualifiedPolicy(
         QualifiedCapabilityKey(concrete, policy_key), policy_assertion,
         (SourceOrigin("fixture.module", concrete, FactSource.SUBSTRAIT, Domain.STRING, "policies[0]"),),
     )
@@ -69,11 +74,13 @@ def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None):
     return build_coverage_report(
         (OpRecord(FK_STR.LPAD, type(FK_STR.LPAD).__name__),),
         (information,),
-        (policy,),
+        (qualified_policy,),
         (),
         gaps,
         changes,
         implementations,
+        environment=environment,
+        policy=policy,
     )
 
 
@@ -134,7 +141,7 @@ def test_scoped_renderer_keeps_policy_rows_out_of_the_information_section():
 
 
 def test_reports_keep_multiple_information_kinds_on_one_record():
-    classified = _report(kinds=frozenset({InformationKind.PRECISION, InformationKind.SEMANTICS}))
+    classified = _report(kinds=frozenset({CapabilityIssueClass.PRECISION, CapabilityIssueClass.SEMANTICS}))
 
     scoped = render_scoped(classified)
     assert scoped.count("precision, semantics") == 1
@@ -189,3 +196,135 @@ def test_implementation_discovery_ignores_protocol_carriers():
 
     assert _resolve_concrete_owner(Leaf, "lpad") is None
     assert _resolve_concrete_owner(Concrete, "lpad") is Concrete
+
+
+def test_markdown_distinguishes_variants_and_renders_policy_issue_classes():
+    from dataclasses import replace
+
+    report = _report()
+    information = report.information[0]
+    policy = report.policies[0]
+
+    def named_information(variant):
+        local = replace(information.key.local, variant=variant)
+        return replace(
+            information,
+            key=replace(information.key, local=local),
+            assertion=replace(information.assertion, key=local),
+        )
+
+    policy_local = replace(policy.key.local, variant="policy-variant")
+    named_policy = replace(
+        policy,
+        key=replace(policy.key, local=policy_local),
+        assertion=replace(
+            policy.assertion,
+            key=policy_local,
+            issue_classes=frozenset({CapabilityIssueClass.SEMANTICS}),
+        ),
+    )
+    rendered = render_scoped(replace(
+        report,
+        information=(named_information("first-variant"), named_information("second-variant")),
+        policies=(named_policy,),
+    ))
+
+    assert "first-variant" in rendered
+    assert "second-variant" in rendered
+    assert "policy-variant" in rendered
+    assert "semantics" in rendered
+
+
+def test_markdown_distinguishes_absent_variant_from_authored_sentinel_names():
+    from dataclasses import replace
+
+    report = _report()
+    original = report.information[0]
+    records = []
+    for variant in (None, "unqualified", "null"):
+        local = replace(original.key.local, variant=variant)
+        records.append(replace(
+            original,
+            key=replace(original.key, local=local),
+            assertion=replace(original.assertion, key=local),
+        ))
+    report = replace(report, information=tuple(records))
+    for renderer in (render_markdown, render_scoped):
+        rows = [
+            line for line in renderer(report).splitlines()
+            if line.startswith("| polars/family |")
+        ]
+        assert len(set(rows)) == 3
+
+
+def test_markdown_does_not_invent_classification_for_unlabelled_information():
+    for renderer in (render_markdown, render_scoped):
+        document = renderer(_report())
+        information = document.split("## Information", 1)[1].split("## Policies", 1)[0]
+        policies = document.split("## Policies", 1)[1]
+        assert "unclassified" not in information
+        assert "unclassified" in policies
+
+
+def test_report_distinguishes_unparseable_environment_from_excluded_policy():
+    from mountainash.core.capabilities.applicability import Applicability, ComparisonScheme, CoordinateConstraint, Region
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.policy import CapabilityPolicy
+    claim = Applicability((Region((CoordinateConstraint(
+        "package", "polars", ComparisonScheme.PEP440, lower="1",
+    ),)),))
+    environment = Environment((EnvironmentCoordinate("package", "polars", "vendor-build"),))
+    checked = json.loads(render_json(_report(
+        environment=environment, policy=CapabilityPolicy.checked(), applicability=claim,
+    )))
+    excluded = json.loads(render_json(_report(
+        environment=environment, policy=CapabilityPolicy.trusted(), applicability=claim,
+    )))
+    diagnostic = checked["policies"][0]["diagnostic"]
+    assert diagnostic["applicability"] == "indeterminate"
+    assert diagnostic["unresolved_coordinates"][0]["status"] == "unparseable"
+    assert excluded["policies"][0]["diagnostic"]["applicability"] is None
+    assert excluded["policies"][0]["diagnostic"]["action_selection"] == "excluded"
+    assert checked["policies"][0]["operation"] == excluded["policies"][0]["operation"]
+
+
+def test_reports_preserve_fixed_coordinates_and_original_labels():
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    record = _report().policies[0]
+    prior_address = CapturedAddress("fixture", "history.py", "prior", artifact=b"prior")
+    successor_address = CapturedAddress("fixture", "history.py", "successor", artifact=b"successor")
+    from mountainash.core.capabilities.retired import HistoricalBoundary
+    artifact = b"large historical source\n" * 65536
+    proof = CapturedAddress("fixture", "proof.json", "fixed-proof", artifact=artifact)
+    boundary = HistoricalBoundary(
+        "engine", "duckdb", "introduced", "item236-owner", (proof,),
+        "next-normal-release", CapturedAddress("fixture", "backtest.json", "backtest-obligation", artifact=b"obligation"),
+        exception_reason="authorized unresolved scope", exception_until="release-26.10",
+    )
+    change = AssertionChange(
+        CapturedAddress("fixture", "changes.py", "fixed", artifact=b"change"),
+        CapturedAssertion("capability", record.key, record.assertion, prior_address),
+        ChangeDisposition.UPSTREAM_FIX, "2026-09-21", "controlled history",
+        successors=(CapturedAssertion("capability", record.key, record.assertion, successor_address),),
+        evidence_refs=(proof,),
+        unresolved_boundaries=(boundary,),
+        fixed_versions=Environment((
+            EnvironmentCoordinate("package", "IBIS", "12.7.3"),
+            EnvironmentCoordinate("engine", "duckdb", "1.6.2"),
+        )),
+    )
+    report = _report(changes=(change,))
+    encoded = render_json(report)
+    assert len(encoded.encode()) < len(artifact)
+    history = json.loads(encoded)["changes"][0]
+    assert history["unresolved_boundaries"][0]["backtesting_obligation"]["entry"] == "backtest-obligation"
+    assert history["unresolved_boundaries"][0]["evidence_refs"][0]["artifact"]["encoding"] == "sha256"
+    coordinates = {row["name"]: row for row in history["fixed_versions"]["coordinates"]}
+    assert coordinates["ibis-framework"]["original_label"] == "IBIS"
+    assert coordinates["ibis-framework"]["version"] == "12.7.3"
+    assert coordinates["duckdb"]["version"] == "1.6.2"
+    for render in (render_markdown, render_scoped):
+        document = render(report)
+        for value in ("12.7.3", "1.6.2", "IBIS", "fixed-proof", "successor",
+                      "item236-owner", "backtest-obligation", "release-26.10"):
+            assert value in document
