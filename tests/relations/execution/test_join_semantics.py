@@ -5,6 +5,7 @@ import pytest
 import mountainash as ma
 from fixtures.backend_registry import REGISTRY
 from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 
 
 @pytest.mark.parametrize("backend_name", list(REGISTRY))
@@ -74,14 +75,18 @@ def test_targeted_grouped_asof_with_tolerance(backend_name, backend_factory, tar
         {"t": [1, 4, 7], "g": ["a", "b", "a"], "rate": [100, 999, 700]}, backend_name,
     )
     if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
-        with pytest.raises(BackendCapabilityError):
+        with pytest.raises(BackendCapabilityError, match="Narwhals join_asof does not expose a tolerance argument") as caught:
             ma.relation(left).join_asof(right, on="t", by="g", strategy=strategy,
                                            tolerance=2, execute_on=target).to_dicts()
+        assert caught.value.function_key is RKEY_MOUNTAINASH_REL.JOIN_ASOF
+        assert caught.value.backend == "narwhals"
         return
     if backend_name == "ibis-polars" and strategy != "backward":
-        with pytest.raises(BackendCapabilityError):
+        with pytest.raises(BackendCapabilityError, match="Ibis Polars cannot compile forward or nearest asof join emulation") as caught:
             ma.relation(left).join_asof(right, on="t", by="g", strategy=strategy,
                                            tolerance=2, execute_on=target).to_dicts()
+        assert caught.value.function_key is RKEY_MOUNTAINASH_REL.JOIN_ASOF
+        assert caught.value.backend == "ibis"
         return
     rows = ma.relation(left).join_asof(
         right, on="t", by="g", strategy=strategy, tolerance=2, execute_on=target,

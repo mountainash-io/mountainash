@@ -5,11 +5,13 @@ from decimal import Decimal
 import math
 
 import ibis
+import polars as pl
 import pyarrow as pa
 import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import REGISTRY
+from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
 
 IBIS = [name for name, spec in REGISTRY.items() if spec.family == "ibis"]
@@ -114,3 +116,39 @@ def test_duplicate_keys_and_overlapping_payload_types_are_not_harmonized(destina
         {"id": 2, "payload": "first", "payload_destination": 100},
         {"id": 2, "payload": "second", "payload_destination": 100},
     ]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_polars_nan_to_sqlite_rejects_loss_without_changing_source(lazy):
+    source = pl.from_arrow(pa.table({
+        "id": pa.array([1, 2, 3], type=pa.int64()),
+        "measure": pa.array([None, float("nan"), 2.5], type=pa.float64()),
+    }))
+    if lazy:
+        source = source.lazy()
+    assert ma.relation(source).sort("id").to_dicts()[0]["measure"] is None
+    assert math.isnan(ma.relation(source).sort("id").to_dicts()[1]["measure"])
+    target = REGISTRY["ibis-sqlite"].build({"id": [1, 2, 3]}, "target")
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        ma.relation(source).join(target, on="id", execute_on="right").to_dicts()
+    assert caught.value.source_family == "polars"
+    assert caught.value.destination_dialect == "ibis-sqlite"
+    assert caught.value.route == "polars_to_ibis"
+    assert isinstance(caught.value.__cause__, ValueError)
+    assert "NaN" in str(caught.value.__cause__)
+
+
+def test_decimal_to_sqlite_fails_with_typed_context_not_driver_exception():
+    source = ibis.duckdb.connect().create_table("source", pa.table({
+        "id": pa.array([1], type=pa.int64()),
+        "amount": pa.array([Decimal("1.20")], type=pa.decimal128(10, 2)),
+    }))
+    assert ma.relation(source).to_dicts() == [{"id": 1, "amount": Decimal("1.20")}]
+    target = REGISTRY["ibis-sqlite"].build({"id": [1]}, "target")
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        ma.relation(source).join(target, on="id", execute_on="right").to_dicts()
+    assert caught.value.source_dialect == "ibis-duckdb"
+    assert caught.value.destination_dialect == "ibis-sqlite"
+    assert caught.value.route == "ibis_arrow_ibis"
+    assert caught.value.__cause__ is not None
+    assert "decimal" in str(caught.value.__cause__).lower()

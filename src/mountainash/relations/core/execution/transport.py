@@ -135,27 +135,48 @@ class TransportSession:
 
     def _import_arrow(self, source: CompiledSubtree, requirement: TransferRequirement,
                        ibis: Any, arrow: Any) -> Any:
-        if requirement.destination.dialect == "ibis-sqlite":
-            import math
-
-            import pyarrow as pa
-
-            # SQLite stores IEEE NaN as SQL NULL. Refuse a lossy transfer
-            # before the destination query can erase the distinction.
-            for field, column in zip(arrow.schema, arrow.columns):
-                if pa.types.is_floating(field.type) and any(
-                    isinstance(value, float) and math.isnan(value)
-                    for value in column.to_pylist()
-                ):
-                    cause = ValueError("SQLite cannot store IEEE NaN without converting it to NULL")
-                    raise self._unsupported(source, requirement, cause) from cause
+        self._validate_ibis_storage(source, requirement, arrow)
         try:
             return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
         except Exception as exc:
             raise self._unsupported(source, requirement, exc) from exc
 
+    def _validate_ibis_storage(self, source: CompiledSubtree,
+                               requirement: TransferRequirement, value: Any) -> None:
+        """Reject values that the selected database would silently change or fail to bind."""
+        if requirement.destination.dialect != "ibis-sqlite":
+            return
+        import math
+
+        import pyarrow as pa
+
+        from mountainash.core.types import is_polars_dataframe, is_narwhals_dataframe
+
+        if is_polars_dataframe(value) or is_narwhals_dataframe(value):
+            arrow = value.to_arrow()
+        elif isinstance(value, pa.Table):
+            arrow = value
+        elif isinstance(value, dict):
+            arrow = pa.table(value)
+        elif isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
+            arrow = pa.Table.from_pylist(list(value))
+        else:
+            return
+
+        for field, column in zip(arrow.schema, arrow.columns):
+            if pa.types.is_floating(field.type) and any(
+                isinstance(item, float) and math.isnan(item) for item in column.to_pylist()
+            ):
+                cause = ValueError("SQLite stores IEEE NaN as SQL NULL")
+                raise self._unsupported(source, requirement, cause) from cause
+            if pa.types.is_decimal(field.type) and column.null_count != len(column):
+                cause = ValueError("SQLite cannot bind non-null decimal.Decimal values")
+                raise self._unsupported(source, requirement, cause) from cause
+
     def _adapt(self, source: CompiledSubtree, requirement: TransferRequirement,
-               adapter: Any, target: Any, value: Any) -> Any:
+                adapter: Any, target: Any, value: Any) -> Any:
+        if requirement.destination.family is CONST_BACKEND.IBIS:
+            self._validate_ibis_storage(source, requirement, value)
         try:
             return adapter(target, value)
         except BackendConversionError as exc:

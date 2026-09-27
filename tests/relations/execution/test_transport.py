@@ -104,6 +104,40 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
     assert ma.relation(joined).to_dict() == {"id": [1]}
 
 
+def test_lossy_sqlite_route_rolls_back_owned_resources_without_touching_caller(monkeypatch):
+    import polars as pl
+
+    from mountainash.relations.core.errors import UnsupportedRelationTransportError
+
+    source_frame = pl.DataFrame({"id": [1], "measure": [float("nan")]})
+    target = REGISTRY["ibis-sqlite"].build({"id": [1]}, "target")
+    tokens = IdentityTokens()
+    resolver = LocationResolver(tokens)
+    source = CompiledSubtree(
+        source_frame, resolver.resolve(ma.relation(source_frame)._node),
+        tokens.token(source_frame), CompilationMetadata(),
+    )
+    requirement = TransferRequirement(
+        "root/left", resolver.resolve(ma.relation(target)._node), "polars_to_ibis", True,
+    )
+    released = []
+    caller_released = []
+    monkeypatch.setattr(type(target), "release", lambda *_: caller_released.append("table"), raising=False)
+    monkeypatch.setattr(type(target._find_backend(use_default=False)), "disconnect",
+                        lambda *_: caller_released.append("connection"))
+    session = TransportSession(tokens)
+    session._scope.own(lambda: released.append("owned"))
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        session.transfer(source, requirement)
+    assert caught.value.__cause__ is not None
+    assert "NaN" in str(caught.value.__cause__)
+    assert released == ["owned"]
+    assert caller_released == []
+    assert not session._cache
+    session.close(release_owned=True)
+    assert released == ["owned"]
+
+
 def test_source_export_enriches_diagnostic_failure_without_owned_checks():
     from mountainash.conform.diagnostics import OperationDiagnostic
     from mountainash.conform.errors import ConformTransformError
