@@ -117,6 +117,22 @@ def test_named_ibis_dependency_is_cached_once_when_collected(monkeypatch):
     monkeypatch.setattr(type(table), "cache", counted)
     result = dag.collect("target")
     assert sorted(ma.relation(result).to_dict()["id"]) == [1, 1, 2, 2]
+    assert len(calls) == 2  # one named source and one named result
+
+
+def test_named_ibis_root_is_materialized_at_canonical_boundary(monkeypatch):
+    table = REGISTRY["ibis-duckdb"].build({"id": [1]}, "root")
+    dag = ma.RelationDAG()
+    dag.add("root", ma.relation(table).filter(ma.col("id") > 0))
+    original = type(table).cache
+    calls = []
+
+    def counted(self, *args, **kwargs):
+        calls.append(self)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(table), "cache", counted)
+    assert ma.relation(dag.collect("root")).to_dict() == {"id": [1]}
     assert len(calls) == 1
 
 

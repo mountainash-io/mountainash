@@ -413,6 +413,7 @@ class RelationDAG:
                 from mountainash.relations.core.relation_api.relation import _guard_native_terminal
 
                 _guard_native_terminal(visitor.structured_field_plans)
+                envelope = session.cache_root(key_target_name, envelope, visitor)
             visitor._execution_session = compilation
             return envelope.value, visitor
         except BaseException:

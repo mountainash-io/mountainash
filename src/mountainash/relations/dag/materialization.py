@@ -323,45 +323,10 @@ class DAGMaterializationSession:
             )
             envelope, visitor = compilation.compile(prepared.root_key)
             if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
-                from mountainash.core.limitations import enrich_materialization
-                from mountainash.core.types import is_ibis_table
-
-                if is_ibis_table(envelope.value):
-                    native = enrich_materialization(
-                        visitor.backend,
-                        lambda: materialize_native(
-                            envelope.value, source_location.capability_identity,
-                            MaterializationPurpose.DAG_CANONICAL,
-                            execution_context=visitor.execution_context, scope=self._scope,
-                        ),
-                        diagnostic_trace=visitor._active_diagnostic_trace(),
-                        residue_checks=visitor.terminal_residue_checks(),
-                        execution_context=visitor.execution_context,
-                    )
-                    envelope = replace(
-                        envelope, value=native.value,
-                        source_token=tokens.token(native.value),
-                    )
+                envelope = self.cache_root(name, envelope, visitor)
             self._bound[binding_key] = (envelope, visitor)
             self._visitors[name] = visitor
         envelope, visitor = self._bound[binding_key]
-        if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless and name not in self._canonical:
-            # Keep the canonical source distinct from consumer-specific transfers.
-            from mountainash.core.backend_detection import identify_backend_identity
-            from mountainash.conform.structured_transport import freeze_structured_field_plans
-
-            value = envelope.value
-            compiler_identity = source_location.capability_identity
-            native = NativeExecutionValue(
-                value, compiler_identity, identify_backend_identity(value),
-                source_location.form, target=visitor.execution_context.target,
-            )
-            self._canonical[name] = CanonicalEntry(
-                native, envelope.metadata.diagnostic_records,
-                tuple(owned.check for owned in envelope.metadata.owned_checks),
-                dict(visitor.residue_check_nodes), visitor.key_context,
-                freeze_structured_field_plans(envelope.metadata.structured_field_plans),
-            )
         requirement = _route(
             name, source_location, destination, derived=not isinstance(root, ReadRelNode),
         )
@@ -375,6 +340,46 @@ class DAGMaterializationSession:
             destination.capability_identity, destination.form,
         )
         return transferred.value
+
+    def cache_root(self, name: str, envelope: Any, visitor: Any) -> Any:
+        """Materialize one bound named result, preserving its source metadata."""
+        from mountainash.conform.structured_transport import freeze_structured_field_plans
+        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import is_ibis_table, is_polars_lazyframe
+
+        if name in self._canonical:
+            return envelope
+        if is_ibis_table(envelope.value):
+            native = enrich_materialization(
+                visitor.backend,
+                lambda: materialize_native(
+                    envelope.value, envelope.location.capability_identity,
+                    MaterializationPurpose.DAG_CANONICAL,
+                    execution_context=visitor.execution_context, scope=self._scope,
+                ),
+                diagnostic_trace=visitor._active_diagnostic_trace(),
+                residue_checks=visitor.terminal_residue_checks(),
+                execution_context=visitor.execution_context,
+            )
+            envelope = replace(
+                envelope, value=native.value,
+                source_token=self._execution_tokens.token(native.value),
+            )
+        else:
+            native = NativeExecutionValue(
+                envelope.value, envelope.location.capability_identity,
+                identify_backend_identity(envelope.value),
+                ExecutionForm.LAZY if is_polars_lazyframe(envelope.value) else envelope.location.form,
+                target=visitor.execution_context.target,
+            )
+        self._canonical[name] = CanonicalEntry(
+            native, envelope.metadata.diagnostic_records,
+            tuple(owned.check for owned in envelope.metadata.owned_checks),
+            dict(visitor.residue_check_nodes), visitor.key_context,
+            freeze_structured_field_plans(envelope.metadata.structured_field_plans),
+        )
+        return envelope
 
     def _node_for(self, name: str) -> Any:
         rel = self.dag.relations[name]
