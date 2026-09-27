@@ -282,6 +282,11 @@ def propagate_owned_residue(
     from dataclasses import replace as replace_check
 
     policy = TRANSPORT_LINEAGE_POLICIES.get(node.operation_key)
+    if any(child_checks) and policy not in {
+        _JOIN, _PROJECT_RENAME, _PROJECT_SELECT, _PROJECT_DROP,
+        _PROJECT_WITH_COLUMNS, _PRESERVE, _REJECT_CONSUMERS,
+    }:
+        raise ValueError(f"Pending residue marker must be checked before {node.operation_key}")
     if policy is _JOIN:
         maps = _join_name_maps(
             node, [{owned.check.marker: owned for owned in checks} for checks in child_checks[:2]],
@@ -302,6 +307,24 @@ def propagate_owned_residue(
         dropped = _named_values(getattr(node, "expressions", ()))
         maps = [{owned.check.marker: owned.check.marker for owned in checks
                  if owned.check.marker not in dropped} for checks in child_checks]
+    elif policy is _PROJECT_WITH_COLUMNS:
+        from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
+        from mountainash.relations.schema_inference import infer_expression_name
+
+        markers = {owned.check.marker for checks in child_checks for owned in checks}
+        for expression in getattr(node, "expressions", ()):
+            direct = _direct_projection(expression)
+            if direct is not None:
+                source, output = direct
+                if output in markers and source != output:
+                    raise ValueError(f"Pending residue marker {output!r} must be checked before {node.operation_key}")
+            elif isinstance(expression, BaseExpressionAPI):
+                if infer_expression_name(expression) in markers:
+                    raise ValueError(f"Pending residue marker must be checked before {node.operation_key}")
+            else:
+                raise ValueError(f"Pending residue marker must be checked before {node.operation_key}")
+        maps = [{owned.check.marker: owned.check.marker for owned in checks}
+                for checks in child_checks]
     elif policy in {_START, _CONFORM, _REF}:
         maps = [{} for _ in child_checks]
     else:

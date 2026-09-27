@@ -23,6 +23,13 @@ class OwnedResidue:
 
 
 @dataclass(frozen=True)
+class _LocalResidue:
+    """A check whose location is supplied when the subtree is captured."""
+
+    check: Any
+
+
+@dataclass(frozen=True)
 class CompilationMetadata:
     diagnostic_records: tuple = ()
     owned_checks: tuple[OwnedResidue, ...] = ()
@@ -66,11 +73,16 @@ class MetadataSession:
         records = _unique_identity(
             record for trace in visitor.diagnostic_traces.values() for record in trace.records
         )
-        local_checks = (
-            OwnedResidue(check, owner_key, location) for check in visitor.residue_checks
-        )
+        # The output map supersedes historical visitor-local checks: a parent
+        # may have renamed their markers, or discharged them at a boundary.
+        pending = (getattr(visitor, "owned_residue_checks", ())
+                   if getattr(visitor, "_owned_checks_by_node", None)
+                   else (*getattr(visitor, "owned_residue_checks", ()),
+                         *(_LocalResidue(check) for check in visitor.residue_checks)))
         checks = _unique_identity_owned(
-            (*getattr(visitor, "owned_residue_checks", ()), *local_checks)
+            OwnedResidue(item.check, owner_key, location)
+            if isinstance(item, _LocalResidue) else item
+            for item in pending
         )
         metadata = CompilationMetadata(
             diagnostic_records=records,

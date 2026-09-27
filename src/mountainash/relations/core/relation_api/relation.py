@@ -716,7 +716,7 @@ class Relation(RelationBase):
             visitor.backend,
             _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
         )
 
@@ -763,7 +763,7 @@ class Relation(RelationBase):
             visitor.backend,
             _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
         )
         return ConformCollection(
@@ -974,7 +974,7 @@ class Relation(RelationBase):
             visitor.backend,
             _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
         )
 
@@ -1017,7 +1017,7 @@ class Relation(RelationBase):
             visitor.backend,
             _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
         )
 

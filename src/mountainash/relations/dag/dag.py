@@ -204,10 +204,11 @@ class RelationDAG:
         result, visitor = self._collect_with_visitor(
             name, backend=backend, execution_policy=execution_policy,
         )
+        checks = visitor.terminal_residue_checks()
         has_trace = any(
             trace.records for trace in visitor.diagnostic_traces.values()
         )
-        if not visitor.residue_checks and not has_trace:
+        if not checks and not has_trace:
             return result
 
         from mountainash.core.limitations import enrich_materialization
@@ -218,7 +219,7 @@ class RelationDAG:
             visitor.backend,
             lambda: _force_eager(result, unwrap=False),
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=checks,
             execution_context=visitor.execution_context,
         )
         if is_polars_lazyframe(original) or is_narwhals_lazyframe(original):
@@ -250,11 +251,12 @@ class RelationDAG:
         result, visitor = self._collect_with_visitor(
             name, backend=backend, execution_policy=_resolve_policy(),
         )
+        checks = visitor.terminal_residue_checks()
         frame = enrich_materialization(
             visitor.backend,
             lambda: _force_eager(result, unwrap=True),
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=checks,
             execution_context=visitor.execution_context,
         )
         return ConformCollection(

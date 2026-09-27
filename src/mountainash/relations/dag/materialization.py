@@ -360,10 +360,9 @@ class DAGMaterializationSession:
             execution_context=execution_context,
         )
 
-        checks_start = len(visitor.residue_checks)
         compiled = root.accept(visitor)
-        residue_checks_this = tuple(visitor.residue_checks[checks_start:])
-        del visitor.residue_checks[checks_start:]
+        residue_checks_this = visitor.terminal_residue_checks()
+        visitor.residue_checks.clear()
 
         if guard_native_terminal:
             from mountainash.relations.core.relation_api.relation import (

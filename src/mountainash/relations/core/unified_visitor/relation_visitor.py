@@ -180,6 +180,7 @@ class UnifiedRelationVisitor:
         self.residue_check_nodes: dict[str, str] = {}
         self.owned_residue_checks: list[Any] = []
         self._owned_checks_by_node: dict[int, tuple[Any, ...]] = {}
+        self._local_checks_by_node: dict[int, tuple[Any, ...]] = {}
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id
@@ -381,7 +382,7 @@ class UnifiedRelationVisitor:
             plans = freeze_structured_field_plans(carried)
         self._structured_plans_by_node[id(node)] = plans
         self.structured_field_plans = plans
-        if self._owned_checks_by_node:
+        if self._owned_checks_by_node or id(node) in self._local_checks_by_node:
             from mountainash.relations.core.structured_lineage import propagate_owned_residue
 
             child_checks = [self._owned_checks_by_node.get(id(child), ())
@@ -390,8 +391,9 @@ class UnifiedRelationVisitor:
                 node, child_checks, output_names_resolver=self._ref_output_names,
                 backend=getattr(self.backend, "backend_type", None),
             )
-            self._owned_checks_by_node[id(node)] = carried
-            self.owned_residue_checks = list(carried)
+            output_checks = (*carried, *self._local_checks_by_node.get(id(node), ()))
+            self._owned_checks_by_node[id(node)] = output_checks
+            self.owned_residue_checks = list(output_checks)
 
     @staticmethod
     def _relation_children(node: RelationNode, op: Any) -> list[RelationNode]:
@@ -524,6 +526,25 @@ class UnifiedRelationVisitor:
             trace = OperationDiagnosticTrace()
             self.diagnostic_traces[key] = trace
         return trace
+
+    def terminal_residue_checks(self) -> tuple[Any, ...]:
+        """Return only checks safe to evaluate at this visitor's native terminal.
+
+        An adopted check belongs to its source and must be discharged there
+        before a transfer or a terminal can hide/relabel its marker. Task 5
+        supplies the source materialization boundary; until then fail closed.
+        """
+        from mountainash.relations.core.execution.metadata import _LocalResidue
+
+        pending = self.owned_residue_checks
+        if not pending and not self._owned_checks_by_node:
+            return tuple(self.residue_checks)
+        if any(not isinstance(owned, _LocalResidue) for owned in pending):
+            raise RuntimeError(
+                "A source-owned residue check must be discharged at its source "
+                "before terminal materialization"
+            )
+        return tuple(owned.check for owned in pending)
 
     @staticmethod
     def _marker_alias(
@@ -750,6 +771,12 @@ class UnifiedRelationVisitor:
                     finally:
                         self.expr_visitor.diagnostic_trace = marker_trace
                     self.residue_checks.extend(residue_checks)
+                    if owner_node is not None and residue_checks:
+                        from mountainash.relations.core.execution.metadata import _LocalResidue
+
+                        self._local_checks_by_node[id(owner_node)] = tuple(
+                            _LocalResidue(check) for check in residue_checks
+                        )
         except (BackendCapabilityError, ConformError):
             raise
         except Exception as e:
