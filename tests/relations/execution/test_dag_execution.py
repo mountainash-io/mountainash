@@ -70,6 +70,31 @@ def test_resource_ref_with_ibis_family_override_keeps_declared_read_location():
     }
 
 
+@pytest.mark.parametrize("nested", [False, True])
+def test_resource_explain_does_not_read_resource(monkeypatch, nested):
+    from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import MountainashPolarsExtensionRelationSystem
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash.typespec.datapackage import DataResource
+
+    resource = Relation(ResourceReadRelNode(resource=DataResource(name="inline", data=[{"id": 1}])))
+    if nested:
+        dag = ma.RelationDAG()
+        dag.add("source", resource)
+        dag.add("alias", dag.ref("source").select("id"))
+        relation = dag.ref("alias").filter(ma.col("id") > 0)
+    else:
+        relation = resource.select("id")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("explain read resource data")
+
+    monkeypatch.setattr(MountainashPolarsExtensionRelationSystem, "read_resource", forbidden)
+    text = relation.explain()
+    assert "ResourceReadRelNode" in text
+    assert ("/ref/" if nested else "root/input") in text
+
+
 def test_compile_rejects_late_ref_transfer_before_canonical_cache(monkeypatch):
     left = REGISTRY["ibis-duckdb"].build({"id": [1]}, "early")
     right = REGISTRY["ibis-sqlite"].build({"id": [2]}, "late")

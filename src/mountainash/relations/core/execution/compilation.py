@@ -64,8 +64,22 @@ class CompilationSession:
 
     def compile(self, key: str):
         from mountainash.core.constants import CONST_BACKEND
+        from mountainash.core.lazy_imports import import_ibis_expr_ops
         from mountainash.relations.core.errors import UnresolvedExecutionLocationError
-        from mountainash.relations.core.relation_nodes import JoinRelNode
+        from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
+        from mountainash.relations.core.execution.preparation import TransferRequirement
+        from mountainash.relations.core.relation_nodes import JoinRelNode, ReadRelNode
+
+        node = self.prepared.nodes[key]
+        location = self.prepared.locations[key]
+        if isinstance(node, ReadRelNode) and location.dialect == "ibis-sqlite" \
+                and hasattr(node.dataframe, "op"):
+            op = node.dataframe.op()
+            if isinstance(op, import_ibis_expr_ops().InMemoryTable):
+                payload = op.data.to_pyarrow(node.dataframe.schema())
+                source = CompiledSubtree(payload, location, self.prepared.tokens.token(node), CompilationMetadata())
+                requirement = TransferRequirement(key, location, "ibis_memory_ibis", False)
+                self.transport._validate_ibis_storage(source, requirement, payload)
 
         visitor = self._visitor(key)
         with self.at(visitor, key):
@@ -127,12 +141,19 @@ class CompilationSession:
         if key is None:
             raise RuntimeError(f"Unprepared child of {parent_key}")
         if isinstance(node, ReadRelNode) and isinstance(node.dataframe, (dict, list, tuple)):
+            from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
+            from mountainash.relations.core.execution.preparation import TransferRequirement
+
             raw = node.dataframe
             if not isinstance(raw, dict) and raw and not isinstance(raw[0], dict):
                 raise TypeError("Expected a mapping or a sequence of mappings")
             destination = self.prepared.locations[parent_key]
             if destination.family is CONST_BACKEND.IBIS:
-                value = coerce_to_ibis(destination.prototype, raw)
+                source = CompiledSubtree(raw, self.prepared.locations[key],
+                                         self.prepared.tokens.token(node), CompilationMetadata())
+                requirement = TransferRequirement(key, destination, "mapping_to_ibis", False)
+                value = self.transport._adapt(source, requirement, coerce_to_ibis,
+                                              destination.prototype, raw)
             elif destination.family is CONST_BACKEND.NARWHALS:
                 value = coerce_to_narwhals(destination.prototype, raw)
             else:

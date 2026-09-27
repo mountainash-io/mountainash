@@ -138,6 +138,26 @@ def test_polars_nan_to_sqlite_rejects_loss_without_changing_source(lazy):
     assert "NaN" in str(caught.value.__cause__)
 
 
+@pytest.mark.parametrize("shape", ["mapping", "rows", "memory"])
+def test_connectionless_ingress_nan_to_sqlite_is_rejected(shape):
+    target = REGISTRY["ibis-sqlite"].build({"id": [1, 2]}, "target")
+    if shape == "mapping":
+        source = {"id": [1, 2], "measure": [None, float("nan")]}
+    elif shape == "rows":
+        source = [{"id": 1, "measure": None}, {"id": 2, "measure": float("nan")}]
+    else:
+        source = ibis.memtable(pa.table({
+            "id": pa.array([1, 2]),
+            "measure": pa.array([None, float("nan")], type=pa.float64()),
+        }))
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        ma.relation(target).join(source, on="id").to_dicts()
+    assert caught.value.destination_dialect == "ibis-sqlite"
+    assert caught.value.route in ("mapping_to_ibis", "ibis_memory_ibis")
+    assert isinstance(caught.value.__cause__, ValueError)
+    assert "NaN" in str(caught.value.__cause__)
+
+
 def test_decimal_to_sqlite_fails_with_typed_context_not_driver_exception():
     source = ibis.duckdb.connect().create_table("source", pa.table({
         "id": pa.array([1], type=pa.int64()),

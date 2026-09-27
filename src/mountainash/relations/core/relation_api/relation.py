@@ -692,8 +692,12 @@ class Relation(RelationBase):
         prepared = prepare_execution(
             self._apply_optimisations(self._node), phase=ExecutionPhase.EXPLAIN,
         )
-        if prepared.transfers or any(loc.binding in ("unbound", "unresolved", "memory")
-                                     for loc in prepared.locations.values()):
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+        if (any(isinstance(node, ResourceReadRelNode) for node in prepared.nodes.values())
+                or prepared.transfers
+                or any(loc.binding in ("unbound", "unresolved", "memory")
+                       for loc in prepared.locations.values())):
             return render_execution(prepared)
         result, _visitor = self._compile_and_execute_with_visitor(phase=ExecutionPhase.COMPILE)
         _finish_terminal(_visitor, lambda: result)

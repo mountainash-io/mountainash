@@ -235,6 +235,34 @@ def test_embedded_expression_gate_uses_ast_evidence_only(predicate, blocks):
         CapabilityRegistry.restore(snapshot)
 
 
+@pytest.mark.parametrize("scope", ["output", "source"])
+def test_terminal_override_gates_embedded_expression_at_actual_operation(scope):
+    source = REGISTRY["ibis-duckdb"].build({"id": [1]}, "source")
+    expression = ma.col("id") > 0
+    rel = ma.relation(source).filter(expression)
+    if scope == "source":
+        rel = rel.select("id")
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.comparison",
+            Scope(CONST_BACKEND.POLARS, Dialect("polars")),
+            CapabilitySegment(Domain.COMPARISON, policies=(CapabilityPolicyRule(
+                key=CapabilityKey(FK.GT, "*"), level=CapabilityLevel.UNSUPPORTED,
+                since="2026-09-27", message="target polars comparison gate",
+                consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
+            ),)),
+        ))
+        if scope == "output":
+            with pytest.raises(BackendCapabilityError, match="target polars comparison gate"):
+                prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN, backend="polars")
+        else:
+            prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN, backend="polars")
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
 @pytest.mark.parametrize("phase", list(ExecutionPhase))
 def test_late_implicit_if_then_gate_precedes_transfer(phase, monkeypatch):
     a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")

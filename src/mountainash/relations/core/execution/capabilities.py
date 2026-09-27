@@ -151,13 +151,9 @@ def preflight_capabilities(prepared: PreparedExecution) -> None:
         if node.operation_key is None:
             continue
         op = RelationOperationRegistry.get(node.operation_key)
-        # Embedded expressions are evaluated by the operation's output system;
-        # the immediate input establishes their native input scope.
+        # An operation compiles its own expressions on its selected output
+        # system. Earlier source operations retain their own occurrence scope.
         scope = location
-        for binding in op.args:
-            if binding.kind is ArgKind.INPUT and key + "/" + binding.field in prepared.locations:
-                scope = prepared.locations[key + "/" + binding.field]
-                break
         for binding in op.args:
             if binding.kind not in (ArgKind.EXPRESSION, ArgKind.EXPRESSION_LIST):
                 continue
