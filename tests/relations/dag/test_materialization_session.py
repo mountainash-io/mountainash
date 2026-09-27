@@ -9,7 +9,11 @@ import mountainash as ma
 from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.materialization import DiagnosticFrameView
+from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+from mountainash.relations.core.execution.metadata import MetadataSession
+from mountainash.relations.core.execution.transport import TransportSession
 from mountainash.relations.dag import DAGMaterializationSession, RelationDAG
+from fixtures.backend_registry import REGISTRY
 
 # Trigger backend registration (side-effect imports)
 import mountainash.relations.backends  # noqa: F401
@@ -123,3 +127,31 @@ def test_close_is_idempotent():
     session.close(release_owned=True)
     session.close(release_owned=True)  # no error on second close
 
+
+def test_connectionless_plan_is_compiled_once_per_physical_binding():
+    import ibis
+
+    memory = ibis.memtable({"id": [1, 2]})
+    dag = RelationDAG()
+    dag.add("memory", ma.relation(memory).filter(ma.col("id") > 0))
+    a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
+    b = REGISTRY["ibis-duckdb"].build({"id": [2]}, "b")
+    tokens = IdentityTokens()
+    location = LocationResolver(tokens)
+    session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
+    session._execution_tokens = tokens
+    session._execution_metadata = MetadataSession(tokens)
+    session._execution_transport = TransportSession(tokens)
+    try:
+        first = session.resolve_at("memory", location.resolve(ma.relation(a)._node))
+        assert session.resolve_at("memory", location.resolve(ma.relation(a)._node)) is first
+        second = session.resolve_at("memory", location.resolve(ma.relation(b)._node))
+        assert second is not first
+        assert len(session._bound) == 2
+        assert session.canonical_keys == frozenset({"memory"})
+        assert session._canonical == {}
+        assert sorted(ma.relation(a.join(first, "id")).to_dict()["id"]) == [1]
+        assert sorted(ma.relation(b.join(second, "id")).to_dict()["id"]) == [2]
+    finally:
+        session._execution_transport.close(release_owned=False)
+        session.close(release_owned=False)

@@ -130,10 +130,12 @@ def prepare_execution(
     root: RelationNode, *, phase: ExecutionPhase, backend: str | None = None,
     identity_resolver: Callable[[str], RelationNode] | None = None,
     execution_context: Any = None,
+    tokens: IdentityTokens | None = None,
+    binding: ExecutionLocation | None = None,
 ) -> PreparedExecution:
     """Resolve the entire graph, preflight all gates, then reject unsafe phases."""
     policy = execution_context.policy if execution_context is not None else _resolve_policy()
-    tokens = IdentityTokens()
+    tokens = tokens if tokens is not None else IdentityTokens()
     resolver = LocationResolver(tokens, identity_resolver=identity_resolver)
     nodes: dict[str, RelationNode] = {}
     locations: dict[str, ExecutionLocation] = {}
@@ -192,7 +194,7 @@ def prepare_execution(
                 if requirement is not None:
                     transfers[child_key] = requirement
 
-    walk(root, "root")
+    walk(root, "root", binding=binding)
     prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens,
                                  execution_context, policy)
     # Gate every reachable occurrence before phase rejection or any transfer.

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
 
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
@@ -289,7 +290,6 @@ class RelationDAG:
             root,
             ref_names,
             backend=backend,
-            backend_target_name=name,
             key_target_name=name,
             execution_policy=execution_policy,
         )
@@ -318,6 +318,8 @@ class RelationDAG:
         *,
         backend: Optional[str] = None,
         execution_policy: "CapabilityPolicy",
+        phase: ExecutionPhase = ExecutionPhase.EXECUTE,
+        execution_context: Any = None,
     ) -> "tuple[Any, Any]":
         """``execute()`` variant returning ``(result, visitor)`` for terminals
         needing post-compile visitor state (e.g. ``collect_with_drift``).
@@ -343,23 +345,14 @@ class RelationDAG:
                 if ref_node is not None:
                     pending |= _walk_refs(ref_node) - all_refs
 
-        # Pick a backend target name for detection (first ref alphabetically).
-        # If no refs and no explicit backend, _compile_with_refs's own
-        # ad-hoc-node fallback branch (via _resolve_actual_identity_for_node)
-        # detects family+dialect together from this same node's own leaf --
-        # this used to duplicate that detection here (family only, no
-        # dialect) before immediately re-detecting it inside
-        # _compile_with_refs. Removed as dead weight (round-2: "the
-        # resolver still double-walks").
-        target_name = sorted(all_refs)[0] if all_refs else None
-
         return self._compile_with_refs(
             node,
             all_refs,
             backend=backend,
-            backend_target_name=target_name,
             key_target_name=None,
             execution_policy=execution_policy,
+            phase=phase,
+            execution_context=execution_context,
         )
 
     def _compile_with_refs(
@@ -368,162 +361,73 @@ class RelationDAG:
         ref_names: set[str],
         *,
         backend: Optional[str] = None,
-        backend_target_name: Optional[str] = None,
         key_target_name: Optional[str] = None,
         execution_policy: "CapabilityPolicy",
+        phase: ExecutionPhase = ExecutionPhase.EXECUTE,
+        execution_context: Any = None,
     ) -> "tuple[Any, Any]":
-        """Compile ``node`` after materialising all relations in ``ref_names``.
+        """Preflight the complete root before compiling any named dependency.
 
-        This is the shared compilation core used by both ``collect()`` and
-        ``execute()``. Cache and resolver mechanics delegate to a fresh
-        :class:`~mountainash.relations.dag.materialization.DAGMaterializationSession`
-        (Task 7, spec section 10) -- every relation named in ``ref_names``
-        is compiled and materialized exactly once, shared across every
-        consumer, coerced to a consumer's active identity via a declared
-        adapter and memoized per distinct consumer identity. Discarded
-        without releasing owned native caches (spec 10.5: ordinary
-        collection never releases a value referenced by the returned
-        native expression graph) -- ``session.close(release_owned=False)``.
-
-        Returns ``(result, visitor)`` — callers needing post-compile
-        visitor state (e.g. ``collect_with_drift()``'s
-        ``visitor.drift_reports``) can retrieve it without a second
-        compilation pass.
+        The DAG session owns named canonical plans and consumer bindings;
+        CompilationSession shares the prepared placement and transport scope.
         """
         missing_refs = sorted(n for n in ref_names if n not in self.relations)
         if missing_refs:
             raise self._unknown_ref_error(missing_refs[0])
 
-        from mountainash.relations.dag.materialization import (
-            DAGMaterializationSession,
-            _is_lazy_narwhals,
-            _resolve_backend_and_dialect,
-            _SessionRefResolver,
+        from mountainash.relations.core.execution.compilation import CompilationSession
+        from mountainash.relations.core.execution.preparation import prepare_execution
+        from mountainash.relations.dag.key_context import KeyDriftContext
+
+        prepared = prepare_execution(
+            node, phase=phase, backend=backend,
+            identity_resolver=lambda name: self.relations[name]._node,
+            execution_context=execution_context,
         )
+        if phase is ExecutionPhase.EXPLAIN:
+            from mountainash.relations.core.execution.preparation import render_execution
+
+            return render_execution(prepared), None
+
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
 
         session = DAGMaterializationSession(
             self, execution_policy=execution_policy, backend=backend,
         )
+        session._execution_phase = phase
+        session._execution_tokens = prepared.tokens
+        key_context = (KeyDriftContext(
+            resource_name=key_target_name,
+            constraints_for=self.constraints_for,
+            schema_of=self.schema,
+        ) if key_target_name is not None else None)
+        compilation = CompilationSession(
+            prepared, ref_resolver_factory=session.resolver_for,
+            key_context=key_context,
+        )
+        session._execution_transport = compilation.transport
+        session._execution_metadata = compilation.metadata
         try:
-            if key_target_name is not None:
-                # collect()'s case: the target IS itself a registered
-                # relation -- the session's own per-name compile handles
-                # it (and every dependency it transitively requires)
-                # directly; unwrap to the raw native value to preserve
-                # this method's existing contract. compile_requested_native()
-                # guards the target's own plans before any native-forcing
-                # step (Task 9 step 6) when the session is
-                # NATIVE_COLLECTION-moded; an intermediate dependency that
-                # loses its transported field before this output is never
-                # rejected, since only the target's own visitor is checked.
-                native, visitor = session.compile_requested_native(key_target_name)
-                # Each named resource compiled with its own dedicated
-                # visitor (Task 7) -- collect_with_drift()'s caller reads
-                # ONE visitor.drift_reports list, so prepend every
-                # transitively-required dependency's own drift reports,
-                # in the same topological (depth-first) order they were
-                # produced, ahead of the target's own.
-                dependency_drifts: "list[Any]" = []
-                for dep_name in self.topological_order(target=key_target_name):
-                    if dep_name == key_target_name:
-                        continue
-                    dep_visitor = session._visitors.get(dep_name)
-                    if dep_visitor is not None:
-                        dependency_drifts.extend(dep_visitor.drift_reports)
-                visitor.drift_reports = dependency_drifts + visitor.drift_reports
-                return native.value, visitor
+            envelope, visitor = compilation.compile(prepared.root_key)
+            dependencies = (
+                self.topological_order(target=key_target_name)
+                if key_target_name is not None else session._visitors
+            )
+            visitor.drift_reports = [
+                report for dep in dependencies
+                if dep != key_target_name and dep in session._visitors
+                for report in session._visitors[dep].drift_reports
+            ] + visitor.drift_reports
+            if key_target_name is not None and phase is ExecutionPhase.EXECUTE:
+                from mountainash.relations.core.relation_api.relation import _guard_native_terminal
 
-            # execute()'s ad-hoc case: `node` is not a registered relation
-            # (no session cache entry of its own), so resolve its identity
-            # and compile it directly here, using the session only to
-            # resolve its refs.
-            from mountainash.expressions.core.expression_system.expsys_base import (
-                get_expression_system,
-            )
-            from mountainash.expressions.core.unified_visitor import (
-                UnifiedExpressionVisitor,
-            )
-            from mountainash.relations.core.relation_protocols.relsys_base import (
-                get_relation_system,
-            )
-            from mountainash.relations.core.unified_visitor.relation_visitor import (
-                UnifiedRelationVisitor,
-            )
-
-            if backend_target_name is not None:
-                actual_family, actual_dialect = self._resolve_actual_identity_for(
-                    backend_target_name
-                )
-            elif ref_names:
-                anchor_name = sorted(ref_names)[0]
-                actual_family, actual_dialect = self._resolve_actual_identity_for(
-                    anchor_name
-                )
-            else:
-                actual_family, actual_dialect = self._resolve_actual_identity_for_node(
-                    node
-                )
-            resolved_backend, dialect = _resolve_backend_and_dialect(
-                actual_family, actual_dialect, backend
-            )
-
-            # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
-            # must reject before caching.
-            anchor_leaf = None
-            if backend_target_name is not None or ref_names:
-                anchor_name = backend_target_name or sorted(ref_names)[0]
-                _anchor_family, _, anchor_leaf = self._resolve_identity_leaf(anchor_name)
-                if anchor_leaf is not None and _is_lazy_narwhals(anchor_leaf.dataframe):
-                    if any(
-                        self._resolve_actual_identity_for(n)[0]
-                        not in (None, resolved_backend)
-                        for n in ref_names
-                    ):
-                        raise TypeError(
-                            "Cross-family DAG coercion is not supported with a lazy Narwhals anchor."
-                        )
-            else:
-                from mountainash.relations.core.relation_api.relation_base import (
-                    RelationBase,
-                )
-                from mountainash.relations.dag.errors import RelationDAGRequired
-
-                try:
-                    anchor_leaf = RelationBase._find_leaf_read_node(node)
-                except (ValueError, AttributeError, RelationDAGRequired):
-                    anchor_leaf = None
-
-            relation_system = get_relation_system(resolved_backend)(dialect=dialect)
-            from mountainash.core.capabilities.policy import (
-                _identify_capability_target,
-                _prepare_capability_context,
-            )
-
-            target_data = anchor_leaf.dataframe if anchor_leaf is not None else None
-            target = _identify_capability_target(
-                target_data, family_override=resolved_backend,
-            )
-            execution_context = _prepare_capability_context(
-                execution_policy, target, package_versions=session._package_versions,
-            )
-            expr_visitor = UnifiedExpressionVisitor(
-                get_expression_system(resolved_backend)(
-                    dialect=dialect, execution_context=execution_context,
-                ),
-                execution_context=execution_context,
-            )
-
-            ref_resolver = _SessionRefResolver(session, execution_context)
-
-            visitor = UnifiedRelationVisitor(
-                relation_system,
-                expression_visitor=expr_visitor,
-                ref_resolver=ref_resolver,
-                key_context=None,  # ad-hoc execute() target: no DAG identity to assess
-                identity_resolver=lambda n: self.relations[n]._node,
-                execution_context=execution_context,
-            )
-            return node.accept(visitor), visitor
+                _guard_native_terminal(visitor.structured_field_plans)
+            visitor._execution_session = compilation
+            return envelope.value, visitor
+        except BaseException:
+            compilation.close(release_owned=True)
+            session.close(release_owned=True)
+            raise
         finally:
             session.close(release_owned=False)
 

@@ -12,10 +12,10 @@ from mountainash.relations.core.execution.metadata import MetadataSession
 from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.core.execution.transport import TransportSession
 from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
-from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
 
 if TYPE_CHECKING:
     from mountainash.relations.core.execution.preparation import PreparedExecution
+    from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
 
 
 class CompilationSession:
@@ -42,6 +42,8 @@ class CompilationSession:
             visitor.execution_key = previous
 
     def _visitor(self, key: str) -> UnifiedRelationVisitor:
+        from mountainash.relations.core.unified_visitor import relation_visitor
+
         location = self.prepared.locations[key]
         family = location.family
         context = self.prepared.context_for(location)
@@ -52,11 +54,12 @@ class CompilationSession:
         expression_visitor = UnifiedExpressionVisitor(
             expression_system, input_data=location.prototype, execution_context=context,
         )
-        return UnifiedRelationVisitor(
+        resolver = self.ref_resolver_factory(location) if self.ref_resolver_factory else None
+        return relation_visitor.UnifiedRelationVisitor(
             system, expression_visitor, execution_context=context,
             metadata_session=self.metadata, execution=self, execution_key=key,
             key_context=self.key_context,
-            ref_resolver=(self.ref_resolver_factory(location) if self.ref_resolver_factory else None),
+            ref_resolver=resolver,
         )
 
     def compile(self, key: str):
@@ -66,7 +69,7 @@ class CompilationSession:
 
         visitor = self._visitor(key)
         with self.at(visitor, key):
-            value = visitor.visit(self.prepared.nodes[key])
+            value = self.prepared.nodes[key].accept(visitor)
         location = self.prepared.locations[key]
         if isinstance(self.prepared.nodes[key], JoinRelNode) and location.family is CONST_BACKEND.IBIS:
             try:

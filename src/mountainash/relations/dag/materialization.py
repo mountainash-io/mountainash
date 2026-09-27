@@ -10,7 +10,7 @@ whole query plan once per consumer.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
@@ -24,6 +24,7 @@ from mountainash.relations.core.materialization import (
     diagnostic_polars_view,
     materialize_native,
 )
+from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
@@ -153,15 +154,26 @@ class _SessionRefResolver:
     def __init__(
         self,
         session: "DAGMaterializationSession",
-        consumer_context: "_ExecutionContext",
+        consumer_context: "_ExecutionContext | None" = None,
+        destination: Any = None,
     ) -> None:
         self._session = session
         self._consumer_context = consumer_context
+        self._destination = destination
 
     def __call__(self, name: str) -> Any:
+        if self._destination is not None:
+            return self._session.resolve_at(name, self._destination)
         return self._session.resolve(name, self._consumer_context)
 
     def structured_plans(self, name: str) -> "StructuredFieldPlanMap":
+        if self._destination is not None:
+            entry = self._session._canonical.get(name)
+            if entry is not None:
+                return entry.structured_field_plans
+            bound = self._session._bound.get((name, self._destination.key))
+            if bound is not None:
+                return bound[1].structured_field_plans
         return self._session._compile_named(name).structured_field_plans
 
 
@@ -221,16 +233,22 @@ class DAGMaterializationSession:
         self._execution_policy = execution_policy
         self._package_versions: "dict[str, str | None]" = {}
         self._canonical: "dict[str, CanonicalEntry]" = {}
+        self._plans: dict[str, Any] = {}
+        self._bound: dict[tuple[str, tuple], tuple[Any, Any]] = {}
         self._coerced: "dict[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment], NativeExecutionValue]" = {}
         self._diagnostic_views: "dict[str, DiagnosticFrameView]" = {}
         self._visitors: "dict[str, UnifiedRelationVisitor]" = {}
         self._validation_native: "dict[str, NativeExecutionValue]" = {}
         self._scope = MaterializationScope()
         self._closed = False
+        self._execution_phase = ExecutionPhase.EXECUTE
+        self._execution_tokens = None
+        self._execution_transport = None
+        self._execution_metadata = None
 
     @property
     def canonical_keys(self) -> "frozenset[str]":
-        return frozenset(self._canonical)
+        return frozenset(self._canonical) | frozenset(self._plans)
 
     @property
     def coercion_keys(self) -> "frozenset[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment]]":
@@ -246,7 +264,103 @@ class DAGMaterializationSession:
         """
         values = [entry.native.value for entry in self._canonical.values()]
         values.extend(coerced.value for coerced in self._coerced.values())
+        values.extend(envelope.value for envelope, _ in self._bound.values())
         return tuple(values)
+
+    def resolver_for(self, destination: Any) -> _SessionRefResolver:
+        """Bind a ref resolver to this consumer's complete physical location."""
+        return _SessionRefResolver(self, destination=destination)
+
+    def resolve_at(self, name: str, destination: Any) -> Any:
+        """Resolve a named plan in its own location, then transport for this consumer."""
+        from mountainash.relations.core.execution.compilation import CompilationSession
+        from mountainash.relations.core.execution.location import LocationResolver
+        from mountainash.relations.core.execution.preparation import prepare_execution, _route
+        from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.relations.dag.key_context import KeyDriftContext
+
+        if name not in self.dag.relations:
+            raise self.dag._unknown_ref_error(name)
+        root = self._plans.setdefault(name, self._node_for(name))
+        tokens = self._execution_tokens
+        location = LocationResolver(
+            tokens, identity_resolver=lambda ref: self.dag.relations[ref]._node,
+        ).resolve(root)
+        connectionless = location.binding == "memory"
+        source_location = destination if connectionless else location
+        binding_key = (name, source_location.key)
+        if binding_key not in self._bound:
+            prepared = prepare_execution(
+                root, phase=self._execution_phase,
+                identity_resolver=lambda ref: self.dag.relations[ref]._node,
+                tokens=tokens, binding=destination if connectionless else None,
+            )
+            key_context = KeyDriftContext(
+                resource_name=name, constraints_for=self.dag.constraints_for,
+                schema_of=self.dag.schema,
+            )
+            compilation = CompilationSession(
+                prepared, ref_resolver_factory=self.resolver_for,
+                key_context=key_context, transport=self._execution_transport,
+                metadata=self._execution_metadata,
+            )
+            envelope, visitor = compilation.compile(prepared.root_key)
+            if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
+                from mountainash.core.limitations import enrich_materialization
+                from mountainash.core.types import is_ibis_table
+
+                if is_ibis_table(envelope.value):
+                    native = enrich_materialization(
+                        visitor.backend,
+                        lambda: materialize_native(
+                            envelope.value, source_location.capability_identity,
+                            MaterializationPurpose.DAG_CANONICAL,
+                            execution_context=visitor.execution_context, scope=self._scope,
+                        ),
+                        diagnostic_trace=visitor._active_diagnostic_trace(),
+                        residue_checks=visitor.terminal_residue_checks(),
+                        execution_context=visitor.execution_context,
+                    )
+                    envelope = replace(
+                        envelope, value=native.value,
+                        source_token=tokens.token(native.value),
+                    )
+            self._bound[binding_key] = (envelope, visitor)
+            self._visitors[name] = visitor
+        envelope, visitor = self._bound[binding_key]
+        if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless and name not in self._canonical:
+            # Keep the canonical source distinct from consumer-specific transfers.
+            from mountainash.core.backend_detection import identify_backend_identity
+            from mountainash.conform.structured_transport import freeze_structured_field_plans
+
+            value = envelope.value
+            compiler_identity = source_location.capability_identity
+            native = NativeExecutionValue(
+                value, compiler_identity, identify_backend_identity(value),
+                source_location.form, target=visitor.execution_context.target,
+            )
+            self._canonical[name] = CanonicalEntry(
+                native, (), (), {}, visitor.key_context,
+                freeze_structured_field_plans(visitor.structured_field_plans),
+            )
+        requirement = _route(
+            name, source_location, destination, derived=not isinstance(root, ReadRelNode),
+        )
+        if requirement is None:
+            return envelope.value
+        transferred = self._execution_transport.transfer(envelope, requirement)
+        self._coerced[(name, destination.key)] = NativeExecutionValue(
+            transferred.value, envelope.location.capability_identity,
+            destination.capability_identity, destination.form,
+        )
+        return transferred.value
+
+    def _node_for(self, name: str) -> Any:
+        rel = self.dag.relations[name]
+        transform = self._node_transforms.get(name)
+        if transform is not None:
+            rel = transform(rel)
+        return rel._node
 
     def _resolve_identity(
         self, name: str, *, honor_override: bool
