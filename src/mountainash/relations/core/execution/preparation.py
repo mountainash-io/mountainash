@@ -20,7 +20,7 @@ from mountainash.relations.core.execution.location import (
 )
 from mountainash.relations.core.materialization import ExecutionForm
 from mountainash.relations.core.relation_nodes import JoinRelNode, ReadRelNode, SetRelNode
-from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode, ResourceReadRelNode
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -142,12 +142,31 @@ def prepare_execution(
     inputs: dict[str, tuple[str, ...]] = {}
     transfers: dict[str, TransferRequirement] = {}
     active_refs: set[str] = set()
+
+    def resource_only(node: RelationNode, refs: frozenset[str] = frozenset()) -> bool:
+        if isinstance(node, ResourceReadRelNode):
+            return True
+        if isinstance(node, RefRelNode):
+            if identity_resolver is None or node.name in refs:
+                return False
+            try:
+                resolved = identity_resolver(node.name)
+            except KeyError:
+                return False  # The location resolver reports the typed missing-ref error.
+            return resource_only(resolved, refs | {node.name})
+        children = node.children()
+        return len(children) == 1 and resource_only(children[0], refs)
+
     requested_family = None
     if backend is not None:
         try:
             requested_family = CONST_BACKEND(backend.lower()) if isinstance(backend, str) else CONST_BACKEND(backend)
         except (AttributeError, ValueError) as exc:
             raise ValueError(f"unknown backend: {backend!r}") from exc
+    # A resource without a physical Ibis peer has its own declared/default
+    # Polars read location. An Ibis family override alone is not a binding;
+    # retain the resource's existing fallback instead of manufacturing one.
+    resource_ibis_fallback = requested_family is CONST_BACKEND.IBIS and resource_only(root)
 
     def walk(node: RelationNode, key: str, binding: ExecutionLocation | None = None) -> None:
         location = resolver.resolve(node, binding=binding)
@@ -157,7 +176,8 @@ def prepare_execution(
                     f"Explicit target at {key} is {_label(location)}, not {requested_family.value}",
                     node_key=key, source=requested_family.value, destination=_label(location),
                 )
-        if key == "root" and requested_family is not None and requested_family is not location.family:
+        if (key == "root" and requested_family is not None
+                and requested_family is not location.family and not resource_ibis_fallback):
             # A terminal override is a root placement request, not a source
             # identity. Descendants retain their own native dialects.
             if requested_family is CONST_BACKEND.IBIS:

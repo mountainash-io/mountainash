@@ -55,6 +55,21 @@ def test_explicit_backend_cannot_override_nested_dag_join_target():
         dag.collect("target", backend="polars")
 
 
+def test_resource_ref_with_ibis_family_override_keeps_declared_read_location():
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash.typespec.datapackage import DataResource
+
+    dag = ma.RelationDAG()
+    dag.add("inline", Relation(ResourceReadRelNode(resource=DataResource(
+        name="inline", data=[{"id": 1}, {"id": 2}],
+    ))))
+    dag.add("projected", dag.ref("inline").select("id"))
+    assert dag.collect("projected", backend="ibis").collect().to_dict(as_series=False) == {
+        "id": [1, 2],
+    }
+
+
 def test_compile_rejects_late_ref_transfer_before_canonical_cache(monkeypatch):
     left = REGISTRY["ibis-duckdb"].build({"id": [1]}, "early")
     right = REGISTRY["ibis-sqlite"].build({"id": [2]}, "late")
