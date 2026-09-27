@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional, Sequence, TypeVar, Union
 
 
 if TYPE_CHECKING:
@@ -59,6 +59,18 @@ def _normalize_columns(cols: Any) -> Optional[list[str]]:
     if isinstance(cols, str):
         return [cols]
     return list(cols)
+
+
+def _normalize_execution_target(value: Any) -> ExecutionTarget | None:
+    """Validate and normalize a public join target before building its node."""
+    if value is None or isinstance(value, ExecutionTarget):
+        return value
+    if isinstance(value, str):
+        if value == "left":
+            return ExecutionTarget.LEFT
+        if value == "right":
+            return ExecutionTarget.RIGHT
+    raise ValueError("execute_on must be None, 'left', 'right', or ExecutionTarget")
 
 
 def _normalize_sort_fields(
@@ -349,7 +361,7 @@ class Relation(RelationBase):
         right_on: Optional[Union[str, list[str]]] = None,
         how: str = "inner",
         suffix: str = "_right",
-        execute_on: Optional[ExecutionTarget] = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
         """Join with another relation or raw data."""
         return _combine_result(
@@ -361,7 +373,7 @@ class Relation(RelationBase):
                 left_on=_normalize_columns(left_on),
                 right_on=_normalize_columns(right_on),
                 suffix=suffix,
-                execute_on=execute_on,
+                execute_on=_normalize_execution_target(execute_on),
             ),
             [self, other],
         )
@@ -374,6 +386,7 @@ class Relation(RelationBase):
         by: Optional[Union[str, list[str]]] = None,
         strategy: str = "backward",
         tolerance: Any = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
         """Asof join with another relation or raw data."""
         return _combine_result(
@@ -385,6 +398,7 @@ class Relation(RelationBase):
                 by=_normalize_columns(by),
                 strategy=strategy,
                 tolerance=tolerance,
+                execute_on=_normalize_execution_target(execute_on),
             ),
             [self, other],
         )
@@ -602,9 +616,14 @@ class Relation(RelationBase):
         """Return the bottom *k* rows. Polars-compatible alias for top_k(descending=False)."""
         return self.top_k(k, by=by, descending=False)
 
-    def cross_join(self, other: Any) -> Relation:
+    def cross_join(
+        self,
+        other: Any,
+        *,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
+    ) -> Relation:
         """Cartesian product. Polars-compatible alias for join(how='cross')."""
-        return self.join(other, how="cross")
+        return self.join(other, how="cross", execute_on=_normalize_execution_target(execute_on))
 
     def first(self) -> Relation:
         """Return the first row. Polars-compatible alias for head(1)."""
