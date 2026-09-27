@@ -61,7 +61,8 @@ def test_collect_ibis_returns_materialized():
     pytest.importorskip("ibis")
     import ibis
 
-    t = ibis.memtable({"x": [1, 2, 3]})
+    connection = ibis.duckdb.connect()
+    t = connection.create_table("collect_input", {"x": [1, 2, 3]})
     result = relation(t).collect()
     # Invariant: the one-syntax-all-backends contract. collect() must
     # never return a Polars LazyFrame (the original leak we fixed).
@@ -102,7 +103,8 @@ def test_compile_ibis_returns_unexecuted_table():
     pytest.importorskip("ibis")
     import ibis
 
-    t = ibis.memtable({"x": [1, 2, 3]})
+    connection = ibis.duckdb.connect()
+    t = connection.create_table("compile_input", {"x": [1, 2, 3]})
     plan = relation(t).compile()
     assert isinstance(plan, ibis.Table)
 

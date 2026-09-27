@@ -385,7 +385,7 @@ class TestExactModeOrderParity:
         assert list(inferred.keys()) == list(actual.columns)
 
     def test_exact_order_callable_schema_source(self):
-        # An ibis memtable exposes callable .schema() returning an ibis Schema
+        # A bound ibis table exposes callable .schema() returning an ibis Schema
         # whose items() yield (name, ibis_type) pairs — this exercises the
         # callable-schema branch of _schema_from_dataframe (lines 108-113).
         # The ibis types map to SchemaTypeStatus.UNKNOWN (not Polars natives),
@@ -393,7 +393,9 @@ class TestExactModeOrderParity:
         # drive the inferred output, so order parity is still testable.
         import ibis
 
-        t = ibis.memtable({"x_src": [1], "y_src": ["a"]})
+        t = ibis.duckdb.connect().create_table(
+            "schema_input", {"x_src": [1], "y_src": ["a"]}
+        )
         rel = ma.relation(t).conform(self._SPEC)
         inferred = _infer(rel)
         actual = rel.to_polars()

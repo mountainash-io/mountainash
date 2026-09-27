@@ -281,6 +281,9 @@ def propagate_owned_residue(
     """
     from dataclasses import replace as replace_check
 
+    if not any(child_checks):
+        return ()
+
     policy = TRANSPORT_LINEAGE_POLICIES.get(node.operation_key)
     if any(child_checks) and policy not in {
         _JOIN, _PROJECT_RENAME, _PROJECT_SELECT, _PROJECT_DROP,

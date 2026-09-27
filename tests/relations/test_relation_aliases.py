@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from duckdb.duckdb import BinderException
 from ibis.common.exceptions import OperationNotDefinedError
-from sqlite3 import OperationalError
 
 import mountainash as ma
 from fixtures.call_expectations import expect_call_failure
@@ -58,14 +56,19 @@ class TestRelationAliases:
     def test_cross_join(self, backend_name, backend_factory):
         r1 = self._make_relation(backend_name, backend_factory)
         r2 = ma.relation(backend_factory.create({"c": [10, 20]}, backend_name))
-        with expect_call_failure(
-            when=backend_name in ("ibis-duckdb", "ibis-sqlite"),
-            errors=(BinderException,) if backend_name == "ibis-duckdb" else (OperationalError,),
-            reason="Relation.cross_join() raises on ibis-duckdb/ibis-sqlite; polars/narwhals and ibis-polars compute it",
-        ):
-            cross = sorted(r1.cross_join(r2).to_dicts(), key=lambda d: (d["a"], d["c"]))
-            join_cross = sorted(r1.join(r2, how="cross").to_dicts(), key=lambda d: (d["a"], d["c"]))
-            assert cross == join_cross, f"[{backend_name}]"
+        expected = [
+            {"a": a, "b": b, "c": c}
+            for a, b in ((1, 4), (2, 5), (3, 6))
+            for c in (10, 20)
+        ]
+        for result in (r1.cross_join(r2), r1.join(r2, how="cross")):
+            assert sorted(result.to_dicts(), key=lambda d: (d["a"], d["c"])) == expected
+            if backend_name.startswith("ibis-"):
+                left = r1._node.dataframe
+                right = r2._node.dataframe
+                assert left._find_backend(use_default=False) is not right._find_backend(use_default=False)
+                native = result.collect()
+                assert native._find_backend(use_default=False) is left._find_backend(use_default=False)
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_first_is_head_1(self, backend_name, backend_factory):

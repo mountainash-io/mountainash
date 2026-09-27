@@ -18,7 +18,9 @@ def _frames(backend):
         return nw.from_native(a, eager_only=True), nw.from_native(b, eager_only=True)
     if backend == "ibis":
         import ibis
-        return ibis.memtable(a.to_pandas()), ibis.memtable(b.to_pandas())
+        connection = ibis.duckdb.connect()
+        return (connection.create_table("first_input", a.to_arrow()),
+                connection.create_table("second_input", b.to_arrow()))
     raise AssertionError(backend)
 
 

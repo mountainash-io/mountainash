@@ -20,11 +20,18 @@ result = (
       .filter(ma.col("amount").gt(100))
       .group_by("region")
       .agg(ma.col("amount").sum().alias("total"))
-      .to_polars()    # ← only this line knows the target
+      .to_polars()    # ← output format; input determines execution location
 )
 ```
 
-When the terminal call runs, mountainash detects the backend from the input frame (or accepts an explicit `execute_on=`) and compiles the AST to native operations: Polars frame → native `pl.Expr` chains; pandas frame → Narwhals operations; Ibis table → SQL pushed to whichever engine that table is connected to.
+When the terminal call runs, mountainash resolves the execution location from
+the input plan, then compiles the AST to native operations: Polars frame → native
+`pl.Expr` chains; pandas frame → Narwhals operations; bound Ibis table → SQL on
+that table's connection. A join defaults to its left operand's resulting
+location; `execute_on="right"` selects the right one without swapping rows or
+join type. `.to_polars()` changes the output format, not the execution location.
+See [technical cross-backend execution](../features-technical/cross-backend.md)
+for physical-connection and compile-only boundaries.
 
 The compilation is mechanical and inspectable. We didn't build a shadow execution engine. The output of compilation is what someone would have written by hand against that library, which keeps the runtime cost predictable and the debugging story sane.
 

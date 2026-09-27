@@ -31,7 +31,7 @@ Every expression and every relation flows through the same three layers:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Principle: `a.architecture/three-layer-separation.md`. Each layer has a single responsibility:
+Principle: `a.architecture/core/three-layer-separation.md`. Each layer has a single responsibility:
 
 - **API builders** know how the user types things.
 - **Nodes** know the structure of the operation.
@@ -90,7 +90,49 @@ detect_dataframe_backend_type(df) -> CONST_BACKEND
 
 Registered via a decorator in `core/factories.py`. The resulting `CONST_BACKEND` enum value routes the visitor to the matching `RelationSystem` and `ExpressionSystem` composition.
 
-For cross-type joins (`relation(polars_df).join(pandas_df, on=…)`), one side is coerced — see principle `e.cross-backend/cross-type-joins.md`. Use `execute_on=` to force a target backend.
+For cross-type joins (`relation(polars_df).join(pandas_df, on=…)`), a foreign
+operand is transported to the selected operand's **resulting location** — see
+principle `d.cross-backend/relations/cross-type-joins.md`. `execute_on="right"`
+selects the right location without reversing join semantics; omitted/`None`
+selects the left. Physical Ibis connection identity matters even when dialect
+and table name match. A unary parent inherits its input's location, and a set
+uses its first input's resulting location (including a targeted inner join).
+
+```python
+import ibis
+import pyarrow as pa
+import mountainash as ma
+
+connection = ibis.duckdb.connect()
+orders = connection.create_table("orders", pa.table({"customer_id": [1, 2]}))
+lookup = ibis.memtable(pa.table({"customer_id": [2], "name": ["Ada"]}))
+result = ma.relation(orders).join(lookup, on="customer_id", execute_on="left").to_dicts()
+assert result == [{"customer_id": 2, "name": "Ada"}]
+```
+
+For two independent connections, a cross-connection transfer materializes the
+foreign source through Arrow, then binds the join at the chosen destination:
+
+```python
+source = ibis.duckdb.connect()
+destination = ibis.duckdb.connect()
+left = source.create_table("left_ids", pa.table({"id": [1, 2]}))
+right = destination.create_table("right_ids", pa.table({"id": [2], "label": ["yes"]}))
+joined = ma.relation(left).join(right, on="id", execute_on="right")
+assert joined.to_dicts() == [{"id": 2, "label": "yes"}]
+assert joined.collect()._find_backend(use_default=False) is destination
+```
+
+`cross_join(other, execute_on=...)` and `join_asof(other, on=...,
+execute_on=...)` use the same placement rule. Nested joins can target different
+locations; an explicit terminal `backend=` that contradicts any explicit inner
+target fails before execution. `backend="ibis"` is only a family override,
+not a connection; `.to_polars()` selects output representation, not placement.
+A memtable-only Ibis authority without a bound peer now fails as unresolved,
+including at materializing terminals; supply a bound table as in the example.
+`.compile()` cannot execute a deferred source just to transfer it (including
+late union inputs), and directs you to `.collect()`; `.explain()` describes
+placement and transfers without executing them.
 
 Principle: `e.cross-backend/backend-detection.md`.
 

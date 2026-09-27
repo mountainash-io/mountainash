@@ -63,9 +63,14 @@ class MetadataSession:
 
     def __init__(self, tokens: IdentityTokens) -> None:
         self.tokens = tokens
+        self._conform_owners: list[object] = []
 
     def conform_id(self, owner: object) -> str:
-        return f"conform:{self.tokens.token(owner)}"
+        for index, existing in enumerate(self._conform_owners):
+            if existing is owner:
+                return f"conform:{index}"
+        self._conform_owners.append(owner)
+        return f"conform:{len(self._conform_owners) - 1}"
 
     def capture(
         self, visitor: Any, *, owner_key: str, location: ExecutionLocation, value: Any,
