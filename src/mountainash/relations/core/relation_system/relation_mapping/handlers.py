@@ -17,8 +17,11 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 
 
 def visit_join(node: Any, visitor: Any) -> Any:
-    left = visitor.visit(node.left)
-    right = visitor._visit_and_coerce_right(node.right, left)
+    if visitor.execution is not None:
+        left, right = visitor.execution.operands(visitor, visitor.execution_key)
+    else:
+        left = visitor.visit(node.left)
+        right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
     return visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
@@ -32,8 +35,11 @@ def visit_join(node: Any, visitor: Any) -> Any:
 
 
 def visit_join_asof(node: Any, visitor: Any) -> Any:
-    left = visitor.visit(node.left)
-    right = visitor._visit_and_coerce_right(node.right, left)
+    if visitor.execution is not None:
+        left, right = visitor.execution.operands(visitor, visitor.execution_key)
+    else:
+        left = visitor.visit(node.left)
+        right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,

@@ -249,7 +249,7 @@ def test_same_visitor_conform_check_enters_output_map_and_survives_parent(backen
                 action=PolicyAction.DETECT_NON_NULL_TO_NULL,
             ),)),
         ))
-        frame = backend_factory.create({"year": ["2024"]}, "ibis-duckdb")
+        frame = backend_factory.create({"id": [1], "year": ["2024"]}, "ibis-duckdb")
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
         child = ma.relation(frame).conform(spec)
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
@@ -260,8 +260,7 @@ def test_same_visitor_conform_check_enters_output_map_and_survives_parent(backen
         ]
         assert visitor.terminal_residue_checks() == tuple(visitor.residue_checks)
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
-            with pytest.raises(ValueError, match="must be checked"):
-                child.select("id").collect()
+            assert ma.relation(child.select("id").collect()).to_dict() == {"id": [1]}
     finally:
         CapabilityRegistry.restore(snapshot)
 

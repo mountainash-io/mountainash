@@ -44,7 +44,8 @@ def test_late_union_transfer_is_detected_without_executing_earlier_inputs(monkey
 
 @pytest.mark.parametrize("shape", ["join", "union", "nested"])
 @pytest.mark.parametrize("phase", list(ExecutionPhase))
-def test_late_known_gate_precedes_every_export(monkeypatch, shape, phase):
+@pytest.mark.parametrize("public_path", [False, True])
+def test_late_known_gate_precedes_every_export(monkeypatch, shape, phase, public_path):
     a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
     b = REGISTRY["ibis-sqlite"].build({"id": [1]}, "b")
     early, late = ma.relation(a), ma.relation(b).filter(ma.col("id") > 0)
@@ -76,7 +77,15 @@ def test_late_known_gate_precedes_every_export(monkeypatch, shape, phase):
             ),)),
         ))
         with pytest.raises(BackendCapabilityError, match="P3 late SQLite filter gate") as caught:
-            prepare_execution(rel._node, phase=phase)
+            if public_path:
+                if phase is ExecutionPhase.EXECUTE:
+                    rel.collect()
+                elif phase is ExecutionPhase.COMPILE:
+                    rel.compile()
+                else:
+                    rel.explain()
+            else:
+                prepare_execution(rel._node, phase=phase)
         assert caught.value.function_key is RS.FILTER
         assert exports == []
     finally:

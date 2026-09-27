@@ -162,6 +162,8 @@ class UnifiedRelationVisitor:
         identity_resolver: Optional[Callable[[str], Any]] = None,
         execution_context: "_ExecutionContext",
         metadata_session: "MetadataSession | None" = None,
+        execution: Any = None,
+        execution_key: str | None = None,
     ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
@@ -175,6 +177,9 @@ class UnifiedRelationVisitor:
         self.identity_resolver = identity_resolver
         self.execution_context = execution_context
         self.metadata_session = metadata_session
+        self.execution = execution
+        self.execution_key = execution_key
+        self._visiting_root = False
         self.diagnostic_traces: dict[tuple[Any, Any], Any] = {}
         self.residue_checks: list[Any] = []
         self.residue_check_nodes: dict[str, str] = {}
@@ -198,6 +203,15 @@ class UnifiedRelationVisitor:
     def visit(self, node: RelationNode) -> Any:
         """Single dispatch site (spec §3.5): third-party visit-registry
         handler -> operation registry -> def handler or generic bind+call."""
+        if self.execution is not None and self._visiting_root:
+            return self.execution.child(self, node)
+        self._visiting_root = True
+        try:
+            return self._visit_prepared(node)
+        finally:
+            self._visiting_root = False
+
+    def _visit_prepared(self, node: RelationNode) -> Any:
         from .visit_registry import RelationVisitRegistry
 
         handler = RelationVisitRegistry.get(type(node))
@@ -229,6 +243,12 @@ class UnifiedRelationVisitor:
         from mountainash.relations.core.execution.location import ExecutionLocation
         from mountainash.relations.core.materialization import ExecutionForm
 
+        if self.execution is not None:
+            check_ast_capabilities(
+                node, self.execution.prepared.locations[self.execution_key],
+                execution_context=self.execution_context,
+            )
+            return
         dialect = self._authoritative_dialect(node, op)
         if dialect is _UNRESOLVED:
             dialect = getattr(self.backend, "dialect", None)
@@ -239,6 +259,8 @@ class UnifiedRelationVisitor:
         )
 
     def _authoritative_dialect(self, node: RelationNode, op: Any):
+        if self.execution is not None:
+            return self.execution.prepared.locations[self.execution_key].dialect
         input_node = _first_input_node(node)
         if input_node is None:
             return _UNRESOLVED
@@ -539,6 +561,11 @@ class UnifiedRelationVisitor:
         pending = self.owned_residue_checks
         if not pending and not self._owned_checks_by_node:
             return tuple(self.residue_checks)
+        if self.execution is not None:
+            destination = self.execution.prepared.locations[self.execution_key]
+            if all(isinstance(owned, _LocalResidue) or
+                   owned.source_location.key == destination.key for owned in pending):
+                return tuple(owned.check for owned in pending)
         if any(not isinstance(owned, _LocalResidue) for owned in pending):
             raise RuntimeError(
                 "A source-owned residue check must be discharged at its source "

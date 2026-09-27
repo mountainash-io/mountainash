@@ -151,9 +151,11 @@ class LocationResolver:
         # ingress data: the existing default family is Polars, not a binding
         # borrowed from an Ibis sibling. No frame construction is needed here.
         if isinstance(value, dict) or (isinstance(value, (list, tuple))
-                                       and (not value or isinstance(value[0], dict))):
+                                        and (not value or isinstance(value[0], dict))):
             return ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER,
-                                     "bound", prototype=value)
+                                      "bound", prototype=value)
+        if isinstance(value, (list, tuple)):
+            raise TypeError(f"Cannot coerce {type(value).__name__} to Polars: expected mappings")
         family = identify_backend(value)
         # The shared dialect probe deliberately raises for mixed Ibis graphs.
         # Inspect all source nodes ourselves before identifying a single source.
