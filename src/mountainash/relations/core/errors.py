@@ -9,6 +9,28 @@ if TYPE_CHECKING:
 from mountainash.core.errors import MountainashError
 
 
+class UnresolvedExecutionLocationError(MountainashError, ValueError):
+    """A selected execution location has no usable physical binding."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
+class ConflictingExecutionTargetError(MountainashError, ValueError):
+    """An explicit terminal override contradicts an explicit join target."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
 class UnregisteredRelationNodeError(MountainashError):
     """A relation node type has neither a RelationVisitRegistry handler nor
     an operation_key + RelationOperationRegistry definition (spec §3.5/§3.9)."""
