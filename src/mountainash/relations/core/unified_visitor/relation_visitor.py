@@ -506,6 +506,10 @@ class UnifiedRelationVisitor:
         if binding.kind is ArgKind.INPUT:
             return self.visit(value)
         if binding.kind is ArgKind.INPUT_LIST:
+            if self.execution is not None:
+                # A prepared set has already resolved every operand and route.
+                # Never reinterpret a child's native TypeError as coercion.
+                return list(self.execution.operands(self, self.execution_key))
             anchor = self.visit(value[0])   # anchor must succeed; a TypeError propagates
             results = [anchor]
             for v in value[1:]:

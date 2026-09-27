@@ -507,9 +507,10 @@ def propagate_structured_plans(
     if policy is _UNION_ALL:
         return _merged_inputs(node, child_maps, require_equal=True)
     if policy is _REJECT_REMAINING:
-        if incoming:
-            name, plan = next(iter(incoming.items()))
-            _raise(name, plan, node, getattr(node.operation_key, "name", "set operation"))
+        for plans in child_maps:
+            if plans:
+                name, plan = next(iter(plans.items()))
+                _raise(name, plan, node, getattr(node.operation_key, "name", "set operation"))
         return _empty()
     raise AssertionError(f"unhandled transport policy {policy.name}")
 

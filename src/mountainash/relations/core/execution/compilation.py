@@ -111,7 +111,7 @@ class CompilationSession:
         return envelope
 
     def child(self, visitor: UnifiedRelationVisitor, node: Any):
-        from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.relations.core.relation_nodes import ReadRelNode, SetRelNode
         from mountainash.relations.core.materialization import (
             coerce_to_ibis, coerce_to_narwhals, coerce_to_polars,
         )
@@ -141,6 +141,17 @@ class CompilationSession:
         if requirement is not None:
             envelope = self.transport.transfer(envelope, requirement)
         envelope = self._discharge_before_loss(visitor, key, envelope)
+        if isinstance(self.prepared.nodes[parent_key], SetRelNode) and envelope.metadata.owned_checks:
+            # A set cannot align inputs while one carries a private residue
+            # marker. Check the source snapshot before stripping those columns.
+            if self.prepared.phase is not ExecutionPhase.EXECUTE:
+                raise CompileRequiresExecutionError(
+                    f"Boundary {key} must discharge a source residue check; use .collect()",
+                    node_key=key,
+                )
+            # discharge() uses the source enrichment path, which removes
+            # checked markers from the returned native snapshot itself.
+            envelope = self.transport.discharge(envelope)
         self.metadata.adopt(visitor, node, envelope)
         return envelope.value
 
