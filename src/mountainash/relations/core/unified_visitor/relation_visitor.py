@@ -218,78 +218,19 @@ class UnifiedRelationVisitor:
         return self._dispatch(node, op)
 
     def _gate_capabilities(self, node, op) -> None:
-        """Compile-time capability gate (spec Section 2, relations side).
+        """Reuse the AST-known gate shared with whole-tree preparation."""
+        from mountainash.relations.core.execution.capabilities import check_ast_capabilities
+        from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.materialization import ExecutionForm
 
-        Declarative ops: every ArgBinding field + option is a gateable param.
-        Handler ops: only gate_params are consulted, and a param-scoped fact
-        fires ONLY when the node's field is populated (Codex finding #2 —
-        narwhals join_asof is fine without tolerance).
-        """
-        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM
-        from mountainash.core.types import BackendCapabilityError
-
-        family = getattr(self.backend, "backend_type", None)
-        if family is None:
-            return
         dialect = self._authoritative_dialect(node, op)
         if dialect is _UNRESOLVED:
             dialect = getattr(self.backend, "dialect", None)
-
-        def _raise(fact):
-            raise BackendCapabilityError(
-                fact.message,
-                backend=self.backend.BACKEND_NAME,
-                function_key=op.operation_key,
-                limitation=fact,
-            )
-
-        # Whole-operation optional protection.
-        fact = CapabilityRegistry.capability_for(
-            op.operation_key, WILDCARD_PARAM, family, dialect,
-            consumer=PolicyConsumer.GATE, execution_context=self.execution_context,
+        check_ast_capabilities(
+            node,
+            ExecutionLocation(self.backend.backend_type, dialect, ExecutionForm.DEFERRED, "bound"),
+            execution_context=self.execution_context,
         )
-        if fact is not None and fact.predicate is None and fact.enforcement is Enforcement.GATE \
-                and fact.level is CapabilityLevel.UNSUPPORTED:
-            _raise(fact)
-
-        # Param-scoped facts — fire only when the node field is populated.
-        # Only GATE facts reach this path; residue consumers remain separate.
-        # gate_params keeps its narrowed job: declaring that a populated node
-        # field is sufficient evidence for a GATE fact to fire on a
-        # handler-routed op.
-        param_names = tuple(b.field for b in op.args) + tuple(op.options) + op.gate_params
-
-        # Compound predicate gate (§3): collect blocking predicate facts once per call.
-        from mountainash.core.capabilities.predicates import BoundCall
-        bindings = {p: getattr(node, p, None) for p in param_names}
-        supplied = frozenset(p for p in param_names if getattr(node, p, None) is not None)
-        bound = BoundCall(
-            operation_key=op.operation_key, backend=family, dialect=dialect,
-            bindings=bindings, supplied=supplied,
-        )
-        violations = CapabilityRegistry.violations_for(
-            bound, execution_context=self.execution_context,
-        )
-        if violations:
-            ordered = sorted(violations, key=lambda f: (f.param, f.message))
-            combined = "; ".join(f.message for f in ordered)
-            raise BackendCapabilityError(
-                combined, backend=self.backend.BACKEND_NAME,
-                function_key=op.operation_key, limitation=ordered[0],
-                candidate_fact_keys=tuple(fact.fact_key for fact in ordered),
-            )
-
-        for param in param_names:
-            fact = CapabilityRegistry.capability_for(
-                op.operation_key, param, family, dialect,
-                consumer=PolicyConsumer.GATE, execution_context=self.execution_context,
-            )
-            if fact is None or fact.predicate is not None or fact.level is not CapabilityLevel.UNSUPPORTED:
-                continue
-            if fact.enforcement is not Enforcement.GATE:
-                continue
-            if getattr(node, param, None) is not None:
-                _raise(fact)
 
     def _authoritative_dialect(self, node: RelationNode, op: Any):
         input_node = _first_input_node(node)
