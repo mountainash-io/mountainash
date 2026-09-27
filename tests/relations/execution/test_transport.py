@@ -64,6 +64,7 @@ def test_derived_sources_have_separate_cached_transfers(source_name, destination
 
 def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
     import mountainash.relations.core.execution.transport as transport
+    from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
     source_table = REGISTRY["ibis-duckdb"].build({"id": [1]}, "src")
     target = REGISTRY["ibis-sqlite"].build({"id": [1]}, "dst")
@@ -83,8 +84,13 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
         return original(key, *args, **kwargs)
 
     monkeypatch.setattr(transport, "transit_call", broken)
-    with pytest.raises(ValueError, match="adapter failed"):
+    with pytest.raises(UnsupportedRelationTransportError) as raised:
         session.transfer(source, requirement)
+    assert isinstance(raised.value.__cause__, ValueError)
+    assert str(raised.value.__cause__) == "adapter failed"
+    assert raised.value.source_dialect == "ibis-duckdb"
+    assert raised.value.destination_dialect == "ibis-sqlite"
+    assert "adapter failed" not in str(raised.value)
     assert not session._cache
     monkeypatch.setattr(transport, "transit_call", original)
     fresh = TransportSession(tokens)
@@ -96,6 +102,28 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
     gc.collect()
     joined = target.inner_join(first.value, "id").select(target.id)
     assert ma.relation(joined).to_dict() == {"id": [1]}
+
+
+def test_source_export_enriches_diagnostic_failure_without_owned_checks():
+    from mountainash.conform.diagnostics import OperationDiagnostic
+    from mountainash.conform.errors import ConformTransformError
+    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+
+    table = REGISTRY["ibis-duckdb"].build({"id": [1], "raw": ["not-an-integer"]}, "src")
+    target = REGISTRY["polars"].build({"id": [1]}, "dst")
+    tokens = IdentityTokens()
+    resolver = LocationResolver(tokens)
+    value = table.mutate(number=table.raw.cast("int64"))
+    diagnostic = OperationDiagnostic(FKEY_SUBSTRAIT_CAST.CAST, "ibis", "ibis-duckdb",
+                                     "source-conform", (), "throw", "number", "integer", "default")
+    source = CompiledSubtree(value, resolver.resolve(ma.relation(table)._node), tokens.token(value),
+                             CompilationMetadata(diagnostic_records=(diagnostic,)))
+    destination = resolver.resolve(ma.relation(target)._node)
+    requirement = TransferRequirement("root/right", destination, "ibis_to_polars", True)
+    with pytest.raises(ConformTransformError) as caught:
+        TransportSession(tokens).transfer(source, requirement)
+    assert caught.value.__cause__ is not None
+    assert caught.value.candidates == (diagnostic,)
 
 
 @pytest.mark.parametrize("source_name", IBIS_BACKENDS)

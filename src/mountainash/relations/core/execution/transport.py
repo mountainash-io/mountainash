@@ -99,7 +99,7 @@ class TransportSession:
             arrow = self._source_export(source, lambda: transit_call(
                 BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow,
             ))
-            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
+            return self._import_arrow(source, requirement, ibis, arrow)
         if route == "ibis_memory_ibis":
             import ibis
 
@@ -109,7 +109,7 @@ class TransportSession:
             if not isinstance(value.op(), import_ibis_expr_ops().InMemoryTable):
                 return self._convert(source, replace(requirement, route="ibis_arrow_ibis"))
             arrow = self._source_export(source, lambda: value.op().data.to_pyarrow(value.schema()))
-            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
+            return self._import_arrow(source, requirement, ibis, arrow)
         if route == "mapping_to_ibis":
             return self._adapt(source, requirement, coerce_to_ibis,
                                requirement.destination.prototype, self._export_checked(source))
@@ -133,6 +133,13 @@ class TransportSession:
                                requirement.destination.prototype, self._export_checked(source))
         raise self._unsupported(source, requirement)
 
+    def _import_arrow(self, source: CompiledSubtree, requirement: TransferRequirement,
+                      ibis: Any, arrow: Any) -> Any:
+        try:
+            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
+        except Exception as exc:
+            raise self._unsupported(source, requirement, exc) from exc
+
     def _adapt(self, source: CompiledSubtree, requirement: TransferRequirement,
                adapter: Any, target: Any, value: Any) -> Any:
         try:
@@ -142,8 +149,6 @@ class TransportSession:
 
     def _export_checked(self, source: CompiledSubtree) -> Any:
         value = source.value
-        if not source.metadata.owned_checks:
-            return value
         if source.location.family is CONST_BACKEND.IBIS:
             return self._source_export(source, lambda: transit_call(
                 BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow,
@@ -158,7 +163,9 @@ class TransportSession:
             return self._source_export(source, lambda: transit_call(
                 BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect,
             ))
-        return self._source_export(source, lambda: value)
+        if source.metadata.owned_checks or source.metadata.diagnostic_records:
+            return self._source_export(source, lambda: value)
+        return value
 
     def transfer(self, source: CompiledSubtree, requirement: TransferRequirement) -> CompiledSubtree:
         if self._closed:
