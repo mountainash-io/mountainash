@@ -103,22 +103,29 @@ class LocationResolver:
         if isinstance(node, JoinRelNode):
             selected_node = node.right if node.execute_on is ExecutionTarget.RIGHT else node.left
             peer_node = node.left if selected_node is node.right else node.right
-            selected = self.resolve(selected_node, binding=binding)
+            # Resolve the selected subtree's own peer authority before using
+            # a binding supplied by an enclosing consumer.
+            selected = self.resolve(selected_node)
             if selected.binding == "memory":
-                peer = self.resolve(peer_node, binding=binding)
+                peer = self.resolve(peer_node)
                 selected = self._borrow(selected, peer)
+                if selected.binding == "memory":
+                    selected = self._borrow(selected, binding)
                 if selected.binding == "bound":
                     selected = self.resolve(selected_node, binding=selected)
             return selected
         if isinstance(node, SetRelNode):
             if not node.inputs:
                 return ExecutionLocation(None, None, ExecutionForm.DEFERRED, "unresolved")
-            first = self.resolve(node.inputs[0], binding=binding)
+            first = self.resolve(node.inputs[0])
             if first.binding == "memory":
                 for peer_node in node.inputs[1:]:
-                    first = self._borrow(first, self.resolve(peer_node, binding=binding))
+                    first = self._borrow(first, self.resolve(peer_node))
                     if first.binding == "bound":
                         return self.resolve(node.inputs[0], binding=first)
+                first = self._borrow(first, binding)
+                if first.binding == "bound":
+                    return self.resolve(node.inputs[0], binding=first)
             return first
         children = node.children()
         if len(children) == 1:
@@ -160,7 +167,7 @@ class LocationResolver:
             if id(item) in seen:
                 return
             seen.add(id(item))
-            if isinstance(item, ops.DatabaseTable):
+            if isinstance(item, (ops.DatabaseTable, ops.SQLQueryResult)):
                 if not any(item.source is source for source in sources):
                     sources.append(item.source)
             elif isinstance(item, ops.UnboundTable):

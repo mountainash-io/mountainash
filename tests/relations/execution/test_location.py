@@ -209,3 +209,43 @@ def test_unknown_leaf_never_steals_the_others_location():
     result = JoinRelNode(left=ma.relation(bound)._node, right=unknown,
                          join_type=JoinType.INNER, on=["id"], execute_on=ExecutionTarget.RIGHT)
     assert resolver.resolve(result).family is None
+
+
+@pytest.mark.parametrize("backend_name", IBIS_BACKENDS)
+def test_selected_nested_memory_join_keeps_its_own_peer_binding(backend_name):
+    inner_peer = REGISTRY[backend_name].build({"id": [1]}, "inner")
+    outer_peer = REGISTRY[backend_name].build({"id": [2]}, "outer")
+    memory = ma.relation(ibis.memtable(pa.table({"id": [1]})))
+    inner = memory.join(inner_peer, on="id", execute_on="left")
+    outer = inner.join(outer_peer, on="id", execute_on="left")
+    resolver = LocationResolver(IdentityTokens())
+    outer_binding = resolver.resolve(ma.relation(outer_peer)._node)
+    assert resolver.resolve(inner._node, binding=outer_binding).connection is inner_peer._find_backend(use_default=False)
+    assert resolver.resolve(outer._node).connection is inner_peer._find_backend(use_default=False)
+    assert resolver.resolve(memory._node).binding == "memory"
+
+
+@pytest.mark.parametrize("backend_name", IBIS_BACKENDS)
+def test_sql_query_result_is_bound_without_running_query(backend_name, monkeypatch):
+    table = REGISTRY[backend_name].build({"id": [1]}, "seed")
+    connection = table._find_backend(use_default=False)
+    query = connection.sql("select id from seed")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("resolution executed query")
+
+    monkeypatch.setattr(type(query), "to_pyarrow", forbidden)
+    monkeypatch.setattr(type(query), "cache", forbidden)
+    location = LocationResolver(IdentityTokens()).resolve(ma.relation(query)._node)
+    assert location.binding == "bound"
+    assert location.connection is connection
+    assert location.dialect == backend_name
+
+
+@pytest.mark.parametrize("backend_name", IBIS_BACKENDS)
+def test_sql_query_result_and_table_on_distinct_connections_are_unresolved(backend_name):
+    left = REGISTRY[backend_name].build({"id": [1]}, "seed")
+    right = REGISTRY[backend_name].build({"id": [2]}, "seed")
+    query = left._find_backend(use_default=False).sql("select id from seed")
+    mixed = query.union(right)
+    assert LocationResolver(IdentityTokens()).resolve(ma.relation(mixed)._node).binding == "unresolved"
