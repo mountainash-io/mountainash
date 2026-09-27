@@ -99,28 +99,56 @@ class MaterializationScope:
     """
 
     def __init__(self) -> None:
-        self._releases: "list[Callable[[], None]]" = []
+        self._releases: "list[tuple[object | None, Callable[[], None]]]" = []
         self._closed = False
 
     def __enter__(self) -> "MaterializationScope":
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
-        self.close()
+        try:
+            self.close()
+        except BaseException as cleanup:
+            if exc_value is None:
+                raise
+            if hasattr(exc_value, "add_note"):
+                exc_value.add_note(
+                    f"Owned-resource cleanup also failed: {type(cleanup).__name__}"
+                )
 
-    def own(self, release: "Callable[[], None]") -> None:
+    def own(self, release: "Callable[[], None]", *, owner: object | None = None) -> None:
         if self._closed:
             raise MaterializationScopeClosedError(
                 "materialization scope is closed"
             )
-        self._releases.append(release)
+        self._releases.append((owner, release))
+
+    def handoff(self, owners: "tuple[object, ...]") -> None:
+        """Detach only dependencies explicitly proven reachable from a native result."""
+        if self._closed:
+            raise MaterializationScopeClosedError("materialization scope is closed")
+        self._releases = [
+            (owner, release) for owner, release in self._releases
+            if not any(owner is retained for retained in owners)
+        ]
 
     def close(self) -> None:
         if self._closed:
             return
         self._closed = True
-        for release in reversed(self._releases):
-            release()
+        errors: list[BaseException] = []
+        for _, release in reversed(self._releases):
+            try:
+                release()
+            except BaseException as exc:
+                errors.append(exc)
+        self._releases.clear()
+        if errors:
+            first = errors[0]
+            if hasattr(first, "add_note"):
+                for extra in errors[1:]:
+                    first.add_note(f"Additional owned-resource cleanup failed: {type(extra).__name__}")
+            raise first
 
 
 def _assert_declared_family(
