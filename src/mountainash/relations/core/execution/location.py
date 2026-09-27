@@ -147,6 +147,13 @@ class LocationResolver:
         return selected
 
     def _read(self, value: Any) -> ExecutionLocation:
+        # A column/row mapping has no native backend to detect. It is local
+        # ingress data: the existing default family is Polars, not a binding
+        # borrowed from an Ibis sibling. No frame construction is needed here.
+        if isinstance(value, dict) or (isinstance(value, (list, tuple))
+                                       and (not value or isinstance(value[0], dict))):
+            return ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER,
+                                     "bound", prototype=value)
         family = identify_backend(value)
         # The shared dialect probe deliberately raises for mixed Ibis graphs.
         # Inspect all source nodes ourselves before identifying a single source.

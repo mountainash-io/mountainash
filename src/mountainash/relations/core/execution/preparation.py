@@ -52,6 +52,7 @@ class PreparedExecution:
     phase: ExecutionPhase
     tokens: IdentityTokens
     execution_context: Any = None
+    _policy: Any = field(default=None, repr=False)
     _contexts: dict[tuple, Any] = field(default_factory=dict, repr=False)
     _package_versions: dict[str, str | None] = field(default_factory=dict, repr=False)
 
@@ -68,7 +69,7 @@ class PreparedExecution:
                 context = prior
             else:
                 context = _prepare_capability_context(
-                    prior.policy if prior is not None else _resolve_policy(),
+                    self._policy,
                     _CapabilityTarget(location.capability_identity, owner),
                     package_versions=self._package_versions,
                 )
@@ -92,7 +93,10 @@ def _unsupported(key: str, source: ExecutionLocation, target: ExecutionLocation)
     )
 
 
-def _route(key: str, source: ExecutionLocation, target: ExecutionLocation, *, derived: bool) -> TransferRequirement | None:
+def _route(
+    key: str, source: ExecutionLocation, target: ExecutionLocation, *,
+    derived: bool, raw_ingress: bool = False,
+) -> TransferRequirement | None:
     # Polars read() produces a lazy compiled plan even for an eager native leaf.
     compiled_form = ExecutionForm.LAZY if source.family is CONST_BACKEND.POLARS else source.form
     if source.family == target.family and source.dialect == target.dialect \
@@ -109,11 +113,13 @@ def _route(key: str, source: ExecutionLocation, target: ExecutionLocation, *, de
         route = "ibis_to_polars" if target.family is CONST_BACKEND.POLARS else "ibis_to_narwhals"
         return TransferRequirement(key, target, route, True)
     if target.family is CONST_BACKEND.IBIS:
+        if raw_ingress:
+            return TransferRequirement(key, target, "mapping_to_ibis", False)
         route = "polars_to_ibis" if source.family is CONST_BACKEND.POLARS else "narwhals_to_ibis"
         return TransferRequirement(key, target, route, compiled_form is not ExecutionForm.EAGER or derived)
-    if source.family is CONST_BACKEND.NARWHALS and source.form is ExecutionForm.LAZY \
-            and target.family is CONST_BACKEND.NARWHALS:
-        raise _unsupported(key, source, target)
+    if source.family is CONST_BACKEND.NARWHALS and target.family is CONST_BACKEND.NARWHALS:
+        return TransferRequirement(key, target, "narwhals_dialect",
+                                   derived or compiled_form is not ExecutionForm.EAGER)
     if target.family not in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS) or source.family is None:
         raise _unsupported(key, source, target)
     route = "to_polars" if target.family is CONST_BACKEND.POLARS else "to_narwhals"
@@ -126,6 +132,7 @@ def prepare_execution(
     execution_context: Any = None,
 ) -> PreparedExecution:
     """Resolve the entire graph, preflight all gates, then reject unsafe phases."""
+    policy = execution_context.policy if execution_context is not None else _resolve_policy()
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens, identity_resolver=identity_resolver)
     nodes: dict[str, RelationNode] = {}
@@ -173,12 +180,21 @@ def prepare_execution(
         if isinstance(node, (JoinRelNode, SetRelNode)):
             for child_key in child_keys:
                 source = locations[child_key]
-                requirement = _route(child_key, source, location, derived=not isinstance(nodes[child_key], ReadRelNode))
+                child = nodes[child_key]
+                raw_ingress = isinstance(child, ReadRelNode) and (
+                    isinstance(child.dataframe, dict) or
+                    isinstance(child.dataframe, (list, tuple)) and (
+                        not child.dataframe or isinstance(child.dataframe[0], dict)
+                    )
+                )
+                requirement = _route(child_key, source, location,
+                                     derived=not isinstance(child, ReadRelNode), raw_ingress=raw_ingress)
                 if requirement is not None:
                     transfers[child_key] = requirement
 
     walk(root, "root")
-    prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens, execution_context)
+    prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens,
+                                 execution_context, policy)
     # Gate every reachable occurrence before phase rejection or any transfer.
     preflight_capabilities(prepared)
     if phase is not ExecutionPhase.EXPLAIN:

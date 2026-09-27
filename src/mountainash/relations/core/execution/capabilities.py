@@ -9,8 +9,9 @@ from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, E
 from mountainash.core.capabilities.predicates import BoundCall, bind_expression_call
 from mountainash.core.capabilities.schema import PolicyConsumer
 from mountainash.core.types import BackendCapabilityError
-from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode, ScalarFunctionNode
+from mountainash.expressions.core.expression_nodes import ExpressionNode, IfThenNode, LiteralNode, ScalarFunctionNode
 from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionRegistry
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CONDITIONAL
 from mountainash.relations.core.relation_system.relation_mapping.registry import (
     ArgKind, RelationOperationRegistry,
 )
@@ -30,7 +31,8 @@ def _raise(fact: Any, key: Any, family: Any, *, candidates: tuple = ()) -> None:
 
 def _check_expression(node: ExpressionNode, location: ExecutionLocation, context: Any) -> None:
     family, dialect = location.family, location.dialect
-    key = node.function_key
+    key = (FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE
+           if isinstance(node, IfThenNode) and node.conditions else node.function_key)
     if key is not None:
         fact = CapabilityRegistry.capability_for(
             key, WILDCARD_PARAM, family, dialect, execution_context=context,
@@ -38,6 +40,22 @@ def _check_expression(node: ExpressionNode, location: ExecutionLocation, context
         if fact is not None and fact.predicate is None and fact.enforcement is Enforcement.GATE \
                 and fact.level is CapabilityLevel.UNSUPPORTED:
             _raise(fact, key, family)
+    if isinstance(node, IfThenNode) and node.conditions:
+        protocol = ExpressionFunctionRegistry.get(key).protocol_method
+        # A chained conditional lowers to one if_then_else call per branch.
+        logical_else = node.else_clause
+        for condition, branch in reversed(node.conditions):
+            bound = bind_expression_call(
+                operation_key=key, backend=family, dialect=dialect,
+                protocol_method=protocol, arguments=(condition, branch, logical_else), options=None,
+            )
+            violations = CapabilityRegistry.violations_for(
+                bound, phase="raw", execution_context=context,
+            )
+            if violations:
+                ordered = tuple(sorted(violations, key=lambda f: (f.param, f.message)))
+                _raise(ordered[0], key, family, candidates=ordered)
+            logical_else = IfThenNode(conditions=[(condition, branch)], else_clause=logical_else)
     if isinstance(node, ScalarFunctionNode):
         definition = ExpressionFunctionRegistry.get(key)
         protocol = definition.protocol_method

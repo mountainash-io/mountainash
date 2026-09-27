@@ -14,6 +14,7 @@ from mountainash.core.capabilities.policy import CapabilityPolicy
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_COMPARISON as FK
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CONDITIONAL
 from mountainash.relations.core.errors import (
     CompileRequiresExecutionError, ConflictingExecutionTargetError,
     UnresolvedExecutionLocationError,
@@ -111,6 +112,37 @@ def test_connectionless_authority_rejected_without_default(phase):
     assert "unresolved" in render_execution(prepare_execution(root, phase=ExecutionPhase.EXPLAIN))
 
 
+def test_raw_mapping_peer_uses_declared_ingress_without_reading_rows(monkeypatch):
+    bound = REGISTRY["ibis-sqlite"].build({"id": [1]}, "bound")
+    raw = {"id": [2]}
+    relation = ma.relation(bound).join(raw, on="id")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("placement read rows")
+
+    monkeypatch.setattr(type(bound), "to_pyarrow", forbidden)
+    prepared = prepare_execution(relation._node, phase=ExecutionPhase.EXPLAIN)
+    peer_key = "root/right"
+    assert prepared.locations[peer_key].family is CONST_BACKEND.POLARS
+    assert prepared.locations[peer_key].connection is None
+    assert prepared.transfers[peer_key].destination.connection is bound._find_backend(use_default=False)
+    assert not prepared.transfers[peer_key].requires_execution
+    assert prepare_execution(relation._node, phase=ExecutionPhase.COMPILE)
+
+
+@pytest.mark.parametrize("source_name", ["narwhals-lazy", "polars-lazy"])
+def test_lazy_operand_to_eager_narwhals_is_execution_required(source_name):
+    target = REGISTRY["narwhals-pandas"].build({"id": [1]}, "target")
+    source = REGISTRY[source_name].build({"id": [2]}, "source")
+    root = ma.relation(target).join(source, on="id")._node
+    prepared = prepare_execution(root, phase=ExecutionPhase.EXPLAIN)
+    requirement = prepared.transfers["root/right"]
+    assert requirement.requires_execution
+    assert requirement.destination.dialect == "narwhals-pandas"
+    with pytest.raises(CompileRequiresExecutionError, match="collect"):
+        prepare_execution(root, phase=ExecutionPhase.COMPILE)
+
+
 @pytest.mark.parametrize("shape", ["join", "union", "targeted_union"])
 def test_compile_rejects_deferred_boundary_but_explain_keeps_recipe(shape):
     a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
@@ -192,3 +224,81 @@ def test_embedded_expression_gate_uses_ast_evidence_only(predicate, blocks):
             assert prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN)
     finally:
         CapabilityRegistry.restore(snapshot)
+
+
+@pytest.mark.parametrize("phase", list(ExecutionPhase))
+def test_late_implicit_if_then_gate_precedes_transfer(phase, monkeypatch):
+    a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
+    b = REGISTRY["ibis-sqlite"].build({"id": [2]}, "b")
+    conditional = ma.when(ma.col("id") > 0).then(1).otherwise(0)
+    root = ma.concat([ma.relation(a), ma.relation(b).select(conditional.alias("id"))])._node
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("transfer executed before IfThen gate")
+
+    monkeypatch.setattr(type(a), "to_pyarrow", forbidden)
+    monkeypatch.setattr(type(b), "to_pyarrow", forbidden)
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.conditional",
+            Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
+            CapabilitySegment(Domain.CONDITIONAL, policies=(CapabilityPolicyRule(
+                key=CapabilityKey(FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE, "*"),
+                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
+                message="late implicit IfThen gate", consumer=PolicyConsumer.GATE,
+                action=PolicyAction.BLOCK,
+            ),)),
+        ))
+        with pytest.raises(BackendCapabilityError, match="late implicit IfThen gate") as caught:
+            prepare_execution(root, phase=phase)
+        assert caught.value.function_key is FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+def test_policy_is_frozen_once_across_distinct_target_observations(monkeypatch):
+    from mountainash.relations.core.execution import preparation
+
+    a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
+    b = REGISTRY["ibis-sqlite"].build({"id": [2]}, "b")
+    root = ma.concat([ma.relation(a), ma.relation(b)])._node
+    calls = []
+
+    def changing_policy():
+        calls.append(True)
+        return CapabilityPolicy.checked() if len(calls) == 1 else CapabilityPolicy.trusted()
+
+    monkeypatch.setattr(preparation, "_resolve_policy", changing_policy)
+    prepared = prepare_execution(root, phase=ExecutionPhase.EXPLAIN)
+    left = prepared.context_for(prepared.locations["root/inputs/0"])
+    right = prepared.context_for(prepared.locations["root/inputs/1"])
+    assert len(calls) == 1
+    assert left.policy is right.policy
+    assert left.target.owner is a._find_backend(use_default=False)
+    assert right.target.owner is b._find_backend(use_default=False)
+    assert left.target.identity.dialect == "ibis-duckdb"
+    assert right.target.identity.dialect == "ibis-sqlite"
+    assert left is not right
+
+
+def test_supplied_context_policy_is_reused_with_foreign_target_observation(monkeypatch):
+    from mountainash.core.capabilities.policy import _new_execution_context
+    from mountainash.relations.core.execution import preparation
+
+    a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
+    b = REGISTRY["ibis-sqlite"].build({"id": [2]}, "b")
+    context = _new_execution_context(a, policy=CapabilityPolicy.trusted())
+
+    def forbidden_policy():
+        raise AssertionError("an execution context already froze the policy")
+
+    monkeypatch.setattr(preparation, "_resolve_policy", forbidden_policy)
+    root = ma.relation(a).join(b, on="id")._node
+    prepared = prepare_execution(root, phase=ExecutionPhase.EXPLAIN, execution_context=context)
+    assert prepared.context_for(prepared.locations["root/left"]) is context
+    right = prepared.context_for(prepared.locations["root/right"])
+    assert right.policy is context.policy
+    assert right.target.owner is b._find_backend(use_default=False)
+    assert right.target.identity.dialect == "ibis-sqlite"
