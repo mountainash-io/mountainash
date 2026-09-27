@@ -213,8 +213,29 @@ def _join_child_maps(
     backend: Any = None,
 ) -> Sequence[StructuredFieldPlanMap]:
     """Rename joined-side plans to the backend's output names."""
+    name_maps = _join_name_maps(
+        node, [left, right], output_names_resolver=output_names_resolver, backend=backend,
+    )
+    return [
+        freeze_structured_field_plans({
+            name_maps[index][name]: _renamed(plan, name_maps[index][name])
+            for name, plan in plans.items() if name in name_maps[index]
+        })
+        for index, plans in enumerate((left, right))
+    ]
+
+
+def _join_name_maps(
+    node: Any,
+    child_maps: Sequence[Mapping[str, Any]],
+    *,
+    output_names_resolver: Callable[[Any], set[str]] | None = None,
+    backend: Any = None,
+) -> list[dict[str, str]]:
+    """One physical join-name rule for structured fields and residue markers."""
+    left, right = child_maps
     if getattr(getattr(node, "join_type", None), "name", None) in {"SEMI", "ANTI"}:
-        return [left]
+        return [{name: name for name in left}, {}]
 
     shared_keys = set(getattr(node, "on", None) or ())
     suffix = getattr(node, "suffix", "_right") or "_right"
@@ -230,24 +251,73 @@ def _join_child_maps(
         base_names = _relation_output_names(
             getattr(node, "right", None), output_names_resolver
         ) | set(right)
-        mapped_left: dict[str, StructuredFieldPlan] = {}
-        for name, plan in left.items():
-            if name in shared_keys:
-                continue
-            output = f"{name}{suffix}" if name in base_names else name
-            mapped_left[output] = _renamed(plan, output)
-        return [freeze_structured_field_plans(mapped_left), right]
+        return [
+            {name: (f"{name}{suffix}" if name in base_names else name)
+             for name in left if name not in shared_keys},
+            {name: name for name in right},
+        ]
 
     left_names = _relation_output_names(
         getattr(node, "left", None), output_names_resolver
     ) | set(left)
-    mapped_right: dict[str, StructuredFieldPlan] = {}
-    for name, plan in right.items():
-        if name in shared_keys:
-            continue
-        output = f"{name}{suffix}" if name in left_names else name
-        mapped_right[output] = _renamed(plan, output)
-    return [left, freeze_structured_field_plans(mapped_right)]
+    return [
+        {name: name for name in left},
+        {name: (f"{name}{suffix}" if name in left_names else name)
+         for name in right if name not in shared_keys},
+    ]
+
+
+def propagate_owned_residue(
+    node: Any,
+    child_checks: Sequence[Sequence[Any]],
+    *,
+    output_names_resolver: Callable[[Any], set[str]] | None = None,
+    backend: Any = None,
+) -> tuple[Any, ...]:
+    """Carry source-owned markers through the same name rules as lineage.
+
+    A projection which removes a pending marker must discharge the check at
+    its source boundary first; silently forgetting the check is unsafe.
+    """
+    from dataclasses import replace as replace_check
+
+    policy = TRANSPORT_LINEAGE_POLICIES.get(node.operation_key)
+    if policy is _JOIN:
+        maps = _join_name_maps(
+            node, [{owned.check.marker: owned for owned in checks} for checks in child_checks[:2]],
+            output_names_resolver=output_names_resolver, backend=backend,
+        )
+    elif policy is _PROJECT_RENAME:
+        renames = getattr(node, "rename_mapping", {}) or {}
+        maps = [{owned.check.marker: renames.get(owned.check.marker, owned.check.marker)
+                 for owned in checks} for checks in child_checks]
+    elif policy is _PROJECT_SELECT:
+        projections = dict(
+            direct for expr in getattr(node, "expressions", ())
+            if (direct := _direct_projection(expr)) is not None
+        )
+        maps = [{owned.check.marker: projections[owned.check.marker]
+                 for owned in checks if owned.check.marker in projections} for checks in child_checks]
+    elif policy is _PROJECT_DROP:
+        dropped = _named_values(getattr(node, "expressions", ()))
+        maps = [{owned.check.marker: owned.check.marker for owned in checks
+                 if owned.check.marker not in dropped} for checks in child_checks]
+    elif policy in {_START, _CONFORM, _REF}:
+        maps = [{} for _ in child_checks]
+    else:
+        maps = [{owned.check.marker: owned.check.marker for owned in checks}
+                for checks in child_checks]
+    carried = []
+    for checks, names in zip(child_checks, maps):
+        for owned in checks:
+            marker = owned.check.marker
+            if marker not in names:
+                raise ValueError(f"Pending residue marker {marker!r} must be checked before {node.operation_key}")
+            output = names[marker]
+            carried.append(owned if output == marker else replace_check(
+                owned, check=replace_check(owned.check, marker=output)
+            ))
+    return tuple(carried)
 
 
 def _merged_inputs(
@@ -426,4 +496,5 @@ __all__ = [
     "TRANSPORT_LINEAGE_POLICIES",
     "TransportLineagePolicy",
     "propagate_structured_plans",
+    "propagate_owned_residue",
 ]

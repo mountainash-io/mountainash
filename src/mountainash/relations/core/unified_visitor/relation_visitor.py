@@ -37,6 +37,7 @@ from ..relation_nodes import RelationNode, ReadRelNode
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
     from mountainash.core.capabilities.policy import _ExecutionContext
+    from mountainash.relations.core.execution.metadata import MetadataSession
     from mountainash.relations.dag.key_context import KeyDriftContext
 
 
@@ -160,6 +161,7 @@ class UnifiedRelationVisitor:
         key_context: Optional["KeyDriftContext"] = None,
         identity_resolver: Optional[Callable[[str], Any]] = None,
         execution_context: "_ExecutionContext",
+        metadata_session: "MetadataSession | None" = None,
     ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
@@ -172,9 +174,12 @@ class UnifiedRelationVisitor:
         self.key_context = key_context
         self.identity_resolver = identity_resolver
         self.execution_context = execution_context
+        self.metadata_session = metadata_session
         self.diagnostic_traces: dict[tuple[Any, Any], Any] = {}
         self.residue_checks: list[Any] = []
         self.residue_check_nodes: dict[str, str] = {}
+        self.owned_residue_checks: list[Any] = []
+        self._owned_checks_by_node: dict[int, tuple[Any, ...]] = {}
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id
@@ -334,6 +339,16 @@ class UnifiedRelationVisitor:
             output_names_resolver=self._ref_output_names,
             backend=getattr(self.backend, "backend_type", None),
         )
+        if self._owned_checks_by_node:
+            from mountainash.relations.core.structured_lineage import propagate_owned_residue
+
+            propagate_owned_residue(
+                node,
+                [self._owned_checks_by_node.get(id(child), ())
+                 for child in self._relation_children(node, operation)],
+                output_names_resolver=self._ref_output_names,
+                backend=getattr(self.backend, "backend_type", None),
+            )
 
     def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
         """Record a node's transport output only after its native dispatch succeeds."""
@@ -366,6 +381,35 @@ class UnifiedRelationVisitor:
             plans = freeze_structured_field_plans(carried)
         self._structured_plans_by_node[id(node)] = plans
         self.structured_field_plans = plans
+        if self._owned_checks_by_node:
+            from mountainash.relations.core.structured_lineage import propagate_owned_residue
+
+            child_checks = [self._owned_checks_by_node.get(id(child), ())
+                            for child in self._relation_children(node, op)]
+            carried = propagate_owned_residue(
+                node, child_checks, output_names_resolver=self._ref_output_names,
+                backend=getattr(self.backend, "backend_type", None),
+            )
+            self._owned_checks_by_node[id(node)] = carried
+            self.owned_residue_checks = list(carried)
+
+    @staticmethod
+    def _relation_children(node: RelationNode, op: Any) -> list[RelationNode]:
+        from mountainash.relations.core.relation_system.relation_mapping.registry import ArgKind
+
+        children = []
+        for binding in op.args:
+            value = getattr(node, binding.field)
+            if binding.kind is ArgKind.INPUT:
+                children.append(value)
+            elif binding.kind is ArgKind.INPUT_LIST:
+                children.extend(value)
+        if not children:
+            children = [child for child in (
+                getattr(node, "left", None), getattr(node, "right", None),
+                getattr(node, "input", None),
+            ) if child is not None]
+        return children
 
     def _dispatch(self, node: RelationNode, op: Any) -> Any:
         if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
@@ -593,7 +637,11 @@ class UnifiedRelationVisitor:
 
         # node_id captures the current report count *before* appending below
         # — deterministic since visits are depth-first sequential.
-        node_id = f"conform:{len(self.drift_reports)}"
+        node_id = (
+            self.metadata_session.conform_id(owner_node if owner_node is not None else object())
+            if self.metadata_session is not None
+            else f"conform:{len(self.drift_reports)}"
+        )
 
         # Keys dimension (item 48 PR-D): only assessed when a DAG supplied a
         # KeyDriftContext. The "child" identity prefers this call's own

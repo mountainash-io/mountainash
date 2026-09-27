@@ -6,6 +6,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from mountainash.expressions.core.expression_nodes.substrait.exn_scalar_function import (
         ScalarFunctionNode,
     )
@@ -47,6 +49,10 @@ class OperationDiagnosticTrace:
     @property
     def records(self) -> tuple[OperationDiagnostic, ...]:
         return tuple(self._records)
+
+    def extend(self, records: Iterable[OperationDiagnostic]) -> None:
+        """Append original source records without replacing their attribution."""
+        self._records.extend(records)
 
     def record(
         self,
