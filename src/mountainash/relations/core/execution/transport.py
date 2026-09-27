@@ -134,7 +134,21 @@ class TransportSession:
         raise self._unsupported(source, requirement)
 
     def _import_arrow(self, source: CompiledSubtree, requirement: TransferRequirement,
-                      ibis: Any, arrow: Any) -> Any:
+                       ibis: Any, arrow: Any) -> Any:
+        if requirement.destination.dialect == "ibis-sqlite":
+            import math
+
+            import pyarrow as pa
+
+            # SQLite stores IEEE NaN as SQL NULL. Refuse a lossy transfer
+            # before the destination query can erase the distinction.
+            for field, column in zip(arrow.schema, arrow.columns):
+                if pa.types.is_floating(field.type) and any(
+                    isinstance(value, float) and math.isnan(value)
+                    for value in column.to_pylist()
+                ):
+                    cause = ValueError("SQLite cannot store IEEE NaN without converting it to NULL")
+                    raise self._unsupported(source, requirement, cause) from cause
         try:
             return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
         except Exception as exc:
