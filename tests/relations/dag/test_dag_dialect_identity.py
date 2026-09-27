@@ -405,13 +405,11 @@ class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
 
 
 class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:
-    """Testing plan #6: a same-family ref with a genuinely unbound dialect
-    (an untyped Ibis table) must get dialect=None explicitly, never the
-    anchor's specific known dialect -- and must itself complete without
-    error (only the target's own bound-vs-unbound-connection join may
-    fail, not the ref's own trivial "read this unbound table" compile)."""
+    """A database table without a physical connection cannot borrow a peer."""
 
-    def test_unbound_ibis_table_ref_gets_none(self, _dialect_spy_factory):
+    def test_unbound_ibis_table_ref_fails_before_visiting(self, _dialect_spy_factory):
+        from mountainash.relations.core.errors import UnresolvedExecutionLocationError
+
         ibis = pytest.importorskip("ibis")
         con = ibis.duckdb.connect()
         bound_table = con.create_table("t", pd.DataFrame({"k": [1]}))
@@ -425,17 +423,9 @@ class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:
         )
         _dialect_spy_factory(unbound_rel._node, "unbound")
 
-        try:
+        with pytest.raises(UnresolvedExecutionLocationError, match="Unbound Ibis source"):
             dag.collect("final")
-        except Exception:
-            pass  # the TARGET's own join across an unrelated ibis
-            # connection may fail; the REF's own compile (just wrapping
-            # the unbound table, a lazy no-op) must not.
-
-        captured = _dialect_spy_factory.captured["unbound"]
-        assert captured["completed"] is True
-        assert captured["entry"]["backend_type"] == CONST_BACKEND.IBIS
-        assert captured["entry"]["backend_dialect"] is None
+        assert "unbound" not in _dialect_spy_factory.captured
 
 
 @pytest.fixture

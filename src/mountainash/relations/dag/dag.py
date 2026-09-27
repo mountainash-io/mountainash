@@ -378,10 +378,15 @@ class RelationDAG:
         from mountainash.relations.core.execution.compilation import CompilationSession
         from mountainash.relations.core.execution.preparation import prepare_execution
         from mountainash.relations.dag.key_context import KeyDriftContext
+        from mountainash.relations.dag.materialization import DAGMaterializationSession
+
+        session = DAGMaterializationSession(
+            self, execution_policy=execution_policy, backend=backend,
+        )
 
         prepared = prepare_execution(
             node, phase=phase, backend=backend,
-            identity_resolver=lambda name: self.relations[name]._node,
+            identity_resolver=session._canonical_node,
             execution_context=execution_context,
         )
         if phase is ExecutionPhase.EXPLAIN:
@@ -389,11 +394,6 @@ class RelationDAG:
 
             return render_execution(prepared), None
 
-        from mountainash.relations.dag.materialization import DAGMaterializationSession
-
-        session = DAGMaterializationSession(
-            self, execution_policy=execution_policy, backend=backend,
-        )
         session._execution_phase = phase
         session._execution_tokens = prepared.tokens
         key_context = (KeyDriftContext(
@@ -409,15 +409,6 @@ class RelationDAG:
         session._execution_metadata = compilation.metadata
         try:
             envelope, visitor = compilation.compile(prepared.root_key)
-            dependencies = (
-                self.topological_order(target=key_target_name)
-                if key_target_name is not None else session._visitors
-            )
-            visitor.drift_reports = [
-                report for dep in dependencies
-                if dep != key_target_name and dep in session._visitors
-                for report in session._visitors[dep].drift_reports
-            ] + visitor.drift_reports
             if key_target_name is not None and phase is ExecutionPhase.EXECUTE:
                 from mountainash.relations.core.relation_api.relation import _guard_native_terminal
 

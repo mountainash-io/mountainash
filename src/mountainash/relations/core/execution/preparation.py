@@ -142,18 +142,32 @@ def prepare_execution(
     inputs: dict[str, tuple[str, ...]] = {}
     transfers: dict[str, TransferRequirement] = {}
     active_refs: set[str] = set()
+    requested_family = None
+    if backend is not None:
+        try:
+            requested_family = CONST_BACKEND(backend.lower()) if isinstance(backend, str) else CONST_BACKEND(backend)
+        except (AttributeError, ValueError) as exc:
+            raise ValueError(f"unknown backend: {backend!r}") from exc
 
     def walk(node: RelationNode, key: str, binding: ExecutionLocation | None = None) -> None:
         location = resolver.resolve(node, binding=binding)
+        if isinstance(node, JoinRelNode) and requested_family is not None and node.execute_on is not None:
+            if location.family is not None and requested_family is not location.family:
+                raise ConflictingExecutionTargetError(
+                    f"Explicit target at {key} is {_label(location)}, not {requested_family.value}",
+                    node_key=key, source=requested_family.value, destination=_label(location),
+                )
+        if key == "root" and requested_family is not None and requested_family is not location.family:
+            # A terminal override is a root placement request, not a source
+            # identity. Descendants retain their own native dialects.
+            if requested_family is CONST_BACKEND.IBIS:
+                location = ExecutionLocation(requested_family, None, ExecutionForm.DEFERRED, "unresolved")
+            elif requested_family is CONST_BACKEND.POLARS:
+                location = ExecutionLocation(requested_family, "polars", ExecutionForm.LAZY, "bound")
+            else:
+                location = ExecutionLocation(requested_family, None, ExecutionForm.EAGER, "bound")
         nodes[key] = node
         locations[key] = location
-        if isinstance(node, JoinRelNode) and backend is not None and node.execute_on is not None:
-            requested = backend.value if isinstance(backend, CONST_BACKEND) else backend
-            if location.family is not None and requested != location.family.value:
-                raise ConflictingExecutionTargetError(
-                    f"Explicit target at {key} is {_label(location)}, not {requested}",
-                    node_key=key, source=requested, destination=_label(location),
-                )
         if isinstance(node, RefRelNode) and identity_resolver is not None:
             if node.name in active_refs:
                 raise UnresolvedExecutionLocationError(f"Cyclic relation reference {node.name!r}", node_key=key)
@@ -179,7 +193,7 @@ def prepare_execution(
             # Only connectionless local data may inherit the consuming binding.
             child_binding = location if location.family is CONST_BACKEND.IBIS else None
             walk(child, child_key, binding=child_binding)
-        if isinstance(node, (JoinRelNode, SetRelNode)):
+        if isinstance(node, (JoinRelNode, SetRelNode)) or key == "root" and child_keys:
             for child_key in child_keys:
                 source = locations[child_key]
                 child = nodes[child_key]

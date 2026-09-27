@@ -60,6 +60,10 @@ def visit_ref(node: Any, visitor: Any) -> Any:
             "use RelationDAG.collect() or supply ref_resolver explicitly"
         )
     resolved = visitor.ref_resolver(node.name)
+    if visitor.metadata_session is not None and hasattr(visitor.ref_resolver, "envelope"):
+        visitor.metadata_session.adopt(
+            visitor, node, visitor.ref_resolver.envelope(node.name),
+        )
     from mountainash.relations.core.structured_lineage import StructuredPlanResolver
 
     if isinstance(visitor.ref_resolver, StructuredPlanResolver):

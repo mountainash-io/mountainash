@@ -163,11 +163,16 @@ class _SessionRefResolver:
 
     def __call__(self, name: str) -> Any:
         if self._destination is not None:
-            return self._session.resolve_at(name, self._destination)
+            value = self._session.resolve_at(name, self._destination)
+            self._destination = self._session._destination_for(self._destination)
+            return value
         return self._session.resolve(name, self._consumer_context)
 
     def structured_plans(self, name: str) -> "StructuredFieldPlanMap":
         if self._destination is not None:
+            resolved = self._session._resolved.get((name, self._destination.key))
+            if resolved is not None:
+                return resolved.metadata.structured_field_plans
             entry = self._session._canonical.get(name)
             if entry is not None:
                 return entry.structured_field_plans
@@ -175,6 +180,10 @@ class _SessionRefResolver:
             if bound is not None:
                 return bound[1].structured_field_plans
         return self._session._compile_named(name).structured_field_plans
+
+    def envelope(self, name: str) -> Any:
+        """Consumer-bound metadata side channel; never returned as a ref value."""
+        return self._session._resolved[(name, self._destination.key)]
 
 
 class SessionMode(Enum):
@@ -235,6 +244,7 @@ class DAGMaterializationSession:
         self._canonical: "dict[str, CanonicalEntry]" = {}
         self._plans: dict[str, Any] = {}
         self._bound: dict[tuple[str, tuple], tuple[Any, Any]] = {}
+        self._resolved: dict[tuple[str, tuple], Any] = {}
         self._coerced: "dict[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment], NativeExecutionValue]" = {}
         self._diagnostic_views: "dict[str, DiagnosticFrameView]" = {}
         self._visitors: "dict[str, UnifiedRelationVisitor]" = {}
@@ -274,17 +284,24 @@ class DAGMaterializationSession:
     def resolve_at(self, name: str, destination: Any) -> Any:
         """Resolve a named plan in its own location, then transport for this consumer."""
         from mountainash.relations.core.execution.compilation import CompilationSession
-        from mountainash.relations.core.execution.location import LocationResolver
+        from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+        from mountainash.relations.core.execution.metadata import MetadataSession
         from mountainash.relations.core.execution.preparation import prepare_execution, _route
+        from mountainash.relations.core.execution.transport import TransportSession
         from mountainash.relations.core.relation_nodes import ReadRelNode
         from mountainash.relations.dag.key_context import KeyDriftContext
 
         if name not in self.dag.relations:
             raise self.dag._unknown_ref_error(name)
-        root = self._plans.setdefault(name, self._node_for(name))
+        if self._execution_tokens is None:
+            self._execution_tokens = IdentityTokens()
+            self._execution_metadata = MetadataSession(self._execution_tokens)
+            self._execution_transport = TransportSession(self._execution_tokens)
+        destination = self._destination_for(destination)
+        root = self._canonical_node(name)
         tokens = self._execution_tokens
         location = LocationResolver(
-            tokens, identity_resolver=lambda ref: self.dag.relations[ref]._node,
+            tokens, identity_resolver=self._canonical_node,
         ).resolve(root)
         connectionless = location.binding == "memory"
         source_location = destination if connectionless else location
@@ -292,7 +309,7 @@ class DAGMaterializationSession:
         if binding_key not in self._bound:
             prepared = prepare_execution(
                 root, phase=self._execution_phase,
-                identity_resolver=lambda ref: self.dag.relations[ref]._node,
+                identity_resolver=self._canonical_node,
                 tokens=tokens, binding=destination if connectionless else None,
             )
             key_context = KeyDriftContext(
@@ -340,15 +357,19 @@ class DAGMaterializationSession:
                 source_location.form, target=visitor.execution_context.target,
             )
             self._canonical[name] = CanonicalEntry(
-                native, (), (), {}, visitor.key_context,
-                freeze_structured_field_plans(visitor.structured_field_plans),
+                native, envelope.metadata.diagnostic_records,
+                tuple(owned.check for owned in envelope.metadata.owned_checks),
+                dict(visitor.residue_check_nodes), visitor.key_context,
+                freeze_structured_field_plans(envelope.metadata.structured_field_plans),
             )
         requirement = _route(
             name, source_location, destination, derived=not isinstance(root, ReadRelNode),
         )
         if requirement is None:
+            self._resolved[(name, destination.key)] = envelope
             return envelope.value
         transferred = self._execution_transport.transfer(envelope, requirement)
+        self._resolved[(name, destination.key)] = transferred
         self._coerced[(name, destination.key)] = NativeExecutionValue(
             transferred.value, envelope.location.capability_identity,
             destination.capability_identity, destination.form,
@@ -361,6 +382,20 @@ class DAGMaterializationSession:
         if transform is not None:
             rel = transform(rel)
         return rel._node
+
+    def _destination_for(self, destination: Any) -> Any:
+        if destination.connection is None:
+            return destination
+        return replace(
+            destination,
+            connection_token=self._execution_tokens.token(destination.connection),
+        )
+
+    def _canonical_node(self, name: str) -> Any:
+        """Retain one transformed, connectionless source plan per named dependency."""
+        if name not in self._plans:
+            self._plans[name] = self._node_for(name)
+        return self._plans[name]
 
     def _resolve_identity(
         self, name: str, *, honor_override: bool
@@ -726,5 +761,7 @@ class DAGMaterializationSession:
         if self._closed:
             return
         self._closed = True
+        if self._execution_transport is not None:
+            self._execution_transport.close(release_owned=release_owned)
         if release_owned:
             self._scope.close()
