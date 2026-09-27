@@ -167,6 +167,37 @@ class TransportSession:
             return self._source_export(source, lambda: value)
         return value
 
+    def discharge(self, source: CompiledSubtree) -> CompiledSubtree:
+        """Return the checked snapshot itself, not the original deferred plan.
+
+        A parent may remove marker columns. In that case materialize at the
+        owning source and compile the parent against precisely those checked
+        rows. Retain owned Ibis caches while the returned native graph needs
+        them; failed compilations release them through this session's scope.
+        """
+        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
+        from mountainash.relations.core.execution.metadata import CompiledSubtree
+
+        if source.location.family is CONST_BACKEND.IBIS:
+            def cache():
+                cached = transit_call(BoundaryKey.IBIS_NATIVE_CACHE, source.value.cache)
+                self._scope.own(cached.release, owner=cached)
+                self._retained.append(cached)
+                return cached
+
+            value = self._source_export(source, cache)
+        else:
+            deferred = is_polars_lazyframe(source.value) or is_narwhals_lazyframe(source.value)
+            value = self._export_checked(source)
+            if deferred and source.location.family is CONST_BACKEND.POLARS:
+                from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+                value = get_relation_system(CONST_BACKEND.POLARS)().read(value)
+        return CompiledSubtree(
+            value, source.location, source.source_token,
+            replace(source.metadata, owned_checks=()),
+        )
+
     def transfer(self, source: CompiledSubtree, requirement: TransferRequirement) -> CompiledSubtree:
         if self._closed:
             raise RuntimeError("transport session is closed")

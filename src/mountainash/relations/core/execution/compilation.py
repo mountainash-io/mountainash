@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
@@ -106,10 +105,9 @@ class CompilationSession:
                     f"Boundary {child_key} must discharge a source residue check; use .collect()",
                     node_key=child_key,
                 ) from None
-            # Evaluate at the original source, before the parent changes the
-            # output schema. Do not run this check during COMPILE or EXPLAIN.
-            self.transport._export_checked(envelope)
-            return replace(envelope, metadata=replace(envelope.metadata, owned_checks=()))
+            # The parent must consume exactly the checked rows, not rerun the
+            # original deferred source after the marker has been dropped.
+            return self.transport.discharge(envelope)
         return envelope
 
     def child(self, visitor: UnifiedRelationVisitor, node: Any):

@@ -31,6 +31,18 @@ def test_nested_target_conflicting_backend_is_rejected():
         rel.collect(backend="polars")
 
 
+@pytest.mark.parametrize("terminal", ["collect", "collect_with_drift"])
+@pytest.mark.parametrize("targeted", [False, True])
+def test_unknown_terminal_backend_is_rejected_before_compilation(terminal, targeted):
+    left = REGISTRY["polars"].build({"id": [1]}, "left")
+    rel = ma.relation(left)
+    if targeted:
+        right = REGISTRY["ibis-duckdb"].build({"id": [1]}, "right")
+        rel = rel.join(right, on="id", execute_on="right")
+    with pytest.raises(ValueError, match="unknown backend: 'bogus'"):
+        getattr(rel, terminal)(backend="bogus")
+
+
 def test_failed_native_terminal_releases_execution_scope(monkeypatch):
     from mountainash.relations.core.execution.transport import TransportSession
     from mountainash.relations.core import materialization
@@ -106,5 +118,52 @@ def test_source_marker_is_checked_before_projection_drops_it(year, raises, targe
                 assert caught.value.limitation.dialect == "ibis-duckdb"
             else:
                 assert ma.relation(rel.collect()).to_dict() == {"id": [1]}
+    finally:
+        CapabilityRegistry.restore(snapshot)
+
+
+def test_checked_projection_returns_the_checked_source_snapshot():
+    import gc
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
+    )
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+
+    snapshot = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        CapabilityRegistry.register_segment(BoundSegment(
+            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
+            Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
+                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
+                message="source year residue", consumer=PolicyConsumer.RESULT_PROTECTION,
+                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
+            ),)),
+        ))
+        source = REGISTRY["ibis-duckdb"].build({"id": [1], "year": ["2024"]}, "snapshot_source")
+        connection = source._find_backend(use_default=False)
+        rel = ma.relation(source).conform(TypeSpec(
+            fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)],
+        )).select("id")
+        with ma.capability_policy(ma.CapabilityPolicy.checked()):
+            native = rel.collect()
+            gc.collect()
+            connection.create_table(
+                "snapshot_source", {"id": [99], "year": ["2025"]}, overwrite=True,
+            )
+            assert ma.relation(native).to_dict() == {"id": [1]}
+            before = set(connection.list_tables())
+            assert set(rel.to_polars().columns) == {"id"}
+            gc.collect()
+            assert set(connection.list_tables()) == before
     finally:
         CapabilityRegistry.restore(snapshot)

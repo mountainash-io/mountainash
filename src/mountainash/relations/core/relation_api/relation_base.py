@@ -56,6 +56,11 @@ class RelationBase:
                 leaves this ``None`` and lets this method prepare it.
         """
         node = self._apply_optimisations(self._node)
+        if backend is not None:
+            try:
+                backend = CONST_BACKEND(backend.lower()).value
+            except (AttributeError, ValueError) as exc:
+                raise ValueError(f"unknown backend: {backend!r}") from exc
         prepared = prepare_execution(
             node, phase=phase, backend=backend, execution_context=execution_context,
         )
