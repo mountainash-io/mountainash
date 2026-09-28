@@ -5,8 +5,11 @@ import inspect
 import pytest
 
 import mountainash as ma
-from mountainash.core.constants import ExecutionTarget, JoinType
+from mountainash.core.constants import CONST_BACKEND, ExecutionTarget, JoinType
 from mountainash.relations.core.relation_protocols.prtcl_relation_api import RelationAPIProtocol
+from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash.prtcl_relsys_ext_ma_util import MountainashExtensionRelationSystemProtocol
+from mountainash.relations.core.relation_protocols.relation_systems.substrait.prtcl_relsys_join import SubstraitJoinRelationSystemProtocol
+from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 
 
 @pytest.mark.parametrize("method", ["join", "cross_join", "join_asof"])
@@ -43,3 +46,14 @@ def test_invalid_target_is_a_build_error(method, value):
     kwargs = {} if method == "cross_join" else {"on": "id"}
     with pytest.raises(ValueError, match="execute_on"):
         getattr(ma.relation({"id": [1]}), method)({"id": [2]}, execute_on=value, **kwargs)
+
+
+@pytest.mark.parametrize("owner,method", [
+    (SubstraitJoinRelationSystemProtocol, "join"),
+    (MountainashExtensionRelationSystemProtocol, "join_asof"),
+    *((get_relation_system(family), method) for family in (
+        CONST_BACKEND.POLARS, CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS,
+    ) for method in ("join", "join_asof")),
+])
+def test_native_join_contract_has_no_execution_target(owner, method):
+    assert "execute_on" not in inspect.signature(getattr(owner, method)).parameters
