@@ -1,4 +1,6 @@
 """Result model: schemas, builders, containers (spec §8)."""
+from dataclasses import fields
+
 import polars as pl
 
 import mountainash as ma  # noqa: F401  (import parity with package layout)
@@ -186,21 +188,24 @@ def test_dag_validation_result_shape():
 
 
 def test_private_materialized_source_is_not_public_result_state():
-    """The processor handoff cannot leak into equality, repr, or diagnostics."""
-    base = {
-        "passes": True,
-        "validator_name": "unit-d",
-        "check_summaries": summaries_frame([]),
-        "failure_cases": empty_failure_frame(RowIdentity("none")),
-        "identity": RowIdentity("none"),
-    }
-    result = ValidationResult(**base, _materialized_source=pl.DataFrame({"id": [1]}))
-    same = ValidationResult(**base, _materialized_source=pl.DataFrame({"id": [2]}))
+    """The private processor handoff is excluded from comparison and reporting."""
+    source_field = next(
+        item for item in fields(ValidationResult) if item.name == "_materialized_source"
+    )
+    # Check this field's exclusion without requiring whole-result equality.
+    assert source_field.compare is False
+    assert source_field.repr is False
 
-    assert result == same
+    result = ValidationResult(
+        passes=True,
+        validator_name="unit-d",
+        _materialized_source=pl.DataFrame({"id": [1]}),
+    )
     assert "_materialized_source" not in repr(result)
     assert "_materialized_source" not in result.check_summaries.columns
     assert "_materialized_source" not in result.failure_cases.columns
+    assert "_materialized_source" not in result.diagnostics
+    assert "_materialized_source" not in result.identity_diagnostics
 
 
 def test_failure_schema_exposes_structured_validator_paths():
