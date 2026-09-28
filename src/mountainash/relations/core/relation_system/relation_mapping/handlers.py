@@ -17,8 +17,11 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 
 
 def visit_join(node: Any, visitor: Any) -> Any:
-    left = visitor.visit(node.left)
-    right = visitor._visit_and_coerce_right(node.right, left)
+    if visitor.execution is not None:
+        left, right = visitor.execution.operands(visitor, visitor.execution_key)
+    else:
+        left = visitor.visit(node.left)
+        right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
     return visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
@@ -32,8 +35,11 @@ def visit_join(node: Any, visitor: Any) -> Any:
 
 
 def visit_join_asof(node: Any, visitor: Any) -> Any:
-    left = visitor.visit(node.left)
-    right = visitor._visit_and_coerce_right(node.right, left)
+    if visitor.execution is not None:
+        left, right = visitor.execution.operands(visitor, visitor.execution_key)
+    else:
+        left = visitor.visit(node.left)
+        right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,
@@ -54,6 +60,10 @@ def visit_ref(node: Any, visitor: Any) -> Any:
             "use RelationDAG.collect() or supply ref_resolver explicitly"
         )
     resolved = visitor.ref_resolver(node.name)
+    if visitor.metadata_session is not None and hasattr(visitor.ref_resolver, "envelope"):
+        visitor.metadata_session.adopt(
+            visitor, node, visitor.ref_resolver.envelope(node.name),
+        )
     from mountainash.relations.core.structured_lineage import StructuredPlanResolver
 
     if isinstance(visitor.ref_resolver, StructuredPlanResolver):

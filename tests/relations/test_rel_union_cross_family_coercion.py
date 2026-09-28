@@ -155,11 +155,11 @@ class TestUnionDistinctDedup:
 
 
 class TestBoundaries:
-    def test_derived_foreign_operand_is_not_rescued(self):
-        with pytest.raises(TypeError):
-            ma.concat([ma.relation(pl.DataFrame({"k": [1]})),
-                       ma.relation(pd.DataFrame({"k": [2, 3]})).filter(ma.col("k") > 0),
-                       ]).to_polars()
+    def test_derived_foreign_operand_is_transferred(self):
+        result = ma.concat([ma.relation(pl.DataFrame({"k": [1]})),
+                            ma.relation(pd.DataFrame({"k": [2, 3]})).filter(ma.col("k") > 0),
+                            ]).to_polars()
+        assert result.to_dict(as_series=False) == {"k": [1, 2, 3]}
 
     def test_lazy_narwhals_anchor_boundary_raises_clean_typeerror(self):
         lazy_anchor = _nw_lazy_polars({"k": [1]})

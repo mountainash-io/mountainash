@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from mountainash.relations.core.relation_api.relation import Relation
+from mountainash.relations.core.execution.preparation import ExecutionPhase
 
 if TYPE_CHECKING:
     from mountainash.relations.core.relation_nodes import RelationNode
@@ -46,6 +47,7 @@ class DAGRelation(Relation):
         self,
         backend: "str | None" = None,
         execution_context: Any = None,
+        *, phase: ExecutionPhase = ExecutionPhase.EXECUTE,
     ) -> "tuple[Any, Any]":
         from mountainash.core.capabilities.policy import _resolve_policy
 
@@ -54,7 +56,15 @@ class DAGRelation(Relation):
         )
         return self._dag._execute_with_visitor(
             self, backend=backend, execution_policy=execution_policy,
+            phase=phase, execution_context=execution_context,
         )
+
+    def explain(self) -> str:
+        """Describe the expanded DAG recipe without compiling named values."""
+        result, _visitor = self._compile_and_execute_with_visitor(
+            phase=ExecutionPhase.EXPLAIN,
+        )
+        return result
 
     @property
     def schema(self) -> dict:

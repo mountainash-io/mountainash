@@ -37,6 +37,7 @@ from ..relation_nodes import RelationNode, ReadRelNode
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
     from mountainash.core.capabilities.policy import _ExecutionContext
+    from mountainash.relations.core.execution.metadata import MetadataSession
     from mountainash.relations.dag.key_context import KeyDriftContext
 
 
@@ -160,6 +161,9 @@ class UnifiedRelationVisitor:
         key_context: Optional["KeyDriftContext"] = None,
         identity_resolver: Optional[Callable[[str], Any]] = None,
         execution_context: "_ExecutionContext",
+        metadata_session: "MetadataSession | None" = None,
+        execution: Any = None,
+        execution_key: str | None = None,
     ) -> None:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
@@ -172,9 +176,16 @@ class UnifiedRelationVisitor:
         self.key_context = key_context
         self.identity_resolver = identity_resolver
         self.execution_context = execution_context
+        self.metadata_session = metadata_session
+        self.execution = execution
+        self.execution_key = execution_key
+        self._visiting_root = False
         self.diagnostic_traces: dict[tuple[Any, Any], Any] = {}
         self.residue_checks: list[Any] = []
         self.residue_check_nodes: dict[str, str] = {}
+        self.owned_residue_checks: list[Any] = []
+        self._owned_checks_by_node: dict[int, tuple[Any, ...]] = {}
+        self._local_checks_by_node: dict[int, tuple[Any, ...]] = {}
         # Accumulates one ConformDrift per apply_conform() call that actually
         # assessed something (item 48 Task 7). Populated in AST-traversal
         # order — visits are depth-first sequential, so node_id
@@ -192,6 +203,15 @@ class UnifiedRelationVisitor:
     def visit(self, node: RelationNode) -> Any:
         """Single dispatch site (spec §3.5): third-party visit-registry
         handler -> operation registry -> def handler or generic bind+call."""
+        if self.execution is not None and self._visiting_root:
+            return self.execution.child(self, node)
+        self._visiting_root = True
+        try:
+            return self._visit_prepared(node)
+        finally:
+            self._visiting_root = False
+
+    def _visit_prepared(self, node: RelationNode) -> Any:
         from .visit_registry import RelationVisitRegistry
 
         handler = RelationVisitRegistry.get(type(node))
@@ -218,80 +238,29 @@ class UnifiedRelationVisitor:
         return self._dispatch(node, op)
 
     def _gate_capabilities(self, node, op) -> None:
-        """Compile-time capability gate (spec Section 2, relations side).
+        """Reuse the AST-known gate shared with whole-tree preparation."""
+        from mountainash.relations.core.execution.capabilities import check_ast_capabilities
+        from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.materialization import ExecutionForm
 
-        Declarative ops: every ArgBinding field + option is a gateable param.
-        Handler ops: only gate_params are consulted, and a param-scoped fact
-        fires ONLY when the node's field is populated (Codex finding #2 —
-        narwhals join_asof is fine without tolerance).
-        """
-        from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM
-        from mountainash.core.types import BackendCapabilityError
-
-        family = getattr(self.backend, "backend_type", None)
-        if family is None:
+        if self.execution is not None:
+            check_ast_capabilities(
+                node, self.execution.prepared.locations[self.execution_key],
+                execution_context=self.execution_context,
+            )
             return
         dialect = self._authoritative_dialect(node, op)
         if dialect is _UNRESOLVED:
             dialect = getattr(self.backend, "dialect", None)
-
-        def _raise(fact):
-            raise BackendCapabilityError(
-                fact.message,
-                backend=self.backend.BACKEND_NAME,
-                function_key=op.operation_key,
-                limitation=fact,
-            )
-
-        # Whole-operation optional protection.
-        fact = CapabilityRegistry.capability_for(
-            op.operation_key, WILDCARD_PARAM, family, dialect,
-            consumer=PolicyConsumer.GATE, execution_context=self.execution_context,
+        check_ast_capabilities(
+            node,
+            ExecutionLocation(self.backend.backend_type, dialect, ExecutionForm.DEFERRED, "bound"),
+            execution_context=self.execution_context,
         )
-        if fact is not None and fact.predicate is None and fact.enforcement is Enforcement.GATE \
-                and fact.level is CapabilityLevel.UNSUPPORTED:
-            _raise(fact)
-
-        # Param-scoped facts — fire only when the node field is populated.
-        # Only GATE facts reach this path; residue consumers remain separate.
-        # gate_params keeps its narrowed job: declaring that a populated node
-        # field is sufficient evidence for a GATE fact to fire on a
-        # handler-routed op.
-        param_names = tuple(b.field for b in op.args) + tuple(op.options) + op.gate_params
-
-        # Compound predicate gate (§3): collect blocking predicate facts once per call.
-        from mountainash.core.capabilities.predicates import BoundCall
-        bindings = {p: getattr(node, p, None) for p in param_names}
-        supplied = frozenset(p for p in param_names if getattr(node, p, None) is not None)
-        bound = BoundCall(
-            operation_key=op.operation_key, backend=family, dialect=dialect,
-            bindings=bindings, supplied=supplied,
-        )
-        violations = CapabilityRegistry.violations_for(
-            bound, execution_context=self.execution_context,
-        )
-        if violations:
-            ordered = sorted(violations, key=lambda f: (f.param, f.message))
-            combined = "; ".join(f.message for f in ordered)
-            raise BackendCapabilityError(
-                combined, backend=self.backend.BACKEND_NAME,
-                function_key=op.operation_key, limitation=ordered[0],
-                candidate_fact_keys=tuple(fact.fact_key for fact in ordered),
-            )
-
-        for param in param_names:
-            fact = CapabilityRegistry.capability_for(
-                op.operation_key, param, family, dialect,
-                consumer=PolicyConsumer.GATE, execution_context=self.execution_context,
-            )
-            if fact is None or fact.predicate is not None or fact.level is not CapabilityLevel.UNSUPPORTED:
-                continue
-            if fact.enforcement is not Enforcement.GATE:
-                continue
-            if getattr(node, param, None) is not None:
-                _raise(fact)
 
     def _authoritative_dialect(self, node: RelationNode, op: Any):
+        if self.execution is not None:
+            return self.execution.prepared.locations[self.execution_key].dialect
         input_node = _first_input_node(node)
         if input_node is None:
             return _UNRESOLVED
@@ -393,6 +362,16 @@ class UnifiedRelationVisitor:
             output_names_resolver=self._ref_output_names,
             backend=getattr(self.backend, "backend_type", None),
         )
+        if self._owned_checks_by_node:
+            from mountainash.relations.core.structured_lineage import propagate_owned_residue
+
+            propagate_owned_residue(
+                node,
+                [self._owned_checks_by_node.get(id(child), ())
+                 for child in self._relation_children(node, operation)],
+                output_names_resolver=self._ref_output_names,
+                backend=getattr(self.backend, "backend_type", None),
+            )
 
     def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
         """Record a node's transport output only after its native dispatch succeeds."""
@@ -425,6 +404,36 @@ class UnifiedRelationVisitor:
             plans = freeze_structured_field_plans(carried)
         self._structured_plans_by_node[id(node)] = plans
         self.structured_field_plans = plans
+        if self._owned_checks_by_node or id(node) in self._local_checks_by_node:
+            from mountainash.relations.core.structured_lineage import propagate_owned_residue
+
+            child_checks = [self._owned_checks_by_node.get(id(child), ())
+                            for child in self._relation_children(node, op)]
+            carried = propagate_owned_residue(
+                node, child_checks, output_names_resolver=self._ref_output_names,
+                backend=getattr(self.backend, "backend_type", None),
+            )
+            output_checks = (*carried, *self._local_checks_by_node.get(id(node), ()))
+            self._owned_checks_by_node[id(node)] = output_checks
+            self.owned_residue_checks = list(output_checks)
+
+    @staticmethod
+    def _relation_children(node: RelationNode, op: Any) -> list[RelationNode]:
+        from mountainash.relations.core.relation_system.relation_mapping.registry import ArgKind
+
+        children = []
+        for binding in op.args:
+            value = getattr(node, binding.field)
+            if binding.kind is ArgKind.INPUT:
+                children.append(value)
+            elif binding.kind is ArgKind.INPUT_LIST:
+                children.extend(value)
+        if not children:
+            children = [child for child in (
+                getattr(node, "left", None), getattr(node, "right", None),
+                getattr(node, "input", None),
+            ) if child is not None]
+        return children
 
     def _dispatch(self, node: RelationNode, op: Any) -> Any:
         if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
@@ -497,6 +506,10 @@ class UnifiedRelationVisitor:
         if binding.kind is ArgKind.INPUT:
             return self.visit(value)
         if binding.kind is ArgKind.INPUT_LIST:
+            if self.execution is not None:
+                # A prepared set has already resolved every operand and route.
+                # Never reinterpret a child's native TypeError as coercion.
+                return list(self.execution.operands(self, self.execution_key))
             anchor = self.visit(value[0])   # anchor must succeed; a TypeError propagates
             results = [anchor]
             for v in value[1:]:
@@ -539,6 +552,30 @@ class UnifiedRelationVisitor:
             trace = OperationDiagnosticTrace()
             self.diagnostic_traces[key] = trace
         return trace
+
+    def terminal_residue_checks(self) -> tuple[Any, ...]:
+        """Return only checks safe to evaluate at this visitor's native terminal.
+
+        An adopted check belongs to its source and must be discharged there
+        before a transfer or a terminal can hide/relabel its marker. Task 5
+        supplies the source materialization boundary; until then fail closed.
+        """
+        from mountainash.relations.core.execution.metadata import _LocalResidue
+
+        pending = self.owned_residue_checks
+        if not pending and not self._owned_checks_by_node:
+            return tuple(self.residue_checks)
+        if self.execution is not None:
+            destination = self.execution.prepared.locations[self.execution_key]
+            if all(isinstance(owned, _LocalResidue) or
+                   owned.source_location.key == destination.key for owned in pending):
+                return tuple(owned.check for owned in pending)
+        if any(not isinstance(owned, _LocalResidue) for owned in pending):
+            raise RuntimeError(
+                "A source-owned residue check must be discharged at its source "
+                "before terminal materialization"
+            )
+        return tuple(owned.check for owned in pending)
 
     @staticmethod
     def _marker_alias(
@@ -652,7 +689,11 @@ class UnifiedRelationVisitor:
 
         # node_id captures the current report count *before* appending below
         # — deterministic since visits are depth-first sequential.
-        node_id = f"conform:{len(self.drift_reports)}"
+        node_id = (
+            self.metadata_session.conform_id(owner_node if owner_node is not None else object())
+            if self.metadata_session is not None
+            else f"conform:{len(self.drift_reports)}"
+        )
 
         # Keys dimension (item 48 PR-D): only assessed when a DAG supplied a
         # KeyDriftContext. The "child" identity prefers this call's own
@@ -761,6 +802,12 @@ class UnifiedRelationVisitor:
                     finally:
                         self.expr_visitor.diagnostic_trace = marker_trace
                     self.residue_checks.extend(residue_checks)
+                    if owner_node is not None and residue_checks:
+                        from mountainash.relations.core.execution.metadata import _LocalResidue
+
+                        self._local_checks_by_node[id(owner_node)] = tuple(
+                            _LocalResidue(check) for check in residue_checks
+                        )
         except (BackendCapabilityError, ConformError):
             raise
         except Exception as e:

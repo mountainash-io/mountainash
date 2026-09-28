@@ -1488,7 +1488,7 @@ No retained executable policy is authored for this target and concrete scope.
 
 ### Explicit issue references
 
-- `IB-REL-12` — needs_investigation; no upstream URL
+- `IB-REL-12` — resolved_in_mountainash; no upstream URL
 
 ## ibis/ibis-duckdb — rank/dense_rank/row_number return values one lower on ibis SQL
 
@@ -5028,7 +5028,7 @@ No retained executable policy is authored for this target and concrete scope.
 
 ### Explicit issue references
 
-- `IB-REL-12` — needs_investigation; no upstream URL
+- `IB-REL-12` — resolved_in_mountainash; no upstream URL
 
 ## ibis/ibis-sqlite — rank/dense_rank/row_number return values one lower on ibis SQL
 

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Optional, Protocol, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional, Protocol, Sequence, TypeVar, Union
 
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from mountainash.core.constants import ExecutionTarget
 
 _T = TypeVar("_T")
 
@@ -64,7 +67,7 @@ class RelationAPIProtocol(Protocol):
         right_on: Optional[Union[str, list[str]]] = None,
         how: str = "inner",
         suffix: str = "_right",
-        execute_on: Optional[Any] = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Self: ...
 
     def join_asof(
@@ -75,9 +78,15 @@ class RelationAPIProtocol(Protocol):
         by: Optional[Union[str, list[str]]] = None,
         strategy: str = "backward",
         tolerance: Any = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Self: ...
 
-    def cross_join(self, other: Any) -> Self: ...
+    def cross_join(
+        self,
+        other: Any,
+        *,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
+    ) -> Self: ...
 
     # ── Aggregation ──
 

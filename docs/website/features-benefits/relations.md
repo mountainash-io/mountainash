@@ -20,11 +20,13 @@ result = (
           ma.col("score").std().alias("sd"),
       )
       .sort("region")
-      .to_polars()   # or .to_pandas(), or .execute() on an Ibis table
+      .to_polars()   # output format; input plan determines execution site
 )
 ```
 
-The same chain. The same method names. The same expressions inside the aggregation. The only line that knows what runtime it's targeting is the terminal call.
+The same chain and expressions inside the aggregation. For joins, the selected
+operand's **resulting location** determines where execution happens; the
+terminal conversion chooses how to return the result.
 
 ### Cross-type joins
 
@@ -34,7 +36,12 @@ Two frames from two backends, joined without a manual conversion:
 ma.relation(polars_left).join(pandas_right, on="id", how="inner").to_polars()
 ```
 
-One side is coerced. There's a sensible default for the coercion target; `execute_on=` overrides it explicitly.
+The default is the left operand's resulting location, including any inner
+targeted join. `execute_on="right"` chooses the right operand's location
+without reversing join semantics. `cross_join()` and `join_asof()` also accept
+`execute_on`. Sets use their first input's resulting location. On Ibis, two
+connections of the same dialect are still different locations; an unbound
+memtable-only authority with no bound peer cannot implicitly open a database.
 
 ## Side-by-side: same chain, three ways
 
@@ -77,18 +84,21 @@ Like Polars' LazyFrame, a relation chain isn't evaluated until requested. We mad
 - The AST can be inspected before running.
 - A relation can be passed around as a value — to a function, to a test, to a serialiser.
 - Optimisation passes can run before execution.
-- The runtime can be chosen at the latest possible moment.
+- The location is resolved from the plan's inputs and explicit join targets at the terminal boundary.
 
 ```python
 r = ma.relation(df).filter(ma.col("amount").gt(100)).group_by("region").agg(ma.col("amount").sum())
 
 # Decision deferred
-r.to_polars()      # local Polars
-r.to_pandas()      # convert through Narwhals
-# or hand `r` to a worker that owns an Ibis table and can .execute() it there
+r.to_polars()      # convert the executed result to Polars
+r.to_pandas()      # convert the executed result to pandas
 ```
 
-A pandas chain doesn't separate "recipe" from "result." A Polars `LazyFrame` does, but it's pinned to Polars. A relation does, and isn't.
+A pandas chain doesn't separate "recipe" from "result." A Polars `LazyFrame` does,
+but it's pinned to Polars. A relation does too; choosing an output adapter does
+not migrate an existing join's execution to another database. Deferred foreign
+transfers require `.collect()` instead of `.compile()`; `.explain()` can describe
+them without moving data.
 
 ## Why this matters across a team
 

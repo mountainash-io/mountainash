@@ -7,6 +7,44 @@ if TYPE_CHECKING:
     from mountainash.conform.structured_transport import StructuredFieldPlanMap
 
 from mountainash.core.errors import MountainashError
+from mountainash.core.errors import BackendConversionError
+
+
+class CompileRequiresExecutionError(MountainashError, RuntimeError):
+    """A compile-only terminal would have to execute a source boundary."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
+class UnsupportedRelationTransportError(BackendConversionError):
+    """No declared adapter can carry this relation operand to its destination."""
+
+
+class UnresolvedExecutionLocationError(MountainashError, ValueError):
+    """A selected execution location has no usable physical binding."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
+
+
+class ConflictingExecutionTargetError(MountainashError, ValueError):
+    """An explicit terminal override contradicts an explicit join target."""
+
+    def __init__(self, message: str, *, node_key: str | None = None,
+                 source: str | None = None, destination: str | None = None) -> None:
+        self.node_key = node_key
+        self.source = source
+        self.destination = destination
+        super().__init__(message)
 
 
 class UnregisteredRelationNodeError(MountainashError):

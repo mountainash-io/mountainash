@@ -6,18 +6,15 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.backend_detection import identify_backend
-from mountainash.expressions.core.expression_system.expsys_base import (
-    get_expression_system,
-)
-from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
 from ..relation_nodes import RelationNode, ReadRelNode, JoinRelNode, SetRelNode, SourceRelNode
 from ..relation_nodes.extensions_mountainash import RefRelNode
-from ..relation_protocols.relsys_base import get_relation_system
-from ..unified_visitor.relation_visitor import UnifiedRelationVisitor
+from ..execution.preparation import ExecutionPhase, prepare_execution
+from ..execution.compilation import CompilationSession
 from ...dag.errors import RelationDAGRequired
 
 if TYPE_CHECKING:
     from mountainash.core.capabilities.policy import _ExecutionContext
+    from ..unified_visitor.relation_visitor import UnifiedRelationVisitor
 
 
 class RelationBase:
@@ -38,6 +35,7 @@ class RelationBase:
 
     def _compile_and_execute_with_visitor(
         self, backend: "str | None" = None, execution_context: "_ExecutionContext | None" = None,
+        *, phase: ExecutionPhase = ExecutionPhase.EXECUTE,
     ) -> "tuple[Any, UnifiedRelationVisitor]":
         """Compile the relational AST and return ``(result, visitor)``.
 
@@ -60,37 +58,22 @@ class RelationBase:
         node = self._apply_optimisations(self._node)
         if backend is not None:
             try:
-                resolved_backend = CONST_BACKEND(backend.lower())
-            except ValueError:
-                raise ValueError(f"unknown backend: {backend!r}")
-        else:
-            resolved_backend = self._detect_backend_from(node)
-        dialect: str | None = None
-        leaf = self._find_leaf_read_node(node)
-        if leaf is not None:
-            from mountainash.core.backend_detection import identify_backend_identity
-
-            dialect = identify_backend_identity(leaf.dataframe).dialect
-        relation_system_cls = get_relation_system(resolved_backend)
-        relation_system = relation_system_cls(dialect=dialect)
-        expression_system_cls = get_expression_system(resolved_backend)
-        from mountainash.core.capabilities.policy import _new_execution_context
-
-        target_data = leaf.dataframe if leaf is not None else None
-        if execution_context is None:  # only the outer delegation boundary may prepare
-            execution_context = _new_execution_context(
-                target_data, family_override=resolved_backend,
-            )
-        expression_system = expression_system_cls(
-            dialect=dialect, execution_context=execution_context,
+                backend = CONST_BACKEND(backend.lower()).value
+            except (AttributeError, ValueError) as exc:
+                raise ValueError(f"unknown backend: {backend!r}") from exc
+        prepared = prepare_execution(
+            node, phase=phase, backend=backend, execution_context=execution_context,
         )
-        expr_visitor = UnifiedExpressionVisitor(
-            expression_system, input_data=target_data, execution_context=execution_context,
-        )
-        visitor = UnifiedRelationVisitor(
-            relation_system, expr_visitor, execution_context=execution_context,
-        )
-        return visitor.visit(node), visitor
+        session = CompilationSession(prepared)
+        try:
+            envelope, visitor = session.compile(prepared.root_key)
+        except BaseException:
+            session.close(release_owned=True)
+            raise
+        # The native graph retains its own Arrow-backed operands; keep its
+        # provenance/visitor alive for subsequent terminal materialization.
+        visitor._execution_session = session
+        return envelope.value, visitor
 
     def _apply_optimisations(self, node: RelationNode) -> RelationNode:
         """Apply registered optimisation passes if the tree contains relevant nodes."""

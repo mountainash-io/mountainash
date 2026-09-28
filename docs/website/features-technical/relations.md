@@ -50,7 +50,7 @@ The minimal AST is deliberate — most operations are parameter values on these 
 | Row filter | `.filter(expr)`, `.remove(expr)` |
 | Projection | `.select(*cols)`, `.with_columns(*exprs)`, `.drop(*cols)`, `.rename({old: new})` |
 | Sort / fetch | `.sort(*by, descending=...)`, `.head(n)`, `.tail(n)`, `.slice(offset, length)` |
-| Join | `.join(other, on=..., how=...)`, `.join_asof(...)` (cross-type allowed) |
+| Join | `.join(other, on=..., how=..., execute_on=...)`, `.cross_join(other, execute_on=...)`, `.join_asof(..., execute_on=...)` (cross-type allowed) |
 | Group / aggregate | `.group_by(*keys).agg(*exprs)` |
 | Set ops | `.union(other)`, `.intersection(other)`, `.difference(other)` |
 | Unique / null | `.unique(*cols)`, `.drop_nulls(subset=...)`, `.drop_nans(subset=...)`, `.has_nulls()`, `.null_count()` |
@@ -72,7 +72,52 @@ pandas_right = pd.DataFrame({"id": [1, 2], "y": [100, 200]})
 ma.relation(polars_left).join(pandas_right, on="id", how="inner").to_polars()
 ```
 
-One side is coerced. The default coercion target is the backend that produced the left input; `execute_on=` overrides this.
+The join runs at the left operand's **resulting location** by default;
+`execute_on="right"` chooses the right one's actual location without swapping
+join operands. The rule also covers `cross_join` and `join_asof`. Nested joins
+keep their own targets; a union executes at input zero's resulting location,
+transporting other inputs when necessary. For Ibis, this is a specific
+connection, not merely `"ibis"` or `"ibis-duckdb"`:
+
+```python
+import ibis
+import pyarrow as pa
+import mountainash as ma
+
+source = ibis.duckdb.connect()
+destination = ibis.duckdb.connect()
+left = source.create_table("left_ids", pa.table({"id": [1, 2]}))
+right = destination.create_table("right_ids", pa.table({"id": [2]}))
+plan = ma.relation(left).join(right, on="id", execute_on="right")
+assert plan.to_dicts() == [{"id": 2}]
+assert plan.collect()._find_backend(use_default=False) is destination
+```
+
+`backend="ibis"` is a family override, not a database connection; it cannot
+contradict an explicit join target. A selected Ibis memtable plan can borrow a
+bound Ibis peer's connection, but with no bound peer it now raises an
+unresolved-target error, including for materializing terminals. Supply a bound
+table to migrate from an implicit-default memtable authority. `.to_polars()`
+chooses output representation, not execution placement.
+
+All three join builders accept the same placement argument:
+
+```python
+import polars as pl
+import mountainash as ma
+
+left = pl.DataFrame({"id": [1, 2]})
+right = pl.DataFrame({"id": [2], "value": [10]})
+assert ma.relation(left).join(right, on="id", execute_on="right").to_dicts() == [
+    {"id": 2, "value": 10}
+]
+assert ma.relation(left).cross_join(right, execute_on="left").to_polars().height == 2
+events = pl.DataFrame({"time": [2, 4]})
+history = pl.DataFrame({"time": [1, 3], "rate": [10, 30]})
+assert ma.relation(events).join_asof(
+    history, on="time", execute_on="right"
+).to_dict()["rate"] == [10, 30]
+```
 
 ## Build-then-collect semantics
 
@@ -90,6 +135,11 @@ r = (
 r.to_polars()    # Now the AST is compiled to pl.LazyFrame ops and .collect()'d.
 r.to_pandas()    # Or compile the same AST through Narwhals.
 ```
+
+`.compile()` does not execute deferred foreign inputs to satisfy a join or
+union transfer; it raises a compile-requires-execution error directing you to
+`.collect()`. `.explain()` describes target locations and required transfers
+without executing them. Already-eager compile-safe conversions remain possible.
 
 You can interrogate the relation between build and collect — print the AST, run an optimisation pass, pickle it, send it to a remote worker.
 

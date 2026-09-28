@@ -10,7 +10,7 @@ whole query plan once per consumer.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
@@ -24,6 +24,7 @@ from mountainash.relations.core.materialization import (
     diagnostic_polars_view,
     materialize_native,
 )
+from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
 if TYPE_CHECKING:
@@ -153,16 +154,36 @@ class _SessionRefResolver:
     def __init__(
         self,
         session: "DAGMaterializationSession",
-        consumer_context: "_ExecutionContext",
+        consumer_context: "_ExecutionContext | None" = None,
+        destination: Any = None,
     ) -> None:
         self._session = session
         self._consumer_context = consumer_context
+        self._destination = destination
 
     def __call__(self, name: str) -> Any:
+        if self._destination is not None:
+            value = self._session.resolve_at(name, self._destination)
+            self._destination = self._session._destination_for(self._destination)
+            return value
         return self._session.resolve(name, self._consumer_context)
 
     def structured_plans(self, name: str) -> "StructuredFieldPlanMap":
+        if self._destination is not None:
+            resolved = self._session._resolved.get((name, self._destination.key))
+            if resolved is not None:
+                return resolved.metadata.structured_field_plans
+            entry = self._session._canonical.get(name)
+            if entry is not None:
+                return entry.structured_field_plans
+            bound = self._session._bound.get((name, self._destination.key))
+            if bound is not None:
+                return bound[1].structured_field_plans
         return self._session._compile_named(name).structured_field_plans
+
+    def envelope(self, name: str) -> Any:
+        """Consumer-bound metadata side channel; never returned as a ref value."""
+        return self._session._resolved[(name, self._destination.key)]
 
 
 class SessionMode(Enum):
@@ -221,16 +242,23 @@ class DAGMaterializationSession:
         self._execution_policy = execution_policy
         self._package_versions: "dict[str, str | None]" = {}
         self._canonical: "dict[str, CanonicalEntry]" = {}
+        self._plans: dict[str, Any] = {}
+        self._bound: dict[tuple[str, tuple], tuple[Any, Any]] = {}
+        self._resolved: dict[tuple[str, tuple], Any] = {}
         self._coerced: "dict[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment], NativeExecutionValue]" = {}
         self._diagnostic_views: "dict[str, DiagnosticFrameView]" = {}
         self._visitors: "dict[str, UnifiedRelationVisitor]" = {}
         self._validation_native: "dict[str, NativeExecutionValue]" = {}
         self._scope = MaterializationScope()
         self._closed = False
+        self._execution_phase = ExecutionPhase.EXECUTE
+        self._execution_tokens = None
+        self._execution_transport = None
+        self._execution_metadata = None
 
     @property
     def canonical_keys(self) -> "frozenset[str]":
-        return frozenset(self._canonical)
+        return frozenset(self._canonical) | frozenset(self._plans)
 
     @property
     def coercion_keys(self) -> "frozenset[tuple[str, tuple[CONST_BACKEND, str | None, int], Environment]]":
@@ -246,7 +274,170 @@ class DAGMaterializationSession:
         """
         values = [entry.native.value for entry in self._canonical.values()]
         values.extend(coerced.value for coerced in self._coerced.values())
+        values.extend(envelope.value for envelope, _ in self._bound.values())
         return tuple(values)
+
+    def resolver_for(self, destination: Any) -> _SessionRefResolver:
+        """Bind a ref resolver to this consumer's complete physical location."""
+        return _SessionRefResolver(self, destination=destination)
+
+    def resolve_at(self, name: str, destination: Any) -> Any:
+        """Resolve a named plan in its own location, then transport for this consumer."""
+        from mountainash.relations.core.execution.compilation import CompilationSession
+        from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
+        from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+        from mountainash.relations.core.execution.metadata import MetadataSession
+        from mountainash.relations.core.execution.preparation import prepare_execution, _route
+        from mountainash.relations.core.execution.transport import TransportSession
+        from mountainash.relations.core.errors import UnresolvedExecutionLocationError
+        from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+        from mountainash.core.lazy_imports import import_ibis_expr_ops
+        from mountainash.relations.dag.key_context import KeyDriftContext
+
+        if name not in self.dag.relations:
+            raise self.dag._unknown_ref_error(name)
+        if self._execution_tokens is None:
+            self._execution_tokens = IdentityTokens()
+            self._execution_metadata = MetadataSession(self._execution_tokens)
+            self._execution_transport = TransportSession(self._execution_tokens)
+        destination = self._destination_for(destination)
+        root = self._canonical_node(name)
+        tokens = self._execution_tokens
+        location = LocationResolver(
+            tokens, identity_resolver=self._canonical_node,
+        ).resolve(root)
+        connectionless = location.binding == "memory"
+        # Only pure ref aliases of an in-memory read carry the eager payload.
+        # A unary transformation is a deferred Ibis plan and cannot borrow a
+        # non-Ibis consumer as a physical execution connection.
+        payload_root = root
+        if connectionless:
+            seen = {name}
+            while isinstance(payload_root, RefRelNode):
+                if payload_root.name in seen:
+                    raise UnresolvedExecutionLocationError(
+                        f"Cyclic relation reference {payload_root.name!r}", node_key=name,
+                    )
+                seen.add(payload_root.name)
+                payload_root = self._canonical_node(payload_root.name)
+        bare_memory = (connectionless and isinstance(payload_root, ReadRelNode)
+                       and isinstance(payload_root.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
+        # A bare memtable owns an eager payload, not an Ibis execution context.
+        # Only an Ibis consumer can bind it for native compilation; a foreign
+        # consumer receives the payload through the declared Arrow adapter.
+        payload_transfer = bare_memory and destination.connection is None
+        source_location = location if payload_transfer or not connectionless else destination
+        binding_key = (name, source_location.key)
+        if binding_key not in self._bound:
+            if payload_transfer:
+                envelope = CompiledSubtree(
+                    payload_root.dataframe, location, tokens.token(payload_root), CompilationMetadata(),
+                )
+                visitor = None
+            else:
+                prepared = prepare_execution(
+                    root, phase=self._execution_phase,
+                    identity_resolver=self._canonical_node,
+                    tokens=tokens, binding=destination if connectionless else None,
+                )
+                key_context = KeyDriftContext(
+                    resource_name=name, constraints_for=self.dag.constraints_for,
+                    schema_of=self.dag.schema,
+                )
+                compilation = CompilationSession(
+                    prepared, ref_resolver_factory=self.resolver_for,
+                    key_context=key_context, transport=self._execution_transport,
+                    metadata=self._execution_metadata,
+                )
+                envelope, visitor = compilation.compile(prepared.root_key)
+                if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
+                    envelope = self.cache_root(name, envelope, visitor)
+            self._bound[binding_key] = (envelope, visitor)
+            if visitor is not None:
+                self._visitors[name] = visitor
+        envelope, visitor = self._bound[binding_key]
+        requirement = _route(
+            name, source_location, destination, derived=not isinstance(root, ReadRelNode),
+            memory_payload=payload_transfer,
+        )
+        if requirement is None:
+            self._resolved[(name, destination.key)] = envelope
+            return envelope.value
+        transferred = self._execution_transport.transfer(envelope, requirement)
+        self._resolved[(name, destination.key)] = transferred
+        from mountainash.core.capabilities.policy import _CapabilityTarget
+
+        self._coerced[(name, destination.key)] = NativeExecutionValue(
+            transferred.value, envelope.location.capability_identity,
+            destination.capability_identity, destination.form,
+            target=_CapabilityTarget(
+                destination.capability_identity,
+                destination.connection if destination.connection is not None else destination.prototype,
+            ),
+        )
+        return transferred.value
+
+    def cache_root(self, name: str, envelope: Any, visitor: Any) -> Any:
+        """Materialize one bound named result, preserving its source metadata."""
+        from mountainash.conform.structured_transport import freeze_structured_field_plans
+        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import is_ibis_table, is_polars_lazyframe
+
+        if name in self._canonical:
+            return envelope
+        if is_ibis_table(envelope.value):
+            native = enrich_materialization(
+                visitor.backend,
+                lambda: materialize_native(
+                    envelope.value, envelope.location.capability_identity,
+                    MaterializationPurpose.DAG_CANONICAL,
+                    execution_context=visitor.execution_context, scope=self._scope,
+                ),
+                diagnostic_trace=visitor._active_diagnostic_trace(),
+                residue_checks=visitor.terminal_residue_checks(),
+                execution_context=visitor.execution_context,
+            )
+            envelope = replace(
+                envelope, value=native.value,
+                source_token=self._execution_tokens.token(native.value),
+            )
+        else:
+            native = NativeExecutionValue(
+                envelope.value, envelope.location.capability_identity,
+                identify_backend_identity(envelope.value),
+                ExecutionForm.LAZY if is_polars_lazyframe(envelope.value) else envelope.location.form,
+                target=visitor.execution_context.target,
+            )
+        self._canonical[name] = CanonicalEntry(
+            native, envelope.metadata.diagnostic_records,
+            tuple(owned.check for owned in envelope.metadata.owned_checks),
+            dict(visitor.residue_check_nodes), visitor.key_context,
+            freeze_structured_field_plans(envelope.metadata.structured_field_plans),
+        )
+        return envelope
+
+    def _node_for(self, name: str) -> Any:
+        rel = self.dag.relations[name]
+        transform = self._node_transforms.get(name)
+        if transform is not None:
+            rel = transform(rel)
+        return rel._node
+
+    def _destination_for(self, destination: Any) -> Any:
+        if destination.connection is None:
+            return destination
+        return replace(
+            destination,
+            connection_token=self._execution_tokens.token(destination.connection),
+        )
+
+    def _canonical_node(self, name: str) -> Any:
+        """Retain one transformed, connectionless source plan per named dependency."""
+        if name not in self._plans:
+            self._plans[name] = self._node_for(name)
+        return self._plans[name]
 
     def _resolve_identity(
         self, name: str, *, honor_override: bool
@@ -360,10 +551,9 @@ class DAGMaterializationSession:
             execution_context=execution_context,
         )
 
-        checks_start = len(visitor.residue_checks)
         compiled = root.accept(visitor)
-        residue_checks_this = tuple(visitor.residue_checks[checks_start:])
-        del visitor.residue_checks[checks_start:]
+        residue_checks_this = visitor.terminal_residue_checks()
+        visitor.residue_checks.clear()
 
         if guard_native_terminal:
             from mountainash.relations.core.relation_api.relation import (
@@ -613,5 +803,7 @@ class DAGMaterializationSession:
         if self._closed:
             return
         self._closed = True
+        if self._execution_transport is not None:
+            self._execution_transport.close(release_owned=release_owned)
         if release_owned:
             self._scope.close()

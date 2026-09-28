@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional, Sequence, TypeVar, Union
 
 
 if TYPE_CHECKING:
@@ -61,6 +61,18 @@ def _normalize_columns(cols: Any) -> Optional[list[str]]:
     return list(cols)
 
 
+def _normalize_execution_target(value: Any) -> ExecutionTarget | None:
+    """Validate and normalize a public join target before building its node."""
+    if value is None or isinstance(value, ExecutionTarget):
+        return value
+    if isinstance(value, str):
+        if value == "left":
+            return ExecutionTarget.LEFT
+        if value == "right":
+            return ExecutionTarget.RIGHT
+    raise ValueError("execute_on must be None, 'left', 'right', or ExecutionTarget")
+
+
 def _normalize_sort_fields(
     columns: tuple[Any, ...],
     descending: Union[bool, list[bool]],
@@ -116,6 +128,24 @@ def _compiler_identity(visitor: "Any") -> "BackendIdentity":
     from mountainash.core.capabilities.identity import BackendIdentity
 
     return BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
+
+
+def _finish_terminal(visitor: Any, thunk: Callable[[], Any]) -> Any:
+    """Keep transfer dependencies alive through egress, then hand off or roll back."""
+    scope = getattr(visitor, "_execution_session", None)
+    try:
+        result = thunk()
+    except BaseException as primary:
+        if scope is not None:
+            try:
+                scope.close(release_owned=True)
+            except BaseException as cleanup:
+                if hasattr(primary, "add_note"):
+                    primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
+        raise
+    if scope is not None:
+        scope.close(release_owned=False)
+    return result
 
 
 def _unwrap_native(value: Any, *, unwrap: bool) -> Any:
@@ -349,7 +379,7 @@ class Relation(RelationBase):
         right_on: Optional[Union[str, list[str]]] = None,
         how: str = "inner",
         suffix: str = "_right",
-        execute_on: Optional[ExecutionTarget] = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
         """Join with another relation or raw data."""
         return _combine_result(
@@ -361,7 +391,7 @@ class Relation(RelationBase):
                 left_on=_normalize_columns(left_on),
                 right_on=_normalize_columns(right_on),
                 suffix=suffix,
-                execute_on=execute_on,
+                execute_on=_normalize_execution_target(execute_on),
             ),
             [self, other],
         )
@@ -374,6 +404,7 @@ class Relation(RelationBase):
         by: Optional[Union[str, list[str]]] = None,
         strategy: str = "backward",
         tolerance: Any = None,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
         """Asof join with another relation or raw data."""
         return _combine_result(
@@ -385,6 +416,7 @@ class Relation(RelationBase):
                 by=_normalize_columns(by),
                 strategy=strategy,
                 tolerance=tolerance,
+                execute_on=_normalize_execution_target(execute_on),
             ),
             [self, other],
         )
@@ -602,9 +634,14 @@ class Relation(RelationBase):
         """Return the bottom *k* rows. Polars-compatible alias for top_k(descending=False)."""
         return self.top_k(k, by=by, descending=False)
 
-    def cross_join(self, other: Any) -> Relation:
+    def cross_join(
+        self,
+        other: Any,
+        *,
+        execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
+    ) -> Relation:
         """Cartesian product. Polars-compatible alias for join(how='cross')."""
-        return self.join(other, how="cross")
+        return self.join(other, how="cross", execute_on=_normalize_execution_target(execute_on))
 
     def first(self) -> Relation:
         """Return the first row. Polars-compatible alias for head(1)."""
@@ -637,7 +674,10 @@ class Relation(RelationBase):
 
         Symmetric with the expressions-side ``expr.compile(df)``.
         """
-        return self._compile_and_execute()
+        from mountainash.relations.core.execution.preparation import ExecutionPhase
+
+        result, _visitor = self._compile_and_execute_with_visitor(phase=ExecutionPhase.COMPILE)
+        return _finish_terminal(_visitor, lambda: result)
 
     def explain(self) -> str:
         """Return the backend's query plan as a string, without executing data.
@@ -645,7 +685,22 @@ class Relation(RelationBase):
         For Polars, returns the optimized LazyFrame plan. For Ibis, returns
         the SQL string. For other backends, returns repr() of the compiled plan.
         """
-        result = self.compile()
+        from mountainash.relations.core.execution.preparation import (
+            ExecutionPhase, prepare_execution, render_execution,
+        )
+
+        prepared = prepare_execution(
+            self._apply_optimisations(self._node), phase=ExecutionPhase.EXPLAIN,
+        )
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+        if (any(isinstance(node, ResourceReadRelNode) for node in prepared.nodes.values())
+                or prepared.transfers
+                or any(loc.binding in ("unbound", "unresolved", "memory")
+                       for loc in prepared.locations.values())):
+            return render_execution(prepared)
+        result, _visitor = self._compile_and_execute_with_visitor(phase=ExecutionPhase.COMPILE)
+        _finish_terminal(_visitor, lambda: result)
         from mountainash.core.types import is_polars_lazyframe
         if is_polars_lazyframe(result):
             return result.explain()
@@ -684,22 +739,21 @@ class Relation(RelationBase):
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         compiler_identity = _compiler_identity(visitor)
-        _guard_native_terminal(visitor.structured_field_plans)
 
         def _materialize_thunk() -> Any:
+            _guard_native_terminal(visitor.structured_field_plans)
             native = materialize_native(
                 result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
                 execution_context=visitor.execution_context,
             )
             return _unwrap_native(native.value, unwrap=unwrap)
 
-        return enrich_materialization(
-            visitor.backend,
-            _materialize_thunk,
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        )
+        ))
 
     def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
         """Collect and return the frame plus per-conform-node drift reports.
@@ -731,22 +785,21 @@ class Relation(RelationBase):
 
         result, visitor = self._compile_and_execute_with_visitor(backend=backend)
         compiler_identity = _compiler_identity(visitor)
-        _guard_native_terminal(visitor.structured_field_plans)
 
         def _materialize_thunk() -> Any:
+            _guard_native_terminal(visitor.structured_field_plans)
             native = materialize_native(
                 result, compiler_identity, MaterializationPurpose.NATIVE_COLLECT,
                 execution_context=visitor.execution_context,
             )
             return _unwrap_native(native.value, unwrap=True)
 
-        frame = enrich_materialization(
-            visitor.backend,
-            _materialize_thunk,
+        frame = _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _materialize_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        )
+        ))
         return ConformCollection(
             frame=frame,
             drifts=list(visitor.drift_reports),
@@ -951,13 +1004,12 @@ class Relation(RelationBase):
             )
             return explicit_polars_egress(native)
 
-        return enrich_materialization(
-            visitor.backend,
-            _egress_thunk,
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        )
+        ))
 
     def to_pandas(self) -> Any:
         """Execute and return a Pandas DataFrame.
@@ -994,13 +1046,12 @@ class Relation(RelationBase):
             )
             return explicit_pandas_egress(native)
 
-        return enrich_materialization(
-            visitor.backend,
-            _egress_thunk,
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.residue_checks,
+            residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        )
+        ))
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""

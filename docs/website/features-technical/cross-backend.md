@@ -30,7 +30,7 @@ If `df` is a `pl.DataFrame`, this runs on Polars. If it's a pandas DataFrame, it
 
 When you call a terminal operation (`.to_polars()`, `.to_pandas()`, `.collect()`, `.execute()`), the visitor:
 
-1. Detects the backend from the input frame's type.
+1. Resolves each subtree's backend and physical Ibis connection from its inputs and join targets.
 2. Walks the expression / relation tree.
 3. For each node, looks up its function key and calls the corresponding method on the backend's implementation class.
 4. The backend method returns a native expression. The visitor composes them.
@@ -48,7 +48,35 @@ pandas_right = pd.DataFrame({"id": [1, 2], "y": [100, 200]})
 ma.relation(polars_left).join(pandas_right, on="id", how="inner").to_polars()
 ```
 
-One side is coerced. By default, the coercion target is the backend that produced the left input; you can force a target with `execute_on=`.
+The default is the **left operand's resulting location**. `execute_on="right"`
+selects the right operand's family, dialect and physical connection without
+reversing the join. The same argument works on `cross_join()` and `join_asof()`.
+Two Ibis tables from separate connections need transport even when their names
+and dialects agree:
+
+```python
+import ibis
+import pyarrow as pa
+import mountainash as ma
+
+source = ibis.duckdb.connect()
+destination = ibis.duckdb.connect()
+left = source.create_table("ids", pa.table({"id": [1, 2]}))
+right = destination.create_table("ids", pa.table({"id": [2]}))
+plan = ma.relation(left).join(right, on="id", execute_on="right")
+assert plan.to_dicts() == [{"id": 2}]
+assert plan.collect()._find_backend(use_default=False) is destination
+```
+
+Unions retain input-zero authority, even when that input is a right-targeted
+join; foreign union inputs use the same location-aware transfer rules. A
+deferred transfer is not allowed under `.compile()` (including plain unions):
+use `.collect()`. `.explain()` reports placements without running the sources.
+`backend="ibis"` cannot choose a physical connection; a connectionless
+memtable authority with no bound Ibis peer now raises an unresolved-target
+error rather than using an implicit default. `.to_polars()` is only an output
+adapter. Explicit terminal `backend=` may not contradict any explicit nested
+join target.
 
 ## What's the same across backends
 

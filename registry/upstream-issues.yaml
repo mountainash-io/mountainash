@@ -677,17 +677,17 @@ issues:
 - id: IB-REL-12
   project: ibis
   category: relation-ops
-  summary: cross_join between two same-named tables from different Ibis connections
-    raises a column-binding error on SQL backends
+  summary: cross_join between same-named tables on separate Ibis connections
+    previously raised a column-binding error on SQL backends
   root_cause: mountainash_internal
   affected_backends:
   - ibis-duckdb
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: needs_investigation
-  our_workaround: xfail_strict
-  notes: 'Verified empirically (backlog item 87, 2026-08-13): Relation.cross_join()
+  status: resolved_in_mountainash
+  our_workaround: none
+  notes: 'Historical evidence (backlog item 87, 2026-08-13): Relation.cross_join()
     raises duckdb BinderException / sqlite OperationalError ("no such column") when
     the two input tables share a table name but originate from separate Ibis
     connections (exactly the shape produced by the test suite''s
@@ -697,9 +697,16 @@ issues:
     two DatabaseTable operations share a name across connections. Renamed from a
     colliding DivergenceFact id (was "IB-REL-09", whose yaml entry described a
     different, no-longer-reproducible "suffixes kwarg" TypeError) when backlog item
-    87''s id-collision detector caught the reuse; the DivergenceFact and this entry
-    now self-reference via upstream_ref.'
-  last_verified: '2026-08-13'
+    87''s id-collision detector caught the reuse; the historical observation fixture
+    and this entry self-reference via upstream_ref. On 2026-09-27, public
+    tests/relations/test_relation_aliases.py::TestRelationAliases::test_cross_join
+    verified exact six-row payloads and left physical connection identity for
+    independently created, same-named Ibis tables on DuckDB and SQLite; both
+    .cross_join() and .join(how="cross") now succeed. The expectation was removed
+    only for this resolved case; SQLite melt/unpivot remains separately expected
+    to fail. This is a Mountainash connection-aware transport fix, not an
+    upstream Ibis release claim.'
+  last_verified: '2026-09-27'
 - id: IB-CTE-01
   project: ibis
   category: recursive-cte

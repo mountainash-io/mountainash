@@ -79,13 +79,40 @@ ma.relation(df).group_by("category").agg(
 ### Joins (cross-type)
 
 ```python
+import pandas as pd
+
 polars_left  = pl.DataFrame({"id": [1, 2], "x": [10, 20]})
 pandas_right = pd.DataFrame({"id": [1, 2], "y": [100, 200]})
 
 ma.relation(polars_left).join(pandas_right, on="id", how="inner").to_polars()
 ```
 
-Cross-type joins automatically coerce; use `execute_on=` for explicit control.
+By default a join executes at the **left operand's resulting location**. Use
+`execute_on="right"` (or `"left"`) to choose an operand's location, not an
+arbitrary backend name; this does not swap the logical join operands. The same
+keyword is available on `join()`, `cross_join()`, and `join_asof()`.
+
+To run on a specific Ibis connection, supply a bound table:
+
+```python
+import ibis
+import pyarrow as pa
+import mountainash as ma
+
+connection = ibis.duckdb.connect()
+orders = connection.create_table("orders", pa.table({"customer_id": [1, 2]}))
+lookup = ibis.memtable(pa.table({"customer_id": [2], "name": ["Ada"]}))
+result = ma.relation(orders).join(lookup, on="customer_id", execute_on="left").to_dicts()
+assert result == [{"customer_id": 2, "name": "Ada"}]
+```
+
+An Ibis memtable-only plan cannot choose a database by itself: with no bound
+Ibis peer, joins and unions now raise an unresolved-location error rather than
+opening an implicit default connection, even during `.collect()`. For migration,
+use a bound table as above; `backend="ibis"` names a family, **not** a connection.
+`.to_polars()` chooses the output representation, not the join's execution site.
+See [backend architecture](backend-architecture.md) for cross-connection and
+compile-only behavior.
 
 ### Struct expansion
 

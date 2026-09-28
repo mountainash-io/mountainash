@@ -30,13 +30,19 @@ class TestCoercionMatrixAndBoundaries:
     def test_ibis_anchor_coerces_bare_pandas_dependency(self):
         import ibis
 
-        ib = ibis.memtable(pl.DataFrame({"id": [1, 2], "name": ["a", "b"]}))
+        connection = ibis.duckdb.connect()
+        ib = connection.create_table(
+            "dag_anchor", pl.DataFrame({"id": [1, 2], "name": ["a", "b"]}),
+        )
         dag = RelationDAG()
         dag.add("a_anchor", ma.relation(ib))
         dag.add("z_dep", ma.relation(pd.DataFrame({"id": [2], "name": ["c"]})))
         dag.add("target", dag.ref("a_anchor").join(dag.ref("z_dep"), on="id"))
         result = dag.collect("target")
-        assert result is not None
+        assert result._find_backend(use_default=False) is connection
+        assert ma.relation(result).to_dicts() == [
+            {"id": 2, "name": "b", "name_right": "c"},
+        ]
 
     def test_narwhals_anchor_coerces_bare_polars_dependency_to_exact_dialect(self):
         import narwhals as nw
