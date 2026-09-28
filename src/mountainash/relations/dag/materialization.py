@@ -366,9 +366,15 @@ class DAGMaterializationSession:
             return envelope.value
         transferred = self._execution_transport.transfer(envelope, requirement)
         self._resolved[(name, destination.key)] = transferred
+        from mountainash.core.capabilities.policy import _CapabilityTarget
+
         self._coerced[(name, destination.key)] = NativeExecutionValue(
             transferred.value, envelope.location.capability_identity,
             destination.capability_identity, destination.form,
+            target=_CapabilityTarget(
+                destination.capability_identity,
+                destination.connection if destination.connection is not None else destination.prototype,
+            ),
         )
         return transferred.value
 

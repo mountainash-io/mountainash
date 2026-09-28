@@ -330,6 +330,85 @@ def test_repeated_named_ref_prepares_original_plan_once(monkeypatch):
     assert calls.count("source") == 1
 
 
+def test_one_session_separates_canonical_plan_bound_compilations_and_value_transfers(monkeypatch):
+    from mountainash.relations.core.execution.compilation import CompilationSession
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+    from mountainash.relations.core.execution.transport import TransportSession
+    from mountainash.relations.dag.materialization import DAGMaterializationSession
+
+    memory = ibis.memtable(pa.table({"id": [1, 2, 3]}))
+    dag = ma.RelationDAG()
+    dag.add("memory", ma.relation(memory).filter(ma.col("id") > 1))
+    bound = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "bound")
+    dag.add("bound", ma.relation(bound))
+    a = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "a")
+    b = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "b")
+    c = REGISTRY["ibis-sqlite"].build({"id": [2, 3]}, "c")
+    tokens = IdentityTokens()
+    locations = [LocationResolver(tokens).resolve(ma.relation(frame)._node) for frame in (a, b, c)]
+    session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
+    real_node = session._node_for
+    real_compile = CompilationSession.compile
+    real_convert = TransportSession._convert
+    prepared_names, native_bindings, transfers = [], [], []
+
+    def observed_node(name):
+        prepared_names.append(name)
+        return real_node(name)
+
+    def observed_compile(self, key):
+        if key == "root" and self.prepared.nodes[key] is dag.relations["memory"]._node:
+            native_bindings.append(self.prepared.locations[key].connection)
+        return real_compile(self, key)
+
+    def observed_convert(self, source, requirement):
+        transfers.append((source.location.connection, requirement.destination.connection))
+        return real_convert(self, source, requirement)
+
+    monkeypatch.setattr(session, "_node_for", observed_node)
+    monkeypatch.setattr(CompilationSession, "compile", observed_compile)
+    monkeypatch.setattr(TransportSession, "_convert", observed_convert)
+    try:
+        bound_values = []
+        for frame, destination in zip((a, a, b, c, c),
+                                      (locations[0], locations[0], locations[1], locations[2], locations[2])):
+            value = session.resolve_at("memory", destination)
+            bound_values.append(value)
+            joined = frame.join(value, "id")
+            assert joined._find_backend(use_default=False) is destination.connection
+            assert sorted(ma.relation(joined).to_dict()["id"]) == [2, 3]
+        assert bound_values[0] is bound_values[1]
+        assert bound_values[3] is bound_values[4]
+        assert len({id(bound_values[i]) for i in (0, 2, 3)}) == 3
+        assert prepared_names == ["memory"]
+        assert native_bindings == [location.connection for location in locations]
+        assert session.canonical_keys == frozenset({"memory"})
+        assert session._canonical == {}
+        assert session._plans["memory"] is dag.relations["memory"]._node
+        assert transfers == []  # binding a self-contained plan is not exporting a database
+        assert session.resolver_for(session._destination_for(locations[2])).envelope("memory").location.connection is c._find_backend(use_default=False)
+
+        first = session.resolve_at("bound", locations[1])
+        assert session.resolve_at("bound", locations[1]) is first
+        bound_join = b.join(first, "id")
+        assert sorted(ma.relation(bound_join).to_dict()["id"]) == [2, 3]
+        assert bound_join._find_backend(use_default=False) is b._find_backend(use_default=False)
+        assert transfers == [(bound._find_backend(use_default=False), b._find_backend(use_default=False))]
+        sqlite_value = session.resolve_at("bound", locations[2])
+        assert session.resolve_at("bound", locations[2]) is sqlite_value
+        assert sorted(ma.relation(c.join(sqlite_value, "id")).to_dict()["id"]) == [2, 3]
+        assert transfers == [
+            (bound._find_backend(use_default=False), b._find_backend(use_default=False)),
+            (bound._find_backend(use_default=False), c._find_backend(use_default=False)),
+        ]
+        assert session.canonical_keys == frozenset({"memory", "bound"})
+        assert session._canonical["bound"].native.value._find_backend(use_default=False) is bound._find_backend(use_default=False)
+        assert session._coerced[("bound", session._destination_for(locations[1]).key)].target.owner is b._find_backend(use_default=False)
+        assert session._coerced[("bound", session._destination_for(locations[2]).key)].target.owner is c._find_backend(use_default=False)
+    finally:
+        session.close(release_owned=False)
+
+
 def test_ref_child_adopts_source_conform_diagnostics():
     import polars as pl
 
