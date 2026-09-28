@@ -8,7 +8,7 @@ path = "src/mountainash/__version__.py"
 packages = ["src/mountainash"]
 
 [build.targets.sdist]
-include = ["/src", "/pyproject.toml", "/hatch.toml", "/README.md", "/LICENSE"]
+include = ["/src", "/pyproject.toml", "/hatch.toml", "/requirements-hatch.txt", "/README.md", "/LICENSE"]
 
 
 #================
@@ -71,14 +71,12 @@ dependencies = [
     "pyyaml>=6.0",
     # CI sibling chain: the checkout-dependencies action clones these into
     # temp/ (see .github/config/mountainash_dependencies.yml). files + transport
-    # are the direct consumers; settings/auth-client/secrets are transport's
+    # are the direct consumers; settings/auth-client are transport's
     # runtime import chain. Mirrors [envs.test] but with temp/ (CI) vs ../ (local).
     "mountainash_files @       {root:uri}/temp/mountainash-files",
     "mountainash_transport @   {root:uri}/temp/mountainash-transport",
     "mountainash_settings @    {root:uri}/temp/mountainash-settings",
     "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
-    "mountainash_secrets @     {root:uri}/temp/mountainash-secrets",
-    "mountainash_data @        {root:uri}/temp/mountainash-data",
 ]
 [envs.test_github.scripts]
 test = "pytest"
@@ -121,17 +119,13 @@ dependencies = [
     "pydantic>=2.2,<3",
     "xarray==2024.11.0",
     "pyyaml>=6.0",
-    # Local sibling-package chain from ../ (mirrors [tool.uv.sources]; hatch's
-    # env sync needs the explicit URL pins to resolve them). settings/
-    # auth-client/secrets are transport's runtime import chain, not in the
-    # abstract graph while transport's sibling deps are commented, so they are
-    # pinned here to be installed for import at runtime.
+    # Local sibling-package chain from ../. Explicit URLs select development
+    # checkouts; settings/auth-client are transport's declared runtime chain.
+    # Installed-candidate qualification uses exact wheels instead of these paths.
     "mountainash_files @       {root:uri}/../mountainash-files",
     "mountainash_transport @   {root:uri}/../mountainash-transport",
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
-    "mountainash_secrets @     {root:uri}/../mountainash-secrets",
-    "mountainash_data @        {root:uri}/../mountainash-data",
 ]
 [envs.test.scripts]
 # ===========================================
@@ -211,6 +205,7 @@ test-ci = [
 #================
 [envs.ruff]
 installer = "uv"
+detached = true
 dependencies = ["ruff==0.16.8"]
 [envs.ruff.scripts]
 check = "ruff check ./src"
@@ -222,6 +217,7 @@ fix = "ruff check ./src --fix"
 # Radon Complexity Checks
 [envs.radon]
 installer = "uv"
+detached = true
 dependencies = ["radon==6.0.1"]
 [envs.radon.scripts]
 radon-cc = "radon cc ./src -nd"
@@ -236,6 +232,7 @@ radon-cc-detail = "radon cc ./src"
 #================
 [envs.griffe]
 installer = "uv"
+detached = true
 dependencies = ["griffe>=1.0.0"]
 [envs.griffe.scripts]
 check = "griffe check --search src mountainash {args}"
@@ -271,7 +268,18 @@ dependencies = [
     "mountainash_transport @   {root:uri}/../mountainash-transport",
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
-    "mountainash_secrets @     {root:uri}/../mountainash-secrets",
 ]
 [envs.mypy.scripts]
 check = "mypy {args:src}"
+
+[envs.default.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/.."
+
+[envs.test_github.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/temp"
+
+[envs.build_github.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/temp"

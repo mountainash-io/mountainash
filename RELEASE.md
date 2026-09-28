@@ -6,8 +6,8 @@ Mountainash requires Python 3.12 or later. A verified candidate is not a publish
 
 1. Prepare release changes on `release/*` from `develop`, or a scoped `hotfix/*`, following [CONTRIBUTING.md](CONTRIBUTING.md). Required CI and code-owner review still apply; do not push directly to protected branches.
 2. Select the final, unused version in `src/mountainash/__version__.py` under the repository's version policy. The publishing workflow does not rewrite versions or generate a suffix after verification.
-3. Record compatibility changes, including the Python 3.12 floor, and reconcile dependency bounds. Files/cloud extras currently require `mountainash-files>=26.8.0,<27`; storage requires `mountainash-transport>=26.7.0`. Publication does not make these optional dependencies mandatory.
-4. Release dependencies in order: settings and secrets → auth-client → transport → files. Each repository owns its release authorization. `mountainash-data` is not a prerequisite merely because source tests provision it.
+3. Record compatibility changes, including the Python 3.12 floor, and reconcile dependency bounds. Files/cloud extras currently require `mountainash-files>=26.8.0,<27`; storage requires `mountainash-transport>=26.7.0,<27`. These are provisional floors for the settings 0.1 candidate rehearsal and must advance to identify the migrated published releases before publication. Publication does not make these optional dependencies mandatory.
+4. Release dependencies in order: settings 0.1 → auth-client → transport → files. The migrated chain uses settings-owned stores and does not require the retired secrets distribution. Downstream merge/publication waits for settings 0.1.0 publication. Each repository owns its release authorization. `mountainash-data` is not a prerequisite merely because source tests provision it.
 
 ## Verify a local candidate
 

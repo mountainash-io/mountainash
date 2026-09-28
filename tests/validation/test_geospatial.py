@@ -1,7 +1,7 @@
 """Pinned GeoJSON and TopoJSON semantic validation."""
 
 from hashlib import sha256
-from pathlib import Path
+from importlib.resources import files
 
 from mountainash.validation.geospatial import (
     reconstruct_topojson_line,
@@ -9,7 +9,7 @@ from mountainash.validation.geospatial import (
 )
 
 
-_SCHEMA = Path(__file__).parents[2] / "src/mountainash/validation/schemas/GeoJSON.json"
+_SCHEMA = files("mountainash.validation").joinpath("schemas/GeoJSON.json")
 
 
 def test_vendored_geojson_schema_has_pinned_checksum() -> None:
