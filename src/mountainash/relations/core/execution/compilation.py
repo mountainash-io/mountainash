@@ -100,6 +100,14 @@ class CompilationSession:
         envelope = self.metadata.capture(
             visitor, owner_key=key, location=self.prepared.locations[key], value=value,
         )
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+        if isinstance(node, RefRelNode) and self.ref_resolver_factory is not None:
+            from dataclasses import replace
+
+            # A ref is an alias of its named source, not a new materialization.
+            # Keep the captured metadata but reuse the source's transport identity.
+            envelope = replace(envelope, source_token=visitor.ref_resolver.envelope(node.name).source_token)
         return envelope, visitor
 
     def _discharge_before_loss(self, parent: UnifiedRelationVisitor, child_key: str, envelope):

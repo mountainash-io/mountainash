@@ -95,7 +95,7 @@ def _unsupported(key: str, source: ExecutionLocation, target: ExecutionLocation)
 
 def _route(
     key: str, source: ExecutionLocation, target: ExecutionLocation, *,
-    derived: bool, raw_ingress: bool = False,
+    derived: bool, raw_ingress: bool = False, memory_payload: bool = False,
 ) -> TransferRequirement | None:
     # Polars read() produces a lazy compiled plan even for an eager native leaf.
     compiled_form = ExecutionForm.LAZY if source.family is CONST_BACKEND.POLARS else source.form
@@ -107,6 +107,10 @@ def _route(
     if source.family is CONST_BACKEND.IBIS and source.binding == "memory" \
             and target.family is CONST_BACKEND.IBIS:
         return TransferRequirement(key, target, "ibis_memory_ibis", derived)
+    if source.family is CONST_BACKEND.IBIS and source.binding == "memory" \
+            and target.family in (CONST_BACKEND.POLARS, CONST_BACKEND.NARWHALS) \
+            and memory_payload:
+        return TransferRequirement(key, target, "ibis_memory_payload", False)
     if source.family is CONST_BACKEND.IBIS and target.family is CONST_BACKEND.IBIS:
         return TransferRequirement(key, target, "ibis_arrow_ibis", True)
     if source.family is CONST_BACKEND.IBIS:
@@ -156,6 +160,16 @@ def prepare_execution(
             return resource_only(resolved, refs | {node.name})
         children = node.children()
         return len(children) == 1 and resource_only(children[0], refs)
+
+    def bare_memory(node: RelationNode, refs: frozenset[str] = frozenset()) -> bool:
+        if isinstance(node, RefRelNode) and identity_resolver is not None and node.name not in refs:
+            return bare_memory(identity_resolver(node.name), refs | {node.name})
+        from mountainash.core.lazy_imports import import_ibis_expr_ops
+
+        return (isinstance(node, ReadRelNode)
+                and resolver.resolve(node).family is CONST_BACKEND.IBIS
+                and resolver.resolve(node).binding == "memory"
+                and isinstance(node.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
 
     requested_family = None
     if backend is not None:
@@ -224,7 +238,8 @@ def prepare_execution(
                     )
                 )
                 requirement = _route(child_key, source, location,
-                                     derived=not isinstance(child, ReadRelNode), raw_ingress=raw_ingress)
+                                      derived=not isinstance(child, ReadRelNode), raw_ingress=raw_ingress,
+                                      memory_payload=bare_memory(child))
                 if requirement is not None:
                     transfers[child_key] = requirement
 

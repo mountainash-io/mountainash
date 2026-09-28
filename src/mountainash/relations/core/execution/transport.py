@@ -93,6 +93,17 @@ class TransportSession:
 
         route = requirement.route
         value = source.value
+        if route == "ibis_memory_payload":
+            from mountainash.core.lazy_imports import import_ibis_expr_ops
+
+            op = value.op()
+            if not isinstance(op, import_ibis_expr_ops().InMemoryTable):
+                raise self._unsupported(source, requirement)
+            arrow = op.data.to_pyarrow(value.schema())
+            adapter = (coerce_to_polars if requirement.destination.family is CONST_BACKEND.POLARS
+                       else coerce_to_narwhals)
+            return self._adapt(source, requirement, adapter,
+                               requirement.destination.prototype, arrow)
         if route == "ibis_arrow_ibis":
             import ibis
 

@@ -284,11 +284,13 @@ class DAGMaterializationSession:
     def resolve_at(self, name: str, destination: Any) -> Any:
         """Resolve a named plan in its own location, then transport for this consumer."""
         from mountainash.relations.core.execution.compilation import CompilationSession
+        from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
         from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
         from mountainash.relations.core.execution.metadata import MetadataSession
         from mountainash.relations.core.execution.preparation import prepare_execution, _route
         from mountainash.relations.core.execution.transport import TransportSession
         from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.core.lazy_imports import import_ibis_expr_ops
         from mountainash.relations.dag.key_context import KeyDriftContext
 
         if name not in self.dag.relations:
@@ -304,31 +306,45 @@ class DAGMaterializationSession:
             tokens, identity_resolver=self._canonical_node,
         ).resolve(root)
         connectionless = location.binding == "memory"
-        source_location = destination if connectionless else location
+        bare_memory = (connectionless and isinstance(root, ReadRelNode)
+                       and isinstance(root.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
+        # A bare memtable owns an eager payload, not an Ibis execution context.
+        # Only an Ibis consumer can bind it for native compilation; a foreign
+        # consumer receives the payload through the declared Arrow adapter.
+        payload_transfer = bare_memory and destination.connection is None
+        source_location = location if payload_transfer or not connectionless else destination
         binding_key = (name, source_location.key)
         if binding_key not in self._bound:
-            prepared = prepare_execution(
-                root, phase=self._execution_phase,
-                identity_resolver=self._canonical_node,
-                tokens=tokens, binding=destination if connectionless else None,
-            )
-            key_context = KeyDriftContext(
-                resource_name=name, constraints_for=self.dag.constraints_for,
-                schema_of=self.dag.schema,
-            )
-            compilation = CompilationSession(
-                prepared, ref_resolver_factory=self.resolver_for,
-                key_context=key_context, transport=self._execution_transport,
-                metadata=self._execution_metadata,
-            )
-            envelope, visitor = compilation.compile(prepared.root_key)
-            if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
-                envelope = self.cache_root(name, envelope, visitor)
+            if payload_transfer:
+                envelope = CompiledSubtree(
+                    root.dataframe, location, tokens.token(root), CompilationMetadata(),
+                )
+                visitor = None
+            else:
+                prepared = prepare_execution(
+                    root, phase=self._execution_phase,
+                    identity_resolver=self._canonical_node,
+                    tokens=tokens, binding=destination if connectionless else None,
+                )
+                key_context = KeyDriftContext(
+                    resource_name=name, constraints_for=self.dag.constraints_for,
+                    schema_of=self.dag.schema,
+                )
+                compilation = CompilationSession(
+                    prepared, ref_resolver_factory=self.resolver_for,
+                    key_context=key_context, transport=self._execution_transport,
+                    metadata=self._execution_metadata,
+                )
+                envelope, visitor = compilation.compile(prepared.root_key)
+                if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
+                    envelope = self.cache_root(name, envelope, visitor)
             self._bound[binding_key] = (envelope, visitor)
-            self._visitors[name] = visitor
+            if visitor is not None:
+                self._visitors[name] = visitor
         envelope, visitor = self._bound[binding_key]
         requirement = _route(
             name, source_location, destination, derived=not isinstance(root, ReadRelNode),
+            memory_payload=payload_transfer,
         )
         if requirement is None:
             self._resolved[(name, destination.key)] = envelope

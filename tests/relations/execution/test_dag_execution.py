@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 import ibis
 import pyarrow as pa
+import polars as pl
 
 import mountainash as ma
 from fixtures.backend_registry import REGISTRY
@@ -21,6 +22,80 @@ from mountainash.relations.core.errors import (
     CompileRequiresExecutionError, ConflictingExecutionTargetError,
     UnresolvedExecutionLocationError,
 )
+
+
+@pytest.mark.parametrize("operation", ["join", "union_all", "union_distinct"])
+def test_polars_authority_consumes_named_bare_ibis_memory(monkeypatch, operation):
+    memory = ibis.memtable(pa.table({"id": [2, 2, 3]}))
+    original = type(memory)._find_backend
+
+    def find_without_default(self, *, use_default=False):
+        assert not use_default
+        return original(self, use_default=False)
+
+    monkeypatch.setattr(type(memory), "_find_backend", find_without_default)
+    dag = ma.RelationDAG()
+    dag.add("memory", ma.relation(memory))
+    left = ma.relation(pl.DataFrame({"id": [1, 2, 2]}))
+    right = dag.ref("memory")
+    if operation == "join":
+        result = left.join(right, on="id").to_polars()
+        expected = [2, 2, 2, 2]
+    else:
+        result = ma.concat([left, right], distinct=operation == "union_distinct").to_polars()
+        expected = [1, 2, 3] if operation == "union_distinct" else [1, 2, 2, 2, 2, 3]
+    assert sorted(result["id"].to_list()) == expected
+
+
+def test_named_bare_memory_compile_and_explain_do_not_execute_ibis(monkeypatch):
+    memory = ibis.memtable(pa.table({"id": [2]}))
+    dag = ma.RelationDAG()
+    dag.add("memory", ma.relation(memory))
+    relation = ma.relation(pl.DataFrame({"id": [2]})).join(dag.ref("memory"), on="id")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("bare memory payload executed through Ibis")
+
+    monkeypatch.setattr(type(memory), "to_pyarrow", forbidden)
+    assert "ibis_memory_payload" in relation.explain()
+    assert relation.compile().collect()["id"].to_list() == [2]
+
+
+def test_named_derived_memory_cannot_execute_without_ibis_binding(monkeypatch):
+    memory = ibis.memtable(pa.table({"id": [1, 2]}))
+    dag = ma.RelationDAG()
+    dag.add("derived", ma.relation(memory).filter(ma.col("id") > 1))
+    relation = ma.relation(pl.DataFrame({"id": [2]})).join(dag.ref("derived"), on="id")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("deferred memory plan executed through implicit Ibis")
+
+    monkeypatch.setattr(type(memory), "to_pyarrow", forbidden)
+    with pytest.raises(CompileRequiresExecutionError):
+        relation.compile()
+    with pytest.raises(UnresolvedExecutionLocationError):
+        relation.collect()
+
+
+def test_repeated_named_memory_ref_reuses_payload_transfer_without_rebinding(monkeypatch):
+    from mountainash.relations.core.execution.transport import TransportSession
+
+    memory = ibis.memtable(pa.table({"id": [2]}))
+    dag = ma.RelationDAG()
+    dag.add("memory", ma.relation(memory))
+    original = TransportSession._convert
+    routes = []
+
+    def counted(self, source, requirement):
+        routes.append((source.location.binding, requirement.route))
+        return original(self, source, requirement)
+
+    monkeypatch.setattr(TransportSession, "_convert", counted)
+    relation = ma.concat([
+        ma.relation(pl.DataFrame({"id": [1]})), dag.ref("memory"), dag.ref("memory"),
+    ])
+    assert sorted(relation.to_polars()["id"].to_list()) == [1, 2, 2]
+    assert routes == [("memory", "ibis_memory_payload")]
 
 
 @pytest.mark.parametrize("registered", [False, True])
