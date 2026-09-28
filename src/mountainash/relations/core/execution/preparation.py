@@ -164,12 +164,14 @@ def prepare_execution(
     def bare_memory(node: RelationNode, refs: frozenset[str] = frozenset()) -> bool:
         if isinstance(node, RefRelNode) and identity_resolver is not None and node.name not in refs:
             return bare_memory(identity_resolver(node.name), refs | {node.name})
+        if not isinstance(node, ReadRelNode):
+            return False
+        source = resolver.resolve(node)
+        if source.family is not CONST_BACKEND.IBIS or source.binding != "memory":
+            return False
         from mountainash.core.lazy_imports import import_ibis_expr_ops
 
-        return (isinstance(node, ReadRelNode)
-                and resolver.resolve(node).family is CONST_BACKEND.IBIS
-                and resolver.resolve(node).binding == "memory"
-                and isinstance(node.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
+        return isinstance(node.dataframe.op(), import_ibis_expr_ops().InMemoryTable)
 
     requested_family = None
     if backend is not None:

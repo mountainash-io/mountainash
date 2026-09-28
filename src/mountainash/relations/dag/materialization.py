@@ -289,7 +289,9 @@ class DAGMaterializationSession:
         from mountainash.relations.core.execution.metadata import MetadataSession
         from mountainash.relations.core.execution.preparation import prepare_execution, _route
         from mountainash.relations.core.execution.transport import TransportSession
+        from mountainash.relations.core.errors import UnresolvedExecutionLocationError
         from mountainash.relations.core.relation_nodes import ReadRelNode
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
         from mountainash.core.lazy_imports import import_ibis_expr_ops
         from mountainash.relations.dag.key_context import KeyDriftContext
 
@@ -306,8 +308,21 @@ class DAGMaterializationSession:
             tokens, identity_resolver=self._canonical_node,
         ).resolve(root)
         connectionless = location.binding == "memory"
-        bare_memory = (connectionless and isinstance(root, ReadRelNode)
-                       and isinstance(root.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
+        # Only pure ref aliases of an in-memory read carry the eager payload.
+        # A unary transformation is a deferred Ibis plan and cannot borrow a
+        # non-Ibis consumer as a physical execution connection.
+        payload_root = root
+        if connectionless:
+            seen = {name}
+            while isinstance(payload_root, RefRelNode):
+                if payload_root.name in seen:
+                    raise UnresolvedExecutionLocationError(
+                        f"Cyclic relation reference {payload_root.name!r}", node_key=name,
+                    )
+                seen.add(payload_root.name)
+                payload_root = self._canonical_node(payload_root.name)
+        bare_memory = (connectionless and isinstance(payload_root, ReadRelNode)
+                       and isinstance(payload_root.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
         # A bare memtable owns an eager payload, not an Ibis execution context.
         # Only an Ibis consumer can bind it for native compilation; a foreign
         # consumer receives the payload through the declared Arrow adapter.
@@ -317,7 +332,7 @@ class DAGMaterializationSession:
         if binding_key not in self._bound:
             if payload_transfer:
                 envelope = CompiledSubtree(
-                    root.dataframe, location, tokens.token(root), CompilationMetadata(),
+                    payload_root.dataframe, location, tokens.token(payload_root), CompilationMetadata(),
                 )
                 visitor = None
             else:
