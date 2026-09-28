@@ -59,9 +59,20 @@ fallback-routed read materializes the whole file into an in-memory `pa.Table`
 first; the resulting `.lazy()` / `memtable` wrapper is lazy-typed over
 already-read bytes, not a lazy scan.
 
-## Dependency wiring (deferred to release)
+## Dependency wiring
 
-On `develop`, `mountainash-files` is the opt-in `files` extra provisioned via
-sibling path pins in the test envs. Production tiering (core vs `files` extra),
-authenticated remote reads, and the monorepo-index publish are deferred — see
-spec §E of `2026-07-04-dag-hardening-pr3-readers-item32-design.md`.
+`mountainash-files` is the opt-in `files` extra; descriptor storage helpers use
+the `storage` extra. Development test environments select sibling checkouts.
+Installed-artifact verification instead selects exact files, transport,
+settings and auth-client wheels, without the retired secrets distribution.
+
+For the settings 0.1 migration rehearsal, files `>=26.8.0,<27` and transport
+`>=26.7.0,<27` are provisional ranges. Those version numbers alone do not
+identify the migrated candidates: use the hash-qualified artifact handoff in
+the M4b execution receipt. Before publication, dependency floors must advance
+to the migrated published releases. Downstream merge/publication remains on
+hold until settings 0.1.0 is published.
+
+Authenticated remote resource reads remain deferred under spec §E of
+`2026-07-04-dag-hardening-pr3-readers-item32-design.md`. The existing resource
+reader does not expose storage/auth profile or selected-store parameters.

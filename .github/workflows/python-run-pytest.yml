@@ -7,6 +7,8 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - "hatch.toml"
+      - "requirements-hatch.txt"
+      - ".github/config/mountainash_dependencies.yml"
       - "pytest.ini"
       - ".github/workflows/python-run-pytest.yml"
   workflow_dispatch:
