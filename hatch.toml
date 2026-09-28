@@ -8,7 +8,7 @@ path = "src/mountainash/__version__.py"
 packages = ["src/mountainash"]
 
 [build.targets.sdist]
-include = ["/src", "/pyproject.toml", "/hatch.toml", "/README.md", "/LICENSE"]
+include = ["/src", "/pyproject.toml", "/hatch.toml", "/requirements-hatch.txt", "/README.md", "/LICENSE"]
 
 
 #================
@@ -77,7 +77,6 @@ dependencies = [
     "mountainash_transport @   {root:uri}/temp/mountainash-transport",
     "mountainash_settings @    {root:uri}/temp/mountainash-settings",
     "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
-    "mountainash_data @        {root:uri}/temp/mountainash-data",
 ]
 [envs.test_github.scripts]
 test = "pytest"
@@ -127,7 +126,6 @@ dependencies = [
     "mountainash_transport @   {root:uri}/../mountainash-transport",
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
-    "mountainash_data @        {root:uri}/../mountainash-data",
 ]
 [envs.test.scripts]
 # ===========================================
@@ -207,6 +205,7 @@ test-ci = [
 #================
 [envs.ruff]
 installer = "uv"
+detached = true
 dependencies = ["ruff==0.16.8"]
 [envs.ruff.scripts]
 check = "ruff check ./src"
@@ -218,6 +217,7 @@ fix = "ruff check ./src --fix"
 # Radon Complexity Checks
 [envs.radon]
 installer = "uv"
+detached = true
 dependencies = ["radon==6.0.1"]
 [envs.radon.scripts]
 radon-cc = "radon cc ./src -nd"
@@ -232,6 +232,7 @@ radon-cc-detail = "radon cc ./src"
 #================
 [envs.griffe]
 installer = "uv"
+detached = true
 dependencies = ["griffe>=1.0.0"]
 [envs.griffe.scripts]
 check = "griffe check --search src mountainash {args}"
@@ -270,3 +271,15 @@ dependencies = [
 ]
 [envs.mypy.scripts]
 check = "mypy {args:src}"
+
+[envs.default.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/.."
+
+[envs.test_github.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/temp"
+
+[envs.build_github.env-vars]
+UV_CONSTRAINT = "{root}/requirements-hatch.txt"
+HATCH_SIBLINGS = "{root:uri}/temp"

@@ -1,0 +1,9 @@
+# Source constraints apply during both Hatch project installation and env sync.
+# HATCH_SIBLINGS is a file URI: ../ locally, temp/ in CI.
+mountainash-settings @ ${HATCH_SIBLINGS}/mountainash-settings
+mountainash-auth-client @ ${HATCH_SIBLINGS}/mountainash-auth-client
+mountainash-transport @ ${HATCH_SIBLINGS}/mountainash-transport
+mountainash-files @ ${HATCH_SIBLINGS}/mountainash-files
+# Exact compatible pair used in the candidate rehearsal.
+ibis-framework==12.0.0
+sqlglot==29.0.1
