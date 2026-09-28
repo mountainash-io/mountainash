@@ -99,7 +99,8 @@ class TransportSession:
             op = value.op()
             if not isinstance(op, import_ibis_expr_ops().InMemoryTable):
                 raise self._unsupported(source, requirement)
-            arrow = op.data.to_pyarrow(value.schema())
+            arrow = transit_call(BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW,
+                                 op.data.to_pyarrow, value.schema())
             adapter = (coerce_to_polars if requirement.destination.family is CONST_BACKEND.POLARS
                        else coerce_to_narwhals)
             return self._adapt(source, requirement, adapter,
@@ -119,7 +120,10 @@ class TransportSession:
             # its underlying memory leaf.
             if not isinstance(value.op(), import_ibis_expr_ops().InMemoryTable):
                 return self._convert(source, replace(requirement, route="ibis_arrow_ibis"))
-            arrow = self._source_export(source, lambda: value.op().data.to_pyarrow(value.schema()))
+            arrow = self._source_export(source, lambda: transit_call(
+                BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW,
+                value.op().data.to_pyarrow, value.schema(),
+            ))
             return self._import_arrow(source, requirement, ibis, arrow)
         if route == "mapping_to_ibis":
             return self._adapt(source, requirement, coerce_to_ibis,
@@ -164,7 +168,7 @@ class TransportSession:
         from mountainash.core.types import is_polars_dataframe, is_narwhals_dataframe
 
         if is_polars_dataframe(value) or is_narwhals_dataframe(value):
-            arrow = value.to_arrow()
+            arrow = transit_call(BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW, value.to_arrow)
         elif isinstance(value, pa.Table):
             arrow = value
         elif isinstance(value, dict):

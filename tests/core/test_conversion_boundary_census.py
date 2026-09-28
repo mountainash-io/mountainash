@@ -279,16 +279,6 @@ _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
         "explicit_pandas_egress() Arrow-source assertions.",
         "2026-08-27",
     ),
-    "ARROW_TO_IBIS_ADAPTER": (
-        "Exercised functionally by tests/relations/test_conversion_adapters.py's "
-        "coerce_to_ibis() dict/list cross-type-join tests.",
-        "2026-08-27",
-    ),
-    "IBIS_TO_ARROW_EGRESS": (
-        "Exercised functionally by tests/relations/test_native_materialization.py's "
-        "Ibis-to-Polars-via-Arrow egress tests.",
-        "2026-08-27",
-    ),
     "IBIS_TO_PANDAS_EGRESS": (
         "Exercised functionally by tests/relations/test_native_materialization.py's "
         "explicit_pandas_egress() Ibis-source assertions.",

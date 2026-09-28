@@ -84,6 +84,8 @@ class BoundaryKey(Enum):
     IBIS_NATIVE_CACHE = auto()
     IBIS_INTERNAL_EXECUTE = auto()
     IBIS_TO_ARROW_EGRESS = auto()
+    IBIS_MEMORY_PAYLOAD_TO_ARROW = auto()
+    STORAGE_PREFLIGHT_TO_ARROW = auto()
     ARROW_TO_POLARS_EGRESS = auto()
     PANDAS_TO_POLARS_EGRESS = auto()
     NARWHALS_TO_POLARS_EGRESS = auto()
@@ -263,6 +265,39 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
             "pandas round-trip would widen (spec 4.4)."
         ),
         since=_SINCE_2026_08_27,
+    ),
+    BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW: BoundarySpec(
+        owner="mountainash.relations.core.execution",
+        consumer="eager Ibis in-memory payload binding and transfer",
+        route=RouteKey.CROSS_FAMILY_COERCION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"ibis"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pyarrow"}),
+        destination_dialects=frozenset({"pyarrow"}),
+        reason=(
+            "An Ibis InMemoryTable's eager payload exports directly to Arrow "
+            "for binding validation or declared transfer; no deferred Ibis "
+            "expression executes and no pandas object is produced."
+        ),
+        since=date(2026, 9, 28),
+    ),
+    BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW: BoundarySpec(
+        owner="mountainash.relations.core.execution.transport",
+        consumer="SQLite destination representation preflight",
+        route=RouteKey.CROSS_FAMILY_COERCION,
+        step=1,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars", "narwhals"}),
+        source_dialects=frozenset({None}),
+        destination_families=frozenset({"pyarrow"}),
+        destination_dialects=frozenset({"pyarrow"}),
+        reason=(
+            "Export a native eager frame to Arrow to reject representations "
+            "that SQLite would silently change; never constructs pandas."
+        ),
+        since=date(2026, 9, 28),
     ),
     BoundaryKey.ARROW_TO_POLARS_EGRESS: BoundarySpec(
         owner=_MATERIALIZATION_OWNER,

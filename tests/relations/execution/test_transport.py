@@ -9,7 +9,8 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import REGISTRY
-from mountainash.core.transit import BoundaryKey
+from mountainash.core.transit import BoundaryKey, capture_conversion_trace
+from mountainash.relations.core.errors import UnsupportedRelationTransportError
 from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
 from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
 from mountainash.relations.core.execution.preparation import TransferRequirement
@@ -18,6 +19,33 @@ from mountainash.relations.core.materialization import MaterializationScope
 
 
 IBIS_BACKENDS = [name for name, spec in REGISTRY.items() if spec.family == "ibis"]
+
+
+def test_bare_ibis_memory_payload_export_is_a_declared_arrow_boundary():
+    import ibis
+    import polars as pl
+
+    memory = ibis.memtable({"id": [1], "value": ["kept"]})
+    with capture_conversion_trace() as trace:
+        rows = ma.relation(pl.DataFrame({"id": [1]})).join(memory, on="id").to_dicts()
+    assert rows == [{"id": 1, "value": "kept"}]
+    assert BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW in {
+        record.boundary_key for record in trace.records
+    }
+
+
+def test_sqlite_storage_preflight_exports_native_frames_through_declared_arrow_boundary():
+    import ibis
+    import polars as pl
+
+    destination = ibis.sqlite.connect(":memory:").create_table("destination", {"id": [1]})
+    source = pl.DataFrame({"id": [1], "value": [float("nan")]})
+    with capture_conversion_trace() as trace:
+        with pytest.raises(UnsupportedRelationTransportError):
+            ma.relation(source).join(destination, on="id", execute_on="right").collect()
+    assert BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW in {
+        record.boundary_key for record in trace.records
+    }
 
 
 @pytest.mark.parametrize("source_name", IBIS_BACKENDS)

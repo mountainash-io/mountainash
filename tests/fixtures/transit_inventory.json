@@ -682,6 +682,116 @@
     "legacy_unwrapped": false
   },
   {
+    "module": "mountainash.relations.core.execution.compilation",
+    "owner": "CompilationSession.compile",
+    "callee": "to_pyarrow",
+    "fingerprint": "e0e6906ec299496f",
+    "boundary_key": "IBIS_MEMORY_PAYLOAD_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "An Ibis InMemoryTable's eager payload exports directly to Arrow for binding validation or declared transfer; no deferred Ibis expression executes and no pandas object is produced.",
+    "since": "2026-09-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._convert",
+    "callee": "collect",
+    "fingerprint": "4c9c8033366daa4b",
+    "boundary_key": "POLARS_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Polars LazyFrame.collect() stays a native Polars eager frame; no cross-family conversion occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._convert",
+    "callee": "to_pyarrow",
+    "fingerprint": "0ad9ea70b47594b4",
+    "boundary_key": "IBIS_MEMORY_PAYLOAD_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "An Ibis InMemoryTable's eager payload exports directly to Arrow for binding validation or declared transfer; no deferred Ibis expression executes and no pandas object is produced.",
+    "since": "2026-09-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._convert",
+    "callee": "to_pyarrow",
+    "fingerprint": "622de7d6f81ea98d",
+    "boundary_key": "IBIS_MEMORY_PAYLOAD_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "An Ibis InMemoryTable's eager payload exports directly to Arrow for binding validation or declared transfer; no deferred Ibis expression executes and no pandas object is produced.",
+    "since": "2026-09-28",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._convert",
+    "callee": "to_pyarrow",
+    "fingerprint": "681752fff38120a0",
+    "boundary_key": "IBIS_TO_ARROW_EGRESS",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Ibis Table.to_pyarrow() is the Arrow-preserving first step of explicit_polars_egress(); Arrow keeps date32/temporal types a pandas round-trip would widen (spec 4.4).",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._export_checked",
+    "callee": "collect",
+    "fingerprint": "3e7ac7b6af0de5cd",
+    "boundary_key": "POLARS_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Polars LazyFrame.collect() stays a native Polars eager frame; no cross-family conversion occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._export_checked",
+    "callee": "collect",
+    "fingerprint": "6a904a750d9adf41",
+    "boundary_key": "NARWHALS_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Narwhals LazyFrame.collect() stays within the underlying non-pandas backend detected at runtime; no cross-family conversion occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._export_checked",
+    "callee": "to_pyarrow",
+    "fingerprint": "681752fff38120a0",
+    "boundary_key": "IBIS_TO_ARROW_EGRESS",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Ibis Table.to_pyarrow() is the Arrow-preserving first step of explicit_polars_egress(); Arrow keeps date32/temporal types a pandas round-trip would widen (spec 4.4).",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._import_arrow",
+    "callee": "memtable",
+    "fingerprint": "5ede9e1fc80697ca",
+    "boundary_key": "ARROW_TO_IBIS_ADAPTER",
+    "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
+    "reason": "ibis.memtable(arrow_table) after converting a dict/row-mapping operand to Arrow first; avoids Ibis's own internal pandas construction from a raw dict/list (spec 4.4).",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.execution.transport",
+    "owner": "TransportSession._validate_ibis_storage",
+    "callee": "to_arrow",
+    "fingerprint": "b5bf20c5da524c15",
+    "boundary_key": "STORAGE_PREFLIGHT_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Export a native eager frame to Arrow to reject representations that SQLite would silently change; never constructs pandas.",
+    "since": "2026-09-28",
+    "legacy_unwrapped": false
+  },
+  {
     "module": "mountainash.relations.core.logical_snapshot",
     "owner": "_BaseSnapshotAdapter.to_pandas",
     "callee": "DataFrame",

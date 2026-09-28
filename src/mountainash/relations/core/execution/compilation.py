@@ -65,6 +65,7 @@ class CompilationSession:
     def compile(self, key: str):
         from mountainash.core.constants import CONST_BACKEND
         from mountainash.core.lazy_imports import import_ibis_expr_ops
+        from mountainash.core.transit import BoundaryKey, transit_call
         from mountainash.relations.core.errors import UnresolvedExecutionLocationError
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
         from mountainash.relations.core.execution.preparation import TransferRequirement
@@ -76,7 +77,10 @@ class CompilationSession:
                 and hasattr(node.dataframe, "op"):
             op = node.dataframe.op()
             if isinstance(op, import_ibis_expr_ops().InMemoryTable):
-                payload = op.data.to_pyarrow(node.dataframe.schema())
+                payload = transit_call(
+                    BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW,
+                    op.data.to_pyarrow, node.dataframe.schema(),
+                )
                 source = CompiledSubtree(payload, location, self.prepared.tokens.token(node), CompilationMetadata())
                 requirement = TransferRequirement(key, location, "ibis_memory_ibis", False)
                 self.transport._validate_ibis_storage(source, requirement, payload)
