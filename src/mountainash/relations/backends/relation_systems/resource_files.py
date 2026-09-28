@@ -26,7 +26,7 @@ __all__ = [
     "ensure_dialect_supported",
 ]
 
-# TableDialect fields the CsvSpec fallback (mountainash-files >=26.8.0) can
+# TableDialect fields the CsvSpec fallback (mountainash-files >=0.1.0) can
 # express. This is the SEAM-supported set: anything outside it (plus ignored)
 # fails closed uniformly in ensure_dialect_supported.
 _MAPPABLE_DIALECT_FIELDS = frozenset(
