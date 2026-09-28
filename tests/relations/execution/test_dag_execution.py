@@ -331,9 +331,12 @@ def test_repeated_named_ref_prepares_original_plan_once(monkeypatch):
 
 
 def test_one_session_separates_canonical_plan_bound_compilations_and_value_transfers(monkeypatch):
+    import mountainash.relations.dag.materialization as dag_materialization
+
     from mountainash.relations.core.execution.compilation import CompilationSession
     from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
     from mountainash.relations.core.execution.transport import TransportSession
+    from mountainash.relations.core.materialization import MaterializationPurpose
     from mountainash.relations.dag.materialization import DAGMaterializationSession
 
     memory = ibis.memtable(pa.table({"id": [1, 2, 3]}))
@@ -341,6 +344,7 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
     dag.add("memory", ma.relation(memory).filter(ma.col("id") > 1))
     bound = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "bound")
     dag.add("bound", ma.relation(bound))
+    peer = bound._find_backend(use_default=False).create_table("peer", {"id": [2, 3]})
     a = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "a")
     b = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "b")
     c = REGISTRY["ibis-sqlite"].build({"id": [2, 3]}, "c")
@@ -350,7 +354,8 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
     real_node = session._node_for
     real_compile = CompilationSession.compile
     real_convert = TransportSession._convert
-    prepared_names, native_bindings, transfers = [], [], []
+    real_materialize = dag_materialization.materialize_native
+    prepared_names, native_bindings, transfers, canonical_materializations = [], [], [], []
 
     def observed_node(name):
         prepared_names.append(name)
@@ -365,9 +370,15 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
         transfers.append((source.location.connection, requirement.destination.connection))
         return real_convert(self, source, requirement)
 
+    def observed_materialize(value, identity, purpose, **kwargs):
+        if purpose is MaterializationPurpose.DAG_CANONICAL:
+            canonical_materializations.append(value)
+        return real_materialize(value, identity, purpose, **kwargs)
+
     monkeypatch.setattr(session, "_node_for", observed_node)
     monkeypatch.setattr(CompilationSession, "compile", observed_compile)
     monkeypatch.setattr(TransportSession, "_convert", observed_convert)
+    monkeypatch.setattr(dag_materialization, "materialize_native", observed_materialize)
     try:
         bound_values = []
         for frame, destination in zip((a, a, b, c, c),
@@ -388,6 +399,16 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
         assert transfers == []  # binding a self-contained plan is not exporting a database
         assert session.resolver_for(session._destination_for(locations[2])).envelope("memory").location.connection is c._find_backend(use_default=False)
 
+        # Two different compatible consumers share the bound dependency's
+        # canonical native value, without a materialized-value transfer.
+        local = session.resolve_at("bound", LocationResolver(tokens).resolve(ma.relation(bound)._node))
+        same_connection = session.resolve_at("bound", LocationResolver(tokens).resolve(ma.relation(peer)._node))
+        assert same_connection is local
+        assert sorted(ma.relation(peer.join(local, "id")).to_dict()["id"]) == [2, 3]
+        assert len(canonical_materializations) == 1
+        assert canonical_materializations[0] is bound
+        assert transfers == []
+
         first = session.resolve_at("bound", locations[1])
         assert session.resolve_at("bound", locations[1]) is first
         bound_join = b.join(first, "id")
@@ -401,6 +422,7 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
             (bound._find_backend(use_default=False), b._find_backend(use_default=False)),
             (bound._find_backend(use_default=False), c._find_backend(use_default=False)),
         ]
+        assert len(canonical_materializations) == 1
         assert session.canonical_keys == frozenset({"memory", "bound"})
         assert session._canonical["bound"].native.value._find_backend(use_default=False) is bound._find_backend(use_default=False)
         assert session._coerced[("bound", session._destination_for(locations[1]).key)].target.owner is b._find_backend(use_default=False)
