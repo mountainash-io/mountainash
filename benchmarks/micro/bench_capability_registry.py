@@ -664,6 +664,7 @@ def _state_prepare_once() -> object:
         policy_facts=state.policy_facts,
         policy_value_class_facts=state.policy_value_class_facts,
         policy_predicate_facts=state.policy_predicate_facts,
+        prepared_claims=registry_module._retained_prepared_claims(state),
         load_state=state.load_state,
         load_error=state.load_error,
     )

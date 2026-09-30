@@ -267,12 +267,10 @@ def test_markdown_does_not_invent_classification_for_unlabelled_information():
 
 
 def test_report_distinguishes_unparseable_environment_from_excluded_policy():
-    from mountainash.core.capabilities.applicability import Applicability, ComparisonScheme, CoordinateConstraint, Region
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.policy import CapabilityPolicy
-    claim = Applicability((Region((CoordinateConstraint(
-        "package", "polars", ComparisonScheme.PEP440, lower="1",
-    ),)),))
+    claim = Applicability((Region((CoordinateConstraint("package", "polars", specifier=">=1"),)),))
     environment = Environment((EnvironmentCoordinate("package", "polars", "vendor-build"),))
     checked = json.loads(render_json(_report(
         environment=environment, policy=CapabilityPolicy.checked(), applicability=claim,

@@ -6,12 +6,7 @@ from dataclasses import replace
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-from mountainash.core.capabilities.applicability import (
-    Applicability,
-    ComparisonScheme,
-    CoordinateConstraint,
-    Region,
-)
+from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
 from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.schema import Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate, ValueClass
@@ -76,14 +71,7 @@ def _interval(lower, upper):
         regions=(
             Region(
                 constraints=(
-                    CoordinateConstraint(
-                        "package",
-                        "ibis-framework",
-                        ComparisonScheme.PEP440,
-                        lower=lower,
-                        upper=upper,
-                        upper_inclusive=False,
-                    ),
+                    CoordinateConstraint("package", "ibis-framework", specifier=">=" + lower + ",<" + upper),
                 ),
             ),
         ),

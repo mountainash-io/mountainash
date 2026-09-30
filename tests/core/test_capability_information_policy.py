@@ -305,32 +305,16 @@ def test_duplicate_full_keys_roll_back_information_and_policy_publication():
 def test_disjoint_policy_variants_coexist_and_require_exact_lookup():
     from dataclasses import replace
 
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
 
     older = Applicability((
         Region((
-            CoordinateConstraint(
-                "engine",
-                "polars",
-                ComparisonScheme.NUMERIC_RELEASE,
-                upper="1.0.0",
-                upper_inclusive=False,
-            ),
+            CoordinateConstraint("engine", "polars", specifier="<1.0.0"),
         )),
     ))
     newer = Applicability((
         Region((
-            CoordinateConstraint(
-                "engine",
-                "polars",
-                ComparisonScheme.NUMERIC_RELEASE,
-                lower="1.0.0",
-            ),
+            CoordinateConstraint("engine", "polars", specifier=">=1.0.0"),
         )),
     ))
     first = replace(
@@ -354,25 +338,13 @@ def test_disjoint_policy_variants_coexist_and_require_exact_lookup():
 def test_adjacent_version_policies_publish_and_overlap_rolls_back():
     from dataclasses import replace
 
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.catalogue import CatalogueQuery, PolicyQuery
 
     def interval(lower, upper):
         return Applicability((
             Region((
-                CoordinateConstraint(
-                    "package",
-                    "polars",
-                    ComparisonScheme.PEP440,
-                    lower=lower,
-                    upper=upper,
-                    upper_inclusive=False,
-                ),
+                CoordinateConstraint("package", "polars", specifier=">=" + lower + ",<" + upper),
             )),
         ))
 
@@ -410,13 +382,7 @@ def test_adjacent_version_policies_publish_and_overlap_rolls_back():
 def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
     from dataclasses import replace
 
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-        prepare_environment,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.capabilities.policy import (
@@ -426,15 +392,8 @@ def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
     )
 
     claim = Applicability(tuple(Region((
-        CoordinateConstraint("package", "ibis", ComparisonScheme.PEP440, equal="12"),
-        CoordinateConstraint(
-            "engine",
-            "duckdb",
-            ComparisonScheme.NUMERIC_RELEASE,
-            lower=lower,
-            upper=upper,
-            upper_inclusive=False,
-        ),
+        CoordinateConstraint("package", "ibis", specifier="==12"),
+        CoordinateConstraint("engine", "duckdb", specifier=">=" + lower + ",<" + upper),
     )) for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))))
     # Coordinates are deliberately test-owned, not claimed Polars/Ibis evidence.
     rule = replace(_policy(), applicability=claim)
@@ -615,14 +574,10 @@ def test_backend_override_uses_destination_not_source_coordinates():
     import ibis
     import polars as pl
     import mountainash as ma
-    from mountainash.core.capabilities.applicability import Applicability, ComparisonScheme, CoordinateConstraint, Region
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.types import BackendCapabilityError
-    source_only = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE, equal=duckdb.__version__,
-    ),)),))
-    destination_only = Applicability((Region((CoordinateConstraint(
-        "package", "polars", ComparisonScheme.PEP440, equal=version("polars"),
-    ),)),))
+    source_only = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier="==" + duckdb.__version__),)),))
+    destination_only = Applicability((Region((CoordinateConstraint("package", "polars", specifier="==" + version("polars")),)),))
     connection = ibis.duckdb.connect(":memory:")
     try:
         source = connection.create_table("destination_context", obj=pl.DataFrame({"text": ["a", "b"]}))
@@ -683,3 +638,23 @@ def test_direct_validation_keeps_entry_policy_during_preparation(monkeypatch):
         trusted = ValidationRunner().validate_relation(relation, checks)
     assert trusted.passes is True
     assert trusted.failure_cases.height == 0
+
+
+def test_public_and_local_exact_policies_overlap_without_losing_previous_state():
+    from dataclasses import replace
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, PolicyQuery
+
+    public = replace(_policy(), applicability=Applicability((Region((
+        CoordinateConstraint("package", "polars", specifier="==11"),
+    )),)))
+    local = replace(public, key=replace(public.key, variant="local"),
+                    applicability=Applicability((Region((
+                        CoordinateConstraint("package", "polars", specifier="==11+local"),
+                    )),)))
+    CapabilityRegistry.register_segment(_segment(policies=(public,)))
+    query = CatalogueQuery(policies=PolicyQuery())
+    before = CapabilityRegistry.capture().search(query).policies
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(policies=(local,), suffix=".local"))
+    assert CapabilityRegistry.capture().search(query).policies == before

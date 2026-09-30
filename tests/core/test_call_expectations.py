@@ -88,7 +88,6 @@ from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
 from mountainash.core.capabilities.applicability import (
     Applicability,
     ApplicabilityResult,
-    ComparisonScheme,
     CoordinateConstraint,
     Region,
     prepare_environment,
@@ -122,10 +121,7 @@ _CLAIM = Applicability((
         CoordinateConstraint(
             "package",
             "polars",
-            ComparisonScheme.PEP440,
-            lower="1.2",
-            upper="1.3",
-            upper_inclusive=False,
+            specifier=">=1.2,<1.3",
         ),
     )),
 ))

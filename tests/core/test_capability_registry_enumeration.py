@@ -103,12 +103,7 @@ def test_issue_snapshot_is_retained_and_missing_metadata_stays_distinct(isolated
 
 
 def test_version_conditioned_residue_requires_observed_context(isolated):
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
     version_conditioned_residue = CapabilityPolicyRule(
@@ -122,12 +117,7 @@ def test_version_conditioned_residue_requires_observed_context(isolated):
         native_issue="IB-STR-01",
         applicability=Applicability((
             Region((
-                CoordinateConstraint(
-                    "package",
-                    "ibis-framework",
-                    ComparisonScheme.PEP440,
-                    lower="10.0.0",
-                ),
+                CoordinateConstraint("package", "ibis-framework", specifier=">=10.0.0"),
             )),
         )),
     )

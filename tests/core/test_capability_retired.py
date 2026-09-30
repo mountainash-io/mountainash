@@ -109,26 +109,14 @@ def test_gap_history_retains_its_inventory_scoped_claim():
 
 def test_unknown_introduction_survives_history_without_matching_earlier_versions():
     from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ApplicabilityResult,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-        prepare_environment,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, ApplicabilityResult, CoordinateConstraint, Region, prepare_environment)
     from mountainash.core.capabilities.catalogue import CatalogueQuery, ChangeQuery
     from mountainash.core.capabilities.declarations import BoundSegment, CapabilitySegment, Domain
     from mountainash.core.capabilities.registry import _LoadState, _empty_state
     from mountainash.core.capabilities.retired import HistoricalBoundary
 
     prior = _captured("provisional restriction", "prior-unknown")
-    claim = Applicability((Region((CoordinateConstraint(
-        "engine",
-        "duckdb",
-        ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.4",
-    ),)),))
+    claim = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.4"),)),))
     successor = replace(
         prior,
         payload=replace(prior.payload, applicability=claim),
@@ -178,12 +166,7 @@ def test_unknown_introduction_survives_history_without_matching_earlier_versions
 
 
 def test_catalogue_history_retains_controlled_lifecycle_captures():
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.registry import _LoadState, _empty_state
 
     def captured(message, entry, *, subject="length", variant=None, applicability=Applicability()):
@@ -203,22 +186,10 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
             _address(entry),
         )
 
-    broad = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.0", upper="1.3", upper_inclusive=False,
-    ),)),))
-    narrowed = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.0", upper="1.2", upper_inclusive=False,
-    ),)),))
-    first_interval = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.0", upper="1.1", upper_inclusive=False,
-    ),)),))
-    later_interval = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.2", upper="1.3", upper_inclusive=False,
-    ),)),))
+    broad = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.0,<1.3"),)),))
+    narrowed = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.0,<1.2"),)),))
+    first_interval = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.0,<1.1"),)),))
+    later_interval = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.2,<1.3"),)),))
 
     narrowed_prior = captured("controlled broad applicability", "narrowed-prior", applicability=broad)
     narrowed_successor = captured(

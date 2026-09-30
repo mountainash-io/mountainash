@@ -12,12 +12,7 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
     import ibis
     import polars as pl
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         CapabilityKey,
@@ -51,14 +46,8 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
         table = connection.create_table("capability_target", obj=pl.DataFrame({"x": [1]}))
         CapabilityRegistry.reset()
         claim = Applicability((Region((
-            CoordinateConstraint(
-                "package", "ibis", ComparisonScheme.PEP440,
-                equal=version("ibis-framework"),
-            ),
-            CoordinateConstraint(
-                "engine", engine, ComparisonScheme.NUMERIC_RELEASE,
-                equal=engine_version,
-            ),
+            CoordinateConstraint("package", "ibis", specifier="==" + version("ibis-framework")),
+            CoordinateConstraint("engine", engine, specifier="==" + engine_version),
         )),))
         rule = CapabilityPolicyRule(
             CapabilityKey(FK.CONTAINS, "substring"), CapabilityLevel.UNSUPPORTED,
@@ -186,12 +175,7 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
     import polars as pl
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
     from mountainash.core.capabilities import bootstrap
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         CapabilityKey,
@@ -216,12 +200,7 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
         applicability=Applicability((Region((
-            CoordinateConstraint(
-                "engine",
-                "duckdb",
-                ComparisonScheme.NUMERIC_RELEASE,
-                equal=duckdb.__version__,
-            ),
+            CoordinateConstraint("engine", "duckdb", specifier="==" + duckdb.__version__),
         )),)),
     )
     segment = BoundSegment(
@@ -259,12 +238,7 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
     import ibis
     import polars as pl
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         CapabilityKey,
@@ -297,12 +271,7 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
         applicability=Applicability((Region((
-            CoordinateConstraint(
-                "engine",
-                "duckdb",
-                ComparisonScheme.NUMERIC_RELEASE,
-                equal=duckdb.__version__,
-            ),
+            CoordinateConstraint("engine", "duckdb", specifier="==" + duckdb.__version__),
         )),)),
     )
     connection = ibis.duckdb.connect(":memory:")

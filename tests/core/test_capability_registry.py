@@ -88,27 +88,14 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-        prepare_environment,
-    )
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.policy import CapabilityPolicy
 
     def interval(lower, upper):
         return Applicability((
             Region((
-                CoordinateConstraint(
-                    "package",
-                    "polars",
-                    ComparisonScheme.PEP440,
-                    lower=lower,
-                    upper=upper,
-                    upper_inclusive=False,
-                ),
+                CoordinateConstraint("package", "polars", specifier=">=" + lower + ",<" + upper),
             )),
         ))
 

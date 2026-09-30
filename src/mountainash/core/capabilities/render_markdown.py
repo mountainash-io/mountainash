@@ -474,7 +474,7 @@ def _diagnostic_dict(diagnostic) -> dict[str, Any]:
             {
                 "kind": item.kind,
                 "name": item.name,
-                "scheme": item.scheme.value,
+                "comparison": item.comparison,
                 "observed": item.observed,
                 "status": item.status,
             }

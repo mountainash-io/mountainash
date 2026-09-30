@@ -1,5 +1,6 @@
 """Capability spine — schema, registry, backend identity (spec 2026-07-05)."""
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.bootstrap import load_all_capability_declarations
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
@@ -93,4 +94,5 @@ __all__ = [
     "classify_domain",
     "classify_source",
     "load_all_capability_declarations",
+    "unbounded",
 ]
