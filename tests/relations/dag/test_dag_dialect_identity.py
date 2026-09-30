@@ -29,14 +29,15 @@ combination to raise -- tests assert on visitor CONSTRUCTION state or a
 watched node's own visit() entry/exit, captured before that raise, never
 on the full return value.
 """
+
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import pandas as pd
 import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.dag import RelationDAG
@@ -44,17 +45,20 @@ from mountainash.relations.dag import RelationDAG
 
 def _nw_polars(data: dict):
     import narwhals as nw
+
     return nw.from_native(pl.DataFrame(data), eager_only=True)
 
 
 def _nw_pandas(data: dict):
     import narwhals as nw
+
     return nw.from_native(pl.DataFrame(data).to_pandas(), eager_only=True)
 
 
 def _nw_pyarrow(data: dict):
     import narwhals as nw
     import pyarrow as pa
+
     return nw.from_native(pa.table(data), eager_only=True)
 
 
@@ -179,9 +183,7 @@ class TestExplicitBackendAnchorCoherence:
     from a leaf of a DIFFERENT physical family. Covers both branches that
     establish the anchor identity."""
 
-    def test_named_target_branch_never_builds_invalid_hybrid(
-        self, _visitor_construction_spy
-    ):
+    def test_named_target_branch_never_builds_invalid_hybrid(self, _visitor_construction_spy):
         # backend_target_name is not None (collect()'s always-set target).
         dag = RelationDAG()
         dag.add("pandas_only", ma.relation(_nw_pandas({"k": [1]})))
@@ -198,9 +200,7 @@ class TestExplicitBackendAnchorCoherence:
         # None -- and never the foreign "narwhals-pandas" hybrid either.
         assert _visitor_construction_spy[0]["dialect"] == "polars"
 
-    def test_adhoc_node_fallback_branch_never_builds_invalid_hybrid(
-        self, _visitor_construction_spy
-    ):
+    def test_adhoc_node_fallback_branch_never_builds_invalid_hybrid(self, _visitor_construction_spy):
         # No refs, no target name (execute() with zero RefRelNode leaves).
         dag = RelationDAG()
         rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
@@ -212,9 +212,7 @@ class TestExplicitBackendAnchorCoherence:
         assert _visitor_construction_spy[0]["backend_type"] == CONST_BACKEND.POLARS
         assert _visitor_construction_spy[0]["dialect"] == "polars"
 
-    def test_no_override_still_resolves_family_and_dialect_from_same_leaf(
-        self, _visitor_construction_spy
-    ):
+    def test_no_override_still_resolves_family_and_dialect_from_same_leaf(self, _visitor_construction_spy):
         # Non-regression: the no-override path must still detect the
         # anchor's REAL family+dialect together (same leaf) and must
         # actually succeed end-to-end (no mismatch to raise on here).
@@ -223,7 +221,8 @@ class TestExplicitBackendAnchorCoherence:
         from mountainash.core.capabilities.policy import CapabilityPolicy
 
         _result, visitor = dag._execute_with_visitor(
-            rel, execution_policy=CapabilityPolicy.trusted(),
+            rel,
+            execution_policy=CapabilityPolicy.trusted(),
         )
         assert visitor.backend.backend_type == CONST_BACKEND.NARWHALS
         assert visitor.backend.dialect == "narwhals-pandas"
@@ -341,9 +340,7 @@ class TestPerRefDialectSwapAndRestore:
 
         assert captured["final"]["entry"]["backend_dialect"] == "narwhals-polars"
 
-    def test_reversed_anchor_direction_pandas_anchor_polars_differs(
-        self, _dialect_spy_factory
-    ):
+    def test_reversed_anchor_direction_pandas_anchor_polars_differs(self, _dialect_spy_factory):
         # Testing plan #2: exercise BOTH anchor directions, not only
         # "polars-family dialect anchors, pandas-family dialect differs".
         dag = RelationDAG()
@@ -367,9 +364,7 @@ class TestPerRefDialectSwapAndRestore:
 
         assert captured["b"]["completed"] is True
         assert captured["b"]["entry"]["backend_dialect"] == "narwhals-polars"
-        assert (
-            captured["b"]["entry"]["backend_id"] != captured["a"]["entry"]["backend_id"]
-        )
+        assert captured["b"]["entry"]["backend_id"] != captured["a"]["entry"]["backend_id"]
 
 
 class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
@@ -380,9 +375,7 @@ class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
     compiled in its OWN family (then coerced to the override family), so the
     ref's visit entry observes its own family, never an invalid hybrid."""
 
-    def test_pandas_ref_under_explicit_polars_backend_with_polars_anchor(
-        self, _dialect_spy_factory
-    ):
+    def test_pandas_ref_under_explicit_polars_backend_with_polars_anchor(self, _dialect_spy_factory):
         dag = RelationDAG()
         polars_anchor_rel = ma.relation(pl.DataFrame({"k": [1]}))
         pandas_rel = ma.relation(_nw_pandas({"k": [1]}))
@@ -419,9 +412,7 @@ class TestSameFamilyUnboundDialectRefGetsNoneNotAnchorsDialect:
         dag = RelationDAG()
         dag.add("a_anchor", anchor_rel)  # alphabetically first -> anchor
         dag.add("b_unbound", unbound_rel)
-        dag.add(
-            "final", dag.ref("a_anchor").join(dag.ref("b_unbound"), on="k")
-        )
+        dag.add("final", dag.ref("a_anchor").join(dag.ref("b_unbound"), on="k"))
         _dialect_spy_factory(unbound_rel._node, "unbound")
 
         with pytest.raises(UnresolvedExecutionLocationError, match="Unbound Ibis source"):
@@ -447,18 +438,24 @@ def _narwhals_pandas_filter_gate_policy():
     )
 
     scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
-    policy = CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-    level=CapabilityLevel.UNSUPPORTED, message="test-only BUILD-time gate for narwhals-pandas filter",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
+    policy = CapabilityPolicyRule(
+        key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="test-only BUILD-time gate for narwhals-pandas filter",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
     snap = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.relations.backends.capabilities.narwhals.dialects."
-            "narwhals_pandas.substrait.relation.test_dag_dialect_identity",
-            scope,
-            CapabilitySegment(Domain.RELATION, policies=(policy,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.relations.backends.capabilities.narwhals.dialects."
+                "narwhals_pandas.substrait.relation.test_dag_dialect_identity",
+                scope,
+                CapabilitySegment(Domain.RELATION, policies=(policy,)),
+            )
+        )
         yield
     finally:
         CapabilityRegistry.restore(snap)
@@ -468,17 +465,13 @@ class TestPerRefBuildTimeGateFiresOnNonAnchorRefsOwnDialect:
     """A dialect-scoped GATE policy on a non-anchor ref must fire during
     that ref's own compile, before any native call."""
 
-    def test_gate_fires_on_non_anchor_pandas_ref_filter(
-        self, _narwhals_pandas_filter_gate_policy
-    ):
+    def test_gate_fires_on_non_anchor_pandas_ref_filter(self, _narwhals_pandas_filter_gate_policy):
         dag = RelationDAG()
         anchor_rel = ma.relation(_nw_polars({"k": [1, 2]}))  # anchor: narwhals-polars
         pandas_rel = ma.relation(_nw_pandas({"k": [1, 2]})).filter(ma.col("k") > 0)
         dag.add("a_anchor", anchor_rel)
         dag.add("b_pandas_filtered", pandas_rel)
-        dag.add(
-            "final", dag.ref("a_anchor").join(dag.ref("b_pandas_filtered"), on="k")
-        )
+        dag.add("final", dag.ref("a_anchor").join(dag.ref("b_pandas_filtered"), on="k"))
         with pytest.raises(BackendCapabilityError):
             dag.collect("final")
 
@@ -491,20 +484,14 @@ class TestExecuteAdhocTreeCombiningDirectNodeWithDifferingDialectRef:
     IS the anchor (sorted(all_refs)[0] picks the sole ref), which proves
     nothing about per-ref switching."""
 
-    def test_execute_direct_node_plus_two_refs_of_differing_dialects(
-        self, _dialect_spy_factory
-    ):
+    def test_execute_direct_node_plus_two_refs_of_differing_dialects(self, _dialect_spy_factory):
         dag = RelationDAG()
         anchor_rel = ma.relation(_nw_polars({"k": [1]}))  # a_anchor_ref: alphabetically first -> anchor
         diff_rel = ma.relation(_nw_pandas({"k": [1]}))  # b_diff_ref: differs from anchor
         dag.add("a_anchor_ref", anchor_rel)
         dag.add("b_diff_ref", diff_rel)
         direct_node_rel = ma.relation(_nw_polars({"k": [1]}))  # NOT registered in the dag
-        adhoc = (
-            direct_node_rel.join(dag.ref("a_anchor_ref"), on="k").join(
-                dag.ref("b_diff_ref"), on="k"
-            )
-        )
+        adhoc = direct_node_rel.join(dag.ref("a_anchor_ref"), on="k").join(dag.ref("b_diff_ref"), on="k")
         _dialect_spy_factory(anchor_rel._node, "anchor_ref")
         _dialect_spy_factory(diff_rel._node, "diff_ref")
 
@@ -521,10 +508,7 @@ class TestExecuteAdhocTreeCombiningDirectNodeWithDifferingDialectRef:
 
         assert captured["diff_ref"]["completed"] is True
         assert captured["diff_ref"]["entry"]["backend_dialect"] == "narwhals-pandas"
-        assert (
-            captured["diff_ref"]["entry"]["backend_id"]
-            != captured["anchor_ref"]["entry"]["backend_id"]
-        )
+        assert captured["diff_ref"]["entry"]["backend_id"] != captured["anchor_ref"]["entry"]["backend_id"]
 
 
 class TestUnknownDialectStringRefNotSilentlyInherited:
@@ -535,9 +519,7 @@ class TestUnknownDialectStringRefNotSilentlyInherited:
     Exception around the whole call) -- only the TARGET's own cross-
     storage join may legitimately fail."""
 
-    def test_pyarrow_backed_ref_keeps_its_own_unknown_dialect_string(
-        self, _dialect_spy_factory
-    ):
+    def test_pyarrow_backed_ref_keeps_its_own_unknown_dialect_string(self, _dialect_spy_factory):
         pytest.importorskip("pyarrow")
         dag = RelationDAG()
         anchor_rel = ma.relation(_nw_polars({"k": [1]}))
@@ -564,10 +546,12 @@ def test_same_dialect_connections_preserve_native_ownership():
     import ibis
     import polars as pl
     import pytest
+
     import mountainash as ma
     from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.core.errors import BackendConversionError
     from mountainash.relations.dag.materialization import DAGMaterializationSession
+
     left_connection = ibis.duckdb.connect(":memory:")
     right_connection = ibis.duckdb.connect(":memory:")
     session = None

@@ -1,23 +1,22 @@
 """Real native transfers and execution-local ownership boundaries."""
 
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import gc
 from dataclasses import replace
 
 import pytest
+from fixtures.backend_registry import REGISTRY
 
 import mountainash as ma
-from fixtures.backend_registry import REGISTRY
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
-from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
+from mountainash.relations.core.execution.metadata import CompilationMetadata, CompiledSubtree
 from mountainash.relations.core.execution.preparation import TransferRequirement
 from mountainash.relations.core.execution.transport import TransportSession
 from mountainash.relations.core.materialization import MaterializationScope
-
 
 IBIS_BACKENDS = [name for name, spec in REGISTRY.items() if spec.family == "ibis"]
 
@@ -30,9 +29,7 @@ def test_bare_ibis_memory_payload_export_is_a_declared_arrow_boundary():
     with capture_conversion_trace() as trace:
         rows = ma.relation(pl.DataFrame({"id": [1]})).join(memory, on="id").to_dicts()
     assert rows == [{"id": 1, "value": "kept"}]
-    assert BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW in {
-        record.boundary_key for record in trace.records
-    }
+    assert BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW in {record.boundary_key for record in trace.records}
 
 
 def test_sqlite_storage_preflight_exports_native_frames_through_declared_arrow_boundary():
@@ -44,9 +41,7 @@ def test_sqlite_storage_preflight_exports_native_frames_through_declared_arrow_b
     with capture_conversion_trace() as trace:
         with pytest.raises(UnsupportedRelationTransportError):
             ma.relation(source).join(destination, on="id", execute_on="right").collect()
-    assert BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW in {
-        record.boundary_key for record in trace.records
-    }
+    assert BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW in {record.boundary_key for record in trace.records}
 
 
 @pytest.mark.parametrize("source_name", IBIS_BACKENDS)
@@ -100,10 +95,12 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
     value = source_table.filter(source_table.id == 1)
-    source = CompiledSubtree(value, resolver.resolve(ma.relation(source_table)._node),
-                             tokens.token(value), CompilationMetadata())
-    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node),
-                                      "ibis_arrow_ibis", True)
+    source = CompiledSubtree(
+        value, resolver.resolve(ma.relation(source_table)._node), tokens.token(value), CompilationMetadata()
+    )
+    requirement = TransferRequirement(
+        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
+    )
     session = TransportSession(tokens)
     original = transport.transit_call
 
@@ -143,17 +140,23 @@ def test_lossy_sqlite_route_rolls_back_owned_resources_without_touching_caller(m
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
     source = CompiledSubtree(
-        source_frame, resolver.resolve(ma.relation(source_frame)._node),
-        tokens.token(source_frame), CompilationMetadata(),
+        source_frame,
+        resolver.resolve(ma.relation(source_frame)._node),
+        tokens.token(source_frame),
+        CompilationMetadata(),
     )
     requirement = TransferRequirement(
-        "root/left", resolver.resolve(ma.relation(target)._node), "polars_to_ibis", True,
+        "root/left",
+        resolver.resolve(ma.relation(target)._node),
+        "polars_to_ibis",
+        True,
     )
     released = []
     caller_released = []
     monkeypatch.setattr(type(target), "release", lambda *_: caller_released.append("table"), raising=False)
-    monkeypatch.setattr(type(target._find_backend(use_default=False)), "disconnect",
-                        lambda *_: caller_released.append("connection"))
+    monkeypatch.setattr(
+        type(target._find_backend(use_default=False)), "disconnect", lambda *_: caller_released.append("connection")
+    )
     session = TransportSession(tokens)
     session._scope.own(lambda: released.append("owned"))
     with pytest.raises(UnsupportedRelationTransportError) as caught:
@@ -177,10 +180,15 @@ def test_source_export_enriches_diagnostic_failure_without_owned_checks():
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
     value = table.mutate(number=table.raw.cast("int64"))
-    diagnostic = OperationDiagnostic(FKEY_SUBSTRAIT_CAST.CAST, "ibis", "ibis-duckdb",
-                                     "source-conform", (), "throw", "number", "integer", "default")
-    source = CompiledSubtree(value, resolver.resolve(ma.relation(table)._node), tokens.token(value),
-                             CompilationMetadata(diagnostic_records=(diagnostic,)))
+    diagnostic = OperationDiagnostic(
+        FKEY_SUBSTRAIT_CAST.CAST, "ibis", "ibis-duckdb", "source-conform", (), "throw", "number", "integer", "default"
+    )
+    source = CompiledSubtree(
+        value,
+        resolver.resolve(ma.relation(table)._node),
+        tokens.token(value),
+        CompilationMetadata(diagnostic_records=(diagnostic,)),
+    )
     destination = resolver.resolve(ma.relation(target)._node)
     requirement = TransferRequirement("root/right", destination, "ibis_to_polars", True)
     with pytest.raises(ConformTransformError) as caught:
@@ -198,11 +206,15 @@ def test_arrow_route_does_not_use_python_data_pandas_or_polars(source_name, dest
     target = REGISTRY[destination_name].build({"id": [2]}, "dst")
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
-    source = CompiledSubtree(table.filter(table.id == 2),
-                             resolver.resolve(ma.relation(table)._node), tokens.token(object()),
-                             CompilationMetadata())
-    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node),
-                                      "ibis_arrow_ibis", True)
+    source = CompiledSubtree(
+        table.filter(table.id == 2),
+        resolver.resolve(ma.relation(table)._node),
+        tokens.token(object()),
+        CompilationMetadata(),
+    )
+    requirement = TransferRequirement(
+        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
+    )
 
     def forbidden(*args, **kwargs):
         raise AssertionError("Ibis-to-Ibis transport must remain Arrow-only")
@@ -225,15 +237,21 @@ def test_failed_source_and_destination_cleanup_never_releases_caller_resources(m
     target = REGISTRY["ibis-sqlite"].build({"id": [1]}, "dst")
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
-    source = CompiledSubtree(table, resolver.resolve(ma.relation(table)._node),
-                             tokens.token(table), CompilationMetadata())
-    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node),
-                                      "ibis_arrow_ibis", True)
+    source = CompiledSubtree(
+        table, resolver.resolve(ma.relation(table)._node), tokens.token(table), CompilationMetadata()
+    )
+    requirement = TransferRequirement(
+        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
+    )
     released = []
     caller_released = []
     monkeypatch.setattr(type(table), "release", lambda *_: caller_released.append("table"), raising=False)
-    monkeypatch.setattr(type(table._find_backend(use_default=False)), "disconnect",
-                        lambda *_: caller_released.append("connection"), raising=False)
+    monkeypatch.setattr(
+        type(table._find_backend(use_default=False)),
+        "disconnect",
+        lambda *_: caller_released.append("connection"),
+        raising=False,
+    )
     original = transport.transit_call
 
     def fail_export(key, *args, **kwargs):
@@ -270,10 +288,12 @@ def test_bare_memory_payload_uses_arrow_without_evaluating_table(destination_nam
     target = REGISTRY[destination_name].build({"id": [2]}, "dst")
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
-    source = CompiledSubtree(memory, resolver.resolve(ma.relation(memory)._node),
-                             tokens.token(memory), CompilationMetadata())
-    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node),
-                                      "ibis_memory_ibis", False)
+    source = CompiledSubtree(
+        memory, resolver.resolve(ma.relation(memory)._node), tokens.token(memory), CompilationMetadata()
+    )
+    requirement = TransferRequirement(
+        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_memory_ibis", False
+    )
 
     def forbidden(*args, **kwargs):
         raise AssertionError("a bare memory payload must not execute an Ibis query")
@@ -293,11 +313,13 @@ def test_derived_polars_plan_is_collected_before_ibis_ingress(destination_name):
     target = REGISTRY[destination_name].build({"id": [2]}, "dst")
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
-    source = CompiledSubtree(table.lazy().filter(pl.col("id") == 2),
-                             resolver.resolve(ma.relation(table)._node), tokens.token(object()),
-                             CompilationMetadata())
-    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node),
-                                      "polars_to_ibis", True)
+    source = CompiledSubtree(
+        table.lazy().filter(pl.col("id") == 2),
+        resolver.resolve(ma.relation(table)._node),
+        tokens.token(object()),
+        CompilationMetadata(),
+    )
+    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node), "polars_to_ibis", True)
     with TransportSession(tokens) as session:
         moved = session.transfer(source, requirement)
     assert ma.relation(target.inner_join(moved.value, "id").select(target.id)).to_dict() == {"id": [2]}
@@ -314,16 +336,15 @@ def test_foreign_owned_check_cannot_be_discarded_by_transfer():
     resolver = LocationResolver(tokens)
     source_location = resolver.resolve(ma.relation(table)._node)
     destination = resolver.resolve(ma.relation(target)._node)
-    check = OwnedResidue(MaterializationResidueCheck(None, "id", "marker"), "root/source",
-                         destination)
-    source = CompiledSubtree(table, source_location, tokens.token(table),
-                             CompilationMetadata(owned_checks=(check,)))
+    check = OwnedResidue(MaterializationResidueCheck(None, "id", "marker"), "root/source", destination)
+    source = CompiledSubtree(table, source_location, tokens.token(table), CompilationMetadata(owned_checks=(check,)))
     requirement = TransferRequirement("root/right", destination, "ibis_arrow_ibis", True)
     with pytest.raises(RuntimeError, match="source boundary"):
         TransportSession(tokens).transfer(source, requirement)
     with pytest.raises(UnsupportedRelationTransportError) as caught:
-        TransportSession(tokens).transfer(replace(source, metadata=CompilationMetadata()),
-                                          replace(requirement, route="not_declared"))
+        TransportSession(tokens).transfer(
+            replace(source, metadata=CompilationMetadata()), replace(requirement, route="not_declared")
+        )
     assert caught.value.source_dialect == "ibis-duckdb"
     assert caught.value.destination_dialect == "ibis-sqlite"
 
@@ -360,12 +381,17 @@ def test_scope_handoff_and_failure_cleanup_are_isolated():
 @pytest.mark.parametrize("source_name", ["ibis-duckdb", "ibis-polars"])
 @pytest.mark.parametrize("year", ["2024", "invalid"])
 def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
-    source_name, year, backend_factory,
+    source_name,
+    year,
+    backend_factory,
 ):
-    from mountainash.conform.diagnostics import OperationDiagnosticTrace
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
     from mountainash.core.capabilities.declarations import (
-        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
     )
     from mountainash.core.capabilities.identity import Dialect, Scope
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -381,13 +407,25 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
-        CapabilityRegistry.register_segment(BoundSegment(
-            f"mountainash.expressions.backends.capabilities.ibis.dialects.{source_name.replace('-', '_')}.extensions_mountainash.datetime",
-            Scope(CONST_BACKEND.IBIS, Dialect(source_name)),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-            level=CapabilityLevel.UNSUPPORTED, message="Source lexical residue", consumer=PolicyConsumer.RESULT_PROTECTION,
-            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                f"mountainash.expressions.backends.capabilities.ibis.dialects.{source_name.replace('-', '_')}.extensions_mountainash.datetime",
+                Scope(CONST_BACKEND.IBIS, Dialect(source_name)),
+                CapabilitySegment(
+                    Domain.DATETIME,
+                    policies=(
+                        CapabilityPolicyRule(
+                            key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+                            level=CapabilityLevel.UNSUPPORTED,
+                            message="Source lexical residue",
+                            consumer=PolicyConsumer.RESULT_PROTECTION,
+                            action=PolicyAction.DETECT_NON_NULL_TO_NULL,
+                            applicability=unbounded,
+                        ),
+                    ),
+                ),
+            )
+        )
         table = backend_factory.create({"id": [1], "year": [year]}, source_name)
         target = backend_factory.create({"id": [1]}, "ibis-sqlite")
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
@@ -397,8 +435,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
             tokens = IdentityTokens()
             location = LocationResolver(tokens).resolve(ma.relation(table)._node)
             destination = LocationResolver(tokens).resolve(ma.relation(target)._node)
-            source = MetadataSession(tokens).capture(visitor, owner_key="root/right",
-                                                     location=location, value=native)
+            source = MetadataSession(tokens).capture(visitor, owner_key="root/right", location=location, value=native)
             assert source.metadata.owned_checks
             assert source.metadata.diagnostic_records
             session = TransportSession(tokens, execution_context=visitor.execution_context)

@@ -1,5 +1,4 @@
 """Value-aware capability gating for scalar-function options."""
-from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -9,11 +8,17 @@ from mountainash.core.capabilities import (
     CapabilityLevel,
     CapabilityRegistry,
 )
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
-    BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector,
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+    Selector,
 )
-from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
@@ -27,10 +32,11 @@ from mountainash.expressions.core.expression_system.expsys_base import (
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STRING,
 )
 from mountainash.expressions.core.unified_visitor import UnifiedExpressionVisitor
-
 
 _TEST_DIALECT = "polars"
 _UNSUPPORTED_OPTION_VALUE = "__UNIT_TEST_UNSUPPORTED__"
@@ -60,7 +66,9 @@ def _compile_node(node, df, backend):
     system_cls = get_expression_system(identity.family)
     system = system_cls(dialect=identity.dialect, execution_context=context)
     visitor = UnifiedExpressionVisitor(
-        system, input_data=df, execution_context=context,
+        system,
+        input_data=df,
+        execution_context=context,
     )
     return visitor.visit(node)
 
@@ -68,14 +76,19 @@ def _compile_node(node, df, backend):
 def test_declared_unsupported_option_raises_before_dispatch():
     policy = CapabilityPolicyRule(
         CapabilityKey(FK_ARITH.ABS, "overflow", Selector("exact", _UNSUPPORTED_OPTION_VALUE)),
-        CapabilityLevel.UNSUPPORTED,  "synthetic option refusal",
-        PolicyConsumer.GATE, PolicyAction.BLOCK,
-     applicability=unbounded)
-    CapabilityRegistry.register_segment(BoundSegment(
-        "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic.option_gate",
-        Scope(CONST_BACKEND.POLARS, Dialect(_TEST_DIALECT)),
-        CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
-    ))
+        CapabilityLevel.UNSUPPORTED,
+        "synthetic option refusal",
+        PolicyConsumer.GATE,
+        PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    CapabilityRegistry.register_segment(
+        BoundSegment(
+            "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic.option_gate",
+            Scope(CONST_BACKEND.POLARS, Dialect(_TEST_DIALECT)),
+            CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
+        )
+    )
     df = make_df({"v": [1]}, "polars")
     node = _abs_node_with_options({"overflow": _UNSUPPORTED_OPTION_VALUE})
 
@@ -120,4 +133,3 @@ def test_timezone_ops_reject_non_iana_value(method):
 
     with pytest.raises(InvalidOptionValueError, match="timezone"):
         getattr(ma.col("x").dt, method)("Not/AZone")
-

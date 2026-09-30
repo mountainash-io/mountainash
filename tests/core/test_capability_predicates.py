@@ -1,11 +1,17 @@
 """Predicate schema + engine tests (backlog 66b, spec 2026-07-28)."""
+
 from __future__ import annotations
 
 import pytest
 
 from mountainash.core.capabilities.schema import (
-    Boundary, CapabilityFact, CapabilityLevel, Clause, ClauseOp,
-    Predicate, ValueClass,
+    Boundary,
+    CapabilityFact,
+    CapabilityLevel,
+    Clause,
+    ClauseOp,
+    Predicate,
+    ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 
@@ -59,18 +65,28 @@ def test_predicate_canonical_order_is_order_insensitive():
 def test_fact_predicate_must_be_build_boundary():
     with pytest.raises(ValueError, match="BUILD"):
         CapabilityFact(
-            operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
+            operation_key="TRUNCATE",
+            param="unit",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-duckdb",
+            message="x",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
-            boundary=Boundary.MATERIALIZE, native_errors=(ValueError,),
+            boundary=Boundary.MATERIALIZE,
+            native_errors=(ValueError,),
         )
 
 
 def test_fact_predicate_is_value_agnostic():
     with pytest.raises(ValueError, match="value-agnostic"):
         CapabilityFact(
-            operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x", option_value="WEEK",
+            operation_key="TRUNCATE",
+            param="unit",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-duckdb",
+            message="x",
+            option_value="WEEK",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
@@ -78,8 +94,12 @@ def test_fact_predicate_is_value_agnostic():
 def test_fact_predicate_rejects_wildcard_param():
     with pytest.raises(ValueError, match="WILDCARD_PARAM"):
         CapabilityFact(
-            operation_key="TRUNCATE", param="*", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
+            operation_key="TRUNCATE",
+            param="*",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-duckdb",
+            message="x",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
@@ -87,11 +107,14 @@ def test_fact_predicate_rejects_wildcard_param():
 def test_fact_predicate_param_must_be_a_clause_root():
     with pytest.raises(ValueError, match="clause roots"):
         CapabilityFact(
-            operation_key="TRUNCATE", param="other", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
+            operation_key="TRUNCATE",
+            param="other",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-duckdb",
+            message="x",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
-
 
 
 def test_fact_predicate_rejects_literal_only_level():
@@ -99,16 +122,24 @@ def test_fact_predicate_rejects_literal_only_level():
     # fact at those levels would be silently unenforceable (review finding 3).
     with pytest.raises(ValueError, match="UNSUPPORTED.*EXPR_CAPABLE"):
         CapabilityFact(
-            operation_key="TRUNCATE", param="unit", level=CapabilityLevel.LITERAL_ONLY,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
+            operation_key="TRUNCATE",
+            param="unit",
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.IBIS,
+            dialect="ibis-duckdb",
+            message="x",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
 
 def test_valid_predicate_fact_constructs():
     f = CapabilityFact(
-        operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
-        backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
+        operation_key="TRUNCATE",
+        param="unit",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-duckdb",
+        message="x",
         predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
     )
     assert f.predicate is not None
@@ -116,22 +147,30 @@ def test_valid_predicate_fact_constructs():
 
 
 from mountainash.core.capabilities.predicates import (
-    BoundCall, DomainRelation, bind_expression_call, compare_domains,
-    evaluate_clause, predicate_holds, resolve_path,
+    BoundCall,
+    DomainRelation,
+    bind_expression_call,
+    compare_domains,
+    evaluate_clause,
+    predicate_holds,
 )
 from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 
 
 class _DynamicExpr(ExpressionNode):
     """Minimal concrete non-literal expression node for dynamic-arg tests."""
+
     def accept(self, visitor, **kwargs):
         raise NotImplementedError
 
 
 def _bound_call(**bindings):
     return BoundCall(
-        operation_key="TRUNCATE", backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb",
-        bindings=bindings, supplied=frozenset(bindings),
+        operation_key="TRUNCATE",
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-duckdb",
+        bindings=bindings,
+        supplied=frozenset(bindings),
     )
 
 
@@ -181,7 +220,9 @@ def test_none_intermediate_raises():
 
 def test_matches_class_operand():
     bc = _bound_call(unit="2d")
-    assert evaluate_clause(Clause("unit", ClauseOp.MATCHES_CLASS, ValueClass.DURATION_MULTIPLIER), bc.bindings, bc.supplied)
+    assert evaluate_clause(
+        Clause("unit", ClauseOp.MATCHES_CLASS, ValueClass.DURATION_MULTIPLIER), bc.bindings, bc.supplied
+    )
 
 
 def test_predicate_holds_is_conjunction():
@@ -203,19 +244,23 @@ def _assert_witness_holds(comparison, left, right):
 
 def test_compare_domains_finds_broad_literal_and_narrow_value_overlap():
     broad = Predicate((Clause("multiple", ClauseOp.IS_LITERAL),))
-    narrow = Predicate((
-        Clause("multiple", ClauseOp.IS_LITERAL),
-        Clause("multiple", ClauseOp.EQ, -7),
-    ))
+    narrow = Predicate(
+        (
+            Clause("multiple", ClauseOp.IS_LITERAL),
+            Clause("multiple", ClauseOp.EQ, -7),
+        )
+    )
 
     _assert_witness_holds(compare_domains(broad, narrow), broad, narrow)
 
 
 def test_compare_domains_combines_finite_constraints_within_each_predicate():
-    impossible = Predicate((
-        Clause("multiple", ClauseOp.EQ, 1),
-        Clause("multiple", ClauseOp.IN, frozenset({2, 3})),
-    ))
+    impossible = Predicate(
+        (
+            Clause("multiple", ClauseOp.EQ, 1),
+            Clause("multiple", ClauseOp.IN, frozenset({2, 3})),
+        )
+    )
 
     comparison = compare_domains(impossible, None)
 
@@ -224,10 +269,12 @@ def test_compare_domains_combines_finite_constraints_within_each_predicate():
 
 
 def test_compare_domains_distinguishes_integer_and_text_in_one_conjunction():
-    impossible = Predicate((
-        Clause("multiple", ClauseOp.EQ, 1),
-        Clause("multiple", ClauseOp.EQ, "1"),
-    ))
+    impossible = Predicate(
+        (
+            Clause("multiple", ClauseOp.EQ, 1),
+            Clause("multiple", ClauseOp.EQ, "1"),
+        )
+    )
 
     assert compare_domains(impossible, None).relation is DomainRelation.DISJOINT
 
@@ -250,9 +297,7 @@ def test_compare_domains_proves_null_and_set_domains_disjoint():
 
 
 def test_compare_domains_checks_exact_value_class_membership():
-    duration_domain = Predicate((
-        Clause("unit", ClauseOp.MATCHES_CLASS, ValueClass.DURATION_MULTIPLIER),
-    ))
+    duration_domain = Predicate((Clause("unit", ClauseOp.MATCHES_CLASS, ValueClass.DURATION_MULTIPLIER),))
     matching = Predicate((Clause("unit", ClauseOp.EQ, "2d"),))
     nonmatching = Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),))
 
@@ -271,9 +316,7 @@ def test_compare_domains_does_not_invent_correlated_nested_witness():
 
 
 def test_compare_domains_keeps_operand_metadata_domains_unknown():
-    metadata_domain = Predicate((
-        Clause("__operand_types__.input.logical_kind", ClauseOp.EQ, "int"),
-    ))
+    metadata_domain = Predicate((Clause("__operand_types__.input.logical_kind", ClauseOp.EQ, "int"),))
 
     comparison = compare_domains(metadata_domain, None)
 
@@ -286,8 +329,12 @@ def test_bind_expression_call_aggregates_varargs():
         pass
 
     bc = bind_expression_call(
-        operation_key="OP", backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb",
-        protocol_method=protocol, arguments=["in", "A", "V1", "V2"], options={"b": "B"},
+        operation_key="OP",
+        backend=CONST_BACKEND.IBIS,
+        dialect="ibis-duckdb",
+        protocol_method=protocol,
+        arguments=["in", "A", "V1", "V2"],
+        options={"b": "B"},
     )
     assert bc.bindings["a"] == "A"
     assert bc.bindings["b"] == "B"
@@ -300,8 +347,12 @@ def test_bind_expression_call_applies_defaults_outside_supplied():
         pass
 
     bc = bind_expression_call(
-        operation_key="OP", backend=CONST_BACKEND.POLARS, dialect="polars",
-        protocol_method=protocol, arguments=[LiteralNode(value=7)], options={},
+        operation_key="OP",
+        backend=CONST_BACKEND.POLARS,
+        dialect="polars",
+        protocol_method=protocol,
+        arguments=[LiteralNode(value=7)],
+        options={},
     )
     assert bc.bindings["overflow"] is None
     assert "overflow" not in bc.supplied

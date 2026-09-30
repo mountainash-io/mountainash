@@ -1,14 +1,21 @@
 """Concrete value-class policies resolve only when their selector matches."""
+
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import replace
 
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
-from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector
+from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region, unbounded
+from mountainash.core.capabilities.declarations import (
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.schema import Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate, ValueClass
 from mountainash.core.constants import CONST_BACKEND
@@ -30,9 +37,12 @@ def isolate():
 def _rule(value_class=ValueClass.DURATION_MULTIPLIER):
     return CapabilityPolicyRule(
         CapabilityKey(FK.TRUNCATE, "unit", Selector("value_class", value_class)),
-        CapabilityLevel.UNSUPPORTED,  "multiplier units are unavailable",
-        PolicyConsumer.GATE, PolicyAction.BLOCK,
-     applicability=unbounded)
+        CapabilityLevel.UNSUPPORTED,
+        "multiplier units are unavailable",
+        PolicyConsumer.GATE,
+        PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
 
 
 def _segment(*rules, suffix=""):
@@ -71,9 +81,7 @@ def _interval(lower, upper):
     return Applicability(
         regions=(
             Region(
-                constraints=(
-                    CoordinateConstraint("package", "ibis-framework", specifier=">=" + lower + ",<" + upper),
-                ),
+                constraints=(CoordinateConstraint("package", "ibis-framework", specifier=">=" + lower + ",<" + upper),),
             ),
         ),
     )

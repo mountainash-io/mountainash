@@ -10,16 +10,16 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from mountainash.core.capabilities.capture import CapturedAddress, SourceOrigin, require_immutable
 from mountainash.core.capabilities.applicability import Applicability
-
-from mountainash.core.capabilities.schema import CaptureValue, _UPSTREAM_REF_RE
+from mountainash.core.capabilities.capture import CapturedAddress, SourceOrigin, require_immutable
 from mountainash.core.capabilities.schema import (
+    _UPSTREAM_REF_RE,
     Boundary,
     CapabilityFact,
-    CapabilityLevel,
-    Enforcement,
     CapabilityIssueClass,
+    CapabilityLevel,
+    CaptureValue,
+    Enforcement,
     InformationLayer,
     PolicyAction,
     PolicyConsumer,
@@ -160,7 +160,6 @@ class CapabilityKey:
     selector: Selector = Selector()
     variant: str | None = None
 
-
     def __post_init__(self) -> None:
         if not isinstance(self.operation, Enum):
             raise TypeError("operation requires an operation enum")
@@ -225,7 +224,6 @@ class CapabilityInformation:
     kinds: frozenset[CapabilityIssueClass] = frozenset()
     applicability: Applicability = field(kw_only=True)
 
-
     def __post_init__(self) -> None:
         if type(self.key) is not CapabilityKey:
             raise TypeError("information key requires CapabilityKey")
@@ -278,7 +276,6 @@ class CapabilityPolicyRule:
     applicability: Applicability = field(kw_only=True)
     issue_classes: frozenset[CapabilityIssueClass] = frozenset({CapabilityIssueClass.UNCLASSIFIED})
 
-
     def __post_init__(self) -> None:
         if type(self.key) is not CapabilityKey or type(self.level) is not CapabilityLevel:
             raise TypeError("policy requires CapabilityKey and CapabilityLevel")
@@ -296,8 +293,10 @@ class CapabilityPolicyRule:
             raise TypeError("policy information requires QualifiedInformationKey or None")
         if type(self.applicability) is not Applicability:
             raise TypeError("policy applicability requires Applicability")
-        if type(self.issue_classes) is not frozenset or not self.issue_classes or any(
-            type(issue_class) is not CapabilityIssueClass for issue_class in self.issue_classes
+        if (
+            type(self.issue_classes) is not frozenset
+            or not self.issue_classes
+            or any(type(issue_class) is not CapabilityIssueClass for issue_class in self.issue_classes)
         ):
             raise TypeError("policy issue classes require a nonempty frozen enum set")
         if CapabilityIssueClass.UNCLASSIFIED in self.issue_classes and len(self.issue_classes) != 1:

@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.capabilities.declarations import Domain
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
+from mountainash.core.capabilities.schema import CapabilityLevel, Clause, ClauseOp, InformationLayer, Predicate
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
-from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.schema import ClauseOp
-from mountainash.core.capabilities.schema import Clause
-from mountainash.core.capabilities.schema import Predicate
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.RELATION,

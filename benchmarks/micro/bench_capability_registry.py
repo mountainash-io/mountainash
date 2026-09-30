@@ -12,26 +12,24 @@ requires the immutable-state registry interfaces delivered by item 231.
 """
 
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import gc
 import hashlib
 import importlib.metadata
 import json
 import os
-from pathlib import Path
 import platform
 import runpy
-import sys
 import subprocess
+import sys
 import tracemalloc
 from collections import Counter
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any, Iterator
 
 import pytest
-
 
 _VARIANTS = frozenset(
     {
@@ -255,8 +253,8 @@ def _provenance(variant: str) -> Provenance:
 
 
 def _assert_selected_interfaces() -> None:
-    from mountainash.core.capabilities.registry import CapabilityRegistry
     import mountainash.core.capabilities.registry as registry_module
+    from mountainash.core.capabilities.registry import CapabilityRegistry
 
     missing = [
         name
@@ -264,9 +262,7 @@ def _assert_selected_interfaces() -> None:
         if not callable(getattr(CapabilityRegistry, name, None))
     ]
     missing.extend(
-        name
-        for name in ("_prepare_state", "_empty_state")
-        if not callable(getattr(registry_module, name, None))
+        name for name in ("_prepare_state", "_empty_state") if not callable(getattr(registry_module, name, None))
     )
     if getattr(CapabilityRegistry, "_state", None) is None:
         missing.append("CapabilityRegistry._state")
@@ -276,9 +272,7 @@ def _assert_selected_interfaces() -> None:
         )
 
 
-def _metadata_names_for_facts(
-    facts: tuple[Any, ...], operation_key: Any, backend: Any, dialect: str
-) -> frozenset[str]:
+def _metadata_names_for_facts(facts: tuple[Any, ...], operation_key: Any, backend: Any, dialect: str) -> frozenset[str]:
     from mountainash.core.capabilities.predicates import metadata_arguments
     from mountainash.core.capabilities.schema import Enforcement
 
@@ -297,21 +291,21 @@ def _metadata_names_for_facts(
 
 def _install_predicate_only_adapter() -> Adapter:
     """Reference model: scan the published policy view for each metadata query."""
-    from mountainash.core.capabilities.registry import CapabilityRegistry
-    from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
-    from mountainash.expressions.core.expression_nodes import ExpressionNode
-    from mountainash.expressions.core.unified_visitor.visitor import _param_name_for, _protocol_sig_params
     from mountainash.core.capabilities.predicates import metadata_arguments
+    from mountainash.core.capabilities.registry import CapabilityRegistry
     from mountainash.core.capabilities.schema import Enforcement, PolicyConsumer
+    from mountainash.expressions.core.expression_nodes import ExpressionNode
+    from mountainash.expressions.core.unified_visitor.visitor import (
+        UnifiedExpressionVisitor,
+        _param_name_for,
+        _protocol_sig_params,
+    )
 
     adapter = Adapter([])
     original_facts = CapabilityRegistry.facts
 
     def predicate_facts():
-        return tuple(
-            fact for fact in original_facts(enforcement=Enforcement.GATE)
-            if fact.predicate is not None
-        )
+        return tuple(fact for fact in original_facts(enforcement=Enforcement.GATE) if fact.predicate is not None)
 
     def required(self, func_def, protocol_method, arguments):
         required = set(func_def.type_arguments)
@@ -352,12 +346,15 @@ def _install_predicate_only_adapter() -> Adapter:
 
 def _install_names_gates_adapter() -> Adapter:
     """Reference model: local names/buckets rebuilt after each segment publication."""
-    from mountainash.core.capabilities.registry import CapabilityRegistry
-    from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
-    from mountainash.expressions.core.expression_nodes import ExpressionNode
-    from mountainash.expressions.core.unified_visitor.visitor import _param_name_for, _protocol_sig_params
     from mountainash.core.capabilities.predicates import metadata_arguments, predicate_holds
+    from mountainash.core.capabilities.registry import CapabilityRegistry
     from mountainash.core.capabilities.schema import CapabilityLevel, Enforcement, PolicyConsumer
+    from mountainash.expressions.core.expression_nodes import ExpressionNode
+    from mountainash.expressions.core.unified_visitor.visitor import (
+        UnifiedExpressionVisitor,
+        _param_name_for,
+        _protocol_sig_params,
+    )
 
     adapter = Adapter([])
     original_facts = CapabilityRegistry.facts
@@ -653,8 +650,8 @@ else:
 
 def _state_prepare_once() -> object:
     """Call the selected writer-path preparation boundary directly."""
-    from mountainash.core.capabilities.registry import CapabilityRegistry
     import mountainash.core.capabilities.registry as registry_module
+    from mountainash.core.capabilities.registry import CapabilityRegistry
 
     state = CapabilityRegistry._state
     return registry_module._prepare_state(
@@ -724,30 +721,42 @@ def _register_synthetic_policies(backend_name: str, policies: tuple[Any, ...], l
 
 
 def _metadata_gate_policy(*, backend_name: str = "polars", index: int = 0) -> Any:
+    from mountainash.core.capabilities.applicability import unbounded
     from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
-    from mountainash.core.capabilities.schema import CapabilityLevel, Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
+    from mountainash.core.capabilities.schema import (
+        CapabilityLevel,
+        Clause,
+        ClauseOp,
+        PolicyAction,
+        PolicyConsumer,
+        Predicate,
+    )
     from mountainash.core.dtypes.metadata import STORAGE_KINDS
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
     alternatives = sorted(STORAGE_KINDS - {"native"})
     assert 0 <= index < 1 << len(alternatives)
     storage = frozenset({"native"} | {kind for bit, kind in enumerate(alternatives) if index & (1 << bit)})
-    return CapabilityPolicyRule(key=CapabilityKey(
-        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-        "x",
-        Selector(
-            "predicate",
-            Predicate(
-                (
-                    Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-                    Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
-                )
+    return CapabilityPolicyRule(
+        key=CapabilityKey(
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            "x",
+            Selector(
+                "predicate",
+                Predicate(
+                    (
+                        Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+                        Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
+                    )
+                ),
             ),
         ),
-    ),
-    level=CapabilityLevel.UNSUPPORTED, message=f"item231 benchmark metadata ABS blocker {index}",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
+        level=CapabilityLevel.UNSUPPORTED,
+        message=f"item231 benchmark metadata ABS blocker {index}",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
 
 
 @contextmanager
@@ -786,8 +795,9 @@ def _temporary_metadata_gate() -> Iterator[None]:
 
 
 def _verify_metadata_gate() -> tuple[str, str]:
-    import mountainash as ma
     import polars as pl
+
+    import mountainash as ma
     from mountainash.core.types import BackendCapabilityError
 
     with _temporary_metadata_gate():
@@ -799,16 +809,21 @@ def _verify_metadata_gate() -> tuple[str, str]:
 
 
 def _residue_policy() -> Any:
+    from mountainash.core.capabilities.applicability import unbounded
     from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule
     from mountainash.core.capabilities.schema import CapabilityLevel, PolicyAction, PolicyConsumer
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    return CapabilityPolicyRule(key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, "x"),
-    level=CapabilityLevel.UNSUPPORTED, message="item231 benchmark residue enrichment",
-    consumer=PolicyConsumer.MATERIALIZATION_ERROR,
-    action=PolicyAction.ENRICH,
-    native_errors=(ValueError,),
-    native_issue="benchmark:item231-native-sentinel", applicability=unbounded)
+    return CapabilityPolicyRule(
+        key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, "x"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="item231 benchmark residue enrichment",
+        consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+        action=PolicyAction.ENRICH,
+        native_errors=(ValueError,),
+        native_issue="benchmark:item231-native-sentinel",
+        applicability=unbounded,
+    )
 
 
 def _enrichment_case(path: str):
@@ -884,6 +899,7 @@ def _report_inputs() -> tuple[tuple[Any, ...], tuple[Any, ...]]:
     if not callable(helper):
         raise UnsupportedCapsuleConfiguration("selected registry does not expose reporting inputs")
     return helper()
+
 
 def _profile_call(call) -> dict[str, Any]:
     """Instrumentation uses sys.setprofile/tracemalloc, never selected code patches."""
@@ -1212,30 +1228,46 @@ def test_item231_negative_lookup_scaling(benchmark, capsule, cardinality):
 def _unrelated_registry_population(kind: str, count: int) -> Iterator[None]:
     """Vary exact-policy and predicate-policy populations outside the ABS bucket."""
     from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.applicability import unbounded
     from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
-    from mountainash.core.capabilities.schema import CapabilityLevel, Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
+    from mountainash.core.capabilities.schema import (
+        CapabilityLevel,
+        Clause,
+        ClauseOp,
+        PolicyAction,
+        PolicyConsumer,
+        Predicate,
+    )
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
     token = CapabilityRegistry.snapshot()
     try:
         policies = []
         for index in range(count):
-            key = CapabilityKey(
-                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
-                "x",
-                Selector("predicate", Predicate((Clause("x", ClauseOp.EQ, index),))),
-            ) if kind == "unrelated-predicates" else CapabilityKey(
-                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
-                "x",
-                Selector("exact", str(index)),
+            key = (
+                CapabilityKey(
+                    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+                    "x",
+                    Selector("predicate", Predicate((Clause("x", ClauseOp.EQ, index),))),
+                )
+                if kind == "unrelated-predicates"
+                else CapabilityKey(
+                    FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+                    "x",
+                    Selector("exact", str(index)),
+                )
             )
             if kind not in {"unrelated-predicates", "unrelated-facts"}:
                 raise UnsupportedCapsuleConfiguration(f"unknown registry population axis {kind!r}")
             policies.append(
-                CapabilityPolicyRule(key=key,
-                level=CapabilityLevel.UNSUPPORTED, message=f"item231 unrelated {kind} {index}",
-                consumer=PolicyConsumer.GATE,
-                action=PolicyAction.BLOCK, applicability=unbounded)
+                CapabilityPolicyRule(
+                    key=key,
+                    level=CapabilityLevel.UNSUPPORTED,
+                    message=f"item231 unrelated {kind} {index}",
+                    consumer=PolicyConsumer.GATE,
+                    action=PolicyAction.BLOCK,
+                    applicability=unbounded,
+                )
             )
         _register_synthetic_policies("polars", tuple(policies), f"unrelated_{kind}")
         yield
@@ -1352,6 +1384,7 @@ def test_item231_independent_scaling_axes(benchmark, capsule, backends, axis, si
 def test_item231_applicable_metadata_population(benchmark, capsule, count):
     """Vary only applicable ABS metadata predicates and observe the gating result."""
     import polars as pl
+
     from mountainash.core.types import BackendCapabilityError
 
     with _metadata_population("polars", count):
@@ -1403,6 +1436,7 @@ def test_item231_metadata_gate_and_lifecycle(benchmark, capsule):
 
 
 def _exact_registration_segment():
+    from mountainash.core.capabilities.applicability import unbounded
     from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
     from mountainash.core.capabilities.schema import CapabilityLevel, PolicyAction, PolicyConsumer
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
@@ -1411,14 +1445,18 @@ def _exact_registration_segment():
         backend_name="polars",
         label="registration",
         index=0,
-        policy=CapabilityPolicyRule(key=CapabilityKey(
-            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-            "x",
-            Selector("exact", "item231-registration-duplicate"),
+        policy=CapabilityPolicyRule(
+            key=CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                "x",
+                Selector("exact", "item231-registration-duplicate"),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            message="item231 exact registration duplicate",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+            applicability=unbounded,
         ),
-        level=CapabilityLevel.UNSUPPORTED, message="item231 exact registration duplicate",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK, applicability=unbounded),
     )
 
 

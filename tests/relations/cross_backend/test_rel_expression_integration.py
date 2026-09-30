@@ -1,20 +1,18 @@
 """Cross-backend integration tests: mountainash expressions inside relational operations."""
 
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
-import polars as pl
-import pandas as pd
-import narwhals as nw
 import ibis
+import narwhals as nw
+import pandas as pd
+import polars as pl
 import pytest
-
-from mountainash import col, lit, when, coalesce, greatest, least
-from mountainash.relations import relation
-
 from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.call_expectations import expect_call_failure
 
+from mountainash import coalesce, col, greatest, least, lit, when
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.relations import relation
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -230,7 +228,10 @@ class TestHorizontalFunctions:
             reason="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
         ):
             result = (
-                relation(df).with_columns(greatest(col("score"), lit(90)).name.alias("at_least_90")).sort("id").to_dict()
+                relation(df)
+                .with_columns(greatest(col("score"), lit(90)).name.alias("at_least_90"))
+                .sort("id")
+                .to_dict()
             )
             assert result["at_least_90"] == [90, 92, 90, 95, 90], f"[{backend_name}]"
 
@@ -242,7 +243,9 @@ class TestHorizontalFunctions:
             errors=(AssertionError,),
             reason="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
         ):
-            result = relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()
+            result = (
+                relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()
+            )
             assert result["capped_at_90"] == [85, 90, 78, 90, 88], f"[{backend_name}]"
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -474,27 +477,31 @@ def test_relation_metadata_policy_uses_prepared_input(backend_name, backend_fact
         CapabilityRegistry.reset()
         identity = identify_backend_identity(floating)
         assert identity.dialect is not None
-        predicate = Predicate((
-            Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-        ))
-        policy = CapabilityPolicyRule(key=CapabilityKey(
-            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-            "x",
-            Selector("predicate", predicate),
-        ),
-        level=CapabilityLevel.UNSUPPORTED, message="float operand blocked",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK, applicability=unbounded)
+        predicate = Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),))
+        policy = CapabilityPolicyRule(
+            key=CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                "x",
+                Selector("predicate", predicate),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            message="float operand blocked",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+            applicability=unbounded,
+        )
         module = (
             "mountainash.expressions.backends.capabilities."
             f"{identity.family.value}.dialects.{identity.dialect.replace('-', '_')}."
             "substrait.arithmetic.synthetic_relation_metadata"
         )
-        CapabilityRegistry.register_segment(BoundSegment(
-            module,
-            Scope(identity.family, Dialect(identity.dialect)),
-            CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                module,
+                Scope(identity.family, Dialect(identity.dialect)),
+                CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
+            )
+        )
         registered = CapabilityRegistry.snapshot()
         with pytest.raises(BackendCapabilityError) as error:
             relation(floating).select(expression).collect()

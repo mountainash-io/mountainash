@@ -1,28 +1,34 @@
 """DAG roots use prepared physical placement, not ref spelling."""
-from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
-import pytest
+from __future__ import annotations
+
 import ibis
-import pyarrow as pa
 import polars as pl
+import pyarrow as pa
+import pytest
+from fixtures.backend_registry import REGISTRY
 
 import mountainash as ma
-from fixtures.backend_registry import REGISTRY
-from mountainash.core.capabilities.policy import CapabilityPolicy
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
-    BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
 )
 from mountainash.core.capabilities.identity import Dialect, Scope
+from mountainash.core.capabilities.policy import CapabilityPolicy
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.types import BackendCapabilityError
-from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
 from mountainash.relations.core.errors import (
-    CompileRequiresExecutionError, ConflictingExecutionTargetError,
+    CompileRequiresExecutionError,
+    ConflictingExecutionTargetError,
     UnresolvedExecutionLocationError,
 )
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
 
 
 @pytest.mark.parametrize("operation", ["join", "union_all", "union_distinct"])
@@ -82,8 +88,13 @@ def test_polars_only_multi_input_preparation_never_imports_ibis(monkeypatch, ope
 
     left = ma.relation(pl.DataFrame({"id": [1]}))
     right = ma.relation(pl.DataFrame({"id": [2]}))
-    relation = left.join(right, on="id") if operation == "join" else ma.concat(
-        [left, right], distinct=operation == "union_distinct",
+    relation = (
+        left.join(right, on="id")
+        if operation == "join"
+        else ma.concat(
+            [left, right],
+            distinct=operation == "union_distinct",
+        )
     )
     original_import = importlib.import_module
 
@@ -153,9 +164,13 @@ def test_repeated_named_memory_ref_reuses_payload_transfer_without_rebinding(mon
         return original(self, source, requirement)
 
     monkeypatch.setattr(TransportSession, "_convert", counted)
-    relation = ma.concat([
-        ma.relation(pl.DataFrame({"id": [1]})), dag.ref("memory"), dag.ref("memory"),
-    ])
+    relation = ma.concat(
+        [
+            ma.relation(pl.DataFrame({"id": [1]})),
+            dag.ref("memory"),
+            dag.ref("memory"),
+        ]
+    )
     assert sorted(relation.to_polars()["id"].to_list()) == [1, 2, 2]
     assert routes == [("memory", "ibis_memory_payload")]
 
@@ -198,9 +213,17 @@ def test_resource_ref_with_ibis_family_override_keeps_declared_read_location():
     from mountainash.typespec.datapackage import DataResource
 
     dag = ma.RelationDAG()
-    dag.add("inline", Relation(ResourceReadRelNode(resource=DataResource(
-        name="inline", data=[{"id": 1}, {"id": 2}],
-    ))))
+    dag.add(
+        "inline",
+        Relation(
+            ResourceReadRelNode(
+                resource=DataResource(
+                    name="inline",
+                    data=[{"id": 1}, {"id": 2}],
+                )
+            )
+        ),
+    )
     dag.add("projected", dag.ref("inline").select("id"))
     assert dag.collect("projected", backend="ibis").collect().to_dict(as_series=False) == {
         "id": [1, 2],
@@ -209,7 +232,9 @@ def test_resource_ref_with_ibis_family_override_keeps_declared_read_location():
 
 @pytest.mark.parametrize("nested", [False, True])
 def test_resource_explain_does_not_read_resource(monkeypatch, nested):
-    from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import MountainashPolarsExtensionRelationSystem
+    from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+        MountainashPolarsExtensionRelationSystem,
+    )
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
     from mountainash.typespec.datapackage import DataResource
@@ -333,7 +358,6 @@ def test_repeated_named_ref_prepares_original_plan_once(monkeypatch):
 
 def test_one_session_separates_canonical_plan_bound_compilations_and_value_transfers(monkeypatch):
     import mountainash.relations.dag.materialization as dag_materialization
-
     from mountainash.relations.core.execution.compilation import CompilationSession
     from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
     from mountainash.relations.core.execution.transport import TransportSession
@@ -382,8 +406,9 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
     monkeypatch.setattr(dag_materialization, "materialize_native", observed_materialize)
     try:
         bound_values = []
-        for frame, destination in zip((a, a, b, c, c),
-                                      (locations[0], locations[0], locations[1], locations[2], locations[2])):
+        for frame, destination in zip(
+            (a, a, b, c, c), (locations[0], locations[0], locations[1], locations[2], locations[2])
+        ):
             value = session.resolve_at("memory", destination)
             bound_values.append(value)
             joined = frame.join(value, "id")
@@ -398,7 +423,9 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
         assert session._canonical == {}
         assert session._plans["memory"] is dag.relations["memory"]._node
         assert transfers == []  # binding a self-contained plan is not exporting a database
-        assert session.resolver_for(session._destination_for(locations[2])).envelope("memory").location.connection is c._find_backend(use_default=False)
+        assert session.resolver_for(session._destination_for(locations[2])).envelope(
+            "memory"
+        ).location.connection is c._find_backend(use_default=False)
 
         # Two different compatible consumers share the bound dependency's
         # canonical native value, without a materialized-value transfer.
@@ -425,9 +452,15 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
         ]
         assert len(canonical_materializations) == 1
         assert session.canonical_keys == frozenset({"memory", "bound"})
-        assert session._canonical["bound"].native.value._find_backend(use_default=False) is bound._find_backend(use_default=False)
-        assert session._coerced[("bound", session._destination_for(locations[1]).key)].target.owner is b._find_backend(use_default=False)
-        assert session._coerced[("bound", session._destination_for(locations[2]).key)].target.owner is c._find_backend(use_default=False)
+        assert session._canonical["bound"].native.value._find_backend(use_default=False) is bound._find_backend(
+            use_default=False
+        )
+        assert session._coerced[("bound", session._destination_for(locations[1]).key)].target.owner is b._find_backend(
+            use_default=False
+        )
+        assert session._coerced[("bound", session._destination_for(locations[2]).key)].target.owner is c._find_backend(
+            use_default=False
+        )
     finally:
         session.close(release_owned=False)
 
@@ -439,18 +472,27 @@ def test_ref_child_adopts_source_conform_diagnostics():
     from mountainash.typespec.universal_types import UniversalType
 
     dag = ma.RelationDAG()
-    spec = TypeSpec(fields_match="open", fields=[
-        FieldSpec(name="payload", type=UniversalType.OBJECT),
-    ])
-    source = ma.relation(pl.DataFrame({
-        "id": [1], "payload": ['{"k": 1}'],
-    })).conform(spec, contract={"data_type": "coerce"})
+    spec = TypeSpec(
+        fields_match="open",
+        fields=[
+            FieldSpec(name="payload", type=UniversalType.OBJECT),
+        ],
+    )
+    source = ma.relation(
+        pl.DataFrame(
+            {
+                "id": [1],
+                "payload": ['{"k": 1}'],
+            }
+        )
+    ).conform(spec, contract={"data_type": "coerce"})
     _, source_visitor = source._compile_and_execute_with_visitor()
     assert any(trace.records for trace in source_visitor.diagnostic_traces.values())
     dag.add("source", source)
     rel = dag.ref("source").select("id")
     result, visitor = dag._execute_with_visitor(
-        rel, execution_policy=CapabilityPolicy.trusted(),
+        rel,
+        execution_policy=CapabilityPolicy.trusted(),
     )
     assert result.collect().to_dict(as_series=False) == {"id": [1]}
     assert any(trace.records for trace in visitor.diagnostic_traces.values())
@@ -459,7 +501,9 @@ def test_ref_child_adopts_source_conform_diagnostics():
 @pytest.mark.parametrize("registered", [False, True])
 @pytest.mark.parametrize("nested", [False, True])
 def test_late_transformed_ref_gate_precedes_canonical_cache_and_export(
-    monkeypatch, registered, nested,
+    monkeypatch,
+    registered,
+    nested,
 ):
     from mountainash.relations.dag.materialization import DAGMaterializationSession
 
@@ -497,13 +541,25 @@ def test_late_transformed_ref_gate_precedes_canonical_cache_and_export(
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.relations.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.relation",
-            Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-            level=CapabilityLevel.UNSUPPORTED, message="P3 transformed late ref gate",
-            consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, applicability=unbounded),)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.relations.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.relation",
+                Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
+                CapabilitySegment(
+                    Domain.RELATION,
+                    policies=(
+                        CapabilityPolicyRule(
+                            key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+                            level=CapabilityLevel.UNSUPPORTED,
+                            message="P3 transformed late ref gate",
+                            consumer=PolicyConsumer.GATE,
+                            action=PolicyAction.BLOCK,
+                            applicability=unbounded,
+                        ),
+                    ),
+                ),
+            )
+        )
         with pytest.raises(BackendCapabilityError, match="P3 transformed late ref gate"):
             if registered:
                 dag.collect("result")
@@ -518,7 +574,10 @@ def test_late_transformed_ref_gate_precedes_canonical_cache_and_export(
 @pytest.mark.parametrize("operation", ["join", "union_all", "union_distinct"])
 @pytest.mark.parametrize("configured_default", [False, True])
 def test_connectionless_authority_does_not_acquire_implicit_backend(
-    monkeypatch, terminal, operation, configured_default,
+    monkeypatch,
+    terminal,
+    operation,
+    configured_default,
 ):
     default = ibis.duckdb.connect() if configured_default else None
     monkeypatch.setattr(ibis.options, "default_backend", default)
@@ -527,8 +586,13 @@ def test_connectionless_authority_does_not_acquire_implicit_backend(
     dag.add("memory", ma.relation(memory))
     dag.add("raw", ma.relation({"id": [2]}))
     left, right = dag.ref("memory"), dag.ref("raw")
-    rel = left.join(right, on="id") if operation == "join" else ma.concat(
-        [left, right], distinct=operation == "union_distinct",
+    rel = (
+        left.join(right, on="id")
+        if operation == "join"
+        else ma.concat(
+            [left, right],
+            distinct=operation == "union_distinct",
+        )
     )
     original = type(memory)._find_backend
 

@@ -1,12 +1,13 @@
 """Render-only examples do not become executable or verified catalogue claims."""
 
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import sys
 from pathlib import Path
 
 import pytest
+
+from mountainash.core.capabilities.applicability import unbounded
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
@@ -14,11 +15,15 @@ from generate_divergences_catalog import render_catalog
 
 from mountainash.core.capabilities.capture import SourceOrigin
 from mountainash.core.capabilities.declarations import (
-    CapabilityInformation, CapabilityKey, Domain, FactSource,
-    QualifiedInformation, QualifiedInformationKey,
+    CapabilityInformation,
+    CapabilityKey,
+    Domain,
+    FactSource,
+    QualifiedInformation,
+    QualifiedInformationKey,
 )
 from mountainash.core.capabilities.identity import Dialect, Scope
-from mountainash.core.capabilities.schema import CapabilityLevel, CapabilityIssueClass, InformationLayer
+from mountainash.core.capabilities.schema import CapabilityIssueClass, CapabilityLevel, InformationLayer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK
 
@@ -29,14 +34,17 @@ def _information(dialect, *, issue=None, kinds=frozenset()):
         CapabilityKey(FK.TITLE, "*"),
         InformationLayer.NATIVE,
         CapabilityLevel.EXPR_CAPABLE,
-        
         "Native Unicode title casing differs.",
         issue=issue,
         kinds=kinds,
-     applicability=unbounded)
+        applicability=unbounded,
+    )
     origin = SourceOrigin(
         f"mountainash.expressions.backends.capabilities.ibis.dialects.{dialect.replace('-', '_')}.substrait.string",
-        scope, FactSource.SUBSTRAIT, Domain.STRING, "information[0]",
+        scope,
+        FactSource.SUBSTRAIT,
+        Domain.STRING,
+        "information[0]",
     )
     return QualifiedInformation(QualifiedInformationKey(scope, assertion.key, assertion.layer), assertion, (origin,))
 
@@ -101,5 +109,8 @@ def test_catalogue_order_is_independent_of_input_order():
     information = (_information("ibis-duckdb"), _information("ibis-sqlite"))
     examples = (_example("ibis-duckdb"), _example("ibis-sqlite"))
     assert render_catalog(information, (), examples, []) == render_catalog(
-        tuple(reversed(information)), (), tuple(reversed(examples)), [],
+        tuple(reversed(information)),
+        (),
+        tuple(reversed(examples)),
+        [],
     )

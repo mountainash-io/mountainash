@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.capabilities.declarations import Domain
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer, PolicyAction, PolicyConsumer
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation, CapabilityPolicyRule
-from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
-from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.DATETIME,

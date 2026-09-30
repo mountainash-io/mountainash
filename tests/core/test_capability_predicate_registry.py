@@ -1,7 +1,6 @@
 """Predicate policy publication, resolution, and metadata boundaries."""
 
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import replace
 
@@ -10,6 +9,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     CapabilityKey,
@@ -33,29 +33,29 @@ from mountainash.core.dtypes.metadata import OperandType
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as FK_ARITH,
+)
+from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
-
 
 _OP = FK_ARITH.ABS
 _SCOPE = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
 
 
 def _policy(subject, action, predicate, *, message=None):
-    return CapabilityPolicyRule(key=CapabilityKey(_OP, subject, Selector("predicate", predicate)),
-    level=(
-        CapabilityLevel.UNSUPPORTED
-        if action is PolicyAction.BLOCK
-        else CapabilityLevel.EXPR_CAPABLE
-    ), message=message or f"{subject} {action.value}",
-    consumer=PolicyConsumer.GATE,
-    action=action, applicability=unbounded)
+    return CapabilityPolicyRule(
+        key=CapabilityKey(_OP, subject, Selector("predicate", predicate)),
+        level=(CapabilityLevel.UNSUPPORTED if action is PolicyAction.BLOCK else CapabilityLevel.EXPR_CAPABLE),
+        message=message or f"{subject} {action.value}",
+        consumer=PolicyConsumer.GATE,
+        action=action,
+        applicability=unbounded,
+    )
 
 
 def _segment(*policies, suffix=""):
     return BoundSegment(
-        "mountainash.expressions.backends.capabilities.polars."
-        f"dialects.polars.substrait.arithmetic{suffix}",
+        f"mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic{suffix}",
         _SCOPE,
         CapabilitySegment(Domain.ARITHMETIC, policies=policies),
     )
@@ -171,14 +171,18 @@ def test_null_predicate_and_value_class_partition_publish_as_independent_domains
         Predicate((Clause("x", ClauseOp.IS_NULL),)),
         message="null abs input is blocked",
     )
-    value_class_block = CapabilityPolicyRule(key=CapabilityKey(
-        _OP,
-        "x",
-        Selector("value_class", ValueClass.DURATION_MULTIPLIER),
-    ),
-    level=CapabilityLevel.UNSUPPORTED, message="duration multiplier abs input is blocked",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
+    value_class_block = CapabilityPolicyRule(
+        key=CapabilityKey(
+            _OP,
+            "x",
+            Selector("value_class", ValueClass.DURATION_MULTIPLIER),
+        ),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="duration multiplier abs input is blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
     segment = _segment(
         null_block,
         value_class_block,
@@ -195,10 +199,13 @@ def test_null_predicate_and_value_class_partition_publish_as_independent_domains
 
 def test_exact_string_and_null_predicate_cannot_cancel_after_normalization(isolated):
     literal_block = _policy(
-        "x", PolicyAction.BLOCK, Predicate((Clause("x", ClauseOp.EQ, "None"),)),
+        "x",
+        PolicyAction.BLOCK,
+        Predicate((Clause("x", ClauseOp.EQ, "None"),)),
     )
     literal_block = replace(
-        literal_block, key=CapabilityKey(_OP, "x", Selector("exact", "None")),
+        literal_block,
+        key=CapabilityKey(_OP, "x", Selector("exact", "None")),
     )
     initial = _segment(literal_block, suffix=".normalized_null_block")
     CapabilityRegistry.register_segment(initial)
@@ -298,31 +305,40 @@ def test_opposing_predicate_policies_compete_across_subject_labels(isolated):
     )
 
     with pytest.raises(ValueError):
-        CapabilityRegistry.register_segment(
-            _segment(broad_block, other_subject_permit, suffix=".cross_subject")
-        )
+        CapabilityRegistry.register_segment(_segment(broad_block, other_subject_permit, suffix=".cross_subject"))
 
 
 def test_same_subject_single_answer_selectors_compete(isolated):
-    block_all = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow"),
-    level=CapabilityLevel.UNSUPPORTED, message="all overflow modes are blocked",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
-    permit_error = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
-    level=CapabilityLevel.EXPR_CAPABLE, message="ERROR mode is permitted",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.PERMIT, applicability=unbounded)
+    block_all = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="all overflow modes are blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    permit_error = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
+        level=CapabilityLevel.EXPR_CAPABLE,
+        message="ERROR mode is permitted",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.PERMIT,
+        applicability=unbounded,
+    )
 
     with pytest.raises(ValueError):
-        CapabilityRegistry.register_segment(
-            _segment(block_all, permit_error, suffix=".single_answer")
-        )
+        CapabilityRegistry.register_segment(_segment(block_all, permit_error, suffix=".single_answer"))
+
 
 def test_literal_only_protection_and_literal_permit_have_disjoint_call_shapes(isolated):
-    dynamic_block = CapabilityPolicyRule(key=CapabilityKey(_OP, "x"),
-    level=CapabilityLevel.LITERAL_ONLY, message="Dynamic arguments are refused",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
+    dynamic_block = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "x"),
+        level=CapabilityLevel.LITERAL_ONLY,
+        message="Dynamic arguments are refused",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
     literal_permit = _policy("x", PolicyAction.PERMIT, Predicate((Clause("x", ClauseOp.IS_LITERAL),)))
     CapabilityRegistry.register_segment(_segment(dynamic_block, literal_permit, suffix=".call_shapes"))
 
@@ -406,9 +422,7 @@ def test_complete_metadata_gate_distinguishes_operand_type_and_option(isolated):
 
     assert CapabilityRegistry.violations_for(floating) == frozenset({policy.qualify(_SCOPE)})
     assert CapabilityRegistry.violations_for(integer) == frozenset()
-    assert CapabilityRegistry.violations_for(
-        replace(floating, bindings={"x": 1, "overflow": "other"})
-    ) == frozenset()
+    assert CapabilityRegistry.violations_for(replace(floating, bindings={"x": 1, "overflow": "other"})) == frozenset()
 
 
 @pytest.mark.parametrize(
@@ -454,10 +468,14 @@ def test_metadata_names_are_exact_scope_declaration_data(isolated):
 
 
 def test_whole_operation_policy_is_not_a_parameter_fallback(isolated):
-    policy = CapabilityPolicyRule(key=CapabilityKey(_OP, "*"),
-    level=CapabilityLevel.UNSUPPORTED, message="The operation is refused in this concrete scope",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
+    policy = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "*"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="The operation is refused in this concrete scope",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
     CapabilityRegistry.register_segment(_segment(policy, suffix=".whole_operation"))
 
     assert CapabilityRegistry.capability_for(_OP, "x", CONST_BACKEND.POLARS, "polars") is None
@@ -471,25 +489,37 @@ def test_whole_operation_policy_is_not_a_parameter_fallback(isolated):
 
 
 def test_single_answer_queries_select_the_named_consumer_without_selector_priority(isolated):
-    gate = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
-    level=CapabilityLevel.UNSUPPORTED, message="ERROR mode is refused",
-    consumer=PolicyConsumer.GATE,
-    action=PolicyAction.BLOCK, applicability=unbounded)
-    enrichment = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow"),
-    level=CapabilityLevel.UNSUPPORTED, message="An identified native failure can be explained",
-    consumer=PolicyConsumer.IMMEDIATE_ERROR,
-    action=PolicyAction.ENRICH,
-    native_errors=(TypeError,),
-    native_issue="test:overflow-native-failure", applicability=unbounded)
+    gate = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="ERROR mode is refused",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+    enrichment = CapabilityPolicyRule(
+        key=CapabilityKey(_OP, "overflow"),
+        level=CapabilityLevel.UNSUPPORTED,
+        message="An identified native failure can be explained",
+        consumer=PolicyConsumer.IMMEDIATE_ERROR,
+        action=PolicyAction.ENRICH,
+        native_errors=(TypeError,),
+        native_issue="test:overflow-native-failure",
+        applicability=unbounded,
+    )
     CapabilityRegistry.register_segment(_segment(gate, enrichment, suffix=".named_consumers"))
 
     assert CapabilityRegistry.capability_for(
         _OP, "overflow", CONST_BACKEND.POLARS, "polars", option_value="ERROR"
     ) == gate.qualify(_SCOPE)
+    assert (
+        CapabilityRegistry.capability_for(_OP, "overflow", CONST_BACKEND.POLARS, "polars", option_value="NULL") is None
+    )
     assert CapabilityRegistry.capability_for(
-        _OP, "overflow", CONST_BACKEND.POLARS, "polars", option_value="NULL"
-    ) is None
-    assert CapabilityRegistry.capability_for(
-        _OP, "overflow", CONST_BACKEND.POLARS, "polars",
-        option_value="ERROR", consumer=PolicyConsumer.IMMEDIATE_ERROR,
+        _OP,
+        "overflow",
+        CONST_BACKEND.POLARS,
+        "polars",
+        option_value="ERROR",
+        consumer=PolicyConsumer.IMMEDIATE_ERROR,
     ) == enrichment.qualify(_SCOPE)

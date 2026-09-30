@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.capabilities.declarations import Domain
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-
-
-from mountainash.core.capabilities.declarations import CapabilitySegment
-from mountainash.core.capabilities.declarations import CapabilityPolicyRule, QualifiedInformationKey
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+    QualifiedInformationKey,
+    Selector,
+)
 from mountainash.core.capabilities.identity import Dialect, Scope
-from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer, PolicyAction, PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 
 _SCOPE = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
 

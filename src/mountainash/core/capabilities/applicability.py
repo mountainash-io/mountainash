@@ -144,8 +144,7 @@ class PreparedCoordinateConstraint:
         kind, name = _canonical_coordinate(*self.coordinate)
         object.__setattr__(self, "coordinate", (kind, name))
         if type(self.literal_specifiers) is not tuple or any(
-            type(specifier) is not Specifier or specifier.operator != "==="
-            for specifier in self.literal_specifiers
+            type(specifier) is not Specifier or specifier.operator != "===" for specifier in self.literal_specifiers
         ):
             raise TypeError("prepared literal specifiers must be an immutable tuple of === clauses")
         if self.version_specifiers is not None and type(self.version_specifiers) is not SpecifierSet:
@@ -171,9 +170,7 @@ class PreparedCoordinateConstraint:
             return ApplicabilityResult.INDETERMINATE
         if self.opaque_equal is not None:
             return (
-                ApplicabilityResult.APPLICABLE
-                if value.raw == self.opaque_equal
-                else ApplicabilityResult.NOT_APPLICABLE
+                ApplicabilityResult.APPLICABLE if value.raw == self.opaque_equal else ApplicabilityResult.NOT_APPLICABLE
             )
         if any(not clause.contains(value.raw, prereleases=None) for clause in self.literal_specifiers):
             return ApplicabilityResult.NOT_APPLICABLE
@@ -238,9 +235,7 @@ class PreparedApplicability:
             if any(type(region) is not PreparedRegion for region in self.regions):
                 raise TypeError("prepared applicability requires prepared regions")
         requirements = frozenset(
-            constraint.requirement
-            for region in (self.regions or ())
-            for constraint in region.constraints
+            constraint.requirement for region in (self.regions or ()) for constraint in region.constraints
         )
         object.__setattr__(self, "requirements", requirements)
 
@@ -299,16 +294,19 @@ def _prepare_region(region: Region) -> PreparedRegion | None:
         version_clauses = tuple(specifier for specifier in combined if specifier.operator != "===")
         version_specifiers = (
             SpecifierSet(",".join(str(specifier) for specifier in version_clauses), prereleases=None)
-            if version_clauses else None
+            if version_clauses
+            else None
         )
-        prepared.append(PreparedCoordinateConstraint(
-            coordinate,
-            literal_specifiers,
-            version_specifiers,
-            version_range,
-            None,
-            bool(version_clauses),
-        ))
+        prepared.append(
+            PreparedCoordinateConstraint(
+                coordinate,
+                literal_specifiers,
+                version_specifiers,
+                version_range,
+                None,
+                bool(version_clauses),
+            )
+        )
     if empty:
         return None
     return PreparedRegion(tuple(prepared))
@@ -317,9 +315,7 @@ def _prepare_region(region: Region) -> PreparedRegion | None:
 def _prepare_applicability(regions: tuple[Region, ...] | None) -> PreparedApplicability:
     if regions is None:
         return PreparedApplicability(None)
-    prepared = tuple(
-        result for region in regions if (result := _prepare_region(region)) is not None
-    )
+    prepared = tuple(result for region in regions if (result := _prepare_region(region)) is not None)
     if not prepared:
         raise ValueError("applicability declaration has an empty domain")
     return PreparedApplicability(prepared)
@@ -359,7 +355,8 @@ def prepare_environment(environment: Environment, requirements: frozenset[_Requi
 
 
 def _constraints_intersect(
-    left: PreparedCoordinateConstraint, right: PreparedCoordinateConstraint,
+    left: PreparedCoordinateConstraint,
+    right: PreparedCoordinateConstraint,
 ) -> bool | None:
     if left.opaque_equal is not None and right.opaque_equal is not None:
         return left.opaque_equal == right.opaque_equal
@@ -385,7 +382,8 @@ def _compare_regions(left: PreparedRegion, right: PreparedRegion) -> Environment
 
 
 def _compare_prepared_applicability(
-    left: PreparedApplicability, right: PreparedApplicability,
+    left: PreparedApplicability,
+    right: PreparedApplicability,
 ) -> EnvironmentDomainRelation:
     if type(left) is not PreparedApplicability or type(right) is not PreparedApplicability:
         raise TypeError("prepared applicability comparison requires prepared domains")

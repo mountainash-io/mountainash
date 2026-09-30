@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import inspect
 import math
-from contextlib import contextmanager
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from enum import Enum as _Enum
 from types import MappingProxyType
@@ -19,24 +19,27 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS
 from mountainash.core.capabilities.schema import (
+    WILDCARD_PARAM,
     Boundary,
-    Clause,
-    ClauseOp,
     CapabilityFact,
     CapabilityLevel,
+    Clause,
+    ClauseOp,
     Enforcement,
     Fidelity,
     PolicyAction,
     PolicyConsumer,
     Predicate,
     ResidueSignal,
-    WILDCARD_PARAM,
     ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from mountainash.core.capabilities.capture import SourceOrigin
+    from mountainash.core.capabilities.catalogue import CatalogueCapture, IssueSnapshot, ScopeReader
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         QualifiedCapabilityKey,
@@ -44,11 +47,9 @@ if TYPE_CHECKING:
         QualifiedInformationKey,
         QualifiedPolicy,
     )
-    from mountainash.core.capabilities.capture import SourceOrigin
-    from mountainash.core.capabilities.predicates import BoundCall
-    from mountainash.core.capabilities.catalogue import CatalogueCapture, IssueSnapshot, ScopeReader
-    from mountainash.core.capabilities.identity import Scope
     from mountainash.core.capabilities.gaps import GapInventory
+    from mountainash.core.capabilities.identity import Scope
+    from mountainash.core.capabilities.predicates import BoundCall
 
 _Key = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str], Optional[str]]
 _ValueClassBucketKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
@@ -59,8 +60,6 @@ _EnvironmentSummary = tuple[
     frozenset[Any],
     frozenset[tuple[str, str, bool]],
 ]
-
-
 
 
 class _LoadState(_Enum):
@@ -366,10 +365,7 @@ def _prepare_state(
         MappingProxyType({key: tuple(value) for key, value in direct_buckets.items()}),
         MappingProxyType({key: tuple(value) for key, value in value_class_buckets.items()}),
         MappingProxyType(dict(prepared_applicability)),
-        MappingProxyType({
-            key: tuple(value)
-            for key, value in environment_summaries.items()
-        }),
+        MappingProxyType({key: tuple(value) for key, value in environment_summaries.items()}),
         load_state,
         load_error,
         MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
@@ -391,7 +387,6 @@ def _empty_state(load_state=_LoadState.UNINITIALIZED) -> _RegistryState:
     )
 
 
-
 def _prepared_claim(prepared_claims, claim):
     prepared = prepared_claims.get(claim)
     if prepared is None:
@@ -401,10 +396,8 @@ def _prepared_claim(prepared_claims, claim):
 
 
 def _retained_prepared_claims(state):
-    return {
-        fact.applicability: prepared
-        for fact, prepared in state.prepared_applicability.items()
-    }
+    return {fact.applicability: prepared for fact, prepared in state.prepared_applicability.items()}
+
 
 def _require_type(value, expected, field):
     if type(value) is not expected:
@@ -495,9 +488,7 @@ def _compare_policy_domains(left, right):
     # bound-call predicates use actual values. Never prove disjointness by
     # pretending that these two domains have identical equality semantics.
     if (left.selector.kind == "predicate") != (right.selector.kind == "predicate"):
-        predicate_key, option_key = (
-            (left, right) if left.selector.kind == "predicate" else (right, left)
-        )
+        predicate_key, option_key = (left, right) if left.selector.kind == "predicate" else (right, left)
         if option_key.selector.kind != "unconditioned":
             for clause in predicate_key.selector.value.clauses:
                 if clause.path.split(".")[0] != option_key.subject:
@@ -535,8 +526,6 @@ def _literal_only_disjoint(protection, other):
             # literal-only guard refuses precisely those non-literal nodes.
             return True
     return False
-
-
 
 
 def _base_key(key):
@@ -584,13 +573,14 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies, prepared_cl
             continue
         if policy.consumer is PolicyConsumer.GATE:
             both_block = policy.action is PolicyAction.BLOCK and other.action is PolicyAction.BLOCK
-            same_restriction = (
-                policy.key.subject == other.key.subject
-                and policy.key.selector == other.key.selector
-            )
-            if both_block and not same_restriction and (
-                (policy.key.selector.kind == "predicate" and other.key.selector.kind == "predicate")
-                or policy.key.subject != other.key.subject
+            same_restriction = policy.key.subject == other.key.subject and policy.key.selector == other.key.selector
+            if (
+                both_block
+                and not same_restriction
+                and (
+                    (policy.key.selector.kind == "predicate" and other.key.selector.kind == "predicate")
+                    or policy.key.subject != other.key.subject
+                )
             ):
                 continue
         if _literal_only_disjoint(policy, other) or _literal_only_disjoint(other, policy):
@@ -629,8 +619,8 @@ def _origin_labels(origins):
 
 
 def _stage_information(segment, information, prepared_claims):
-    from mountainash.core.capabilities.declarations import QualifiedInformation, QualifiedInformationKey
     from mountainash.core.capabilities.catalogue import _validate_operation_subject
+    from mountainash.core.capabilities.declarations import QualifiedInformation, QualifiedInformationKey
 
     for ordinal, assertion in enumerate(segment.segment.information):
         _validate_operation_subject(assertion.key.operation, assertion.key.subject)
@@ -644,6 +634,8 @@ def _stage_information(segment, information, prepared_claims):
                 f"incoming origins={_origin_labels(origins)!r}"
             )
         information[key] = QualifiedInformation(key, assertion, origins)
+
+
 def _stage_segment_policies(
     family,
     segment,
@@ -699,10 +691,7 @@ def _selected(state, fact, execution_context):
         return fact.applicability.regions is None
     if not execution_context.policy.selects(fact.consumer, fact.issue_classes):
         return False
-    return (
-        state.prepared_applicability[fact].match(execution_context.environment)
-        is ApplicabilityResult.APPLICABLE
-    )
+    return state.prepared_applicability[fact].match(execution_context.environment) is ApplicabilityResult.APPLICABLE
 
 
 def _single_selected(state, candidates, consumer, execution_context):
@@ -714,6 +703,7 @@ def _single_selected(state, candidates, consumer, execution_context):
             raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {fact.fact_key!r}")
         answer = fact
     return answer
+
 
 class CapabilityRegistry:
     """Transactional declarations with accessor-level immutable snapshots.
@@ -900,12 +890,9 @@ class CapabilityRegistry:
             (backend, dialect),
             (),
         ):
-            if policy.selects(consumer, issue_classes) or (
-                diagnostics_requested and policy.discloses(issue_classes)
-            ):
+            if policy.selects(consumer, issue_classes) or (diagnostics_requested and policy.discloses(issue_classes)):
                 requirements.update(summary)
         return frozenset(requirements)
-
 
     @classmethod
     def metadata_operand_names(

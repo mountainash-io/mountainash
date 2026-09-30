@@ -1,6 +1,6 @@
 """Immediate native attribution requires the actual failing call, not prose."""
+
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import polars as pl
@@ -8,8 +8,13 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
-    BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
 )
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -30,18 +35,27 @@ def test_negative_list_index_attribution_without_information():
     snapshot = CapabilityRegistry.snapshot()
     CapabilityRegistry.reset()
     try:
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.list",
-            Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-polars")),
-            CapabilitySegment(Domain.LIST, policies=(
-                CapabilityPolicyRule(key=CapabilityKey(FK.GET, "index"),
-                level=CapabilityLevel.UNSUPPORTED, message="Negative list indices are unsupported by Narwhals.",
-                consumer=PolicyConsumer.IMMEDIATE_ERROR,
-                action=PolicyAction.ENRICH,
-                native_errors=(ValueError,),
-                native_issue="narwhals:list-negative-index", applicability=unbounded),
-            )),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.list",
+                Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-polars")),
+                CapabilitySegment(
+                    Domain.LIST,
+                    policies=(
+                        CapabilityPolicyRule(
+                            key=CapabilityKey(FK.GET, "index"),
+                            level=CapabilityLevel.UNSUPPORTED,
+                            message="Negative list indices are unsupported by Narwhals.",
+                            consumer=PolicyConsumer.IMMEDIATE_ERROR,
+                            action=PolicyAction.ENRICH,
+                            native_errors=(ValueError,),
+                            native_issue="narwhals:list-negative-index",
+                            applicability=unbounded,
+                        ),
+                    ),
+                ),
+            )
+        )
         with pytest.raises(BackendCapabilityError) as raised:
             ma.col("values").list.get(-1).compile(dataframe)
         assert type(raised.value.__cause__) is ValueError

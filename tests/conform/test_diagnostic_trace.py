@@ -1,25 +1,23 @@
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import dataclass
 
 import pandas as pd
 import pytest
 
+from mountainash import relation
 from mountainash.conform.diagnostics import OperationDiagnosticTrace
-from mountainash.conform.errors import ConformError, ConformTransformError
+from mountainash.conform.errors import ConformTransformError
 from mountainash.conform.expressions import MaterializationResidueCheck
 from mountainash.core.capabilities import (
     Boundary,
     CapabilityFact,
     CapabilityLevel,
     CapabilityRegistry,
-    Clause,
-    ClauseOp,
     Enforcement,
-    Predicate,
     ResidueSignal,
 )
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import CapabilityResidueInvariantError
 from mountainash.core.limitations import enrich_materialization
@@ -29,10 +27,8 @@ from mountainash.expressions.core.expression_nodes import FieldReferenceNode, Sc
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST,
 )
-from mountainash import relation
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
-
 
 KEY = FKEY_MOUNTAINASH_SCALAR_LIST.LEN
 BACKEND = CONST_BACKEND.NARWHALS
@@ -75,6 +71,8 @@ def test_diagnostic_context_serializes_but_does_not_enter_options() -> None:
     dumped = node.model_dump(mode="json")
     assert dumped["diagnostic_context"]["field_name"] == "values"
     assert "field_name" not in node.options
+
+
 def test_diagnostic_context_is_immutable() -> None:
     node = _node()
     with pytest.raises(TypeError):
@@ -95,10 +93,6 @@ def test_diagnostic_context_union_cannot_mutate_trace_attribution() -> None:
     assert trace.records[0].field_name == "values"
 
 
-
-
-
-
 def test_fact_key_namespaces_operation_enum_type() -> None:
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
@@ -107,10 +101,6 @@ def test_fact_key_namespaces_operation_enum_type() -> None:
     first = _fact(operation_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM)
     second = _fact(operation_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM)
     assert first.fact_key != second.fact_key
-
-
-
-
 
 
 def test_trace_fingerprint_uses_only_safe_routing_options() -> None:
@@ -154,37 +144,45 @@ def test_exception_residue_requires_native_errors() -> None:
 
 def test_non_null_residue_requires_materialize_residue() -> None:
     with pytest.raises(ValueError):
-        CapabilityFact(operation_key=KEY,
-        param="item_type",
-        level=CapabilityLevel.UNSUPPORTED,
-        backend=BACKEND,
-        boundary=Boundary.BUILD,
-        enforcement=Enforcement.GATE,
-        residue_signal=ResidueSignal.NON_NULL_TO_NULL, )
-
-
-
+        CapabilityFact(
+            operation_key=KEY,
+            param="item_type",
+            level=CapabilityLevel.UNSUPPORTED,
+            backend=BACKEND,
+            boundary=Boundary.BUILD,
+            enforcement=Enforcement.GATE,
+            residue_signal=ResidueSignal.NON_NULL_TO_NULL,
+        )
 
 
 def test_true_marker_with_fact_enriches_and_context() -> None:
     snapshot = CapabilityRegistry.snapshot()
     try:
         from mountainash.core.capabilities.declarations import (
-            BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+            BoundSegment,
+            CapabilityKey,
+            CapabilityPolicyRule,
+            CapabilitySegment,
+            Domain,
         )
         from mountainash.core.capabilities.identity import Dialect, Scope
         from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
         policy = CapabilityPolicyRule(
-            CapabilityKey(KEY, "x"), CapabilityLevel.UNSUPPORTED, 
-            "null residue", PolicyConsumer.RESULT_PROTECTION,
+            CapabilityKey(KEY, "x"),
+            CapabilityLevel.UNSUPPORTED,
+            "null residue",
+            PolicyConsumer.RESULT_PROTECTION,
             PolicyAction.DETECT_NON_NULL_TO_NULL,
-         applicability=unbounded)
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.list.trace_case",
-            Scope(BACKEND, Dialect("narwhals-pandas")),
-            CapabilitySegment(Domain.LIST, policies=(policy,)),
-        ))
+            applicability=unbounded,
+        )
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.list.trace_case",
+                Scope(BACKEND, Dialect("narwhals-pandas")),
+                CapabilitySegment(Domain.LIST, policies=(policy,)),
+            )
+        )
         frame = pd.DataFrame({"values": [None], "__ma_residue_0": [True]})
         trace = OperationDiagnosticTrace()
         trace.record(
@@ -195,9 +193,7 @@ def test_true_marker_with_fact_enriches_and_context() -> None:
         )
         checks = (MaterializationResidueCheck(KEY, "values", "__ma_residue_0"),)
         with pytest.raises(BackendCapabilityError) as raised:
-            enrich_materialization(
-                Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks
-            )
+            enrich_materialization(Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks)
         assert raised.value.context == {
             "field_name": "values",
             "logical_type": "list",
@@ -207,18 +203,8 @@ def test_true_marker_with_fact_enriches_and_context() -> None:
         CapabilityRegistry.restore(snapshot)
 
 
-
-
-
-
-
-
-
-
 def test_null_markers_are_removed_when_false() -> None:
-    frame = pd.DataFrame(
-        {"values": [1], "__ma_residue_0": [False], "__ma_residue_1": [False]}
-    )
+    frame = pd.DataFrame({"values": [1], "__ma_residue_0": [False], "__ma_residue_1": [False]})
     trace = OperationDiagnosticTrace()
     trace.record(
         _node(),
@@ -230,9 +216,7 @@ def test_null_markers_are_removed_when_false() -> None:
         MaterializationResidueCheck(KEY, "values", "__ma_residue_0"),
         MaterializationResidueCheck(KEY, "values", "__ma_residue_1"),
     )
-    result = enrich_materialization(
-        Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks
-    )
+    result = enrich_materialization(Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks)
     assert list(result.columns) == ["values"]
 
 
@@ -244,6 +228,7 @@ def test_true_marker_without_winning_fact_raises_invariant() -> None:
     with pytest.raises(CapabilityResidueInvariantError):
         enrich_materialization(Backend(), lambda: frame, diagnostic_trace=trace, residue_checks=checks)
     assert PublicInvariantError is CapabilityResidueInvariantError
+
 
 def test_relation_terminal_enriches_temporal_null_residue() -> None:
     spec = TypeSpec(
@@ -259,20 +244,26 @@ def test_relation_terminal_enriches_temporal_null_residue() -> None:
         "format": "default",
     }
 
+
 def test_relation_terminal_removes_collision_safe_residue_marker() -> None:
     spec = TypeSpec(
         fields_match="open",
         fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
     )
-    result = relation(
-        pd.DataFrame(
-            {
-                "duration": ["P1D"],
-                "__ma_residue_conform_0_0": ["keep"],
-            }
+    result = (
+        relation(
+            pd.DataFrame(
+                {
+                    "duration": ["P1D"],
+                    "__ma_residue_conform_0_0": ["keep"],
+                }
+            )
         )
-    ).conform(spec).collect()
+        .conform(spec)
+        .collect()
+    )
     assert list(result.columns) == ["duration", "__ma_residue_conform_0_0"]
+
 
 def test_polars_throw_mode_temporal_failure_is_transform_error() -> None:
     import polars as pl
@@ -285,6 +276,7 @@ def test_polars_throw_mode_temporal_failure_is_transform_error() -> None:
         relation(pl.DataFrame({"duration": ["not-a-duration"]})).conform(spec).collect()
     assert raised.value.candidates[0].field_name == "duration"
 
+
 def test_relation_lazy_terminal_removes_residue_markers() -> None:
     import polars as pl
 
@@ -292,14 +284,13 @@ def test_relation_lazy_terminal_removes_residue_markers() -> None:
         fields_match="open",
         fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
     )
-    result = relation(
-        pl.DataFrame({"duration": ["P1D"]}).lazy()
-    ).conform(spec).collect()
+    result = relation(pl.DataFrame({"duration": ["P1D"]}).lazy()).conform(spec).collect()
     assert result.columns == ["duration"]
 
 
 def test_dag_collect_owns_residue_terminal_and_preserves_lazy_shape() -> None:
     import polars as pl
+
     from mountainash.relations.dag.dag import RelationDAG
 
     spec = TypeSpec(

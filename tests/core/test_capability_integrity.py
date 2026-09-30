@@ -1,4 +1,5 @@
 """Integrity guards for retained information and explicit executable policies."""
+
 from __future__ import annotations
 
 from mountainash.core.capabilities import CapabilityRegistry, load_all_capability_declarations
@@ -8,9 +9,12 @@ from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
 def test_loaded_publication_has_only_concrete_policy_scopes():
     load_all_capability_declarations()
-    result = CapabilityRegistry.capture().search(CatalogueQuery(
-        information=InformationQuery(), policies=PolicyQuery(),
-    ))
+    result = CapabilityRegistry.capture().search(
+        CatalogueQuery(
+            information=InformationQuery(),
+            policies=PolicyQuery(),
+        )
+    )
     assert result.information is not None
     assert result.policies is not None
     for record in result.policies:
@@ -31,9 +35,15 @@ def test_native_error_policies_carry_their_native_identity():
 
 
 def test_result_protection_uses_its_distinct_consumer_contract():
-    policies = CapabilityRegistry.capture().search(CatalogueQuery(
-        policies=PolicyQuery(consumer=PolicyConsumer.RESULT_PROTECTION),
-    )).policies
+    policies = (
+        CapabilityRegistry.capture()
+        .search(
+            CatalogueQuery(
+                policies=PolicyQuery(consumer=PolicyConsumer.RESULT_PROTECTION),
+            )
+        )
+        .policies
+    )
     assert policies is not None
     for record in policies:
         assert record.assertion.action is PolicyAction.DETECT_NON_NULL_TO_NULL
@@ -41,8 +51,10 @@ def test_result_protection_uses_its_distinct_consumer_contract():
 
 def test_every_discovered_segment_has_valid_complete_applicability():
     from mountainash.core.capabilities.bootstrap import (
-        _load_segments, discover_declaration_modules,
+        _load_segments,
+        discover_declaration_modules,
     )
+
     names = discover_declaration_modules()
     segments = _load_segments()
     assert {segment.module for segment in segments} == set(names)
@@ -52,6 +64,4 @@ def test_every_discovered_segment_has_valid_complete_applicability():
                 try:
                     assertion.applicability.prepare()
                 except (TypeError, ValueError) as error:
-                    raise AssertionError(
-                        f"{segment.module}:{family}[{ordinal}] invalid applicability"
-                    ) from error
+                    raise AssertionError(f"{segment.module}:{family}[{ordinal}] invalid applicability") from error

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from mountainash.core.capabilities.capture import CapturedAddress, CapturedAssertion, SourceOrigin
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     ImplementationRecord,
@@ -11,7 +12,6 @@ from mountainash.core.capabilities.coverage import (
     OpRecord,
     build_coverage_report,
 )
-from mountainash.core.capabilities.capture import CapturedAddress, CapturedAssertion, SourceOrigin
 from mountainash.core.capabilities.declarations import (
     CapabilityInformation,
     CapabilityKey,
@@ -23,7 +23,6 @@ from mountainash.core.capabilities.declarations import (
     QualifiedInformationKey,
     QualifiedPolicy,
 )
-from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
 from mountainash.core.capabilities.render_markdown import (
     _resolve_concrete_owner,
@@ -31,12 +30,21 @@ from mountainash.core.capabilities.render_markdown import (
     render_markdown,
     render_scoped,
 )
-from mountainash.core.capabilities.schema import CapabilityLevel, CapabilityIssueClass, InformationLayer, PolicyAction, PolicyConsumer
+from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
+from mountainash.core.capabilities.schema import (
+    CapabilityIssueClass,
+    CapabilityLevel,
+    InformationLayer,
+    PolicyAction,
+    PolicyConsumer,
+)
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR
 
 
-def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None, environment=None, policy=None, applicability=None):
+def _report(
+    *, gaps=None, changes=(), kinds=frozenset(), captured=None, environment=None, policy=None, applicability=None
+):
     from mountainash.core.capabilities.applicability import unbounded
 
     family = Scope(CONST_BACKEND.POLARS, FamilyWide())
@@ -55,14 +63,19 @@ def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None, environm
     )
     policy_key = CapabilityKey(FK_STR.LPAD, "input")
     policy_assertion = CapabilityPolicyRule(
-        policy_key, CapabilityLevel.UNSUPPORTED, "public block", PolicyConsumer.GATE, PolicyAction.BLOCK,
+        policy_key,
+        CapabilityLevel.UNSUPPORTED,
+        "public block",
+        PolicyConsumer.GATE,
+        PolicyAction.BLOCK,
         applicability=unbounded if applicability is None else applicability,
     )
     information = QualifiedInformation(
         QualifiedInformationKey(family, information_key, InformationLayer.NATIVE), information_assertion, (origin,)
     )
     qualified_policy = QualifiedPolicy(
-        QualifiedCapabilityKey(concrete, policy_key), policy_assertion,
+        QualifiedCapabilityKey(concrete, policy_key),
+        policy_assertion,
         (SourceOrigin("fixture.module", concrete, FactSource.SUBSTRAIT, Domain.STRING, "policies[0]"),),
     )
     implementations = tuple(
@@ -182,6 +195,7 @@ def test_change_history_is_rendered_in_canonical_order():
     document = render_markdown(_report(changes=(newer, older)))
     assert document.index("2026-09-17T12:00:00") < document.index("2026-09-18T12:00:00")
 
+
 def test_implementation_discovery_ignores_protocol_carriers():
     class CarrierProtocol:
         def lpad(self):
@@ -223,11 +237,13 @@ def test_markdown_distinguishes_variants_and_renders_policy_issue_classes():
             issue_classes=frozenset({CapabilityIssueClass.SEMANTICS}),
         ),
     )
-    rendered = render_scoped(replace(
-        report,
-        information=(named_information("first-variant"), named_information("second-variant")),
-        policies=(named_policy,),
-    ))
+    rendered = render_scoped(
+        replace(
+            report,
+            information=(named_information("first-variant"), named_information("second-variant")),
+            policies=(named_policy,),
+        )
+    )
 
     assert "first-variant" in rendered
     assert "second-variant" in rendered
@@ -243,17 +259,16 @@ def test_markdown_distinguishes_absent_variant_from_authored_sentinel_names():
     records = []
     for variant in (None, "unqualified", "null"):
         local = replace(original.key.local, variant=variant)
-        records.append(replace(
-            original,
-            key=replace(original.key, local=local),
-            assertion=replace(original.assertion, key=local),
-        ))
+        records.append(
+            replace(
+                original,
+                key=replace(original.key, local=local),
+                assertion=replace(original.assertion, key=local),
+            )
+        )
     report = replace(report, information=tuple(records))
     for renderer in (render_markdown, render_scoped):
-        rows = [
-            line for line in renderer(report).splitlines()
-            if line.startswith("| polars/family |")
-        ]
+        rows = [line for line in renderer(report).splitlines() if line.startswith("| polars/family |")]
         assert len(set(rows)) == 3
 
 
@@ -267,17 +282,30 @@ def test_markdown_does_not_invent_classification_for_unlabelled_information():
 
 
 def test_report_distinguishes_unparseable_environment_from_excluded_policy():
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.policy import CapabilityPolicy
+
     claim = Applicability((Region((CoordinateConstraint("package", "polars", specifier=">=1"),)),))
     environment = Environment((EnvironmentCoordinate("package", "polars", "vendor-build"),))
-    checked = json.loads(render_json(_report(
-        environment=environment, policy=CapabilityPolicy.checked(), applicability=claim,
-    )))
-    excluded = json.loads(render_json(_report(
-        environment=environment, policy=CapabilityPolicy.trusted(), applicability=claim,
-    )))
+    checked = json.loads(
+        render_json(
+            _report(
+                environment=environment,
+                policy=CapabilityPolicy.checked(),
+                applicability=claim,
+            )
+        )
+    )
+    excluded = json.loads(
+        render_json(
+            _report(
+                environment=environment,
+                policy=CapabilityPolicy.trusted(),
+                applicability=claim,
+            )
+        )
+    )
     diagnostic = checked["policies"][0]["diagnostic"]
     assert diagnostic["applicability"] == "indeterminate"
     assert diagnostic["unresolved_coordinates"][0]["status"] == "unparseable"
@@ -288,28 +316,40 @@ def test_report_distinguishes_unparseable_environment_from_excluded_policy():
 
 def test_reports_preserve_fixed_coordinates_and_original_labels():
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+
     record = _report().policies[0]
     prior_address = CapturedAddress("fixture", "history.py", "prior", artifact=b"prior")
     successor_address = CapturedAddress("fixture", "history.py", "successor", artifact=b"successor")
     from mountainash.core.capabilities.retired import HistoricalBoundary
+
     artifact = b"large historical source\n" * 65536
     proof = CapturedAddress("fixture", "proof.json", "fixed-proof", artifact=artifact)
     boundary = HistoricalBoundary(
-        "engine", "duckdb", "introduced", "item236-owner", (proof,),
-        "next-normal-release", CapturedAddress("fixture", "backtest.json", "backtest-obligation", artifact=b"obligation"),
-        exception_reason="authorized unresolved scope", exception_until="release-26.10",
+        "engine",
+        "duckdb",
+        "introduced",
+        "item236-owner",
+        (proof,),
+        "next-normal-release",
+        CapturedAddress("fixture", "backtest.json", "backtest-obligation", artifact=b"obligation"),
+        exception_reason="authorized unresolved scope",
+        exception_until="release-26.10",
     )
     change = AssertionChange(
         CapturedAddress("fixture", "changes.py", "fixed", artifact=b"change"),
         CapturedAssertion("capability", record.key, record.assertion, prior_address),
-        ChangeDisposition.UPSTREAM_FIX, "2026-09-21", "controlled history",
+        ChangeDisposition.UPSTREAM_FIX,
+        "2026-09-21",
+        "controlled history",
         successors=(CapturedAssertion("capability", record.key, record.assertion, successor_address),),
         evidence_refs=(proof,),
         unresolved_boundaries=(boundary,),
-        fixed_versions=Environment((
-            EnvironmentCoordinate("package", "IBIS", "12.7.3"),
-            EnvironmentCoordinate("engine", "duckdb", "1.6.2"),
-        )),
+        fixed_versions=Environment(
+            (
+                EnvironmentCoordinate("package", "IBIS", "12.7.3"),
+                EnvironmentCoordinate("engine", "duckdb", "1.6.2"),
+            )
+        ),
     )
     report = _report(changes=(change,))
     encoded = render_json(report)
@@ -323,22 +363,35 @@ def test_reports_preserve_fixed_coordinates_and_original_labels():
     assert coordinates["duckdb"]["version"] == "1.6.2"
     for render in (render_markdown, render_scoped):
         document = render(report)
-        for value in ("12.7.3", "1.6.2", "IBIS", "fixed-proof", "successor",
-                      "item236-owner", "backtest-obligation", "release-26.10"):
+        for value in (
+            "12.7.3",
+            "1.6.2",
+            "IBIS",
+            "fixed-proof",
+            "successor",
+            "item236-owner",
+            "backtest-obligation",
+            "release-26.10",
+        ):
             assert value in document
 
 
 def test_reports_preserve_authored_regions_without_environment():
     from dataclasses import asdict
+
     from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
 
-    claim = Applicability((
-        Region((CoordinateConstraint("package", "ibis", specifier="<1"),)),
-        Region((
-            CoordinateConstraint("package", "ibis", specifier=">=2,!=2.5"),
-            CoordinateConstraint("adapter", "driver", opaque_equal="ACME|driver"),
-        )),
-    ))
+    claim = Applicability(
+        (
+            Region((CoordinateConstraint("package", "ibis", specifier="<1"),)),
+            Region(
+                (
+                    CoordinateConstraint("package", "ibis", specifier=">=2,!=2.5"),
+                    CoordinateConstraint("adapter", "driver", opaque_equal="ACME|driver"),
+                )
+            ),
+        )
+    )
     report = _report(applicability=claim)
     payload = json.loads(render_json(report))
     expected = json.loads(json.dumps(asdict(claim)))

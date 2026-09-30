@@ -1,14 +1,19 @@
 """Attribution requires a bound scope and operation as well as a native issue."""
+
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import pandas as pd
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
-    BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
 )
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -26,21 +31,34 @@ def single_split_policy():
     snapshot = CapabilityRegistry.snapshot()
     CapabilityRegistry.reset()
     try:
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.string",
-            Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas")),
-            CapabilitySegment(Domain.STRING, policies=(
-                CapabilityPolicyRule(key=CapabilityKey(FK.SPLIT, "*"),
-                level=CapabilityLevel.UNSUPPORTED, message="Arrow-backed pandas strings are required.",
-                consumer=PolicyConsumer.MATERIALIZATION_ERROR,
-                action=PolicyAction.ENRICH,
-                native_errors=(TypeError,),
-                native_issue="narwhals:arrow-string-storage", applicability=unbounded),
-            )),
-        ))
-        dataframe = nw.from_native(pd.DataFrame({
-            "text": pd.Series(["a,b"], dtype=object),
-        }))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.string",
+                Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas")),
+                CapabilitySegment(
+                    Domain.STRING,
+                    policies=(
+                        CapabilityPolicyRule(
+                            key=CapabilityKey(FK.SPLIT, "*"),
+                            level=CapabilityLevel.UNSUPPORTED,
+                            message="Arrow-backed pandas strings are required.",
+                            consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+                            action=PolicyAction.ENRICH,
+                            native_errors=(TypeError,),
+                            native_issue="narwhals:arrow-string-storage",
+                            applicability=unbounded,
+                        ),
+                    ),
+                ),
+            )
+        )
+        dataframe = nw.from_native(
+            pd.DataFrame(
+                {
+                    "text": pd.Series(["a,b"], dtype=object),
+                }
+            )
+        )
         yield NarwhalsBaseRelationSystem(dialect="narwhals-pandas"), dataframe
     finally:
         CapabilityRegistry.restore(snapshot)

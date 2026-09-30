@@ -32,16 +32,18 @@ class TestBackendCapabilityError:
         assert err.limitation is None
 
     def test_error_with_limitation(self):
-        fact = CapabilityFact(operation_key="STARTS_WITH",
-        param="prefix",
-        level=CapabilityLevel.LITERAL_ONLY,
-        backend=CONST_BACKEND.NARWHALS,
-        message="test",
-        workaround="Use a literal",
-        upstream_ref="NW-STR-01",
-        enforcement=Enforcement.MATERIALIZE_RESIDUE,
-        boundary=Boundary.MATERIALIZE,
-        native_errors=(TypeError,), )
+        fact = CapabilityFact(
+            operation_key="STARTS_WITH",
+            param="prefix",
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.NARWHALS,
+            message="test",
+            workaround="Use a literal",
+            upstream_ref="NW-STR-01",
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            boundary=Boundary.MATERIALIZE,
+            native_errors=(TypeError,),
+        )
         err = BackendCapabilityError(
             "cannot do this",
             backend="narwhals",
@@ -53,14 +55,16 @@ class TestBackendCapabilityError:
         assert "Upstream ref: NW-STR-01" in msg
 
     def test_error_without_workaround(self):
-        fact = CapabilityFact(operation_key="REPLACE",
-        param="substring",
-        level=CapabilityLevel.LITERAL_ONLY,
-        backend=CONST_BACKEND.POLARS,
-        message="test",
-        enforcement=Enforcement.MATERIALIZE_RESIDUE,
-        boundary=Boundary.MATERIALIZE,
-        native_errors=(TypeError,), )
+        fact = CapabilityFact(
+            operation_key="REPLACE",
+            param="substring",
+            level=CapabilityLevel.LITERAL_ONLY,
+            backend=CONST_BACKEND.POLARS,
+            message="test",
+            enforcement=Enforcement.MATERIALIZE_RESIDUE,
+            boundary=Boundary.MATERIALIZE,
+            native_errors=(TypeError,),
+        )
         err = BackendCapabilityError(
             "cannot do this",
             backend="polars",
@@ -72,9 +76,7 @@ class TestBackendCapabilityError:
         assert "Upstream" not in msg
 
     def test_is_exception(self):
-        err = BackendCapabilityError(
-            "test", backend="polars", function_key="CONTAINS"
-        )
+        err = BackendCapabilityError("test", backend="polars", function_key="CONTAINS")
         assert isinstance(err, Exception)
         with pytest.raises(BackendCapabilityError):
             raise err

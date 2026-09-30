@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.capabilities.declarations import CapabilitySegment
-
-from mountainash.core.capabilities.declarations import Domain
-
-
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-from mountainash.core.capabilities.declarations import CapabilityInformation, CapabilityKey, Selector
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
 SEGMENT = CapabilitySegment(
     domain=Domain.ARITHMETIC,

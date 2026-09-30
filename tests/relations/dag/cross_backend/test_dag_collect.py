@@ -1,14 +1,13 @@
 """Cross-backend tests for RelationDAG.collect()."""
 
 from __future__ import annotations
-from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
+from fixtures.backend_registry import ALL_BACKENDS
 
 import mountainash as ma
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.relations.dag.dag import RelationDAG
-
-from fixtures.backend_registry import ALL_BACKENDS
 
 # ALL_BACKENDS = [
 #     "polars",
@@ -128,27 +127,31 @@ def test_transitive_metadata_gate_uses_each_prepared_ref(backend_name, backend_f
         identity = identify_backend_identity(source)
         assert identity.dialect is not None
         scope = Scope(identity.family, Dialect(identity.dialect))
-        predicate = Predicate((
-            Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-        ))
-        policy = CapabilityPolicyRule(key=CapabilityKey(
-            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-            "x",
-            Selector("predicate", predicate),
-        ),
-        level=CapabilityLevel.UNSUPPORTED, message="transitive float operand blocked",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK, applicability=unbounded)
+        predicate = Predicate((Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),))
+        policy = CapabilityPolicyRule(
+            key=CapabilityKey(
+                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+                "x",
+                Selector("predicate", predicate),
+            ),
+            level=CapabilityLevel.UNSUPPORTED,
+            message="transitive float operand blocked",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+            applicability=unbounded,
+        )
         module = (
             "mountainash.expressions.backends.capabilities."
             f"{identity.family.value}.dialects.{identity.dialect.replace('-', '_')}."
             "substrait.arithmetic.test_dag_collect"
         )
-        CapabilityRegistry.register_segment(BoundSegment(
-            module,
-            scope,
-            CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                module,
+                scope,
+                CapabilitySegment(Domain.ARITHMETIC, policies=(policy,)),
+            )
+        )
         expected_limitation = policy.qualify(scope)
         dag = RelationDAG()
         expression = ma.col("x").abs().name.alias("result")

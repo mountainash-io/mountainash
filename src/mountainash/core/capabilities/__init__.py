@@ -9,44 +9,44 @@ from mountainash.core.capabilities.declarations import (
     CapabilityPolicyRule,
     CapabilitySegment,
     CapabilitySegmentModule,
+    Domain,
+    FactSource,
+    QualifiedCapabilityKey,
     QualifiedInformation,
     QualifiedInformationKey,
     QualifiedPolicy,
-    QualifiedCapabilityKey,
     Selector,
-    Domain,
-    FactSource,
     classify_domain,
     classify_source,
 )
-from mountainash.core.capabilities.identity import BackendIdentity, KNOWN_DIALECTS
-from mountainash.core.capabilities.predicates import BoundCall
-from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
-from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
+from mountainash.core.capabilities.identity import KNOWN_DIALECTS, BackendIdentity
 from mountainash.core.capabilities.policy import (
     CapabilityPolicy,
     ProtectionMechanism,
     capability_policy,
 )
+from mountainash.core.capabilities.predicates import BoundCall
+from mountainash.core.capabilities.registry import CapabilityRegistry, CapabilityViolation
+from mountainash.core.capabilities.retired import AssertionChange, ChangeDisposition
 from mountainash.core.capabilities.schema import (
+    WILDCARD_PARAM,
     Boundary,
     CapabilityFact,
+    CapabilityIssueClass,
     CapabilityLevel,
     Clause,
     ClauseOp,
     Enforcement,
-    InformationLayer,
-    CapabilityIssueClass,
-    PolicyAction,
-    PolicyConsumer,
     Fidelity,
     GapKind,
+    InformationLayer,
     KnownGap,
+    PolicyAction,
+    PolicyConsumer,
     Predicate,
     ResidueSignal,
     TargetKind,
     ValueClass,
-    WILDCARD_PARAM,
 )
 
 __all__ = [

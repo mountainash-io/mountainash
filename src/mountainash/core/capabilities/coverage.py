@@ -472,6 +472,7 @@ def build_coverage_report(
         ),
     )
 
+
 def _unresolved_coordinates(prepared_claim, environment, prepared_environment):
     observed = {(item.kind, item.name): item.version for item in environment.coordinates}
 
@@ -533,13 +534,13 @@ def _build_diagnostics(information, policies, environment, policy):
         selection = None
         if policy is not None:
             selection = (
-                "selected"
-                if policy.selects(record.assertion.consumer, record.assertion.issue_classes)
-                else "excluded"
+                "selected" if policy.selects(record.assertion.consumer, record.assertion.issue_classes) else "excluded"
             )
         policy_map[record.key] = _diagnose_record(record.assertion.applicability, environment, selection)
 
     return CoverageDiagnostics(
-        environment, policy, MappingProxyType(information_map), MappingProxyType(policy_map),
+        environment,
+        policy,
+        MappingProxyType(information_map),
+        MappingProxyType(policy_map),
     )
-
