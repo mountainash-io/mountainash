@@ -43,7 +43,6 @@ class TestBackendCapabilityError:
             enforcement=Enforcement.MATERIALIZE_RESIDUE,
             boundary=Boundary.MATERIALIZE,
             native_errors=(TypeError,),
-            since="2026-07-05",
         )
         err = BackendCapabilityError(
             "cannot do this",
@@ -65,7 +64,6 @@ class TestBackendCapabilityError:
             enforcement=Enforcement.MATERIALIZE_RESIDUE,
             boundary=Boundary.MATERIALIZE,
             native_errors=(TypeError,),
-            since="2026-07-05",
         )
         err = BackendCapabilityError(
             "cannot do this",
@@ -78,9 +76,7 @@ class TestBackendCapabilityError:
         assert "Upstream" not in msg
 
     def test_is_exception(self):
-        err = BackendCapabilityError(
-            "test", backend="polars", function_key="CONTAINS"
-        )
+        err = BackendCapabilityError("test", backend="polars", function_key="CONTAINS")
         assert isinstance(err, Exception)
         with pytest.raises(BackendCapabilityError):
             raise err

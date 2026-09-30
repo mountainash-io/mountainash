@@ -33,6 +33,7 @@ policy in its `SEGMENT`. This shape uses the current constructors; it does not
 repeat the scope supplied by the module's physical location.
 
 ```python
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
     CapabilityInformation,
     CapabilityKey,
@@ -62,7 +63,7 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-18",
+            applicability=unbounded,
             message="The native operation cannot preserve the requested case behavior.",
         ),
     ),
@@ -70,7 +71,7 @@ SEGMENT = CapabilitySegment(
         CapabilityPolicyRule(
             key=CapabilityKey(STRING.STARTS_WITH, "substring"),
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-09-18",
+            applicability=unbounded,
             message="This concrete dialect requires a literal substring.",
             consumer=PolicyConsumer.GATE,
             action=PolicyAction.BLOCK,
@@ -196,7 +197,6 @@ interval:
 ```python
 from mountainash.core.capabilities.applicability import (
     Applicability,
-    ComparisonScheme,
     CoordinateConstraint,
     Region,
 )
@@ -204,29 +204,31 @@ from mountainash.core.capabilities.applicability import (
 APPLICABILITY = Applicability(regions=(
     Region(constraints=(
         CoordinateConstraint(
-            "package", "ibis-framework", ComparisonScheme.PEP440,
-            equal="12.0.0",
+            "package", "ibis-framework", specifier="==12.0.0",
         ),
         CoordinateConstraint(
-            "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-            lower="1.2", upper="1.3", upper_inclusive=False,
+            "engine", "duckdb", specifier=">=1.2,<1.3",
         ),
     )),
     Region(constraints=(
         CoordinateConstraint(
-            "package", "ibis-framework", ComparisonScheme.PEP440,
-            equal="12.0.0",
+            "package", "ibis-framework", specifier="==12.0.0",
         ),
         CoordinateConstraint(
-            "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-            lower="1.4", upper="1.5", upper_inclusive=False,
+            "engine", "duckdb", specifier=">=1.4,<1.5",
         ),
     )),
 ))
 ```
 
-Pass `applicability=APPLICABILITY` on a `CapabilityInformation` or
-`CapabilityPolicyRule`. Variants (`CapabilityKey(..., variant="...")`) name
+Both `CapabilityInformation` and `CapabilityPolicyRule` require keyword
+`applicability=APPLICABILITY`; use `applicability=unbounded` when no version
+restriction is claimed. Declaration-derived `since` is removed; dates never
+become version bounds. Standard PEP 440 membership and version-domain comparisons
+use public `packaging>=26.3` APIs, with raw literal `===` and case-sensitive
+`opaque_equal` labels kept distinct.
+
+Variants (`CapabilityKey(..., variant="...")`) name
 records that genuinely need to coexist; a variant name identifies a record,
 never applicability, priority or fallback, and exact unqualified lookup
 never falls back to a variant or vice versa.
@@ -258,6 +260,14 @@ An expected failure belongs only to the concrete case that owns its reason and
 oracle. Discovery remains closed: an unsupported outcome not owned by that
 case is an ordinary failure to investigate, not a reason to broaden an
 expectation.
+
+Tests that evaluate applicability or version-conditioned behavior must verify
+every required observation through the test-owned
+`tests.fixtures.capability_observations.require_observations` helper, even for
+valid nonmatches or disabled runtime policies. Missing/invalid observations fail
+controlled verification. Dedicated fallback tests intentionally assert permissive
+runtime behavior; unbounded scopes need no observations. Pure declaration
+enumeration and report rendering check authoring without acquiring backends.
 
 ## Adding a claim
 

@@ -1,9 +1,11 @@
 """Information-kind labels are immutable descriptive metadata only."""
+
 from __future__ import annotations
 
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilitySegment
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.constants import CONST_BACKEND
@@ -12,7 +14,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 
 @pytest.fixture(autouse=True)
 def isolated_registry():
-    from mountainash.core.capabilities.registry import _LoadState, _empty_state
+    from mountainash.core.capabilities.registry import _empty_state, _LoadState
 
     before = CapabilityRegistry.snapshot()
     CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))
@@ -42,9 +44,9 @@ def test_one_information_record_has_two_descriptive_kind_views_without_execution
         key=CapabilityKey(FK.CONTAINS, "substring"),
         layer=InformationLayer.NATIVE,
         level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
         message="Classified descriptive claim",
         kinds=frozenset({CapabilityIssueClass.PRECISION, CapabilityIssueClass.SEMANTICS}),
+        applicability=unbounded,
     )
     segment = _segment(information)
     CapabilityRegistry.register_segment(segment)
@@ -72,9 +74,9 @@ def test_information_kinds_require_an_exact_typed_frozenset(kinds):
             key=CapabilityKey(FK.CONTAINS, "substring"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-18",
             message="Invalid category payload",
             kinds=kinds,
+            applicability=unbounded,
         )
 
 

@@ -12,8 +12,8 @@ from enum import Enum
 from functools import lru_cache
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, TypeAlias
-from mountainash.core.capabilities.applicability import Applicability
 
+from mountainash.core.capabilities.applicability import Applicability
 
 if TYPE_CHECKING:
     from mountainash.core.capabilities.identity import Scope
@@ -30,11 +30,11 @@ def _enum_authorities() -> dict[tuple[str, str], type[Enum]]:
     """Known canonical enum classes; never import an authority by text."""
     from mountainash.core import constants
     from mountainash.core.dtypes.canonical import MountainashDtype
-    from mountainash.expressions.core.expression_system.function_keys import enums as function_enums
-    from mountainash.relations.core.relation_system.relation_keys import enums as relation_enums
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
         CaseFailureBehaviour,
     )
+    from mountainash.expressions.core.expression_system.function_keys import enums as function_enums
+    from mountainash.relations.core.relation_system.relation_keys import enums as relation_enums
 
     authorities: dict[tuple[str, str], type[Enum]] = {}
     for module in (constants, function_enums, relation_enums):
@@ -227,13 +227,6 @@ def _target_inventory() -> tuple[
     import mountainash.relations.core.relation_api as relation_api_package
     import mountainash.validation as validation_api
     from mountainash.expressions.core.expression_api import entrypoints
-    from mountainash.expressions.core.utils import temporal as temporal_utilities
-    from mountainash.relations.core.relation_api.relation import (
-        GroupedRelation,
-        Relation,
-        concat,
-        relation,
-    )
     from mountainash.expressions.core.expression_api.api_builders import (
         extensions_mountainash as expression_extension_builders,
     )
@@ -252,8 +245,15 @@ def _target_inventory() -> tuple[
     from mountainash.expressions.core.expression_protocols.expression_systems import (
         substrait as expression_substrait_protocols,
     )
-    from mountainash.relations.core.relation_api import api_builders as relation_builders
+    from mountainash.expressions.core.utils import temporal as temporal_utilities
     from mountainash.relations.core import relation_protocols
+    from mountainash.relations.core.relation_api import api_builders as relation_builders
+    from mountainash.relations.core.relation_api.relation import (
+        GroupedRelation,
+        Relation,
+        concat,
+        relation,
+    )
     from mountainash.relations.core.relation_protocols import (
         api_builders as relation_builder_protocols,
     )
@@ -703,6 +703,7 @@ class InformationLayer(Enum):
     NATIVE = "native"
     PUBLIC = "public"
 
+
 class PolicyConsumer(Enum):
     """The concrete runtime path that consumes an executable policy."""
 
@@ -915,7 +916,6 @@ class CapabilityFact:
     message: str = ""
     workaround: str | None = None
     upstream_ref: str | None = None  # typed ID into registry/upstream-issues.yaml
-    since: str = ""
     boundary: Boundary = Boundary.BUILD
     native_errors: tuple[type[Exception], ...] = ()
     condition: str | None = None  # human-readable value/option condition; None = unconditional
@@ -935,13 +935,14 @@ class CapabilityFact:
     applicability: Applicability = Applicability()
     issue_classes: frozenset[CapabilityIssueClass] = frozenset({CapabilityIssueClass.UNCLASSIFIED})
 
-
     def __post_init__(self) -> None:
         _validate_variant(self.variant)
         if type(self.applicability) is not Applicability:
             raise TypeError("capability fact applicability requires Applicability")
-        if type(self.issue_classes) is not frozenset or not self.issue_classes or any(
-            type(issue_class) is not CapabilityIssueClass for issue_class in self.issue_classes
+        if (
+            type(self.issue_classes) is not frozenset
+            or not self.issue_classes
+            or any(type(issue_class) is not CapabilityIssueClass for issue_class in self.issue_classes)
         ):
             raise TypeError("policy issue classes require a nonempty frozen enum set")
         if CapabilityIssueClass.UNCLASSIFIED in self.issue_classes and len(self.issue_classes) != 1:
@@ -1000,7 +1001,6 @@ class CapabilityFact:
                 f"CapabilityFact({self.operation_key}, {self.param}): "
                 "EXCEPTION residue facts must declare native_errors"
             )
-        _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
         if self.level is CapabilityLevel.EXPR_CAPABLE and self.dialect is None:
             raise ValueError(
                 f"CapabilityFact({self.operation_key}, {self.param}): explicit "

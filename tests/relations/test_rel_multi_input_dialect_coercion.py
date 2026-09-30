@@ -11,33 +11,38 @@ nw.concat(), outside any existing exception handling.
 Design: mountainash-central 2026-08-13-relation-visitor-multi-input-
 dialect-coercion-design.md (Revision 4, 4 Codex adversarial review rounds).
 """
+
 from __future__ import annotations
 
 import pytest
 
 import mountainash as ma
-from mountainash.core.constants import CONST_BACKEND
+import mountainash.expressions.backends  # noqa: F401
 
 # Trigger backend registration (side-effect imports)
 import mountainash.relations.backends  # noqa: F401
-import mountainash.expressions.backends  # noqa: F401
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.constants import CONST_BACKEND
 
 
 def _nw_pandas(data: dict):
     import narwhals as nw
     import pandas as pd
+
     return nw.from_native(pd.DataFrame(data), eager_only=True)
 
 
 def _nw_polars(data: dict):
     import narwhals as nw
     import polars as pl
+
     return nw.from_native(pl.DataFrame(data), eager_only=True)
 
 
 def _nw_pyarrow(data: dict):
     import narwhals as nw
     import pyarrow as pa
+
     return nw.from_native(pa.table(data), eager_only=True)
 
 
@@ -82,11 +87,12 @@ class TestEagerLazyShapeCoercion:
     check, not dialect-string equality alone."""
 
     def test_eager_polars_target_collects_lazy_polars_value(self):
+        import narwhals as nw
+        import polars as pl
+
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
-        import narwhals as nw
-        import polars as pl
 
         target = _nw_polars({"id": [1, 2]})
         value = nw.from_native(pl.DataFrame({"id": [1, 2]}).lazy())
@@ -116,11 +122,12 @@ class TestEagerLazyShapeCoercion:
         assert not is_narwhals_lazy(coerced)
 
     def test_lazy_polars_target_rejects_eager_operand(self):
+        import narwhals as nw
+        import polars as pl
+
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
-        import narwhals as nw
-        import polars as pl
 
         target = nw.from_native(pl.DataFrame({"id": [1]}).lazy())
         value = _nw_pandas({"id": [1]})
@@ -140,21 +147,24 @@ class TestEagerLazyShapeCoercion:
     def test_lazy_value_needing_conversion_after_collect(self):
         """lazy-Polars value -> collect -> eager-Polars -> convert to
         pandas target (design spec testing plan #7, third bullet)."""
+        import narwhals as nw
+        import polars as pl
+
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
-        import narwhals as nw
-        import polars as pl
 
         target = _nw_pandas({"id": [1, 2]})
         value = nw.from_native(pl.DataFrame({"id": [1, 2]}).lazy())
         coerced = UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
         from mountainash.core.backend_detection import narwhals_dialect
+
         assert narwhals_dialect(coerced) == "narwhals-pandas"
 
 
 def is_narwhals_lazy(frame) -> bool:
     from mountainash.core.types import is_narwhals_lazyframe
+
     return is_narwhals_lazyframe(frame)
 
 
@@ -243,6 +253,7 @@ class TestUnsupportedDialectAndErrorWrapping:
     def test_unrecognized_target_implementation_raises_clean_typeerror(self):
         from enum import Enum
         from unittest.mock import patch
+
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
@@ -257,11 +268,10 @@ class TestUnsupportedDialectAndErrorWrapping:
                 UnifiedRelationVisitor._coerce_same_family_dialect(target, value)
 
     def test_conversion_failure_is_wrapped_with_dialect_context_not_leaked_raw(self):
-        from unittest.mock import patch
+
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
-        import narwhals as nw
 
         target = _nw_pandas({"id": [1]})
         value = _nw_polars({"id": [1]})
@@ -301,6 +311,7 @@ class TestExhaustiveLeafWalkRegressionSafety:
 
     def test_ref_in_second_position_raises_before_first_child_compiles(self):
         from unittest.mock import patch
+
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
@@ -312,9 +323,8 @@ class TestExhaustiveLeafWalkRegressionSafety:
         # construction, simulating "ref in second position" without
         # needing a live DAG (this item's fix must reject it standalone).
         from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
-        target_node = target._node.model_copy(
-            update={"right": RefRelNode(name="missing_ref")}
-        )
+
+        target_node = target._node.model_copy(update={"right": RefRelNode(name="missing_ref")})
         target = type(target)(target_node)
 
         original_init = UnifiedRelationVisitor.__init__
@@ -330,19 +340,16 @@ class TestExhaustiveLeafWalkRegressionSafety:
         assert construction_count[0] == 0
 
     def test_readrelnode_in_first_position_still_wins_over_leafless_second_child(self):
+        import polars as pl
+
         from mountainash.relations.core.relation_nodes.extensions_mountainash import (
             ResourceReadRelNode,
         )
         from mountainash.typespec.datapackage import DataResource
 
-        import polars as pl
         left = ma.relation(pl.DataFrame({"id": [1], "a": [1]}))
-        resource = ResourceReadRelNode(
-            resource=DataResource(name="right", data=[{"id": 1, "b": 2}])
-        )
-        target_node = left.join(left, on="id")._node.model_copy(
-            update={"right": resource}
-        )
+        resource = ResourceReadRelNode(resource=DataResource(name="right", data=[{"id": 1, "b": 2}]))
+        target_node = left.join(left, on="id")._node.model_copy(update={"right": resource})
         target = type(left)(target_node)
         # Detection must still find the left ReadRelNode leaf and pick
         # Polars -- the leaf-less second child must not abort detection.
@@ -360,12 +367,8 @@ class TestExhaustiveLeafWalkRegressionSafety:
         )
         from mountainash.typespec.datapackage import DataResource
 
-        resource_a = ResourceReadRelNode(
-            resource=DataResource(name="a", data=[{"id": 1, "x": 1}])
-        )
-        resource_b = ResourceReadRelNode(
-            resource=DataResource(name="b", data=[{"id": 1, "y": 2}])
-        )
+        resource_a = ResourceReadRelNode(resource=DataResource(name="a", data=[{"id": 1, "x": 1}]))
+        resource_b = ResourceReadRelNode(resource=DataResource(name="b", data=[{"id": 1, "y": 2}]))
         placeholder = ma.relation(_nw_polars({"id": [1]}))
         target_node = placeholder.join(placeholder, on="id")._node.model_copy(
             update={"left": resource_a, "right": resource_b}
@@ -401,19 +404,21 @@ def _narwhals_pandas_join_gate_policy():
     policy = CapabilityPolicyRule(
         key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
         level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
         message="test-only GATE for narwhals-pandas join (item 91 testing plan #10)",
         consumer=PolicyConsumer.GATE,
         action=PolicyAction.BLOCK,
+        applicability=unbounded,
     )
     snap = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.relations.backends.capabilities.narwhals.dialects."
-            "narwhals_pandas.substrait.relation.test_rel_multi_input_dialect_coercion",
-            scope,
-            CapabilitySegment(Domain.RELATION, policies=(policy,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.relations.backends.capabilities.narwhals.dialects."
+                "narwhals_pandas.substrait.relation.test_rel_multi_input_dialect_coercion",
+                scope,
+                CapabilitySegment(Domain.RELATION, policies=(policy,)),
+            )
+        )
         yield
     finally:
         CapabilityRegistry.restore(snap)
@@ -425,11 +430,9 @@ class TestGatingUsesAuthoritativeDialectNotAnchor:
     was item 91 testing plan #10, which pinned the OLD anchor-dialect
     limitation; item 95 ships the gating-precision fix and inverts it."""
 
-    def test_pandas_scoped_join_gate_fires_when_left_operand_is_pandas(
-        self, _narwhals_pandas_join_gate_policy
-    ):
-        from mountainash.relations.dag import RelationDAG
+    def test_pandas_scoped_join_gate_fires_when_left_operand_is_pandas(self, _narwhals_pandas_join_gate_policy):
         from mountainash.core.types import BackendCapabilityError
+        from mountainash.relations.dag import RelationDAG
 
         dag = RelationDAG()
         # "a_polars_src" sorts alphabetically first -> becomes the anchor
@@ -444,5 +447,6 @@ class TestGatingUsesAuthoritativeDialectNotAnchor:
         # dialect (narwhals-pandas), not the anchor's (narwhals-polars).
         with pytest.raises(BackendCapabilityError):
             dag._execute_with_visitor(
-                joined, execution_policy=ma.CapabilityPolicy.checked(),
+                joined,
+                execution_policy=ma.CapabilityPolicy.checked(),
             )

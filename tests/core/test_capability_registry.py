@@ -1,9 +1,11 @@
 """Explicit policy publication and exact-scope registry lookup."""
+
 from __future__ import annotations
 
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     CapabilityKey,
@@ -18,7 +20,6 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
 
-
 _SCOPE = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
 
 
@@ -32,11 +33,23 @@ def isolated_registry():
         CapabilityRegistry.restore(snapshot)
 
 
-def _policy(subject="substring", *, message="contains is unavailable", consumer=PolicyConsumer.GATE,
-            action=PolicyAction.BLOCK, level=CapabilityLevel.UNSUPPORTED, **kwargs):
+def _policy(
+    subject="substring",
+    *,
+    message="contains is unavailable",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK,
+    level=CapabilityLevel.UNSUPPORTED,
+    **kwargs,
+):
     return CapabilityPolicyRule(
-        CapabilityKey(FK_STR.CONTAINS, subject), level, "2026-09-18", message,
-        consumer, action, **kwargs,
+        CapabilityKey(FK_STR.CONTAINS, subject),
+        level,
+        message,
+        consumer,
+        action,
+        applicability=kwargs.pop("applicability", unbounded),
+        **kwargs,
     )
 
 
@@ -79,8 +92,15 @@ def test_lookup_is_exact_to_the_concrete_dialect_and_consumer():
     CapabilityRegistry.register_segment(_segment(gate, enrich))
 
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars") is not None
-    assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "input", CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.IMMEDIATE_ERROR).native_issue == "POLARS-CONTAINS-NATIVE"
-    assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars-unknown") is None
+    assert (
+        CapabilityRegistry.capability_for(
+            FK_STR.CONTAINS, "input", CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.IMMEDIATE_ERROR
+        ).native_issue
+        == "POLARS-CONTAINS-NATIVE"
+    )
+    assert (
+        CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars-unknown") is None
+    )
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS) is None
 
 
@@ -90,27 +110,18 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
 
     from mountainash.core.capabilities.applicability import (
         Applicability,
-        ComparisonScheme,
         CoordinateConstraint,
         Region,
         prepare_environment,
     )
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.policy import CapabilityPolicy
+    from tests.fixtures.capability_observations import require_observations
 
     def interval(lower, upper):
-        return Applicability((
-            Region((
-                CoordinateConstraint(
-                    "package",
-                    "polars",
-                    ComparisonScheme.PEP440,
-                    lower=lower,
-                    upper=upper,
-                    upper_inclusive=False,
-                ),
-            )),
-        ))
+        return Applicability(
+            (Region((CoordinateConstraint("package", "polars", specifier=">=" + lower + ",<" + upper),)),)
+        )
 
     earlier = replace(
         _policy(),
@@ -123,13 +134,12 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
         applicability=interval("2", "3"),
     )
     CapabilityRegistry.register_segment(_segment(earlier, later, suffix=".versioned_direct"))
-    requirements = earlier.applicability.requirements
 
     def context(version, policy=CapabilityPolicy.checked()):
         observed = Environment((EnvironmentCoordinate("package", "polars", version),))
         return SimpleNamespace(
             policy=policy,
-            environment=prepare_environment(observed, requirements),
+            environment=require_observations(earlier.applicability, observed),
         )
 
     assert CapabilityRegistry.capability_for(
@@ -146,26 +156,35 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
         "polars",
         execution_context=context("2.5"),
     ) == later.qualify(_SCOPE)
-    assert CapabilityRegistry.capability_for(
-        FK_STR.CONTAINS,
-        "substring",
-        CONST_BACKEND.POLARS,
-        "polars",
-        execution_context=SimpleNamespace(
-            policy=CapabilityPolicy.checked(),
-            environment=prepare_environment(Environment(), requirements),
-        ),
-    ) is None
-    assert CapabilityRegistry.capability_for(
-        FK_STR.CONTAINS,
-        "substring",
-        CONST_BACKEND.POLARS,
-        "polars",
-        execution_context=context("1.5", CapabilityPolicy.trusted()),
-    ) is None
-    assert CapabilityRegistry.capability_for(
-        FK_STR.CONTAINS,
-        "substring",
-        CONST_BACKEND.POLARS,
-        "polars",
-    ) is None
+    assert (
+        CapabilityRegistry.capability_for(
+            FK_STR.CONTAINS,
+            "substring",
+            CONST_BACKEND.POLARS,
+            "polars",
+            execution_context=SimpleNamespace(
+                policy=CapabilityPolicy.checked(),
+                environment=prepare_environment(Environment(), earlier.applicability.requirements),
+            ),
+        )
+        is None
+    )
+    assert (
+        CapabilityRegistry.capability_for(
+            FK_STR.CONTAINS,
+            "substring",
+            CONST_BACKEND.POLARS,
+            "polars",
+            execution_context=context("1.5", CapabilityPolicy.trusted()),
+        )
+        is None
+    )
+    assert (
+        CapabilityRegistry.capability_for(
+            FK_STR.CONTAINS,
+            "substring",
+            CONST_BACKEND.POLARS,
+            "polars",
+        )
+        is None
+    )

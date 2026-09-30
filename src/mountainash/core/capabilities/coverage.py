@@ -10,7 +10,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Literal, Mapping
 
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
@@ -26,7 +26,7 @@ from mountainash.core.capabilities.retired import AssertionChange
 from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
-    from mountainash.core.capabilities.applicability import ApplicabilityResult, ComparisonScheme
+    from mountainash.core.capabilities.applicability import ApplicabilityResult
     from mountainash.core.capabilities.capture import Environment
     from mountainash.core.capabilities.declarations import QualifiedCapabilityKey, QualifiedInformationKey
     from mountainash.core.capabilities.policy import CapabilityPolicy
@@ -224,11 +224,13 @@ class CoverageStats:
 class UnresolvedCoordinate:
     kind: str
     name: str
-    scheme: "ComparisonScheme"
+    comparison: Literal["specifier", "opaque"]
     observed: str | None
     status: str
 
     def __post_init__(self) -> None:
+        if self.comparison not in {"specifier", "opaque"}:
+            raise ValueError("unresolved coordinate comparison must be specifier or opaque")
         if self.status not in {"missing", "unknown", "unparseable"}:
             raise ValueError("unresolved coordinate status must be missing, unknown, or unparseable")
 
@@ -334,7 +336,6 @@ def _validate_declarations(
                 )
             if record.key.scope.backend not in RENDERED_BACKENDS:
                 raise ValueError(f"{kind} uses non-rendered backend {record.key.scope.backend.value!r}")
-            _check_date(record.assertion.since, f"{kind} {record.key!r}")
             if kind == "policy" and record.key.scope.dialect is None:
                 raise ValueError("policy requires a concrete dialect scope")
 
@@ -471,23 +472,26 @@ def build_coverage_report(
         ),
     )
 
-def _unresolved_coordinates(claim, environment):
-    from mountainash.core.capabilities.applicability import _parse_version
 
+def _unresolved_coordinates(prepared_claim, environment, prepared_environment):
     observed = {(item.kind, item.name): item.version for item in environment.coordinates}
+
+    requirements = {}
+    for region in prepared_claim.regions or ():
+        for constraint in region.constraints:
+            comparison = "opaque" if constraint.opaque_equal is not None else "specifier"
+            key = (*constraint.coordinate, comparison)
+            requirements[key] = requirements.get(key, False) or constraint.requires_version
+
     unresolved = []
-    for kind, name, scheme in sorted(claim.requirements, key=lambda item: (item[0], item[1], item[2].value)):
-        if (kind, name) not in observed:
-            unresolved.append(UnresolvedCoordinate(kind, name, scheme, None, "missing"))
-            continue
-        raw = observed[(kind, name)]
-        if raw is None:
-            unresolved.append(UnresolvedCoordinate(kind, name, scheme, None, "unknown"))
-            continue
-        try:
-            _parse_version(raw, scheme)
-        except ValueError:
-            unresolved.append(UnresolvedCoordinate(kind, name, scheme, raw, "unparseable"))
+    for (kind, name, comparison), requires_version in sorted(requirements.items()):
+        raw = observed.get((kind, name), ...)
+        if raw is ...:
+            unresolved.append(UnresolvedCoordinate(kind, name, comparison, None, "missing"))
+        elif raw is None:
+            unresolved.append(UnresolvedCoordinate(kind, name, comparison, None, "unknown"))
+        elif requires_version and prepared_environment.values[(kind, name)].version is None:
+            unresolved.append(UnresolvedCoordinate(kind, name, comparison, raw, "unparseable"))
     return tuple(unresolved)
 
 
@@ -496,9 +500,10 @@ def _diagnose_record(claim, environment, action_selection):
 
     if action_selection == "excluded":
         return ApplicabilityDiagnostic(None, (), "excluded")
-    unresolved = _unresolved_coordinates(claim, environment)
-    prepared = prepare_environment(environment, claim.requirements)
-    applicability = claim.match(prepared)
+    prepared_claim = claim.prepare()
+    prepared_environment = prepare_environment(environment, prepared_claim.requirements)
+    unresolved = _unresolved_coordinates(prepared_claim, environment, prepared_environment)
+    applicability = prepared_claim.match(prepared_environment)
     return ApplicabilityDiagnostic(applicability, unresolved, action_selection)
 
 
@@ -529,13 +534,13 @@ def _build_diagnostics(information, policies, environment, policy):
         selection = None
         if policy is not None:
             selection = (
-                "selected"
-                if policy.selects(record.assertion.consumer, record.assertion.issue_classes)
-                else "excluded"
+                "selected" if policy.selects(record.assertion.consumer, record.assertion.issue_classes) else "excluded"
             )
         policy_map[record.key] = _diagnose_record(record.assertion.applicability, environment, selection)
 
     return CoverageDiagnostics(
-        environment, policy, MappingProxyType(information_map), MappingProxyType(policy_map),
+        environment,
+        policy,
+        MappingProxyType(information_map),
+        MappingProxyType(policy_map),
     )
-

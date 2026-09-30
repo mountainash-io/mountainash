@@ -1,19 +1,25 @@
 """Executable policies require an explicit consumer, action, and native identity."""
+
 from __future__ import annotations
 
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR
 
 
-def _rule(*, consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
-          level=CapabilityLevel.UNSUPPORTED, **kwargs):
+def _rule(*, consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, level=CapabilityLevel.UNSUPPORTED, **kwargs):
     return CapabilityPolicyRule(
-        CapabilityKey(FK_STR.CONTAINS, "substring"), level, "2026-09-18",
-        "explicit test policy", consumer, action, **kwargs,
+        CapabilityKey(FK_STR.CONTAINS, "substring"),
+        level,
+        "explicit test policy",
+        consumer,
+        action,
+        applicability=kwargs.pop("applicability", unbounded),
+        **kwargs,
     )
 
 

@@ -1,4 +1,5 @@
 """Genuine capability and gap history retains immutable source evidence."""
+
 from __future__ import annotations
 
 from dataclasses import replace
@@ -6,6 +7,7 @@ from dataclasses import replace
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.capture import CapturedAddress, CapturedAssertion, Environment, EnvironmentCoordinate
 from mountainash.core.capabilities.catalogue import CatalogueQuery, ChangeQuery
 from mountainash.core.capabilities.declarations import (
@@ -31,22 +33,37 @@ def _address(entry):
 
 def _captured(message, entry):
     rule = CapabilityPolicyRule(
-        CapabilityKey(FK_STR.CENTER, "length"), CapabilityLevel.LITERAL_ONLY,
-        "2026-09-18", message, PolicyConsumer.GATE, PolicyAction.BLOCK,
+        CapabilityKey(FK_STR.CENTER, "length"),
+        CapabilityLevel.LITERAL_ONLY,
+        message,
+        PolicyConsumer.GATE,
+        PolicyAction.BLOCK,
+        applicability=unbounded,
     )
     return CapturedAssertion(
-        "capability", QualifiedCapabilityKey(_SCOPE, rule.key), rule.qualify(_SCOPE), _address(entry),
+        "capability",
+        QualifiedCapabilityKey(_SCOPE, rule.key),
+        rule.qualify(_SCOPE),
+        _address(entry),
     )
 
 
 def test_assertion_change_retains_complete_same_key_replacement():
     prior = _captured("old limitation", "prior")
     successor = CapturedAssertion(
-        "capability", prior.key, replace(prior.payload, message="corrected limitation"), _address("successor"),
+        "capability",
+        prior.key,
+        replace(prior.payload, message="corrected limitation"),
+        _address("successor"),
     )
     change = AssertionChange(
-        _address("change"), prior, ChangeDisposition.INCORRECT_DECLARATION, "2026-09-18T10:11:12",
-        "correct explanatory claim", (successor,), (_address("evidence"),),
+        _address("change"),
+        prior,
+        ChangeDisposition.INCORRECT_DECLARATION,
+        "2026-09-18T10:11:12",
+        "correct explanatory claim",
+        (successor,),
+        (_address("evidence"),),
         Environment((EnvironmentCoordinate("package", "ibis", "13.0.0"),)),
     )
     assert change.prior.payload.message == "old limitation"
@@ -57,38 +74,52 @@ def test_assertion_change_retains_complete_same_key_replacement():
 
 def test_assertion_change_allows_removal_without_successor():
     change = AssertionChange(
-        _address("change"), _captured("removed limitation", "prior"),
-        ChangeDisposition.UPSTREAM_FIX, "2026-09-18", "observed upstream fix",
+        _address("change"),
+        _captured("removed limitation", "prior"),
+        ChangeDisposition.UPSTREAM_FIX,
+        "2026-09-18",
+        "observed upstream fix",
     )
     assert change.successors == ()
     assert change.fixed_versions is None
 
 
-@pytest.mark.parametrize("replacement", [
-    {"reason": ""},
-    {"recorded_at": "2026-99-99"},
-    {"successors": (_captured("changed", "prior"),)},
-])
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        {"reason": ""},
+        {"recorded_at": "2026-99-99"},
+        {"successors": (_captured("changed", "prior"),)},
+    ],
+)
 def test_assertion_change_rejects_invalid_history(replacement):
     change = AssertionChange(
-        _address("change"), _captured("old limitation", "prior"),
-        ChangeDisposition.INCORRECT_DECLARATION, "2026-09-18", "correct explanatory claim",
+        _address("change"),
+        _captured("old limitation", "prior"),
+        ChangeDisposition.INCORRECT_DECLARATION,
+        "2026-09-18",
+        "correct explanatory claim",
     )
     with pytest.raises(ValueError):
         replace(change, **replacement)
 
 
 def test_environment_preserves_stack_and_rejects_conflicts():
-    environment = Environment((
-        EnvironmentCoordinate("package", "ibis", "12.0.0"),
-        EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
-    ))
+    environment = Environment(
+        (
+            EnvironmentCoordinate("package", "ibis", "12.0.0"),
+            EnvironmentCoordinate("engine", "duckdb", "1.2.2"),
+        )
+    )
     assert environment.coordinates[1].name == "ibis-framework"
     with pytest.raises(ValueError, match="conflicting"):
-        Environment((
-            EnvironmentCoordinate("package", "ibis", "12.0.0"),
-            EnvironmentCoordinate("package", "ibis-framework", "11.0.0"),
-        ))
+        Environment(
+            (
+                EnvironmentCoordinate("package", "ibis", "12.0.0"),
+                EnvironmentCoordinate("package", "ibis-framework", "11.0.0"),
+            )
+        )
+
 
 def test_gap_history_retains_its_inventory_scoped_claim():
     from mountainash.core.capabilities.gaps import GapKey, InventoryGap, InventoryWide
@@ -96,12 +127,18 @@ def test_gap_history_retains_its_inventory_scoped_claim():
 
     key = GapKey("owned.gaps", OperationTarget(FK_STR.CENTER), "coverage", InventoryWide())
     gap = InventoryGap(
-        key, ("legacy observation",), KnownGap(GapKind.OTHER, "test gap", "2026-09-18"), (_address("gap"),),
+        key,
+        ("legacy observation",),
+        KnownGap(GapKind.OTHER, "test gap", "2026-09-18"),
+        (_address("gap"),),
     )
     prior = CapturedAssertion("gap", key, gap, _address("prior gap"))
     change = AssertionChange(
-        _address("gap change"), prior, ChangeDisposition.INCORRECT_DECLARATION,
-        "2026-09-18", "correct the captured gap record",
+        _address("gap change"),
+        prior,
+        ChangeDisposition.INCORRECT_DECLARATION,
+        "2026-09-18",
+        "correct the captured gap record",
     )
     assert change.prior.family == "gap"
     assert change.prior.key == key
@@ -112,23 +149,16 @@ def test_unknown_introduction_survives_history_without_matching_earlier_versions
     from mountainash.core.capabilities.applicability import (
         Applicability,
         ApplicabilityResult,
-        ComparisonScheme,
         CoordinateConstraint,
         Region,
-        prepare_environment,
     )
     from mountainash.core.capabilities.catalogue import CatalogueQuery, ChangeQuery
     from mountainash.core.capabilities.declarations import BoundSegment, CapabilitySegment, Domain
-    from mountainash.core.capabilities.registry import _LoadState, _empty_state
+    from mountainash.core.capabilities.registry import _empty_state, _LoadState
     from mountainash.core.capabilities.retired import HistoricalBoundary
 
     prior = _captured("provisional restriction", "prior-unknown")
-    claim = Applicability((Region((CoordinateConstraint(
-        "engine",
-        "duckdb",
-        ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.4",
-    ),)),))
+    claim = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.4"),)),))
     successor = replace(
         prior,
         payload=replace(prior.payload, applicability=claim),
@@ -156,41 +186,39 @@ def test_unknown_introduction_survives_history_without_matching_earlier_versions
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string",
-            _SCOPE,
-            CapabilitySegment(Domain.STRING, changes=(change,)),
-        ))
-        retained = CapabilityRegistry.capture().search(
-            CatalogueQuery(changes=ChangeQuery(family="capability"))
-        ).changes[0]
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string",
+                _SCOPE,
+                CapabilitySegment(Domain.STRING, changes=(change,)),
+            )
+        )
+        retained = (
+            CapabilityRegistry.capture().search(CatalogueQuery(changes=ChangeQuery(family="capability"))).changes[0]
+        )
         assert retained.prior == prior
         assert retained.unresolved_boundaries == (uncertainty,)
         assert retained.unresolved_boundaries[0].backtesting_obligation == _address("backtesting-obligation")
         retained_claim = retained.successors[0].payload.applicability
         earlier = Environment((EnvironmentCoordinate("engine", "duckdb", "1.3"),))
-        assert retained_claim.match(
-            prepare_environment(earlier, retained_claim.requirements)
-        ) is ApplicabilityResult.NOT_APPLICABLE
-        assert Applicability().match(prepare_environment(earlier, frozenset())) is ApplicabilityResult.APPLICABLE
+        from tests.fixtures.capability_observations import require_observations
+
+        prepared_earlier = require_observations(retained_claim, earlier)
+        assert retained_claim.match(prepared_earlier) is ApplicabilityResult.NOT_APPLICABLE
+        prepared_unbounded = require_observations(Applicability(), earlier)
+        assert Applicability().match(prepared_unbounded) is ApplicabilityResult.APPLICABLE
     finally:
         CapabilityRegistry.restore(snapshot)
 
 
 def test_catalogue_history_retains_controlled_lifecycle_captures():
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
-    from mountainash.core.capabilities.registry import _LoadState, _empty_state
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+    from mountainash.core.capabilities.registry import _empty_state, _LoadState
 
     def captured(message, entry, *, subject="length", variant=None, applicability=Applicability()):
         rule = CapabilityPolicyRule(
             key=CapabilityKey(FK_STR.CENTER, subject, variant=variant),
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-09-21",
             message=message,
             consumer=PolicyConsumer.GATE,
             action=PolicyAction.BLOCK,
@@ -203,26 +231,16 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
             _address(entry),
         )
 
-    broad = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.0", upper="1.3", upper_inclusive=False,
-    ),)),))
-    narrowed = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.0", upper="1.2", upper_inclusive=False,
-    ),)),))
-    first_interval = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.0", upper="1.1", upper_inclusive=False,
-    ),)),))
-    later_interval = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE,
-        lower="1.2", upper="1.3", upper_inclusive=False,
-    ),)),))
+    broad = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.0,<1.3"),)),))
+    narrowed = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.0,<1.2"),)),))
+    first_interval = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.0,<1.1"),)),))
+    later_interval = Applicability((Region((CoordinateConstraint("engine", "duckdb", specifier=">=1.2,<1.3"),)),))
 
     narrowed_prior = captured("controlled broad applicability", "narrowed-prior", applicability=broad)
     narrowed_successor = captured(
-        "controlled narrowed applicability", "narrowed-successor", applicability=narrowed,
+        "controlled narrowed applicability",
+        "narrowed-successor",
+        applicability=narrowed,
     )
     narrowing = AssertionChange(
         change_ref=_address("change-narrowing"),
@@ -248,10 +266,12 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
 
     local_prior = captured("controlled local implementation limitation", "local-prior")
     local_successor = captured("controlled local implementation repaired", "local-successor")
-    fixed_versions = Environment((
-        EnvironmentCoordinate("package", "ibis", "12.0.0"),
-        EnvironmentCoordinate("engine", "duckdb", "1.2.0"),
-    ))
+    fixed_versions = Environment(
+        (
+            EnvironmentCoordinate("package", "ibis", "12.0.0"),
+            EnvironmentCoordinate("engine", "duckdb", "1.2.0"),
+        )
+    )
     local_fix = AssertionChange(
         change_ref=_address("change-local"),
         prior=local_prior,
@@ -265,7 +285,9 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
 
     split_prior = captured("controlled combined history", "split-prior")
     split_first = captured(
-        "controlled length-expression restriction", "split-first", applicability=first_interval,
+        "controlled length-expression restriction",
+        "split-first",
+        applicability=first_interval,
     )
     split_second = captured(
         "controlled character-expression restriction",
@@ -284,10 +306,14 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
     )
 
     merge_first = captured(
-        "controlled first historical region", "merge-first-prior", applicability=first_interval,
+        "controlled first historical region",
+        "merge-first-prior",
+        applicability=first_interval,
     )
     merge_second = captured(
-        "controlled second historical region", "merge-second-prior", applicability=later_interval,
+        "controlled second historical region",
+        "merge-second-prior",
+        applicability=later_interval,
     )
     merged = captured(
         "controlled merged history",
@@ -316,17 +342,17 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.history",
-            _SCOPE,
-            CapabilitySegment(
-                Domain.STRING,
-                changes=(narrowing, correction, local_fix, split, merge_left, merge_right),
-            ),
-        ))
-        retained = CapabilityRegistry.capture().search(
-            CatalogueQuery(changes=ChangeQuery(family="capability"))
-        ).changes
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.history",
+                _SCOPE,
+                CapabilitySegment(
+                    Domain.STRING,
+                    changes=(narrowing, correction, local_fix, split, merge_left, merge_right),
+                ),
+            )
+        )
+        retained = CapabilityRegistry.capture().search(CatalogueQuery(changes=ChangeQuery(family="capability"))).changes
     finally:
         CapabilityRegistry.restore(snapshot)
 

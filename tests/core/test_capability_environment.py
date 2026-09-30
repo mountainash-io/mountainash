@@ -1,7 +1,10 @@
 """Actual execution-target environment acquisition witnesses."""
+
 from __future__ import annotations
 
 import pytest
+
+from mountainash.core.capabilities.applicability import unbounded
 
 
 @pytest.mark.parametrize("engine", ("duckdb", "sqlite"))
@@ -11,13 +14,9 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
 
     import ibis
     import polars as pl
+
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         CapabilityKey,
@@ -32,6 +31,7 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_STRING as FK,
     )
+    from tests.fixtures.capability_observations import require_observations
 
     if engine == "duckdb":
         import duckdb
@@ -50,33 +50,41 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
         assert isinstance(connection.con, native_connection_type)
         table = connection.create_table("capability_target", obj=pl.DataFrame({"x": [1]}))
         CapabilityRegistry.reset()
-        claim = Applicability((Region((
-            CoordinateConstraint(
-                "package", "ibis", ComparisonScheme.PEP440,
-                equal=version("ibis-framework"),
-            ),
-            CoordinateConstraint(
-                "engine", engine, ComparisonScheme.NUMERIC_RELEASE,
-                equal=engine_version,
-            ),
-        )),))
+        claim = Applicability(
+            (
+                Region(
+                    (
+                        CoordinateConstraint("package", "ibis", specifier="==" + version("ibis-framework")),
+                        CoordinateConstraint("engine", engine, specifier="==" + engine_version),
+                    )
+                ),
+            )
+        )
         rule = CapabilityPolicyRule(
-            CapabilityKey(FK.CONTAINS, "substring"), CapabilityLevel.UNSUPPORTED,
-            "2026-09-21", "controlled acquisition witness", PolicyConsumer.GATE,
-            PolicyAction.BLOCK, applicability=claim,
+            CapabilityKey(FK.CONTAINS, "substring"),
+            CapabilityLevel.UNSUPPORTED,
+            "controlled acquisition witness",
+            PolicyConsumer.GATE,
+            PolicyAction.BLOCK,
+            applicability=claim,
         )
         dialect = f"ibis-{engine}"
-        CapabilityRegistry.register_segment(BoundSegment(
-            f"mountainash.expressions.backends.capabilities.ibis.dialects."
-            f"ibis_{engine}.substrait.string",
-            Scope(CONST_BACKEND.IBIS, Dialect(dialect)),
-            CapabilitySegment(Domain.STRING, policies=(rule,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                f"mountainash.expressions.backends.capabilities.ibis.dialects.ibis_{engine}.substrait.string",
+                Scope(CONST_BACKEND.IBIS, Dialect(dialect)),
+                CapabilitySegment(Domain.STRING, policies=(rule,)),
+            )
+        )
 
         context = _new_execution_context(table)
+        require_observations(claim, context.observations)
         assert context.target.owner is connection
         result = CapabilityRegistry.capability_for(
-            FK.CONTAINS, "substring", CONST_BACKEND.IBIS, dialect,
+            FK.CONTAINS,
+            "substring",
+            CONST_BACKEND.IBIS,
+            dialect,
             execution_context=context,
         )
 
@@ -92,6 +100,7 @@ def test_same_dialect_bound_connections_keep_distinct_actual_target_owners(engin
     """Same-dialect Ibis tables must not share an execution target by dialect."""
     import ibis
     import polars as pl
+
     from mountainash.core.capabilities.policy import _new_execution_context
 
     first_connection = getattr(ibis, engine).connect(":memory:")
@@ -116,6 +125,7 @@ def test_same_dialect_bound_connections_keep_distinct_actual_target_owners(engin
 def test_non_native_ibis_targets_have_unknown_engines_and_fresh_owners(unbound):
     """Unbound and override-only Ibis paths never borrow a native engine."""
     import ibis
+
     from mountainash.core.backend_detection import identify_backend_identity
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.capabilities.policy import (
@@ -154,6 +164,7 @@ def test_synthetic_polars_target_cannot_borrow_loaded_engine(selector):
 
 def test_actual_polars_frames_retain_their_engine_observation():
     import polars as pl
+
     from mountainash.core.capabilities.policy import _engine_version, _identify_capability_target
 
     frame = pl.DataFrame({"x": [1]})
@@ -165,6 +176,7 @@ def test_multibackend_ibis_expression_propagates_native_target_error():
     import ibis
     import polars as pl
     from ibis.common.exceptions import IbisError
+
     from mountainash.core.capabilities.policy import _new_execution_context
 
     first = ibis.duckdb.connect(":memory:")
@@ -184,14 +196,9 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
     import duckdb
     import ibis
     import polars as pl
-    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities import bootstrap
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, bootstrap
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         CapabilityKey,
@@ -207,26 +214,20 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_STRING as FK,
     )
+    from tests.fixtures.capability_observations import require_observations
 
     rule = CapabilityPolicyRule(
         CapabilityKey(FK.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
         "cold loading acquisition witness",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
-        applicability=Applicability((Region((
-            CoordinateConstraint(
-                "engine",
-                "duckdb",
-                ComparisonScheme.NUMERIC_RELEASE,
-                equal=duckdb.__version__,
-            ),
-        )),)),
+        applicability=Applicability(
+            (Region((CoordinateConstraint("engine", "duckdb", specifier="==" + duckdb.__version__),)),)
+        ),
     )
     segment = BoundSegment(
-        "mountainash.expressions.backends.capabilities.ibis.dialects."
-        "ibis_duckdb.substrait.string.cold_loading",
+        "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.cold_loading",
         Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
         CapabilitySegment(Domain.STRING, policies=(rule,)),
     )
@@ -238,6 +239,7 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
         monkeypatch.setattr(bootstrap, "_load_segments", lambda: (segment,))
 
         context = _new_execution_context(table)
+        require_observations(rule.applicability, context.observations)
         selected = CapabilityRegistry.capability_for(
             FK.CONTAINS,
             "substring",
@@ -258,13 +260,9 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
     import duckdb
     import ibis
     import polars as pl
+
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         CapabilityKey,
@@ -279,43 +277,40 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_STRING as FK,
     )
+    from tests.fixtures.capability_observations import require_observations
 
     scope = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
     initial = CapabilityPolicyRule(
         CapabilityKey(FK.CENTER, "length"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
         "initial request policy",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
+        applicability=unbounded,
     )
     later = CapabilityPolicyRule(
         CapabilityKey(FK.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
         "later setup policy",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
-        applicability=Applicability((Region((
-            CoordinateConstraint(
-                "engine",
-                "duckdb",
-                ComparisonScheme.NUMERIC_RELEASE,
-                equal=duckdb.__version__,
-            ),
-        )),)),
+        applicability=Applicability(
+            (Region((CoordinateConstraint("engine", "duckdb", specifier="==" + duckdb.__version__),)),)
+        ),
     )
     connection = ibis.duckdb.connect(":memory:")
     before = CapabilityRegistry.snapshot()
     try:
         table = connection.create_table("later_setup_target", obj=pl.DataFrame({"x": [1]}))
         CapabilityRegistry.reset()
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.ibis.dialects."
-            "ibis_duckdb.substrait.string.initial_request",
-            scope,
-            CapabilitySegment(Domain.STRING, policies=(initial,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.ibis.dialects."
+                "ibis_duckdb.substrait.string.initial_request",
+                scope,
+                CapabilitySegment(Domain.STRING, policies=(initial,)),
+            )
+        )
 
         first_context = _new_execution_context(table)
         initial_selection = CapabilityRegistry.capability_for(
@@ -328,21 +323,26 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
         assert initial_selection is not None
         assert initial_selection.message == "initial request policy"
 
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.ibis.dialects."
-            "ibis_duckdb.substrait.string.later_setup",
-            scope,
-            CapabilitySegment(Domain.STRING, policies=(later,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.later_setup",
+                scope,
+                CapabilitySegment(Domain.STRING, policies=(later,)),
+            )
+        )
         later_context = _new_execution_context(table)
+        require_observations(later.applicability, later_context.observations)
 
-        assert CapabilityRegistry.capability_for(
-            FK.CONTAINS,
-            "substring",
-            CONST_BACKEND.IBIS,
-            "ibis-duckdb",
-            execution_context=first_context,
-        ) is None
+        assert (
+            CapabilityRegistry.capability_for(
+                FK.CONTAINS,
+                "substring",
+                CONST_BACKEND.IBIS,
+                "ibis-duckdb",
+                execution_context=first_context,
+            )
+            is None
+        )
         later_selection = CapabilityRegistry.capability_for(
             FK.CONTAINS,
             "substring",

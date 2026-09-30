@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-
-from mountainash.core.capabilities.declarations import Domain
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.declarations import CapabilitySegment
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
 SEGMENT = CapabilitySegment(
     domain=Domain.ARITHMETIC,
@@ -24,9 +24,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -36,9 +36,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -48,9 +48,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -60,9 +60,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -72,9 +72,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -84,9 +84,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -96,9 +96,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -108,9 +108,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -120,9 +120,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -132,9 +132,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -144,9 +144,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -156,9 +156,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -168,9 +168,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -180,9 +180,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -192,9 +192,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -204,9 +204,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -216,57 +216,57 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait integer overflow mode",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
                 operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
-                subject="overflow",
-                selector=Selector(kind="exact", value="SILENT"),
-            ),
-            layer=InformationLayer.NATIVE,
-            level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
-            message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
-            workaround="Cast operands to a wider integer dtype before the operation",
-        ),
-        CapabilityInformation(
-            key=CapabilityKey(
-                operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
-                subject="overflow",
-                selector=Selector(kind="exact", value="ERROR"),
-            ),
-            layer=InformationLayer.NATIVE,
-            level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
-            message="The native backend does not implement the requested Substrait integer overflow mode",
-            workaround="Cast operands to a wider integer dtype before the operation",
-        ),
-        CapabilityInformation(
-            key=CapabilityKey(
-                operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
-                subject="overflow",
-                selector=Selector(kind="exact", value="SATURATE"),
-            ),
-            layer=InformationLayer.NATIVE,
-            level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
-            message="The native backend does not implement the requested Substrait integer overflow mode",
-            workaround="Cast operands to a wider integer dtype before the operation",
-        ),
-        CapabilityInformation(
-            key=CapabilityKey(
-                operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
                 subject="overflow",
                 selector=Selector(kind="exact", value="SILENT"),
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
+        ),
+        CapabilityInformation(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+                subject="overflow",
+                selector=Selector(kind="exact", value="ERROR"),
+            ),
+            layer=InformationLayer.NATIVE,
+            level=CapabilityLevel.UNSUPPORTED,
+            message="The native backend does not implement the requested Substrait integer overflow mode",
+            workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
+        ),
+        CapabilityInformation(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+                subject="overflow",
+                selector=Selector(kind="exact", value="SATURATE"),
+            ),
+            layer=InformationLayer.NATIVE,
+            level=CapabilityLevel.UNSUPPORTED,
+            message="The native backend does not implement the requested Substrait integer overflow mode",
+            workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
+        ),
+        CapabilityInformation(
+            key=CapabilityKey(
+                operation=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+                subject="overflow",
+                selector=Selector(kind="exact", value="SILENT"),
+            ),
+            layer=InformationLayer.NATIVE,
+            level=CapabilityLevel.EXPR_CAPABLE,
+            message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
+            workaround="Cast operands to a wider integer dtype before the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -276,9 +276,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait i64 power overflow mode",
             workaround="Pre-check the i64 base and exponent and handle out-of-range powers before calling power()",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -288,9 +288,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait i64 power overflow mode",
             workaround="Pre-check the i64 base and exponent and handle out-of-range powers before calling power()",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -300,9 +300,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="Explicit SILENT selects the native backend's i64 power wrapping behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Pre-check the i64 base and exponent and handle out-of-range powers before calling power()",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -312,9 +312,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -324,9 +324,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -336,9 +336,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -348,9 +348,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -360,9 +360,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -372,9 +372,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -384,9 +384,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -396,9 +396,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -408,9 +408,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -420,9 +420,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -432,9 +432,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -444,9 +444,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -456,9 +456,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -468,9 +468,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -480,9 +480,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -492,9 +492,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -504,9 +504,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -516,9 +516,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -528,9 +528,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -540,9 +540,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -552,9 +552,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -564,9 +564,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The native omission path already has the requested arithmetic semantics, so the explicit option cannot discriminate",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -576,9 +576,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait arithmetic option semantics",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -588,9 +588,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -600,9 +600,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -612,9 +612,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -624,9 +624,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -636,9 +636,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -648,9 +648,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -660,9 +660,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -672,9 +672,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -684,9 +684,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -696,9 +696,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -708,9 +708,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -720,9 +720,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -732,9 +732,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -744,9 +744,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -756,9 +756,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -768,9 +768,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -780,9 +780,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -792,9 +792,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -804,9 +804,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -816,9 +816,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -828,9 +828,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -840,9 +840,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -852,9 +852,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -864,9 +864,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -876,9 +876,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -888,9 +888,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -900,9 +900,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -912,9 +912,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -924,9 +924,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -936,9 +936,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -948,9 +948,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -960,9 +960,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -972,9 +972,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -984,9 +984,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -996,9 +996,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1008,9 +1008,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1020,9 +1020,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1032,9 +1032,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1044,9 +1044,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1056,9 +1056,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1068,9 +1068,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1080,9 +1080,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1092,9 +1092,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1104,9 +1104,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1116,9 +1116,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1128,9 +1128,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1140,9 +1140,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1152,9 +1152,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1164,9 +1164,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1176,9 +1176,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1188,9 +1188,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1200,9 +1200,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1212,9 +1212,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1224,9 +1224,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1236,9 +1236,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1248,9 +1248,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1260,9 +1260,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1272,9 +1272,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1284,9 +1284,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1296,9 +1296,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1308,9 +1308,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1320,9 +1320,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1332,9 +1332,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1344,9 +1344,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1356,9 +1356,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1368,9 +1368,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1380,9 +1380,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1392,9 +1392,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1404,9 +1404,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1416,9 +1416,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1428,9 +1428,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1440,9 +1440,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1452,9 +1452,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1464,9 +1464,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1476,9 +1476,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1488,9 +1488,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1500,9 +1500,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1512,9 +1512,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1524,9 +1524,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1536,9 +1536,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1548,9 +1548,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1560,9 +1560,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1572,9 +1572,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1584,9 +1584,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1596,9 +1596,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1608,9 +1608,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1620,9 +1620,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1632,9 +1632,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1644,9 +1644,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1656,9 +1656,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1668,9 +1668,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1680,9 +1680,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1692,9 +1692,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1704,9 +1704,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1716,9 +1716,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1728,9 +1728,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1740,9 +1740,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1752,9 +1752,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1764,9 +1764,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1776,9 +1776,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1788,9 +1788,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1800,9 +1800,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1812,9 +1812,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1824,9 +1824,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1836,9 +1836,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-21",
             message="The native backend does not implement the requested Substrait IEEE rounding mode",
             workaround="Evaluate with native rounding, then apply an explicit application-level numeric policy",
+            applicability=unbounded,
         ),
     ),
 )

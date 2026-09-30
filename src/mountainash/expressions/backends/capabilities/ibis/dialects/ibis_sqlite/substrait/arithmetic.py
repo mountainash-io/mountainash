@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from mountainash.core.capabilities.declarations import CapabilitySegment
-
-from mountainash.core.capabilities.declarations import Domain
-
-
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-from mountainash.core.capabilities.declarations import CapabilityInformation, CapabilityKey, Selector
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
 SEGMENT = CapabilitySegment(
     domain=Domain.ARITHMETIC,
@@ -22,8 +24,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.PUBLIC,
             level=CapabilityLevel.POLYMORPHIC,
-            since="2026-08-21",
             message="SQLite ABS ERROR is available only for declared Ibis Int64 operands; narrower declared literal widths wrap at their native minima.",
+            applicability=unbounded,
         ),
     ),
 )

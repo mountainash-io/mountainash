@@ -1,25 +1,25 @@
 """RelationRule execution: failure plans, row-struct failure cases."""
+
 import polars as pl
 import pytest
+from fixtures.backend_registry import ALL_BACKENDS
 
 import mountainash as ma
-from fixtures.backend_registry import ALL_BACKENDS
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.validation import RelationRule, ValidationRunner
-
 
 
 @pytest.fixture(autouse=True)
 def _validation_execution_scope(validation_execution_scope):
     yield validation_execution_scope
 
+
 def _unique_plan(column):
     """Failure plan for a uniqueness check: rows of duplicated values."""
+
     def plan(rel):
-        return (
-            rel.group_by(column)
-            .agg(ma.count_records().alias("__ma_n__"))
-            .filter(ma.col("__ma_n__").gt(ma.lit(1)))
-        )
+        return rel.group_by(column).agg(ma.count_records().alias("__ma_n__")).filter(ma.col("__ma_n__").gt(ma.lit(1)))
+
     return plan
 
 
@@ -65,19 +65,22 @@ def test_relation_rule_plan_exception_is_isolated():
         raise RuntimeError("boom")
 
     df = pl.DataFrame({"id": [1]})
-    result = ValidationRunner().validate_relation(
-        ma.relation(df), [RelationRule(id="b", plan=broken)]
-    )
+    result = ValidationRunner().validate_relation(ma.relation(df), [RelationRule(id="b", plan=broken)])
     assert result.check_summaries["status"][0] == "error"
     assert "boom" in result.check_summaries["error"][0]
 
 
 def test_row_failure_collection_keeps_checked_context_when_inner_scope_changes(
-    monkeypatch, validation_execution_policy,
+    monkeypatch,
+    validation_execution_policy,
 ):
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
     from mountainash.core.capabilities.declarations import (
-        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
     )
     from mountainash.core.capabilities.identity import Dialect, Scope
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -92,19 +95,26 @@ def test_row_failure_collection_keeps_checked_context_when_inner_scope_changes(
     original_compile = Relation._compile_and_execute_with_visitor
     try:
         CapabilityRegistry.reset()
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.relations.backends.capabilities.polars.dialects.polars"
-            ".substrait.relation.validation_row_filter",
-            Scope(CONST_BACKEND.POLARS, Dialect("polars")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-                level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-21",
-                message="controlled row-failure collection refusal",
-                consumer=PolicyConsumer.GATE,
-                action=PolicyAction.BLOCK,
-            ),)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.relations.backends.capabilities.polars.dialects.polars"
+                ".substrait.relation.validation_row_filter",
+                Scope(CONST_BACKEND.POLARS, Dialect("polars")),
+                CapabilitySegment(
+                    Domain.RELATION,
+                    policies=(
+                        CapabilityPolicyRule(
+                            key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+                            level=CapabilityLevel.UNSUPPORTED,
+                            message="controlled row-failure collection refusal",
+                            consumer=PolicyConsumer.GATE,
+                            action=PolicyAction.BLOCK,
+                            applicability=unbounded,
+                        ),
+                    ),
+                ),
+            )
+        )
 
         def compile_inside_trusted_scope(self, *args, **kwargs):
             with ma.capability_policy(ma.CapabilityPolicy.trusted()):

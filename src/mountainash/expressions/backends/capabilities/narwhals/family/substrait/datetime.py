@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from mountainash.core.capabilities.declarations import Domain
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.declarations import CapabilitySegment
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
 
 SEGMENT = CapabilitySegment(
     domain=Domain.DATETIME,
@@ -23,8 +24,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="null-on-invalid custom temporal parsing is supported only by Polars",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -34,8 +35,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="null-on-invalid custom temporal parsing is supported only by Polars",
+            applicability=unbounded,
         ),
     ),
 )

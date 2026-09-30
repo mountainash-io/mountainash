@@ -15,7 +15,6 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
-from mountainash.core.generated_artifacts import write_text_if_changed
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     CoverageReport,
@@ -25,6 +24,7 @@ from mountainash.core.capabilities.coverage import (
     OpRecord,
 )
 from mountainash.core.capabilities.gaps import GapInventory, InventoryWide
+from mountainash.core.generated_artifacts import write_text_if_changed
 
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionDef
@@ -101,6 +101,40 @@ def _selector_dict(selector: Any) -> dict[str, Any]:
     return {"kind": selector.kind, "value": _capture_value(selector.value)}
 
 
+def _applicability_dict(claim):
+    if claim.regions is None:
+        return {"regions": None}
+    return {
+        "regions": [
+            {
+                "constraints": [
+                    {
+                        "kind": item.kind,
+                        "name": item.name,
+                        "specifier": item.specifier,
+                        "opaque_equal": item.opaque_equal,
+                    }
+                    for item in region.constraints
+                ]
+            }
+            for region in claim.regions
+        ]
+    }
+
+
+def _applicability_text(claim):
+    if claim.regions is None:
+        return "unbounded"
+    regions = []
+    for region in claim.regions:
+        terms = []
+        for item in region.constraints:
+            comparison = item.specifier if item.specifier is not None else "opaque_equal=" + repr(item.opaque_equal)
+            terms.append(f"{item.kind}:{item.name} {comparison}")
+        regions.append("(" + " AND ".join(terms) + ")")
+    return " OR ".join(regions)
+
+
 def _information_dict(record: Any) -> dict[str, Any]:
     assertion = record.assertion
     return {
@@ -114,10 +148,11 @@ def _information_dict(record: Any) -> dict[str, Any]:
         "message": assertion.message,
         "workaround": assertion.workaround,
         "issue": assertion.issue,
-        "since": assertion.since,
+        "applicability": _applicability_dict(assertion.applicability),
         "kinds": sorted(kind.value for kind in assertion.kinds),
         "origins": [_origin_dict(origin) for origin in record.origins],
     }
+
 
 def _policy_dict(record: Any) -> dict[str, Any]:
     assertion = record.assertion
@@ -147,7 +182,7 @@ def _policy_dict(record: Any) -> dict[str, Any]:
             "layer": assertion.information.layer.value,
         },
         "issue_classes": sorted(issue_class.value for issue_class in assertion.issue_classes),
-        "since": assertion.since,
+        "applicability": _applicability_dict(assertion.applicability),
         "origins": [_origin_dict(origin) for origin in record.origins],
     }
 
@@ -252,8 +287,8 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
     if not records:
         return lines + ["None recorded; absence remains unknown.", ""]
     lines += [
-        "| Scope | Operation | Subject | Selector | Variant | Layer / consumer-action | Level | Categories | Message | Provenance |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Scope | Operation | Subject | Selector | Variant | Layer / consumer-action | Level | Categories | Applicability | Message | Provenance |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for record in records:
         payload = serializer(record)
@@ -276,6 +311,7 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
         lines.append(
             f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | "
             f"{_escape(variant)} | {aspect} | {payload['level']} | {categories} | "
+            f"{_escape(_applicability_text(record.assertion.applicability))} | "
             f"{_escape(payload['message'])} | {_escape(provenance)} |"
         )
     lines.append("")
@@ -317,14 +353,17 @@ def _changes_section(report: CoverageReport) -> list[str]:
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for change in report.changes:
-        fixed = "" if change.fixed_versions is None else "; ".join(
-            f"{item.kind}/{item.name} ({item.original_label})={item.version}"
-            for item in change.fixed_versions.coordinates
+        fixed = (
+            ""
+            if change.fixed_versions is None
+            else "; ".join(
+                f"{item.kind}/{item.name} ({item.original_label})={item.version}"
+                for item in change.fixed_versions.coordinates
+            )
         )
         evidence = "; ".join(f"{ref.repository}:{ref.path}:{ref.entry}" for ref in change.evidence_refs)
         successors = "; ".join(
-            f"{item.address.repository}:{item.address.path}:{item.address.entry}"
-            for item in change.successors
+            f"{item.address.repository}:{item.address.path}:{item.address.entry}" for item in change.successors
         )
         unresolved = "; ".join(
             f"{boundary.kind}/{boundary.name} owner={boundary.owner} "
@@ -399,20 +438,25 @@ def _gap_dict(record: Any) -> dict[str, Any]:
 
 
 def _environment_dict(environment) -> dict[str, Any]:
-    return {"coordinates": [
-        {"kind": item.kind, "name": item.name, "version": item.version,
-         "original_label": item.original_label}
-        for item in environment.coordinates
-    ]}
+    return {
+        "coordinates": [
+            {"kind": item.kind, "name": item.name, "version": item.version, "original_label": item.original_label}
+            for item in environment.coordinates
+        ]
+    }
 
 
 def _boundary_dict(boundary) -> dict[str, Any]:
     return {
-        "kind": boundary.kind, "name": boundary.name, "side": boundary.side,
-        "owner": boundary.owner, "next_release": boundary.next_release,
+        "kind": boundary.kind,
+        "name": boundary.name,
+        "side": boundary.side,
+        "owner": boundary.owner,
+        "next_release": boundary.next_release,
         "backtesting_obligation": _address_dict(boundary.backtesting_obligation),
         "evidence_refs": [_address_dict(ref) for ref in boundary.evidence_refs],
-        "exception_reason": boundary.exception_reason, "exception_until": boundary.exception_until,
+        "exception_reason": boundary.exception_reason,
+        "exception_until": boundary.exception_until,
     }
 
 
@@ -426,12 +470,8 @@ def _change_dict(change: Any) -> dict[str, Any]:
         "successors": [_capture_value(successor) for successor in change.successors],
         "evidence_refs": [_address_dict(address) for address in change.evidence_refs],
     }
-    result["fixed_versions"] = (
-        None if change.fixed_versions is None else _environment_dict(change.fixed_versions)
-    )
-    result["unresolved_boundaries"] = [
-        _boundary_dict(boundary) for boundary in change.unresolved_boundaries
-    ]
+    result["fixed_versions"] = None if change.fixed_versions is None else _environment_dict(change.fixed_versions)
+    result["unresolved_boundaries"] = [_boundary_dict(boundary) for boundary in change.unresolved_boundaries]
     return result
 
 
@@ -466,7 +506,6 @@ def _family_dict(family: Any) -> dict[str, Any]:
     }
 
 
-
 def _diagnostic_dict(diagnostic) -> dict[str, Any]:
     return {
         "applicability": None if diagnostic.applicability is None else diagnostic.applicability.value,
@@ -474,7 +513,7 @@ def _diagnostic_dict(diagnostic) -> dict[str, Any]:
             {
                 "kind": item.kind,
                 "name": item.name,
-                "scheme": item.scheme.value,
+                "comparison": item.comparison,
                 "observed": item.observed,
                 "status": item.status,
             }
@@ -503,7 +542,9 @@ def _diagnostics_dict(diagnostics) -> dict[str, Any]:
     policy = diagnostics.policy
     return {
         "environment": _environment_dict(diagnostics.environment),
-        "effective_policy": None if policy is None else {
+        "effective_policy": None
+        if policy is None
+        else {
             "protection": _selection_export(policy.protection),
             "error_enrichment": _selection_export(policy.error_enrichment),
             "disclosure": _selection_export(policy.disclosure),
@@ -535,7 +576,9 @@ def render_json(report: CoverageReport) -> str:
         },
         "families": [_family_dict(family) for family in report.families],
         "segments": [_segment_dict(segment) for segment in report.segments],
-        "information": [_record_with_diagnostic(record, _information_dict, report, "information") for record in report.information],
+        "information": [
+            _record_with_diagnostic(record, _information_dict, report, "information") for record in report.information
+        ],
         "policies": [_record_with_diagnostic(record, _policy_dict, report, "policies") for record in report.policies],
         "gaps": None if report.gaps is None else [_gap_dict(gap) for gap in report.gaps],
         "changes": [_change_dict(change) for change in report.changes],
@@ -757,6 +800,7 @@ def _load_policy_file(path: Path):
 
 def main(argv: list[str] | None = None) -> None:
     import argparse
+
     from mountainash.core.capabilities.coverage import build_coverage_report
 
     parser = argparse.ArgumentParser(prog="mountainash.core.capabilities.render_markdown")

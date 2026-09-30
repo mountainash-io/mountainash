@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from mountainash.core.capabilities.declarations import Domain
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer, ValueClass
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.schema import ValueClass
-from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.DATETIME,
@@ -24,8 +24,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -35,8 +35,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -46,8 +46,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -57,8 +57,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -68,8 +68,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -79,8 +79,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -90,8 +90,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -101,8 +101,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -112,8 +112,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="the native backend has no primitive for this extract component (verified by semantic probe; see capabilities/datetime/extract.py)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -123,8 +123,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-15",
             message="extract_boolean(IS_DST) is a placeholder (constant False) on all backends; deferred to backlog item 65 (is-dst-placeholder-implementation)",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -134,8 +134,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-25",
             message="assume_timezone silently drops the timezone (returns a naive timestamp) — the tz argument is ignored; only polars attaches the timezone",
+            applicability=unbounded,
         ),
     ),
 )

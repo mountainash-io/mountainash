@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — 2026-09-29
+
+### Changed
+- Capability information and policy declarations now require explicit applicability; declaration-derived `since` is removed. Explicit unbounded scope remains valid.
+- Capability version constraints use standard PEP 440 specifiers and public packaging range APIs (`packaging>=26.3`), replacing raw endpoint and numeric-release matching. Prerelease, local-version and policy-overlap semantics follow packaging.
+- Existing capability JSON and Markdown reports include authored applicability. Missing runtime observations remain permissive; test-owned checks reject missing required observations in controlled verification.
+
 ## Unreleased — 2026-09-22
 
 ### Added

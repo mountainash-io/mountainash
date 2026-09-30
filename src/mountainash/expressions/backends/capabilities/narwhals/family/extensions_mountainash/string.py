@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from mountainash.core.capabilities.declarations import Domain
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRING
-from mountainash.core.capabilities.declarations import CapabilityKey
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilitySegment
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRING
 
 SEGMENT = CapabilitySegment(
     domain=Domain.STRING,
@@ -19,8 +20,8 @@ SEGMENT = CapabilitySegment(
             key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME, subject="*"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="custom time parsing is supported only by Polars",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -30,8 +31,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="null-on-invalid custom time parsing is supported only by Polars",
+            applicability=unbounded,
         ),
     ),
 )

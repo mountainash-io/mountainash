@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-from mountainash.core.capabilities.declarations import Domain
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
-from mountainash.core.capabilities.declarations import CapabilityKey
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import CapabilityInformation, CapabilityKey, CapabilitySegment, Domain
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.declarations import CapabilitySegment
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_TERNARY
 
 SEGMENT = CapabilitySegment(
     domain=Domain.TERNARY,
@@ -18,8 +14,8 @@ SEGMENT = CapabilitySegment(
             key=CapabilityKey(operation=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES, subject="*"),
             layer=InformationLayer.PUBLIC,
             level=CapabilityLevel.POLYMORPHIC,
-            since="2026-07-05",
             message="literal collections unwrap to raw values; expressions compile through (LIST-wrapper marker)",
+            applicability=unbounded,
         ),
     ),
 )

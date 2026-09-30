@@ -1,9 +1,11 @@
 """Information cannot execute; publication and retained views remain atomic."""
+
 from __future__ import annotations
 
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilitySegment, Domain
 from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
 from mountainash.core.constants import CONST_BACKEND
@@ -12,7 +14,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 
 @pytest.fixture(autouse=True)
 def isolated_registry():
-    from mountainash.core.capabilities.registry import _LoadState, _empty_state
+    from mountainash.core.capabilities.registry import _empty_state, _LoadState
 
     before = CapabilityRegistry.snapshot()
     CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))
@@ -30,8 +32,8 @@ def _information(subject, message, *, public=False):
         key=CapabilityKey(FK.CONTAINS, subject),
         layer=InformationLayer.PUBLIC if public else InformationLayer.NATIVE,
         level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
         message=message,
+        applicability=unbounded,
     )
 
 
@@ -42,11 +44,11 @@ def _policy(*, information=None):
     return CapabilityPolicyRule(
         key=CapabilityKey(FK.CONTAINS, "substring"),
         level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
         message="Explicit refusal remains usable without an explanation record",
         consumer=PolicyConsumer.GATE,
         action=PolicyAction.BLOCK,
         information=information,
+        applicability=unbounded,
     )
 
 
@@ -61,14 +63,16 @@ def _segment(*, family=False, information=(), policies=(), suffix=""):
 
 
 def test_negative_information_does_not_create_a_refusal():
-    CapabilityRegistry.register_segment(_segment(family=True, information=(_information("substring", "Description only"),)))
+    CapabilityRegistry.register_segment(
+        _segment(family=True, information=(_information("substring", "Description only"),))
+    )
     assert CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars") is None
 
     CapabilityRegistry.register_segment(_segment(policies=(_policy(),)))
     decision = CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars")
     assert decision is not None
     assert decision.level is CapabilityLevel.UNSUPPORTED
-    
+
     assert CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, None) is None
 
 
@@ -89,12 +93,17 @@ def test_exact_and_composed_information_keep_scope_and_frozen_generation():
     }
     assert {origin.module for record in composed for origin in record.origins} == {family.module, local.module}
 
-    CapabilityRegistry.register_segment(_segment(information=(_information("input", "Later description"),), suffix=".later"))
+    CapabilityRegistry.register_segment(
+        _segment(information=(_information("input", "Later description"),), suffix=".later")
+    )
     assert {record.assertion.message for record in captured.composed_information(local.scope)} == {
-        "Family native restriction", "Local public behavior",
+        "Family native restriction",
+        "Local public behavior",
     }
     assert {record.assertion.message for record in CapabilityRegistry.capture().composed_information(local.scope)} == {
-        "Family native restriction", "Local public behavior", "Later description",
+        "Family native restriction",
+        "Local public behavior",
+        "Later description",
     }
 
 
@@ -114,7 +123,9 @@ def test_missing_information_reference_rolls_back_entire_segment():
     CapabilityRegistry.register_segment(initial)
     captured = CapabilityRegistry.capture()
     missing = QualifiedInformationKey(
-        initial.scope, CapabilityKey(FK.CONTAINS, "substring"), InformationLayer.PUBLIC,
+        initial.scope,
+        CapabilityKey(FK.CONTAINS, "substring"),
+        InformationLayer.PUBLIC,
     )
     invalid = _segment(
         information=(_information("substring", "Must not leak from failed publication"),),
@@ -145,13 +156,17 @@ def test_catalogue_queries_keep_information_and_policies_separate():
     capture = CapabilityRegistry.capture()
     records = capture.search(CatalogueQuery(information=InformationQuery(), policies=PolicyQuery()))
     assert {(record.key.scope, record.key.layer) for record in records.information} == {
-        (family.scope, InformationLayer.NATIVE), (local.scope, InformationLayer.PUBLIC),
+        (family.scope, InformationLayer.NATIVE),
+        (local.scope, InformationLayer.PUBLIC),
     }
     assert records.policies == (capture.reader(local.scope).policy(_policy().key),)
-    local_records = capture.search(CatalogueQuery(
-        information=InformationQuery(), policies=PolicyQuery(consumer=PolicyConsumer.GATE),
-        scopes=frozenset({local.scope}),
-    ))
+    local_records = capture.search(
+        CatalogueQuery(
+            information=InformationQuery(),
+            policies=PolicyQuery(consumer=PolicyConsumer.GATE),
+            scopes=frozenset({local.scope}),
+        )
+    )
     assert tuple(record.key.scope for record in local_records.information) == (local.scope,)
     assert local_records.policies == records.policies
     assert capture.search(CatalogueQuery(information=InformationQuery())).policies is None
@@ -166,7 +181,9 @@ def test_direct_inventory_capture_distinguishes_unacquired_empty_and_duplicate()
         CapabilityRegistry.capture().search(CatalogueQuery(gaps=GapQuery()))
     assert CapabilityRegistry.capture(inventories=()).search(CatalogueQuery(gaps=GapQuery())).gaps == ()
     inventory = GapInventory(
-        "owned.empty", CapturedAddress("mountainash", "tests/owner.py", "GAPS", artifact=b"GAPS = {}"), (),
+        "owned.empty",
+        CapturedAddress("mountainash", "tests/owner.py", "GAPS", artifact=b"GAPS = {}"),
+        (),
     )
     capture = CapabilityRegistry.capture(inventories=(inventory,))
     assert capture.search(CatalogueQuery(gaps=GapQuery(inventory="owned.empty"))).gaps == ()
@@ -182,10 +199,15 @@ def test_unknown_information_subject_rejects_entire_publication():
     CapabilityRegistry.register_segment(_segment(information=(_information("input", "Existing claim"),)))
     before = CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery()))
     with pytest.raises(ValueError):
-        CapabilityRegistry.register_segment(_segment(
-            information=(_information("substring", "Must not leak"), _information("typo_argument", "Invalid claim")),
-            suffix=".invalid",
-        ))
+        CapabilityRegistry.register_segment(
+            _segment(
+                information=(
+                    _information("substring", "Must not leak"),
+                    _information("typo_argument", "Invalid claim"),
+                ),
+                suffix=".invalid",
+            )
+        )
     assert CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery())) == before
 
 
@@ -205,9 +227,13 @@ def test_policy_explanation_scope_must_cover_its_dialect(reference_home):
         CapabilitySegment(Domain.STRING, information=(_information("substring", "Scoped explanation"),)),
     )
     CapabilityRegistry.register_segment(description)
-    policy = _policy(information=QualifiedInformationKey(
-        reference_scope, policy_key := CapabilityKey(FK.CONTAINS, "substring"), InformationLayer.NATIVE,
-    ))
+    policy = _policy(
+        information=QualifiedInformationKey(
+            reference_scope,
+            policy_key := CapabilityKey(FK.CONTAINS, "substring"),
+            InformationLayer.NATIVE,
+        )
+    )
     target = BoundSegment(
         "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.policy",
         Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
@@ -220,6 +246,7 @@ def test_policy_explanation_scope_must_cover_its_dialect(reference_home):
     else:
         CapabilityRegistry.register_segment(target)
         assert CapabilityRegistry.capture().reader(target.scope).policy(policy_key).assertion == policy
+
 
 def test_information_variants_do_not_overwrite_or_become_unqualified_fallback():
     from dataclasses import replace
@@ -242,19 +269,19 @@ def test_information_variants_do_not_overwrite_or_become_unqualified_fallback():
 
     captured = CapabilityRegistry.capture()
     assert {
-        item.key.local.variant
-        for item in captured.search(CatalogueQuery(information=InformationQuery())).information
+        item.key.local.variant for item in captured.search(CatalogueQuery(information=InformationQuery())).information
     } == {"first", "second"}
-    assert captured.get_optional(
-        QualifiedInformationKey(
-            segment.scope,
-            CapabilityKey(FK.CONTAINS, "substring"),
-            InformationLayer.NATIVE,
+    assert (
+        captured.get_optional(
+            QualifiedInformationKey(
+                segment.scope,
+                CapabilityKey(FK.CONTAINS, "substring"),
+                InformationLayer.NATIVE,
+            )
         )
-    ) is None
-    assert captured.get(
-        QualifiedInformationKey(segment.scope, second.key, InformationLayer.NATIVE)
-    ).assertion is second
+        is None
+    )
+    assert captured.get(QualifiedInformationKey(segment.scope, second.key, InformationLayer.NATIVE)).assertion is second
 
 
 def test_duplicate_full_keys_roll_back_information_and_policy_publication():
@@ -271,68 +298,56 @@ def test_duplicate_full_keys_roll_back_information_and_policy_publication():
         key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="duplicate-policy"),
     )
     CapabilityRegistry.register_segment(_segment(information=(information,), policies=(policy,)))
-    before = CapabilityRegistry.capture().search(CatalogueQuery(
-        information=InformationQuery(),
-        policies=PolicyQuery(),
-    ))
+    before = CapabilityRegistry.capture().search(
+        CatalogueQuery(
+            information=InformationQuery(),
+            policies=PolicyQuery(),
+        )
+    )
 
     with pytest.raises(ValueError, match="duplicate information key"):
-        CapabilityRegistry.register_segment(
-            _segment(information=(information,), suffix=".duplicate_information")
+        CapabilityRegistry.register_segment(_segment(information=(information,), suffix=".duplicate_information"))
+    assert (
+        CapabilityRegistry.capture().search(
+            CatalogueQuery(
+                information=InformationQuery(),
+                policies=PolicyQuery(),
+            )
         )
-    assert CapabilityRegistry.capture().search(CatalogueQuery(
-        information=InformationQuery(),
-        policies=PolicyQuery(),
-    )) == before
+        == before
+    )
 
     with pytest.raises(ValueError, match="duplicate policy key"):
-        CapabilityRegistry.register_segment(_segment(
-            information=(
-                replace(
-                    information,
-                    key=replace(information.key, variant="separate-information"),
+        CapabilityRegistry.register_segment(
+            _segment(
+                information=(
+                    replace(
+                        information,
+                        key=replace(information.key, variant="separate-information"),
+                    ),
                 ),
-            ),
-            policies=(policy,),
-            suffix=".duplicate_policy",
-        ))
-    assert CapabilityRegistry.capture().search(CatalogueQuery(
-        information=InformationQuery(),
-        policies=PolicyQuery(),
-    )) == before
+                policies=(policy,),
+                suffix=".duplicate_policy",
+            )
+        )
+    assert (
+        CapabilityRegistry.capture().search(
+            CatalogueQuery(
+                information=InformationQuery(),
+                policies=PolicyQuery(),
+            )
+        )
+        == before
+    )
 
 
 def test_disjoint_policy_variants_coexist_and_require_exact_lookup():
     from dataclasses import replace
 
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
 
-    older = Applicability((
-        Region((
-            CoordinateConstraint(
-                "engine",
-                "polars",
-                ComparisonScheme.NUMERIC_RELEASE,
-                upper="1.0.0",
-                upper_inclusive=False,
-            ),
-        )),
-    ))
-    newer = Applicability((
-        Region((
-            CoordinateConstraint(
-                "engine",
-                "polars",
-                ComparisonScheme.NUMERIC_RELEASE,
-                lower="1.0.0",
-            ),
-        )),
-    ))
+    older = Applicability((Region((CoordinateConstraint("engine", "polars", specifier="<1.0.0"),)),))
+    newer = Applicability((Region((CoordinateConstraint("engine", "polars", specifier=">=1.0.0"),)),))
     first = replace(
         _policy(),
         key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="older-engine"),
@@ -351,30 +366,17 @@ def test_disjoint_policy_variants_coexist_and_require_exact_lookup():
     assert reader.policy(second.key).assertion is second
     assert reader.policy_optional(CapabilityKey(FK.CONTAINS, "substring")) is None
 
+
 def test_adjacent_version_policies_publish_and_overlap_rolls_back():
     from dataclasses import replace
 
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
     from mountainash.core.capabilities.catalogue import CatalogueQuery, PolicyQuery
 
     def interval(lower, upper):
-        return Applicability((
-            Region((
-                CoordinateConstraint(
-                    "package",
-                    "polars",
-                    ComparisonScheme.PEP440,
-                    lower=lower,
-                    upper=upper,
-                    upper_inclusive=False,
-                ),
-            )),
-        ))
+        return Applicability(
+            (Region((CoordinateConstraint("package", "polars", specifier=">=" + lower + ",<" + upper),)),)
+        )
 
     first = replace(
         _policy(),
@@ -395,27 +397,21 @@ def test_adjacent_version_policies_publish_and_overlap_rolls_back():
     )
 
     with pytest.raises(ValueError):
-        CapabilityRegistry.register_segment(
-            _segment(policies=(overlapping,), suffix=".overlap")
-        )
+        CapabilityRegistry.register_segment(_segment(policies=(overlapping,), suffix=".overlap"))
 
     current = CapabilityRegistry.capture()
     query = CatalogueQuery(policies=PolicyQuery())
     assert current.search(query).policies == before.search(query).policies
-    assert {
-        record.key.local.variant for record in current.search(query).policies
-    } == {"older", "newer"}
+    assert {record.key.local.variant for record in current.search(query).policies} == {"older", "newer"}
 
 
-def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
+def test_registry_selects_recurrence_for_known_engine_versions():
     from dataclasses import replace
 
     from mountainash.core.capabilities.applicability import (
         Applicability,
-        ComparisonScheme,
         CoordinateConstraint,
         Region,
-        prepare_environment,
     )
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.identity import BackendIdentity
@@ -424,48 +420,95 @@ def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
         _CapabilityTarget,
         _ExecutionContext,
     )
+    from tests.fixtures.capability_observations import require_observations
 
-    claim = Applicability(tuple(Region((
-        CoordinateConstraint("package", "ibis", ComparisonScheme.PEP440, equal="12"),
-        CoordinateConstraint(
-            "engine",
-            "duckdb",
-            ComparisonScheme.NUMERIC_RELEASE,
-            lower=lower,
-            upper=upper,
-            upper_inclusive=False,
-        ),
-    )) for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))))
+    claim = Applicability(
+        tuple(
+            Region(
+                (
+                    CoordinateConstraint("package", "ibis", specifier="==12"),
+                    CoordinateConstraint("engine", "duckdb", specifier=">=" + lower + ",<" + upper),
+                )
+            )
+            for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))
+        )
+    )
     # Coordinates are deliberately test-owned, not claimed Polars/Ibis evidence.
     rule = replace(_policy(), applicability=claim)
     CapabilityRegistry.register_segment(_segment(policies=(rule,)))
     target = _CapabilityTarget(BackendIdentity(CONST_BACKEND.POLARS, "polars"), object())
-    for engine, expected in (
-        ("1.1", False),
-        ("1.2", True),
-        ("1.3", False),
-        ("1.4", True),
-        (None, False),
-        ("vendor", False),
-    ):
-        observed = Environment((
-            EnvironmentCoordinate("package", "ibis", "12"),
-            EnvironmentCoordinate("engine", "duckdb", engine),
-        ))
-        context = _ExecutionContext(
-            CapabilityPolicy.checked(),
-            target,
-            observed,
-            prepare_environment(observed, claim.requirements),
+
+    def select(engine):
+        observed = Environment(
+            (
+                EnvironmentCoordinate("package", "ibis", "12"),
+                EnvironmentCoordinate("engine", "duckdb", engine),
+            )
         )
-        selected = CapabilityRegistry.capability_for(
+        return CapabilityRegistry.capability_for(
             FK.CONTAINS,
             "substring",
             CONST_BACKEND.POLARS,
             "polars",
-            execution_context=context,
+            execution_context=_ExecutionContext(
+                CapabilityPolicy.checked(),
+                target,
+                observed,
+                require_observations(claim, observed),
+            ),
         )
-        assert (selected is not None) is expected
+
+    for engine, expected in (("1.1", False), ("1.2", True), ("1.3", False), ("1.4", True)):
+        assert (select(engine) is not None) is expected
+
+
+def test_registry_does_not_select_recurrence_for_unknown_engine_fallbacks():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        CoordinateConstraint,
+        Region,
+        prepare_environment,
+    )
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _CapabilityTarget, _ExecutionContext
+
+    claim = Applicability(
+        tuple(
+            Region(
+                (
+                    CoordinateConstraint("package", "ibis", specifier="==12"),
+                    CoordinateConstraint("engine", "duckdb", specifier=">=" + lower + ",<" + upper),
+                )
+            )
+            for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))
+        )
+    )
+    rule = replace(_policy(), applicability=claim)
+    CapabilityRegistry.register_segment(_segment(policies=(rule,)))
+    target = _CapabilityTarget(BackendIdentity(CONST_BACKEND.POLARS, "polars"), object())
+
+    for engine in (None, "vendor"):
+        observed = Environment(
+            (
+                EnvironmentCoordinate("package", "ibis", "12"),
+                EnvironmentCoordinate("engine", "duckdb", engine),
+            )
+        )
+        prepared = prepare_environment(observed, claim.requirements)
+        context = _ExecutionContext(CapabilityPolicy.checked(), target, observed, prepared)
+        assert (
+            CapabilityRegistry.capability_for(
+                FK.CONTAINS,
+                "substring",
+                CONST_BACKEND.POLARS,
+                "polars",
+                execution_context=context,
+            )
+            is None
+        )
 
 
 @pytest.mark.parametrize(
@@ -580,21 +623,25 @@ def test_policy_reference_with_wrong_scope_rolls_back_publication():
 
     foreign_scope = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
     foreign_information = _information("substring", "Foreign backend explanation")
-    CapabilityRegistry.register_segment(BoundSegment(
-        "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.reference",
-        foreign_scope,
-        CapabilitySegment(Domain.STRING, information=(foreign_information,)),
-    ))
+    CapabilityRegistry.register_segment(
+        BoundSegment(
+            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string.reference",
+            foreign_scope,
+            CapabilitySegment(Domain.STRING, information=(foreign_information,)),
+        )
+    )
     before = CapabilityRegistry.capture().search(CatalogueQuery(information=InformationQuery()))
     invalid = _segment(
         information=(_information("substring", "Must not leak from failed publication"),),
         policies=(
             replace(
-                _policy(information=QualifiedInformationKey(
-                    foreign_scope,
-                    foreign_information.key,
-                    InformationLayer.NATIVE,
-                )),
+                _policy(
+                    information=QualifiedInformationKey(
+                        foreign_scope,
+                        foreign_information.key,
+                        InformationLayer.NATIVE,
+                    )
+                ),
                 key=replace(CapabilityKey(FK.CONTAINS, "substring"), variant="wrong-scope"),
             ),
         ),
@@ -608,21 +655,24 @@ def test_policy_reference_with_wrong_scope_rolls_back_publication():
 
 
 def test_backend_override_uses_destination_not_source_coordinates():
-    from mountainash.core.capabilities.registry import _LoadState, _empty_state
     from dataclasses import replace
     from importlib.metadata import version
+
     import duckdb
     import ibis
     import polars as pl
+
     import mountainash as ma
-    from mountainash.core.capabilities.applicability import Applicability, ComparisonScheme, CoordinateConstraint, Region
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+    from mountainash.core.capabilities.registry import _empty_state, _LoadState
     from mountainash.core.types import BackendCapabilityError
-    source_only = Applicability((Region((CoordinateConstraint(
-        "engine", "duckdb", ComparisonScheme.NUMERIC_RELEASE, equal=duckdb.__version__,
-    ),)),))
-    destination_only = Applicability((Region((CoordinateConstraint(
-        "package", "polars", ComparisonScheme.PEP440, equal=version("polars"),
-    ),)),))
+
+    source_only = Applicability(
+        (Region((CoordinateConstraint("engine", "duckdb", specifier="==" + duckdb.__version__),)),)
+    )
+    destination_only = Applicability(
+        (Region((CoordinateConstraint("package", "polars", specifier="==" + version("polars")),)),)
+    )
     connection = ibis.duckdb.connect(":memory:")
     try:
         source = connection.create_table("destination_context", obj=pl.DataFrame({"text": ["a", "b"]}))
@@ -633,7 +683,9 @@ def test_backend_override_uses_destination_not_source_coordinates():
         # coordinates, without gating this pipeline. Thus borrowing that
         # source context in the Polars destination is observably wrong.
         source_rule = replace(
-            _policy(), key=CapabilityKey(FK.CENTER, "length"), applicability=source_only,
+            _policy(),
+            key=CapabilityKey(FK.CENTER, "length"),
+            applicability=source_only,
         )
         source_segment = BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string",
@@ -642,16 +694,14 @@ def test_backend_override_uses_destination_not_source_coordinates():
         )
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             CapabilityRegistry.register_segment(source_segment)
-            CapabilityRegistry.register_segment(_segment(policies=(
-                replace(_policy(), applicability=source_only),
-            )))
+            CapabilityRegistry.register_segment(_segment(policies=(replace(_policy(), applicability=source_only),)))
             converted = dag.collect("result", backend="polars")
             assert ma.relation(converted).to_polars()["found"].to_list() == [True, False]
             CapabilityRegistry.restore(_empty_state(_LoadState.LOADED))  # explicit setup BETWEEN requests
             CapabilityRegistry.register_segment(source_segment)
-            CapabilityRegistry.register_segment(_segment(policies=(
-                replace(_policy(), applicability=destination_only),
-            )))
+            CapabilityRegistry.register_segment(
+                _segment(policies=(replace(_policy(), applicability=destination_only),))
+            )
             with pytest.raises(BackendCapabilityError):
                 dag.collect("result", backend="polars")
             native = dag.collect("result")
@@ -662,18 +712,20 @@ def test_backend_override_uses_destination_not_source_coordinates():
 
 def test_direct_validation_keeps_entry_policy_during_preparation(monkeypatch):
     import polars as pl
+
     import mountainash as ma
-    from mountainash.validation import RelationRule, ValidationRunner
     import mountainash.validation.prepared as prepared_module
+    from mountainash.validation import RelationRule, ValidationRunner
+
     CapabilityRegistry.register_segment(_segment(policies=(_policy(),)))
-    relation = ma.relation(pl.DataFrame({"text": ["a"]})).select(
-        ma.col("text").str.contains("a").alias("found")
-    )
+    relation = ma.relation(pl.DataFrame({"text": ["a"]})).select(ma.col("text").str.contains("a").alias("found"))
     checks = [RelationRule(id="no_failures", plan=lambda rel: rel.head(0))]
     original = prepared_module.prepare_validation_input
+
     def inside_trusted_scope(*args, **kwargs):
         with ma.capability_policy(ma.CapabilityPolicy.trusted()):
             return original(*args, **kwargs)
+
     monkeypatch.setattr(prepared_module, "prepare_validation_input", inside_trusted_scope)
     with ma.capability_policy(ma.CapabilityPolicy.checked()):
         checked = ValidationRunner().validate_relation(relation, checks)
@@ -683,3 +735,26 @@ def test_direct_validation_keeps_entry_policy_during_preparation(monkeypatch):
         trusted = ValidationRunner().validate_relation(relation, checks)
     assert trusted.passes is True
     assert trusted.failure_cases.height == 0
+
+
+def test_public_and_local_exact_policies_overlap_without_losing_previous_state():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+    from mountainash.core.capabilities.catalogue import CatalogueQuery, PolicyQuery
+
+    public = replace(
+        _policy(),
+        applicability=Applicability((Region((CoordinateConstraint("package", "polars", specifier="==11"),)),)),
+    )
+    local = replace(
+        public,
+        key=replace(public.key, variant="local"),
+        applicability=Applicability((Region((CoordinateConstraint("package", "polars", specifier="==11+local"),)),)),
+    )
+    CapabilityRegistry.register_segment(_segment(policies=(public,)))
+    query = CatalogueQuery(policies=PolicyQuery())
+    before = CapabilityRegistry.capture().search(query).policies
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(policies=(local,), suffix=".local"))
+    assert CapabilityRegistry.capture().search(query).policies == before

@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-
-from mountainash.core.capabilities.declarations import Domain
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
+from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer, PolicyAction, PolicyConsumer
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation, CapabilityPolicyRule
-from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
-from mountainash.core.capabilities.declarations import CapabilitySegment
 
 SEGMENT = CapabilitySegment(
     domain=Domain.DATETIME,
@@ -25,8 +25,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -36,8 +36,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -47,8 +47,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -58,8 +58,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -69,8 +69,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -80,8 +80,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -91,8 +91,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -102,8 +102,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="Narwhals datetime truncate, round, ceil, and floor reject the week unit '1w' and its 'week' alias on both dialects.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -113,8 +113,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="Native XSD duration parsing converts invalid lexical values to null even when failure behavior is throw.",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -124,26 +124,26 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="Native XSD partial-date parsing converts invalid lexical values to null even when failure behavior is throw.",
+            applicability=unbounded,
         ),
     ),
     policies=(
         CapabilityPolicyRule(
             key=CapabilityKey(FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION, "*"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="Invalid XSD duration lexicals silently become null during native parsing.",
             consumer=PolicyConsumer.RESULT_PROTECTION,
             action=PolicyAction.DETECT_NON_NULL_TO_NULL,
+            applicability=unbounded,
         ),
         CapabilityPolicyRule(
             key=CapabilityKey(FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE, "*"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-21",
             message="Invalid XSD partial-date lexicals silently become null during native parsing.",
             consumer=PolicyConsumer.RESULT_PROTECTION,
             action=PolicyAction.DETECT_NON_NULL_TO_NULL,
+            applicability=unbounded,
         ),
     ),
 )

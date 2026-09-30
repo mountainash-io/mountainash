@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import inspect
 import math
-from contextlib import contextmanager
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from enum import Enum as _Enum
 from types import MappingProxyType
@@ -19,24 +19,27 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple
 
 from mountainash.core.capabilities.identity import KNOWN_DIALECTS
 from mountainash.core.capabilities.schema import (
+    WILDCARD_PARAM,
     Boundary,
-    Clause,
-    ClauseOp,
     CapabilityFact,
     CapabilityLevel,
+    Clause,
+    ClauseOp,
     Enforcement,
     Fidelity,
     PolicyAction,
     PolicyConsumer,
     Predicate,
     ResidueSignal,
-    WILDCARD_PARAM,
     ValueClass,
 )
 from mountainash.core.constants import CONST_BACKEND
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from mountainash.core.capabilities.capture import SourceOrigin
+    from mountainash.core.capabilities.catalogue import CatalogueCapture, IssueSnapshot, ScopeReader
     from mountainash.core.capabilities.declarations import (
         BoundSegment,
         QualifiedCapabilityKey,
@@ -44,11 +47,9 @@ if TYPE_CHECKING:
         QualifiedInformationKey,
         QualifiedPolicy,
     )
-    from mountainash.core.capabilities.capture import SourceOrigin
-    from mountainash.core.capabilities.predicates import BoundCall
-    from mountainash.core.capabilities.catalogue import CatalogueCapture, IssueSnapshot, ScopeReader
-    from mountainash.core.capabilities.identity import Scope
     from mountainash.core.capabilities.gaps import GapInventory
+    from mountainash.core.capabilities.identity import Scope
+    from mountainash.core.capabilities.predicates import BoundCall
 
 _Key = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str], Optional[str]]
 _ValueClassBucketKey = Tuple[Any, str, CONST_BACKEND, Optional[str], Optional[str]]
@@ -57,10 +58,8 @@ _ValueClassCandidateKey = Tuple[Any, str, CONST_BACKEND, Optional[str]]
 _EnvironmentSummary = tuple[
     PolicyConsumer,
     frozenset[Any],
-    frozenset[tuple[str, str, Any]],
+    frozenset[tuple[str, str, bool]],
 ]
-
-
 
 
 class _LoadState(_Enum):
@@ -295,6 +294,7 @@ def _prepare_state(
     policy_facts,
     policy_value_class_facts,
     policy_predicate_facts,
+    prepared_claims,
     load_state,
     load_error=None,
 ) -> _RegistryState:
@@ -305,14 +305,14 @@ def _prepare_state(
     value_class_buckets: dict[_ValueClassCandidateKey, list[CapabilityFact]] = {}
     prepared_applicability: dict[CapabilityFact, Any] = {}
     for fact in policy_facts.values():
-        prepared_applicability[fact] = fact.applicability.prepare()
+        prepared_applicability[fact] = _prepared_claim(prepared_claims, fact.applicability)
         direct_buckets.setdefault(
             (fact.operation_key, fact.param, fact.backend, fact.dialect, fact.option_value),
             [],
         ).append(fact)
     for bucket in policy_value_class_facts.values():
         for fact in bucket:
-            prepared_applicability[fact] = fact.applicability.prepare()
+            prepared_applicability[fact] = _prepared_claim(prepared_claims, fact.applicability)
             value_class_buckets.setdefault(
                 (fact.operation_key, fact.param, fact.backend, fact.dialect),
                 [],
@@ -323,7 +323,7 @@ def _prepare_state(
         list[tuple[CapabilityFact, frozenset[str]]],
     ] = {}
     for fact in policy_predicate_facts:
-        prepared_applicability[fact] = fact.applicability.prepare()
+        prepared_applicability[fact] = _prepared_claim(prepared_claims, fact.applicability)
         if fact.consumer is not PolicyConsumer.GATE:
             continue
         metadata = metadata_arguments(fact.predicate)
@@ -349,7 +349,7 @@ def _prepare_state(
         list[_EnvironmentSummary],
     ] = {}
     for fact in ordered:
-        requirements = fact.applicability.requirements
+        requirements = prepared_applicability[fact].requirements
         summary = (fact.consumer, fact.issue_classes, requirements)
         summaries = environment_summaries.setdefault((fact.backend, fact.dialect), [])
         if requirements and summary not in summaries:
@@ -365,10 +365,7 @@ def _prepare_state(
         MappingProxyType({key: tuple(value) for key, value in direct_buckets.items()}),
         MappingProxyType({key: tuple(value) for key, value in value_class_buckets.items()}),
         MappingProxyType(dict(prepared_applicability)),
-        MappingProxyType({
-            key: tuple(value)
-            for key, value in environment_summaries.items()
-        }),
+        MappingProxyType({key: tuple(value) for key, value in environment_summaries.items()}),
         load_state,
         load_error,
         MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
@@ -385,8 +382,21 @@ def _empty_state(load_state=_LoadState.UNINITIALIZED) -> _RegistryState:
         policy_facts={},
         policy_value_class_facts={},
         policy_predicate_facts=(),
+        prepared_claims={},
         load_state=load_state,
     )
+
+
+def _prepared_claim(prepared_claims, claim):
+    prepared = prepared_claims.get(claim)
+    if prepared is None:
+        prepared = claim.prepare()
+        prepared_claims[claim] = prepared
+    return prepared
+
+
+def _retained_prepared_claims(state):
+    return {fact.applicability: prepared for fact, prepared in state.prepared_applicability.items()}
 
 
 def _require_type(value, expected, field):
@@ -409,7 +419,7 @@ def _validate_payload(fact):
     if not isinstance(fact.operation_key, _Enum):
         raise ValueError("operation_key must be a recognized operation Enum member")
     _enum_domain(fact.operation_key)
-    for name in ("param", "message", "since"):
+    for name in ("param", "message"):
         _require_type(getattr(fact, name), str, name)
     for name in ("dialect", "workaround", "upstream_ref", "condition", "option_value", "probe_exempt"):
         value = getattr(fact, name)
@@ -478,9 +488,7 @@ def _compare_policy_domains(left, right):
     # bound-call predicates use actual values. Never prove disjointness by
     # pretending that these two domains have identical equality semantics.
     if (left.selector.kind == "predicate") != (right.selector.kind == "predicate"):
-        predicate_key, option_key = (
-            (left, right) if left.selector.kind == "predicate" else (right, left)
-        )
+        predicate_key, option_key = (left, right) if left.selector.kind == "predicate" else (right, left)
         if option_key.selector.kind != "unconditioned":
             for clause in predicate_key.selector.value.clauses:
                 if clause.path.split(".")[0] != option_key.subject:
@@ -520,8 +528,6 @@ def _literal_only_disjoint(protection, other):
     return False
 
 
-
-
 def _base_key(key):
     return key.operation, key.subject, key.selector
 
@@ -540,10 +546,10 @@ def _resolve_information_reference(reference, information, policy_key, policy_sc
     return record
 
 
-def _check_policy_conflicts(key, policy, incoming_origins, policies):
+def _check_policy_conflicts(key, policy, incoming_origins, policies, prepared_claims):
     from mountainash.core.capabilities.applicability import (
         EnvironmentDomainRelation,
-        compare_applicability,
+        _compare_prepared_applicability,
     )
     from mountainash.core.capabilities.predicates import DomainRelation
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -556,7 +562,10 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies):
             or other.consumer is not policy.consumer
         ):
             continue
-        environment_relation = compare_applicability(policy.applicability, other.applicability)
+        environment_relation = _compare_prepared_applicability(
+            _prepared_claim(prepared_claims, policy.applicability),
+            _prepared_claim(prepared_claims, other.applicability),
+        )
         if environment_relation is EnvironmentDomainRelation.DISJOINT:
             continue
         call_comparison = _compare_policy_domains(policy.key, other.key)
@@ -564,16 +573,15 @@ def _check_policy_conflicts(key, policy, incoming_origins, policies):
             continue
         if policy.consumer is PolicyConsumer.GATE:
             both_block = policy.action is PolicyAction.BLOCK and other.action is PolicyAction.BLOCK
-            same_restriction = (
-                policy.key.subject == other.key.subject
-                and policy.key.selector == other.key.selector
-            )
-            if both_block and not same_restriction and (
-                (policy.key.selector.kind == "predicate" and other.key.selector.kind == "predicate")
-                or policy.key.subject != other.key.subject
+            same_restriction = policy.key.subject == other.key.subject and policy.key.selector == other.key.selector
+            if (
+                both_block
+                and not same_restriction
+                and (
+                    (policy.key.selector.kind == "predicate" and other.key.selector.kind == "predicate")
+                    or policy.key.subject != other.key.subject
+                )
             ):
-                # These consumers collect independent refusals; neither can
-                # cancel or select an alternative answer in place of the other.
                 continue
         if _literal_only_disjoint(policy, other) or _literal_only_disjoint(other, policy):
             continue
@@ -610,13 +618,13 @@ def _origin_labels(origins):
     return tuple(f"{origin.module}:{origin.entry}" for origin in origins)
 
 
-def _stage_information(segment, information):
-    from mountainash.core.capabilities.declarations import QualifiedInformation, QualifiedInformationKey
+def _stage_information(segment, information, prepared_claims):
     from mountainash.core.capabilities.catalogue import _validate_operation_subject
+    from mountainash.core.capabilities.declarations import QualifiedInformation, QualifiedInformationKey
 
     for ordinal, assertion in enumerate(segment.segment.information):
         _validate_operation_subject(assertion.key.operation, assertion.key.subject)
-        assertion.applicability.prepare()
+        _prepared_claim(prepared_claims, assertion.applicability)
         key = QualifiedInformationKey(segment.scope, assertion.key, assertion.layer)
         origins = _source_origins(segment, "information", ordinal)
         if key in information:
@@ -637,6 +645,7 @@ def _stage_segment_policies(
     policy_value_class_facts,
     policy_predicate_facts,
     information,
+    prepared_claims,
 ):
     from mountainash.core.capabilities.declarations import QualifiedCapabilityKey, QualifiedPolicy
 
@@ -649,12 +658,13 @@ def _stage_segment_policies(
                 f"existing origins={_origin_labels(policy_origins[key])!r}; "
                 f"incoming origins={_origin_labels(origins_for_policy)!r}"
             )
+        _prepared_claim(prepared_claims, policy.applicability)
         explanation = (
             _resolve_information_reference(policy.information, information, policy.key, segment.scope)
             if policy.information is not None
             else None
         )
-        _check_policy_conflicts(key, policy, origins_for_policy, policies)
+        _check_policy_conflicts(key, policy, origins_for_policy, policies, prepared_claims)
         fact = policy.qualify(segment.scope)
         if explanation is not None:
             fact = replace(fact, workaround=explanation.assertion.workaround, upstream_ref=explanation.assertion.issue)
@@ -681,10 +691,7 @@ def _selected(state, fact, execution_context):
         return fact.applicability.regions is None
     if not execution_context.policy.selects(fact.consumer, fact.issue_classes):
         return False
-    return (
-        state.prepared_applicability[fact].match(execution_context.environment)
-        is ApplicabilityResult.APPLICABLE
-    )
+    return state.prepared_applicability[fact].match(execution_context.environment) is ApplicabilityResult.APPLICABLE
 
 
 def _single_selected(state, candidates, consumer, execution_context):
@@ -696,6 +703,7 @@ def _single_selected(state, candidates, consumer, execution_context):
             raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {fact.fact_key!r}")
         answer = fact
     return answer
+
 
 class CapabilityRegistry:
     """Transactional declarations with accessor-level immutable snapshots.
@@ -757,11 +765,12 @@ class CapabilityRegistry:
                 policy_vclass = dict(state.policy_value_class_facts)
                 policy_predicates = list(state.policy_predicate_facts)
                 addresses = {segment.module for segment in state.segments}
+                prepared_claims = _retained_prepared_claims(state)
                 for segment in segments:
                     if segment.module in addresses:
                         raise ValueError(f"duplicate segment address: {segment.module}")
                     addresses.add(segment.module)
-                    _stage_information(segment, information)
+                    _stage_information(segment, information, prepared_claims)
                 for segment in segments:
                     _stage_segment_policies(
                         segment.scope.backend,
@@ -772,6 +781,7 @@ class CapabilityRegistry:
                         policy_vclass,
                         policy_predicates,
                         information,
+                        prepared_claims,
                     )
                 candidate = _prepare_state(
                     segments=state.segments + segments,
@@ -781,6 +791,7 @@ class CapabilityRegistry:
                     policy_facts=policy_facts,
                     policy_value_class_facts=policy_vclass,
                     policy_predicate_facts=policy_predicates,
+                    prepared_claims=prepared_claims,
                     load_state=_LoadState.LOADED,
                 )
             except BaseException as exc:
@@ -811,7 +822,8 @@ class CapabilityRegistry:
             policy_facts = dict(state.policy_facts)
             policy_vclass = dict(state.policy_value_class_facts)
             policy_predicates = list(state.policy_predicate_facts)
-            _stage_information(segment, information)
+            prepared_claims = _retained_prepared_claims(state)
+            _stage_information(segment, information, prepared_claims)
             _stage_segment_policies(
                 segment.scope.backend,
                 segment,
@@ -821,6 +833,7 @@ class CapabilityRegistry:
                 policy_vclass,
                 policy_predicates,
                 information,
+                prepared_claims,
             )
             candidate = _prepare_state(
                 segments=state.segments + (segment,),
@@ -830,6 +843,7 @@ class CapabilityRegistry:
                 policy_facts=policy_facts,
                 policy_value_class_facts=policy_vclass,
                 policy_predicate_facts=policy_predicates,
+                prepared_claims=prepared_claims,
                 load_state=state.load_state,
                 load_error=state.load_error,
             )
@@ -862,7 +876,7 @@ class CapabilityRegistry:
         dialect: str | None,
         policy,
         diagnostics_requested: bool = False,
-    ) -> frozenset[tuple[str, str, Any]]:
+    ) -> frozenset[tuple[str, str, bool]]:
         """Return publication-prepared coordinates for selected consumers only."""
         from mountainash.core.capabilities.policy import CapabilityPolicy
 
@@ -876,12 +890,9 @@ class CapabilityRegistry:
             (backend, dialect),
             (),
         ):
-            if policy.selects(consumer, issue_classes) or (
-                diagnostics_requested and policy.discloses(issue_classes)
-            ):
+            if policy.selects(consumer, issue_classes) or (diagnostics_requested and policy.discloses(issue_classes)):
                 requirements.update(summary)
         return frozenset(requirements)
-
 
     @classmethod
     def metadata_operand_names(

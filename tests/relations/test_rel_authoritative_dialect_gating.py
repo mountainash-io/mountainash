@@ -8,6 +8,7 @@ input dialect recursively.
 Design: mountainash-central
 2026-08-14-multi-input-node-anchor-dialect-gating-design.md (Revision 5).
 """
+
 from __future__ import annotations
 
 import narwhals as nw
@@ -16,7 +17,10 @@ import polars as pl
 import pytest
 
 import mountainash as ma
+import mountainash.expressions.backends  # noqa: F401
+import mountainash.relations.backends  # noqa: F401
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     CapabilityKey,
@@ -33,9 +37,6 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 )
 from mountainash.relations.dag import RelationDAG
 
-import mountainash.relations.backends  # noqa: F401
-import mountainash.expressions.backends  # noqa: F401
-
 
 def _nw_polars(data: dict):
     return nw.from_native(pl.DataFrame(data), eager_only=True)
@@ -51,28 +52,28 @@ def _narwhals_pandas_filter_gate_policy():
     policy = CapabilityPolicyRule(
         key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
         level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
         message="test-only BUILD-time gate for narwhals-pandas filter",
         consumer=PolicyConsumer.GATE,
         action=PolicyAction.BLOCK,
+        applicability=unbounded,
     )
     snap = CapabilityRegistry.snapshot()
     try:
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.relations.backends.capabilities.narwhals.dialects."
-            "narwhals_pandas.substrait.relation.test_rel_authoritative_dialect_gating_filter",
-            scope,
-            CapabilitySegment(Domain.RELATION, policies=(policy,)),
-        ))
+        CapabilityRegistry.register_segment(
+            BoundSegment(
+                "mountainash.relations.backends.capabilities.narwhals.dialects."
+                "narwhals_pandas.substrait.relation.test_rel_authoritative_dialect_gating_filter",
+                scope,
+                CapabilitySegment(Domain.RELATION, policies=(policy,)),
+            )
+        )
         yield
     finally:
         CapabilityRegistry.restore(snap)
 
 
 class TestInlineOperandDialectGate:
-    def test_filter_gate_fires_on_inline_left_operand_dialect(
-        self, _narwhals_pandas_filter_gate_policy
-    ):
+    def test_filter_gate_fires_on_inline_left_operand_dialect(self, _narwhals_pandas_filter_gate_policy):
         # Anchor is narwhals-polars (a_polars is alphabetically first); the
         # Filter is INLINE in the target tree (not a separately-compiled dep),
         # so its gate runs under the anchor pair. Its input is a narwhals-pandas
@@ -90,33 +91,33 @@ class TestInlineOperandDialectGate:
 
 
 class TestAuthoritativeDialectCases:
-    def test_gate_does_not_fire_when_left_matches_anchor(
-        self, _narwhals_pandas_filter_gate_policy
-    ):
+    def test_gate_does_not_fire_when_left_matches_anchor(self, _narwhals_pandas_filter_gate_policy):
         dag = RelationDAG()
         dag.add("a_polars", ma.relation(_nw_polars({"k": [1, 2]})))
         dag.add("z_polars2", ma.relation(_nw_polars({"k": [1, 2]})))
         dag.add("target", dag.ref("z_polars2").filter(ma.col("k") > 0).join(dag.ref("a_polars"), on="k"))
-        dag.collect("target")   # narwhals-pandas policy must NOT fire
+        dag.collect("target")  # narwhals-pandas policy must NOT fire
 
     def test_join_gate_fires_on_left_operand_dialect(self):
         scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
         policy = CapabilityPolicyRule(
             key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-18",
             message="join gate on narwhals-pandas",
             consumer=PolicyConsumer.GATE,
             action=PolicyAction.BLOCK,
+            applicability=unbounded,
         )
         snap = CapabilityRegistry.snapshot()
         try:
-            CapabilityRegistry.register_segment(BoundSegment(
-                "mountainash.relations.backends.capabilities.narwhals.dialects."
-                "narwhals_pandas.substrait.relation.test_rel_authoritative_dialect_gating_join",
-                scope,
-                CapabilitySegment(Domain.RELATION, policies=(policy,)),
-            ))
+            CapabilityRegistry.register_segment(
+                BoundSegment(
+                    "mountainash.relations.backends.capabilities.narwhals.dialects."
+                    "narwhals_pandas.substrait.relation.test_rel_authoritative_dialect_gating_join",
+                    scope,
+                    CapabilitySegment(Domain.RELATION, policies=(policy,)),
+                )
+            )
             dag = RelationDAG()
             dag.add("a_polars", ma.relation(_nw_polars({"k": [1, 2]})))
             dag.add("z_pandas", ma.relation(_nw_pandas({"k": [1, 2]})))
@@ -128,34 +129,37 @@ class TestAuthoritativeDialectCases:
 
     def test_unbound_ibis_input_yields_none(self):
         import ibis
+
+        from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
+        from mountainash.relations.core.relation_nodes import ReadRelNode
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             UnifiedRelationVisitor,
         )
-        from mountainash.relations.core.relation_nodes import ReadRelNode
-        from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 
         class _FakeBackend:
             backend_type = CONST_BACKEND.IBIS
-            dialect = "ibis-duckdb"   # anchor has a KNOWN dialect
+            dialect = "ibis-duckdb"  # anchor has a KNOWN dialect
 
-        ib = ibis.memtable({"k": [1]})   # unbound -> (IBIS, None)
+        ib = ibis.memtable({"k": [1]})  # unbound -> (IBIS, None)
         context = _new_execution_context(ib, policy=CapabilityPolicy.trusted())
         visitor = UnifiedRelationVisitor(
-            _FakeBackend(), expression_visitor=None, identity_resolver=None,
+            _FakeBackend(),
+            expression_visitor=None,
+            identity_resolver=None,
             execution_context=context,
         )
         family, dialect = visitor._physical_identity(ReadRelNode(dataframe=ib))
         assert family is CONST_BACKEND.IBIS
-        assert dialect is None   # explicitly unknown, NOT the anchor's "ibis-duckdb"
+        assert dialect is None  # explicitly unknown, NOT the anchor's "ibis-duckdb"
 
     def test_cycle_protection_returns_unresolved(self):
-        from mountainash.relations.core.unified_visitor.relation_visitor import (
-            UnifiedRelationVisitor,
-        )
+        from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
         from mountainash.relations.core.relation_nodes.extensions_mountainash import (
             RefRelNode,
         )
-        from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
+        from mountainash.relations.core.unified_visitor.relation_visitor import (
+            UnifiedRelationVisitor,
+        )
 
         class _FakeBackend:
             backend_type = CONST_BACKEND.NARWHALS
@@ -163,21 +167,24 @@ class TestAuthoritativeDialectCases:
 
         nodes = {"a": RefRelNode(name="b"), "b": RefRelNode(name="a")}
         context = _new_execution_context(
-            None, family_override=CONST_BACKEND.NARWHALS, policy=CapabilityPolicy.trusted(),
+            None,
+            family_override=CONST_BACKEND.NARWHALS,
+            policy=CapabilityPolicy.trusted(),
         )
         visitor = UnifiedRelationVisitor(
-            _FakeBackend(), expression_visitor=None,
+            _FakeBackend(),
+            expression_visitor=None,
             identity_resolver=lambda name: nodes[name],
             execution_context=context,
         )
         family, dialect = visitor._physical_identity(nodes["a"])
-        assert family is None and dialect is None   # cycle -> unresolved, no recursion
+        assert family is None and dialect is None  # cycle -> unresolved, no recursion
 
     def test_empty_set_node_no_indexerror(self):
+        from mountainash.relations.core.relation_nodes import SetRelNode
         from mountainash.relations.core.unified_visitor.relation_visitor import (
             _first_input_node,
         )
-        from mountainash.relations.core.relation_nodes import SetRelNode
 
         node = SetRelNode(inputs=[], set_type=SetType.UNION_ALL)
-        assert _first_input_node(node) is None   # no IndexError on inputs[0]
+        assert _first_input_node(node) is None  # no IndexError on inputs[0]

@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-
-from mountainash.core.capabilities.declarations import Domain
-from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
-from mountainash.core.capabilities.declarations import Selector
-from mountainash.core.capabilities.declarations import CapabilityKey
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    CapabilityInformation,
+    CapabilityKey,
+    CapabilitySegment,
+    Domain,
+    Selector,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer
-
-
-from mountainash.core.capabilities.declarations import CapabilityInformation
-from mountainash.core.capabilities.declarations import CapabilitySegment
+from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
 SEGMENT = CapabilitySegment(
     domain=Domain.ARITHMETIC,
@@ -23,10 +23,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -35,10 +35,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -47,10 +47,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -59,10 +59,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -71,10 +71,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -83,10 +83,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The explicit option selects the native backend's existing behavior, so it is observably equivalent to omission and cannot discriminate",
             workaround="Cast operands to a wider integer dtype before the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -95,10 +95,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The DuckDB omission path raises the exact exception required by the requested ERROR semantics, so the explicit option is equivalent",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -107,10 +107,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The DuckDB omission path raises the exact exception required by the requested ERROR semantics, so the explicit option is equivalent",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -119,10 +119,10 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="ERROR"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-21",
             message="The DuckDB omission path raises the exact exception required by the requested ERROR semantics, so the explicit option is equivalent",
             workaround="Pre-handle invalid arithmetic inputs and select the requested result before evaluating the operation",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
     ),
 )

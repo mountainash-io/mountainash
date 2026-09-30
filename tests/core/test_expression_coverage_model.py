@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.capture import SourceOrigin
 from mountainash.core.capabilities.coverage import (
     RENDERED_BACKENDS,
     ImplementationRecord,
@@ -11,7 +13,6 @@ from mountainash.core.capabilities.coverage import (
     OpRecord,
     build_coverage_report,
 )
-from mountainash.core.capabilities.capture import SourceOrigin
 from mountainash.core.capabilities.declarations import (
     CapabilityInformation,
     CapabilityKey,
@@ -54,7 +55,7 @@ def _origin(scope):
 def _information(scope, operation=FK_STR.LPAD, subject="input"):
     key = CapabilityKey(operation, subject)
     assertion = CapabilityInformation(
-        key, InformationLayer.NATIVE, CapabilityLevel.UNSUPPORTED, "2026-09-18", "native limitation"
+        key, InformationLayer.NATIVE, CapabilityLevel.UNSUPPORTED, "native limitation", applicability=unbounded
     )
     return QualifiedInformation(QualifiedInformationKey(scope, key, assertion.layer), assertion, (_origin(scope),))
 
@@ -62,7 +63,12 @@ def _information(scope, operation=FK_STR.LPAD, subject="input"):
 def _policy(scope):
     key = CapabilityKey(FK_STR.LPAD, "input")
     assertion = CapabilityPolicyRule(
-        key, CapabilityLevel.UNSUPPORTED, "2026-09-18", "public block", PolicyConsumer.GATE, PolicyAction.BLOCK
+        key,
+        CapabilityLevel.UNSUPPORTED,
+        "public block",
+        PolicyConsumer.GATE,
+        PolicyAction.BLOCK,
+        applicability=unbounded,
     )
     return QualifiedPolicy(QualifiedCapabilityKey(scope, key), assertion, (_origin(scope),))
 
@@ -96,6 +102,7 @@ def test_report_rejects_unknown_operation_and_duplicate_implementation_cells():
     implementations[-1] = implementations[0]
     with pytest.raises(ValueError, match="duplicate implementation record"):
         build_coverage_report(_universe(), (), (), (), None, (), tuple(implementations))
+
 
 def test_report_orders_qualified_information_independent_of_input_order():
     scope = Scope(CONST_BACKEND.POLARS, FamilyWide())

@@ -1,10 +1,12 @@
 """Relation backend error boundaries and materialization residue propagation."""
+
 from __future__ import annotations
 
 import polars as pl
 import pytest
 
 import mountainash as ma
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
@@ -13,6 +15,7 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 
 def _nw(df: pl.DataFrame):
     import narwhals as nw
+
     return nw.from_native(df, eager_only=True)
 
 
@@ -35,8 +38,6 @@ class TestNarwhalsBackendLimitations:
             rel.collect()
 
 
-
-
 class TestDagMaterializeResidueDialectPropagation:
     """Backlog item 88: _compile_with_refs() previously constructed
     relation_system/expression_system with no dialect at all, so every
@@ -46,10 +47,12 @@ class TestDagMaterializeResidueDialectPropagation:
 
     def _nw_pandas(self, data: dict):
         import narwhals as nw
+
         return nw.from_native(pl.DataFrame(data).to_pandas(), eager_only=True)
 
     def _nw_polars(self, data: dict):
         import narwhals as nw
+
         return nw.from_native(pl.DataFrame(data), eager_only=True)
 
     def test_dag_collect_enriches_failure_on_dependency_ref(self):
@@ -168,15 +171,11 @@ def test_disjoint_finite_predicate_partition_gates_the_relation_visitor():
                 "count",
                 Selector("predicate", predicate),
             ),
-            level=(
-                CapabilityLevel.UNSUPPORTED
-                if action is PolicyAction.BLOCK
-                else CapabilityLevel.EXPR_CAPABLE
-            ),
-            since="2026-09-18",
+            level=(CapabilityLevel.UNSUPPORTED if action is PolicyAction.BLOCK else CapabilityLevel.EXPR_CAPABLE),
             message=message,
             consumer=PolicyConsumer.GATE,
             action=action,
+            applicability=unbounded,
         )
 
     permit_one = policy(
@@ -209,11 +208,16 @@ def test_disjoint_finite_predicate_partition_gates_the_relation_visitor():
 
 @pytest.mark.parametrize("mode", ["checked", "trusted"])
 def test_cold_relation_gate_obeys_request_policy(mode, monkeypatch):
-    import mountainash as ma
     import polars as pl
+
+    import mountainash as ma
     from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, bootstrap
     from mountainash.core.capabilities.declarations import (
-        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain,
+        BoundSegment,
+        CapabilityKey,
+        CapabilityPolicyRule,
+        CapabilitySegment,
+        Domain,
     )
     from mountainash.core.capabilities.identity import Dialect, Scope
     from mountainash.core.capabilities.registry import _empty_state
@@ -225,12 +229,21 @@ def test_cold_relation_gate_obeys_request_policy(mode, monkeypatch):
     declaration = BoundSegment(
         "mountainash.relations.backends.capabilities.polars.dialects.polars.substrait.relation.cold_gate",
         Scope(CONST_BACKEND.POLARS, Dialect("polars")),
-        CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-            CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
-            CapabilityLevel.UNSUPPORTED, "2026-09-21", "controlled relation refusal",
-            PolicyConsumer.GATE, PolicyAction.BLOCK,
-        ),)),
+        CapabilitySegment(
+            Domain.RELATION,
+            policies=(
+                CapabilityPolicyRule(
+                    CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
+                    CapabilityLevel.UNSUPPORTED,
+                    "controlled relation refusal",
+                    PolicyConsumer.GATE,
+                    PolicyAction.BLOCK,
+                    applicability=unbounded,
+                ),
+            ),
+        ),
     )
+
     def load_declarations():
         if mode == "trusted":
             raise RuntimeError("optional catalogue unavailable")

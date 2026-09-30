@@ -1,10 +1,13 @@
 """Cold catalogue views retain explicit information and policies separately."""
+
 from __future__ import annotations
+
 from dataclasses import replace
 
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     CapabilityInformation,
@@ -37,15 +40,22 @@ def isolated():
 
 def _information(message):
     return CapabilityInformation(
-        CapabilityKey(FK_STR.CENTER, "length"), InformationLayer.PUBLIC,
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", message,
+        CapabilityKey(FK_STR.CENTER, "length"),
+        InformationLayer.PUBLIC,
+        CapabilityLevel.UNSUPPORTED,
+        message,
+        applicability=unbounded,
     )
 
 
 def _policy(message="literal length required"):
     return CapabilityPolicyRule(
-        CapabilityKey(FK_STR.CENTER, "length"), CapabilityLevel.LITERAL_ONLY,
-        "2026-09-18", message, PolicyConsumer.GATE, PolicyAction.BLOCK,
+        CapabilityKey(FK_STR.CENTER, "length"),
+        CapabilityLevel.LITERAL_ONLY,
+        message,
+        PolicyConsumer.GATE,
+        PolicyAction.BLOCK,
+        applicability=unbounded,
     )
 
 
@@ -68,12 +78,12 @@ def test_reader_is_exact_scope_and_retains_its_generation(isolated):
     later = replace(_information("later native note"), layer=InformationLayer.NATIVE)
     CapabilityRegistry.register_segment(_segment(information=(later,), suffix=".later"))
 
-    assert tuple(record.assertion.message for record in old.reader(_SCOPE).search(
-        InformationQuery()
-    )) == ("initial description",)
-    assert {record.assertion.message for record in CapabilityRegistry.capture().reader(_SCOPE).search(
-        InformationQuery()
-    )} == {"initial description", "later native note"}
+    assert tuple(record.assertion.message for record in old.reader(_SCOPE).search(InformationQuery())) == (
+        "initial description",
+    )
+    assert {
+        record.assertion.message for record in CapabilityRegistry.capture().reader(_SCOPE).search(InformationQuery())
+    } == {"initial description", "later native note"}
 
 
 def test_catalogue_queries_leave_unrequested_namespaces_absent(isolated):
@@ -103,33 +113,20 @@ def test_issue_snapshot_is_retained_and_missing_metadata_stays_distinct(isolated
 
 
 def test_version_conditioned_residue_requires_observed_context(isolated):
-    from mountainash.core.capabilities.applicability import (
-        Applicability,
-        ComparisonScheme,
-        CoordinateConstraint,
-        Region,
-    )
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
     version_conditioned_residue = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CENTER, "length", variant="ibis-10"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-18",
         "Version-conditioned residue policy requires an observed execution context",
         PolicyConsumer.MATERIALIZATION_ERROR,
         PolicyAction.ENRICH,
         native_errors=(RuntimeError,),
         native_issue="IB-STR-01",
-        applicability=Applicability((
-            Region((
-                CoordinateConstraint(
-                    "package",
-                    "ibis-framework",
-                    ComparisonScheme.PEP440,
-                    lower="10.0.0",
-                ),
-            )),
-        )),
+        applicability=Applicability(
+            (Region((CoordinateConstraint("package", "ibis-framework", specifier=">=10.0.0"),)),)
+        ),
     )
     CapabilityRegistry.register_segment(_segment(policies=(version_conditioned_residue,)))
 

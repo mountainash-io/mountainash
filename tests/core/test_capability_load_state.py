@@ -1,4 +1,5 @@
 """Atomic policy-segment loading and immutable retained generations."""
+
 from __future__ import annotations
 
 import importlib
@@ -11,9 +12,20 @@ from types import ModuleType
 
 import pytest
 
-from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Domain, load_all_capability_declarations
-from mountainash.core.capabilities import bootstrap
-from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment
+from mountainash.core.capabilities import (
+    CapabilityLevel,
+    CapabilityRegistry,
+    Domain,
+    bootstrap,
+    load_all_capability_declarations,
+)
+from mountainash.core.capabilities.applicability import unbounded
+from mountainash.core.capabilities.declarations import (
+    BoundSegment,
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+)
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.registry import _empty_state, _LoadState
 from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
@@ -27,10 +39,19 @@ def _decl(subject="length", suffix=""):
     return BoundSegment(
         "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string" + suffix,
         _SCOPE,
-        CapabilitySegment(Domain.STRING, policies=(CapabilityPolicyRule(
-            CapabilityKey(FK_STR.CENTER, subject), CapabilityLevel.LITERAL_ONLY,
-            "2026-09-18", "test policy", PolicyConsumer.GATE, PolicyAction.BLOCK,
-        ),)),
+        CapabilitySegment(
+            Domain.STRING,
+            policies=(
+                CapabilityPolicyRule(
+                    CapabilityKey(FK_STR.CENTER, subject),
+                    CapabilityLevel.LITERAL_ONLY,
+                    "test policy",
+                    PolicyConsumer.GATE,
+                    PolicyAction.BLOCK,
+                    applicability=unbounded,
+                ),
+            ),
+        ),
     )
 
 
@@ -42,6 +63,31 @@ def registry_isolation():
         yield
     finally:
         CapabilityRegistry.restore(snapshot)
+
+
+@pytest.mark.parametrize("specifier", [">=>1", ">=2,<1"])
+def test_bad_applicability_load_cannot_disappear_or_replace_prior_state(monkeypatch, specifier):
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+
+    prior = _decl()
+    CapabilityRegistry.register_segment(prior)
+
+    def load_bad_segment():
+        incoming = _decl("character", suffix=".bad")
+        claim = Applicability((Region((CoordinateConstraint("package", "ibis", specifier=specifier),)),))
+        policy = replace(incoming.segment.policies[0], applicability=claim)
+        return (replace(incoming, segment=replace(incoming.segment, policies=(policy,))),)
+
+    monkeypatch.setattr(bootstrap, "_load_segments", load_bad_segment)
+    with pytest.raises(ValueError) as first:
+        CapabilityRegistry.capture()
+    with pytest.raises(ValueError) as repeated:
+        CapabilityRegistry.capture()
+    assert repeated.value is first.value
+    failed = CapabilityRegistry.snapshot()
+    CapabilityRegistry.restore(replace(failed, load_state=_LoadState.ISOLATED, load_error=None))
+    retained = CapabilityRegistry.reader(_SCOPE).policy(prior.segment.policies[0].key)
+    assert retained.assertion == prior.segment.policies[0]
 
 
 def test_reset_disables_enumerating_capture():
@@ -76,7 +122,9 @@ def test_late_load_failure_keeps_prior_generation_and_original_error(monkeypatch
         CapabilityRegistry.capture()
     assert again.value is first.value
     CapabilityRegistry.restore(replace(failed, load_state=_LoadState.ISOLATED, load_error=None))
-    assert CapabilityRegistry.reader(_SCOPE).policy(prior.segment.policies[0].key).assertion is prior.segment.policies[0]
+    assert (
+        CapabilityRegistry.reader(_SCOPE).policy(prior.segment.policies[0].key).assertion is prior.segment.policies[0]
+    )
 
 
 def test_concurrent_first_readers_observe_one_complete_load(monkeypatch):
@@ -115,7 +163,10 @@ def test_failed_segment_registration_retains_existing_policy():
     with pytest.raises(ValueError, match="duplicate"):
         CapabilityRegistry.register_segment(duplicate)
     assert CapabilityRegistry.segments() == (initial,)
-    assert CapabilityRegistry.reader(_SCOPE).policy(initial.segment.policies[0].key).assertion is initial.segment.policies[0]
+    assert (
+        CapabilityRegistry.reader(_SCOPE).policy(initial.segment.policies[0].key).assertion
+        is initial.segment.policies[0]
+    )
 
 
 def test_loader_uses_declared_root_source_not_cached_leaf_file(monkeypatch):
@@ -134,7 +185,9 @@ def test_loader_uses_declared_root_source_not_cached_leaf_file(monkeypatch):
         changed = original + b"\nfrom dataclasses import replace\nSEGMENT = replace(SEGMENT, policies=())\n"
         source_path.write_bytes(changed)
         scope_path = root_path / "ibis" / "family" / "_scope.py"
-        scope_path.write_text("from mountainash.core.capabilities.identity import FamilyWide, Scope\nfrom mountainash.core.constants import CONST_BACKEND\nSCOPE = Scope(CONST_BACKEND.IBIS, FamilyWide())\n")
+        scope_path.write_text(
+            "from mountainash.core.capabilities.identity import FamilyWide, Scope\nfrom mountainash.core.constants import CONST_BACKEND\nSCOPE = Scope(CONST_BACKEND.IBIS, FamilyWide())\n"
+        )
         temporary_root = ModuleType(root)
         temporary_root.__path__ = (str(root_path),)
         for name in tuple(sys.modules):
