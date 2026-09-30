@@ -1,5 +1,6 @@
 """Native relation errors require identified issues and reachable consumers."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import pandas as pd
@@ -27,16 +28,12 @@ def test_error_policy_cannot_target_a_handler_without_native_dispatch():
             "mountainash.relations.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.relation",
             scope,
             CapabilitySegment(Domain.RELATION, policies=(
-                CapabilityPolicyRule(
-                    key=key,
-                    level=CapabilityLevel.UNSUPPORTED,
-                    since="2026-09-18",
-                    message="A reference cannot produce a native storage issue.",
-                    consumer=PolicyConsumer.MATERIALIZATION_ERROR,
-                    action=PolicyAction.ENRICH,
-                    native_errors=(TypeError,),
-                    native_issue="narwhals:arrow-list-storage",
-                ),
+                CapabilityPolicyRule(key=key,
+                level=CapabilityLevel.UNSUPPORTED, message="A reference cannot produce a native storage issue.",
+                consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+                action=PolicyAction.ENRICH,
+                native_errors=(TypeError,),
+                native_issue="narwhals:arrow-list-storage", applicability=unbounded),
             )),
         )
         with pytest.raises(ValueError):
@@ -87,14 +84,10 @@ def test_native_collect_protects_xsd_results_without_exposing_markers(backend_na
             f"mountainash.expressions.backends.capabilities.{family.value}.dialects.{backend_name.replace('-', '_')}.extensions_mountainash.datetime",
             Scope(family, Dialect(backend_name)),
             CapabilitySegment(Domain.DATETIME, policies=tuple(
-                CapabilityPolicyRule(
-                    key=CapabilityKey(operation, "*"),
-                    level=CapabilityLevel.UNSUPPORTED,
-                    since="2026-09-18",
-                    message="Invalid lexical input became null.",
-                    consumer=PolicyConsumer.RESULT_PROTECTION,
-                    action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-                )
+                CapabilityPolicyRule(key=CapabilityKey(operation, "*"),
+                level=CapabilityLevel.UNSUPPORTED, message="Invalid lexical input became null.",
+                consumer=PolicyConsumer.RESULT_PROTECTION,
+                action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded)
                 for operation in (FK.PARSE_XSD_DURATION, FK.PARSE_XSD_PARTIAL_DATE)
             )),
         ))

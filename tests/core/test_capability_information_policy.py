@@ -1,5 +1,6 @@
 """Information cannot execute; publication and retained views remain atomic."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -26,28 +27,20 @@ def _information(subject, message, *, public=False):
     from mountainash.core.capabilities.declarations import CapabilityInformation
     from mountainash.core.capabilities.schema import InformationLayer
 
-    return CapabilityInformation(
-        key=CapabilityKey(FK.CONTAINS, subject),
-        layer=InformationLayer.PUBLIC if public else InformationLayer.NATIVE,
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message=message,
-    )
+    return CapabilityInformation(key=CapabilityKey(FK.CONTAINS, subject),
+    layer=InformationLayer.PUBLIC if public else InformationLayer.NATIVE,
+    level=CapabilityLevel.UNSUPPORTED, message=message, applicability=unbounded)
 
 
 def _policy(*, information=None):
     from mountainash.core.capabilities.declarations import CapabilityPolicyRule
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
-    return CapabilityPolicyRule(
-        key=CapabilityKey(FK.CONTAINS, "substring"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="Explicit refusal remains usable without an explanation record",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-        information=information,
-    )
+    return CapabilityPolicyRule(key=CapabilityKey(FK.CONTAINS, "substring"),
+    level=CapabilityLevel.UNSUPPORTED, message="Explicit refusal remains usable without an explanation record",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK,
+    information=information, applicability=unbounded)
 
 
 def _segment(*, family=False, information=(), policies=(), suffix=""):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 from mountainash.core.capabilities.declarations import Selector
@@ -35,8 +36,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -46,8 +47,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -65,8 +66,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -84,8 +85,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -103,8 +104,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -122,8 +123,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -133,18 +134,18 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.CAST_ITEMS for the requested failure behavior",
+            applicability=unbounded,
         ),
         *(
             CapabilityInformation(
                 key=CapabilityKey(FKEY_MOUNTAINASH_SCALAR_LIST.GET, "index"),
                 layer=InformationLayer.NATIVE,
                 level=CapabilityLevel.UNSUPPORTED,
-                since="2026-08-01",
                 message="Narwhals rejects negative list indices during native expression construction; nonnegative indices work and no native list.last operation is exposed.",
                 workaround="Use a nonnegative index or the Polars or Ibis backend for negative indexing.",
                 issue="NW-LIST-04",
+                applicability=unbounded,
             ),
         ),
     ),
@@ -152,7 +153,6 @@ SEGMENT = CapabilitySegment(
         CapabilityPolicyRule(
             key=CapabilityKey(FKEY_MOUNTAINASH_SCALAR_LIST.GET, "index"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-01",
             message="Narwhals list.get() and list.last() do not support negative indices.",
             consumer=PolicyConsumer.IMMEDIATE_ERROR,
             action=PolicyAction.ENRICH,
@@ -161,6 +161,7 @@ SEGMENT = CapabilitySegment(
             information=QualifiedInformationKey(
                 _SCOPE, CapabilityKey(FKEY_MOUNTAINASH_SCALAR_LIST.GET, "index"), InformationLayer.NATIVE
             ),
+            applicability=unbounded,
         ),
     ),
 )

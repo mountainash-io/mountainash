@@ -915,7 +915,6 @@ class CapabilityFact:
     message: str = ""
     workaround: str | None = None
     upstream_ref: str | None = None  # typed ID into registry/upstream-issues.yaml
-    since: str = ""
     boundary: Boundary = Boundary.BUILD
     native_errors: tuple[type[Exception], ...] = ()
     condition: str | None = None  # human-readable value/option condition; None = unconditional
@@ -1000,7 +999,6 @@ class CapabilityFact:
                 f"CapabilityFact({self.operation_key}, {self.param}): "
                 "EXCEPTION residue facts must declare native_errors"
             )
-        _validate_since(self.since, f"CapabilityFact({self.operation_key}, {self.param})")
         if self.level is CapabilityLevel.EXPR_CAPABLE and self.dialect is None:
             raise ValueError(
                 f"CapabilityFact({self.operation_key}, {self.param}): explicit "

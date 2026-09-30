@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT
 from mountainash.core.capabilities.schema import ClauseOp
@@ -28,9 +29,9 @@ SEGMENT = CapabilitySegment(
                 ),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute STRUCT.CAST for the requested failure behavior",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -42,9 +43,9 @@ SEGMENT = CapabilitySegment(
                 ),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute STRUCT.CAST for the requested failure behavior",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
     ),
 )

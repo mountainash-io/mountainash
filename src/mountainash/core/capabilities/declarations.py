@@ -26,7 +26,6 @@ from mountainash.core.capabilities.schema import (
     Predicate,
     ResidueSignal,
     ValueClass,
-    _validate_since,
     _validate_variant,
 )
 
@@ -220,12 +219,11 @@ class CapabilityInformation:
     key: CapabilityKey
     layer: InformationLayer
     level: CapabilityLevel
-    since: str
     message: str
     workaround: str | None = None
     issue: str | None = None
     kinds: frozenset[CapabilityIssueClass] = frozenset()
-    applicability: Applicability = Applicability()
+    applicability: Applicability = field(kw_only=True)
 
 
     def __post_init__(self) -> None:
@@ -241,7 +239,6 @@ class CapabilityInformation:
             raise TypeError("information workaround requires text or None")
         if type(self.applicability) is not Applicability:
             raise TypeError("information applicability requires Applicability")
-        _validate_since(self.since, "CapabilityInformation")
         _validate_issue_reference(self.issue)
         require_immutable(self)
 
@@ -272,14 +269,13 @@ class CapabilityPolicyRule:
 
     key: CapabilityKey
     level: CapabilityLevel
-    since: str
     message: str
     consumer: PolicyConsumer
     action: PolicyAction
     native_errors: tuple[type[Exception], ...] = ()
     native_issue: str | None = None
     information: QualifiedInformationKey | None = None
-    applicability: Applicability = Applicability()
+    applicability: Applicability = field(kw_only=True)
     issue_classes: frozenset[CapabilityIssueClass] = frozenset({CapabilityIssueClass.UNCLASSIFIED})
 
 
@@ -306,7 +302,6 @@ class CapabilityPolicyRule:
             raise TypeError("policy issue classes require a nonempty frozen enum set")
         if CapabilityIssueClass.UNCLASSIFIED in self.issue_classes and len(self.issue_classes) != 1:
             raise ValueError("unclassified cannot accompany a specific issue class")
-        _validate_since(self.since, "CapabilityPolicyRule")
         if self.consumer is PolicyConsumer.GATE:
             if (
                 self.action not in (PolicyAction.BLOCK, PolicyAction.PERMIT)
@@ -365,7 +360,6 @@ class CapabilityPolicyRule:
             backend=scope.backend,
             dialect=scope.dialect,
             level=self.level,
-            since=self.since,
             message=self.message,
             boundary=boundary,
             native_errors=self.native_errors,

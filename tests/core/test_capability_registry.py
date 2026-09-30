@@ -1,5 +1,6 @@
 """Explicit policy publication and exact-scope registry lookup."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -35,8 +36,8 @@ def isolated_registry():
 def _policy(subject="substring", *, message="contains is unavailable", consumer=PolicyConsumer.GATE,
             action=PolicyAction.BLOCK, level=CapabilityLevel.UNSUPPORTED, **kwargs):
     return CapabilityPolicyRule(
-        CapabilityKey(FK_STR.CONTAINS, subject), level, "2026-09-18", message,
-        consumer, action, **kwargs,
+        CapabilityKey(FK_STR.CONTAINS, subject), level, message, consumer, action,
+        applicability=kwargs.pop("applicability", unbounded), **kwargs,
     )
 
 

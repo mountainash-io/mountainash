@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import (
     BoundSegment,
     CapabilityInformation,
@@ -31,7 +32,7 @@ def _policy(key=None):
     return CapabilityPolicyRule(
         key,
         CapabilityLevel.LITERAL_ONLY if key.selector.kind == "unconditioned" else CapabilityLevel.UNSUPPORTED,
-        "2026-09-18", "test policy", PolicyConsumer.GATE, PolicyAction.BLOCK,
+        "test policy", PolicyConsumer.GATE, PolicyAction.BLOCK, applicability=unbounded,
     )
 
 
@@ -61,7 +62,7 @@ def test_bound_segment_qualifies_policy_only_for_its_concrete_scope():
     scope = Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb"))
     segment = CapabilitySegment(Domain.STRING, information=(
         CapabilityInformation(CapabilityKey(FK_STR.CENTER, "length"), InformationLayer.PUBLIC,
-                              CapabilityLevel.LITERAL_ONLY, "2026-09-18", "public limitation"),
+                              CapabilityLevel.LITERAL_ONLY, "public limitation", applicability=unbounded),
     ), policies=(_policy(),))
     bound = BoundSegment(
         "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.substrait.string",
@@ -98,3 +99,44 @@ def test_policy_issue_classes_reject_unknown_and_mixed_unclassified_inputs():
                 CapabilityIssueClass.SEMANTICS,
             }),
         )
+
+
+def test_information_requires_keyword_applicability():
+    with pytest.raises(TypeError):
+        CapabilityInformation(
+            key=CapabilityKey(FK_STR.CENTER, "length"),
+            layer=InformationLayer.NATIVE,
+            level=CapabilityLevel.UNSUPPORTED,
+            message="controlled information",
+        )
+
+def test_policy_requires_keyword_applicability():
+    with pytest.raises(TypeError):
+        CapabilityPolicyRule(
+            key=CapabilityKey(FK_STR.CENTER, "length"),
+            level=CapabilityLevel.UNSUPPORTED,
+            message="controlled refusal",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+        )
+
+
+def test_explicit_unbounded_information_and_policy_qualify():
+    from mountainash.core.capabilities.applicability import prepare_environment, unbounded
+    from mountainash.core.capabilities.capture import Environment
+    info = CapabilityInformation(
+        key=CapabilityKey(FK_STR.CENTER, "length"),
+        layer=InformationLayer.NATIVE,
+        level=CapabilityLevel.UNSUPPORTED,
+        message="controlled information",
+        applicability=unbounded,
+    )
+    rule = CapabilityPolicyRule(
+        key=info.key, level=CapabilityLevel.UNSUPPORTED,
+        message="controlled refusal", consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK, applicability=unbounded,
+    )
+    fact = rule.qualify(Scope(CONST_BACKEND.POLARS, Dialect("polars")))
+    assert fact.applicability.match(
+        prepare_environment(Environment(), frozenset())
+    ).value == "applicable"

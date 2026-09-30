@@ -1,6 +1,7 @@
 """Predicate policy publication, resolution, and metadata boundaries."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import replace
 
@@ -41,18 +42,14 @@ _SCOPE = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
 
 
 def _policy(subject, action, predicate, *, message=None):
-    return CapabilityPolicyRule(
-        key=CapabilityKey(_OP, subject, Selector("predicate", predicate)),
-        level=(
-            CapabilityLevel.UNSUPPORTED
-            if action is PolicyAction.BLOCK
-            else CapabilityLevel.EXPR_CAPABLE
-        ),
-        since="2026-09-18",
-        message=message or f"{subject} {action.value}",
-        consumer=PolicyConsumer.GATE,
-        action=action,
-    )
+    return CapabilityPolicyRule(key=CapabilityKey(_OP, subject, Selector("predicate", predicate)),
+    level=(
+        CapabilityLevel.UNSUPPORTED
+        if action is PolicyAction.BLOCK
+        else CapabilityLevel.EXPR_CAPABLE
+    ), message=message or f"{subject} {action.value}",
+    consumer=PolicyConsumer.GATE,
+    action=action, applicability=unbounded)
 
 
 def _segment(*policies, suffix=""):
@@ -174,18 +171,14 @@ def test_null_predicate_and_value_class_partition_publish_as_independent_domains
         Predicate((Clause("x", ClauseOp.IS_NULL),)),
         message="null abs input is blocked",
     )
-    value_class_block = CapabilityPolicyRule(
-        key=CapabilityKey(
-            _OP,
-            "x",
-            Selector("value_class", ValueClass.DURATION_MULTIPLIER),
-        ),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="duration multiplier abs input is blocked",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    value_class_block = CapabilityPolicyRule(key=CapabilityKey(
+        _OP,
+        "x",
+        Selector("value_class", ValueClass.DURATION_MULTIPLIER),
+    ),
+    level=CapabilityLevel.UNSUPPORTED, message="duration multiplier abs input is blocked",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
     segment = _segment(
         null_block,
         value_class_block,
@@ -311,22 +304,14 @@ def test_opposing_predicate_policies_compete_across_subject_labels(isolated):
 
 
 def test_same_subject_single_answer_selectors_compete(isolated):
-    block_all = CapabilityPolicyRule(
-        key=CapabilityKey(_OP, "overflow"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="all overflow modes are blocked",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
-    permit_error = CapabilityPolicyRule(
-        key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
-        level=CapabilityLevel.EXPR_CAPABLE,
-        since="2026-09-18",
-        message="ERROR mode is permitted",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.PERMIT,
-    )
+    block_all = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow"),
+    level=CapabilityLevel.UNSUPPORTED, message="all overflow modes are blocked",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
+    permit_error = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
+    level=CapabilityLevel.EXPR_CAPABLE, message="ERROR mode is permitted",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.PERMIT, applicability=unbounded)
 
     with pytest.raises(ValueError):
         CapabilityRegistry.register_segment(
@@ -334,14 +319,10 @@ def test_same_subject_single_answer_selectors_compete(isolated):
         )
 
 def test_literal_only_protection_and_literal_permit_have_disjoint_call_shapes(isolated):
-    dynamic_block = CapabilityPolicyRule(
-        key=CapabilityKey(_OP, "x"),
-        level=CapabilityLevel.LITERAL_ONLY,
-        since="2026-09-18",
-        message="Dynamic arguments are refused",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    dynamic_block = CapabilityPolicyRule(key=CapabilityKey(_OP, "x"),
+    level=CapabilityLevel.LITERAL_ONLY, message="Dynamic arguments are refused",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
     literal_permit = _policy("x", PolicyAction.PERMIT, Predicate((Clause("x", ClauseOp.IS_LITERAL),)))
     CapabilityRegistry.register_segment(_segment(dynamic_block, literal_permit, suffix=".call_shapes"))
 
@@ -473,14 +454,10 @@ def test_metadata_names_are_exact_scope_declaration_data(isolated):
 
 
 def test_whole_operation_policy_is_not_a_parameter_fallback(isolated):
-    policy = CapabilityPolicyRule(
-        key=CapabilityKey(_OP, "*"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="The operation is refused in this concrete scope",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    policy = CapabilityPolicyRule(key=CapabilityKey(_OP, "*"),
+    level=CapabilityLevel.UNSUPPORTED, message="The operation is refused in this concrete scope",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
     CapabilityRegistry.register_segment(_segment(policy, suffix=".whole_operation"))
 
     assert CapabilityRegistry.capability_for(_OP, "x", CONST_BACKEND.POLARS, "polars") is None
@@ -494,24 +471,16 @@ def test_whole_operation_policy_is_not_a_parameter_fallback(isolated):
 
 
 def test_single_answer_queries_select_the_named_consumer_without_selector_priority(isolated):
-    gate = CapabilityPolicyRule(
-        key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="ERROR mode is refused",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
-    enrichment = CapabilityPolicyRule(
-        key=CapabilityKey(_OP, "overflow"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="An identified native failure can be explained",
-        consumer=PolicyConsumer.IMMEDIATE_ERROR,
-        action=PolicyAction.ENRICH,
-        native_errors=(TypeError,),
-        native_issue="test:overflow-native-failure",
-    )
+    gate = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow", Selector("exact", "ERROR")),
+    level=CapabilityLevel.UNSUPPORTED, message="ERROR mode is refused",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
+    enrichment = CapabilityPolicyRule(key=CapabilityKey(_OP, "overflow"),
+    level=CapabilityLevel.UNSUPPORTED, message="An identified native failure can be explained",
+    consumer=PolicyConsumer.IMMEDIATE_ERROR,
+    action=PolicyAction.ENRICH,
+    native_errors=(TypeError,),
+    native_issue="test:overflow-native-failure", applicability=unbounded)
     CapabilityRegistry.register_segment(_segment(gate, enrichment, suffix=".named_consumers"))
 
     assert CapabilityRegistry.capability_for(

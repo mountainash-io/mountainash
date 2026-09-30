@@ -1,6 +1,7 @@
 """Render-only examples do not become executable or verified catalogue claims."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import sys
 from pathlib import Path
@@ -28,11 +29,11 @@ def _information(dialect, *, issue=None, kinds=frozenset()):
         CapabilityKey(FK.TITLE, "*"),
         InformationLayer.NATIVE,
         CapabilityLevel.EXPR_CAPABLE,
-        "2026-09-17",
+        
         "Native Unicode title casing differs.",
         issue=issue,
         kinds=kinds,
-    )
+     applicability=unbounded)
     origin = SourceOrigin(
         f"mountainash.expressions.backends.capabilities.ibis.dialects.{dialect.replace('-', '_')}.substrait.string",
         scope, FactSource.SUBSTRAIT, Domain.STRING, "information[0]",

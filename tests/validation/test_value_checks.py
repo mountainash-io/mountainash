@@ -1,4 +1,5 @@
 """Logical value-rule declaration and canonical-key behavior."""
+from mountainash.core.capabilities.applicability import unbounded
 
 from decimal import Decimal
 
@@ -286,14 +287,10 @@ def test_value_rule_fallback_keeps_checked_context_when_inner_scope_changes(
             "mountainash.relations.backends.capabilities.polars.dialects.polars"
             ".substrait.relation.validation_value_fetch",
             Scope(CONST_BACKEND.POLARS, Dialect("polars")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
-                level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-21",
-                message="controlled value-fallback refusal",
-                consumer=PolicyConsumer.GATE,
-                action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
+            level=CapabilityLevel.UNSUPPORTED, message="controlled value-fallback refusal",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
 
         def compile_inside_trusted_scope(self, *args, **kwargs):

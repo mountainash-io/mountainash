@@ -1,4 +1,5 @@
 """Phase routing at public terminals."""
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 import mountainash as ma
@@ -87,12 +88,9 @@ def test_source_marker_is_checked_before_projection_drops_it(year, raises, targe
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="source year residue", consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="source year residue", consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         frame = REGISTRY["ibis-duckdb"].build({"id": [1], "year": [year]}, "source")
         rel = ma.relation(frame).conform(TypeSpec(
@@ -142,12 +140,9 @@ def test_checked_projection_returns_the_checked_source_snapshot():
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="source year residue", consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="source year residue", consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         source = REGISTRY["ibis-duckdb"].build({"id": [1], "year": ["2024"]}, "snapshot_source")
         connection = source._find_backend(use_default=False)

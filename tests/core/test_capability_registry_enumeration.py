@@ -1,5 +1,6 @@
 """Cold catalogue views retain explicit information and policies separately."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 from dataclasses import replace
 
 import pytest
@@ -38,15 +39,15 @@ def isolated():
 def _information(message):
     return CapabilityInformation(
         CapabilityKey(FK_STR.CENTER, "length"), InformationLayer.PUBLIC,
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", message,
-    )
+        CapabilityLevel.UNSUPPORTED,  message,
+     applicability=unbounded)
 
 
 def _policy(message="literal length required"):
     return CapabilityPolicyRule(
         CapabilityKey(FK_STR.CENTER, "length"), CapabilityLevel.LITERAL_ONLY,
-        "2026-09-18", message, PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+         message, PolicyConsumer.GATE, PolicyAction.BLOCK,
+     applicability=unbounded)
 
 
 def _segment(*, information=(), policies=(), suffix=""):
@@ -109,7 +110,7 @@ def test_version_conditioned_residue_requires_observed_context(isolated):
     version_conditioned_residue = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CENTER, "length", variant="ibis-10"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-18",
+        
         "Version-conditioned residue policy requires an observed execution context",
         PolicyConsumer.MATERIALIZATION_ERROR,
         PolicyAction.ENRICH,

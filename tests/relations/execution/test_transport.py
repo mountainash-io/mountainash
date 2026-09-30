@@ -1,6 +1,7 @@
 """Real native transfers and execution-local ownership boundaries."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import gc
 from dataclasses import replace
@@ -383,12 +384,9 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         CapabilityRegistry.register_segment(BoundSegment(
             f"mountainash.expressions.backends.capabilities.ibis.dialects.{source_name.replace('-', '_')}.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect(source_name)),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="Source lexical residue", consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="Source lexical residue", consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         table = backend_factory.create({"id": [1], "year": [year]}, source_name)
         target = backend_factory.create({"id": [1]}, "ibis-sqlite")

@@ -1,6 +1,7 @@
 """Coverage report model tests for distinct information and policy inputs."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -54,16 +55,16 @@ def _origin(scope):
 def _information(scope, operation=FK_STR.LPAD, subject="input"):
     key = CapabilityKey(operation, subject)
     assertion = CapabilityInformation(
-        key, InformationLayer.NATIVE, CapabilityLevel.UNSUPPORTED, "2026-09-18", "native limitation"
-    )
+        key, InformationLayer.NATIVE, CapabilityLevel.UNSUPPORTED,  "native limitation"
+    , applicability=unbounded)
     return QualifiedInformation(QualifiedInformationKey(scope, key, assertion.layer), assertion, (_origin(scope),))
 
 
 def _policy(scope):
     key = CapabilityKey(FK_STR.LPAD, "input")
     assertion = CapabilityPolicyRule(
-        key, CapabilityLevel.UNSUPPORTED, "2026-09-18", "public block", PolicyConsumer.GATE, PolicyAction.BLOCK
-    )
+        key, CapabilityLevel.UNSUPPORTED,  "public block", PolicyConsumer.GATE, PolicyAction.BLOCK
+    , applicability=unbounded)
     return QualifiedPolicy(QualifiedCapabilityKey(scope, key), assertion, (_origin(scope),))
 
 

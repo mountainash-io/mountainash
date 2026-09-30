@@ -1,6 +1,7 @@
 """Execution-local metadata remains source-owned across visitor boundaries."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 from types import SimpleNamespace
 
@@ -242,12 +243,9 @@ def test_same_visitor_conform_check_enters_output_map_and_survives_parent(backen
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="Null emergence in year parser", consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="Null emergence in year parser", consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         frame = backend_factory.create({"id": [1], "year": ["2024"]}, "ibis-duckdb")
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])

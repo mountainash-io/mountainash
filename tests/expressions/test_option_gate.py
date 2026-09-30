@@ -1,4 +1,5 @@
 """Value-aware capability gating for scalar-function options."""
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -67,9 +68,9 @@ def _compile_node(node, df, backend):
 def test_declared_unsupported_option_raises_before_dispatch():
     policy = CapabilityPolicyRule(
         CapabilityKey(FK_ARITH.ABS, "overflow", Selector("exact", _UNSUPPORTED_OPTION_VALUE)),
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", "synthetic option refusal",
+        CapabilityLevel.UNSUPPORTED,  "synthetic option refusal",
         PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
     CapabilityRegistry.register_segment(BoundSegment(
         "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.arithmetic.option_gate",
         Scope(CONST_BACKEND.POLARS, Dialect(_TEST_DIALECT)),

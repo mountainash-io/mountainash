@@ -1,5 +1,6 @@
 """Atomic policy-segment loading and immutable retained generations."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import importlib
 import sys
@@ -29,8 +30,8 @@ def _decl(subject="length", suffix=""):
         _SCOPE,
         CapabilitySegment(Domain.STRING, policies=(CapabilityPolicyRule(
             CapabilityKey(FK_STR.CENTER, subject), CapabilityLevel.LITERAL_ONLY,
-            "2026-09-18", "test policy", PolicyConsumer.GATE, PolicyAction.BLOCK,
-        ),)),
+             "test policy", PolicyConsumer.GATE, PolicyAction.BLOCK,
+         applicability=unbounded),)),
     )
 
 

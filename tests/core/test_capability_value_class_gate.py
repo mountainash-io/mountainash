@@ -1,5 +1,6 @@
 """Concrete value-class policies resolve only when their selector matches."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import replace
 
@@ -29,9 +30,9 @@ def isolate():
 def _rule(value_class=ValueClass.DURATION_MULTIPLIER):
     return CapabilityPolicyRule(
         CapabilityKey(FK.TRUNCATE, "unit", Selector("value_class", value_class)),
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", "multiplier units are unavailable",
+        CapabilityLevel.UNSUPPORTED,  "multiplier units are unavailable",
         PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
 
 
 def _segment(*rules, suffix=""):

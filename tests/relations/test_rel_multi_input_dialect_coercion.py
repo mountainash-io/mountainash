@@ -12,6 +12,7 @@ Design: mountainash-central 2026-08-13-relation-visitor-multi-input-
 dialect-coercion-design.md (Revision 4, 4 Codex adversarial review rounds).
 """
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -398,14 +399,10 @@ def _narwhals_pandas_join_gate_policy():
     )
 
     scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
-    policy = CapabilityPolicyRule(
-        key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="test-only GATE for narwhals-pandas join (item 91 testing plan #10)",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    policy = CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
+    level=CapabilityLevel.UNSUPPORTED, message="test-only GATE for narwhals-pandas join (item 91 testing plan #10)",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
     snap = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.register_segment(BoundSegment(

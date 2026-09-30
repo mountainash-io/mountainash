@@ -1,5 +1,6 @@
 """Immediate native attribution requires the actual failing call, not prose."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import polars as pl
@@ -33,16 +34,12 @@ def test_negative_list_index_attribution_without_information():
             "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.list",
             Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-polars")),
             CapabilitySegment(Domain.LIST, policies=(
-                CapabilityPolicyRule(
-                    key=CapabilityKey(FK.GET, "index"),
-                    level=CapabilityLevel.UNSUPPORTED,
-                    since="2026-09-18",
-                    message="Negative list indices are unsupported by Narwhals.",
-                    consumer=PolicyConsumer.IMMEDIATE_ERROR,
-                    action=PolicyAction.ENRICH,
-                    native_errors=(ValueError,),
-                    native_issue="narwhals:list-negative-index",
-                ),
+                CapabilityPolicyRule(key=CapabilityKey(FK.GET, "index"),
+                level=CapabilityLevel.UNSUPPORTED, message="Negative list indices are unsupported by Narwhals.",
+                consumer=PolicyConsumer.IMMEDIATE_ERROR,
+                action=PolicyAction.ENRICH,
+                native_errors=(ValueError,),
+                native_issue="narwhals:list-negative-index", applicability=unbounded),
             )),
         ))
         with pytest.raises(BackendCapabilityError) as raised:

@@ -1,4 +1,5 @@
 """Public DAG outputs remain bound to the entry request's frozen policy."""
+from mountainash.core.capabilities.applicability import unbounded
 import pytest
 
 
@@ -23,8 +24,8 @@ def test_dag_freezes_policy_before_named_compilation(backend_name, backend_facto
             Scope(family, Dialect(backend_name)),
             CapabilitySegment(Domain.STRING, policies=(CapabilityPolicyRule(
                 CapabilityKey(FK.CONTAINS, "substring"), CapabilityLevel.UNSUPPORTED,
-                "2026-09-21", "controlled gate", PolicyConsumer.GATE, PolicyAction.BLOCK,
-            ),)),
+                 "controlled gate", PolicyConsumer.GATE, PolicyAction.BLOCK,
+             applicability=unbounded),)),
         ))
         dag = ma.RelationDAG()
         dag.add("source", ma.relation(backend_factory.create({"text": ["a", "b"]}, backend_name)))

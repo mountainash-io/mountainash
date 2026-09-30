@@ -1,6 +1,7 @@
 """Cross-backend integration tests: mountainash expressions inside relational operations."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import polars as pl
 import pandas as pd
@@ -476,18 +477,14 @@ def test_relation_metadata_policy_uses_prepared_input(backend_name, backend_fact
         predicate = Predicate((
             Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
         ))
-        policy = CapabilityPolicyRule(
-            key=CapabilityKey(
-                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-                "x",
-                Selector("predicate", predicate),
-            ),
-            level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-18",
-            message="float operand blocked",
-            consumer=PolicyConsumer.GATE,
-            action=PolicyAction.BLOCK,
-        )
+        policy = CapabilityPolicyRule(key=CapabilityKey(
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            "x",
+            Selector("predicate", predicate),
+        ),
+        level=CapabilityLevel.UNSUPPORTED, message="float operand blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK, applicability=unbounded)
         module = (
             "mountainash.expressions.backends.capabilities."
             f"{identity.family.value}.dialects.{identity.dialect.replace('-', '_')}."

@@ -1,5 +1,6 @@
 """Attribution requires a bound scope and operation as well as a native issue."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import pandas as pd
@@ -29,16 +30,12 @@ def single_split_policy():
             "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.string",
             Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas")),
             CapabilitySegment(Domain.STRING, policies=(
-                CapabilityPolicyRule(
-                    key=CapabilityKey(FK.SPLIT, "*"),
-                    level=CapabilityLevel.UNSUPPORTED,
-                    since="2026-09-18",
-                    message="Arrow-backed pandas strings are required.",
-                    consumer=PolicyConsumer.MATERIALIZATION_ERROR,
-                    action=PolicyAction.ENRICH,
-                    native_errors=(TypeError,),
-                    native_issue="narwhals:arrow-string-storage",
-                ),
+                CapabilityPolicyRule(key=CapabilityKey(FK.SPLIT, "*"),
+                level=CapabilityLevel.UNSUPPORTED, message="Arrow-backed pandas strings are required.",
+                consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+                action=PolicyAction.ENRICH,
+                native_errors=(TypeError,),
+                native_issue="narwhals:arrow-string-storage", applicability=unbounded),
             )),
         ))
         dataframe = nw.from_native(pd.DataFrame({

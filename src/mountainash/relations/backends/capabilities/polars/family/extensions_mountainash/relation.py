@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import CapabilityInformation
 from mountainash.core.capabilities.declarations import CapabilityKey
 from mountainash.core.capabilities.declarations import CapabilitySegment
@@ -18,9 +19,9 @@ SEGMENT = CapabilitySegment(
             key=CapabilityKey(operation=RKEY_MOUNTAINASH_REL.READ_RESOURCE, subject="resource"),
             layer=InformationLayer.PUBLIC,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-30",
             message="CSV dialect features use the portable provider fallback reader rather than Polars resource ingestion.",
             workaround="none needed — mountainash routes automatically",
+            applicability=unbounded,
         ),
     ),
 )

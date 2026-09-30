@@ -9,6 +9,7 @@ Design: mountainash-central
 2026-08-14-multi-input-node-anchor-dialect-gating-design.md (Revision 5).
 """
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import pandas as pd
@@ -48,14 +49,10 @@ def _nw_pandas(data: dict):
 @pytest.fixture
 def _narwhals_pandas_filter_gate_policy():
     scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
-    policy = CapabilityPolicyRule(
-        key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="test-only BUILD-time gate for narwhals-pandas filter",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    policy = CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+    level=CapabilityLevel.UNSUPPORTED, message="test-only BUILD-time gate for narwhals-pandas filter",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
     snap = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.register_segment(BoundSegment(
@@ -101,14 +98,10 @@ class TestAuthoritativeDialectCases:
 
     def test_join_gate_fires_on_left_operand_dialect(self):
         scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
-        policy = CapabilityPolicyRule(
-            key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
-            level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-18",
-            message="join gate on narwhals-pandas",
-            consumer=PolicyConsumer.GATE,
-            action=PolicyAction.BLOCK,
-        )
+        policy = CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.JOIN, "*"),
+        level=CapabilityLevel.UNSUPPORTED, message="join gate on narwhals-pandas",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK, applicability=unbounded)
         snap = CapabilityRegistry.snapshot()
         try:
             CapabilityRegistry.register_segment(BoundSegment(

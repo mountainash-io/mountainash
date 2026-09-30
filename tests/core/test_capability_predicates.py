@@ -61,10 +61,8 @@ def test_fact_predicate_must_be_build_boundary():
         CapabilityFact(
             operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
             backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
-            boundary=Boundary.MATERIALIZE,
-            native_errors=(ValueError,),  # satisfy the MATERIALIZE-native_errors check first
+            boundary=Boundary.MATERIALIZE, native_errors=(ValueError,),
         )
 
 
@@ -72,8 +70,7 @@ def test_fact_predicate_is_value_agnostic():
     with pytest.raises(ValueError, match="value-agnostic"):
         CapabilityFact(
             operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
-            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15", option_value="WEEK",
+            backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x", option_value="WEEK",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
@@ -83,7 +80,6 @@ def test_fact_predicate_rejects_wildcard_param():
         CapabilityFact(
             operation_key="TRUNCATE", param="*", level=CapabilityLevel.UNSUPPORTED,
             backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
@@ -93,7 +89,6 @@ def test_fact_predicate_param_must_be_a_clause_root():
         CapabilityFact(
             operation_key="TRUNCATE", param="other", level=CapabilityLevel.UNSUPPORTED,
             backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
@@ -106,7 +101,6 @@ def test_fact_predicate_rejects_literal_only_level():
         CapabilityFact(
             operation_key="TRUNCATE", param="unit", level=CapabilityLevel.LITERAL_ONLY,
             backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-            since="2026-08-15",
             predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
         )
 
@@ -115,7 +109,6 @@ def test_valid_predicate_fact_constructs():
     f = CapabilityFact(
         operation_key="TRUNCATE", param="unit", level=CapabilityLevel.UNSUPPORTED,
         backend=CONST_BACKEND.IBIS, dialect="ibis-duckdb", message="x",
-        since="2026-08-15",
         predicate=Predicate((Clause("unit", ClauseOp.EQ, "WEEK"),)),
     )
     assert f.predicate is not None

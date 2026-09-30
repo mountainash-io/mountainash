@@ -1,5 +1,6 @@
 """Expression gating consumes concrete, explicitly authored policy records."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import narwhals as nw
 import polars as pl
@@ -69,8 +70,8 @@ def _publish_arithmetic(rule):
 def test_literal_only_policy_blocks_dynamic_argument_but_allows_literal():
     rule = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CONTAINS, "substring"), CapabilityLevel.LITERAL_ONLY,
-        "2026-09-18", "substring must be literal", PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+         "substring must be literal", PolicyConsumer.GATE, PolicyAction.BLOCK,
+     applicability=unbounded)
     _publish_string(rule)
     with pytest.raises(BackendCapabilityError, match="substring must be literal"):
         ma.col("text").str.contains(ma.col("pat")).compile(_DF)
@@ -81,12 +82,12 @@ def test_predicate_policy_selects_only_its_matching_actual_call():
     rule = CapabilityPolicyRule(
         CapabilityKey(FK_ARITH.ABS, "x", Selector("predicate", Predicate((Clause("x", ClauseOp.EQ, 7),)))),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-18",
+        
         "seven is intentionally blocked",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
         issue_classes=frozenset({CapabilityIssueClass.SEMANTICS}),
-    )
+     applicability=unbounded)
     _publish_arithmetic(rule)
 
     with ma.capability_policy(ma.CapabilityPolicy.checked(
@@ -105,8 +106,8 @@ def test_predicate_policy_selects_only_its_matching_actual_call():
 def test_policy_lookup_defaults_to_gate_and_never_uses_a_family_scope():
     rule = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CONTAINS, "substring"), CapabilityLevel.UNSUPPORTED,
-        "2026-09-18", "concrete only", PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+         "concrete only", PolicyConsumer.GATE, PolicyAction.BLOCK,
+     applicability=unbounded)
     _publish_string(rule)
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars") is not None
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS) is None
@@ -116,7 +117,7 @@ def test_public_compile_selects_gate_by_issue_class_and_mechanism():
     rule = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
+        
         "semantic contains restriction",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
@@ -124,7 +125,7 @@ def test_public_compile_selects_gate_by_issue_class_and_mechanism():
             CapabilityIssueClass.SEMANTICS,
             CapabilityIssueClass.PRECISION,
         }),
-    )
+     applicability=unbounded)
     _publish_string(rule)
     expression = ma.col("text").str.contains("b")
 
@@ -149,11 +150,11 @@ def test_unchanged_expression_does_not_borrow_another_concrete_scope():
     rule = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
+        
         "Polars-only restriction",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
     _publish_string(rule)
     expression = ma.col("text").str.contains("b")
 
@@ -170,10 +171,10 @@ def test_information_labels_do_not_select_execution():
         CapabilityKey(FK_STR.CONTAINS, "substring"),
         InformationLayer.PUBLIC,
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
+        
         "This descriptive label has no execution authority.",
         kinds=frozenset({CapabilityIssueClass.SEMANTICS}),
-    )
+     applicability=unbounded)
     _publish_string(information=(information,))
 
     compiled = ma.col("text").str.contains("b").compile(_DF)

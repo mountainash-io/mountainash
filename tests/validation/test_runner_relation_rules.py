@@ -1,4 +1,5 @@
 """RelationRule execution: failure plans, row-struct failure cases."""
+from mountainash.core.capabilities.applicability import unbounded
 import polars as pl
 import pytest
 
@@ -96,14 +97,10 @@ def test_row_failure_collection_keeps_checked_context_when_inner_scope_changes(
             "mountainash.relations.backends.capabilities.polars.dialects.polars"
             ".substrait.relation.validation_row_filter",
             Scope(CONST_BACKEND.POLARS, Dialect("polars")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-                level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-21",
-                message="controlled row-failure collection refusal",
-                consumer=PolicyConsumer.GATE,
-                action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="controlled row-failure collection refusal",
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
 
         def compile_inside_trusted_scope(self, *args, **kwargs):

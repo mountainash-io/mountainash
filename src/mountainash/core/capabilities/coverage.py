@@ -336,7 +336,6 @@ def _validate_declarations(
                 )
             if record.key.scope.backend not in RENDERED_BACKENDS:
                 raise ValueError(f"{kind} uses non-rendered backend {record.key.scope.backend.value!r}")
-            _check_date(record.assertion.since, f"{kind} {record.key!r}")
             if kind == "policy" and record.key.scope.dialect is None:
                 raise ValueError("policy requires a concrete dialect scope")
 

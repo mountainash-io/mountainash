@@ -136,7 +136,6 @@ CapabilityRegistry.register_segment(BoundSegment(
             key=_REFERENCE.local,
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-21",
             message="Controlled test-owned expectation reference",
             applicability=_CLAIM,
         ),),

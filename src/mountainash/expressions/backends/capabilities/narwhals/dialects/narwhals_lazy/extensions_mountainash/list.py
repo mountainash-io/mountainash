@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 from mountainash.core.capabilities.declarations import Selector
@@ -26,8 +27,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -37,8 +38,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -56,8 +57,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -75,8 +76,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -94,8 +95,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -113,8 +114,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="This backend cannot execute LIST.PARSE for the requested item type and failure behavior",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -124,8 +125,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-24",
             message="Native Narwhals list item casts do not implement null-on-invalid behavior.",
+            applicability=unbounded,
         ),
     ),
 )

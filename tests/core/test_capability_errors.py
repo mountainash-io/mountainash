@@ -1,5 +1,6 @@
 """BackendCapabilityError renders metadata carried by a published policy."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -28,14 +29,14 @@ def test_error_formats_policy_information_workaround_and_issue():
     try:
         key = CapabilityKey(FK_STR.LPAD, "characters")
         information = CapabilityInformation(
-            key, InformationLayer.PUBLIC, CapabilityLevel.LITERAL_ONLY, "2026-09-18",
+            key, InformationLayer.PUBLIC, CapabilityLevel.LITERAL_ONLY, 
             "fill character limitation", workaround="Use a literal fill character", issue="PL-STR-01",
-        )
+         applicability=unbounded)
         policy = CapabilityPolicyRule(
-            key, CapabilityLevel.LITERAL_ONLY, "2026-09-18", "literal fill required",
+            key, CapabilityLevel.LITERAL_ONLY,  "literal fill required",
             PolicyConsumer.GATE, PolicyAction.BLOCK,
             information=QualifiedInformationKey(_SCOPE, key, InformationLayer.PUBLIC),
-        )
+         applicability=unbounded)
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.string",
             _SCOPE, CapabilitySegment(Domain.STRING, information=(information,), policies=(policy,)),

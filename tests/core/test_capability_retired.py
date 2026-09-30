@@ -1,5 +1,6 @@
 """Genuine capability and gap history retains immutable source evidence."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import replace
 
@@ -32,8 +33,8 @@ def _address(entry):
 def _captured(message, entry):
     rule = CapabilityPolicyRule(
         CapabilityKey(FK_STR.CENTER, "length"), CapabilityLevel.LITERAL_ONLY,
-        "2026-09-18", message, PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+         message, PolicyConsumer.GATE, PolicyAction.BLOCK,
+     applicability=unbounded)
     return CapturedAssertion(
         "capability", QualifiedCapabilityKey(_SCOPE, rule.key), rule.qualify(_SCOPE), _address(entry),
     )
@@ -170,15 +171,11 @@ def test_catalogue_history_retains_controlled_lifecycle_captures():
     from mountainash.core.capabilities.registry import _LoadState, _empty_state
 
     def captured(message, entry, *, subject="length", variant=None, applicability=Applicability()):
-        rule = CapabilityPolicyRule(
-            key=CapabilityKey(FK_STR.CENTER, subject, variant=variant),
-            level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-09-21",
-            message=message,
-            consumer=PolicyConsumer.GATE,
-            action=PolicyAction.BLOCK,
-            applicability=applicability,
-        )
+        rule = CapabilityPolicyRule(key=CapabilityKey(FK_STR.CENTER, subject, variant=variant),
+        level=CapabilityLevel.LITERAL_ONLY, message=message,
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=applicability,)
         return CapturedAssertion(
             "capability",
             QualifiedCapabilityKey(_SCOPE, rule.key),

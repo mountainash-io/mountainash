@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import Selector
@@ -32,8 +33,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -43,8 +44,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -54,8 +55,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -65,8 +66,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -76,8 +77,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -87,8 +88,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -98,8 +99,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -109,9 +110,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
             workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -121,9 +122,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
             workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -133,9 +134,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
             workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -145,9 +146,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement CASE_INSENSITIVE semantics for this Substrait string operation",
             workaround="Lowercase the input and search operand explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -157,8 +158,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -168,8 +169,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -179,8 +180,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -190,8 +191,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -201,8 +202,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -212,8 +213,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -223,8 +224,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -234,8 +235,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -245,8 +246,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -256,8 +257,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -267,8 +268,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -278,8 +279,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -289,8 +290,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -300,8 +301,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -311,8 +312,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -322,8 +323,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -333,8 +334,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -344,8 +345,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -355,8 +356,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -366,8 +367,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -377,8 +378,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -388,8 +389,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -399,8 +400,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -410,8 +411,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -421,8 +422,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -432,8 +433,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -443,8 +444,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -454,8 +455,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -465,8 +466,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -476,8 +477,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -487,8 +488,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -498,8 +499,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -509,8 +510,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -520,8 +521,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -531,8 +532,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -542,8 +543,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement this regexp flag's non-default Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -553,15 +554,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject="position"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -571,15 +572,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject="position"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -589,15 +590,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject="position"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -607,15 +608,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT, subject="position"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -625,15 +626,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="position"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -643,15 +644,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject="occurrence"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -661,15 +662,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS, subject="occurrence"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -679,15 +680,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="occurrence"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -697,15 +698,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH, subject="group"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not honor the regexp position/occurrence/group option; it is silently ignored rather than applied",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -715,15 +716,15 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL, subject="group"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying regexp operation is unavailable on this dialect, so its option value cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -733,8 +734,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -744,8 +745,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -755,8 +756,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -766,8 +767,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -777,8 +778,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying case operation is unimplemented/incorrect on this backend (no-op or missing method), so char_set cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -788,8 +789,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying case operation is unimplemented/incorrect on this backend (no-op or missing method), so char_set cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -799,8 +800,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying case operation is unimplemented/incorrect on this backend (no-op or missing method), so char_set cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -810,8 +811,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The underlying case operation is unimplemented/incorrect on this backend (no-op or missing method), so char_set cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -821,8 +822,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -832,8 +833,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -843,8 +844,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -854,8 +855,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement ASCII_ONLY char_set semantics for this Substrait case operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -865,8 +866,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="center is a no-op on this backend, so padding cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -876,8 +877,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="center is a no-op on this backend, so padding cannot be honored",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -887,8 +888,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits WRAP_FROM_END, so the explicit option is observably equivalent to omission and cannot discriminate",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -898,8 +899,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement non-default negative_start semantics for substring",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -909,8 +910,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-23",
             message="The native backend does not implement non-default negative_start semantics for substring",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -920,9 +921,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
             workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -932,9 +933,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
             workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -944,9 +945,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
             workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -956,9 +957,9 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement CASE_INSENSITIVE_ASCII semantics for this Substrait string operation (same disposition as CASE_INSENSITIVE — neither case-fold value is wired here)",
             workaround="Fold the input and search operand to ASCII lowercase explicitly before applying the case-sensitive operation",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -968,8 +969,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -979,8 +980,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -990,8 +991,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1001,8 +1002,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1012,8 +1013,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -1023,179 +1024,178 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-12",
             message="The native backend does not implement this regexp flag's CASE_INSENSITIVE_ASCII Substrait semantics",
+            applicability=unbounded,
         ),
         *(
             CapabilityInformation(
                 key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT, "*"),
                 layer=InformationLayer.NATIVE,
                 level=CapabilityLevel.UNSUPPORTED,
-                since="2026-08-13",
                 message="Narwhals string splitting rejects non-Arrow pandas string storage; Arrow-backed strings execute successfully.",
                 workaround="Use Arrow-backed pandas strings, narwhals-polars, Polars, or Ibis.",
                 issue="NW-STR-22",
+                applicability=unbounded,
             ),
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH, subject="substring"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-01",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH, subject="substring"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-01",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS, subject="substring"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-01",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject="substring"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-03",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE, subject="replacement"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-03",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE, subject="match"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-01",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="pattern"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-05",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE, subject="replacement"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-05",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject="start"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-06",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING, subject="length"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-06",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD, subject="length"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-06",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD, subject="length"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-06",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT, subject="count"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-06",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT, subject="count"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-06",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM, subject="characters"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-07",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM, subject="characters"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-07",
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM, subject="characters"),
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.LITERAL_ONLY,
-            since="2026-07-05",
             message="Narwhals string methods require literal values, not column references, on the pandas backend. The polars-backed narwhals path supports expression arguments for several methods (declared as dialect-scoped EXPR_CAPABLE refinements below).",
             workaround="Use a literal string value instead of a column reference",
             issue="NW-STR-07",
+            applicability=unbounded,
         ),
     ),
     policies=(
         CapabilityPolicyRule(
             key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT, "*"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-13",
             message="Narwhals string splitting requires Arrow-backed pandas string storage.",
             consumer=PolicyConsumer.MATERIALIZATION_ERROR,
             action=PolicyAction.ENRICH,
@@ -1204,6 +1204,7 @@ SEGMENT = CapabilitySegment(
             information=QualifiedInformationKey(
                 _SCOPE, CapabilityKey(FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT, "*"), InformationLayer.NATIVE
             ),
+            applicability=unbounded,
         ),
     ),
 )

@@ -1,6 +1,7 @@
 """Targeted execution retains logical lineage and source attribution."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -69,13 +70,10 @@ def test_source_xsd_error_after_join_suffix_keeps_source_field_and_operation():
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="Invalid lexical year became null",
-                consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="Invalid lexical year became null",
+            consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         a = REGISTRY["ibis-duckdb"].build({"id": [1], "year": ["invalid"]}, "source")
         b = REGISTRY["ibis-sqlite"].build({"id": [1], "year": ["2024"]}, "destination")
@@ -117,13 +115,10 @@ def test_source_check_markers_do_not_leak_through_same_connection_join_suffix_an
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="Invalid lexical year became null",
-                consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="Invalid lexical year became null",
+            consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         left, right = backend_factory.create_pair(
             {"id": [1], "year": ["2024"]}, {"id": [1], "year": ["2025"]}, "ibis-duckdb"
@@ -175,13 +170,10 @@ def test_union_checks_source_residue_before_set_discards_marker(backend_factory)
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="Invalid lexical year became null",
-                consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="Invalid lexical year became null",
+            consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         left, right = backend_factory.create_pair(
             {"id": [1], "year": ["invalid"]},
@@ -205,13 +197,10 @@ def test_union_discards_checked_marker_from_valid_source(backend_factory):
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="Invalid lexical year became null",
-                consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL,
-            ),)),
+            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="Invalid lexical year became null",
+            consumer=PolicyConsumer.RESULT_PROTECTION,
+            action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded),)),
         ))
         left, right = backend_factory.create_pair(
             {"id": [1], "year": ["2024"]},

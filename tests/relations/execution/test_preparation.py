@@ -1,4 +1,5 @@
 """Nonexecuting placement and whole-tree capability witnesses."""
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -69,12 +70,9 @@ def test_late_known_gate_precedes_every_export(monkeypatch, shape, phase, public
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.relations.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.relation",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(RS.FILTER, "*"),
-                level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-27", message="P3 late SQLite filter gate",
-                consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(key=CapabilityKey(RS.FILTER, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="P3 late SQLite filter gate",
+            consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
         with pytest.raises(BackendCapabilityError, match="P3 late SQLite filter gate") as caught:
             if public_path:
@@ -193,11 +191,8 @@ def test_disabled_policy_does_not_preflight_selected_gate():
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.relations.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.relation",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(RS.FILTER, "*"), level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-27", message="disabled filter gate",
-                consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(key=CapabilityKey(RS.FILTER, "*"), level=CapabilityLevel.UNSUPPORTED, message="disabled filter gate",
+            consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
         context = _new_execution_context(a, policy=CapabilityPolicy.trusted())
         assert prepare_execution(root, phase=ExecutionPhase.EXPLAIN, execution_context=context)
@@ -218,12 +213,9 @@ def test_embedded_expression_gate_uses_ast_evidence_only(predicate, blocks):
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.comparison",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
-            CapabilitySegment(Domain.COMPARISON, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.GT, "y", Selector("predicate", predicate)),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="AST-known literal comparison gate",
-                consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.COMPARISON, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.GT, "y", Selector("predicate", predicate)),
+            level=CapabilityLevel.UNSUPPORTED, message="AST-known literal comparison gate",
+            consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
         if blocks:
             with pytest.raises(BackendCapabilityError, match="AST-known literal comparison gate") as caught:
@@ -248,11 +240,8 @@ def test_terminal_override_gates_embedded_expression_at_actual_operation(scope):
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.comparison",
             Scope(CONST_BACKEND.POLARS, Dialect("polars")),
-            CapabilitySegment(Domain.COMPARISON, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.GT, "*"), level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-27", message="target polars comparison gate",
-                consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.COMPARISON, policies=(CapabilityPolicyRule(key=CapabilityKey(FK.GT, "*"), level=CapabilityLevel.UNSUPPORTED, message="target polars comparison gate",
+            consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
         if scope == "output":
             with pytest.raises(BackendCapabilityError, match="target polars comparison gate"):
@@ -281,12 +270,9 @@ def test_late_implicit_if_then_gate_precedes_transfer(phase, monkeypatch):
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.conditional",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
-            CapabilitySegment(Domain.CONDITIONAL, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE, "*"),
-                level=CapabilityLevel.UNSUPPORTED, since="2026-09-27",
-                message="late implicit IfThen gate", consumer=PolicyConsumer.GATE,
-                action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.CONDITIONAL, policies=(CapabilityPolicyRule(key=CapabilityKey(FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="late implicit IfThen gate", consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
         with pytest.raises(BackendCapabilityError, match="late implicit IfThen gate") as caught:
             prepare_execution(root, phase=phase)

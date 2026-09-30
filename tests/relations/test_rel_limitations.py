@@ -1,5 +1,6 @@
 """Relation backend error boundaries and materialization residue propagation."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import polars as pl
 import pytest
@@ -162,22 +163,18 @@ def test_disjoint_finite_predicate_partition_gates_the_relation_visitor():
     scope = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
 
     def policy(action, predicate, message):
-        return CapabilityPolicyRule(
-            key=CapabilityKey(
-                RKEY_SUBSTRAIT_REL.FETCH,
-                "count",
-                Selector("predicate", predicate),
-            ),
-            level=(
-                CapabilityLevel.UNSUPPORTED
-                if action is PolicyAction.BLOCK
-                else CapabilityLevel.EXPR_CAPABLE
-            ),
-            since="2026-09-18",
-            message=message,
-            consumer=PolicyConsumer.GATE,
-            action=action,
-        )
+        return CapabilityPolicyRule(key=CapabilityKey(
+            RKEY_SUBSTRAIT_REL.FETCH,
+            "count",
+            Selector("predicate", predicate),
+        ),
+        level=(
+            CapabilityLevel.UNSUPPORTED
+            if action is PolicyAction.BLOCK
+            else CapabilityLevel.EXPR_CAPABLE
+        ), message=message,
+        consumer=PolicyConsumer.GATE,
+        action=action, applicability=unbounded)
 
     permit_one = policy(
         PolicyAction.PERMIT,
@@ -227,9 +224,9 @@ def test_cold_relation_gate_obeys_request_policy(mode, monkeypatch):
         Scope(CONST_BACKEND.POLARS, Dialect("polars")),
         CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
             CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count"),
-            CapabilityLevel.UNSUPPORTED, "2026-09-21", "controlled relation refusal",
+            CapabilityLevel.UNSUPPORTED,  "controlled relation refusal",
             PolicyConsumer.GATE, PolicyAction.BLOCK,
-        ),)),
+         applicability=unbounded),)),
     )
     def load_declarations():
         if mode == "trusted":

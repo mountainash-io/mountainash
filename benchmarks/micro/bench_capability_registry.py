@@ -12,6 +12,7 @@ requires the immutable-state registry interfaces delivered by item 231.
 """
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import gc
 import hashlib
@@ -696,8 +697,8 @@ def _synthetic_segment(*, backend_name: str, policy: Any, label: str, index: int
         key=policy.key,
         layer=InformationLayer.NATIVE,
         level=policy.level,
-        since=policy.since,
         message=policy.message,
+        applicability=policy.applicability,
     )
     qualified_information = QualifiedInformationKey(scope, information.key, information.layer)
     return BoundSegment(
@@ -731,26 +732,22 @@ def _metadata_gate_policy(*, backend_name: str = "polars", index: int = 0) -> An
     alternatives = sorted(STORAGE_KINDS - {"native"})
     assert 0 <= index < 1 << len(alternatives)
     storage = frozenset({"native"} | {kind for bit, kind in enumerate(alternatives) if index & (1 << bit)})
-    return CapabilityPolicyRule(
-        key=CapabilityKey(
-            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-            "x",
-            Selector(
-                "predicate",
-                Predicate(
-                    (
-                        Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
-                        Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
-                    )
-                ),
+    return CapabilityPolicyRule(key=CapabilityKey(
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+        "x",
+        Selector(
+            "predicate",
+            Predicate(
+                (
+                    Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
+                    Clause("__operand_types__.x.storage_kind", ClauseOp.IN, storage),
+                )
             ),
         ),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-15",
-        message=f"item231 benchmark metadata ABS blocker {index}",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    ),
+    level=CapabilityLevel.UNSUPPORTED, message=f"item231 benchmark metadata ABS blocker {index}",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
 
 
 @contextmanager
@@ -806,16 +803,12 @@ def _residue_policy() -> Any:
     from mountainash.core.capabilities.schema import CapabilityLevel, PolicyAction, PolicyConsumer
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
 
-    return CapabilityPolicyRule(
-        key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, "x"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-15",
-        message="item231 benchmark residue enrichment",
-        consumer=PolicyConsumer.MATERIALIZATION_ERROR,
-        action=PolicyAction.ENRICH,
-        native_errors=(ValueError,),
-        native_issue="benchmark:item231-native-sentinel",
-    )
+    return CapabilityPolicyRule(key=CapabilityKey(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS, "x"),
+    level=CapabilityLevel.UNSUPPORTED, message="item231 benchmark residue enrichment",
+    consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+    action=PolicyAction.ENRICH,
+    native_errors=(ValueError,),
+    native_issue="benchmark:item231-native-sentinel", applicability=unbounded)
 
 
 def _enrichment_case(path: str):
@@ -1218,6 +1211,7 @@ def test_item231_negative_lookup_scaling(benchmark, capsule, cardinality):
 @contextmanager
 def _unrelated_registry_population(kind: str, count: int) -> Iterator[None]:
     """Vary exact-policy and predicate-policy populations outside the ABS bucket."""
+    from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.capabilities.declarations import CapabilityKey, CapabilityPolicyRule, Selector
     from mountainash.core.capabilities.schema import CapabilityLevel, Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_ARITHMETIC
@@ -1238,14 +1232,10 @@ def _unrelated_registry_population(kind: str, count: int) -> Iterator[None]:
             if kind not in {"unrelated-predicates", "unrelated-facts"}:
                 raise UnsupportedCapsuleConfiguration(f"unknown registry population axis {kind!r}")
             policies.append(
-                CapabilityPolicyRule(
-                    key=key,
-                    level=CapabilityLevel.UNSUPPORTED,
-                    since="2026-09-15",
-                    message=f"item231 unrelated {kind} {index}",
-                    consumer=PolicyConsumer.GATE,
-                    action=PolicyAction.BLOCK,
-                )
+                CapabilityPolicyRule(key=key,
+                level=CapabilityLevel.UNSUPPORTED, message=f"item231 unrelated {kind} {index}",
+                consumer=PolicyConsumer.GATE,
+                action=PolicyAction.BLOCK, applicability=unbounded)
             )
         _register_synthetic_policies("polars", tuple(policies), f"unrelated_{kind}")
         yield
@@ -1421,18 +1411,14 @@ def _exact_registration_segment():
         backend_name="polars",
         label="registration",
         index=0,
-        policy=CapabilityPolicyRule(
-            key=CapabilityKey(
-                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-                "x",
-                Selector("exact", "item231-registration-duplicate"),
-            ),
-            level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-15",
-            message="item231 exact registration duplicate",
-            consumer=PolicyConsumer.GATE,
-            action=PolicyAction.BLOCK,
+        policy=CapabilityPolicyRule(key=CapabilityKey(
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            "x",
+            Selector("exact", "item231-registration-duplicate"),
         ),
+        level=CapabilityLevel.UNSUPPORTED, message="item231 exact registration duplicate",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK, applicability=unbounded),
     )
 
 

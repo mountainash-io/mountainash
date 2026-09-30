@@ -1,5 +1,6 @@
 """Actual execution-target environment acquisition witnesses."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -51,7 +52,7 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
         )),))
         rule = CapabilityPolicyRule(
             CapabilityKey(FK.CONTAINS, "substring"), CapabilityLevel.UNSUPPORTED,
-            "2026-09-21", "controlled acquisition witness", PolicyConsumer.GATE,
+             "controlled acquisition witness", PolicyConsumer.GATE,
             PolicyAction.BLOCK, applicability=claim,
         )
         dialect = f"ibis-{engine}"
@@ -195,7 +196,7 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
     rule = CapabilityPolicyRule(
         CapabilityKey(FK.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
+        
         "cold loading acquisition witness",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
@@ -258,15 +259,15 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
     initial = CapabilityPolicyRule(
         CapabilityKey(FK.CENTER, "length"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
+        
         "initial request policy",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
     later = CapabilityPolicyRule(
         CapabilityKey(FK.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-21",
+        
         "later setup policy",
         PolicyConsumer.GATE,
         PolicyAction.BLOCK,

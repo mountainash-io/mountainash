@@ -1,5 +1,6 @@
 """Predicate policies evaluate the supplied concrete call without cross-axis leakage."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -31,9 +32,9 @@ def test_strategy_predicate_ignores_co_bound_tolerance():
             "strategy",
             Selector("predicate", Predicate((Clause("strategy", ClauseOp.EQ, "forward"),))),
         ),
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", "forward as-of joins are unavailable",
+        CapabilityLevel.UNSUPPORTED,  "forward as-of joins are unavailable",
         PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
     CapabilityRegistry.register_segment(BoundSegment(
         "mountainash.relations.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.relation",
         _SCOPE, CapabilitySegment(Domain.RELATION, policies=(rule,)),

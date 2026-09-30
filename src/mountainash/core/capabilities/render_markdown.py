@@ -101,6 +101,33 @@ def _selector_dict(selector: Any) -> dict[str, Any]:
     return {"kind": selector.kind, "value": _capture_value(selector.value)}
 
 
+def _applicability_dict(claim):
+    if claim.regions is None:
+        return {"regions": None}
+    return {"regions": [
+        {"constraints": [
+            {"kind": item.kind, "name": item.name,
+             "specifier": item.specifier, "opaque_equal": item.opaque_equal}
+            for item in region.constraints
+        ]}
+        for region in claim.regions
+    ]}
+
+
+def _applicability_text(claim):
+    if claim.regions is None:
+        return "unbounded"
+    regions = []
+    for region in claim.regions:
+        terms = []
+        for item in region.constraints:
+            comparison = (item.specifier if item.specifier is not None
+                          else "opaque_equal=" + repr(item.opaque_equal))
+            terms.append(f"{item.kind}:{item.name} {comparison}")
+        regions.append("(" + " AND ".join(terms) + ")")
+    return " OR ".join(regions)
+
+
 def _information_dict(record: Any) -> dict[str, Any]:
     assertion = record.assertion
     return {
@@ -114,7 +141,7 @@ def _information_dict(record: Any) -> dict[str, Any]:
         "message": assertion.message,
         "workaround": assertion.workaround,
         "issue": assertion.issue,
-        "since": assertion.since,
+        "applicability": _applicability_dict(assertion.applicability),
         "kinds": sorted(kind.value for kind in assertion.kinds),
         "origins": [_origin_dict(origin) for origin in record.origins],
     }
@@ -147,7 +174,7 @@ def _policy_dict(record: Any) -> dict[str, Any]:
             "layer": assertion.information.layer.value,
         },
         "issue_classes": sorted(issue_class.value for issue_class in assertion.issue_classes),
-        "since": assertion.since,
+        "applicability": _applicability_dict(assertion.applicability),
         "origins": [_origin_dict(origin) for origin in record.origins],
     }
 
@@ -252,8 +279,8 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
     if not records:
         return lines + ["None recorded; absence remains unknown.", ""]
     lines += [
-        "| Scope | Operation | Subject | Selector | Variant | Layer / consumer-action | Level | Categories | Message | Provenance |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Scope | Operation | Subject | Selector | Variant | Layer / consumer-action | Level | Categories | Applicability | Message | Provenance |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for record in records:
         payload = serializer(record)
@@ -276,6 +303,7 @@ def _declaration_rows(title: str, records: tuple[Any, ...], serializer: Callable
         lines.append(
             f"| {scope} | `{operation}` | {_escape(payload['subject'])} | {_escape(selector)} | "
             f"{_escape(variant)} | {aspect} | {payload['level']} | {categories} | "
+            f"{_escape(_applicability_text(record.assertion.applicability))} | "
             f"{_escape(payload['message'])} | {_escape(provenance)} |"
         )
     lines.append("")

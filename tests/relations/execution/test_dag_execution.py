@@ -1,5 +1,6 @@
 """DAG roots use prepared physical placement, not ref spelling."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 import ibis
@@ -499,12 +500,9 @@ def test_late_transformed_ref_gate_precedes_canonical_cache_and_export(
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.relations.backends.capabilities.ibis.dialects.ibis_sqlite.substrait.relation",
             Scope(CONST_BACKEND.IBIS, Dialect("ibis-sqlite")),
-            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-                level=CapabilityLevel.UNSUPPORTED,
-                since="2026-09-27", message="P3 transformed late ref gate",
-                consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK,
-            ),)),
+            CapabilitySegment(Domain.RELATION, policies=(CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+            level=CapabilityLevel.UNSUPPORTED, message="P3 transformed late ref gate",
+            consumer=PolicyConsumer.GATE, action=PolicyAction.BLOCK, applicability=unbounded),)),
         ))
         with pytest.raises(BackendCapabilityError, match="P3 transformed late ref gate"):
             if registered:

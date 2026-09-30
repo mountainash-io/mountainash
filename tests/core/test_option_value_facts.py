@@ -1,5 +1,6 @@
 """Exact option policies match one value; overlapping answers cannot compete."""
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -30,9 +31,9 @@ def isolated():
 def _policy(selector=Selector(), *, subject="overflow"):
     return CapabilityPolicyRule(
         CapabilityKey(FK_ARITH.ABS, subject, selector), CapabilityLevel.UNSUPPORTED,
-        "2026-09-18", "checked overflow unavailable",
+         "checked overflow unavailable",
         PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
 
 
 def _publish(*policies):
@@ -80,10 +81,10 @@ def test_exact_option_requires_a_named_subject():
 def test_exact_option_rejects_a_materialization_boundary():
     policy = CapabilityPolicyRule(
         CapabilityKey(FK_ARITH.ABS, "overflow", Selector("exact", "ERROR")),
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", "native checked-overflow failure",
+        CapabilityLevel.UNSUPPORTED,  "native checked-overflow failure",
         PolicyConsumer.MATERIALIZATION_ERROR, PolicyAction.ENRICH,
         native_errors=(RuntimeError,), native_issue="test:checked-overflow",
-    )
+     applicability=unbounded)
     before = CapabilityRegistry.snapshot()
     with pytest.raises(ValueError):
         _publish(policy)
@@ -95,9 +96,9 @@ def test_exact_option_rejects_a_relation_argument():
 
     policy = CapabilityPolicyRule(
         CapabilityKey(RKEY_SUBSTRAIT_REL.FETCH, "count", Selector("exact", "10")),
-        CapabilityLevel.UNSUPPORTED, "2026-09-18", "synthetic relation selector",
+        CapabilityLevel.UNSUPPORTED,  "synthetic relation selector",
         PolicyConsumer.GATE, PolicyAction.BLOCK,
-    )
+     applicability=unbounded)
     before = CapabilityRegistry.snapshot()
     with pytest.raises(ValueError):
         CapabilityRegistry.register_segment(BoundSegment(

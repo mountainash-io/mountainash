@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import CapabilitySegment
 
 from mountainash.core.capabilities.declarations import Domain
@@ -22,8 +23,8 @@ SEGMENT = CapabilitySegment(
             ),
             layer=InformationLayer.PUBLIC,
             level=CapabilityLevel.POLYMORPHIC,
-            since="2026-08-21",
             message="SQLite ABS ERROR is available only for declared Ibis Int64 operands; narrower declared literal widths wrap at their native minima.",
+            applicability=unbounded,
         ),
     ),
 )

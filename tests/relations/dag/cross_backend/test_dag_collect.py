@@ -1,6 +1,7 @@
 """Cross-backend tests for RelationDAG.collect()."""
 
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pytest
 
@@ -130,18 +131,14 @@ def test_transitive_metadata_gate_uses_each_prepared_ref(backend_name, backend_f
         predicate = Predicate((
             Clause("__operand_types__.x.logical_kind", ClauseOp.EQ, "float"),
         ))
-        policy = CapabilityPolicyRule(
-            key=CapabilityKey(
-                FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
-                "x",
-                Selector("predicate", predicate),
-            ),
-            level=CapabilityLevel.UNSUPPORTED,
-            since="2026-09-18",
-            message="transitive float operand blocked",
-            consumer=PolicyConsumer.GATE,
-            action=PolicyAction.BLOCK,
-        )
+        policy = CapabilityPolicyRule(key=CapabilityKey(
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            "x",
+            Selector("predicate", predicate),
+        ),
+        level=CapabilityLevel.UNSUPPORTED, message="transitive float operand blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK, applicability=unbounded)
         module = (
             "mountainash.expressions.backends.capabilities."
             f"{identity.family.value}.dialects.{identity.dialect.replace('-', '_')}."

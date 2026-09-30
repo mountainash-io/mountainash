@@ -1,4 +1,5 @@
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 from dataclasses import dataclass
 
@@ -55,7 +56,6 @@ def _fact(**overrides):
         enforcement=Enforcement.MATERIALIZE_RESIDUE,
         native_errors=(TypeError,),
         message="list parse is unsupported",
-        since="2026-08-21",
     )
     values.update(overrides)
     return CapabilityFact(**values)
@@ -154,16 +154,13 @@ def test_exception_residue_requires_native_errors() -> None:
 
 def test_non_null_residue_requires_materialize_residue() -> None:
     with pytest.raises(ValueError):
-        CapabilityFact(
-            operation_key=KEY,
-            param="item_type",
-            level=CapabilityLevel.UNSUPPORTED,
-            backend=BACKEND,
-            boundary=Boundary.BUILD,
-            enforcement=Enforcement.GATE,
-            residue_signal=ResidueSignal.NON_NULL_TO_NULL,
-            since="2026-08-21",
-        )
+        CapabilityFact(operation_key=KEY,
+        param="item_type",
+        level=CapabilityLevel.UNSUPPORTED,
+        backend=BACKEND,
+        boundary=Boundary.BUILD,
+        enforcement=Enforcement.GATE,
+        residue_signal=ResidueSignal.NON_NULL_TO_NULL, )
 
 
 
@@ -179,10 +176,10 @@ def test_true_marker_with_fact_enriches_and_context() -> None:
         from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
 
         policy = CapabilityPolicyRule(
-            CapabilityKey(KEY, "x"), CapabilityLevel.UNSUPPORTED, "2026-09-18",
+            CapabilityKey(KEY, "x"), CapabilityLevel.UNSUPPORTED, 
             "null residue", PolicyConsumer.RESULT_PROTECTION,
             PolicyAction.DETECT_NON_NULL_TO_NULL,
-        )
+         applicability=unbounded)
         CapabilityRegistry.register_segment(BoundSegment(
             "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.list.trace_case",
             Scope(BACKEND, Dialect("narwhals-pandas")),

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_DATETIME
 from mountainash.core.capabilities.declarations import Selector
@@ -22,9 +23,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="HOUR"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -33,9 +34,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MINUTE"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -44,9 +45,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="SECOND"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -55,9 +56,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MILLISECOND"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -66,9 +67,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MICROSECOND"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -77,9 +78,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="HOUR"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -88,9 +89,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MINUTE"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -99,9 +100,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="SECOND"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -110,9 +111,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MILLISECOND"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -121,9 +122,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MICROSECOND"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite TimestampTruncate has no support for units finer than DAY (HOUR/MINUTE/SECOND/MILLISECOND/MICROSECOND); verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -132,9 +133,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="2"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite has no TimestampBucket compilation rule -- multiple > 1 is unsupported for every unit; verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -143,23 +144,23 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="3"),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-08-16",
             message="ibis-sqlite has no TimestampBucket compilation rule -- multiple > 1 is unsupported for every unit; verified 2026-08-16, ibis 12.0.0",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE, subject="*"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-30",
             message="ibis-sqlite has no compilation rule for StringToDate/StringToTimestamp (OperationNotDefinedError); format-driven parsing is unavailable on this dialect, so it is gated rather than left to fail natively",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(operation=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP, subject="*"),
             level=CapabilityLevel.UNSUPPORTED,
-            since="2026-07-30",
             message="ibis-sqlite has no compilation rule for StringToDate/StringToTimestamp (OperationNotDefinedError); format-driven parsing is unavailable on this dialect, so it is gated rather than left to fail natively",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
     ),
 )

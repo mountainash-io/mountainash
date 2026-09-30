@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import Domain
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING
 from mountainash.core.capabilities.declarations import Selector
@@ -22,9 +23,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -33,9 +34,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -44,9 +45,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -55,9 +56,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -66,9 +67,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -77,9 +78,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -88,9 +89,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits CASE_SENSITIVE, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -99,9 +100,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -110,9 +111,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -121,9 +122,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="CASE_SENSITIVE"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -132,9 +133,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -143,9 +144,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -154,9 +155,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="MULTILINE_DISABLED"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -165,9 +166,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="DOTALL_DISABLED"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -176,9 +177,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="DOTALL_DISABLED"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -187,9 +188,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="DOTALL_DISABLED"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits this regexp flag value, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -198,9 +199,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="UTF8"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -209,9 +210,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="UTF8"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -220,9 +221,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="UTF8"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits UTF8, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -231,9 +232,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="RIGHT"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="RIGHT is the builder default, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
         CapabilityInformation(
             key=CapabilityKey(
@@ -242,9 +243,9 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="exact", value="WRAP_FROM_END"),
             ),
             level=CapabilityLevel.EXPR_CAPABLE,
-            since="2026-07-23",
             message="The builder default emits WRAP_FROM_END, so the explicit option is observably equivalent to omission and cannot discriminate",
             layer=InformationLayer.NATIVE,
+            applicability=unbounded,
         ),
     ),
 )

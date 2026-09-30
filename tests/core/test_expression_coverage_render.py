@@ -37,7 +37,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 
 
 def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None, environment=None, policy=None, applicability=None):
-    from dataclasses import replace
+    from mountainash.core.capabilities.applicability import unbounded
 
     family = Scope(CONST_BACKEND.POLARS, FamilyWide())
     concrete = Scope(CONST_BACKEND.POLARS, Dialect("polars"))
@@ -49,17 +49,15 @@ def _report(*, gaps=None, changes=(), kinds=frozenset(), captured=None, environm
         information_key,
         InformationLayer.NATIVE,
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-18",
         "native limitation",
         kinds=kinds,
+        applicability=unbounded if applicability is None else applicability,
     )
     policy_key = CapabilityKey(FK_STR.LPAD, "input")
     policy_assertion = CapabilityPolicyRule(
-        policy_key, CapabilityLevel.UNSUPPORTED, "2026-09-18", "public block", PolicyConsumer.GATE, PolicyAction.BLOCK
+        policy_key, CapabilityLevel.UNSUPPORTED, "public block", PolicyConsumer.GATE, PolicyAction.BLOCK,
+        applicability=unbounded if applicability is None else applicability,
     )
-    if applicability is not None:
-        information_assertion = replace(information_assertion, applicability=applicability)
-        policy_assertion = replace(policy_assertion, applicability=applicability)
     information = QualifiedInformation(
         QualifiedInformationKey(family, information_key, InformationLayer.NATIVE), information_assertion, (origin,)
     )
@@ -158,12 +156,14 @@ def test_gap_absence_and_acquired_empty_inventory_remain_distinct():
 
 
 def test_change_history_is_rendered_in_canonical_order():
+    from mountainash.core.capabilities.applicability import unbounded
+
     information = CapabilityInformation(
         CapabilityKey(FK_STR.LPAD, "input"),
         InformationLayer.NATIVE,
         CapabilityLevel.UNSUPPORTED,
-        "2026-09-18",
         "historic limitation",
+        applicability=unbounded,
     )
 
     def change(recorded_at, entry):
@@ -326,3 +326,28 @@ def test_reports_preserve_fixed_coordinates_and_original_labels():
         for value in ("12.7.3", "1.6.2", "IBIS", "fixed-proof", "successor",
                       "item236-owner", "backtest-obligation", "release-26.10"):
             assert value in document
+
+
+def test_reports_preserve_authored_regions_without_environment():
+    from dataclasses import asdict
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+
+    claim = Applicability((
+        Region((CoordinateConstraint("package", "ibis", specifier="<1"),)),
+        Region((
+            CoordinateConstraint("package", "ibis", specifier=">=2,!=2.5"),
+            CoordinateConstraint("adapter", "driver", opaque_equal="ACME|driver"),
+        )),
+    ))
+    report = _report(applicability=claim)
+    payload = json.loads(render_json(report))
+    expected = json.loads(json.dumps(asdict(claim)))
+    for collection in ("information", "policies"):
+        assert payload[collection][0]["applicability"] == expected
+        assert "since" not in payload[collection][0]
+    for renderer in (render_markdown, render_scoped):
+        rendered = renderer(report)
+        assert "ibis-framework" in rendered
+        assert ">=2,!=2.5" in rendered
+        assert "ACME\\|driver" in rendered
+    assert json.loads(render_json(_report()))["information"][0]["applicability"] == {"regions": None}

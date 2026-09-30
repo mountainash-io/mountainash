@@ -426,7 +426,7 @@ def _validate_payload(fact):
     if not isinstance(fact.operation_key, _Enum):
         raise ValueError("operation_key must be a recognized operation Enum member")
     _enum_domain(fact.operation_key)
-    for name in ("param", "message", "since"):
+    for name in ("param", "message"):
         _require_type(getattr(fact, name), str, name)
     for name in ("dialect", "workaround", "upstream_ref", "condition", "option_value", "probe_exempt"):
         value = getattr(fact, name)

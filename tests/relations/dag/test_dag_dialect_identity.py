@@ -30,6 +30,7 @@ watched node's own visit() entry/exit, captured before that raise, never
 on the full return value.
 """
 from __future__ import annotations
+from mountainash.core.capabilities.applicability import unbounded
 
 import pandas as pd
 import polars as pl
@@ -446,14 +447,10 @@ def _narwhals_pandas_filter_gate_policy():
     )
 
     scope = Scope(CONST_BACKEND.NARWHALS, Dialect("narwhals-pandas"))
-    policy = CapabilityPolicyRule(
-        key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
-        level=CapabilityLevel.UNSUPPORTED,
-        since="2026-09-18",
-        message="test-only BUILD-time gate for narwhals-pandas filter",
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-    )
+    policy = CapabilityPolicyRule(key=CapabilityKey(RKEY_SUBSTRAIT_REL.FILTER, "*"),
+    level=CapabilityLevel.UNSUPPORTED, message="test-only BUILD-time gate for narwhals-pandas filter",
+    consumer=PolicyConsumer.GATE,
+    action=PolicyAction.BLOCK, applicability=unbounded)
     snap = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.register_segment(BoundSegment(
