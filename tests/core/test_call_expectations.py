@@ -104,6 +104,7 @@ from mountainash.core.capabilities.declarations import (
 from mountainash.core.capabilities.identity import Dialect, Scope
 from mountainash.core.capabilities.registry import _LoadState, _empty_state
 from mountainash.core.capabilities.schema import InformationLayer
+from fixtures.capability_observations import require_observations
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK,
@@ -151,7 +152,12 @@ def test_exact_reference_is_checked_before_inactive_or_unknown_applicability(mod
     information = CapabilityRegistry.capture().get(_REFERENCE)
     environment = Environment((EnvironmentCoordinate("package", "polars", observed),))
     applicability = information.assertion.applicability
-    result = applicability.match(prepare_environment(environment, applicability.requirements))
+    prepared = (
+        prepare_environment(environment, applicability.requirements)
+        if observed is None
+        else require_observations(applicability, environment)
+    )
+    result = applicability.match(prepared)
 
     with ma.capability_policy(getattr(ma.CapabilityPolicy, mode)()):
         with expect_call_failure(
@@ -172,7 +178,7 @@ def test_exact_reference_keeps_corrected_result_strict_xpass_under_every_policy(
     information = CapabilityRegistry.capture().get(_REFERENCE)
     environment = Environment((EnvironmentCoordinate("package", "polars", "1.2"),))
     applicability = information.assertion.applicability
-    result = applicability.match(prepare_environment(environment, applicability.requirements))
+    result = applicability.match(require_observations(applicability, environment))
 
     with ma.capability_policy(getattr(ma.CapabilityPolicy, mode)()):
         with expect_call_failure(
@@ -194,7 +200,12 @@ def test_missing_exact_reference_is_not_hidden_by_inactive_or_unknown_scope(mode
         information = CapabilityRegistry.capture().get(missing)
         environment = Environment((EnvironmentCoordinate("package", "polars", observed),))
         applicability = information.assertion.applicability
-        result = applicability.match(prepare_environment(environment, applicability.requirements))
+        prepared = (
+            prepare_environment(environment, applicability.requirements)
+            if observed is None
+            else require_observations(applicability, environment)
+        )
+        result = applicability.match(prepared)
         with expect_call_failure(
             reason="controlled missing reference",
             errors=(AssertionError,),

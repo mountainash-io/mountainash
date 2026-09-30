@@ -89,9 +89,15 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+    from mountainash.core.capabilities.applicability import (
+        Applicability,
+        CoordinateConstraint,
+        Region,
+        prepare_environment,
+    )
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.policy import CapabilityPolicy
+    from tests.fixtures.capability_observations import require_observations
 
     def interval(lower, upper):
         return Applicability((
@@ -111,13 +117,12 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
         applicability=interval("2", "3"),
     )
     CapabilityRegistry.register_segment(_segment(earlier, later, suffix=".versioned_direct"))
-    requirements = earlier.applicability.requirements
 
     def context(version, policy=CapabilityPolicy.checked()):
         observed = Environment((EnvironmentCoordinate("package", "polars", version),))
         return SimpleNamespace(
             policy=policy,
-            environment=prepare_environment(observed, requirements),
+            environment=require_observations(earlier.applicability, observed),
         )
 
     assert CapabilityRegistry.capability_for(
@@ -141,7 +146,7 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
         "polars",
         execution_context=SimpleNamespace(
             policy=CapabilityPolicy.checked(),
-            environment=prepare_environment(Environment(), requirements),
+            environment=prepare_environment(Environment(), earlier.applicability.requirements),
         ),
     ) is None
     assert CapabilityRegistry.capability_for(

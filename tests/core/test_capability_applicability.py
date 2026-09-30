@@ -8,12 +8,36 @@ import pytest
     ("12.0.0", "1.2", "applicable"),
     ("12.0.0", "1.3", "not_applicable"),
     ("12.0.0", "1.4", "applicable"),
+])
+def test_wrapper_engine_recurrence_preserves_gap_for_known_observations(wrapper, engine, expected):
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from tests.fixtures.capability_observations import require_observations
+
+    claim = Applicability(tuple(
+        Region((
+            CoordinateConstraint("package", "IBIS", specifier="==12.0.0"),
+            CoordinateConstraint("engine", "duckdb", specifier=">=" + lower + ",<" + upper),
+        ))
+        for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))
+    ))
+    observed = Environment((
+        EnvironmentCoordinate("package", "ibis-framework", wrapper),
+        EnvironmentCoordinate("engine", "duckdb", engine),
+    ))
+
+    assert claim.match(require_observations(claim, observed)).value == expected
+
+
+@pytest.mark.parametrize(("wrapper", "engine", "expected"), [
     ("12.0.0", None, "indeterminate"),
     ("12.0.0", "vendor-build", "indeterminate"),
     ("11.0.0", None, "not_applicable"),
 ])
-def test_wrapper_engine_recurrence_preserves_gap_and_uncertainty(wrapper, engine, expected):
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+def test_wrapper_engine_recurrence_preserves_unknown_fallback(wrapper, engine, expected):
+    from mountainash.core.capabilities.applicability import (
+        Applicability, CoordinateConstraint, Region, prepare_environment,
+    )
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
 
     claim = Applicability(tuple(
@@ -39,27 +63,29 @@ def test_wrapper_engine_recurrence_preserves_gap_and_uncertainty(wrapper, engine
     ("1.0.post1", "not_applicable"),
 ])
 def test_pep440_bounds_order_prerelease_postrelease_and_local_versions(observed, expected):
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from tests.fixtures.capability_observations import require_observations
 
     claim = Applicability((Region((
         CoordinateConstraint("package", "ibis", specifier=">=1.0rc1,<1.0.post1"),
     )),))
     environment = Environment((EnvironmentCoordinate("package", "ibis", observed),))
 
-    assert claim.match(prepare_environment(environment, claim.requirements)).value == expected
+    assert claim.match(require_observations(claim, environment)).value == expected
 
 
-def test_numeric_release_equates_trailing_zero_components():
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+def test_pep440_equality_equates_trailing_zero_components():
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from tests.fixtures.capability_observations import require_observations
 
     claim = Applicability((Region((
         CoordinateConstraint("engine", "duckdb", specifier="==1.2"),
     )),))
     environment = Environment((EnvironmentCoordinate("engine", "duckdb", "1.2.0"),))
 
-    assert claim.match(prepare_environment(environment, claim.requirements)).value == "applicable"
+    assert claim.match(require_observations(claim, environment)).value == "applicable"
 
 
 @pytest.mark.parametrize(("observed", "expected"), [
@@ -68,15 +94,16 @@ def test_numeric_release_equates_trailing_zero_components():
     ("Vendor-build", "not_applicable"),
 ])
 def test_opaque_constraints_require_exact_observed_equality(observed, expected):
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from tests.fixtures.capability_observations import require_observations
 
     claim = Applicability((Region((
         CoordinateConstraint("adapter", "driver", opaque_equal="vendor-build"),
     )),))
     environment = Environment((EnvironmentCoordinate("adapter", "driver", observed),))
 
-    assert claim.match(prepare_environment(environment, claim.requirements)).value == expected
+    assert claim.match(require_observations(claim, environment)).value == expected
 
 
 
@@ -260,8 +287,9 @@ def test_prepared_containers_reject_empty_or_mutable_domains():
 
 
 def test_region_intersects_repeated_coordinate_constraints_before_matching():
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region)
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from tests.fixtures.capability_observations import require_observations
 
     claim = Applicability((Region((
         CoordinateConstraint("engine", "duckdb", specifier=">=1.2"),
@@ -270,8 +298,8 @@ def test_region_intersects_repeated_coordinate_constraints_before_matching():
     within_range = Environment((EnvironmentCoordinate("engine", "duckdb", "1.3"),))
     upper_endpoint = Environment((EnvironmentCoordinate("engine", "duckdb", "1.4"),))
 
-    assert claim.match(prepare_environment(within_range, claim.requirements)).value == "applicable"
-    assert claim.match(prepare_environment(upper_endpoint, claim.requirements)).value == "not_applicable"
+    assert claim.match(require_observations(claim, within_range)).value == "applicable"
+    assert claim.match(require_observations(claim, upper_endpoint)).value == "not_applicable"
 
 
 
@@ -279,6 +307,7 @@ from mountainash.core.capabilities.applicability import (
     Applicability, CoordinateConstraint, Region, prepare_environment,
 )
 from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+from tests.fixtures.capability_observations import require_observations
 
 @pytest.mark.parametrize(("specifier", "raw", "expected"), [
     ("==11", "11+local", "applicable"),
@@ -298,7 +327,7 @@ def test_standard_membership_boundaries(specifier, raw, expected):
         CoordinateConstraint("package", "ibis", specifier=specifier),
     )),))
     observed = Environment((EnvironmentCoordinate("package", "IBIS", raw),))
-    assert claim.match(prepare_environment(observed, claim.requirements)).value == expected
+    assert claim.match(require_observations(claim, observed)).value == expected
 
 @pytest.mark.parametrize("text", ["", "   ", ","])
 def test_zero_clause_version_constraint_rejects(text):
@@ -325,7 +354,7 @@ def test_dead_region_does_not_destroy_live_union():
     live = Region((CoordinateConstraint("package", "ibis", specifier="==3"),))
     claim = Applicability((dead, live))
     observed = Environment((EnvironmentCoordinate("package", "ibis", "3"),))
-    assert claim.match(prepare_environment(observed, claim.requirements)).value == "applicable"
+    assert claim.match(require_observations(claim, observed)).value == "applicable"
     with pytest.raises(ValueError):
         Applicability((dead,)).prepare()
 
@@ -335,4 +364,4 @@ def test_engine_prerelease_uses_standard_version_semantics():
         CoordinateConstraint("engine", "duckdb", specifier=">=1.2,<1.3"),
     )),))
     environment = Environment((EnvironmentCoordinate("engine", "duckdb", "1.2.1rc1"),))
-    assert claim.match(prepare_environment(environment, claim.requirements)).value == "applicable"
+    assert claim.match(require_observations(claim, environment)).value == "applicable"

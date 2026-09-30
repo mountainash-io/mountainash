@@ -372,10 +372,10 @@ def test_adjacent_version_policies_publish_and_overlap_rolls_back():
     } == {"older", "newer"}
 
 
-def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
+def test_registry_selects_recurrence_for_known_engine_versions():
     from dataclasses import replace
 
-    from mountainash.core.capabilities.applicability import (Applicability, CoordinateConstraint, Region, prepare_environment)
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region, prepare_environment
     from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.capabilities.policy import (
@@ -383,6 +383,7 @@ def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
         _CapabilityTarget,
         _ExecutionContext,
     )
+    from tests.fixtures.capability_observations import require_observations
 
     claim = Applicability(tuple(Region((
         CoordinateConstraint("package", "ibis", specifier="==12"),
@@ -392,32 +393,60 @@ def test_registry_selects_recurrence_but_not_gap_or_unknown_engine():
     rule = replace(_policy(), applicability=claim)
     CapabilityRegistry.register_segment(_segment(policies=(rule,)))
     target = _CapabilityTarget(BackendIdentity(CONST_BACKEND.POLARS, "polars"), object())
-    for engine, expected in (
-        ("1.1", False),
-        ("1.2", True),
-        ("1.3", False),
-        ("1.4", True),
-        (None, False),
-        ("vendor", False),
-    ):
+
+    def select(engine):
         observed = Environment((
             EnvironmentCoordinate("package", "ibis", "12"),
             EnvironmentCoordinate("engine", "duckdb", engine),
         ))
-        context = _ExecutionContext(
-            CapabilityPolicy.checked(),
-            target,
-            observed,
-            prepare_environment(observed, claim.requirements),
+        return CapabilityRegistry.capability_for(
+            FK.CONTAINS,
+            "substring",
+            CONST_BACKEND.POLARS,
+            "polars",
+            execution_context=_ExecutionContext(
+                CapabilityPolicy.checked(),
+                target,
+                observed,
+                require_observations(claim, observed),
+            ),
         )
-        selected = CapabilityRegistry.capability_for(
+
+    for engine, expected in (("1.1", False), ("1.2", True), ("1.3", False), ("1.4", True)):
+        assert (select(engine) is not None) is expected
+
+
+def test_registry_does_not_select_recurrence_for_unknown_engine_fallbacks():
+    from dataclasses import replace
+
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region, prepare_environment
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import CapabilityPolicy, _CapabilityTarget, _ExecutionContext
+
+    claim = Applicability(tuple(Region((
+        CoordinateConstraint("package", "ibis", specifier="==12"),
+        CoordinateConstraint("engine", "duckdb", specifier=">=" + lower + ",<" + upper),
+    )) for lower, upper in (("1.2", "1.3"), ("1.4", "1.5"))))
+    rule = replace(_policy(), applicability=claim)
+    CapabilityRegistry.register_segment(_segment(policies=(rule,)))
+    target = _CapabilityTarget(BackendIdentity(CONST_BACKEND.POLARS, "polars"), object())
+
+    for engine in (None, "vendor"):
+        observed = Environment((
+            EnvironmentCoordinate("package", "ibis", "12"),
+            EnvironmentCoordinate("engine", "duckdb", engine),
+        ))
+        prepared = prepare_environment(observed, claim.requirements)
+        context = _ExecutionContext(CapabilityPolicy.checked(), target, observed, prepared)
+        assert CapabilityRegistry.capability_for(
             FK.CONTAINS,
             "substring",
             CONST_BACKEND.POLARS,
             "polars",
             execution_context=context,
-        )
-        assert (selected is not None) is expected
+        ) is None
+
 
 
 @pytest.mark.parametrize(

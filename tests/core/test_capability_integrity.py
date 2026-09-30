@@ -37,3 +37,21 @@ def test_result_protection_uses_its_distinct_consumer_contract():
     assert policies is not None
     for record in policies:
         assert record.assertion.action is PolicyAction.DETECT_NON_NULL_TO_NULL
+
+
+def test_every_discovered_segment_has_valid_complete_applicability():
+    from mountainash.core.capabilities.bootstrap import (
+        _load_segments, discover_declaration_modules,
+    )
+    names = discover_declaration_modules()
+    segments = _load_segments()
+    assert {segment.module for segment in segments} == set(names)
+    for segment in segments:
+        for family in ("information", "policies"):
+            for ordinal, assertion in enumerate(getattr(segment.segment, family)):
+                try:
+                    assertion.applicability.prepare()
+                except (TypeError, ValueError) as error:
+                    raise AssertionError(
+                        f"{segment.module}:{family}[{ordinal}] invalid applicability"
+                    ) from error

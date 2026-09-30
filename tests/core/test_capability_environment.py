@@ -25,6 +25,7 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
     from mountainash.core.capabilities.policy import _new_execution_context
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
     from mountainash.core.constants import CONST_BACKEND
+    from tests.fixtures.capability_observations import require_observations
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_STRING as FK,
     )
@@ -64,6 +65,7 @@ def test_actual_driver_coordinates_select_the_registered_policy(engine):
         ))
 
         context = _new_execution_context(table)
+        require_observations(claim, context.observations)
         assert context.target.owner is connection
         result = CapabilityRegistry.capability_for(
             FK.CONTAINS, "substring", CONST_BACKEND.IBIS, dialect,
@@ -193,6 +195,7 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
         FKEY_SUBSTRAIT_SCALAR_STRING as FK,
     )
 
+    from tests.fixtures.capability_observations import require_observations
     rule = CapabilityPolicyRule(
         CapabilityKey(FK.CONTAINS, "substring"),
         CapabilityLevel.UNSUPPORTED,
@@ -218,6 +221,7 @@ def test_cold_loading_precedes_driver_requirement_selection(monkeypatch):
         monkeypatch.setattr(bootstrap, "_load_segments", lambda: (segment,))
 
         context = _new_execution_context(table)
+        require_observations(rule.applicability, context.observations)
         selected = CapabilityRegistry.capability_for(
             FK.CONTAINS,
             "substring",
@@ -250,6 +254,7 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
     from mountainash.core.capabilities.identity import Dialect, Scope
     from mountainash.core.capabilities.policy import _new_execution_context
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
+    from tests.fixtures.capability_observations import require_observations
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_SUBSTRAIT_SCALAR_STRING as FK,
@@ -305,6 +310,7 @@ def test_later_setup_registration_requires_a_fresh_context_to_select_new_environ
             CapabilitySegment(Domain.STRING, policies=(later,)),
         ))
         later_context = _new_execution_context(table)
+        require_observations(later.applicability, later_context.observations)
 
         assert CapabilityRegistry.capability_for(
             FK.CONTAINS,

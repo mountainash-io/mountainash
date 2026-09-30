@@ -110,7 +110,7 @@ def test_gap_history_retains_its_inventory_scoped_claim():
 
 def test_unknown_introduction_survives_history_without_matching_earlier_versions():
     from mountainash.core.capabilities import CapabilityRegistry
-    from mountainash.core.capabilities.applicability import (Applicability, ApplicabilityResult, CoordinateConstraint, Region, prepare_environment)
+    from mountainash.core.capabilities.applicability import Applicability, ApplicabilityResult, CoordinateConstraint, Region
     from mountainash.core.capabilities.catalogue import CatalogueQuery, ChangeQuery
     from mountainash.core.capabilities.declarations import BoundSegment, CapabilitySegment, Domain
     from mountainash.core.capabilities.registry import _LoadState, _empty_state
@@ -158,10 +158,12 @@ def test_unknown_introduction_survives_history_without_matching_earlier_versions
         assert retained.unresolved_boundaries[0].backtesting_obligation == _address("backtesting-obligation")
         retained_claim = retained.successors[0].payload.applicability
         earlier = Environment((EnvironmentCoordinate("engine", "duckdb", "1.3"),))
-        assert retained_claim.match(
-            prepare_environment(earlier, retained_claim.requirements)
-        ) is ApplicabilityResult.NOT_APPLICABLE
-        assert Applicability().match(prepare_environment(earlier, frozenset())) is ApplicabilityResult.APPLICABLE
+        from tests.fixtures.capability_observations import require_observations
+
+        prepared_earlier = require_observations(retained_claim, earlier)
+        assert retained_claim.match(prepared_earlier) is ApplicabilityResult.NOT_APPLICABLE
+        prepared_unbounded = require_observations(Applicability(), earlier)
+        assert Applicability().match(prepared_unbounded) is ApplicabilityResult.APPLICABLE
     finally:
         CapabilityRegistry.restore(snapshot)
 

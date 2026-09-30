@@ -45,6 +45,32 @@ def registry_isolation():
         CapabilityRegistry.restore(snapshot)
 
 
+@pytest.mark.parametrize("specifier", [">=>1", ">=2,<1"])
+def test_bad_applicability_load_cannot_disappear_or_replace_prior_state(monkeypatch, specifier):
+    from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
+    prior = _decl()
+    CapabilityRegistry.register_segment(prior)
+
+    def load_bad_segment():
+        incoming = _decl("character", suffix=".bad")
+        claim = Applicability((Region((
+            CoordinateConstraint("package", "ibis", specifier=specifier),
+        )),))
+        policy = replace(incoming.segment.policies[0], applicability=claim)
+        return (replace(incoming, segment=replace(incoming.segment, policies=(policy,))),)
+
+    monkeypatch.setattr(bootstrap, "_load_segments", load_bad_segment)
+    with pytest.raises(ValueError) as first:
+        CapabilityRegistry.capture()
+    with pytest.raises(ValueError) as repeated:
+        CapabilityRegistry.capture()
+    assert repeated.value is first.value
+    failed = CapabilityRegistry.snapshot()
+    CapabilityRegistry.restore(replace(failed, load_state=_LoadState.ISOLATED, load_error=None))
+    retained = CapabilityRegistry.reader(_SCOPE).policy(prior.segment.policies[0].key)
+    assert retained.assertion == prior.segment.policies[0]
+
+
 def test_reset_disables_enumerating_capture():
     CapabilityRegistry.reset()
     assert CapabilityRegistry.capability_for(FK_STR.CENTER, "length", CONST_BACKEND.IBIS, "ibis-duckdb") is None
