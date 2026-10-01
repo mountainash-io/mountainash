@@ -63,6 +63,21 @@ The minimal AST is deliberate — most operations are parameter values on these 
 
 `.group_by()` returns a `GroupedRelation` that exposes only `.agg()` — by design, so you can't accidentally chain a filter onto a partial group.
 
+### Projection output names
+
+`select` and `with_columns` use portable names for resolvable single-output
+Mountainash expressions. For example,
+`.with_columns(ma.col("n").fill_null(0))` replaces `n`, including on Ibis;
+`.with_columns(ma.col("n").fill_null(0).alias("filled_n"))` adds `filled_n` and
+retains `n`. Membership (`ma.col("n").is_in([2, 4])`) also uses `n`, so alias it
+to `is_member` to retain a separate result. Duplicate resolved outputs now fail
+on all backends, including Narwhals-pandas.
+
+See [Projection output names and migration](../../guides/projection-naming.md)
+for composition rules, requires-alias operations, empty-name limitations and
+native/selector schema boundaries. Standalone compilation and grouped aggregation
+keep their existing naming behavior.
+
 ## Cross-type joins
 
 ```python
