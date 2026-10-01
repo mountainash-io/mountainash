@@ -50,7 +50,7 @@ The minimal AST is deliberate — most operations are parameter values on these 
 | Row filter | `.filter(expr)`, `.remove(expr)` |
 | Projection | `.select(*cols)`, `.with_columns(*exprs)`, `.drop(*cols)`, `.rename({old: new})` |
 | Sort / fetch | `.sort(*by, descending=...)`, `.head(n)`, `.tail(n)`, `.slice(offset, length)` |
-| Join | `.join(other, on=..., how=..., execute_on=...)`, `.cross_join(other, execute_on=...)`, `.join_asof(..., execute_on=...)` (cross-type allowed) |
+| Join | `.join(other, on=... \| left_on=..., right_on=..., how=..., suffix=..., coalesce=..., execute_on=...)`, `.cross_join(other, execute_on=...)`, `.join_asof(..., execute_on=...)` (cross-type allowed) |
 | Group / aggregate | `.group_by(*keys).agg(*exprs)` |
 | Set ops | `.union(other)`, `.intersection(other)`, `.difference(other)` |
 | Unique / null | `.unique(*cols)`, `.drop_nulls(subset=...)`, `.drop_nans(subset=...)`, `.has_nulls()`, `.null_count()` |
@@ -133,6 +133,38 @@ assert ma.relation(events).join_asof(
     history, on="time", execute_on="right"
 ).to_dict()["rate"] == [10, 30]
 ```
+
+## Join output columns
+
+Keyed joins (`inner`, `left`, `right`, `outer`) produce the same columns on every
+backend, and `.columns` matches what collection returns:
+
+- all left columns in left order, then all right columns in right order;
+- a right column whose name exists on the left gets `suffix` (default `_right`);
+  if that name is also taken, `_1`, `_2`, … is appended and a `UserWarning` is
+  emitted at execution;
+- `coalesce` decides whether key pairs merge into the left key column. By
+  default keys declared with `on` merge, while `left_on`/`right_on` keep both
+  keys. For `right`/`outer` joins the merged key holds `coalesce(left, right)`.
+
+```python
+import polars as pl
+import mountainash as ma
+
+orders = pl.DataFrame({"order_id": [1, 2], "customer_id": [10, 11]})
+customers = pl.DataFrame({"id": [10, 12], "name": ["Ada", "Bo"]})
+
+kept = ma.relation(orders).join(customers, left_on="customer_id", right_on="id", how="left")
+assert kept.columns == ["order_id", "customer_id", "id", "name"]
+
+merged = ma.relation(orders).join(
+    customers, left_on="customer_id", right_on="id", how="outer", coalesce=True
+)
+assert merged.columns == ["order_id", "customer_id", "name"]
+assert sorted(merged.to_dict()["customer_id"]) == [10, 11, 12]
+```
+
+Semi and anti joins return left columns only.
 
 ## Build-then-collect semantics
 
