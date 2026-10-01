@@ -323,23 +323,23 @@ class UnifiedRelationVisitor:
             for child in children
         ]
 
-    def _ref_output_names(self, node: RelationNode) -> set[str] | None:
-        """Read already-resolved local evidence without replaying a resolver."""
+    def _ref_output_names(self, node: RelationNode) -> list[str] | None:
+        """Read already-resolved local evidence, in output order, without replaying a resolver."""
         if node.name not in self._resolved_refs_by_name:
             return None
         try:
             resolved = self._resolved_refs_by_name[node.name]
             if isinstance(resolved, Mapping):
-                return set(resolved)
+                return list(resolved)
             collect_schema = getattr(resolved, "collect_schema", None)
             if callable(collect_schema):
                 schema = collect_schema()
                 names = getattr(schema, "names", None)
                 if callable(names):
-                    return set(names())
+                    return list(names())
             columns = getattr(resolved, "columns", None)
             if columns is not None:
-                return set(columns)
+                return list(columns)
         except Exception:
             pass
         return None
@@ -361,7 +361,6 @@ class UnifiedRelationVisitor:
             self._transport_child_maps(node, operation),
             conform_plans,
             output_names_resolver=self._ref_output_names,
-            backend=getattr(self.backend, "backend_type", None),
         )
         if self._owned_checks_by_node:
             from mountainash.relations.core.structured_lineage import propagate_owned_residue
@@ -371,7 +370,6 @@ class UnifiedRelationVisitor:
                 [self._owned_checks_by_node.get(id(child), ())
                  for child in self._relation_children(node, operation)],
                 output_names_resolver=self._ref_output_names,
-                backend=getattr(self.backend, "backend_type", None),
             )
 
     def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
@@ -393,7 +391,6 @@ class UnifiedRelationVisitor:
                 child_maps,
                 MappingProxyType({}),
                 output_names_resolver=self._ref_output_names,
-                backend=getattr(self.backend, "backend_type", None),
             )
         elif metadata is not None and metadata[0]:
             _, overwritten, dropped = metadata
@@ -412,7 +409,6 @@ class UnifiedRelationVisitor:
                             for child in self._relation_children(node, op)]
             carried = propagate_owned_residue(
                 node, child_checks, output_names_resolver=self._ref_output_names,
-                backend=getattr(self.backend, "backend_type", None),
             )
             output_checks = (*carried, *self._local_checks_by_node.get(id(node), ()))
             self._owned_checks_by_node[id(node)] = output_checks

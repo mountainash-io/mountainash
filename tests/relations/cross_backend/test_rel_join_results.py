@@ -596,6 +596,25 @@ class TestJoinOutputValues:
         assert rel.columns == ["k", "w", "w_right", "w_right_1"]
         assert rel.to_dicts() == [{"k": 1, "w": 0, "w_right": 7, "w_right_1": 9}]
 
+    def test_triple_clash_warns_on_collect(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1], "w": [0], "w_right": [7]}, {"k": [1], "w": [9]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, on="k")
+        with pytest.warns(UserWarning, match="'w' renamed to 'w_right_1'"):
+            rel.to_polars()
+
+    def test_inference_does_not_warn(self, backend_name, backend_factory):
+        import warnings
+
+        left, right = backend_factory.create_pair(
+            {"k": [1], "w": [0], "w_right": [7]}, {"k": [1], "w": [9]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, on="k")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert rel.columns == ["k", "w", "w_right", "w_right_1"]
+
     def test_reserved_alias_names_are_ordinary_payload(self, backend_name, backend_factory):
         left, right = backend_factory.create_pair(
             {"k": [1, 2], "__ma_lk_0": ["L1", "L2"]},

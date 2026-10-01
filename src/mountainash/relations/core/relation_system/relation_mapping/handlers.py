@@ -8,6 +8,7 @@ appear here; they bind through ArgBinding specs in definitions.py.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from mountainash.relations.core.relation_system.relation_keys.enums import (
@@ -45,6 +46,13 @@ def visit_join(node: Any, visitor: Any) -> Any:
     layout = layout_for_node(node, native_column_names(left), native_column_names(right))
     if layout.right_rename:
         right = visitor.backend.project_rename(right, layout.right_rename)
+    for original, final in layout.collisions:
+        warnings.warn(
+            f"join: right column {original!r} renamed to {final!r} because "
+            f"{original + node.suffix!r} already exists",
+            UserWarning,
+            stacklevel=2,
+        )
     result = visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
         lambda: visitor.backend.join(
