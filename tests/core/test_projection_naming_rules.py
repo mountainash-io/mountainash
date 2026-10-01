@@ -241,6 +241,57 @@ def test_declared_single_requires_alias_can_be_named(key):
 
 
 @pytest.mark.parametrize(
+    "compose",
+    [
+        lambda unnamed: ma.col("n") + unnamed,
+        lambda unnamed: ma.when(unnamed > 0).then(ma.col("n")).otherwise(0),
+        lambda unnamed: ma.when(ma.col("m") > 0).then(ma.col("n")).otherwise(unnamed),
+    ],
+)
+def test_non_naming_operand_limitation_does_not_invalidate_resolved_name(compose):
+    from mountainash.expressions.core.output_names import resolve_output_names
+
+    unnamed = ma.col("n").create(WindowFunctionNode(function_key=SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK))
+    result = resolve_output_names(compose(unnamed))
+    assert (result.kind, result.names, result.scalar_name) == ("single", ("n",), "n")
+    assert result.function_key is None
+    assert result.reason is None
+    # The same limitation still matters when this operand supplies the name.
+    result = resolve_output_names(unnamed + ma.col("n"))
+    assert (result.kind, result.names) == ("unclassified", (None,))
+    assert result.function_key == SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK
+
+
+@pytest.mark.parametrize(
+    "compose, hint",
+    [
+        (lambda expr: expr, None),
+        (lambda expr: expr.alias("x"), "x"),
+        (lambda expr: expr.alias("x").name.suffix("!"), "x!"),
+        (lambda expr: ma.col("n") + expr, "n"),
+    ],
+)
+def test_requires_alias_preserves_native_passthrough_uncertainty(compose, hint):
+    from mountainash.expressions.core.output_names import resolve_output_names
+
+    node = WindowFunctionNode(
+        function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTILE,
+        arguments=[LiteralNode(value=object(), is_native=True)],
+    )
+    result = resolve_output_names(compose(ma.col("n").create(node)))
+    assert (result.kind, result.names, result.name_hint) == ("opaque", None, hint)
+    assert result.scalar_name is None
+
+
+def test_naming_only_limitation_cannot_mask_opaque_later_operand():
+    from mountainash.expressions.core.output_names import resolve_output_names
+
+    unnamed = ma.col("n").create(WindowFunctionNode(function_key=SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK))
+    result = resolve_output_names((unnamed + ma.native(object())).alias("x"))
+    assert (result.kind, result.names, result.name_hint) == ("opaque", None, "x")
+
+
+@pytest.mark.parametrize(
     "key",
     [
         SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
@@ -255,7 +306,7 @@ def test_declared_single_requires_alias_can_be_named(key):
     [
         ("n", "single", ("n",)),
         (None, "unclassified", (None,)),
-        (object(), "unclassified", None),
+        (object(), "opaque", None),
         ("^absent$", "expansion", ()),
         ("*", "expansion", ("n", "m")),
     ],

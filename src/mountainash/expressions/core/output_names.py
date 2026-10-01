@@ -90,7 +90,10 @@ def _propagate(outputs: list[ExpressionOutputs], naming: int = 0) -> ExpressionO
         for output in outputs
         if output.kind == "expansion" or (output.names is not None and len(output.names) != 1)
     ]
-    problem = next((output for output in outputs if output.kind == "unclassified"), None)
+    # Missing classification is relevant in every operand. A known-shape
+    # naming limitation matters only in the operand that supplies our name.
+    problem = next((output for output in outputs if output.kind == "unclassified" and output.names is None), None)
+    naming_problem = source if source.kind == "unclassified" else None
     internal = next((output for output in outputs if output.kind == "internal"), None)
     opaque = next((output for output in outputs if output.kind == "opaque"), None)
     names = None
@@ -101,7 +104,7 @@ def _propagate(outputs: list[ExpressionOutputs], naming: int = 0) -> ExpressionO
         else:
             names = (_hint(source),) * count
     kind = "expansion" if expansions else "single"
-    failure = problem or internal or opaque
+    failure = problem or internal or opaque or naming_problem
     if failure is not None:
         kind = failure.kind
     return ExpressionOutputs(
@@ -128,7 +131,9 @@ def _requires_alias(output: ExpressionOutputs, key: Enum | None, reason: str) ->
         return output
     return replace(
         output,
-        kind="unclassified",
+        # A naming limitation must not turn native passthrough into a missing
+        # Mountainash classification. An alias can retain intent, not shape.
+        kind="opaque" if output.kind == "opaque" else "unclassified",
         names=None if output.names is None else (None,) * len(output.names),
         name_hint=None,
         reason=reason,
