@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, TYPE_CHECKING
 
 from ..relation_nodes import AggregateRelNode, RelationNode
+from ..aggregate_names import normalize_aggregate
 from mountainash.relations.core.relation_protocols import GroupedRelationAPIProtocol
 
 if TYPE_CHECKING:
@@ -28,10 +29,13 @@ class GroupedRelation(GroupedRelationAPIProtocol):
 
     def agg(self, *expressions: Any) -> "Relation":
         """Apply aggregate expressions to the grouped relation."""
+        keys, measures = self._keys, list(expressions)
+        if measures:
+            keys, measures = normalize_aggregate(keys, measures)
         node = AggregateRelNode(
             input=self._node,
-            keys=self._keys,
-            measures=list(expressions),
+            keys=keys,
+            measures=measures,
         )
         # group_by() always supplies _origin, so agg preserves the relation's
         # concrete type (DAGRelation included). No Relation(...) fallback — the

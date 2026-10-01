@@ -756,3 +756,30 @@ def test_unpivot_rejects_transport_used_as_value(monkeypatch):
 
     with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
         relation.unpivot(on="payload", index="metric").to_polars()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_opaque_aggregate_join_never_guesses_carrier_collision(backend_name, backend_factory):
+    import ibis
+
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left_source, right_source = backend_factory.create_pair(
+        {"id": [1, 1], "payload": [2, 3]}, {"id": [1], "payload": ["[7]"]}, backend_name,
+    )
+    native = ma.col("payload").sum().compile(left_source)
+    if isinstance(native, ibis.Deferred):
+        native = native.resolve(left_source)
+    left = ma.relation(left_source).group_by("id").agg(ma.native(native).alias("payload"))
+    assert left.to_dicts() == [{"id": 1, "payload": 5}]
+    right = ma.relation(right_source).conform(
+        TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)]),
+    )
+    try:
+        rows = left.join(right, on="id").to_dicts()
+    except IncompleteProjectionSchemaError:
+        # Metadata needs complete names; failing explicitly is safe.
+        return
+    assert rows == [{"id": 1, "payload": 5, "payload_right": [7]}]

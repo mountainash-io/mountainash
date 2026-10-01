@@ -1,7 +1,7 @@
-"""Pure AST projection naming, with output cardinality kept independently.
+"""Pure AST output naming, with output cardinality kept independently.
 
-This resolver is deliberately separate from standalone compilation and grouped
-aggregation inference. Native objects are opaque, including under aliases.
+Projections and aggregates share this resolver; standalone compilation retains
+native naming. Native objects are opaque, including under aliases.
 """
 
 from __future__ import annotations
