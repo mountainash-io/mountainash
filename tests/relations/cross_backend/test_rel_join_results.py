@@ -510,3 +510,137 @@ class TestJoinAsofGatedCells:
         ):
             result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_dicts()
             assert sorted_dicts(result, "val") == sorted_dicts(oracle, "val")
+
+
+# ---------------------------------------------------------------------------
+# Output naming contract (backlog 245): `.columns`, collected data and
+# `select(*columns)` agree; left columns then right columns; `coalesce` option.
+# ---------------------------------------------------------------------------
+
+_LEFT = {"k": [1, 2, 3], "v": ["a", "b", "c"], "w": [0, 0, 0]}
+_RIGHT_KK = {"kk": [2, 3, 4], "w": [10, 20, 30]}
+_RIGHT_K = {"k": [2, 3, 4], "w": [10, 20, 30]}
+_CONTRACT_CASES = {
+    "lr": (dict(left_on="k", right_on="kk"), _RIGHT_KK,
+           ["k", "v", "w", "kk", "w_right"]),
+    "lr_same": (dict(left_on="k", right_on="k"), _RIGHT_K,
+                ["k", "v", "w", "k_right", "w_right"]),
+    "on": (dict(on="k"), _RIGHT_K, ["k", "v", "w", "w_right"]),
+    "on_keep": (dict(on="k", coalesce=False), _RIGHT_K,
+                ["k", "v", "w", "k_right", "w_right"]),
+    "lr_merge": (dict(left_on="k", right_on="kk", coalesce=True), _RIGHT_KK,
+                 ["k", "v", "w", "w_right"]),
+}
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("how", ["inner", "left", "right", "outer"])
+@pytest.mark.parametrize("case", list(_CONTRACT_CASES))
+class TestJoinOutputContract:
+    def test_columns_match_collected_and_selectable(self, backend_name, backend_factory, how, case):
+        kwargs, right_data, expected = _CONTRACT_CASES[case]
+        left, right = backend_factory.create_pair(_LEFT, right_data, backend_name)
+        rel = ma.relation(left).join(right, how=how, **kwargs)
+        assert rel.columns == expected
+        assert list(rel.to_polars().columns) == expected
+        assert list(rel.select(*rel.columns).to_polars().columns) == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinOutputValues:
+    def test_left_join_keeps_right_key_null_for_unmatched(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(_LEFT, _RIGHT_KK, backend_name)
+        rows = ma.relation(left).join(right, left_on="k", right_on="kk", how="left").to_dicts()
+        assert sorted_dicts(rows, "k") == [
+            {"k": 1, "v": "a", "w": 0, "kk": None, "w_right": None},
+            {"k": 2, "v": "b", "w": 0, "kk": 2, "w_right": 10},
+            {"k": 3, "v": "c", "w": 0, "kk": 3, "w_right": 20},
+        ]
+
+    @pytest.mark.parametrize("how", ["right", "outer"])
+    def test_merged_key_carries_right_only_values(self, backend_name, backend_factory, how):
+        left, right = backend_factory.create_pair(_LEFT, _RIGHT_KK, backend_name)
+        rows = ma.relation(left).join(
+            right, left_on="k", right_on="kk", how=how, coalesce=True,
+        ).to_dicts()
+        assert sorted(r["k"] for r in rows) == ([2, 3, 4] if how == "right" else [1, 2, 3, 4])
+
+    def test_multi_key_left_on_right_on(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"a": [1, 1], "b": ["x", "y"], "lv": [1, 2]},
+            {"ra": [1, 1], "b": ["y", "x"], "rv": [10, 20]},
+            backend_name,
+        )
+        rel = ma.relation(left).join(right, left_on=["a", "b"], right_on=["ra", "b"])
+        assert rel.columns == ["a", "b", "lv", "ra", "b_right", "rv"]
+        assert sorted_dicts(rel.to_dicts(), "b") == [
+            {"a": 1, "b": "x", "lv": 1, "ra": 1, "b_right": "x", "rv": 20},
+            {"a": 1, "b": "y", "lv": 2, "ra": 1, "b_right": "y", "rv": 10},
+        ]
+
+    def test_right_key_clashes_with_left_payload(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1, 2], "w": [5, 6]}, {"w": [1, 9], "x": ["p", "q"]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, left_on="k", right_on="w")
+        assert rel.columns == ["k", "w", "w_right", "x"]
+        assert rel.to_dicts() == [{"k": 1, "w": 5, "w_right": 1, "x": "p"}]
+
+    def test_triple_clash_increments(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1], "w": [0], "w_right": [7]}, {"k": [1], "w": [9]}, backend_name,
+        )
+        rel = ma.relation(left).join(right, on="k")
+        assert rel.columns == ["k", "w", "w_right", "w_right_1"]
+        assert rel.to_dicts() == [{"k": 1, "w": 0, "w_right": 7, "w_right_1": 9}]
+
+    def test_reserved_alias_names_are_ordinary_payload(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(
+            {"k": [1, 2], "__ma_lk_0": ["L1", "L2"]},
+            {"kk": [2], "__ma_rk_0": ["R2"]},
+            backend_name,
+        )
+        rows = ma.relation(left).join(right, left_on="k", right_on="kk", how="left").to_dicts()
+        assert sorted_dicts(rows, "k") == [
+            {"k": 1, "__ma_lk_0": "L1", "kk": None, "__ma_rk_0": None},
+            {"k": 2, "__ma_lk_0": "L2", "kk": 2, "__ma_rk_0": "R2"},
+        ]
+
+    def test_execute_on_right_keeps_canonical_order(self, backend_name, backend_factory):
+        left, right = backend_factory.create_pair(_LEFT, {"kk": [2], "w": [10]}, backend_name)
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", execute_on="right")
+        assert list(rel.to_polars().columns) == ["k", "v", "w", "kk", "w_right"]
+
+    @pytest.mark.parametrize("how", ["inner", "left", "outer"])
+    def test_nested_joins_on_same_fields(self, backend_name, backend_factory, how):
+        # Same lookup joined twice on the same key (shared Ibis connection via create_pair).
+        left, lookup = backend_factory.create_pair(
+            {"k": [1, 2], "w": [0, 0]}, {"k": [1, 3], "w": [10, 30]}, backend_name,
+        )
+        kept = (
+            ma.relation(left)
+            .join(lookup, on="k", how=how, coalesce=False)
+            .join(lookup, on="k", how=how, coalesce=False)
+        )
+        expected = ["k", "w", "k_right", "w_right", "k_right_1", "w_right_1"]
+        assert kept.columns == expected
+        assert list(kept.to_polars().columns) == expected
+        assert list(kept.select(*kept.columns).to_polars().columns) == expected
+        merged = ma.relation(left).join(lookup, on="k", how=how).join(lookup, on="k", how=how)
+        assert merged.columns == ["k", "w", "w_right", "w_right_1"]
+        assert list(merged.to_polars().columns) == merged.columns
+
+    def test_raw_dict_right_side_parity(self, backend_name, backend_factory):
+        from mountainash.relations.core.errors import UnsupportedRelationTransportError
+
+        left = backend_factory.create(_LEFT, backend_name)
+        rel = ma.relation(left).join({"kk": [2], "w": [10]}, left_on="k", right_on="kk", how="left")
+        assert rel.columns == ["k", "v", "w", "kk", "w_right"]
+        with expect_call_failure(
+            when=backend_name == "narwhals-lazy",
+            errors=(UnsupportedRelationTransportError,),
+            reason="No declared transport for a raw-Python join operand into narwhals-lazy (pre-existing; independent of join naming)",
+        ):
+            assert list(rel.to_polars().columns) == rel.columns

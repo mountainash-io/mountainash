@@ -496,6 +496,18 @@ class TestInferSchemaJoin:
             pl.DataFrame({"id": [1], "b": [1]}), on="id", coalesce=False)
         assert rel.columns == ["id", "a", "id_right", "b"]
 
+    @pytest.mark.parametrize("raw", [
+        {"kk": [1], "w": [1]},
+        [{"kk": 1, "w": 1}, {"kk": 2, "w": 2}],
+        ({"kk": 1}, {"kk": 2, "w": 2}),
+    ])
+    def test_raw_python_join_operand_names(self, raw):
+        from mountainash.relations.schema_inference import SchemaTypeStatus
+
+        rel = ma.relation(pl.DataFrame({"k": [1], "w": [0]})).join(raw, left_on="k", right_on="kk")
+        assert rel.columns == ["k", "w", "kk", "w_right"]
+        assert rel.schema["kk"] is SchemaTypeStatus.UNKNOWN
+
     def test_inner_join_on(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, JoinRelNode

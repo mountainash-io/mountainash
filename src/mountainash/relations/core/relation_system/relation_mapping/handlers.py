@@ -17,21 +17,53 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 
 
 def visit_join(node: Any, visitor: Any) -> Any:
+    from mountainash.relations.core.join_layout import (
+        keyed_layout_applies, layout_for_node, native_column_names,
+    )
+
     if visitor.execution is not None:
         left, right = visitor.execution.operands(visitor, visitor.execution_key)
     else:
         left = visitor.visit(node.left)
         right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
-    return visitor._enrich_native_call(
+
+    if not keyed_layout_applies(node):
+        return visitor._enrich_native_call(
+            node, RKEY_SUBSTRAIT_REL.JOIN,
+            lambda: visitor.backend.join(
+                left, right,
+                join_type=node.join_type,
+                on=node.on, left_on=node.left_on,
+                right_on=node.right_on, suffix=node.suffix,
+            ),
+        )
+
+    # One naming rule (join_layout): rename the right side to its final names,
+    # join disjoint names keeping both keys, then merge/drop keys with ordinary
+    # projections. Backends never apply their own suffixing or key merging.
+    layout = layout_for_node(node, native_column_names(left), native_column_names(right))
+    if layout.right_rename:
+        right = visitor.backend.project_rename(right, layout.right_rename)
+    result = visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
         lambda: visitor.backend.join(
             left, right,
             join_type=node.join_type,
-            on=node.on, left_on=node.left_on,
-            right_on=node.right_on, suffix=node.suffix,
+            on=None, left_on=layout.left_keys,
+            right_on=layout.right_keys, suffix=node.suffix,
         ),
     )
+    if layout.merge:
+        from mountainash import coalesce, col
+
+        result = visitor.backend.project_with_columns(result, [
+            visitor.compile_expression(coalesce(col(lk), col(rk)).alias(lk))
+            for lk, rk in layout.merge
+        ])
+    if layout.drop:
+        result = visitor.backend.project_drop(result, layout.drop)
+    return result
 
 
 def visit_join_asof(node: Any, visitor: Any) -> Any:

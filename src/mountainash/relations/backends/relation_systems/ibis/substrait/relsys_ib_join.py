@@ -56,25 +56,7 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol[ir.Tab
             # Cross join or no predicate.
             predicates = []
 
+        # Keyed joins arrive with disjoint names (see join_layout), so Ibis keeps
+        # both key columns; visit_join owns any key merging.
         rname = "{name}" + suffix if suffix else "{name}_right"
-        result = left.join(right, predicates=predicates, how=how, lname="", rname=rname)
-
-        # Ibis keeps the right-side join key as a separate column for non-inner
-        # joins (e.g. ``id_right`` alongside ``id``).  Polars and Narwhals
-        # deduplicate automatically; we do it here to match.
-        if on is not None and how not in ("inner", "semi", "anti", "cross"):
-            effective_suffix = suffix or "_right"
-            right_keys = [f"{k}{effective_suffix}" for k in on]
-            right_keys = [rk for rk in right_keys if rk in result.columns]
-
-            if how in ("right", "outer"):
-                import ibis
-                for key, rk in zip(on, right_keys):
-                    result = result.mutate(
-                        **{key: ibis.coalesce(result[key], result[rk])}
-                    )
-
-            if right_keys:
-                result = result.drop(*right_keys)
-
-        return result
+        return left.join(right, predicates=predicates, how=how, lname="", rname=rname)

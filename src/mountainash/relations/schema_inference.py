@@ -145,7 +145,10 @@ def _schema_from_dataframe(
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Extract canonical schema from a native dataframe.
 
-    Supports Polars DataFrame/LazyFrame, Ibis tables, and pandas DataFrame.
+    Supports Polars DataFrame/LazyFrame, Ibis tables, pandas DataFrame, and
+    raw Python data held unconverted by a ``ReadRelNode`` (a dict of columns
+    or a list/tuple of row dicts) -- names only, dtype ``UNKNOWN``, because
+    those inputs are converted to the execution backend only at compile time.
     Native dtypes are mapped through the dtype registry (per-backend target)
     to canonical ``MountainashDtype`` values, or a ``SchemaTypeStatus`` for
     typeless/unrecognized natives. Returns {} for unrecognized dataframe
@@ -190,6 +193,14 @@ def _schema_from_dataframe(
             except Exception:
                 result[name] = SchemaTypeStatus.UNKNOWN
         return result
+    if isinstance(df, dict):
+        return {str(name): SchemaTypeStatus.UNKNOWN for name in df}
+    if isinstance(df, (list, tuple)) and df and all(isinstance(row, dict) for row in df):
+        names: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+        for row in df:
+            for name in row:
+                names.setdefault(str(name), SchemaTypeStatus.UNKNOWN)
+        return names
     return {}
 def _schema_from_table_schema(
     table_schema: dict,
