@@ -7,6 +7,43 @@ import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
 
 
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+@pytest.mark.parametrize("selector,selected", [("*", ["n", "m"]), ("^n$", ["n"]), ("^absent$", [])])
+def test_string_selector_schema_matches_supported_execution(operation, selector, selected):
+    """Polars string-selector lowering, not a new portable selector API."""
+    relation = getattr(ma.relation(pl.DataFrame({"n": [2, 3], "m": [4, 5]})), operation)(selector)
+    expected = ["n", "m"] if operation == "with_columns" else selected
+    assert relation.columns == expected
+    assert relation.to_polars().columns == expected
+
+
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+@pytest.mark.parametrize("selector", ["^n$", "^absent$"])
+@pytest.mark.parametrize("compose,values", [
+    (lambda e: e, [True, False]),
+    (lambda e: e.fill_null(False), [True, False]),
+    (lambda e: ~e, [False, True]),
+])
+def test_computed_selector_membership_does_not_promise_unenforced_names(operation, selector, compose, values):
+    """Polars expansion keeps native lowering; no generated scalar alias is safe."""
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    relation = getattr(ma.relation(pl.DataFrame({"n": [2, 3]})), operation)(
+        compose(ma.col(selector).is_in([2]))
+    )
+    if selector == "^absent$":
+        expected = {"n": [2, 3]} if operation == "with_columns" else {}
+        assert relation.columns == list(expected)
+        assert relation.to_dict() == expected
+        return
+    with pytest.raises(IncompleteProjectionSchemaError):
+        _ = relation.columns
+    result = relation.to_dict()
+    assert result["literal"] == values
+    if operation == "with_columns":
+        assert result["n"] == [2, 3]
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_implicit_fill_controls_rules_status(backend_name, backend_factory):

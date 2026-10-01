@@ -41,6 +41,62 @@ def transport_plan(name: str = "payload") -> StructuredFieldPlan:
     )
 
 
+@pytest.mark.parametrize("selector,target", [("^absent$", "payload"), ("^payload$", "payload"), ("*", "*")])
+def test_selector_alias_replacement_requires_actual_output(selector, target):
+    """Polars selector expansion boundary: a zero-output alias is a no-op."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    result = relation.with_columns(ma.col(selector).alias(target)).to_polars()
+    expected = {"payload": [[1]]}
+    if target == "*":
+        expected["*"] = [[1]]
+    assert result.to_dict(as_series=False) == expected
+
+
+@pytest.mark.parametrize("selector", ["*", "^payload$"])
+@pytest.mark.parametrize("as_string", [False, True])
+def test_select_selector_carries_structured_transport(selector, as_string):
+    """Existing Polars selector lowering must retain logical terminal decoding."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    expression = selector if as_string else ma.col(selector)
+    assert relation.select(expression).to_dict() == {"payload": [[1]]}
+
+
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+@pytest.mark.parametrize("shape", ["regex-alias", "native", "selector-suffix"])
+def test_unresolved_projection_cannot_discard_transport(operation, shape):
+    """Polars native/regex selectors have no portable source mapping."""
+    import polars as pl
+
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    expression = {
+        "native": ma.native(pl.col("payload")),
+        "regex-alias": ma.col("^pay.*$").alias("payload"),
+        "selector-suffix": ma.col("^payload$").name.suffix("_copy"),
+    }[shape]
+    with pytest.raises((IncompleteProjectionSchemaError, UnsupportedStructuredTransportUse), match="projection|payload"):
+        getattr(relation, operation)(expression).to_polars()
+
+
 def node(operation_key, **attrs):
     return SimpleNamespace(operation_key=operation_key, **attrs)
 

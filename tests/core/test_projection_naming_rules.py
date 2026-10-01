@@ -97,14 +97,14 @@ def test_function_definition_validates_optional_projection_rule():
         ),
         (lambda: ma.col("^absent$").cast(int).alias("x").name.suffix("!"), ()),
         (lambda: ma.col("*").name.prefix("p_"), ("p_n", "p_m")),
-        (lambda: ma.col("n") + ma.col("*"), ("n", "n")),
-        (lambda: ma.col("*") + ma.col("n"), ("n", "m")),
+        (lambda: ma.col("n") + ma.col("*"), (None, None)),
+        (lambda: ma.col("*") + ma.col("n"), (None, None)),
         (lambda: ma.col("*").alias("x"), ("x", "x")),
         (lambda: ma.col("n").sum().over("m"), ("n",)),
         (lambda: ma.col("n").shift(1).over("m"), ("n",)),
         (lambda: FieldReferenceNode(field="n"), ("n",)),
-        (lambda: "^absent$", ("^absent$",)),
-        (lambda: "*", ("*",)),
+        (lambda: "^absent$", ()),
+        (lambda: "*", ("n", "m")),
         (
             lambda: SingularOrListNode(
                 value=FieldReferenceNode(field="n"), options=[FieldReferenceNode(field="^absent$")]
@@ -308,7 +308,7 @@ def test_naming_only_limitation_cannot_mask_opaque_later_operand():
         (None, "unclassified", (None,)),
         (object(), "opaque", None),
         ("^absent$", "expansion", ()),
-        ("*", "expansion", ("n", "m")),
+        ("*", "expansion", (None, None)),
     ],
 )
 def test_first_order_context_is_retained_without_partition_fallback(key, order, kind, names):

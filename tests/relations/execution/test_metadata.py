@@ -149,6 +149,30 @@ def test_computed_marker_overwrite_preserves_pending_check(raw, output):
         assert propagate_owned_residue(project, [(owned,)]) == (owned,)
 
 
+@pytest.mark.parametrize("operation,expression", [
+    ("select", "*"),
+    ("select", ma.col("^__ma_residue_0$")),
+    ("with_columns", ma.col("^absent$").alias("__ma_residue_0")),
+])
+def test_selector_projection_preserves_source_owned_check(operation, expression):
+    """Metadata ownership boundary must distinguish carriage from zero replacement."""
+    location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
+    owned = OwnedResidue(MaterializationResidueCheck(None, "payload", "__ma_residue_0"), "source", location)
+    project = getattr(ma.relation({"id": [1], "__ma_residue_0": [False]}), operation)(expression)._node
+    assert propagate_owned_residue(project, [(owned,)]) == (owned,)
+
+
+def test_opaque_select_cannot_hide_pending_marker_replacement():
+    """An opaque output cannot be assumed disjoint from a carried residue marker."""
+    location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
+    owned = OwnedResidue(MaterializationResidueCheck(None, "payload", "__ma_residue_0"), "source", location)
+    project = ma.relation({"__ma_residue_0": [False]}).select(
+        "__ma_residue_0", ma.native(object()),
+    )._node
+    with pytest.raises(ValueError, match="Pending residue marker.*must be checked"):
+        propagate_owned_residue(project, [(owned,)])
+
+
 def test_capture_uses_output_check_after_rename_not_stale_local_marker():
     session = MetadataSession(IdentityTokens())
     location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")

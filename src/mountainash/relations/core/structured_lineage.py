@@ -153,6 +153,31 @@ def _direct_projection(value: Any) -> tuple[str, str] | None:
     return None
 
 
+def _projection_outputs(value, node, output_names_resolver):
+    output = resolve_output_names(_expression_node(value))
+    if output.kind == "expansion" and output.names is None:
+        names = _relation_output_names(node.input, output_names_resolver)
+        output = resolve_output_names(_expression_node(value), input_names=tuple(names))
+    return output
+
+
+def _direct_projection_pairs(value, node, output_names_resolver):
+    """Prove direct source/output carriage, including empty selector expansion."""
+    from mountainash.expressions.core.expression_nodes import FieldReferenceNode
+
+    direct = _direct_projection(value)
+    if direct is None:
+        return None
+    source, target = direct
+    sources = _projection_outputs(source, node, output_names_resolver)
+    if sources.names is None:
+        raise IncompleteProjectionSchemaError(
+            f"Unresolved projection source mapping for {source!r} with active metadata"
+        )
+    aliased = not isinstance(_expression_node(value), (str, FieldReferenceNode))
+    return [(name, target if aliased else name) for name in sources.names]
+
+
 def _named_values(value: Any) -> set[str]:
     """Collect field-name literals from relation option and sort payloads."""
     from mountainash.core.constants import SortField
@@ -314,10 +339,15 @@ def propagate_owned_residue(
         maps = [{owned.check.marker: renames.get(owned.check.marker, owned.check.marker)
                  for owned in checks} for checks in child_checks]
     elif policy is _PROJECT_SELECT:
-        projections = dict(
-            direct for expr in getattr(node, "expressions", ())
-            if (direct := _direct_projection(expr)) is not None
-        )
+        projections = {}
+        for expression in getattr(node, "expressions", ()):
+            direct = _direct_projection_pairs(expression, node, output_names_resolver)
+            if direct is not None:
+                projections.update(direct)
+            else:
+                output = _projection_outputs(expression, node, output_names_resolver)
+                if output.names is None or any(name is None for name in output.names):
+                    raise ValueError(f"Pending residue marker must be checked before {node.operation_key}")
         maps = [{owned.check.marker: projections[owned.check.marker]
                  for owned in checks if owned.check.marker in projections} for checks in child_checks]
     elif policy is _PROJECT_DROP:
@@ -327,13 +357,13 @@ def propagate_owned_residue(
     elif policy is _PROJECT_WITH_COLUMNS:
         markers = {owned.check.marker for checks in child_checks for owned in checks}
         for expression in getattr(node, "expressions", ()):
-            direct = _direct_projection(expression)
+            direct = _direct_projection_pairs(expression, node, output_names_resolver)
             if direct is not None:
-                source, output = direct
-                if output in markers and source != output:
-                    raise ValueError(f"Pending residue marker {output!r} must be checked before {node.operation_key}")
+                for source, output in direct:
+                    if output in markers and source != output:
+                        raise ValueError(f"Pending residue marker {output!r} must be checked before {node.operation_key}")
             else:
-                output = resolve_output_names(_expression_node(expression))
+                output = _projection_outputs(expression, node, output_names_resolver)
                 if output.names is None or any(name is None or name in markers for name in output.names):
                     raise ValueError(f"Pending residue marker must be checked before {node.operation_key}")
         maps = [{owned.check.marker: owned.check.marker for owned in checks}
@@ -416,31 +446,42 @@ def propagate_structured_plans(
     if policy is _PRESERVE:
         return freeze_structured_field_plans(incoming)
     if policy is _PROJECT_SELECT:
+        if not incoming:
+            return _empty()
         carried: dict[str, StructuredFieldPlan] = {}
         for expression in getattr(node, "expressions", ()):
-            direct = _direct_projection(expression)
+            direct = _direct_projection_pairs(expression, node, output_names_resolver)
             if direct is not None:
-                source, output = direct
-                if source in incoming:
-                    carried[output] = _renamed(incoming[source], output)
+                for source, output in direct:
+                    if source in incoming:
+                        carried[output] = _renamed(incoming[source], output)
                 continue
+            output = _projection_outputs(expression, node, output_names_resolver)
+            if output.names == ():
+                continue
+            if output.kind == "expansion" or output.names is None or any(name is None for name in output.names):
+                _reject_consumed_fields(node, incoming, set(incoming), "an unresolved projection expression")
             _reject_consumed_fields(node, incoming, expression, "a projection expression")
         return freeze_structured_field_plans(carried)
     if policy is _PROJECT_WITH_COLUMNS:
+        if not incoming:
+            return _empty()
         carried = dict(incoming)
 
         for expression in getattr(node, "expressions", ()):
-            direct = _direct_projection(expression)
+            direct = _direct_projection_pairs(expression, node, output_names_resolver)
             if direct is not None:
-                source, output = direct
-                if source in incoming:
-                    carried[output] = _renamed(incoming[source], output)
-                elif output in incoming:
-                    carried.pop(output, None)
+                for source, output in direct:
+                    if source in incoming:
+                        carried[output] = _renamed(incoming[source], output)
+                    elif output in incoming:
+                        carried.pop(output, None)
+                continue
+            output = _projection_outputs(expression, node, output_names_resolver)
+            if output.names == ():
                 continue
             _reject_consumed_fields(node, incoming, expression, "a projection expression")
-            output = resolve_output_names(_expression_node(expression))
-            if output.names is None or any(name is None for name in output.names):
+            if output.kind == "expansion" or output.names is None or any(name is None for name in output.names):
                 if incoming:
                     _reject_consumed_fields(
                         node, incoming, set(incoming), "a projection expression"

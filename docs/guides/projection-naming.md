@@ -138,6 +138,8 @@ compilation is performed to answer these schema requests. With Ibis,
 passing it to `ma.native`, which accepts concrete Ibis expressions.
 
 Existing wildcard and regex selectors keep their supported expansion behavior.
+This includes selector-shaped strings such as `select("*")` and `select("^n$")`;
+ordinary column-name strings still denote one field.
 They are not wrapped in a generated scalar alias. Where AST/input-schema facts
 resolve an expansion, inference can report all names, including an empty list for
 a zero-match expansion. Otherwise it raises an incomplete-schema error instead of
@@ -145,12 +147,25 @@ advertising `"*"` or a partial mapping. A selector or opaque expression in any
 output-affecting operand, predicate or result branch can make the whole output
 cardinality uncertain, even when another operand has a known name.
 
+Computed expansions remain incomplete unless unchanged lowering guarantees their
+names. For example, `ma.col("^n$").is_in([2])` retains native expansion lowering:
+on Polars its output is named `literal`, so `.columns` raises rather than claiming
+it replaces `n`. Composition does not remove this uncertainty. Use an ordinary
+field reference for portable scalar naming. Proven zero-match computations still
+have known-empty output.
+
 Structured-field metadata and owned transport residue sometimes need complete
 names to map join collisions (for example, right `x` to `x_right`). If complete
 authoritative names are unavailable at the applicable planning/compilation phase,
 the affected lineage operation fails explicitly rather than attaching metadata
 under a guessed name or discarding it. Plain native passthrough can still execute
 when no metadata naming obligation depends on those names.
+Direct selectors and direct field aliases carry structured metadata only when
+their source/output mapping is proven; zero-output aliases preserve existing
+metadata in `with_columns`. Opaque projections and computed selectors with active
+structured transport fail explicitly when their carriage cannot be established,
+including in `select`. Materialize the logical values before applying such native
+projections if needed.
 
 ## Scope and compatibility
 

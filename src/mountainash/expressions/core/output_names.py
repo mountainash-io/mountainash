@@ -83,7 +83,7 @@ def _hint(output: ExpressionOutputs) -> str | None:
 
 
 def _propagate(outputs: list[ExpressionOutputs], naming: int = 0) -> ExpressionOutputs:
-    """Broadcast a single resolved expansion; never guess multi-selector pairing."""
+    """Retain expansion shape without promising unenforced computed names."""
     source = outputs[naming] if naming < len(outputs) else ExpressionOutputs("single", (None,))
     expansions = [
         output
@@ -99,10 +99,14 @@ def _propagate(outputs: list[ExpressionOutputs], naming: int = 0) -> ExpressionO
     names = None
     if all(output.names is not None for output in outputs) and len(expansions) <= 1:
         count = len(expansions[0].names) if expansions else 1
-        if source.kind == "expansion" or (source.names is not None and len(source.names) != 1):
-            names = source.names
+        if count == 0:
+            names = ()
+        elif not expansions:
+            names = (_hint(source),)
         else:
-            names = (_hint(source),) * count
+            names = (None,) * count
+        # Computed expansions receive no generated aliases. Naming intent is
+        # not proof of the names produced by unchanged backend lowering.
     kind = "expansion" if expansions else "single"
     failure = problem or internal or opaque or naming_problem
     if failure is not None:
@@ -228,7 +232,11 @@ def _function_outputs(node, input_names):
         # Only the membership encoder's declared internal collections are
         # consumed here. An ordinary selector/native haystack can still expand.
         outputs = [ExpressionOutputs("single", (None,)) if output.kind == "internal" else output for output in outputs]
-    result = _propagate(outputs, rule.operand)
+    if rule.name_kind in {"alias", "prefix", "suffix", "upper", "lower"} and len(outputs) == 1:
+        # These operations explicitly enforce names without changing shape.
+        result = outputs[0]
+    else:
+        result = _propagate(outputs, rule.operand)
     if rule.cardinality_kind == "single" and result.kind not in {"unclassified", "internal"}:
         result = ExpressionOutputs("single", (_hint(result),))
     elif rule.cardinality_kind == "unknown":
@@ -272,13 +280,13 @@ def resolve_output_names(expression, *, input_names: tuple[str, ...] | None = No
     """Resolve projection outputs without inspecting or compiling a backend.
 
     ``input_names`` must be complete evidence; None means unavailable, while ()
-    means a known-empty input. Raw relation column-name strings remain literal
-    names, unlike selector-bearing FieldReferenceNodes.
+    means a known-empty input. Strings use the existing projection selector
+    semantics, just like FieldReferenceNodes.
     """
     if isinstance(expression, BaseExpressionAPI):
         expression = expression._node
     if isinstance(expression, str):
-        return ExpressionOutputs("single", (expression,))
+        return _field_outputs(expression, input_names)
     # Pydantic's instance check itself probes attributes. Check the concrete
     # class first so deferred/native objects never reach that machinery.
     if not issubclass(type(expression), ExpressionNode):
