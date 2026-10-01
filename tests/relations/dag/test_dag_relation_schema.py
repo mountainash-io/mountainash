@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import polars as pl
+import pytest
 
 import mountainash as ma
+from fixtures.backend_registry import ALL_BACKENDS
 from mountainash.relations.dag.dag import RelationDAG
 
 
@@ -11,6 +13,16 @@ def _dag():
     dag = RelationDAG()
     dag.add("raw", ma.relation(pl.DataFrame({"x": [1, 2], "y": ["a", "b"]})))
     return dag
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_implicit_projection_keeps_dag_terminal_routing(backend_name, backend_factory):
+    dag = RelationDAG()
+    dag.add("raw", ma.relation(backend_factory.create({"n": [None, 2]}, backend_name)))
+    rel = dag.ref("raw").with_columns(ma.col("n").fill_null(0))
+    assert rel.columns == ["n"]
+    assert rel.to_dict() == {"n": [0, 2]}
 
 
 def test_schema_resolves_over_ref_tree():

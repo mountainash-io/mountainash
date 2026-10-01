@@ -21,6 +21,7 @@ from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
 )
+from mountainash.relations.core.projection_names import require_projection_names
 from mountainash.typespec.frictionless import typespec_from_frictionless
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.converters import resolve_field_canonical
@@ -489,22 +490,13 @@ def _infer_project_schema(
         mapping = node.rename_mapping or {}
         return {mapping.get(k, k): v for k, v in input_schema.items()}
 
-    if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_SELECT:
-        result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
-        for expr in node.expressions:
-            name = infer_expression_name(expr)
-            if name and name in input_schema:
-                result[name] = input_schema[name]
-            elif name:
-                result[name] = SchemaTypeStatus.UNKNOWN
-        return result
-
-    if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS:
-        result = dict(input_schema)
-        for expr in node.expressions:
-            name = infer_expression_name(expr)
-            if name:
-                result[name] = input_schema.get(name, SchemaTypeStatus.UNKNOWN)
+    if node.operation in {RKEY_SUBSTRAIT_REL.PROJECT_SELECT, RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS}:
+        names = require_projection_names(
+            node.expressions, operation=node.operation, input_names=tuple(input_schema)
+        )
+        result = dict(input_schema) if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS else {}
+        for name in names:
+            result[name] = input_schema.get(name, SchemaTypeStatus.UNKNOWN)
         return result
 
     if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_DROP:

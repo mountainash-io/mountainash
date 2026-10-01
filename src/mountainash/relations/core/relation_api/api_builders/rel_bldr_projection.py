@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from mountainash.relations.core.projection_names import normalize_projection
 from mountainash.relations.core.relation_nodes import ProjectRelNode
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_SUBSTRAIT_REL,
@@ -22,7 +23,7 @@ class RelationProjectionBuilder(BaseRelationAPIBuilder, RelationProjectionBuilde
         return self._build(
             ProjectRelNode(
                 input=self._node,
-                expressions=list(columns),
+                expressions=normalize_projection(columns, operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT),
                 operation=RKEY_SUBSTRAIT_REL.PROJECT_SELECT,
             )
         )
@@ -31,7 +32,7 @@ class RelationProjectionBuilder(BaseRelationAPIBuilder, RelationProjectionBuilde
         return self._build(
             ProjectRelNode(
                 input=self._node,
-                expressions=list(expressions),
+                expressions=normalize_projection(expressions, operation=RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS),
                 operation=RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS,
             )
         )
