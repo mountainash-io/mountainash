@@ -18,9 +18,10 @@ from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.relations.core.errors import MaterializationScopeClosedError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping, Sequence
 
     import polars as pl
+    import pyarrow as pa
 
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.capabilities.policy import _CapabilityTarget, _ExecutionContext
@@ -149,6 +150,19 @@ class MaterializationScope:
                 for extra in errors[1:]:
                     first.add_note(f"Additional owned-resource cleanup failed: {type(extra).__name__}")
             raise first
+
+
+def rows_to_arrow(rows: Sequence[Mapping[str, Any]]) -> "pa.Table":
+    """Arrow table from row dicts with every key any row carries (first-seen order).
+
+    ``pa.Table.from_pylist`` takes its columns from the first row only and
+    silently drops keys that first appear later; here a key missing from a
+    row becomes null, matching Polars and Narwhals row ingress.
+    """
+    import pyarrow as pa
+
+    names = list(dict.fromkeys(name for row in rows for name in row))
+    return pa.table({name: [row.get(name) for row in rows] for name in names})
 
 
 def _assert_declared_family(
@@ -573,9 +587,7 @@ def coerce_to_ibis(target: Any, value: Any) -> Any:
             arrow = transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, pa.table(value))
             return arrow
         if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
-            import pyarrow as pa
-
-            arrow_table = pa.Table.from_pylist(list(value))
+            arrow_table = rows_to_arrow(list(value))
             return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow_table)
         if is_narwhals_lazyframe(value):
             eager = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)

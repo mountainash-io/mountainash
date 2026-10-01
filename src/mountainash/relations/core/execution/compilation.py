@@ -125,9 +125,7 @@ class CompilationSession:
         if len(self.prepared.inputs[parent.execution_key]) != 1:
             return envelope
         try:
-            propagate_owned_residue(
-                owner, [checks], backend=parent.backend.backend_type,
-            )
+            propagate_owned_residue(owner, [checks])
         except ValueError:
             if self.prepared.phase is not ExecutionPhase.EXECUTE:
                 raise CompileRequiresExecutionError(

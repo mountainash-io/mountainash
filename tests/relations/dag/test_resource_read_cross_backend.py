@@ -689,3 +689,16 @@ class TestInlineReadRoundTrip:
         result = dag.collect("sleep")
         df = result.collect() if hasattr(result, "collect") else result
         assert df.schema["reason"] == pl.String
+
+
+@pytest.mark.parametrize("data", [
+    [{"a": 1}, {"a": 2, "b": "x"}],
+    [{"a": 1, "b": None}, {"a": 2, "b": "x"}],
+])
+def test_json_records_payload_keeps_keys_first_seen_after_row_one(data):
+    """JSON record payloads become Arrow with every key any record carries."""
+    from mountainash.relations.backends.relation_systems.resource_files import _part_data_to_arrow
+
+    table = _part_data_to_arrow(data, "d")
+    assert table.column_names == ["a", "b"]
+    assert table.to_pylist() == [{"a": 1, "b": None}, {"a": 2, "b": "x"}]

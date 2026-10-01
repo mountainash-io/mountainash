@@ -1,7 +1,7 @@
 """Closed relation-lineage rules for transported structured physical carriers."""
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
@@ -213,9 +213,9 @@ def _renamed(plan: StructuredFieldPlan, name: str) -> StructuredFieldPlan:
 
 def _relation_output_names(
     node: Any,
-    output_names_resolver: Callable[[Any], set[str] | None] | None = None,
-) -> set[str]:
-    """Require complete names when metadata needs a collision decision."""
+    output_names_resolver: Callable[[Any], Iterable[str] | None] | None = None,
+) -> list[str]:
+    """Require complete names, in output order, when metadata needs a collision decision."""
     from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
     from mountainash.relations.schema_inference import SchemaTypeStatus, infer_schema
 
@@ -226,7 +226,7 @@ def _relation_output_names(
         return {field: SchemaTypeStatus.UNKNOWN for field in names}
 
     try:
-        return set(infer_schema(node, ref_schema))
+        return list(infer_schema(node, ref_schema))
     except IncompleteProjectionSchemaError:
         raise
     except Exception as exc:
@@ -240,12 +240,11 @@ def _join_child_maps(
     left: StructuredFieldPlanMap,
     right: StructuredFieldPlanMap,
     *,
-    output_names_resolver: Callable[[Any], set[str] | None] | None = None,
-    backend: Any = None,
+    output_names_resolver: Callable[[Any], Iterable[str] | None] | None = None,
 ) -> Sequence[StructuredFieldPlanMap]:
-    """Rename joined-side plans to the backend's output names."""
+    """Rename joined-side plans to the join's output names."""
     name_maps = _join_name_maps(
-        node, [left, right], output_names_resolver=output_names_resolver, backend=backend,
+        node, [left, right], output_names_resolver=output_names_resolver,
     )
     return [
         freeze_structured_field_plans({
@@ -260,49 +259,42 @@ def _join_name_maps(
     node: Any,
     child_maps: Sequence[Mapping[str, Any]],
     *,
-    output_names_resolver: Callable[[Any], set[str] | None] | None = None,
-    backend: Any = None,
+    output_names_resolver: Callable[[Any], Iterable[str] | None] | None = None,
 ) -> list[dict[str, str]]:
-    """One physical join-name rule for structured fields and residue markers."""
+    """One physical join-name rule for structured fields and residue markers.
+
+    Keyed joins follow ``join_layout`` (the rule execution and schema
+    inference use): left names are unchanged, right names are renamed and
+    merged/dropped keys disappear.
+    """
+    from mountainash.relations.core.join_layout import keyed_layout_applies, layout_for_node
+
     left, right = child_maps
     if not left and not right:
         return [{}, {}]
     if getattr(getattr(node, "join_type", None), "name", None) in {"SEMI", "ANTI"}:
         return [{name: name for name in left}, {}]
+    left_map = {name: name for name in left}
+    if not right:
+        return [left_map, {}]
 
-    shared_keys = set(getattr(node, "on", None) or ())
+    left_order = _relation_output_names(getattr(node, "left", None), output_names_resolver)
+    right_order = _relation_output_names(getattr(node, "right", None), output_names_resolver)
+    # Physical order matters: `_n` increments are assigned in right-column
+    # order, exactly as execution does from the native right relation.
+    left_order += [name for name in left if name not in left_order]
+    right_order += [name for name in right if name not in right_order]
+
+    if keyed_layout_applies(node):
+        layout = layout_for_node(node, left_order, right_order)
+        final = {name: layout.right_rename.get(name, name) for name in right}
+        return [left_map, {name: out for name, out in final.items() if out not in layout.drop}]
+
     suffix = getattr(node, "suffix", "_right") or "_right"
-    join_type = getattr(node, "join_type", None)
-    backend_name = getattr(backend, "backend_type", backend)
-    backend_name = getattr(backend_name, "value", backend_name)
-    is_narwhals_right = (
-        backend_name == "narwhals"
-        and getattr(join_type, "name", None) == "RIGHT"
-    )
-
-    if is_narwhals_right:
-        left_outputs = {name: name for name in left if name not in shared_keys}
-        if not left_outputs:
-            return [{}, {name: name for name in right}]
-        base_names = _relation_output_names(
-            getattr(node, "right", None), output_names_resolver
-        ) | set(right)
-        return [
-            {name: (f"{name}{suffix}" if name in base_names else name)
-             for name in left_outputs},
-            {name: name for name in right},
-        ]
-
-    right_outputs = {name: name for name in right if name not in shared_keys}
-    if not right_outputs:
-        return [{name: name for name in left}, {}]
-    left_names = _relation_output_names(
-        getattr(node, "left", None), output_names_resolver
-    ) | set(left)
+    left_names = set(left_order)
     return [
-        {name: name for name in left},
-        {name: (f"{name}{suffix}" if name in left_names else name)
-         for name in right_outputs},
+        left_map,
+        {name: (f"{name}{suffix}" if name in left_names else name) for name in right},
     ]
 
 
@@ -310,8 +302,7 @@ def propagate_owned_residue(
     node: Any,
     child_checks: Sequence[Sequence[Any]],
     *,
-    output_names_resolver: Callable[[Any], set[str] | None] | None = None,
-    backend: Any = None,
+    output_names_resolver: Callable[[Any], Iterable[str] | None] | None = None,
 ) -> tuple[Any, ...]:
     """Carry source-owned markers through the same name rules as lineage.
 
@@ -332,7 +323,7 @@ def propagate_owned_residue(
     if policy is _JOIN:
         maps = _join_name_maps(
             node, [{owned.check.marker: owned for owned in checks} for checks in child_checks[:2]],
-            output_names_resolver=output_names_resolver, backend=backend,
+            output_names_resolver=output_names_resolver,
         )
     elif policy is _PROJECT_RENAME:
         renames = getattr(node, "rename_mapping", {}) or {}
@@ -426,8 +417,7 @@ def propagate_structured_plans(
     child_maps: Sequence[StructuredFieldPlanMap],
     conform_plans: StructuredFieldPlanMap,
     *,
-    output_names_resolver: Callable[[Any], set[str] | None] | None = None,
-    backend: Any = None,
+    output_names_resolver: Callable[[Any], Iterable[str] | None] | None = None,
 ) -> StructuredFieldPlanMap:
     """Validate one operation's transport use and derive its output field plans."""
     policy = TRANSPORT_LINEAGE_POLICIES.get(node.operation_key)
@@ -538,7 +528,6 @@ def propagate_structured_plans(
                 left,
                 right,
                 output_names_resolver=output_names_resolver,
-                backend=backend,
             ),
             require_equal=False,
         )

@@ -480,6 +480,49 @@ class TestInferSchemaAggregate:
 
 
 class TestInferSchemaJoin:
+    @pytest.mark.parametrize("how,coalesce,expected", [
+        ("left", None, ["k", "v", "w", "kk", "w_right"]),
+        ("left", True, ["k", "v", "w", "w_right"]),
+        ("outer", None, ["k", "v", "w", "kk", "w_right"]),
+    ])
+    def test_left_on_right_on_columns(self, how, coalesce, expected):
+        left = pl.DataFrame({"k": [1], "v": ["a"], "w": [0]})
+        right = pl.DataFrame({"kk": [1], "w": [1]})
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", how=how, coalesce=coalesce)
+        assert rel.columns == expected
+
+    def test_on_coalesce_false_keeps_suffixed_key(self):
+        rel = ma.relation(pl.DataFrame({"id": [1], "a": [1]})).join(
+            pl.DataFrame({"id": [1], "b": [1]}), on="id", coalesce=False)
+        assert rel.columns == ["id", "a", "id_right", "b"]
+
+    @pytest.mark.parametrize("raw", [
+        {"kk": [1], "w": [1]},
+        [{"kk": 1, "w": 1}, {"kk": 2, "w": 2}],
+        ({"kk": 1}, {"kk": 2, "w": 2}),
+    ])
+    def test_raw_python_join_operand_names(self, raw):
+        from mountainash.relations.schema_inference import SchemaTypeStatus
+
+        rel = ma.relation(pl.DataFrame({"k": [1], "w": [0]})).join(raw, left_on="k", right_on="kk")
+        assert rel.columns == ["k", "w", "kk", "w_right"]
+        assert rel.schema["kk"] is SchemaTypeStatus.UNKNOWN
+
+    def test_merged_key_dtype_is_unknown_when_key_dtypes_differ(self):
+        from mountainash.relations.schema_inference import SchemaTypeStatus
+
+        left = pl.DataFrame({"k": pl.Series([1, 2], dtype=pl.Int32)})
+        right = pl.DataFrame({"kk": pl.Series([2, 3], dtype=pl.Int64)})
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", how="outer", coalesce=True)
+        assert rel.schema["k"] is SchemaTypeStatus.UNKNOWN
+
+    def test_merged_key_dtype_kept_when_key_dtypes_match(self):
+        left = pl.DataFrame({"k": pl.Series([1, 2], dtype=pl.Int32)})
+        right = pl.DataFrame({"kk": pl.Series([2, 3], dtype=pl.Int32)})
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", how="outer", coalesce=True)
+        assert rel.schema["k"] is D.I32
+        assert rel.to_polars().schema["k"] == pl.Int32
+
     def test_inner_join_on(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, JoinRelNode

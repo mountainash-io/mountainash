@@ -241,18 +241,18 @@ def test_join_ref_names_distinguish_unknown_empty_and_collision(names, nested):
 
 
 @pytest.mark.parametrize(
-    ("how", "backend", "side", "requires_names"),
+    ("how", "side", "requires_names"),
     [
-        ("inner", "polars", "left", False),
-        ("inner", "polars", "right", True),
-        ("right", "narwhals", "left", True),
-        ("right", "narwhals", "right", False),
-        ("semi", "polars", "left", False),
-        ("anti", "polars", "left", False),
+        ("inner", "left", False),
+        ("inner", "right", True),
+        ("right", "left", False),
+        ("right", "right", True),
+        ("semi", "left", False),
+        ("anti", "left", False),
     ],
 )
-def test_join_requests_unknown_names_only_for_the_suffixed_metadata_side(how, backend, side, requires_names):
-    """Name uncertainty on the base side matters only to metadata being suffixed."""
+def test_join_requests_unknown_names_only_for_the_suffixed_metadata_side(how, side, requires_names):
+    """Left names never change (join_layout); only right-side metadata needs a collision decision."""
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
 
     opaque = ma.relation({"id": [1], "payload": ["[2]"]}).with_columns(ma.native(object()).alias("extra"))
@@ -261,9 +261,9 @@ def test_join_requests_unknown_names_only_for_the_suffixed_metadata_side(how, ba
               {"payload": transport_plan()} if side == "right" else {}]
     if requires_names:
         with pytest.raises(IncompleteProjectionSchemaError, match="output"):
-            propagate_structured_plans(joined, inputs, {}, backend=backend)
+            propagate_structured_plans(joined, inputs, {})
     else:
-        result = propagate_structured_plans(joined, inputs, {}, backend=backend)
+        result = propagate_structured_plans(joined, inputs, {})
         assert set(result) == {"payload"}
 
 
@@ -566,31 +566,56 @@ def test_direct_ref_join_does_not_replay_resolution_for_lineage():
     assert calls == ["left", "right"]
 
 
-def test_narwhals_right_join_tracks_original_right_as_base():
-    """Narwhals RIGHT joins keep the original right field unsuffixed."""
-    import narwhals as nw
+@pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "narwhals-pandas", "ibis-duckdb"])
+def test_right_join_suffixes_right_side_transport(backend_name, backend_factory):
+    """RIGHT joins name columns like every other join: the right field takes the suffix."""
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left_source, right_source = backend_factory.create_pair(
+        {"id": [1], "payload": ["[1]"]}, {"id": [1], "payload": ["[2]"]}, backend_name,
+    )
+    left = ma.relation(left_source)
+    right = ma.relation(right_source).conform(
+        TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+
+    result = left.join(right, on="id", how="right").to_dicts()
+
+    assert result == [{"id": 1, "payload": "[1]", "payload_right": [2]}]
+
+
+def test_lineage_multi_clash_order_matches_execution():
+    """`_n` increments follow right-column order in lineage exactly as in execution."""
     import polars as pl
 
     from mountainash.typespec.spec import FieldSpec, TypeSpec
     from mountainash.typespec.universal_types import UniversalType
 
-    left = ma.relation(
-        nw.from_native(pl.DataFrame({"id": [1], "payload": ["[1]"]}))
+    left = ma.relation(pl.DataFrame({"id": [1], "a": ["x"], "a_1": ["y"]}))
+    right = ma.relation(pl.DataFrame({"id": [1], "a_1": ["[5]"], "a": ["[7]"]})).conform(
+        TypeSpec(fields_match="open", fields=[FieldSpec(name="a", type=UniversalType.ARRAY)])
     )
-    right = ma.relation(
-        nw.from_native(pl.DataFrame({"id": [1], "payload": ["[2]"]}))
-    ).conform(
-        TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
-        )
-    )
+    rel = left.join(right, on="id", suffix="_1")
+    assert rel.columns == ["id", "a", "a_1", "a_1_1", "a_1_2"]
+    out = rel.to_polars()
+    assert out["a_1_2"].to_list() == [[7]]
+    assert out["a_1_1"].to_list() == ["[5]"]
 
-    result = left.join(right, on="id", how="right").to_dicts()
 
-    assert result == [
-        {"id": 1, "payload": [2], "payload_right": "[1]"},
-    ]
+def test_nested_join_lineage_tracks_each_level():
+    """Nested joins on the same fields decode each level under its own name."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="p", type=UniversalType.ARRAY)])
+    base = ma.relation(pl.DataFrame({"id": [1], "p": ["[0]"]})).conform(spec)
+    lookup = ma.relation(pl.DataFrame({"id": [1], "p": ["[9]"]})).conform(spec)
+    rel = base.join(lookup, on="id").join(lookup, on="id")
+    assert rel.columns == ["id", "p", "p_right", "p_right_1"]
+    assert rel.to_dicts() == [{"id": 1, "p": [0], "p_right": [9], "p_right_1": [9]}]
 
 
 def test_join_tracks_right_transport_under_backend_suffix():

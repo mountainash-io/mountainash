@@ -40,50 +40,46 @@ class SubstraitNarwhalsJoinRelationSystem(
         right_on: Optional[list[str]],
         suffix: str,
     ) -> Any:
-        # Handle RIGHT join by swapping operands and using LEFT join.
+        # Narwhals has no ``coalesce`` option and pandas drops or keeps a key
+        # depending on ``how``. Join on private copies of the keys so the real
+        # keys survive as ordinary columns, then select the canonical
+        # left-then-right order (which also drops the private copies).
+        order: list[str] | None = None
+        if left_on and right_on:
+            order = list(left.columns) + list(right.columns)
+            taken = set(order)
+            la = _fresh_names("__ma_lk", len(left_on), taken)
+            ra = _fresh_names("__ma_rk", len(right_on), taken)
+            left = left.with_columns([nw.col(c).alias(a) for c, a in zip(left_on, la)])
+            right = right.with_columns([nw.col(c).alias(a) for c, a in zip(right_on, ra)])
+            left_on, right_on = la, ra
+
+        # Narwhals has no RIGHT join: swap operands and use LEFT.
         if join_type == JoinType.RIGHT:
-            return right.join(
-                left,
-                on=on,
-                left_on=right_on,
-                right_on=left_on,
-                how="left",
-                suffix=suffix,
+            result = right.join(
+                left, on=on, left_on=right_on, right_on=left_on, how="left", suffix=suffix,
             )
-
-        how = _JOIN_TYPE_MAP.get(join_type)
-        if how is None:
-            raise ValueError(
-                f"Unsupported join type for Narwhals: {join_type!r}. "
-                f"Supported: {list(_JOIN_TYPE_MAP.keys()) + [JoinType.RIGHT]}"
+        else:
+            how = _JOIN_TYPE_MAP.get(join_type)
+            if how is None:
+                raise ValueError(
+                    f"Unsupported join type for Narwhals: {join_type!r}. "
+                    f"Supported: {list(_JOIN_TYPE_MAP.keys()) + [JoinType.RIGHT]}"
+                )
+            result = left.join(
+                right, on=on, left_on=left_on, right_on=right_on, how=how, suffix=suffix,
             )
-        result = left.join(
-            right,
-            on=on,
-            left_on=left_on,
-            right_on=right_on,
-            how=how,
-            suffix=suffix,
-        )
+        return result.select(order) if order is not None else result
 
-        # For outer (full) joins, Narwhals keeps both key columns when rows are
-        # unmatched — e.g. ``id`` (left, NULL for right-only rows) and
-        # ``id_right`` (right, NULL for left-only rows).  Coalesce them into a
-        # single unified key column and drop the duplicate.
-        if how == "full" and on is not None:
-            import narwhals as nw
 
-            effective_suffix = suffix or "_right"
-            cols_to_drop = []
-            select_exprs = []
-            for key in on:
-                right_key = f"{key}{effective_suffix}"
-                if right_key in result.columns:
-                    select_exprs.append(
-                        nw.coalesce(nw.col(key), nw.col(right_key)).alias(key)
-                    )
-                    cols_to_drop.append(right_key)
-            if select_exprs:
-                result = result.with_columns(select_exprs).drop(cols_to_drop)
-
-        return result
+def _fresh_names(prefix: str, count: int, taken: set[str]) -> list[str]:
+    """``count`` names starting with ``prefix`` that collide with nothing in ``taken``."""
+    out: list[str] = []
+    i = 0
+    while len(out) < count:
+        name = f"{prefix}_{i}"
+        i += 1
+        if name not in taken:
+            taken.add(name)
+            out.append(name)
+    return out

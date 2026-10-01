@@ -7,6 +7,14 @@
 - Membership projections inherit the needle's name: `.with_columns(ma.col("n").is_in([2, 4]))` now replaces `n` rather than adding the historical `literal` output. Use `.alias("is_member")` for a separate result.
 - Duplicate resolved projection outputs raise a build-time `ValueError`, including on Narwhals-pandas, which previously retained the last expression. Incomplete projection schemas now raise explicitly, and metadata lineage fails when output names cannot be mapped safely. Native aliases do not prove single-output cardinality.
 - See [Projection output names and migration](docs/guides/projection-naming.md) for requires-alias operations and compatibility boundaries. Standalone compilation, grouped aggregation naming, selector support and literal-only select row counts are unchanged; no backend parity is claimed for empty-name materialization.
+- Keyed joins now produce one output contract on every backend: all left columns, then all right columns, and `.columns`, collected data and structured-field lineage agree. `left_on`/`right_on` joins keep the right key (Polars and Narwhals previously dropped it for some join types); pass `coalesce=True` to merge the keys into the left key column (for right/outer joins its value is `coalesce(left, right)`). `on=` joins still merge by default; `coalesce=False` keeps `<key>_right`.
+- Narwhals right joins now suffix right-side name clashes (previously the left side); Polars right `on=` joins use the left-then-right column order.
+- A right column whose suffixed name is already taken becomes `<name><suffix>_1` (then `_2`, …) with a `UserWarning` at execution, instead of a backend error. Nested joins on the same fields therefore yield `w_right`, `w_right_1`, ….
+- `.columns` names raw Python data passed to `join()` (a dict of columns or a list of row dicts); dtypes are reported as unknown until execution.
+- With `coalesce=True`, a merged key whose two sides have different dtypes reports an unknown dtype in `.schema`, matching projection inference for `coalesce`.
+
+### Fixed
+- Row-dict data converted to Arrow (raw join/union operands on Ibis, transport preflight, JSON record resources) keeps keys that first appear after the first row; previously Arrow's first-row inference silently dropped them.
 
 ## Unreleased — 2026-09-29
 

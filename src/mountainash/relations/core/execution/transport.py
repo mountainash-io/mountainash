@@ -15,7 +15,7 @@ from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 from mountainash.relations.core.materialization import (
     MaterializationScope, coerce_narwhals_dialect, coerce_to_ibis,
-    coerce_to_narwhals, coerce_to_polars,
+    coerce_to_narwhals, coerce_to_polars, rows_to_arrow,
 )
 
 if TYPE_CHECKING:
@@ -174,7 +174,7 @@ class TransportSession:
         elif isinstance(value, dict):
             arrow = pa.table(value)
         elif isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
-            arrow = pa.Table.from_pylist(list(value))
+            arrow = rows_to_arrow(list(value))
         else:
             return
 
