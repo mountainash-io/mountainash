@@ -663,3 +663,20 @@ class TestJoinOutputValues:
             reason="No declared transport for a raw-Python join operand into narwhals-lazy (pre-existing; independent of join naming)",
         ):
             assert list(rel.to_polars().columns) == rel.columns
+
+    def test_ragged_row_dict_operand_keeps_every_column(self, backend_name, backend_factory):
+        from mountainash.relations.core.errors import UnsupportedRelationTransportError
+
+        left = backend_factory.create({"k": [1, 2]}, backend_name)
+        rows = [{"kk": 1}, {"kk": 2, "extra": 9}]
+        rel = ma.relation(left).join(rows, left_on="k", right_on="kk", how="left")
+        assert rel.columns == ["k", "kk", "extra"]
+        with expect_call_failure(
+            when=backend_name == "narwhals-lazy",
+            errors=(UnsupportedRelationTransportError,),
+            reason="No declared transport for a raw-Python join operand into narwhals-lazy (pre-existing; independent of join naming)",
+        ):
+            assert sorted_dicts(rel.to_dicts(), "k") == [
+                {"k": 1, "kk": 1, "extra": None},
+                {"k": 2, "kk": 2, "extra": 9},
+            ]

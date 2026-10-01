@@ -253,10 +253,12 @@ def _part_data_to_arrow(data: Any, resource_name: str) -> "pa.Table":
     faithful tabular Arrow frame."""
     import pyarrow as pa
 
+    from mountainash.relations.core.materialization import rows_to_arrow
+
     if isinstance(data, pa.Table):
         return data
     if isinstance(data, dict):
-        return pa.Table.from_pylist([data])
+        return rows_to_arrow([data])
     if isinstance(data, list):
         if data and not all(isinstance(row, dict) for row in data):
             # A JSON array of scalars (e.g. ``[1, 2, 3]``) is not tabular;
@@ -265,7 +267,7 @@ def _part_data_to_arrow(data: Any, resource_name: str) -> "pa.Table":
                 f"resource {resource_name!r} produced a JSON array of "
                 "non-record values; expected an array of objects"
             )
-        return pa.Table.from_pylist(data)
+        return rows_to_arrow(data)
     raise UnsupportedResourceFormat(
         f"resource {resource_name!r} produced a {type(data).__name__} payload "
         "that is not tabular (expected pyarrow.Table or JSON records)"

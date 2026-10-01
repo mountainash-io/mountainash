@@ -508,6 +508,21 @@ class TestInferSchemaJoin:
         assert rel.columns == ["k", "w", "kk", "w_right"]
         assert rel.schema["kk"] is SchemaTypeStatus.UNKNOWN
 
+    def test_merged_key_dtype_is_unknown_when_key_dtypes_differ(self):
+        from mountainash.relations.schema_inference import SchemaTypeStatus
+
+        left = pl.DataFrame({"k": pl.Series([1, 2], dtype=pl.Int32)})
+        right = pl.DataFrame({"kk": pl.Series([2, 3], dtype=pl.Int64)})
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", how="outer", coalesce=True)
+        assert rel.schema["k"] is SchemaTypeStatus.UNKNOWN
+
+    def test_merged_key_dtype_kept_when_key_dtypes_match(self):
+        left = pl.DataFrame({"k": pl.Series([1, 2], dtype=pl.Int32)})
+        right = pl.DataFrame({"kk": pl.Series([2, 3], dtype=pl.Int32)})
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", how="outer", coalesce=True)
+        assert rel.schema["k"] is D.I32
+        assert rel.to_polars().schema["k"] == pl.Int32
+
     def test_inner_join_on(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, JoinRelNode

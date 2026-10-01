@@ -568,6 +568,13 @@ def _infer_join_schema(
             keyed[layout.right_rename.get(name, name)] = dtype
         for name in layout.drop:
             keyed.pop(name, None)
+        # A merged key holds coalesce(left, right); like projection inference
+        # of that expression, its dtype is only known when both sides agree.
+        original = {final: name for name, final in layout.right_rename.items()}
+        for left_key, right_key in layout.merge:
+            right_dtype = right_schema.get(original.get(right_key, right_key))
+            if keyed.get(left_key) != right_dtype:
+                keyed[left_key] = SchemaTypeStatus.UNKNOWN
         return keyed
 
     result: dict[str, MountainashDtype | SchemaTypeStatus] = dict(left_schema)
