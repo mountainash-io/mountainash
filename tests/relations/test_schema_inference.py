@@ -480,6 +480,22 @@ class TestInferSchemaAggregate:
 
 
 class TestInferSchemaJoin:
+    @pytest.mark.parametrize("how,coalesce,expected", [
+        ("left", None, ["k", "v", "w", "kk", "w_right"]),
+        ("left", True, ["k", "v", "w", "w_right"]),
+        ("outer", None, ["k", "v", "w", "kk", "w_right"]),
+    ])
+    def test_left_on_right_on_columns(self, how, coalesce, expected):
+        left = pl.DataFrame({"k": [1], "v": ["a"], "w": [0]})
+        right = pl.DataFrame({"kk": [1], "w": [1]})
+        rel = ma.relation(left).join(right, left_on="k", right_on="kk", how=how, coalesce=coalesce)
+        assert rel.columns == expected
+
+    def test_on_coalesce_false_keeps_suffixed_key(self):
+        rel = ma.relation(pl.DataFrame({"id": [1], "a": [1]})).join(
+            pl.DataFrame({"id": [1], "b": [1]}), on="id", coalesce=False)
+        assert rel.columns == ["id", "a", "id_right", "b"]
+
     def test_inner_join_on(self):
         import polars as pl
         from mountainash.relations.core.relation_nodes.substrait import ReadRelNode, JoinRelNode

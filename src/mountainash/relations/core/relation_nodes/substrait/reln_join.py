@@ -29,6 +29,8 @@ class JoinRelNode(RelationNode):
         left_on: Left-side join key columns
         right_on: Right-side join key columns
         suffix: Suffix for disambiguating duplicate column names
+        coalesce: Merge each key pair into the left key column; ``None``
+            merges iff keys were declared with ``on`` (see ``join_layout``)
         strategy: Join strategy hint (e.g., for asof joins)
         tolerance: Tolerance for asof joins
         execute_on: Which side to execute the join on
@@ -42,6 +44,7 @@ class JoinRelNode(RelationNode):
     right_on: Optional[list[str]] = None
     by: Optional[list[str]] = None
     suffix: str = "_right"
+    coalesce: Optional[bool] = None
     strategy: Optional[str] = None
     tolerance: Any = None
     execute_on: Optional[ExecutionTarget] = None

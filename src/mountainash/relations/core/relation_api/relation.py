@@ -379,9 +379,21 @@ class Relation(RelationBase):
         right_on: Optional[Union[str, list[str]]] = None,
         how: str = "inner",
         suffix: str = "_right",
+        coalesce: Optional[bool] = None,
         execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
-        """Join with another relation or raw data."""
+        """Join with another relation or raw data.
+
+        Output is all left columns, then all right columns. A right column
+        whose name exists on the left gets ``suffix``; if that name is also
+        taken, ``_1``, ``_2``, ... is appended (with a ``UserWarning``).
+
+        Args:
+            coalesce: Merge each key pair into the left key column (for
+                right/outer joins its value is ``coalesce(left, right)``) and
+                drop the right key. ``None`` merges keys declared with ``on``
+                and keeps both keys for ``left_on``/``right_on``.
+        """
         return _combine_result(
             JoinRelNode(
                 left=self._node,
@@ -391,6 +403,7 @@ class Relation(RelationBase):
                 left_on=_normalize_columns(left_on),
                 right_on=_normalize_columns(right_on),
                 suffix=suffix,
+                coalesce=coalesce,
                 execute_on=_normalize_execution_target(execute_on),
             ),
             [self, other],
