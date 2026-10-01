@@ -11,6 +11,10 @@
 - Narwhals right joins now suffix right-side name clashes (previously the left side); Polars right `on=` joins use the left-then-right column order.
 - A right column whose suffixed name is already taken becomes `<name><suffix>_1` (then `_2`, …) with a `UserWarning` at execution, instead of a backend error. Nested joins on the same fields therefore yield `w_right`, `w_right_1`, ….
 - `.columns` names raw Python data passed to `join()` (a dict of columns or a list of row dicts); dtypes are reported as unknown until execution.
+- With `coalesce=True`, a merged key whose two sides have different dtypes reports an unknown dtype in `.schema`, matching projection inference for `coalesce`.
+
+### Fixed
+- Row-dict data converted to Arrow (raw join/union operands on Ibis, transport preflight, JSON record resources) keeps keys that first appear after the first row; previously Arrow's first-row inference silently dropped them.
 
 ## Unreleased — 2026-09-29
 
