@@ -12,6 +12,7 @@ Functions are organized by category for clarity.
 from __future__ import annotations
 
 from .registry import ExpressionFunctionRegistry as FunctionRegistry, ExpressionFunctionDef
+from .output_rules import LITERAL_SINGLE, PROPAGATE_FIRST, ProjectionRule
 
 from mountainash.core.dtypes.metadata import FixedResultType, PreserveResultType
 
@@ -110,36 +111,42 @@ def register_all_functions() -> None:
     SCALAR_COMPARISON_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.EQUAL, # Needs to become an auto() enum
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="equal",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.equal, #can be ued to derive the backend method
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.NOT_EQUAL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="not_equal",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.not_equal,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="gt",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.gt,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="lt",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.lt,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GTE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="gte",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.gte,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LTE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="lte",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.lte,
@@ -147,18 +154,21 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="coalesce",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.coalesce,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GREATEST,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="greatest",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.greatest,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LEAST,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="least",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.least,
@@ -167,12 +177,14 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_null",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_null,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NOT_NULL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_not_null",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_not_null,
@@ -180,12 +192,14 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_TRUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_true",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_true,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NOT_TRUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_not_true",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_not_true,
@@ -193,12 +207,14 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FALSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_false",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_false,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NOT_FALSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_not_false",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_not_false,
@@ -206,12 +222,14 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_FINITE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_finite",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_finite,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_INFINITE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_infinite",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_infinite,
@@ -219,6 +237,7 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="is_nan",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.is_nan,
@@ -227,6 +246,7 @@ def register_all_functions() -> None:
 
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.BETWEEN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="between",
             options=("closed",),
@@ -234,18 +254,21 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.NULL_IF,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="nullif",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.nullif,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.LEAST_SKIP_NULL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="least_skip_null",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.least_skip_null,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_COMPARISON.GREATEST_SKIP_NULL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,
             substrait_name="greatest_skip_null",
             protocol_method=SubstraitScalarComparisonExpressionSystemProtocol.greatest_skip_null,
@@ -269,30 +292,35 @@ def register_all_functions() -> None:
     SCALAR_BOOLEAN_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_BOOLEAN,
             substrait_name="and",
             protocol_method=SubstraitScalarBooleanExpressionSystemProtocol.and_,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.OR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_BOOLEAN,
             substrait_name="or",
             protocol_method=SubstraitScalarBooleanExpressionSystemProtocol.or_,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.NOT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_BOOLEAN,
             substrait_name="not",
             protocol_method=SubstraitScalarBooleanExpressionSystemProtocol.not_,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.XOR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_BOOLEAN,
             substrait_name="xor",
             protocol_method=SubstraitScalarBooleanExpressionSystemProtocol.xor,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_BOOLEAN.AND_NOT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_BOOLEAN,
             substrait_name="and_not",
             protocol_method=SubstraitScalarBooleanExpressionSystemProtocol.and_not,
@@ -301,6 +329,7 @@ def register_all_functions() -> None:
         # Mountainash extensions
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.XOR_PARITY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.COMPARISON,
             substrait_name="xor_parity",
             is_extension=True,
@@ -308,6 +337,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_BOOLEAN.PARSE_TOKENS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.BOOLEAN,
             substrait_name="parse_boolean",
             is_extension=True,
@@ -324,66 +354,77 @@ def register_all_functions() -> None:
     SCALAR_ARITHMETIC_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ADD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="add",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.add,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SUBTRACT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="subtract",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.subtract,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MULTIPLY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="multiply",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.multiply,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DIVIDE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="divide",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.divide,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.MODULO,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="modulus",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.modulus,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.POWER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="power",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.power,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.NEGATE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="negate",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.negate,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ABS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="abs",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.abs,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIGN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="sign",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sign,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SQRT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="sqrt",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sqrt,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.EXP,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="exp",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.exp,
@@ -391,42 +432,49 @@ def register_all_functions() -> None:
         # Trigonometric
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="sin",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sin,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="cos",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.cos,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="tan",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.tan,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="asin",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.asin,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="acos",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.acos,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="atan",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.atan,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="atan2",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.atan2,
@@ -434,36 +482,42 @@ def register_all_functions() -> None:
         # Hyperbolic
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="sinh",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.sinh,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="cosh",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.cosh,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="tanh",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.tanh,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="asinh",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.asinh,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="acosh",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.acosh,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="atanh",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.atanh,
@@ -471,12 +525,14 @@ def register_all_functions() -> None:
         # Angular conversion
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.RADIANS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="radians",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.radians,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.DEGREES,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="degrees",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.degrees,
@@ -484,42 +540,49 @@ def register_all_functions() -> None:
         # Bitwise
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_NOT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="bitwise_not",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_not,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_AND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="bitwise_and",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_and,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_OR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="bitwise_or",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_or,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.BITWISE_XOR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="bitwise_xor",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.bitwise_xor,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_LEFT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="shift_left",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.shift_left,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="shift_right",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.shift_right,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SHIFT_RIGHT_UNSIGNED,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="shift_right_unsigned",
             protocol_method=SubstraitScalarArithmeticExpressionSystemProtocol.shift_right_unsigned,
@@ -533,18 +596,21 @@ def register_all_functions() -> None:
     SCALAR_STRING_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.UPPER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="upper",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.upper,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LOWER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="lower",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.lower,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="concat",
             options=("null_handling",),
@@ -552,6 +618,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SUBSTRING,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="substring",
             options=("start", "length"),
@@ -559,6 +626,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TRIM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="trim",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.trim,
@@ -566,6 +634,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LTRIM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="ltrim",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.ltrim,
@@ -573,6 +642,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RTRIM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="rtrim",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.rtrim,
@@ -580,24 +650,28 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CHAR_LENGTH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="char_length",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.char_length,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="replace",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.replace,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SPLIT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="string_split",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.string_split,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONTAINS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="contains",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.contains,
@@ -605,6 +679,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STARTS_WITH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="starts_with",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.starts_with,
@@ -612,6 +687,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.ENDS_WITH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="ends_with",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.ends_with,
@@ -619,18 +695,21 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LIKE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="like",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.like,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_match_substring",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_match_substring,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_SPLIT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_string_split",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_string_split,
@@ -638,24 +717,28 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_REPLACE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_replace",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_replace,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_MATCH_ALL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_match_substring_all",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_match_substring_all,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_COUNT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_count_substring",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_count_substring,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REGEXP_STRPOS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="regexp_strpos",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.regexp_strpos,
@@ -663,24 +746,28 @@ def register_all_functions() -> None:
         # Case conversion (aspirational)
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.SWAPCASE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="swapcase",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.swapcase,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CAPITALIZE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="capitalize",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.capitalize,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.TITLE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="title",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.title,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.INITCAP,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="initcap",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.initcap,
@@ -688,18 +775,21 @@ def register_all_functions() -> None:
         # Padding
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LPAD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="lpad",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.lpad,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RPAD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="rpad",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.rpad,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CENTER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="center",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.center,
@@ -707,18 +797,21 @@ def register_all_functions() -> None:
         # Extraction
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.LEFT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="left",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.left,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.RIGHT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="right",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.right,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPLACE_SLICE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="replace_slice",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.replace_slice,
@@ -726,12 +819,14 @@ def register_all_functions() -> None:
         # Search
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.STRPOS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="strpos",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.strpos,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.COUNT_SUBSTRING,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="count_substring",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.count_substring,
@@ -739,12 +834,14 @@ def register_all_functions() -> None:
         # Length variants
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.BIT_LENGTH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="bit_length",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.bit_length,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.OCTET_LENGTH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="octet_length",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.octet_length,
@@ -752,18 +849,22 @@ def register_all_functions() -> None:
         # Manipulation
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.CONCAT_WS,
+            # Separator is argument zero; it still affects cardinality.
+            projection_rule=ProjectionRule("operand", "propagate", operand=1),
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="concat_ws",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.concat_ws,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REPEAT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="repeat",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.repeat,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_STRING.REVERSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_STRING,
             substrait_name="reverse",
             protocol_method=SubstraitScalarStringExpressionSystemProtocol.reverse,
@@ -771,6 +872,7 @@ def register_all_functions() -> None:
         # Mountainash string extensions
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="regex_contains",
             is_extension=True,
@@ -779,6 +881,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="strip_suffix",
             is_extension=True,
@@ -788,6 +891,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_DATE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_date",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_date,
@@ -795,6 +899,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRPTIME_TIMESTAMP,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strptime_timestamp",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.strptime_timestamp,
@@ -802,6 +907,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_TIME,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="to_time",
             is_extension=True,
@@ -810,6 +916,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_DEFAULT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="parse_datetime_default",
             is_extension=True,
@@ -818,6 +925,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_DURATION,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="parse_xsd_duration",
             is_extension=True,
@@ -826,6 +934,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_XSD_PARTIAL_DATE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="parse_xsd_partial_date",
             is_extension=True,
@@ -834,6 +943,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.PARSE_TEMPORAL_ANY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="parse_temporal_any",
             is_extension=True,
@@ -842,6 +952,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.TO_INTEGER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="to_integer",
             is_extension=True,
@@ -850,6 +961,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_DECODE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="json_decode",
             is_extension=True,
@@ -858,6 +970,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.JSON_PATH_MATCH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="json_path_match",
             is_extension=True,
@@ -866,6 +979,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.ENCODE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="encode",
             is_extension=True,
@@ -874,6 +988,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.DECODE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="decode",
             is_extension=True,
@@ -882,6 +997,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.EXTRACT_GROUPS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRING,
             substrait_name="extract_groups",
             is_extension=True,
@@ -897,6 +1013,7 @@ def register_all_functions() -> None:
     SCALAR_SET_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_SET.INDEX_IN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_SET,
             substrait_name="index_in",
             protocol_method=SubstraitScalarSetExpressionSystemProtocol.index_in,
@@ -904,6 +1021,7 @@ def register_all_functions() -> None:
         # Mountainash set extensions
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_SET.IS_IN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.COMPARISON,
             substrait_name="is_in",
             is_extension=True,
@@ -911,6 +1029,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.COMPARISON,
             substrait_name="is_not_in",
             is_extension=True,
@@ -926,6 +1045,7 @@ def register_all_functions() -> None:
     SCALAR_DATETIME_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="extract",
             options=("component", "indexing", "timezone"),
@@ -933,6 +1053,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.EXTRACT_BOOLEAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="extract_boolean",
             options=("component", "timezone"),
@@ -940,12 +1061,14 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ADD_INTERVALS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="add_intervals",
             protocol_method=SubstraitScalarDatetimeExpressionSystemProtocol.add_intervals,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_TEMPORAL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="round_temporal",
             options=("rounding", "unit", "multiple"),
@@ -953,6 +1076,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ROUND_CALENDAR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="round_calendar",
             options=("rounding", "unit", "multiple"),
@@ -967,18 +1091,21 @@ def register_all_functions() -> None:
     SCALAR_ROUNDING_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.CEIL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ROUNDING,
             substrait_name="ceil",
             protocol_method=SubstraitScalarRoundingExpressionSystemProtocol.ceil,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.FLOOR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ROUNDING,
             substrait_name="floor",
             protocol_method=SubstraitScalarRoundingExpressionSystemProtocol.floor,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_ROUNDING.ROUND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ROUNDING,
             substrait_name="round",
             options=("s", "rounding"),
@@ -993,30 +1120,35 @@ def register_all_functions() -> None:
     SCALAR_LOGARITHMIC_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_LOGARITHMIC,
             substrait_name="ln",
             protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.ln,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG10,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_LOGARITHMIC,
             substrait_name="log10",
             protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.log10,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG2,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_LOGARITHMIC,
             substrait_name="log2",
             protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.log2,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOGB,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_LOGARITHMIC,
             substrait_name="logb",
             protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.logb,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_LOGARITHMIC.LOG1P,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_LOGARITHMIC,
             substrait_name="log1p",
             protocol_method=SubstraitScalarLogarithmicExpressionSystemProtocol.log1p,
@@ -1030,6 +1162,7 @@ def register_all_functions() -> None:
     SCALAR_AGGREGATE_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="count",
             options=("overflow",),
@@ -1037,6 +1170,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS,
+            projection_rule=ProjectionRule("fixed", "single", value="len"),
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="count",   # ← SAME Substrait function as COUNT above;
                                       #   distinguished by arity (this is the 0-arg impl)
@@ -1046,6 +1180,7 @@ def register_all_functions() -> None:
         # --- generic ---
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.ANY_VALUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="any_value",
             options=("ignore_nulls",),
@@ -1054,6 +1189,7 @@ def register_all_functions() -> None:
         # --- arithmetic, single-arg ---
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.SUM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="sum",
             options=("overflow",),
@@ -1061,6 +1197,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.AVG,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="avg",
             options=("overflow",),
@@ -1068,18 +1205,21 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="min",
             protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.min,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MAX,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="max",
             protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.max,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="product",
             options=("overflow",),
@@ -1087,6 +1227,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.STD_DEV,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="std_dev",
             options=("rounding", "distribution"),
@@ -1094,6 +1235,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.VARIANCE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="variance",
             options=("rounding", "distribution"),
@@ -1101,6 +1243,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MODE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="mode",
             protocol_method=SubstraitAggregateArithmeticExpressionSystemProtocol.mode,
@@ -1108,6 +1251,7 @@ def register_all_functions() -> None:
         # --- arithmetic, multi-arg (free functions only) ---
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="corr",
             options=("rounding",),
@@ -1115,6 +1259,8 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.MEDIAN,
+            # The public AST is median(precision, x), not the backend signature.
+            projection_rule=ProjectionRule("operand", "propagate", operand=1),
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="median",
             options=("rounding",),
@@ -1122,6 +1268,11 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE,
+            projection_rule=ProjectionRule(
+                "requires_alias", "propagate",
+                reason="QUANTILE's boundaries/precision/n/distribution AST has no "
+                "established portable output name for the backend x/q interface",
+            ),
             substrait_uri=SubstraitExtension.SCALAR_AGGREGATE,
             substrait_name="quantile",
             options=("rounding",),
@@ -1130,12 +1281,14 @@ def register_all_functions() -> None:
         # --- boolean ---
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_AND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri="https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml",
             substrait_name="bool_and",
             protocol_method=SubstraitAggregateBooleanExpressionSystemProtocol.bool_and,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.BOOL_OR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri="https://github.com/substrait-io/substrait/blob/main/extensions/functions_boolean.yaml",
             substrait_name="bool_or",
             protocol_method=SubstraitAggregateBooleanExpressionSystemProtocol.bool_or,
@@ -1149,6 +1302,7 @@ def register_all_functions() -> None:
     CAST_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_CAST.CAST,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_COMPARISON,  # Cast uses comparison extension
             substrait_name="cast",
             options=("dtype", "failure_behavior"),
@@ -1163,6 +1317,7 @@ def register_all_functions() -> None:
     CONDITIONAL_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE,
+            projection_rule=ProjectionRule("operand", "propagate", operand=1),
             substrait_uri=SubstraitExtension.SCALAR_BOOLEAN,  # Conditional uses boolean extension
             substrait_name="if_then",
             protocol_method=SubstraitConditionalExpressionSystemProtocol.if_then_else,
@@ -1447,6 +1602,7 @@ def register_all_functions() -> None:
         # Ternary comparisons (return -1/0/1)
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_EQ,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_equal",
             is_extension=True,
@@ -1454,6 +1610,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_not_equal",
             is_extension=True,
@@ -1461,6 +1618,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_gt",
             is_extension=True,
@@ -1468,6 +1626,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_lt",
             is_extension=True,
@@ -1475,6 +1634,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_GE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_gte",
             is_extension=True,
@@ -1482,6 +1642,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_LE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_lte",
             is_extension=True,
@@ -1490,6 +1651,7 @@ def register_all_functions() -> None:
         # Ternary collection
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_IN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_is_in",
             is_extension=True,
@@ -1497,6 +1659,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_IS_NOT_IN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_is_not_in",
             is_extension=True,
@@ -1505,6 +1668,7 @@ def register_all_functions() -> None:
         # Ternary logical
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_AND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_and",
             is_extension=True,
@@ -1512,6 +1676,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_OR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_or",
             is_extension=True,
@@ -1519,6 +1684,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_NOT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_not",
             is_extension=True,
@@ -1526,6 +1692,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_xor",
             is_extension=True,
@@ -1533,6 +1700,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.T_XOR_PARITY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_xor_parity",
             is_extension=True,
@@ -1541,6 +1709,7 @@ def register_all_functions() -> None:
         # Ternary to boolean conversions
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_is_true",
             is_extension=True,
@@ -1548,6 +1717,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_FALSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_is_false",
             is_extension=True,
@@ -1555,6 +1725,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_UNKNOWN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_is_unknown",
             is_extension=True,
@@ -1562,6 +1733,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_KNOWN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_is_known",
             is_extension=True,
@@ -1569,6 +1741,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_TRUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_maybe_true",
             is_extension=True,
@@ -1576,6 +1749,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.MAYBE_FALSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="ternary_maybe_false",
             is_extension=True,
@@ -1584,6 +1758,7 @@ def register_all_functions() -> None:
         # Boolean to ternary conversion
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.TO_TERNARY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="to_ternary",
             is_extension=True,
@@ -1592,6 +1767,7 @@ def register_all_functions() -> None:
         # Ternary constants
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE,
+            projection_rule=LITERAL_SINGLE,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="always_true",
             is_extension=True,
@@ -1599,6 +1775,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE,
+            projection_rule=LITERAL_SINGLE,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="always_false",
             is_extension=True,
@@ -1606,6 +1783,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_UNKNOWN,
+            projection_rule=LITERAL_SINGLE,
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="always_unknown",
             is_extension=True,
@@ -1614,6 +1792,11 @@ def register_all_functions() -> None:
         # Utility function for collecting values in t_is_in/t_is_not_in
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_TERNARY.COLLECT_VALUES,
+            projection_rule=ProjectionRule(
+                "internal", "internal_collection",
+                reason="COLLECT_VALUES is a membership value collection, "
+                "not a projectable column",
+            ),
             substrait_uri=MountainashExtension.TERNARY,
             substrait_name="list",
             is_extension=True,
@@ -1628,6 +1811,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_ARITHMETIC_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_ARITHMETIC.FLOOR_DIVIDE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.ARITHMETIC,
             substrait_name="floor_divide",
             is_extension=True,
@@ -1641,6 +1825,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_VALUE_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.VALUE_KIND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.VALUE,
             substrait_name="value_kind",
             is_extension=True,
@@ -1650,6 +1835,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.BOOLEAN_VALUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.VALUE,
             substrait_name="boolean_value",
             is_extension=True,
@@ -1660,6 +1846,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.TEXT_VALUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.VALUE,
             substrait_name="text_value",
             is_extension=True,
@@ -1676,6 +1863,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_NULL_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NULL.FILL_NULL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.NULL,
             substrait_name="fill_null",
             is_extension=True,
@@ -1683,6 +1871,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NULL.NULL_IF,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.NULL,
             substrait_name="null_if",
             is_extension=True,
@@ -1690,6 +1879,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NULL.FILL_NAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.NULL,
             substrait_name="fill_nan",
             is_extension=True,
@@ -1704,6 +1894,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_NAME_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.ALIAS,
+            projection_rule=ProjectionRule("alias", "propagate", value="name"),
             substrait_uri=MountainashExtension.NAME,
             substrait_name="alias",
             is_extension=True,
@@ -1712,6 +1903,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.PREFIX,
+            projection_rule=ProjectionRule("prefix", "propagate", value="prefix"),
             substrait_uri=MountainashExtension.NAME,
             substrait_name="prefix",
             is_extension=True,
@@ -1720,6 +1912,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.SUFFIX,
+            projection_rule=ProjectionRule("suffix", "propagate", value="suffix"),
             substrait_uri=MountainashExtension.NAME,
             substrait_name="suffix",
             is_extension=True,
@@ -1728,6 +1921,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.NAME_TO_UPPER,
+            projection_rule=ProjectionRule("upper", "propagate"),
             substrait_uri=MountainashExtension.NAME,
             substrait_name="name_to_upper",
             is_extension=True,
@@ -1736,6 +1930,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_NAME.NAME_TO_LOWER,
+            projection_rule=ProjectionRule("lower", "propagate"),
             substrait_uri=MountainashExtension.NAME,
             substrait_name="name_to_lower",
             is_extension=True,
@@ -1752,6 +1947,7 @@ def register_all_functions() -> None:
         # Extraction - Basic
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_YEAR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_year",
             is_extension=True,
@@ -1759,6 +1955,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MONTH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_month",
             is_extension=True,
@@ -1766,6 +1963,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_DAY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_day",
             is_extension=True,
@@ -1773,6 +1971,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_HOUR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_hour",
             is_extension=True,
@@ -1780,6 +1979,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MINUTE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_minute",
             is_extension=True,
@@ -1787,6 +1987,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_SECOND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_second",
             is_extension=True,
@@ -1794,6 +1995,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MILLISECOND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_millisecond",
             is_extension=True,
@@ -1801,6 +2003,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_MICROSECOND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_microsecond",
             is_extension=True,
@@ -1808,6 +2011,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_NANOSECOND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_nanosecond",
             is_extension=True,
@@ -1816,6 +2020,7 @@ def register_all_functions() -> None:
         # Extraction - Calendar
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_QUARTER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_quarter",
             is_extension=True,
@@ -1823,6 +2028,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_DAY_OF_YEAR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_day_of_year",
             is_extension=True,
@@ -1830,6 +2036,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEKDAY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_weekday",
             is_extension=True,
@@ -1837,6 +2044,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_WEEK,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_week",
             is_extension=True,
@@ -1844,6 +2052,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_ISO_YEAR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_iso_year",
             is_extension=True,
@@ -1852,6 +2061,7 @@ def register_all_functions() -> None:
         # Extraction - Special
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_UNIX_TIME,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_unix_time",
             is_extension=True,
@@ -1859,6 +2069,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.EXTRACT_TIMEZONE_OFFSET,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="extract_timezone_offset",
             is_extension=True,
@@ -1867,6 +2078,7 @@ def register_all_functions() -> None:
         # Boolean Extraction
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_LEAP_YEAR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="is_leap_year",
             is_extension=True,
@@ -1874,6 +2086,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="is_dst",
             options=("timezone",),
@@ -1883,6 +2096,7 @@ def register_all_functions() -> None:
         # Addition
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_years",
             is_extension=True,
@@ -1890,6 +2104,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_months",
             is_extension=True,
@@ -1897,6 +2112,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_DAYS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_days",
             is_extension=True,
@@ -1904,6 +2120,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_hours",
             is_extension=True,
@@ -1911,6 +2128,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MINUTES,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_minutes",
             is_extension=True,
@@ -1918,6 +2136,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_SECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_seconds",
             is_extension=True,
@@ -1925,6 +2144,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MILLISECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_milliseconds",
             is_extension=True,
@@ -1932,6 +2152,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MICROSECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="add_microseconds",
             is_extension=True,
@@ -1940,6 +2161,7 @@ def register_all_functions() -> None:
         # Difference
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_YEARS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_years",
             is_extension=True,
@@ -1947,6 +2169,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MONTHS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_months",
             is_extension=True,
@@ -1954,6 +2177,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_DAYS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_days",
             is_extension=True,
@@ -1961,6 +2185,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_HOURS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_hours",
             is_extension=True,
@@ -1968,6 +2193,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MINUTES,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_minutes",
             is_extension=True,
@@ -1975,6 +2201,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_SECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_seconds",
             is_extension=True,
@@ -1982,6 +2209,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DIFF_MILLISECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="diff_milliseconds",
             is_extension=True,
@@ -1990,6 +2218,7 @@ def register_all_functions() -> None:
         # Truncation / Rounding
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TRUNCATE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="truncate",
             options=("unit",),
@@ -1998,6 +2227,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.ROUND,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="round",
             options=("unit",),
@@ -2006,6 +2236,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.CEIL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="ceil",
             options=("unit",),
@@ -2014,6 +2245,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.FLOOR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="floor",
             options=("unit",),
@@ -2023,6 +2255,7 @@ def register_all_functions() -> None:
         # Timezone
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="to_timezone",
             options=("timezone",),
@@ -2031,6 +2264,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.ASSUME_TIMEZONE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="assume_timezone",
             options=("timezone",),
@@ -2038,6 +2272,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.LOCAL_TIMESTAMP,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="local_timestamp",
             options=("timezone",),
@@ -2046,6 +2281,7 @@ def register_all_functions() -> None:
         # Formatting
         ExpressionFunctionDef(
             function_key=FKEY_SUBSTRAIT_SCALAR_DATETIME.STRFTIME,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_DATETIME,
             substrait_name="strftime",
             options=("format",),
@@ -2054,6 +2290,7 @@ def register_all_functions() -> None:
         # Flexible Duration Offset
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="offset_by",
             options=("offset",),
@@ -2063,6 +2300,7 @@ def register_all_functions() -> None:
         # Snapshot
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TODAY,
+            projection_rule=LITERAL_SINGLE,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="today",
             is_extension=True,
@@ -2070,6 +2308,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.NOW,
+            projection_rule=LITERAL_SINGLE,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="now",
             is_extension=True,
@@ -2078,6 +2317,7 @@ def register_all_functions() -> None:
         # Component extraction
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DATE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="date",
             is_extension=True,
@@ -2085,6 +2325,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TIME,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="time",
             is_extension=True,
@@ -2093,6 +2334,7 @@ def register_all_functions() -> None:
         # Calendar helpers
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.MONTH_START,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="month_start",
             is_extension=True,
@@ -2100,6 +2342,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.MONTH_END,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="month_end",
             is_extension=True,
@@ -2107,6 +2350,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.DAYS_IN_MONTH,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="days_in_month",
             is_extension=True,
@@ -2114,6 +2358,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_seconds",
             is_extension=True,
@@ -2121,6 +2366,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MINUTES,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_minutes",
             is_extension=True,
@@ -2128,6 +2374,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MILLISECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_milliseconds",
             is_extension=True,
@@ -2135,6 +2382,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MICROSECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_microseconds",
             is_extension=True,
@@ -2142,6 +2390,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_DAYS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_days",
             is_extension=True,
@@ -2149,6 +2398,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_HOURS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_hours",
             is_extension=True,
@@ -2156,6 +2406,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_NANOSECONDS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.DATETIME,
             substrait_name="total_nanoseconds",
             is_extension=True,
@@ -2170,6 +2421,7 @@ def register_all_functions() -> None:
     WINDOW_ARITHMETIC_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER,
+            projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="row_number",
             options=("descending",),
@@ -2177,6 +2429,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.RANK,
+            projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="rank",
             options=("descending",),
@@ -2184,6 +2437,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK,
+            projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="dense_rank",
             options=("descending",),
@@ -2191,48 +2445,66 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK,
+            projection_rule=ProjectionRule(
+                "requires_alias", "single",
+                reason="PERCENT_RANK does not retain its receiver in the AST; "
+                "ordering context is not a portable implicit name",
+            ),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="percent_rank",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.percent_rank,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.CUME_DIST,
+            projection_rule=ProjectionRule(
+                "requires_alias", "single",
+                reason="CUME_DIST has no value operand or retained receiver name",
+            ),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="cume_dist",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.cume_dist,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTILE,
+            projection_rule=ProjectionRule(
+                "requires_alias", "propagate",
+                reason="NTILE retains the bucket count, not the receiver name",
+            ),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="ntile",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.ntile,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="first_value",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.first_value,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="last_value",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.last_value,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="nth_value",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.nth_value,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LEAD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="lead",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.lead,
         ),
         ExpressionFunctionDef(
             function_key=SUBSTRAIT_ARITHMETIC_WINDOW.LAG,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="lag",
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.lag,
@@ -2246,6 +2518,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_WINDOW_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE,
+            projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="rank_average",
             is_extension=True,
@@ -2254,6 +2527,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.RANK_MAX,
+            projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="rank_max",
             is_extension=True,
@@ -2262,6 +2536,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.DIFF,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="diff",
             is_extension=True,
@@ -2269,6 +2544,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.CUM_SUM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="cum_sum",
             is_extension=True,
@@ -2276,6 +2552,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MAX,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="cum_max",
             is_extension=True,
@@ -2283,6 +2560,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.CUM_MIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="cum_min",
             is_extension=True,
@@ -2290,6 +2568,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.CUM_COUNT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="cum_count",
             is_extension=True,
@@ -2297,6 +2576,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.CUM_PROD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="cum_prod",
             is_extension=True,
@@ -2304,6 +2584,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="forward_fill",
             is_extension=True,
@@ -2311,6 +2592,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="backward_fill",
             is_extension=True,
@@ -2329,6 +2611,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_CATEGORICAL_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.CATEGORICAL,
             substrait_name="cast_categorical",
             is_extension=True,
@@ -2339,6 +2622,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_GEOSPATIAL_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.GEOSPATIAL,
             substrait_name="parse_geopoint",
             is_extension=True,
@@ -2347,6 +2631,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.GEOSPATIAL,
             substrait_name="parse_geojson",
             is_extension=True,
@@ -2355,6 +2640,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.GEOSPATIAL,
             substrait_name="serialize_geojson",
             is_extension=True,
@@ -2367,6 +2653,8 @@ def register_all_functions() -> None:
     MOUNTAINASH_STRUCT_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD,
+            # Field selectors need nested schema evidence, not a scalar alias.
+            projection_rule=ProjectionRule("option", "contextual", value="field_name"),
             substrait_uri=MountainashExtension.STRUCT,
             substrait_name="struct_field",
             is_extension=True,
@@ -2375,6 +2663,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.STRUCT,
             substrait_name="cast_struct",
             is_extension=True,
@@ -2390,6 +2679,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_LIST_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST,
             substrait_name="parse_list",
             is_extension=True,
@@ -2398,6 +2688,7 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST,
             substrait_name="cast_list_items",
             is_extension=True,
@@ -2406,220 +2697,263 @@ def register_all_functions() -> None:
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SUM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_sum", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sum,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_min", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_min,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MAX,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_max", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_max,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_mean", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_mean,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.LEN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_len", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_len,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONTAINS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_contains", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_contains,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.T_CONTAINS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_t_contains", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_t_contains,
             options=("item_unknown_values",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SORT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_sort", is_extension=True,
             options=("descending",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sort,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.UNIQUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_unique", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_unique,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.EXPLODE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_explode", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_explode,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.JOIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_join", is_extension=True,
             options=("separator",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_join,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GET,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_get", is_extension=True,
             options=("index",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_get,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ALL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_all", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_all,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ANY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_any", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_any,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DROP_NULLS,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_drop_nulls", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_drop_nulls,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.MEDIAN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_median", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_median,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.STD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_std", is_extension=True,
             options=("ddof",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_std,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.VAR,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_var", is_extension=True,
             options=("ddof",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_var,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.N_UNIQUE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_n_unique", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_n_unique,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.COUNT_MATCHES,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_count_matches", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_count_matches,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ITEM,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_item", is_extension=True,
             options=("index",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_item,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.REVERSE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_reverse", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_reverse,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.HEAD,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_head", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_head,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TAIL,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_tail", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_tail,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SLICE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_slice", is_extension=True,
             options=("length",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_slice,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_gather", is_extension=True,
             options=("null_on_oob",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_gather,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.GATHER_EVERY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_gather_every", is_extension=True,
             options=("offset",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_gather_every,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SHIFT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_shift", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_shift,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.DIFF,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_diff", is_extension=True,
             options=("n", "null_behavior"),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_diff,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_UNION,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_set_union", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_union,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_INTERSECTION,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_set_intersection", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_intersection,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_DIFFERENCE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_set_difference", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_difference,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SET_SYMMETRIC_DIFFERENCE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_set_symmetric_difference", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_set_symmetric_difference,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CONCAT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_concat", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_concat,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
+            # The predicate is evaluated on elements, not top-level columns.
+            projection_rule=ProjectionRule("operand", "contextual", operand=0),
             substrait_uri=MountainashExtension.LIST, substrait_name="list_filter", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_filter,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_to_struct", is_extension=True,
             options=("n_field_strategy", "fields", "upper_bound"),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_to_struct,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_to_array", is_extension=True,
             options=("width",),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_to_array,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MIN,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_arg_min", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_arg_min,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ARG_MAX,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_arg_max", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_arg_max,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.SAMPLE,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST, substrait_name="list_sample", is_extension=True,
             options=("fraction", "with_replacement", "shuffle", "seed"),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_sample,
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
+            # The aggregate body has its own element-evaluation context.
+            projection_rule=ProjectionRule("operand", "contextual", operand=0),
             substrait_uri=MountainashExtension.LIST, substrait_name="list_agg", is_extension=True,
             protocol_method=MountainAshScalarListExpressionSystemProtocol.list_agg,
         ),
@@ -2632,6 +2966,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_AGGREGATE_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_AGGREGATE.COUNT_DISTINCT,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.AGGREGATE,
             substrait_name="n_unique",
             is_extension=True,
@@ -2646,6 +2981,7 @@ def register_all_functions() -> None:
     MOUNTAINASH_COMPARISON_FUNCTIONS = [
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_COMPARISON.IS_DUPLICATED,
+            projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.COMPARISON,
             substrait_name="is_duplicated",
             is_extension=True,
