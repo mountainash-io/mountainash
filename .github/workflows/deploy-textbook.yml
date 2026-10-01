@@ -3,6 +3,9 @@ name: Deploy Textbook
 on:
   push:
     branches: [main, develop]
+    paths:
+      - 'docs-site/**'
+      - '.github/workflows/deploy-textbook.yml'
   workflow_dispatch:
 
 # Serialize snapshot selection, both builds, and deployment across live branches.
@@ -116,15 +119,27 @@ jobs:
           main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
           develop_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/develop" --jq '.object.sha')
           [[ "$main_sha" =~ ^[0-9a-f]{40}$ && "$develop_sha" =~ ^[0-9a-f]{40}$ ]]
-          if [[ "$main_sha" == "$SELECTED_MAIN_SHA" && "$develop_sha" == "$SELECTED_DEVELOP_SHA" ]]; then
+          # Compare build inputs, so a code-only push cannot strand this deployment.
+          textbook_inputs() {
+            local revision="$1" site workflow
+            site=$(gh api "repos/$GITHUB_REPOSITORY/git/trees/$revision" --jq '.tree[] | select(.path == "docs-site" and .type == "tree") | .sha')
+            workflow=$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/deploy-textbook.yml?ref=$revision" --jq '.sha')
+            [[ "$site" =~ ^[0-9a-f]{40}$ && "$workflow" =~ ^[0-9a-f]{40}$ ]] || return 1
+            printf '%s:%s\n' "$site" "$workflow"
+          }
+          selected_main_inputs=$(textbook_inputs "$SELECTED_MAIN_SHA")
+          selected_develop_inputs=$(textbook_inputs "$SELECTED_DEVELOP_SHA")
+          current_main_inputs=$(textbook_inputs "$main_sha")
+          current_develop_inputs=$(textbook_inputs "$develop_sha")
+          if [[ "$current_main_inputs" == "$selected_main_inputs" && "$current_develop_inputs" == "$selected_develop_inputs" ]]; then
             echo 'current=true' >> "$GITHUB_OUTPUT"
-            echo 'Both selected branch snapshots are current; deploying the paired textbook.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Textbook inputs on both branches are current; deploying the paired textbook.' >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'current=false' >> "$GITHUB_OUTPUT"
             echo '::notice::Textbook snapshot pair is obsolete; skipping deployment, not a build failure.'
             {
               printf '## Obsolete snapshot pair — deployment skipped\n\n'
-              printf 'A branch advanced during this run. The previous live deployment is unchanged.\n\n'
+              printf 'Textbook inputs changed during this run. The previous live deployment is unchanged.\n\n'
               printf -- '- Current `main`: `%s` (selected `%s`)\n' "$main_sha" "$SELECTED_MAIN_SHA"
               printf -- '- Current `develop`: `%s` (selected `%s`)\n' "$develop_sha" "$SELECTED_DEVELOP_SHA"
               printf '\nThe pending push run will build current heads; use manual dispatch if that run was canceled.\n'
