@@ -62,10 +62,8 @@ def _has_unknown(schema) -> bool:
     legitimate declaration of 'any'. Only SchemaTypeStatus.UNKNOWN triggers
     strict-mode rejection (principle best-effort-introspection R4).
 
-    Note: since item 46 (a), un-aliased aggregate measures are inferred
-    under their canonical source-column name as UNKNOWN, so strict mode
-    sees them. Only measures with no resolvable field root (literal or
-    wildcard aggregates) remain absent — a documented best-effort residual.
+    Complete output names are required separately; unavailable cardinality is
+    handled at the schema request boundary, not converted into an empty mapping.
     """
     from mountainash.relations.schema_inference import SchemaTypeStatus
     return any(v is SchemaTypeStatus.UNKNOWN for v in schema.values())
@@ -81,14 +79,14 @@ def to_package(dag: RelationDAGProtocol, *, strict: bool = False) -> DataPackage
     resolver and returns {} for ref-containing relations). Assets pass through
     unchanged.
 
-    Default mode is non-fatal (principle best-effort-introspection R3): emits
-    a resource per named relation with the best-effort schema (schema-less when
-    no columns are determinable). strict=True raises MissingResourceSchema for
-    any relation whose inferred schema is empty or contains a genuinely-UNKNOWN
-    column (R4). UNCONSTRAINED does NOT trigger strict failure."""
+    Default export omits unavailable optional schema unless doing so would lose
+    explicitly declared foreign keys. strict=True additionally rejects empty
+    schemas and genuinely UNKNOWN types. UNCONSTRAINED remains a valid type.
+    """
     from mountainash.relations.core.relation_nodes.extensions_mountainash import (
         ResourceReadRelNode,
     )
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
     from mountainash.relations.dag.errors import MissingResourceSchema
     from mountainash.typespec.datapackage import DataPackage, DataResource
 
@@ -106,8 +104,19 @@ def to_package(dag: RelationDAGProtocol, *, strict: bool = False) -> DataPackage
             continue
 
         # Ref-resolved authority: resolves RefRelNodes correctly
-        inferred = dag.schema(name)
-        out = _frictionless_from_inferred(inferred)
+        declared_fks = dag.constraints_for(name)
+        try:
+            inferred = dag.schema(name)
+        except IncompleteProjectionSchemaError as exc:
+            if declared_fks:
+                raise MissingResourceSchema(
+                    f"{name!r}: cannot preserve declared foreign keys without complete output schema"
+                ) from exc
+            if strict:
+                missing.append(name)
+                continue
+            inferred = None
+        out = None if inferred is None else _frictionless_from_inferred(inferred)
 
         # FK source is determined by resource kind: pass-through resources
         # emitted their lossless table_schema above (metadata never
@@ -115,7 +124,7 @@ def to_package(dag: RelationDAGProtocol, *, strict: bool = False) -> DataPackage
         # declared constraint_metadata, in insertion order.
         from mountainash.typespec.frictionless import foreign_key_to_dict
 
-        fk_dicts = [foreign_key_to_dict(fk) for fk in dag.constraints_for(name)]
+        fk_dicts = [foreign_key_to_dict(fk) for fk in declared_fks]
         if fk_dicts and out is not None:
             out["foreignKeys"] = fk_dicts
 

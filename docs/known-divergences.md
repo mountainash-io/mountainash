@@ -6,7 +6,7 @@ Examples are render-only illustrations, not executable tests, runtime rules, or 
 Catalogue descriptions retain their native/public layers and authored scope. Related policies are listed, not evaluated.
 Neither these examples nor upstream issue status establishes a verified version range.
 
-Illustrative examples: **447**
+Illustrative examples: **444**
 
 ## ibis/family — cum_prod() raises on all Ibis backends
 
@@ -1872,29 +1872,6 @@ No retained executable policy is authored for this target and concrete scope.
 ### Explicit issue references
 
 - `IB-TYPE-02` — by_design; no upstream URL
-
-## ibis/ibis-duckdb — Inferred schemas and Ibis runtime output names can disagree
-
-Target: `mountainash.relations.core.relation_protocols.prtcl_relation_api.GroupedRelationAPIProtocol.agg`
-
-### Illustration
-
-    Input data: {"values": {"k": ["a", "a", "b"], "v": [1, 2, 3]}}
-    Reference result: {"historical_source_claim": "inferred and materialized column sets equal"}
-    Contrasting result: {"historical_source_claim": "historical Ibis Sum(v) name"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-### Explicit issue references
-
-- `IB-AGG-04` — by_design; no upstream URL
 
 ## ibis/ibis-polars — window operations raise on ibis-polars
 
@@ -3841,29 +3818,6 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `IB-WIN-01` — needs_investigation; no upstream URL
 
-## ibis/ibis-polars — Inferred schemas and Ibis runtime output names can disagree
-
-Target: `mountainash.relations.core.relation_protocols.prtcl_relation_api.GroupedRelationAPIProtocol.agg`
-
-### Illustration
-
-    Input data: {"values": {"k": ["a", "a", "b"], "v": [1, 2, 3]}}
-    Reference result: {"historical_source_claim": "inferred and materialized column sets equal"}
-    Contrasting result: {"historical_source_claim": "historical Ibis Sum(v) name"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-### Explicit issue references
-
-- `IB-AGG-04` — by_design; no upstream URL
-
 ## ibis/ibis-polars — a ScalarRule verdict over an all-null column diverges on ibis-polars/ibis-sqlite; polars/narwhals compute the 'unknown' verdict (ibis-duckdb rejects the all-null table outright — IB-REL-06)
 
 Target: `mountainash.validation.runner.ValidationRunner.validate_relation`
@@ -5420,29 +5374,6 @@ No matching catalogue description is authored; support and verification remain u
 ### Related executable policies
 
 No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-sqlite — Inferred schemas and Ibis runtime output names can disagree
-
-Target: `mountainash.relations.core.relation_protocols.prtcl_relation_api.GroupedRelationAPIProtocol.agg`
-
-### Illustration
-
-    Input data: {"values": {"k": ["a", "a", "b"], "v": [1, 2, 3]}}
-    Reference result: {"historical_source_claim": "inferred and materialized column sets equal"}
-    Contrasting result: {"historical_source_claim": "historical Ibis Sum(v) name"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-### Explicit issue references
-
-- `IB-AGG-04` — by_design; no upstream URL
 
 ## ibis/ibis-sqlite — a ScalarRule verdict over an all-null column diverges on ibis-polars/ibis-sqlite; polars/narwhals compute the 'unknown' verdict (ibis-duckdb rejects the all-null table outright — IB-REL-06)
 

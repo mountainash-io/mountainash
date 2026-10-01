@@ -54,7 +54,7 @@ def require_projection_names(expressions, *, operation, input_names) -> tuple[st
     """Return all output names in order, or fail rather than expose a partial schema."""
     names = []
     seen = set()
-    input_names = tuple(input_names)
+    input_names = None if input_names is None else tuple(input_names)
     for position, expression in enumerate(expressions):
         output = resolve_output_names(expression, input_names=input_names)
         context = f"{operation.name} expression {position}"

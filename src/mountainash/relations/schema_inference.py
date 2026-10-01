@@ -21,6 +21,7 @@ from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
 )
+from mountainash.expressions.core.output_names import resolve_output_names
 from mountainash.relations.core.projection_names import require_projection_names
 from mountainash.typespec.frictionless import typespec_from_frictionless
 from mountainash.typespec.spec import FieldSpec
@@ -79,49 +80,6 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
             return inner_name.lower() if inner_name else None
 
     return None
-
-
-def _leftmost_source_name(expr_node: Any) -> Optional[str]:
-    """Leftmost FieldReferenceNode column name in an expression tree.
-
-    Mirrors the canonical Polars-API runtime naming rule: an un-aliased
-    aggregate/compound expression is named after its leftmost root column
-    ((col("a") + col("b")).sum() -> "a"). Returns None when no field root
-    is resolvable (literal or wildcard aggregates) — those measures remain
-    best-effort skipped by the caller.
-    """
-    node = expr_node
-    if hasattr(node, "_node"):
-        node = node._node
-
-    from mountainash.expressions.core.expression_nodes import (
-        FieldReferenceNode,
-        ScalarFunctionNode,
-    )
-
-    if isinstance(node, FieldReferenceNode):
-        return node.field
-    if isinstance(node, ScalarFunctionNode):
-        for arg in node.arguments:
-            name = _leftmost_source_name(arg)
-            if name:
-                return name
-    return None
-
-
-def _measure_output_name(measure_expr: Any) -> Optional[str]:
-    """Output column name for an aggregate measure.
-
-    The name is the Mountainash/Polars-API canonical output name, NOT a
-    backend-runtime-name promise (a backend whose native name differs is a
-    known-divergences concern). Aliased / name-transformed measures resolve
-    via infer_expression_name; an un-aliased aggregate falls back to its
-    leftmost source-column name.
-    """
-    name = infer_expression_name(measure_expr)
-    if name:
-        return name
-    return _leftmost_source_name(measure_expr)
 
 
 def _canon(
@@ -521,28 +479,141 @@ def _infer_project_schema(
     return input_schema
 
 
+def _aggregate_source_names(data: Any) -> tuple[str, ...] | None:
+    """Cheap source metadata, retaining unavailable versus known-empty names."""
+    if isinstance(data, dict):
+        return tuple(str(name) for name in data)
+    if isinstance(data, (list, tuple)) and data and all(isinstance(row, dict) for row in data):
+        return tuple(dict.fromkeys(str(name) for row in data for name in row))
+    try:
+        if hasattr(data, "collect_schema"):
+            return tuple(data.collect_schema().names())
+        if hasattr(data, "schema"):
+            schema = data.schema() if callable(data.schema) else data.schema
+            if hasattr(schema, "items"):
+                return tuple(schema)
+        if hasattr(data, "dtypes"):
+            return tuple(dict(data.dtypes))
+    except Exception:
+        # Metadata extraction failure is unavailable evidence, never zero columns.
+        return None
+    return None
+
+
+def _aggregate_resource_names(node: Any) -> tuple[str, ...] | None:
+    """Closed effective conform policy proves the successful reader's output."""
+    from mountainash.typespec.spec import TypeSpec
+
+    if not node.apply_schema_conform:
+        return None
+    spec = node.resource.table_schema
+    if isinstance(spec, dict):
+        spec = typespec_from_frictionless(spec)
+    if not isinstance(spec, TypeSpec) or spec.fields_match not in _VALID_FIELDS_MATCH:
+        return None  # In particular, do not fetch referenced schemas.
+    contract = resolve_contract(spec.fields_match, spec_contract=spec.contract)
+    if (
+        contract.mapping != "by_name"
+        or contract.extra_columns == "evolve"
+        or contract.missing_columns == "skip"
+    ):
+        return None
+    # Every declared field must exist or be null-filled; extras cannot survive.
+    # The conform projection emits fields in declaration order on every backend.
+    return tuple(field.name for field in spec.fields)
+
+
+def _aggregate_input_names(node: Any) -> tuple[str, ...] | None:
+    """Prove aggregate input names independently of best-effort dtype inference."""
+    from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT as PF
+    from mountainash.relations.core.relation_nodes import (
+        AggregateRelNode, FetchRelNode, FilterRelNode, ProjectRelNode, ReadRelNode, SortRelNode,
+    )
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode, SourceRelNode
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL as RS
+
+    if isinstance(node, ReadRelNode):
+        return _aggregate_source_names(node.dataframe)
+    if isinstance(node, SourceRelNode):
+        if node.detected_format in {PF.PYDICT, PF.PYLIST, PF.SERIES_DICT}:
+            return _aggregate_source_names(node.data)
+        return None  # Indexed dictionaries/tuples are rows, not column mappings.
+    if isinstance(node, ResourceReadRelNode):
+        return _aggregate_resource_names(node)
+    if isinstance(node, (FilterRelNode, SortRelNode, FetchRelNode)):
+        return _aggregate_input_names(node.input)
+    if isinstance(node, AggregateRelNode):
+        names = _aggregate_input_names(node.input)
+        if not node.measures:
+            # Keyless DISTINCT preserves columns. Subset DISTINCT currently
+            # retains non-key columns on Polars/Narwhals but drops them on Ibis.
+            return None if node.keys else names
+        return require_projection_names(
+            [*node.keys, *node.measures], operation=node.operation_key, input_names=names,
+        )
+    if isinstance(node, ProjectRelNode):
+        names = _aggregate_input_names(node.input)
+        if node.operation == RS.PROJECT_SELECT:
+            return require_projection_names(node.expressions, operation=node.operation, input_names=names)
+        if names is None:
+            return None
+        if node.operation == RS.PROJECT_WITH_COLUMNS:
+            added = require_projection_names(node.expressions, operation=node.operation, input_names=names)
+            return tuple(dict.fromkeys((*names, *added)))
+        if node.operation == RS.PROJECT_RENAME:
+            mapping = node.rename_mapping or {}
+            return tuple(mapping.get(name, name) for name in names)
+        if node.operation == RS.PROJECT_DROP:
+            dropped = require_projection_names(node.expressions, operation=node.operation, input_names=names)
+            return tuple(name for name in names if name not in dropped)
+    # Ref dtype resolvers do not certify completeness; joins/sets/conform/
+    # extensions need their own proof.
+    return None
+
+
+def _aggregate_key_source(expression: Any) -> str | None:
+    """Source of a plain field under name-only wrappers, not value transforms."""
+    from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
+    from mountainash.expressions.core.expression_nodes import FieldReferenceNode, ScalarFunctionNode
+
+    if isinstance(expression, BaseExpressionAPI):
+        expression = expression._node
+    if isinstance(expression, str):
+        return expression
+    if isinstance(expression, FieldReferenceNode):
+        return expression.field if expression.unknown_values is None else None
+    if isinstance(expression, ScalarFunctionNode) and expression.function_key in {
+        FKEY_MOUNTAINASH_NAME.ALIAS, FKEY_MOUNTAINASH_NAME.PREFIX, FKEY_MOUNTAINASH_NAME.SUFFIX,
+        FKEY_MOUNTAINASH_NAME.NAME_TO_UPPER, FKEY_MOUNTAINASH_NAME.NAME_TO_LOWER,
+    }:
+        return _aggregate_key_source(expression.arguments[0])
+    return None
+
+
 def _infer_aggregate_schema(
     node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-    """Infer schema for AggregateRelNode: group keys + measure aliases."""
+    """Resolve complete aggregate names and retain only proven key source types."""
     input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
-    result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+    if not node.measures:
+        # Preserve the existing key-only DISTINCT schema behavior.
+        result = {}
+        for key in node.keys:
+            name = infer_expression_name(key)
+            if name:
+                result[name] = input_schema.get(name, SchemaTypeStatus.UNKNOWN)
+        return result
 
-    for key_expr in node.keys:
-        name = infer_expression_name(key_expr)
-        if name and name in input_schema:
-            result[name] = input_schema[name]
-        elif name:
-            result[name] = SchemaTypeStatus.UNKNOWN
-
-    for measure_expr in node.measures:
-        name = _measure_output_name(measure_expr)
-        if name and name not in result:
-            # keys win: never overwrite a resolved key entry with UNKNOWN
-            # (a key/measure name clash is a runtime error; the typed key
-            # is the honest best-effort entry). Result type of an aggregate
-            # is genuinely pre-compile-unknowable (R2).
-            result[name] = SchemaTypeStatus.UNKNOWN
+    input_names = _aggregate_input_names(node.input)
+    names = require_projection_names(
+        [*node.keys, *node.measures], operation=node.operation_key, input_names=input_names,
+    )
+    result = dict.fromkeys(names, SchemaTypeStatus.UNKNOWN)
+    for key in node.keys:
+        output = resolve_output_names(key, input_names=input_names)
+        source = _aggregate_key_source(key)
+        if output.scalar_name is not None and source is not None:
+            result[output.scalar_name] = input_schema.get(source, SchemaTypeStatus.UNKNOWN)
 
     return result
 

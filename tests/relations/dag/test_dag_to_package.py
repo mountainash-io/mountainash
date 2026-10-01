@@ -8,6 +8,7 @@ import mountainash as ma
 from mountainash.relations.dag.dag import RelationDAG
 from mountainash.relations.dag.errors import MissingResourceSchema
 from mountainash.typespec.datapackage import DataPackage, DataResource
+from fixtures.backend_registry import ALL_BACKENDS
 
 
 def test_dag_to_package_with_resource_read_node(tmp_path):
@@ -262,3 +263,63 @@ def test_fk_round_trip_descriptor_dag_descriptor(tmp_path):
     dag2 = pkg2.to_relation_dag()
     assert len(dag2.constraint_metadata[("customers", "orders")]) == 1
     assert len(dag2.constraint_metadata[("customers", "recent_orders")]) == 1
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("operation", ["aggregate", "projection"])
+def test_incomplete_export_omits_only_optional_schema(backend_name, backend_factory, operation):
+    import ibis
+
+    source = backend_factory.create({"x": [2, 4]}, backend_name)
+    native = ma.col("x").sum().compile(source)
+    if isinstance(native, ibis.Deferred):
+        native = native.resolve(source)
+    base = ma.relation(source)
+    expr = ma.native(native).alias("total")
+    opaque = base.group_by().agg(expr) if operation == "aggregate" else base.select(expr)
+    dag = RelationDAG()
+    dag.add("known", base)
+    dag.add("opaque", opaque)
+    resources = {r.name: r for r in dag.to_package().resources}
+    assert set(resources) == {"known", "opaque"}
+    assert resources["known"].table_schema["fields"] == [{"name": "x", "type": "integer"}]
+    assert resources["opaque"].table_schema is None
+    with pytest.raises(MissingResourceSchema, match="opaque"):
+        dag.to_package(strict=True)
+
+
+@pytest.mark.parametrize("strict", [False, True])
+def test_incomplete_aggregate_export_cannot_discard_declared_foreign_keys(strict):
+    """Opaque native cardinality must not silently erase declared constraints."""
+    dag = RelationDAG()
+    dag.add("customers", ma.relation([{"id": 1}]))
+    dag.add("orders", ma.relation([{"customer_id": 1, "amount": 2}]).group_by("customer_id").agg(
+        ma.native(object()).alias("total"),
+    ))
+    dag.add_constraint("orders", _fk(["customer_id"], "customers", ["id"]))
+    with pytest.raises(MissingResourceSchema, match="orders.*foreign keys"):
+        dag.to_package(strict=strict)
+
+
+def test_named_aggregate_foreign_keys_round_trip():
+    dag = RelationDAG()
+    dag.add("customers", ma.relation([{"id": 1}]))
+    dag.add("orders", ma.relation([{"customer_id": 1, "amount": 2}]).group_by("customer_id").agg(
+        ma.col("amount").sum(),
+    ))
+    fk = _fk(["customer_id"], "customers", ["id"])
+    dag.add_constraint("orders", fk)
+    restored = dag.to_package().to_relation_dag()
+    assert restored.constraints_for("orders") == [fk]
+
+
+def test_aggregate_export_preserves_collision_errors():
+    from mountainash.relations.core.projection_names import ProjectionNameError
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes import AggregateRelNode
+
+    dag = RelationDAG()
+    base = ma.relation([{"x": 1}])
+    dag.add("bad", Relation(AggregateRelNode(input=base._node, keys=["x"], measures=[ma.col("x").sum()])))
+    with pytest.raises(ProjectionNameError, match="duplicate.*x"):
+        dag.to_package()

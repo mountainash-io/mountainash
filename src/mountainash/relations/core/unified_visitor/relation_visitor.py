@@ -448,6 +448,13 @@ class UnifiedRelationVisitor:
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
             ArgKind,
         )
+        from mountainash.relations.core.aggregate_names import normalize_aggregate
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
+
+        aggregate_values = None
+        if op.operation_key is RKEY_SUBSTRAIT_REL.AGGREGATE:
+            keys, measures = normalize_aggregate(node.keys, node.measures)
+            aggregate_values = {"keys": keys, "measures": measures}
 
         prepared_inputs = {
             binding.field: self._bind(node, binding)
@@ -459,12 +466,15 @@ class UnifiedRelationVisitor:
         # Generic expression bindings belong to the operation's immediate input,
         # not the root source (projection and join may have changed its schema).
         with self.expr_visitor.input_scope(prepared_inputs.get("input")):
-            args = [
-                prepared_inputs[binding.field]
-                if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}
-                else self._bind(node, binding)
-                for binding in op.args
-            ]
+            args = []
+            for binding in op.args:
+                if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}:
+                    value = prepared_inputs[binding.field]
+                elif aggregate_values is not None and binding.field in aggregate_values:
+                    value = [self.compile_expression(expr) for expr in aggregate_values[binding.field]]
+                else:
+                    value = self._bind(node, binding)
+                args.append(value)
             kwargs = self._bind_options(node, op)
         prefer = _present_operation_keys(node, op)
         d = self._authoritative_dialect(node, op)

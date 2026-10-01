@@ -596,14 +596,6 @@
   },
   {
     "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "mountainash.relations.core.relation_protocols.prtcl_relation_api.GroupedRelationAPIProtocol.agg",
-    "title": "Inferred schemas and Ibis runtime output names can disagree",
-    "text": "Input data: {\"values\": {\"k\": [\"a\", \"a\", \"b\"], \"v\": [1, 2, 3]}}\nReference result: {\"historical_source_claim\": \"inferred and materialized column sets equal\"}\nContrasting result: {\"historical_source_claim\": \"historical Ibis Sum(v) name\"}",
-    "issue": "IB-AGG-04"
-  },
-  {
-    "backend": "ibis",
     "dialect": "ibis-polars",
     "target": "FKEY_MOUNTAINASH_SCALAR_COMPARISON.IS_DUPLICATED",
     "title": "window operations raise on ibis-polars",
@@ -1237,14 +1229,6 @@
   {
     "backend": "ibis",
     "dialect": "ibis-polars",
-    "target": "mountainash.relations.core.relation_protocols.prtcl_relation_api.GroupedRelationAPIProtocol.agg",
-    "title": "Inferred schemas and Ibis runtime output names can disagree",
-    "text": "Input data: {\"values\": {\"k\": [\"a\", \"a\", \"b\"], \"v\": [1, 2, 3]}}\nReference result: {\"historical_source_claim\": \"inferred and materialized column sets equal\"}\nContrasting result: {\"historical_source_claim\": \"historical Ibis Sum(v) name\"}",
-    "issue": "IB-AGG-04"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
     "target": "mountainash.validation.runner.ValidationRunner.validate_relation",
     "title": "a ScalarRule verdict over an all-null column diverges on ibis-polars/ibis-sqlite; polars/narwhals compute the 'unknown' verdict (ibis-duckdb rejects the all-null table outright — IB-REL-06)",
     "text": "Arguments: {\"checks\": [{\"column\": \"age\", \"kind\": \"ScalarRule\", \"recipe\": [[\"mean\"], [\"gt\", 0]]}], \"relation\": {\"input\": \"frame\"}}\nInput schema: {\"frame\": {\"age\": {\"logical_type\": \"null\", \"nullable\": true}}}\nInput data: {\"frame\": {\"age\": [null, null]}}\nReference result: {\"historical\": true, \"status\": \"failed\"}\nContrasting result: {\"fresh_native_observation\": false, \"historical\": true, \"inferred_column\": \"untyped-NullColumn\"}"
@@ -1728,14 +1712,6 @@
     "target": "mountainash.expressions.core.utils.temporal.within_last",
     "title": "sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges",
     "text": "Input data: {\"values\": {\"message\": [\"A\", \"B\", \"C\", \"D\"], \"timestamp\": [\"now-2m\", \"now-5m\", \"now-10m\", \"now-30m\"]}}\nReference result: {\"historical_source_claim\": [\"A\", \"B\"]}\nContrasting result: {\"historical_unknown\": \"no fresh native observation\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "mountainash.relations.core.relation_protocols.prtcl_relation_api.GroupedRelationAPIProtocol.agg",
-    "title": "Inferred schemas and Ibis runtime output names can disagree",
-    "text": "Input data: {\"values\": {\"k\": [\"a\", \"a\", \"b\"], \"v\": [1, 2, 3]}}\nReference result: {\"historical_source_claim\": \"inferred and materialized column sets equal\"}\nContrasting result: {\"historical_source_claim\": \"historical Ibis Sum(v) name\"}",
-    "issue": "IB-AGG-04"
   },
   {
     "backend": "ibis",

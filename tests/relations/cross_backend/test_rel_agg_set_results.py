@@ -9,7 +9,9 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from mountainash.relations.schema_inference import infer_schema
+from mountainash.relations.core.projection_names import ProjectionNameError
+from mountainash.relations.core.relation_api.relation import Relation
+from mountainash.relations.core.relation_nodes import AggregateRelNode
 
 from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.call_expectations import expect_call_failure
@@ -200,32 +202,142 @@ class TestConcat:
         assert result == [{"a": 1}, {"a": 2}, {"a": 1}, {"a": 2}]
 
 
-# ---------------------------------------------------------------------------
-# Un-aliased Measure Naming Parity (item 46 a)
-# ---------------------------------------------------------------------------
+NAMING_CASES = [
+    ("sum", lambda: ma.col("x").sum(), "x", [6, 8], 14),
+    ("any_value", lambda: ma.col("x").any_value(), "x", [3, 8], None),
+    ("nested", lambda: ma.col("x").alias("renamed").sum(), "renamed", [6, 8], 14),
+    ("suffix", lambda: ma.col("x").sum().name.suffix("_sum"), "x_sum", [6, 8], 14),
+    ("outer", lambda: ma.col("x").sum().alias("total"), "total", [6, 8], 14),
+    ("literal_first", lambda: (ma.lit(1) + ma.col("x")).sum(), "literal", [8, 9], 17),
+]
 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-class TestUnaliasedMeasureNameParity:
-    """Runtime parity oracle: infer_schema()'s column-name set for an
-    un-aliased aggregate measure must match the actual to_polars() column
-    set. Polars, pandas, and both narwhals variants name the measure after
-    its leftmost source column ("v"); Ibis instead names it "Sum(v)" on
-    every engine (duckdb/polars/sqlite) — a documented divergence, not
-    chased in inference (see known-divergences.md #18). The Ibis cases run
-    the full assertion under a strict xfail marker so an upstream naming
-    convergence surfaces as a hard XPASS failure."""
+@pytest.mark.parametrize("grouped", [True, False])
+@pytest.mark.parametrize("direct", [True, False])
+@pytest.mark.parametrize("case,make,name,group_values,global_value", NAMING_CASES)
+def test_aggregate_output_names(
+    backend_name, backend_factory, grouped, direct, case, make, name, group_values, global_value,
+):
+    """Names must survive native compilation and downstream selection."""
+    from narwhals.exceptions import InvalidOperationError
 
-    def test_unaliased_measure_name_parity_with_runtime(self, backend_name, backend_factory):
-        df = backend_factory.create({"k": ["a", "a", "b"], "v": [1, 2, 3]}, backend_name)
-        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
-        inferred = infer_schema(rel._node, None)
-        with expect_call_failure(
-            when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
-            errors=(AssertionError,),
-            reason=(
-                "Inferred schemas and Ibis runtime output names can disagree"
-            ),
-        ):
-            assert set(inferred.keys()) == set(rel.to_polars().columns)
+    source = backend_factory.create({"g": [0, 0, 1], "x": [3, 3, 8]}, backend_name)
+    base = ma.relation(source)
+    keys = ["g"] if grouped else []
+    expression = make()
+    q = (
+        Relation(AggregateRelNode(input=base._node, keys=keys, measures=[expression]))
+        if direct else base.group_by(*keys).agg(expression)
+    )
+    names = keys + [name]
+    assert q.columns == names
+    with expect_call_failure(
+        when=backend_name == "narwhals-lazy" and case == "any_value",
+        reason="NW-AGG-03: any_value() raises on narwhals-lazy",
+        errors=(InvalidOperationError,),
+    ):
+        rows = q.select(*names).to_dicts()
+        if grouped:
+            assert sorted_dicts(rows, "g") == [
+                {"g": g, name: value} for g, value in enumerate(group_values)
+            ]
+        elif case == "any_value":
+            assert rows in [[{"x": 3}], [{"x": 8}]]
+        else:
+            assert rows == [{name: global_value}]
+        assert q.to_polars().columns == names
+
+
+@pytest.mark.parametrize("direct", [True, False])
+@pytest.mark.parametrize(
+    "keys,measures,name",
+    [
+        (["x"], [ma.col("x").sum()], "x"),
+        ([], [ma.col("x").sum(), ma.col("x").max()], "x"),
+        ([], [ma.col("x").sum(), ma.col("g").max().alias("x")], "x"),
+        (["g", "g"], [ma.col("x").sum()], "g"),
+        ([], [ma.col("x").sum().alias(""), ma.col("g").sum().alias("")], ""),
+    ],
+)
+def test_aggregate_duplicate_names(keys, measures, name, direct):
+    """Statically known collisions fail even before missing fields are compiled."""
+    base = ma.relation([{"unrelated": 1}])
+    with pytest.raises(ProjectionNameError) as caught:
+        if direct:
+            Relation(AggregateRelNode(input=base._node, keys=keys, measures=measures)).collect()
+        else:
+            base.group_by(*keys).agg(*measures)
+    assert repr(name) in str(caught.value)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_aggregate_expression_reuse(backend_name, backend_factory):
+    base = ma.relation(backend_factory.create({"x": [2, 4]}, backend_name))
+    measure = ma.col("x").sum()
+    original = base.group_by().agg(measure)
+    renamed = base.group_by().agg(measure.alias("total"))
+    assert renamed.to_dicts() == [{"total": 6}]
+    assert original.to_dicts() == [{"x": 6}]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_native_aggregate_executes_without_complete_ast_schema(backend_name, backend_factory):
+    import ibis
+
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    source = backend_factory.create({"g": [0, 0, 1], "x": [3, 3, 8]}, backend_name)
+    native = ma.col("x").sum().compile(source)
+    if isinstance(native, ibis.Deferred):
+        native = native.resolve(source)
+    q = ma.relation(source).group_by("g").agg(ma.native(native).alias("total"))
+    with pytest.raises(IncompleteProjectionSchemaError):
+        _ = q.columns
+    assert sorted_dicts(q.to_dicts(), "g") == [{"g": 0, "total": 6}, {"g": 1, "total": 8}]
+
+
+@pytest.mark.parametrize("shape", ["wildcard", "regex", "zero", "native-multi", "native-zero"])
+def test_aggregate_polars_expansion_passthrough(shape):
+    """Polars native selector escape: no portable selector language is promised."""
+    import polars as pl
+
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    expressions = {
+        "wildcard": ma.col("*").sum(),
+        "regex": ma.col("^x.*$").sum(),
+        "zero": ma.col("^absent$").sum(),
+        "native-multi": ma.native(pl.col(["x", "y"]).sum()),
+        "native-zero": ma.native(pl.col("^absent$").sum()),
+    }
+    q = ma.relation(pl.DataFrame({"x": [1, 2], "y": [4, 5]})).group_by().agg(
+        expressions[shape], ma.lit(1).alias("one"),
+    )
+    if shape == "zero":
+        assert q.columns == ["one"]
+    else:
+        with pytest.raises(IncompleteProjectionSchemaError):
+            _ = q.columns
+    expected = {
+        "wildcard": [{"x": 3, "y": 9, "one": 1}],
+        "regex": [{"x": 3, "one": 1}],
+        "zero": [{"one": 1}],
+        "native-multi": [{"x": 3, "y": 9, "one": 1}],
+        "native-zero": [{"one": 1}],
+    }
+    assert q.to_dicts() == expected[shape]
+
+
+def test_aggregate_native_duplicate_aliases_keep_backend_validation():
+    """Polars multi-output alias validation remains owned by native execution."""
+    import polars as pl
+
+    q = ma.relation(pl.DataFrame({"x": [1], "y": [2]})).group_by().agg(
+        ma.native(pl.col(["x", "y"]).sum()).alias("total"),
+    )
+    with pytest.raises(pl.exceptions.DuplicateError):
+        q.collect()

@@ -50,11 +50,6 @@ def test_projection_build_does_not_require_dag_source_schema():
     assert rel.columns == ["n"]
 
 
-def test_grouped_name_inference_keeps_existing_leftmost_source_policy():
-    rel = ma.relation([{"g": "a", "n": 1}]).group_by("g").agg((ma.lit(1) + ma.col("n")).sum())
-    assert rel.columns == ["g", "n"]
-
-
 @pytest.mark.parametrize("operation", ["select", "with_columns"])
 def test_unnamed_projection_requires_alias_with_operation_diagnostic(operation):
     from mountainash.expressions.core.expression_nodes import WindowFunctionNode
@@ -455,28 +450,105 @@ class TestInferSchemaAggregate:
         assert "total" in schema
         assert "v" not in schema
 
-    def test_measure_key_collision_keys_win(self):
-        # a-2: a measure name colliding with a group key must NOT overwrite
-        # the key's resolved (typed) entry with UNKNOWN.
-        df = pl.DataFrame({"v": [1, 2]})
-        rel = ma.relation(df).group_by("v").agg(ma.col("v").sum())
-        schema = infer_schema(rel._node, None)
-        assert schema["v"] is not SchemaTypeStatus.UNKNOWN
 
-    def test_literal_measure_stays_skipped(self):
-        # Un-nameable measures (no field root) remain best-effort skipped.
-        df = pl.DataFrame({"k": ["a"], "v": [1]})
-        rel = ma.relation(df).group_by("k").agg(ma.lit(1).sum())
-        schema = infer_schema(rel._node, None)
-        assert set(schema.keys()) == {"k"}
+@pytest.mark.parametrize("key,name", [
+    (ma.col("g").alias("x"), "x"),
+    (ma.col("g").alias(""), ""),
+    (ma.col("g").name.prefix("pre_"), "pre_g"),
+    (ma.col("g").name.suffix("_post"), "g_post"),
+    (ma.col("g").name.to_uppercase(), "G"),
+    (ma.col("g").alias("G").name.to_lowercase(), "g"),
+])
+def test_aggregate_key_type_follows_source(key, name):
+    base = ma.relation([{"g": "a", "x": 3}])
+    q = base.group_by(key).agg(ma.col("x").sum().alias("total"))
+    assert q.columns == [name, "total"]
+    assert q.schema[name] is D.STRING
+    assert q.schema["total"] is SchemaTypeStatus.UNKNOWN
 
-    def test_unaliased_measure_name_parity_with_runtime(self):
-        # Inferred column set == actual to_polars() column set (name parity
-        # against the canonical Polars oracle).
-        df = pl.DataFrame({"k": ["a", "a", "b"], "v": [1, 2, 3]})
-        rel = ma.relation(df).group_by("k").agg(ma.col("v").sum())
-        inferred = infer_schema(rel._node, None)
-        assert set(inferred.keys()) == set(rel.to_polars().columns)
+
+@pytest.mark.parametrize("key", [
+    (ma.col("g") > 0).alias("g"),
+    ma.col("g").cast(str),
+    ma.t_col("g", unknown={-1}),
+])
+def test_aggregate_computed_key_type_is_unknown(key):
+    q = ma.relation([{"g": 1, "x": 3}]).group_by(key).agg(ma.col("x").sum())
+    assert q.schema["g"] is SchemaTypeStatus.UNKNOWN
+
+
+def test_aggregate_key_preserves_unconstrained_type():
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    q = Relation(RefRelNode(name="source")).group_by(ma.col("g").alias("key")).agg(ma.col("x").sum())
+    schema = infer_schema(q._node, lambda _: {"g": SchemaTypeStatus.UNCONSTRAINED})
+    assert schema == {"key": SchemaTypeStatus.UNCONSTRAINED, "x": SchemaTypeStatus.UNKNOWN}
+
+
+@pytest.mark.parametrize("transform", [
+    lambda r: r,
+    lambda r: r.filter(ma.col("x") > 0).sort("x").head(1),
+    lambda r: r.with_columns(ma.lit(2).alias("two")),
+    lambda r: r.rename({"x": "y"}),
+    lambda r: r.drop("x"),
+])
+def test_aggregate_unknown_source_is_not_empty(transform):
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    q = transform(Relation(RefRelNode(name="unresolved"))).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    # Even a nonempty legacy dtype mapping cannot certify all source names.
+    with pytest.raises(IncompleteProjectionSchemaError):
+        infer_schema(q._node, lambda _: {"x": D.I64})
+
+
+@pytest.mark.parametrize("closed", [False, True])
+def test_aggregate_scalar_names_over_unresolved_ref(closed):
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    base = Relation(RefRelNode(name="unresolved"))
+    if closed:
+        base = base.select("g", "x").drop("x")
+    q = base.group_by(ma.col("*") if closed else "g").agg(ma.col("x").sum())
+    assert q.columns == ["g", "x"]
+
+
+@pytest.mark.parametrize("source,selector,want", [
+    (pl.DataFrame(), "*", ["one"]),
+    ([{"x": 1}], "^absent$", ["one"]),
+    ([{"x": 1}, {"x": 2, "y": 3}], "*", ["x", "y", "one"]),
+])
+def test_aggregate_complete_source_expansions(source, selector, want):
+    q = ma.relation(source).filter(ma.lit(True)).head(1).group_by(ma.col(selector)).agg(ma.lit(1).alias("one"))
+    assert q.columns == want
+
+
+def test_aggregate_literal_measure_has_name_without_field_root():
+    q = ma.relation([{"g": "a"}]).group_by("g").agg(ma.lit(1).sum())
+    assert q.columns == ["g", "literal"]
+
+
+def test_aggregate_resource_declaration_does_not_certify_all_columns(tmp_path):
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+    path = tmp_path / "open.csv"
+    pl.DataFrame({"x": [1], "y": [2]}).write_csv(path)
+    resource = ma.DataResource(
+        name="open", path=str(path), format="csv",
+        schema={
+            "fields": [{"name": "x", "type": "integer"}],
+            "x-mountainash": {"fields_match": "open"},
+        },
+    )
+    q = Relation(ResourceReadRelNode(resource=resource)).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    with pytest.raises(IncompleteProjectionSchemaError):
+        _ = q.columns
+    assert q.to_dicts() == [{"x": 1, "y": 2, "one": 1}]
 
 
 class TestInferSchemaJoin:
@@ -700,3 +772,84 @@ class TestSourceDataInference:
         schema = infer_schema(node)
         assert "x" in schema
         assert schema["x"] is SchemaTypeStatus.UNKNOWN
+
+
+@pytest.mark.parametrize("data,expected", [
+    ({"A": [{"x": 1}]}, [(1, "A", 1)]),
+    ({"A": [(1, 2)]}, [(1, 2, "A", 1)]),
+])
+def test_aggregate_indexed_python_data_does_not_certify_index_keys(data, expected):
+    """Python ingress owns indexed conversion; outer dict keys are not columns."""
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    q = ma.relation(data).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    with pytest.raises(IncompleteProjectionSchemaError):
+        _ = q.columns
+    assert q.to_tuples() == expected
+
+
+@pytest.mark.parametrize("fields_match,contract,complete", [
+    ("exact", None, True),
+    ("equal", None, True),
+    ("subset", None, True),
+    ("partial", None, False),
+    ("open", None, False),
+    ("equal", {"extra_columns": "evolve"}, False),
+    ("subset", {"missing_columns": "skip"}, False),
+    ("partial", {"missing_columns": "null_fill"}, True),
+])
+@pytest.mark.parametrize("apply_conform", [True, False])
+def test_aggregate_resource_names_require_closed_effective_contract(fields_match, contract, complete, apply_conform):
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash.typespec.frictionless import typespec_to_frictionless
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+
+    spec = TypeSpec(fields=[FieldSpec(name="x", type="integer")], fields_match=fields_match, contract=contract)
+    resource = ma.DataResource(name="source", data=[{"x": 1}], schema=typespec_to_frictionless(spec))
+    base = Relation(ResourceReadRelNode(resource=resource, apply_schema_conform=apply_conform))
+    q = base.group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    if complete and apply_conform:
+        assert q.columns == ["x", "one"]
+    else:
+        with pytest.raises(IncompleteProjectionSchemaError):
+            _ = q.columns
+
+
+def test_aggregate_exact_resource_selector_schema_matches_execution(tmp_path):
+    """Polars selector escape over an exact-conformed resource stays introspectable."""
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+    path = tmp_path / "exact.csv"
+    pl.DataFrame({"x": [1], "y": [2]}).write_csv(path)
+    resource = ma.DataResource(name="exact", path=str(path), format="csv", schema={
+        "fields": [{"name": "x", "type": "integer"}, {"name": "y", "type": "integer"}],
+    })
+    q = Relation(ResourceReadRelNode(resource=resource)).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    assert q.columns == ["x", "y", "one"]
+    assert q.select(*q.columns).to_dicts() == [{"x": 1, "y": 2, "one": 1}]
+
+
+@pytest.mark.parametrize("transform,names", [
+    (lambda r: r.with_columns(ma.lit(4).alias("z")), ["x", "y", "z", "one"]),
+    (lambda r: r.rename({"x": "z"}).drop("y"), ["z", "one"]),
+    (lambda r: r.group_by("x").agg(ma.col("y").sum()), ["x", "y", "one"]),
+    (lambda r: r.unique(), ["x", "y", "one"]),
+])
+def test_aggregate_complete_names_through_reshaping(transform, names):
+    """Name evidence follows closed outputs, without changing DISTINCT schema policy."""
+    q = transform(ma.relation({"x": [1], "y": [2]})).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    assert q.columns == names
+
+
+def test_aggregate_subset_distinct_does_not_promise_portable_expansion():
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    base = ma.relation({"x": [1], "y": [2]}).unique(subset=["x"])
+    q = base.group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
+    with pytest.raises(IncompleteProjectionSchemaError):
+        _ = q.columns
+    # Scalar names need no claim about the subset DISTINCT's complete shape.
+    assert base.group_by("x").agg(ma.lit(1).alias("one")).columns == ["x", "one"]

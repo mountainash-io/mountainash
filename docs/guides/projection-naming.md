@@ -1,8 +1,8 @@
-# Projection output names and migration
+# Projection and aggregate output names
 
-`Relation.select()` and `Relation.with_columns()` assign portable names to
-Mountainash expressions whose single output can be established from the AST.
-This also applies to DAG relations and accepted raw Mountainash expression nodes.
+`Relation.select()`, `Relation.with_columns()` and `GroupedRelation.agg()` assign
+portable names to Mountainash expressions whose single output can be established
+from the AST. This also applies to DAG relations and raw Mountainash AST nodes.
 Naming is decided while building the plan, without compiling or executing it,
 and does not mutate expressions that the caller reuses elsewhere.
 
@@ -167,15 +167,71 @@ structured transport fail explicitly when their carriage cannot be established,
 including in `select`. Materialize the logical values before applying such native
 projections if needed.
 
+## Grouped and global aggregation
+
+Aggregate output order is grouping keys followed by measures. The same naming
+rules apply at fluent construction and when compiling a direct `AggregateRelNode`:
+
+```python
+source = pl.DataFrame({"g": [0, 0, 1], "x": [3, 3, 8]})
+grouped = ma.relation(source).group_by("g").agg(ma.col("x").sum().name.suffix("_sum"))
+assert grouped.columns == ["g", "x_sum"]
+assert sorted(grouped.to_dicts(), key=lambda row: row["g"]) == [
+    {"g": 0, "x_sum": 6}, {"g": 1, "x_sum": 8},
+]
+assert ma.relation(source).group_by().agg(ma.col("x").sum()).to_dicts() == [{"x": 14}]
+```
+
+`col("x").alias("renamed").sum()` outputs `renamed`;
+`(lit(1) + col("x")).sum()` outputs `literal`. Computed grouping keys retain
+their resolved names instead of disappearing from `.columns`.
+
+Keys and measures share one collision namespace. `group_by("x").agg(col("x").sum())`
+and `agg(col("x").sum(), col("x").max())` now fail consistently; give each measure
+a distinct alias. On Ibis, implicit native names such as `Sum(x)` or `First(x, ())`
+are replaced by these AST names. To retain a historical output name, use it as an
+explicit outer alias.
+
+Key dtypes follow their source only for ordinary fields under name-only wrappers.
+Renaming `g` to `x` keeps the type of `g`, not a same-named input `x`. Computed keys
+and measures report `UNKNOWN`; explicitly typeless sources retain `UNCONSTRAINED`.
+Naming does not add reducer support, change null/empty-input semantics, or alter
+key-only DISTINCT routing.
+
+Native and selector aggregates keep supported execution even when `.schema` or
+`.columns` raises `IncompleteProjectionSchemaError`. A known zero-match selector
+contributes no names; unknown cardinality is not an empty expansion. Aggregate
+selectors require complete source-name evidence. A ref resolver's dtype mapping
+or a resource's declared fields alone does not prove all input names. Scalar
+names remain available over unresolved refs; selector introspection over those
+refs is unavailable. Introspection does not fetch resources or compile native
+expressions to discover names.
+
+Inline resource declarations prove names only when schema conform is enabled
+and its effective by-name contract rejects/discards extras and freezes/null-fills
+missing fields. Open/evolve, non-conformed and referenced schemas remain
+unavailable to this evidence walk. Indexed Python dictionaries are not column
+mappings. Subset DISTINCT also supplies unavailable evidence: its existing Ibis
+path drops non-key columns while Polars/Narwhals retain them. Keyless DISTINCT
+preserves input names. These limits affect dependent selector introspection,
+not scalar aggregate names or native DISTINCT execution.
+
+`RelationDAG.to_package()` omits unavailable optional schema by default while
+retaining the resource. `strict=True` rejects incomplete schema. If omission
+would lose explicitly declared foreign keys, **both modes raise
+`MissingResourceSchema`**, naming the resource and preservation requirement.
+Duplicate names and other malformed-plan errors are never treated as absent
+optional metadata. Fully named foreign keys and raw resource descriptors retain
+their existing export behavior.
+
 ## Scope and compatibility
 
-This correction is limited to relation `select`/`with_columns` naming and their
-schema/lineage consumers. Standalone `expr.compile(source)` naming, grouped
-aggregation naming and aggregate schema policy retain their existing behavior,
-including existing backend differences. Selector support is not expanded.
+This correction covers relation projections and grouped/global aggregate naming,
+including their schema, export and lineage consumers. Standalone
+`expr.compile(source)` naming and selector support are unchanged.
 Literal-only `select` row counts are unchanged and are **not** covered by a
-cross-backend row-count parity claim. Casting/coalesce capability defects are
-also outside this naming correction.
+cross-backend row-count parity claim. Backend reducer, casting and coalesce
+capability limitations remain outside this naming correction.
 
 The [unreleased changelog](../../CHANGELOG.md) records the compatibility effects:
 Ibis generated-name additions can become replacements, membership now uses the
