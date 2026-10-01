@@ -100,6 +100,10 @@ class MetadataSession:
         return CompiledSubtree(value, location, self.tokens.token(object()), metadata)
 
     def adopt(self, visitor: Any, child_node: RelationNode, child: CompiledSubtree) -> None:
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+        if isinstance(child_node, RefRelNode):
+            visitor._resolved_refs_by_name[child_node.name] = child.value
         visitor._structured_plans_by_node[id(child_node)] = child.metadata.structured_field_plans
         checks_by_node = getattr(visitor, "_owned_checks_by_node", None)
         if checks_by_node is None:

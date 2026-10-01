@@ -60,6 +60,7 @@ def visit_ref(node: Any, visitor: Any) -> Any:
             "use RelationDAG.collect() or supply ref_resolver explicitly"
         )
     resolved = visitor.ref_resolver(node.name)
+    visitor._resolved_refs_by_name[node.name] = resolved
     if visitor.metadata_session is not None and hasattr(visitor.ref_resolver, "envelope"):
         visitor.metadata_session.adopt(
             visitor, node, visitor.ref_resolver.envelope(node.name),
