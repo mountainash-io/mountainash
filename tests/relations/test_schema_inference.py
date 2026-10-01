@@ -13,6 +13,62 @@ from mountainash.relations.schema_inference import (
 )
 
 
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+@pytest.mark.parametrize("selector,names", [("*", ["n", "m"]), ("^n$", ["n"]), ("^absent$", [])])
+def test_complete_projection_expansion_schema(operation, selector, names):
+    rel = getattr(ma.relation([{"n": 1, "m": 2}]), operation)(ma.col(selector))
+    assert rel.columns == (names if operation == "select" else ["n", "m"])
+
+
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+def test_projection_expansion_collisions_rejected_when_schema_known(operation):
+    from mountainash.relations.core.projection_names import ProjectionNameError
+
+    rel = getattr(ma.relation([{"n": 1, "m": 2}]), operation)(ma.col("*"), ma.col("n"))
+    with pytest.raises(ProjectionNameError, match="expression 1.*duplicate.*n"):
+        _ = rel.columns
+
+
+def test_incomplete_projection_schema_survives_downstream_projection():
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    rel = ma.relation([{"n": 1}]).with_columns(ma.native(object()).alias("x")).select("n")
+    with pytest.raises(IncompleteProjectionSchemaError, match="PROJECT_WITH_COLUMNS.*expression 0"):
+        _ = rel.schema
+
+
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+def test_empty_alias_is_a_known_projection_name(operation):
+    rel = getattr(ma.relation([{"n": 1}]), operation)(ma.col("n").alias(""))
+    assert rel.columns == ([""] if operation == "select" else ["n", ""])
+
+
+def test_projection_build_does_not_require_dag_source_schema():
+    dag = ma.RelationDAG()
+    rel = dag.ref("not_registered_yet").select(ma.col("n") + 1)
+    dag.add("not_registered_yet", ma.relation([{"n": 1}]))
+    assert rel.columns == ["n"]
+
+
+def test_grouped_name_inference_keeps_existing_leftmost_source_policy():
+    rel = ma.relation([{"g": "a", "n": 1}]).group_by("g").agg((ma.lit(1) + ma.col("n")).sum())
+    assert rel.columns == ["g", "n"]
+
+
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+def test_unnamed_projection_requires_alias_with_operation_diagnostic(operation):
+    from mountainash.expressions.core.expression_nodes import WindowFunctionNode
+    from mountainash.expressions.core.expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW
+    from mountainash.relations.core.projection_names import ProjectionNameError
+
+    expr = ma.col("n").create(WindowFunctionNode(function_key=SUBSTRAIT_ARITHMETIC_WINDOW.PERCENT_RANK))
+    rel = ma.relation([{"n": 1}])
+    with pytest.raises(ProjectionNameError, match=f"PROJECT_{operation.upper()}.*expression 0.*PERCENT_RANK.*alias"):
+        getattr(rel, operation)(expr)
+    named = getattr(rel, operation)(expr.alias("percentile"))
+    assert named.columns == (["percentile"] if operation == "select" else ["n", "percentile"])
+
+
 class TestInferExpressionName:
     def test_field_reference(self):
         from mountainash.expressions.core.expression_nodes import FieldReferenceNode

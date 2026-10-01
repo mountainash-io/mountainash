@@ -168,6 +168,7 @@ class UnifiedRelationVisitor:
         self.backend = relation_system
         self.expr_visitor = expression_visitor
         self.ref_resolver = ref_resolver
+        self._resolved_refs_by_name: dict[str, Any] = {}
         # DAG-provided FK context (item 48 PR-D), +1 optional param
         # analogous to ref_resolver (relation-dag-orchestrator). None for a
         # standalone/frame-level compile (relation_base.py) -- apply_conform
@@ -322,12 +323,12 @@ class UnifiedRelationVisitor:
             for child in children
         ]
 
-    def _ref_output_names(self, node: RelationNode) -> set[str]:
-        """Return output names for a ref from its resolved native value."""
-        if self.ref_resolver is None:
-            return set()
+    def _ref_output_names(self, node: RelationNode) -> set[str] | None:
+        """Read already-resolved local evidence without replaying a resolver."""
+        if node.name not in self._resolved_refs_by_name:
+            return None
         try:
-            resolved = self.ref_resolver(node.name)
+            resolved = self._resolved_refs_by_name[node.name]
             if isinstance(resolved, Mapping):
                 return set(resolved)
             collect_schema = getattr(resolved, "collect_schema", None)
@@ -341,7 +342,7 @@ class UnifiedRelationVisitor:
                 return set(columns)
         except Exception:
             pass
-        return set()
+        return None
 
 
     def _prepare_transport_lineage(self, node: RelationNode, op: Any | None = None) -> None:

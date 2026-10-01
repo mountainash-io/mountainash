@@ -5,6 +5,7 @@ from enum import Enum
 from types import MappingProxyType, SimpleNamespace
 
 import pytest
+from fixtures.backend_registry import ALL_BACKENDS
 
 import mountainash as ma
 from mountainash.conform.errors import UnsupportedStructuredTransportUse
@@ -38,6 +39,62 @@ def transport_plan(name: str = "payload") -> StructuredFieldPlan:
         declaration_fingerprint="schema",
         origin_node_id="conform",
     )
+
+
+@pytest.mark.parametrize("selector,target", [("^absent$", "payload"), ("^payload$", "payload"), ("*", "*")])
+def test_selector_alias_replacement_requires_actual_output(selector, target):
+    """Polars selector expansion boundary: a zero-output alias is a no-op."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    result = relation.with_columns(ma.col(selector).alias(target)).to_polars()
+    expected = {"payload": [[1]]}
+    if target == "*":
+        expected["*"] = [[1]]
+    assert result.to_dict(as_series=False) == expected
+
+
+@pytest.mark.parametrize("selector", ["*", "^payload$"])
+@pytest.mark.parametrize("as_string", [False, True])
+def test_select_selector_carries_structured_transport(selector, as_string):
+    """Existing Polars selector lowering must retain logical terminal decoding."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    expression = selector if as_string else ma.col(selector)
+    assert relation.select(expression).to_dict() == {"payload": [[1]]}
+
+
+@pytest.mark.parametrize("operation", ["select", "with_columns"])
+@pytest.mark.parametrize("shape", ["regex-alias", "native", "selector-suffix"])
+def test_unresolved_projection_cannot_discard_transport(operation, shape):
+    """Polars native/regex selectors have no portable source mapping."""
+    import polars as pl
+
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
+        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    expression = {
+        "native": ma.native(pl.col("payload")),
+        "regex-alias": ma.col("^pay.*$").alias("payload"),
+        "selector-suffix": ma.col("^payload$").name.suffix("_copy"),
+    }[shape]
+    with pytest.raises((IncompleteProjectionSchemaError, UnsupportedStructuredTransportUse), match="projection|payload"):
+        getattr(relation, operation)(expression).to_polars()
 
 
 def node(operation_key, **attrs):
@@ -132,6 +189,116 @@ def test_native_ibis_deferred_without_structured_plan_is_ignored():
     )
 
     assert result == {}
+
+
+@pytest.mark.parametrize("raw", [False, True])
+@pytest.mark.parametrize("consumes", [False, True])
+def test_computed_overwrite_distinguishes_consumption_from_replacement(raw, consumes):
+    """Raw normalized aliases must retire stale tags but never hide consumption."""
+    expression = (ma.col("payload" if consumes else "id") + 1).alias("payload")
+    if raw:
+        expression = expression._node
+    project = ma.relation({"id": [1], "payload": ["[2]"]}).with_columns(expression)._node
+    plans = {"payload": transport_plan()}
+    if consumes:
+        with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
+            propagate_structured_plans(project, [plans], {})
+    else:
+        assert propagate_structured_plans(project, [plans], {}) == {}
+
+
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("names", [None, set(), {"id", "payload"}])
+def test_join_ref_names_distinguish_unknown_empty_and_collision(names, nested):
+    """An unresolved ref cannot license an unsuffixed carrier mapping."""
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    left = Relation(RefRelNode(name="left"))
+    if nested:
+        left = left.head(1)
+    joined = left.join(ma.relation({"id": [1], "payload": ["[2]"]}), on="id")._node
+
+    def resolve(ref):
+        assert ref.name == "left"
+        return names
+
+    # No right metadata means no collision decision is required.
+    assert propagate_structured_plans(joined, [{}, {}], {}, output_names_resolver=resolve) == {}
+    if names is None:
+        with pytest.raises(IncompleteProjectionSchemaError, match="lineage.*left"):
+            propagate_structured_plans(
+                joined, [{}, {"payload": transport_plan()}], {}, output_names_resolver=resolve,
+            )
+    else:
+        result = propagate_structured_plans(
+            joined, [{}, {"payload": transport_plan()}], {}, output_names_resolver=resolve,
+        )
+        expected = "payload_right" if names else "payload"
+        assert set(result) == {expected}
+        assert result[expected].field_name == expected
+
+
+@pytest.mark.parametrize(
+    ("how", "backend", "side", "requires_names"),
+    [
+        ("inner", "polars", "left", False),
+        ("inner", "polars", "right", True),
+        ("right", "narwhals", "left", True),
+        ("right", "narwhals", "right", False),
+        ("semi", "polars", "left", False),
+        ("anti", "polars", "left", False),
+    ],
+)
+def test_join_requests_unknown_names_only_for_the_suffixed_metadata_side(how, backend, side, requires_names):
+    """Name uncertainty on the base side matters only to metadata being suffixed."""
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+    opaque = ma.relation({"id": [1], "payload": ["[2]"]}).with_columns(ma.native(object()).alias("extra"))
+    joined = opaque.join(opaque, on="id", how=how)._node
+    inputs = [{"payload": transport_plan()} if side == "left" else {},
+              {"payload": transport_plan()} if side == "right" else {}]
+    if requires_names:
+        with pytest.raises(IncompleteProjectionSchemaError, match="output"):
+            propagate_structured_plans(joined, inputs, {}, backend=backend)
+    else:
+        result = propagate_structured_plans(joined, inputs, {}, backend=backend)
+        assert set(result) == {"payload"}
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("structured", [False, True])
+def test_opaque_left_join_requires_names_only_for_metadata(backend_name, backend_factory, structured):
+    """Opaque passthrough remains valid unless a physical carrier needs suffixing."""
+    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left_source, right_source = backend_factory.create_pair(
+        {"id": [1], "payload": ["left"]}, {"id": [1], "payload": ["[2]"]}, backend_name,
+    )
+    native = (ma.col("id") + 1).compile(left_source)
+    if backend_name.startswith("ibis"):
+        native = native.resolve(left_source)
+    left = ma.relation(left_source).with_columns(ma.native(native).alias("extra"))
+    right = ma.relation(right_source)
+    if structured:
+        right = right.conform(TypeSpec(
+            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        ))
+    # Check the actual metadata boundary: native structured backends need no
+    # carrier suffix mapping, while JSON transport does.
+    _, right_visitor = right._compile_and_execute_with_visitor()
+    if right_visitor.structured_field_plans or right_visitor.owned_residue_checks:
+        with pytest.raises(IncompleteProjectionSchemaError, match="output|projection|lineage"):
+            left.join(right, on="id").to_polars()
+    else:
+        result = left.join(right, on="id").to_polars()
+        assert result["payload"].to_list() == ["left"]
+        assert result["extra"].to_list() == [2]
+        assert result["payload_right"].to_list() == ([[2]] if structured else ["[2]"])
 
 
 @pytest.mark.parametrize(
@@ -362,6 +529,41 @@ def test_join_resolves_ref_left_output_names_for_suffix():
 
     assert result["payload"].to_list() == ["left"]
     assert result["payload_right"].to_list() == [[2]]
+
+
+def test_direct_ref_join_does_not_replay_resolution_for_lineage():
+    """Polars visitor lifecycle wiring; DAG execution separately covers adoption."""
+    import polars as pl
+
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left = ma.relation(pl.DataFrame({"id": [1], "payload": ["left"]}))
+    right = ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(
+        TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    )
+    left_value, visitor = left._compile_and_execute_with_visitor()
+    visitor = type(visitor)(visitor.backend, visitor.expr_visitor, execution_context=visitor.execution_context)
+    right_value, right_visitor = right._compile_and_execute_with_visitor()
+    calls = []
+
+    class Resolver:
+        def __call__(self, name):
+            calls.append(name)
+            return {"left": left_value, "right": right_value}[name]
+
+        def structured_plans(self, name):
+            return right_visitor.structured_field_plans if name == "right" else {}
+
+    visitor.ref_resolver = Resolver()
+    joined = Relation(RefRelNode(name="left")).join(Relation(RefRelNode(name="right")), on="id")
+    native = visitor.visit(joined._node)
+    result = joined._polars_from_compiled(native, visitor)
+    assert result["payload"].to_list() == ["left"]
+    assert result["payload_right"].to_list() == [[2]]
+    assert calls == ["left", "right"]
 
 
 def test_narwhals_right_join_tracks_original_right_as_base():

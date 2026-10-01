@@ -92,7 +92,8 @@ def test_adoption_preserves_distinct_diagnostics_and_source_owned_checks():
     assert [(r.owner_key, r.source_location) for r in captured.metadata.owned_checks] == [("root/0", a), ("root/1", b)]
 
 
-def test_join_suffix_maps_source_marker_without_changing_owner():
+@pytest.mark.parametrize("opaque", [False, True])
+def test_join_suffix_maps_source_marker_without_changing_owner(opaque):
     tokens = IdentityTokens()
     session = MetadataSession(tokens)
     source = ExecutionLocation(CONST_BACKEND.IBIS, "ibis-duckdb", ExecutionForm.DEFERRED, "bound")
@@ -110,15 +111,66 @@ def test_join_suffix_maps_source_marker_without_changing_owner():
         location=source,
         value=object(),
     )
+    left = ma.relation({"id": [1], "__ma_residue_0": [False]})
+    if opaque:
+        # AST-only metadata test: no native compilation is needed.
+        left = left.with_columns(ma.native(object()).alias("extra"))
     join = (
-        ma.relation({"id": [1], "__ma_residue_0": [False]})
+        left
         .join({"id": [1], "payload": ["[1]"], "__ma_residue_0": [True]}, on="id", suffix="_foreign")
         ._node
     )
+    if opaque:
+        from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+
+        with pytest.raises(IncompleteProjectionSchemaError, match="output|projection|lineage"):
+            propagate_owned_residue(join, [(), owner.metadata.owned_checks])
+        return
     result = propagate_owned_residue(join, [(), owner.metadata.owned_checks])
     assert result[0].check.marker == "__ma_residue_0_foreign"
     assert result[0].owner_key == "root/right"
     assert result[0].source_location is source
+
+
+@pytest.mark.parametrize("raw", [False, True])
+@pytest.mark.parametrize("output", ["__ma_residue_0", "ordinary"])
+def test_computed_marker_overwrite_preserves_pending_check(raw, output):
+    """Ordinary normalized ASTs are safe; replacing a marker loses its check."""
+    location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
+    owned = OwnedResidue(MaterializationResidueCheck(None, "payload", "__ma_residue_0"), "source", location)
+    expression = (ma.col("id") + 1).alias(output)
+    if raw:
+        expression = expression._node
+    project = ma.relation({"id": [1]}).with_columns(expression)._node
+    if output == "__ma_residue_0":
+        with pytest.raises(ValueError, match="must be checked"):
+            propagate_owned_residue(project, [(owned,)])
+    else:
+        assert propagate_owned_residue(project, [(owned,)]) == (owned,)
+
+
+@pytest.mark.parametrize("operation,expression", [
+    ("select", "*"),
+    ("select", ma.col("^__ma_residue_0$")),
+    ("with_columns", ma.col("^absent$").alias("__ma_residue_0")),
+])
+def test_selector_projection_preserves_source_owned_check(operation, expression):
+    """Metadata ownership boundary must distinguish carriage from zero replacement."""
+    location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
+    owned = OwnedResidue(MaterializationResidueCheck(None, "payload", "__ma_residue_0"), "source", location)
+    project = getattr(ma.relation({"id": [1], "__ma_residue_0": [False]}), operation)(expression)._node
+    assert propagate_owned_residue(project, [(owned,)]) == (owned,)
+
+
+def test_opaque_select_cannot_hide_pending_marker_replacement():
+    """An opaque output cannot be assumed disjoint from a carried residue marker."""
+    location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
+    owned = OwnedResidue(MaterializationResidueCheck(None, "payload", "__ma_residue_0"), "source", location)
+    project = ma.relation({"__ma_residue_0": [False]}).select(
+        "__ma_residue_0", ma.native(object()),
+    )._node
+    with pytest.raises(ValueError, match="Pending residue marker.*must be checked"):
+        propagate_owned_residue(project, [(owned,)])
 
 
 def test_capture_uses_output_check_after_rename_not_stale_local_marker():
@@ -399,7 +451,8 @@ def test_adopt_keeps_child_resource_dependencies_without_releasing_them():
 
 
 @pytest.mark.parametrize("backend_name", list(REGISTRY))
-def test_two_child_structured_origins_survive_join_adoption(backend_name, backend_factory):
+@pytest.mark.parametrize("refs", [False, True])
+def test_two_child_structured_origins_survive_join_adoption(backend_name, backend_factory, refs):
     """Metadata plumbing only: Task 6 wires contextual join compilation."""
     from mountainash.core.backend_detection import identify_backend
     from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
@@ -415,13 +468,13 @@ def test_two_child_structured_origins_survive_join_adoption(backend_name, backen
         {"id": [1], "payload": ["[2]"]},
         backend_name,
     )
-    first = ma.relation(left).conform(spec)
+    first = ma.relation(left) if refs else ma.relation(left).conform(spec)
     second = ma.relation(right).conform(spec)
     session = MetadataSession(IdentityTokens())
     children = []
     native_children = []
     for index, rel in enumerate((first, second)):
-        frame = rel._node.input.dataframe
+        frame = left if index == 0 else right
         family = identify_backend(frame)
         context = _new_execution_context(frame, family_override=family, policy=CapabilityPolicy.trusted())
         system = get_expression_system(family)(execution_context=context)
@@ -442,7 +495,18 @@ def test_two_child_structured_origins_survive_join_adoption(backend_name, backen
         execution_context=context,
         metadata_session=session,
     )
-    joined = first.join(second, on="id", suffix="_right")._node
+    if refs:
+        from mountainash.relations.core.relation_api.relation import Relation
+        from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+        joined = Relation(RefRelNode(name="left")).join(Relation(RefRelNode(name="right")), on="id")._node
+
+        def no_replay(name):
+            raise AssertionError(f"adopted ref {name!r} was resolved again")
+
+        parent.ref_resolver = no_replay
+    else:
+        joined = first.join(second, on="id", suffix="_right")._node
     session.adopt(parent, joined.left, children[0])
     session.adopt(parent, joined.right, children[1])
     op = RelationOperationRegistry.get(joined.operation_key)
@@ -459,7 +523,8 @@ def test_two_child_structured_origins_survive_join_adoption(backend_name, backen
     assert ma.relation(native_join).to_dicts() == [{"id": 1, "payload": "[1]", "payload_right": "[2]"}]
     parent._complete_transport_lineage(joined, op)
     merged = parent.structured_field_plans
-    assert set(merged) == {"payload", "payload_right"}
-    assert merged["payload"].origin_node_id != merged["payload_right"].origin_node_id
-    assert merged["payload"].origin_node_id == session.conform_id(joined.left)
-    assert merged["payload_right"].origin_node_id == session.conform_id(joined.right)
+    assert set(merged) == ({"payload_right"} if refs else {"payload", "payload_right"})
+    if not refs:
+        assert merged["payload"].origin_node_id != merged["payload_right"].origin_node_id
+        assert merged["payload"].origin_node_id == session.conform_id(first._node)
+    assert merged["payload_right"].origin_node_id == session.conform_id(second._node)

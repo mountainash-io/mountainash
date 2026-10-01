@@ -17,6 +17,7 @@ from typing import Callable, Dict, List, Optional, TYPE_CHECKING, get_type_hints
 import inspect
 
 from mountainash.core.dtypes.metadata import FixedResultType, PreserveResultType
+from .output_rules import ProjectionRule
 
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     SubstraitExtension,
@@ -73,6 +74,8 @@ class ExpressionFunctionDef:
         options: List of valid option names for this function
         protocol: Protocol class that defines the method signature (for introspection)
         protocol_method_name: Method name on the protocol (may differ from backend_method)
+        projection_rule: Optional projection naming/cardinality declaration; does
+            not affect standalone compilation or grouped aggregation.
     """
 
     function_key: Enum
@@ -86,8 +89,13 @@ class ExpressionFunctionDef:
     protocol_method: Optional[Callable] = None
     result_type: FixedResultType | PreserveResultType | None = None
     type_arguments: tuple[str, ...] = field(default_factory=tuple)
+    projection_rule: ProjectionRule | None = None
 
     def __post_init__(self) -> None:
+        if self.projection_rule is not None and not isinstance(
+            self.projection_rule, ProjectionRule
+        ):
+            raise TypeError("projection_rule must be ProjectionRule or None")
         if self.result_type is not None and not isinstance(
             self.result_type, (FixedResultType, PreserveResultType)
         ):

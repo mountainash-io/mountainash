@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — 2026-10-01
+
+### Changed
+- Relation `select` and `with_columns` now assign backend-independent names to resolvable single-output Mountainash expressions. On Ibis, `.with_columns(ma.col("n").fill_null(0))` replaces `n` instead of adding a generated `Coalesce(...)` column; use `.alias("filled_n")` to add a column while retaining `n`.
+- Membership projections inherit the needle's name: `.with_columns(ma.col("n").is_in([2, 4]))` now replaces `n` rather than adding the historical `literal` output. Use `.alias("is_member")` for a separate result.
+- Duplicate resolved projection outputs raise a build-time `ValueError`, including on Narwhals-pandas, which previously retained the last expression. Incomplete projection schemas now raise explicitly, and metadata lineage fails when output names cannot be mapped safely. Native aliases do not prove single-output cardinality.
+- See [Projection output names and migration](docs/guides/projection-naming.md) for requires-alias operations and compatibility boundaries. Standalone compilation, grouped aggregation naming, selector support and literal-only select row counts are unchanged; no backend parity is claimed for empty-name materialization.
+
 ## Unreleased — 2026-09-29
 
 ### Changed
