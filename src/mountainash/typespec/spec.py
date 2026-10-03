@@ -190,6 +190,25 @@ class TypeSpec:
     """Schema definition for a dataset (Frictionless Table Schema representation).
 
     Replaces the old TableSchema with additional features.
+
+    ``fields_match`` sets how conform treats columns that differ from the
+    declared fields. For an *undeclared* (extra) column:
+
+    - ``exact``, ``equal``, ``superset``: rejected (conform raises).
+    - ``subset``, ``partial``: silently dropped.
+    - ``open``: retained.
+
+    ``exact`` also rejects reordered fields; ``equal`` accepts them. ``equal``
+    and ``subset`` reject a missing declared field; ``superset``, ``partial``
+    and ``open`` tolerate one. ``exact`` is the default and is never weakened
+    implicitly. Combine ``open`` with
+    ``contract={"missing_columns": "freeze"}`` to keep extras but still fail on
+    a missing declared field.
+
+    A validation rule that reads a *support* column (one outside the contract,
+    e.g. a freshness rule reading ``extract_date``) needs that column to survive
+    conform: either declare it as a field, or use ``open``. Under ``subset`` or
+    ``partial`` the column is dropped and the rule reports an error.
     """
 
     fields: List[FieldSpec] = field(default_factory=list)
