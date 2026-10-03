@@ -333,7 +333,23 @@ class Relation(RelationBase):
             else:
                 validate_contract_dict(contract)
         from ..relation_nodes.extensions_mountainash.reln_ext_conform import ConformRelNode
-        return self._make(ConformRelNode(input=self._node, spec=spec, contract=contract, apply_value_transforms=apply_value_transforms))
+        from copy import deepcopy
+
+        # Own the declarations: later edits to the caller's spec/override must
+        # not change this relation. Mapping proxies reject deepcopy, so a
+        # supplied override is normalised to a dict first.
+        contract_value = (
+            contract if contract is None or isinstance(contract, str) else dict(contract)
+        )
+        owned_spec, owned_contract = deepcopy((spec, contract_value))
+        return self._make(
+            ConformRelNode(
+                input=self._node,
+                spec=owned_spec,
+                contract=owned_contract,
+                apply_value_transforms=apply_value_transforms,
+            )
+        )
 
     # --- Sorting ---
 
