@@ -73,6 +73,18 @@ class OrdersContract(ma.datacontract(spec)):
 
 Rules are mountainash expressions, so they compile to whichever backend you're validating against. The same rule that runs as a Polars filter in dev runs as a SQL `WHERE` clause in your warehouse.
 
+## Declarations are acquired once
+
+A `Validator` reads its contract's schema, checks (including anything a custom `to_checks()` returns, in the returned order), natural key, `Config.coerce` and contract name when it is constructed. Edits to the contract afterwards, including edits made inside `prepare`, affect only Validators constructed later:
+
+```python
+old = Validator(name="orders", contract=Contract)
+Contract.Config.coerce = False
+new = Validator(name="orders", contract=Contract)   # sees coerce=False
+```
+
+Errors raised while building the contract's checks surface at construction. Registry rules, `prepare` callbacks and per-call `context` are not part of the acquired declaration: they keep resolving on every `validate()` call, and duplicate check ids across contract checks and registry rules are still rejected before `prepare` runs.
+
 ## What you get back
 
 A validation result that names the violating column, the rule, and (where the backend supports it) the offending rows. The exact shape of the report is one of the surfaces still being settled in the alpha — the contract API works, but the failure-reporting structure is likely to change before 1.0.

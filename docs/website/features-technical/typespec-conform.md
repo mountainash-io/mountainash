@@ -57,7 +57,7 @@ spec.to_frictionless()                               # Frictionless dict
 ma.relation(df).conform(spec).to_polars()
 ```
 
-It compiles to a `ProjectRelNode` whose expressions are derived from the TypeSpec fields:
+Building the relation does not read data. It adds a deferred `ConformRelNode`; at execution the backend derives its operations from the TypeSpec fields:
 
 - **Missing column?** Add it as `null` (or as `spec.field.constraints.default` if set).
 - **Type mismatch?** Cast to the spec'd type.
@@ -66,6 +66,19 @@ It compiles to a `ProjectRelNode` whose expressions are derived from the TypeSpe
 - **Null handling?** If a field has `null_fill`, fill with it.
 
 The result is a frame whose schema matches the spec, ready for downstream work.
+
+### The relation owns its declaration
+
+`conform()` copies the spec (and any `contract=` override) when the relation is built. Editing the spec afterwards changes only relations built after the edit:
+
+```python
+old = ma.relation(df).conform(spec)
+spec.fields[0].type = UniversalType.STRING
+new = ma.relation(df).conform(spec)   # uses the edited declaration
+# `old` still conforms to the original type, on every execution
+```
+
+Build a new relation to pick up an edited declaration; there is no live-reference mode.
 
 ### Why this matters
 

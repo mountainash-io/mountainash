@@ -355,11 +355,11 @@ def test_validator_owns_custom_check_sequence(backend_name, backend_factory):
     new = Validator(name="new", contract=Contract)
     data = backend_factory.create({"value": [7]}, backend_name)
     for _ in range(2):
-        result = old.validate(data, row_identity="row_number")
+        result = old.validate(data, row_identity="none")
         assert result.check_summaries["check_id"].to_list() == ["under_five", "positive"]
         assert result.check_summaries["status"].to_list() == ["failed", "passed"]
         assert not result.passes
-    assert new.validate(data, row_identity="row_number").passes
+    assert new.validate(data, row_identity="none").passes
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -380,11 +380,11 @@ def test_validator_honours_hook_that_removes_reorders_and_appends(
 
     validator = Validator(name="hook", contract=Contract)
     data = backend_factory.create({"value": [7]}, backend_name)
-    full = validator.validate(data, row_identity="row_number")
+    full = validator.validate(data, row_identity="none")
     ids = full.check_summaries["check_id"].to_list()
     assert ids[0] == "custom_fail"
     assert "value_type_format" not in ids
-    quick = validator.validate_quick(data, row_identity="row_number")
+    quick = validator.validate_quick(data, row_identity="none")
     statuses = dict(
         zip(quick.check_summaries["check_id"], quick.check_summaries["status"])
     )
@@ -411,10 +411,10 @@ def test_prepare_cannot_change_acquired_schema(backend_name, backend_factory):
 
     data = backend_factory.create({"value": ["7"]}, backend_name)
     old = Validator(name="old", contract=Contract, prepare=prepare)
-    assert old.validate(data, row_identity="row_number").passes
+    assert old.validate(data, row_identity="none").passes
     # the edit made during prepare reaches only a newly built consumer
     assert spec.fields[0].type == UniversalType.STRING
-    assert old.validate(data, row_identity="row_number").passes
+    assert old.validate(data, row_identity="none").passes
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -435,8 +435,8 @@ def test_config_coerce_edit_does_not_reach_existing_validator(
     Contract.Config.coerce = False
     new = Validator(name="new", contract=Contract)
     data = backend_factory.create({"value": ["7"]}, backend_name)
-    assert old.validate(data, row_identity="row_number").passes
-    assert not new.validate(data, row_identity="row_number").passes
+    assert old.validate(data, row_identity="none").passes
+    assert not new.validate(data, row_identity="none").passes
 
 
 def test_config_name_edit_reaches_only_new_validator():
