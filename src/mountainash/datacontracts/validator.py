@@ -6,6 +6,7 @@ result shapes by construction (spec §6.5, item 18 subsumed).
 from __future__ import annotations
 
 import inspect
+from copy import deepcopy
 import random
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -15,6 +16,7 @@ from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.validation.checks import classify
 from mountainash.validation.errors import CheckDeclarationError
 from mountainash.validation.identity import resolve_identity
+from mountainash.validation.plan import _freeze_check
 from mountainash.validation.result import (
     CheckSummary,
     ValidationResult,
@@ -28,7 +30,21 @@ if TYPE_CHECKING:
 
 
 class Validator:
-    """Unified validation orchestrator binding contract + rules + data."""
+    """Unified validation orchestrator binding contract + rules + data.
+
+    The contract's schema, checks, natural key, ``Config.coerce`` and name are
+    acquired at construction; later edits to the contract affect only Validators
+    built afterwards.
+
+    Input is conformed to the contract's TypeSpec before any check runs, so a
+    column read by a rule but absent from the contract (a support column) is
+    rejected under the default ``fields_match="exact"``. Declare the column in
+    the contract, or set ``fields_match="open"`` on its TypeSpec to retain it
+    (see :class:`~mountainash.typespec.spec.TypeSpec` for all six modes). A rule
+    that cannot run reports an ``error`` summary with unavailable counts and
+    other checks still execute; a shared conform failure is distinct from a
+    rule-local failure.
+    """
 
     def __init__(
         self,
@@ -44,6 +60,19 @@ class Validator:
         self.rules = rules
         self.natural_key = natural_key
         self.prepare = prepare
+
+        # Acquire the contract's declarations once. Later edits to the
+        # authoring contract affect only Validators constructed afterwards.
+        # Callbacks, registries and the contract class itself are not copied.
+        self._contract_spec = deepcopy(contract.to_typespec())
+        self._contract_checks = tuple(
+            _freeze_check(check) for check in contract.to_checks()
+        )
+        self._contract_natural_key = deepcopy(
+            natural_key or getattr(contract.Config, "natural_key", None)
+        )
+        self._contract_coerce = bool(getattr(contract.Config, "coerce", True))
+        self._contract_name = contract.contract_name()
 
     # -- pipeline pieces ------------------------------------------------------
 
@@ -150,13 +179,14 @@ class Validator:
         # --- declaration phase (spec §9.4): strictly BEFORE any data is
         # touched — a bad gate, predicate, as_of, contextual builder, or
         # duplicate id must surface before prepare's side effects run
-        spec = self.contract.to_typespec()
-        natural_key = self.natural_key or getattr(self.contract.Config, "natural_key", None)
+        spec = self._contract_spec
         identity = resolve_identity(
-            natural_key=natural_key, spec=spec, row_identity=row_identity
+            natural_key=self._contract_natural_key,
+            spec=spec,
+            row_identity=row_identity,
         )
 
-        checks: list[Any] = list(self.contract.to_checks())
+        checks: list[Any] = list(self._contract_checks)
         skipped: list[CheckSummary] = []
         if self.rules is not None:
             resolved = self.rules.resolve_detailed(context=context)
@@ -196,7 +226,7 @@ class Validator:
 
         rel = rel.conform(
             spec,
-            apply_value_transforms=bool(getattr(self.contract.Config, "coerce", True)),
+            apply_value_transforms=self._contract_coerce,
         )
 
         result = ValidationRunner().validate_relation(
@@ -208,7 +238,7 @@ class Validator:
             fail_fast=fail_fast,
             failure_sample=failure_sample,
             validator_name=self.name,
-            datacontract_name=self.contract.contract_name(),
+            datacontract_name=self._contract_name,
         )
         if slice_diagnostics:
             result.diagnostics.update(slice_diagnostics)

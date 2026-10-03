@@ -80,7 +80,6 @@ def test_conform_spec_untouched_by_contract_kwarg():
     """contract= is stored on the node, not written back onto spec."""
     spec = _spec()
     r = ma.relation({"a": [1]}).conform(spec, contract={"data_type": "freeze"})
-    assert r._node.spec is spec
     assert spec.contract is None
 
 

@@ -3,6 +3,7 @@
 ## Unreleased — 2026-10-01
 
 ### Changed
+- `Relation.conform()` and `Validator` now own the declarations they acquire. Editing a TypeSpec, contract override, contract `Config` or contract class after building a conform relation or `Validator` no longer changes that consumer; construct a new one to use the edit. Compiled validation checks isolate expression argument, option, conditional and window containers while native values and callbacks stay uncopied. Errors from a contract's `to_typespec()`/`to_checks()` now surface when the `Validator` is constructed.
 - Grouped and global aggregates now enforce backend-independent scalar names for keys and measures, including direct AST and DAG plans. Nested aliases and name transformations are retained; literal-first reductions use `literal`. Ibis-generated names are replaced; use explicit aliases to retain a chosen historical name.
 - Aggregate keys and measures share one collision namespace. Repeated reducers of one column and key/measure collisions require distinct aliases. Complete aggregate schemas raise when native/selector output names or cardinality are unavailable, without gating otherwise supported metadata-free collection.
 - Aggregate key types follow ordinary source fields through name-only wrappers rather than matching the output name to an unrelated source column. Computed keys and measures remain `UNKNOWN`.

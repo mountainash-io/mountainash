@@ -617,3 +617,70 @@ class TestRelationConformOpenStructAccess:
         assert "id" in result.columns
         assert "strain" in result.columns
         assert "score" in result.columns
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestConformOwnsDeclarations:
+    """A conform relation keeps the declaration it was built with."""
+
+    def _check(
+        self, rel, expected_cols=None, expected=None, column="value", schema_parity=True
+    ):
+        for _ in range(2):
+            out = rel.to_polars()
+            if expected is not None:
+                assert out[column].to_list() == expected
+            if expected_cols is not None:
+                assert list(out.columns) == expected_cols
+            if schema_parity:
+                assert list(rel.schema) == list(out.columns)
+
+    def test_owns_declared_type(self, backend_name, backend_factory):
+        data = backend_factory.create({"value": ["7"]}, backend_name)
+        spec = TypeSpec(fields=[FieldSpec(name="value", type=UniversalType.INTEGER)])
+        old = ma.relation(data).conform(spec)
+        spec.fields[0].type = UniversalType.STRING
+        new = ma.relation(data).conform(spec)
+        self._check(old, expected=[7])
+        self._check(new, expected=["7"])
+
+    def test_owns_raw_mapping_schema(self, backend_name, backend_factory):
+        data = backend_factory.create({"value": ["7"]}, backend_name)
+        spec = {"fields": [{"name": "value", "type": "integer"}]}
+        old = ma.relation(data).conform(spec)
+        spec["fields"][0]["type"] = "string"
+        new = ma.relation(data).conform(spec)
+        self._check(old, expected=[7])
+        self._check(new, expected=["7"])
+
+    def test_owns_missing_values(self, backend_name, backend_factory):
+        data = backend_factory.create({"value": ["NA"]}, backend_name)
+        spec = TypeSpec(
+            fields=[FieldSpec(name="value", type=UniversalType.STRING, missing_values=[""])]
+        )
+        old = ma.relation(data).conform(spec)
+        spec.fields[0].missing_values.append("NA")
+        new = ma.relation(data).conform(spec)
+        self._check(old, expected=["NA"])
+        self._check(new, expected=[None])
+
+    @pytest.mark.parametrize("as_proxy", [False, True])
+    def test_owns_contract_override(self, backend_name, backend_factory, as_proxy):
+        from types import MappingProxyType
+
+        data = backend_factory.create(
+            {"value": [1], "support": [2]}, backend_name
+        )
+        spec = TypeSpec(
+            fields_match="open",
+            fields=[FieldSpec(name="value", type=UniversalType.INTEGER)],
+        )
+        override = {"extra_columns": "discard"}
+        arg = MappingProxyType(override) if as_proxy else override
+        old = ma.relation(data).conform(spec, contract=arg)
+        override["extra_columns"] = "evolve"
+        new = ma.relation(data).conform(spec, contract=arg)
+        # schema inference keeps unmapped columns under an extra_columns=discard
+        # override while execution drops them (separate defect, not ownership).
+        self._check(old, expected_cols=["value"], schema_parity=False)
+        self._check(new, expected_cols=["value", "support"])

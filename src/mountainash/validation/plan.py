@@ -88,6 +88,74 @@ def _foreign_key_declaration_key(
 ) -> bytes:
     return declaration_fingerprint((child_fields, parent_resource, parent_fields)).encode()
 
+def _copy_expression_value(value: Any, memo: dict[int, Any]) -> Any:
+    """Copy Mountainash expression declaration structure, keeping opaque leaves.
+
+    Only AST nodes, window declarations, sort fields and the plain containers
+    holding them are rebuilt. Native literal values, callbacks, dtypes, enums
+    and other leaves are retained without inspection.
+    """
+    from mountainash.core.constants import SortField
+    from mountainash.expressions.core.expression_api.api_base import BaseExpressionAPI
+    from mountainash.expressions.core.expression_nodes import ExpressionNode
+    from mountainash.expressions.core.expression_nodes.substrait.exn_literal import (
+        LiteralNode,
+    )
+    from mountainash.expressions.core.expression_nodes.substrait.exn_window_spec import (
+        WindowBound,
+        WindowSpec,
+    )
+
+    key = id(value)
+    if key in memo:
+        return memo[key]
+
+    if isinstance(value, BaseExpressionAPI):
+        copied: Any = type(value).create(_copy_expression_value(value._node, memo))
+    elif isinstance(value, (ExpressionNode, WindowSpec, WindowBound)):
+        # Native literal payloads are opaque; diagnostic_context is already an
+        # immutable mapping.
+        skip = {"diagnostic_context"}
+        if isinstance(value, LiteralNode) and value.is_native:
+            skip.add("value")
+        update = {
+            name: _copy_expression_value(getattr(value, name), memo)
+            for name in type(value).model_fields
+            if name not in skip
+        }
+        copied = value.model_copy(update=update)
+    elif isinstance(value, SortField):
+        copied = replace(
+            value,
+            **{
+                item.name: _copy_expression_value(getattr(value, item.name), memo)
+                for item in fields(value)
+            },
+        )
+    elif type(value) is dict:
+        copied = {}
+        memo[key] = copied
+        for name, item in value.items():
+            copied[name] = _copy_expression_value(item, memo)
+    elif isinstance(value, MappingProxyType):
+        copied = MappingProxyType(
+            {name: _copy_expression_value(item, memo) for name, item in value.items()}
+        )
+    elif type(value) is list:
+        copied = []
+        memo[key] = copied
+        copied.extend(_copy_expression_value(item, memo) for item in value)
+    elif type(value) is tuple:
+        copied = tuple(_copy_expression_value(item, memo) for item in value)
+    elif type(value) in (set, frozenset):
+        copied = type(value)(_copy_expression_value(item, memo) for item in value)
+    else:
+        return value
+
+    memo[key] = copied
+    return copied
+
+
 def _freeze_check(check: Any) -> Any:
     """Copy check declarations into the immutable compiled-plan snapshot."""
     if not is_dataclass(check) or isinstance(check, type):
@@ -97,6 +165,8 @@ def _freeze_check(check: Any) -> Any:
         for item in fields(check)
         if item.name not in {"expr", "plan", "validator"}
     }
+    if hasattr(check, "expr"):
+        replacements["expr"] = _copy_expression_value(check.expr, {})
     return replace(check, **replacements)
 
 
