@@ -319,3 +319,198 @@ class TestSeededSlice:
                 if summary["total_rows"] is not None
             ]
             assert any(total > 0 for total in totals) or "sample_fallback" in result.diagnostics
+
+
+# --- Declaration ownership (item 137) ---------------------------------------
+
+from fixtures.backend_registry import ALL_BACKENDS  # noqa: E402
+from mountainash.typespec.spec import FieldSpec, TypeSpec  # noqa: E402
+from mountainash.typespec.universal_types import UniversalType  # noqa: E402
+from mountainash.validation.checks import RowRule  # noqa: E402
+
+
+def _int_spec(type_=UniversalType.INTEGER):
+    return TypeSpec(fields=[FieldSpec(name="value", type=type_)])
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_validator_owns_custom_check_sequence(backend_name, backend_factory):
+    spec = _int_spec()
+    declared = [
+        RowRule(id="under_five", expr=ma.col("value").lt(5)),
+        RowRule(id="positive", expr=ma.col("value").gt(0)),
+    ]
+
+    class Contract(BaseDataContract):
+        @classmethod
+        def to_typespec(cls):
+            return spec
+
+        @classmethod
+        def to_checks(cls):
+            return list(declared)
+
+    old = Validator(name="old", contract=Contract)
+    declared[:] = [declared[1]]
+    new = Validator(name="new", contract=Contract)
+    data = backend_factory.create({"value": [7]}, backend_name)
+    for _ in range(2):
+        result = old.validate(data, row_identity="row_number")
+        assert result.check_summaries["check_id"].to_list() == ["under_five", "positive"]
+        assert result.check_summaries["status"].to_list() == ["failed", "passed"]
+        assert not result.passes
+    assert new.validate(data, row_identity="row_number").passes
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_validator_honours_hook_that_removes_reorders_and_appends(
+    backend_name, backend_factory
+):
+    class Contract(BaseDataContract):
+        value: int = Field(ge=0)
+
+        @classmethod
+        def to_checks(cls):
+            native = super().to_checks()
+            kept = [c for c in native if not c.id.endswith("_type_format")]
+            return [
+                RowRule(id="custom_fail", expr=ma.col("value").lt(5)),
+                *reversed(kept),
+            ]
+
+    validator = Validator(name="hook", contract=Contract)
+    data = backend_factory.create({"value": [7]}, backend_name)
+    full = validator.validate(data, row_identity="row_number")
+    ids = full.check_summaries["check_id"].to_list()
+    assert ids[0] == "custom_fail"
+    assert "value_type_format" not in ids
+    quick = validator.validate_quick(data, row_identity="row_number")
+    statuses = dict(
+        zip(quick.check_summaries["check_id"], quick.check_summaries["status"])
+    )
+    assert statuses["custom_fail"] == "failed"
+    assert not quick.passes
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_prepare_cannot_change_acquired_schema(backend_name, backend_factory):
+    spec = _int_spec()
+
+    class Contract(BaseDataContract):
+        @classmethod
+        def to_typespec(cls):
+            return spec
+
+        @classmethod
+        def to_checks(cls):
+            return [RowRule(id="is_seven", expr=ma.col("value").eq(7))]
+
+    def prepare(data):
+        spec.fields[0].type = UniversalType.STRING
+        return data
+
+    data = backend_factory.create({"value": ["7"]}, backend_name)
+    old = Validator(name="old", contract=Contract, prepare=prepare)
+    assert old.validate(data, row_identity="row_number").passes
+    # the edit made during prepare reaches only a newly built consumer
+    assert spec.fields[0].type == UniversalType.STRING
+    assert old.validate(data, row_identity="row_number").passes
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_config_coerce_edit_does_not_reach_existing_validator(
+    backend_name, backend_factory
+):
+    spec = _int_spec()
+
+    class Contract(BaseDataContract):
+        class Config(BaseDataContract.Config):
+            coerce = True
+
+        @classmethod
+        def to_typespec(cls):
+            return spec
+
+    old = Validator(name="old", contract=Contract)
+    Contract.Config.coerce = False
+    new = Validator(name="new", contract=Contract)
+    data = backend_factory.create({"value": ["7"]}, backend_name)
+    assert old.validate(data, row_identity="row_number").passes
+    assert not new.validate(data, row_identity="row_number").passes
+
+
+def test_config_name_edit_reaches_only_new_validator():
+    class Contract(BaseDataContract):
+        value: int
+
+        class Config(BaseDataContract.Config):
+            name = "first"
+
+    old = Validator(name="v", contract=Contract)
+    Contract.Config.name = "second"
+    new = Validator(name="v", contract=Contract)
+    frame = pl.DataFrame({"value": [1]})
+    assert old.validate(frame).datacontract_name == "first"
+    assert new.validate(frame).datacontract_name == "second"
+
+
+def test_natural_key_edits_reach_only_new_validators():
+    class Contract(BaseDataContract):
+        id: int
+        other: int
+
+        class Config(BaseDataContract.Config):
+            natural_key = ["id"]
+
+    explicit = ["other"]
+    old_config = Validator(name="c", contract=Contract)
+    old_explicit = Validator(name="e", contract=Contract, natural_key=explicit)
+    Contract.Config.natural_key.append("other")
+    explicit[:] = ["id"]
+    new_config = Validator(name="c2", contract=Contract)
+    frame = pl.DataFrame({"id": [1, 2], "other": [5, 6]})
+    assert old_config.validate(frame).identity.key_fields == ("id",)
+    assert old_explicit.validate(frame).identity.key_fields == ("other",)
+    assert new_config.validate(frame).identity.key_fields == ("id", "other")
+    empty = Validator(name="empty", contract=Contract, natural_key=[])
+    assert empty.validate(frame).identity.key_fields == ("id", "other")
+
+
+def test_contextual_threshold_stays_per_call():
+    class NoCopy:
+        def __deepcopy__(self, memo):
+            raise AssertionError("callbacks must not be copied")
+
+        def __call__(self, data, context=None):
+            return data
+
+    class Contract(BaseDataContract):
+        value: int
+
+    validator = Validator(name="ctx", contract=Contract, prepare=NoCopy())
+    assert validator.validate(pl.DataFrame({"value": [1]}), context={"t": 10}).passes
+    assert validator.validate(pl.DataFrame({"value": [1]}), context={"t": 5}).passes
+
+
+def test_duplicate_check_id_surfaces_before_prepare_runs():
+    from mountainash.validation.errors import CheckDeclarationError
+
+    calls: list[str] = []
+
+    class Contract(BaseDataContract):
+        value: int
+
+        @classmethod
+        def to_checks(cls):
+            return [RowRule(id="dup", expr=ma.col("value").gt(0))]
+
+    registry = RuleRegistry([Rule("dup", expr=ma.col("value").gt(0))])
+    validator = Validator(
+        name="d",
+        contract=Contract,
+        rules=registry,
+        prepare=lambda data: calls.append("prepared") or data,
+    )
+    with pytest.raises(CheckDeclarationError):
+        validator.validate(pl.DataFrame({"value": [1]}))
+    assert calls == []
