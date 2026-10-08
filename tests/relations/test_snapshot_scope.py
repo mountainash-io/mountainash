@@ -111,6 +111,9 @@ def test_detach_reaches_two_copies_through_union(backend_name):
             scope.detach(bundle)
         with pytest.raises(ValueError):
             scope.detach(rel)
+        with ma.materialization_scope() as other:
+            with pytest.raises(ValueError):
+                other.detach(scope.snapshot(rel))
     assert bundle.to_dicts() == [{"x": 7}, {"x": 7}]
 
 
@@ -173,11 +176,12 @@ def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(bac
         patch.setattr(Relation, "_compile_and_execute_with_visitor", observe)
         if batch:
             with ma.materialization_scope() as scope:
-                saved, sibling = scope.capture(rel, rel.select("id"))
+                saved, independent = scope.capture(rel, rel)
                 saved = scope.detach(saved)
-            del sibling
+                independent = scope.detach(independent)
         else:
             saved = rel.snapshot()
+            independent = rel.snapshot()
     del rel, source
     gc.collect()
     assert all(ref() is None for ref in refs)
@@ -193,6 +197,9 @@ def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(bac
     assert ma.concat([saved, again]).to_dicts() == [
         {"id": 1, "payload": [1, 2]}, {"id": 1, "payload": [1, 2]},
     ]
+    # Both compilers allocate conform:0, but their origins must stay distinct.
+    with pytest.raises(UnsupportedStructuredTransportUse):
+        ma.concat([saved, independent]).compile()
 
 
 @pytest.mark.parametrize("state", [True, None])
@@ -585,3 +592,28 @@ def test_capture_failed_rollback_keeps_pending_ownership(connection, monkeypatch
     with adopt_connection(connection) as backend:
         with owned_transaction(backend):
             assert not set(attempted) & set(backend.list_tables())
+
+
+def test_scope_close_during_caller_transaction_invalidates_before_cleanup(connection):
+    from mountainash_data import IbisBackend
+    from mountainash.relations.core.owned_copy import drain_pending_drops
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.create_table("close_source", ibis.memtable({"x": [7]}), temp=True)
+            source = backend.table("close_source")
+    owner = IbisBackend.from_ibis_connection(connection, dialect=connection.name, owns_connection=False)
+    try:
+        with ma.materialization_scope() as scope:
+            saved = scope.snapshot(ma.relation(source))
+            name = saved.compile().op().name
+            with owner.transaction():
+                scope.close()
+                with pytest.raises(MaterializationScopeClosedError):
+                    saved.to_dicts()
+                assert owner.native_transaction_open() is True
+                assert name in owner.list_tables()
+        drain_pending_drops(connection)
+        with owner.transaction():
+            assert name not in owner.list_tables()
+    finally:
+        owner.close()
