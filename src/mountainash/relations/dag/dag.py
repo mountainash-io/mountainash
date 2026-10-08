@@ -389,6 +389,8 @@ class RelationDAG:
             identity_resolver=session._canonical_node,
             execution_context=execution_context,
         )
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
         if phase is ExecutionPhase.EXPLAIN:
             from mountainash.relations.core.execution.preparation import render_execution
 

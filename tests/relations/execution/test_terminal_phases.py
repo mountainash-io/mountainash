@@ -131,6 +131,10 @@ def test_source_marker_is_checked_before_projection_drops_it(year, raises, targe
             monkeypatch.setattr(type(frame), "to_pyarrow", forbidden)
             with pytest.raises(CompileRequiresExecutionError, match="collect"):
                 rel.compile()
+            with pytest.raises(BackendCapabilityError) as copy_refusal:
+                rel.snapshot()
+            if not targeted_join:
+                assert isinstance(copy_refusal.value.__cause__, CompileRequiresExecutionError)
             monkeypatch.setattr(type(frame), "to_pyarrow", original_export)
             if raises:
                 with pytest.raises(BackendCapabilityError) as caught:

@@ -64,6 +64,8 @@ class RelationBase:
         prepared = prepare_execution(
             node, phase=phase, backend=backend, execution_context=execution_context,
         )
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
         session = CompilationSession(prepared)
         try:
             envelope, visitor = session.compile(prepared.root_key)

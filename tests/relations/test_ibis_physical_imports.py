@@ -33,6 +33,18 @@ def test_missing_physical_dependency_is_lazy_and_actionable():
         assert ma.relation(copy.value).to_dicts() == [{"x": 7}]
         copy.release()
         assert name not in connection.list_tables()
+        with ma.materialization_scope() as scope:
+            escaped = scope.snapshot(
+                ma.relation(connection.create_table("second", pl.DataFrame({"x": [8]})))
+            )
+            assert escaped.item("x") == 8
+        from mountainash.relations.core.errors import MaterializationScopeClosedError
+        try:
+            escaped.collect()
+        except MaterializationScopeClosedError:
+            pass
+        else:
+            raise AssertionError("closed in-process scope remained readable")
         connection.disconnect()
         assert "mountainash_data" not in sys.modules
         from mountainash.core.lazy_imports import import_mountainash_data

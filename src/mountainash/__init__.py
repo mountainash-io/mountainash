@@ -71,6 +71,7 @@ __getattr__, _lazy_dir, _LAZY_EXPORTS = lazy_loader.attach(
         "pydata.ingress": ["PydataIngress"],
         "relations": ["concat", "relation"],
         "relations.dag": ["RelationDAG"],
+        "relations.core.relation_api.materialization_scope": ["materialization_scope", "CheckpointPolicy"],
     },
 )
 
@@ -213,6 +214,8 @@ __all__ = [
     "concat",
     "relation",
     "RelationDAG",
+    "materialization_scope",
+    "CheckpointPolicy",
 ]
 
 

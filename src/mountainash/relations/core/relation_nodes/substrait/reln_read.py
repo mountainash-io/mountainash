@@ -6,6 +6,7 @@ Corresponds to Substrait's ReadRel message.
 from __future__ import annotations
 from enum import Enum
 from typing import Any, ClassVar, Optional
+from mountainash.conform.structured_transport import StructuredFieldPlan
 
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_SUBSTRAIT_REL,
@@ -27,3 +28,4 @@ class ReadRelNode(RelationNode):
     _operation_key: ClassVar[Optional[Enum]] = RKEY_SUBSTRAIT_REL.READ
 
     dataframe: Any
+    structured_field_plans: tuple[StructuredFieldPlan, ...] = ()

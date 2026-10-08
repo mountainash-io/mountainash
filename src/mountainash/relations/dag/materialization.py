@@ -341,6 +341,8 @@ class DAGMaterializationSession:
                     identity_resolver=self._canonical_node,
                     tokens=tokens, binding=destination if connectionless else None,
                 )
+                from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+                assert_prepared_owned_open(prepared)
                 if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
                     from mountainash.relations.core.owned_copy import require_copy_idle
 
@@ -490,6 +492,8 @@ class DAGMaterializationSession:
             identity_resolver=self._canonical_node,
         )
         placement = prepared.locations[prepared.root_key]
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
         require_copy_idle(placement.connection)
         if placement.family is not None:
             resolved_backend, dialect = placement.family, placement.dialect

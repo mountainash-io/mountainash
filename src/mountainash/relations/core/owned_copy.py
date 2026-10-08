@@ -1,7 +1,7 @@
 """Independent native values and owner-thread, committed physical cleanup."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import threading
 from typing import TYPE_CHECKING, Any
 import uuid
@@ -31,6 +31,79 @@ class UnownableSnapshotValueError(TypeError):
 
 _pending_lock = threading.Lock()
 _pending: dict[int, tuple[Any, list[tuple[int, str]]]] = {}
+
+
+@dataclass(eq=False)
+class _OwnedState:
+    closed: bool = False
+    anchors: set[int] = field(default_factory=set)
+    physical_key: tuple[int, str] | None = None
+
+
+_states: dict[int, tuple[Any, _OwnedState]] = {}
+_physical_states: dict[tuple[int, str], _OwnedState] = {}
+
+
+def _bind_state(anchor, state):
+    key = id(anchor)
+    prior = _states.get(key)
+    if prior is not None and prior[0]() is anchor:
+        return
+    state.anchors.add(key)
+
+    def forget(reference):
+        if _states.get(key, (None,))[0] is reference:
+            del _states[key]
+            state.anchors.discard(key)
+            if not state.anchors and state.physical_key is not None:
+                _physical_states.pop(state.physical_key, None)
+
+    _states[key] = (weakref.ref(anchor, forget), state)
+
+
+def bind_owned_alias(alias: Any, original: Any) -> None:
+    """The finished native expression shares the original copy's logical state."""
+    states = owned_dependencies(original)
+    if len(states) == 1:
+        _bind_state(alias.op() if is_ibis_table(alias) else alias, states[0])
+
+
+def owned_dependencies(native: Any) -> tuple[Any, ...]:
+    """Return live owned states reached by a native leaf or Ibis op graph."""
+    anchors = [native]
+    if is_ibis_table(native):
+        from mountainash.core.lazy_imports import import_ibis_expr_ops
+        anchors = [native.op(), *native.op().find(import_ibis_expr_ops().DatabaseTable)]
+    found = []
+    for anchor in anchors:
+        entry = _states.get(id(anchor))
+        state = entry[1] if entry is not None and entry[0]() is anchor else None
+        if state is None and hasattr(anchor, "source") and hasattr(anchor, "name"):
+            state = _physical_states.get((id(anchor.source), anchor.name))
+            if state is not None:
+                _bind_state(anchor, state)
+        if state is not None and state not in found:
+            found.append(state)
+    return tuple(found)
+
+
+def assert_owned_open(native: Any) -> None:
+    from mountainash.relations.core.errors import MaterializationScopeClosedError
+    if any(state.closed for state in owned_dependencies(native)):
+        raise MaterializationScopeClosedError("snapshot's materialization scope is closed")
+
+
+def invalidate_owned(native: Any) -> None:
+    for state in owned_dependencies(native):
+        state.closed = True
+
+
+def assert_prepared_owned_open(prepared: Any) -> None:
+    """Inspect existing expanded leaves, including refs, before compilation."""
+    from mountainash.relations.core.relation_nodes import ReadRelNode
+    for node in prepared.nodes.values():
+        if isinstance(node, ReadRelNode):
+            assert_owned_open(node.dataframe)
 
 
 def enqueue_owned_drop(connection: Any, owner_thread: int, name: str) -> None:
@@ -73,6 +146,9 @@ def drain_pending_drops(connection: Any) -> None:
 def register_owned_ibis_table(connection: Any, name: str, table: Any) -> OwnedCopy:
     """Anchor cleanup to the physical op so derived expressions retain it."""
     owner = threading.get_ident()
+    state = _OwnedState(physical_key=(id(connection), name))
+    _physical_states[state.physical_key] = state
+    _bind_state(table.op(), state)
     handed_off = False
 
     def enqueue():
@@ -158,7 +234,9 @@ def owned_copy(native: Any) -> OwnedCopy:
     """Copy once in the source's native backend, with no shared source buffers."""
     if is_ibis_table(native):
         return owned_ibis_table(native)
-    return OwnedCopy(transit_call(BoundaryKey.OWNED_COPY, _inprocess_copy, native))
+    value = transit_call(BoundaryKey.OWNED_COPY, _inprocess_copy, native)
+    _bind_state(value, _OwnedState())
+    return OwnedCopy(value)
 
 
 def require_copy_idle(connection: Any) -> None:
