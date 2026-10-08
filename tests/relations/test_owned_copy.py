@@ -178,6 +178,63 @@ def test_pandas_copy_preserves_index_and_immutable_object_cells():
     assert copy.value.index.name == "row"
 
 
+class MutableCell:
+    def __init__(self):
+        self.value = 7
+
+
+@pytest.mark.parametrize("cell,categorical", [
+    (memoryview(bytearray(b"a")), False), (MutableCell(), False), (MutableCell(), True),
+])
+def test_pandas_unknown_mutable_cells_are_refused(cell, categorical):
+    series = pd.Series([cell], dtype=object)
+    if categorical:
+        series = series.astype("category")
+    source = pd.DataFrame({"payload": series})
+    with pytest.raises(UnownableSnapshotValueError, match="payload"):
+        owned_copy(source)
+
+
+def test_polars_object_columns_never_publish_pointer_bytes():
+    source = pl.DataFrame(pl.Series("payload", ["hello"], dtype=pl.Object))
+    with pytest.raises(UnownableSnapshotValueError, match="payload"):
+        ma.relation(source).snapshot()
+
+
+def test_pandas_categorical_column_owns_unused_categories_and_order():
+    values = np.array([7, 8, 9], dtype=np.int64)
+    source = pd.DataFrame({"x": pd.Categorical.from_codes(
+        [0, 1], categories=pd.Index(values, copy=False), ordered=True,
+    )})
+    saved = ma.relation(source).snapshot()
+    values[0] = 88
+    values[2] = 99
+    assert source.x.tolist() == [88, 8]
+    result = saved.collect()
+    assert result.x.tolist() == [7, 8]
+    assert result.x.cat.categories.tolist() == [7, 8, 9]
+    assert result.x.cat.ordered is True
+
+
+@pytest.mark.parametrize("kind", ["integer", "arrow", "multi"])
+def test_pandas_index_buffers_are_independent(kind):
+    values = np.array([7, 8], dtype=np.int64)
+    if kind == "integer":
+        index = pd.Index(values, copy=False, name="row")
+    elif kind == "arrow":
+        index = pd.Index(pa.array(values), dtype=pd.ArrowDtype(pa.int64()), name="row")
+    else:
+        index = pd.MultiIndex(levels=[pd.Index(values, copy=False), ["a"]],
+                              codes=[[0, 1], [0, 0]], names=["row", "label"])
+    source = pd.DataFrame({"x": [1, 2]}, index=index)
+    copy = owned_copy(source)
+    values[0] = 88
+    assert source.index.tolist() == ([(88, "a"), (8, "a")] if kind == "multi" else [88, 8])
+    assert copy.value.index.tolist() == ([(7, "a"), (8, "a")] if kind == "multi" else [7, 8])
+    assert copy.value.index.names == source.index.names
+    assert type(copy.value.index) is type(source.index)
+
+
 @pytest.mark.parametrize("completion", ["COMMIT", "ROLLBACK"])
 def test_pending_release_survives_caller_transaction(connection, completion):
     from mountainash.relations.core.owned_copy import drain_pending_drops

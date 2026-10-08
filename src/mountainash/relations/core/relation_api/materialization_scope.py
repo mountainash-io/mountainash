@@ -200,6 +200,53 @@ class MaterializationScopeHandle:
         """Copy now and hold the result until this scope releases ownership."""
         return _snapshot(rel, self)
 
+    def capture(self, *rels):
+        """Publish a sequential batch only after every copy and finish succeeds.
+
+        SQL inputs use one idle connection and one physical transaction. Inputs
+        are evaluated once; this provides no concurrent-writer isolation promise.
+        """
+        self._assert_open()
+        if not rels:
+            return ()
+        if len(rels) == 1:
+            return (self.snapshot(rels[0]),)
+        locations = [_placement(rel) for rel in rels]
+        first = locations[0]
+        if any((loc.family, loc.dialect) != (first.family, first.dialect)
+               or loc.connection is not first.connection for loc in locations[1:]):
+            raise _refusal("Capture requires one backend and physical connection")
+        require_copy_idle(first.connection)
+        sql = first.connection is not None and first.connection.name != "polars"
+        compiled, copies, published, results = [], [], [], []
+        previous = self._copies.copy()
+        previous_connections = self._connections.copy()
+        try:
+            for rel, location in zip(rels, locations):
+                compiled.append(_compile(rel, location))
+            require_copy_idle(first.connection)
+            if sql:
+                from mountainash.relations.core.owned_copy import owned_sql_batch
+                copies.extend(owned_sql_batch(first.connection, tuple(value for value, _ in compiled)))
+            else:
+                for value, _ in compiled:
+                    copies.append(owned_copy(value))
+            for rel, copy, (_, visitor) in zip(rels, copies, compiled):
+                result, finished = _finish(rel, copy, visitor)
+                published.append(finished)
+                results.append(result)
+            for copy in published:
+                self._own(copy)
+            return tuple(results)
+        except BaseException as error:
+            self._scope.handoff(tuple(copy.value for copy in published))
+            self._copies = previous
+            self._connections = previous_connections
+            for _, visitor in compiled:
+                _discard(visitor, error)
+            _release_failed(copies, error)
+            raise
+
     def _handoff(self, states):
         copies = [self._copies[state] for state in states if state in self._copies]
         self._scope.handoff(tuple(copy.value for copy in copies))

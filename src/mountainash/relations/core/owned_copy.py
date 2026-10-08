@@ -26,7 +26,7 @@ class OwnedCopy:
 
 
 class UnownableSnapshotValueError(TypeError):
-    """A pandas object cell contains mutable state we cannot independently own."""
+    """A native value cannot be copied with independent, preserved contents."""
 
 
 _pending_lock = threading.Lock()
@@ -38,6 +38,7 @@ class _OwnedState:
     closed: bool = False
     anchors: set[int] = field(default_factory=set)
     physical_key: tuple[int, str] | None = None
+    on_unreachable: Callable[[], None] | None = None
 
 
 _states: dict[int, tuple[Any, _OwnedState]] = {}
@@ -57,8 +58,14 @@ def _bind_state(anchor, state):
             state.anchors.discard(key)
             if not state.anchors and state.physical_key is not None:
                 _physical_states.pop(state.physical_key, None)
+                if state.on_unreachable is not None:
+                    state.on_unreachable()
 
-    _states[key] = (weakref.ref(anchor, forget), state)
+    reference = weakref.ref(anchor)
+    _states[key] = (reference, state)
+    # Bookkeeping survives explicit release; only the physical handoff callback
+    # is detached then. No callback retains this anchor or any equivalent alias.
+    weakref.finalize(anchor, forget, reference)
 
 
 def bind_owned_alias(alias: Any, original: Any) -> None:
@@ -148,7 +155,6 @@ def register_owned_ibis_table(connection: Any, name: str, table: Any) -> OwnedCo
     owner = threading.get_ident()
     state = _OwnedState(physical_key=(id(connection), name))
     _physical_states[state.physical_key] = state
-    _bind_state(table.op(), state)
     handed_off = False
 
     def enqueue():
@@ -158,11 +164,12 @@ def register_owned_ibis_table(connection: Any, name: str, table: Any) -> OwnedCo
                 _enqueue(connection, owner, name)
                 handed_off = True
 
-    finalizer = weakref.finalize(table.op(), enqueue)
+    state.on_unreachable = enqueue
+    _bind_state(table.op(), state)
 
     def release():
         enqueue()
-        finalizer.detach()
+        state.on_unreachable = None
         if threading.get_ident() == owner:
             drain_pending_drops(connection)
 
@@ -182,30 +189,71 @@ def _polars_copy(value):
     pl = import_polars()
     if is_polars_lazyframe(value):
         value = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+    for name, dtype in value.schema.items():
+        if dtype == pl.Object:
+            raise UnownableSnapshotValueError(f"Cannot independently own Polars Object column {name!r}")
     arrow = transit_call(BoundaryKey.OWNED_COPY_POLARS_TO_ARROW, value.to_arrow)
     return pl.from_arrow(ipc_copy(arrow), rechunk=False)
 
 
 def _pandas_copy(value):
     pd, np, pa = import_pandas(), import_numpy(), import_pyarrow()
+    from datetime import date, datetime, time, timedelta
+    from decimal import Decimal
+    from fractions import Fraction
 
-    def mutable(cell):
-        if isinstance(cell, (list, dict, set, bytearray, np.ndarray)):
+    immutable = {type(None), bool, int, float, complex, str, bytes, date, datetime,
+                 time, timedelta, Decimal, Fraction, pd.Timestamp, pd.Timedelta}
+
+    def supported(cell):
+        if type(cell) in immutable or cell is pd.NA or cell is pd.NaT:
             return True
-        if isinstance(cell, (tuple, frozenset)):
-            return any(mutable(child) for child in cell)
-        return False
+        if type(cell) in (tuple, frozenset):
+            return all(supported(child) for child in cell)
+        # NumPy scalar values, unlike void scalars, cannot borrow mutable fields.
+        return type(cell).__module__ == "numpy" and isinstance(
+            cell, (np.number, np.bool_, np.str_, np.bytes_, np.datetime64, np.timedelta64)
+        )
+
+    def validate(values, label):
+        if any(not supported(cell) for cell in values):
+            raise UnownableSnapshotValueError(f"Cannot own mutable or unsupported object values in {label}")
+
+    def index_copy(index):
+        if isinstance(index, pd.MultiIndex):
+            return pd.MultiIndex(levels=[index_copy(level) for level in index.levels],
+                                 codes=[code.copy() for code in index.codes],
+                                 names=index.names, sortorder=index.sortorder)
+        if isinstance(index, pd.CategoricalIndex):
+            array = pd.Categorical.from_codes(index.codes.copy(), index_copy(index.categories),
+                                             ordered=index.ordered)
+            return pd.CategoricalIndex(array, name=index.name)
+        if pd.api.types.is_object_dtype(index.dtype):
+            validate(index, f"index {index.name!r}")
+        if hasattr(index.array, "__arrow_array__"):
+            arrow = ipc_copy(pa.table({"index": index.array.__arrow_array__()}))["index"]
+            return pd.Index(pd.array(arrow, dtype=index.dtype), name=index.name)
+        return index.copy(deep=True)
 
     for name, series in value.items():
-        if pd.api.types.is_object_dtype(series.dtype) and any(mutable(cell) for cell in series):
-            raise UnownableSnapshotValueError(f"Cannot own mutable object values in column {name!r}")
+        if pd.api.types.is_object_dtype(series.dtype):
+            validate(series, f"column {name!r}")
+        elif isinstance(series.dtype, pd.CategoricalDtype):
+            validate(series.cat.categories, f"column {name!r} categories")
     result = value.copy(deep=True)
+    result.index = index_copy(value.index)
+    result.columns = index_copy(value.columns)
     for index, (_, series) in enumerate(value.items()):
-        if hasattr(series.array, "__arrow_array__"):
+        if isinstance(series.dtype, pd.CategoricalDtype):
+            result.isetitem(index, pd.Categorical.from_codes(
+                series.cat.codes.to_numpy(copy=True), index_copy(series.cat.categories),
+                ordered=series.cat.ordered,
+            ))
+        elif hasattr(series.array, "__arrow_array__"):
             arrow = pa.table({"value": series.array.__arrow_array__()})
             copied = transit_call(
                 BoundaryKey.OWNED_COPY_PANDAS_SERIES, pd.Series,
-                ipc_copy(arrow)["value"], index=series.index, name=series.name, dtype=series.dtype,
+                ipc_copy(arrow)["value"], index=result.index, name=series.name, dtype=series.dtype,
             )
             result.isetitem(index, copied)
     return result

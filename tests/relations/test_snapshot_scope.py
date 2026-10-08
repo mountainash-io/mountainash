@@ -151,7 +151,8 @@ def test_checkpoint_replacement_keeps_sibling_and_bounds_linear_storage(connecti
 
 
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb", "ibis-polars"])
-def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(backend_name, monkeypatch):
+@pytest.mark.parametrize("batch", [False, True])
+def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(backend_name, monkeypatch, batch):
     """Native-array carriers; pandas object cells are explicitly unownable."""
     from mountainash.conform.errors import UnsupportedStructuredTransportUse
     from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
@@ -170,7 +171,13 @@ def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(bac
 
     with monkeypatch.context() as patch:
         patch.setattr(Relation, "_compile_and_execute_with_visitor", observe)
-        saved = rel.snapshot()
+        if batch:
+            with ma.materialization_scope() as scope:
+                saved, sibling = scope.capture(rel, rel.select("id"))
+                saved = scope.detach(saved)
+            del sibling
+        else:
+            saved = rel.snapshot()
     del rel, source
     gc.collect()
     assert all(ref() is None for ref in refs)
@@ -295,3 +302,286 @@ def test_snapshot_finishes_copied_value_and_preserves_user_marker(checked_year, 
             assert saved.to_dicts() == [{"id": 1, "year": "2024", "__ma_residue_conform_0_0": "user"}]
             connection.drop_table("checked_source")
             assert saved.select("id").to_dicts() == [{"id": 1}]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_capture_empty_single_batch_and_detached_bundle(backend_name):
+    rel = ma.relation(REGISTRY[backend_name].build({"x": [7]}, "capture_source"))
+    with capture_conversion_trace() as trace:
+        with ma.materialization_scope() as scope:
+            assert scope.capture() == ()
+            single, = scope.capture(rel)
+            copies = scope.capture(rel, rel, rel, rel.head(0))
+            assert single.to_dicts() == [{"x": 7}]
+            assert copies[-1].schema == copies[0].schema
+            saved = scope.detach(ma.concat(copies))
+    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 5
+    assert saved.to_dicts() == [{"x": 7}, {"x": 7}, {"x": 7}]
+
+
+@pytest.mark.parametrize("failure_at", ["insert", "bind", "completion"])
+def test_capture_failure_publishes_nothing_and_never_replays_source(connection, monkeypatch, failure_at):
+    from contextlib import contextmanager
+    from mountainash_data import IbisBackend
+    from mountainash.relations.core.owned_copy import drain_pending_drops
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.create_table("source", ibis.memtable({"x": [7]}), temp=True)
+            source = backend.table("source")
+    rel = ma.relation(source)
+    insert, table, transaction = IbisBackend.insert, IbisBackend.table, IbisBackend.transaction
+    calls = []
+    failure = RuntimeError("batch failed")
+
+    def insert_failure(self, name, *args, **kwargs):
+        if name.startswith("ma_owned_"):
+            calls.append(name)
+            if len(calls) == 2 and failure_at == "insert":
+                raise failure
+        return insert(self, name, *args, **kwargs)
+
+    def bind_failure(self, name, *args, **kwargs):
+        if name.startswith("ma_owned_") and len(calls) == 2 and failure_at == "bind":
+            raise failure
+        return table(self, name, *args, **kwargs)
+
+    @contextmanager
+    def completion_failure(self, *args, **kwargs):
+        with transaction(self, *args, **kwargs) as current:
+            yield current
+        if len(calls) == 2 and failure_at == "completion":
+            raise failure
+
+    with ma.materialization_scope() as scope:
+        prior = scope.snapshot(rel)
+        with monkeypatch.context() as patch:
+            patch.setattr(IbisBackend, "insert", insert_failure)
+            patch.setattr(IbisBackend, "table", bind_failure)
+            patch.setattr(IbisBackend, "transaction", completion_failure)
+            with pytest.raises(RuntimeError) as caught:
+                scope.capture(rel, rel)
+            assert caught.value is failure
+        drain_pending_drops(connection)
+        assert len(calls) == 2
+        with adopt_connection(connection) as backend:
+            with owned_transaction(backend):
+                assert not set(calls) & set(backend.list_tables())
+                assert backend.run_expr(prior._node.dataframe)["x"].tolist() == [7]
+        keep = scope.detach(prior)
+    assert keep is prior
+
+
+def test_capture_finishing_failure_preserves_earlier_scope_holdings(checked_year):
+    connection = ibis.duckdb.connect()
+    try:
+        good = connection.create_table("good", {"id": [1], "year": ["2024"]})
+        bad = connection.create_table("bad", {"id": [2], "year": ["bad"]})
+        with ma.materialization_scope() as scope:
+            prior = scope.snapshot(ma.relation(good))
+            before = set(connection.list_tables())
+            with pytest.raises(BackendCapabilityError):
+                scope.capture(ma.relation(good).conform(checked_year), ma.relation(bad).conform(checked_year))
+            assert set(connection.list_tables()) == before
+            assert prior.item("id") == 1
+    finally:
+        connection.disconnect()
+
+
+def test_capture_refuses_mixed_connections_and_unbound_parameters_before_effects():
+    left = REGISTRY["ibis-duckdb"].build({"x": [7]}, "capture_left")
+    right = REGISTRY["ibis-sqlite"].build({"x": [8]}, "capture_right")
+    with ma.materialization_scope() as scope:
+        with pytest.raises(BackendCapabilityError):
+            scope.capture(ma.relation(left), ma.relation(right))
+        parameterized = left.filter(left.x > ibis.param("int64"))
+        with pytest.raises(BackendCapabilityError):
+            scope.capture(ma.relation(left), ma.relation(parameterized))
+    for table in (left, right):
+        assert not any(n.startswith("ma_owned_") for n in table._find_backend(use_default=False).list_tables())
+
+
+def test_inprocess_failed_second_copy_leaves_no_partial_ownership():
+    import pandas as pd
+    good = ma.relation(pd.DataFrame({"x": [7]}))
+    bad = ma.relation(pd.DataFrame({"x": [[7]]}))
+    with ma.materialization_scope() as scope:
+        prior = scope.snapshot(good)
+        with pytest.raises(TypeError):
+            scope.capture(good, bad)
+        assert scope.detach(prior).item("x") == 7
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite", "ibis-polars"])
+def test_recognized_native_alias_retains_physical_table(backend_name):
+    from mountainash.relations.core.owned_copy import drain_pending_drops
+    source = REGISTRY[backend_name].build({"x": [7]}, "alias_source")
+    connection = source._find_backend(use_default=False)
+    saved = ma.relation(source).snapshot()
+    name = saved.compile().op().name
+    alias = ma.relation(connection.table(name)).filter(ma.col("x") > 0)
+    assert alias.to_dicts() == [{"x": 7}]
+    del saved
+    gc.collect()
+    drain_pending_drops(connection)
+    assert alias.to_dicts() == [{"x": 7}]
+    del alias
+    gc.collect()
+    drain_pending_drops(connection)
+    assert name not in connection.list_tables()
+
+
+def test_capture_typed_revisions_survive_source_deletion(connection, monkeypatch):
+    from datetime import date
+    from mountainash_data import IbisBackend
+    schema = ibis.schema({"id": "int64", "flag": "boolean", "day": "date", "x": "int64"})
+    initial = {"id": [1, 2], "flag": [True, None], "day": [date(2026, 10, 8), None], "x": [7, None]}
+    later = {"id": [1, 2], "flag": [False, None], "day": [date(2026, 10, 9), None], "x": [88, None]}
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.create_table("typed_source", ibis.memtable(initial, schema=schema), temp=True)
+            source = backend.table("typed_source")
+    memory = ibis.memtable({"id": [3], "flag": [False], "day": [None], "x": [5]}, schema=schema)
+    rel = ma.concat([ma.relation(source), ma.relation(memory)]).with_columns(
+        (ma.col("x") + 1).alias("computed"))
+    insert = IbisBackend.insert
+    evaluated = []
+
+    def record(self, name, *args, **kwargs):
+        if name.startswith("ma_owned_"):
+            evaluated.append(name)
+        return insert(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(IbisBackend, "insert", record)
+    with ma.materialization_scope() as scope:
+        first, empty = scope.capture(rel, rel.head(0))
+        with adopt_connection(connection) as backend:
+            with owned_transaction(backend):
+                backend.drop_table("typed_source")
+                backend.create_table("typed_source", ibis.memtable(later, schema=schema), temp=True)
+        second, = scope.capture(rel)
+        with adopt_connection(connection) as backend:
+            with owned_transaction(backend):
+                backend.drop_table("typed_source")
+        assert first.sort("id").to_dicts() == [
+            {"id": 1, "flag": True, "day": date(2026, 10, 8), "x": 7, "computed": 8},
+            {"id": 2, "flag": None, "day": None, "x": None, "computed": None},
+            {"id": 3, "flag": False, "day": None, "x": 5, "computed": 6},
+        ]
+        assert second.filter(ma.col("id") == 1).item("computed") == 89
+        assert empty.to_dicts() == []
+        assert empty.schema == first.schema == second.schema
+        assert len(evaluated) == 3
+
+
+def test_capture_executes_each_inprocess_lazy_source_once():
+    """Polars map_batches runs at physical evaluation, unlike a wrapper spy."""
+    calls = []
+
+    def evaluated(frame):
+        calls.append(frame["x"].to_list())
+        return frame
+
+    source = pl.DataFrame({"x": [7]}).lazy().map_batches(evaluated, schema={"x": pl.Int64})
+    with ma.materialization_scope() as scope:
+        left, right = scope.capture(ma.relation(source), ma.relation(source))
+        assert calls == [[7], [7]]
+        assert left.to_dicts() == right.to_dicts() == [{"x": 7}]
+        assert calls == [[7], [7]]
+
+
+def test_capture_registration_failure_restores_previous_holdings(connection, monkeypatch):
+    from mountainash.relations.core.materialization import MaterializationScope
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.create_table("registration_source", ibis.memtable({"x": [7]}), temp=True)
+            source = backend.table("registration_source")
+    rel = ma.relation(source)
+    original = MaterializationScope.own
+    registered = []
+    failure = RuntimeError("registration failed after accepting owner")
+
+    def fail_second(self, release, *, owner=None):
+        original(self, release, owner=owner)
+        registered.append(owner)
+        if len(registered) == 2:
+            raise failure
+
+    with ma.materialization_scope() as scope:
+        prior = scope.snapshot(rel)
+        with adopt_connection(connection) as backend:
+            with owned_transaction(backend):
+                before = set(backend.list_tables())
+        with monkeypatch.context() as patch:
+            patch.setattr(MaterializationScope, "own", fail_second)
+            with pytest.raises(RuntimeError) as caught:
+                scope.capture(rel, rel)
+            assert caught.value is failure
+        with adopt_connection(connection) as backend:
+            with owned_transaction(backend):
+                assert set(backend.list_tables()) == before
+        assert scope.detach(prior).item("x") == 7
+    assert prior.item("x") == 7
+
+
+def test_capture_failed_rollback_keeps_pending_ownership(connection, monkeypatch):
+    from contextlib import contextmanager
+    from mountainash_data import IbisBackend
+    from mountainash.relations.core.owned_copy import drain_pending_drops
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.create_table("rollback_source", ibis.memtable({"x": [7]}), temp=True)
+            source = backend.table("rollback_source")
+    transaction, insert = IbisBackend.transaction, IbisBackend.insert
+    failure = RuntimeError("second source failed")
+    rollback_failure = RuntimeError("rollback unavailable")
+    combined = ExceptionGroup("body and rollback", [failure, rollback_failure])
+    attempted, held = [], []
+
+    def fail_second(self, name, *args, **kwargs):
+        if name.startswith("ma_owned_"):
+            attempted.append(name)
+            if len(attempted) == 2:
+                raise failure
+        return insert(self, name, *args, **kwargs)
+
+    @contextmanager
+    def leave_active(self, **kwargs):
+        manager = transaction(self, **kwargs)
+        manager.__enter__()
+        held.append(manager)
+        try:
+            yield
+        except RuntimeError as error:
+            assert error is failure
+            raise combined
+        else:
+            manager.__exit__(None, None, None)
+
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(IbisBackend, "transaction", leave_active)
+            patch.setattr(IbisBackend, "insert", fail_second)
+            with ma.materialization_scope() as scope:
+                with pytest.raises(ExceptionGroup) as caught:
+                    scope.capture(ma.relation(source), ma.relation(source))
+                assert caught.value is combined
+            with adopt_connection(connection) as backend:
+                assert backend.native_transaction_open() is True
+    finally:
+        for manager in held:
+            manager.__exit__(type(failure), failure, failure.__traceback__)
+    dropped = []
+    drop = IbisBackend.drop_table
+
+    def record_drop(self, name, **kwargs):
+        dropped.append(name)
+        return drop(self, name, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(IbisBackend, "drop_table", record_drop)
+        drain_pending_drops(connection)
+    assert set(attempted) <= set(dropped)
+    assert len(attempted) == 2
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            assert not set(attempted) & set(backend.list_tables())
