@@ -64,19 +64,21 @@ dependencies = [
     "pytest-cov==6.1.1",
     # Optional backends required by cross-backend tests
     "pandas>=2.2.0",
-    "ibis-framework[duckdb,sqlite]>=11.0.0",
+    "ibis-framework[duckdb,sqlite]>=12.0.0",
     "duckdb>=0.10.3,<1.3",
     "pyarrow>=16",
     "pydantic>=2.2,<3",
     "pyyaml>=6.0",
     # CI sibling chain: the checkout-dependencies action clones these into
     # temp/ (see .github/config/mountainash_dependencies.yml). files + transport
-    # are the direct consumers; settings/auth-client are transport's
+    # are the direct consumers; data supplies optional Ibis physical support.
+    # settings/auth-client are the shared
     # runtime import chain. Mirrors [envs.test] but with temp/ (CI) vs ../ (local).
     "mountainash_files @       {root:uri}/temp/mountainash-files",
     "mountainash_transport @   {root:uri}/temp/mountainash-transport",
     "mountainash_settings @    {root:uri}/temp/mountainash-settings",
     "mountainash_auth_client @ {root:uri}/temp/mountainash-auth-client",
+    "mountainash_data @        {root:uri}/temp/mountainash-data",
 ]
 [envs.test_github.scripts]
 test = "pytest"
@@ -114,7 +116,7 @@ dependencies = [
     # All optional backends for testing
     "pandas>=2.2.0",
     "duckdb>=0.10.3,<1.3",
-    "ibis-framework[duckdb,sqlite]>=11.0.0",
+    "ibis-framework[duckdb,sqlite]>=12.0.0",
     "pyarrow>=15.0.0",
     "pydantic>=2.2,<3",
     "xarray==2024.11.0",
@@ -126,6 +128,7 @@ dependencies = [
     "mountainash_transport @   {root:uri}/../mountainash-transport",
     "mountainash_settings @    {root:uri}/../mountainash-settings",
     "mountainash_auth_client @ {root:uri}/../mountainash-auth-client",
+    "mountainash_data @        {root:uri}/../mountainash-data",
 ]
 [envs.test.scripts]
 # ===========================================

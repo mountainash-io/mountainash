@@ -60,6 +60,11 @@ def import_ibis() -> Any:
     return require_module("ibis", "pip install 'mountainash[ibis]'")
 
 
+def import_mountainash_data() -> Any:
+    """Load optional physical Ibis transaction support only when needed."""
+    return require_module("mountainash_data", "pip install 'mountainash[ibis]'")
+
+
 def import_ibis_expr_types() -> Any:
     """Lazy import of ibis.expr.types."""
     if not require_module("ibis", "pip install 'mountainash[ibis]'"):
