@@ -639,7 +639,7 @@ class ValidationRunner:
             if values is not None
             else [()] * len(failed_indices)
         )
-        failures = frame.filter(pl.Series(failed))
+        failures = frame.filter(pl.Series(failed, dtype=pl.Boolean))
         if failure_sample is not None:
             failures = failures.head(failure_sample)
             diagnostics = diagnostics[:failure_sample]

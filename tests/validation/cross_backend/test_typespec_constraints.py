@@ -8,12 +8,80 @@ from mountainash.typespec import FieldConstraints, FieldSpec, TypeSpec, Universa
 from mountainash.validation import ValidationRunner
 
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 
 
 def _status(result, check_id: str) -> str:
     summary = result.check_summaries.filter(result.check_summaries["check_id"] == check_id)
     assert summary.height == 1, f"missing check {check_id!r}: {result.check_summaries.to_dicts()}"
     return summary.row(0, named=True)["status"]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("type_name", list(UniversalType))
+def test_empty_type_format_passes(backend_name, type_name, backend_factory):
+    """Every declared type retains a passing verdict after empty conformance."""
+    from datetime import datetime
+
+    seeds = {
+        "string": "x",
+        "integer": 1,
+        "number": 1.5,
+        "boolean": True,
+        "date": "2026-10-08",
+        "time": "12:34:56",
+        "datetime": datetime(2026, 10, 8, 12, 34, 56),
+        "duration": "P1D",
+        "year": "2026",
+        "yearmonth": "2026-10",
+        "list": "a,b",
+        "array": "[1, 2]",
+        "object": '{"a": 1}',
+        "geopoint": "1,2",
+        "geojson": '{"type":"Point","coordinates":[1,2]}',
+        "any": "x",
+    }
+    source = backend_factory.create({"value": [seeds[type_name.value]]}, backend_name)
+    plan = compile_datacontract(TypeSpec(fields=[
+        FieldSpec(name="value", type=type_name),
+    ]))
+    result = ValidationRunner().validate_relation(
+        ma.relation(source).head(0), plan=plan, conform_contract={"data_type": "coerce"},
+    )
+    row = result.check_summaries.filter(
+        result.check_summaries["check_id"] == "value_type_format"
+    ).row(0, named=True)
+    # These conformance routes are unavailable before value validation runs.
+    # Keep the cases visible without accepting a different execution error.
+    unsupported = None
+    if type_name == UniversalType.GEOJSON and backend_name not in ("polars", "polars-lazy"):
+        unsupported = ("ConformTransformError", "GeoJSON parsing is unavailable outside Polars")
+    elif type_name == UniversalType.LIST and backend_name in ("pandas", "narwhals-pandas", "ibis-sqlite"):
+        unsupported = ("BackendCapabilityError", "this source does not support lexical list parsing")
+    elif backend_name == "ibis-sqlite":
+        if type_name in {
+            UniversalType.BOOLEAN, UniversalType.DURATION, UniversalType.YEAR,
+            UniversalType.YEARMONTH, UniversalType.GEOPOINT,
+        }:
+            unsupported = ("BackendCapabilityError", "SQLite does not support throwing lexical conversion")
+        elif type_name == UniversalType.TIME:
+            unsupported = ("ArrowNotImplementedError", "item 131 / IB-DT-17: Ibis SQLite time export produces a duration carrier")
+    if unsupported is not None and row["status"] == "error":
+        assert row["error"].startswith(unsupported[0] + ":"), row
+    with expect_call_failure(
+        when=unsupported is not None and row["status"] == "error",
+        errors=(AssertionError,),
+        reason=f"{backend_name}/{type_name}: {unsupported[1] if unsupported else ''}",
+    ):
+        assert (
+            row["status"], row["total_rows"], row["pass_count"],
+            row["fail_count"], row["unknown_count"], row["error"],
+        ) == ("passed", 0, 0, 0, 0, None), (backend_name, type_name, row)
+    assert result.passes is True
+    assert result.failure_cases.to_dicts() == []
+    if unsupported is not None:
+        pytest.fail(f"[XPASS(strict)] {backend_name}/{type_name}: {unsupported[1]}")
 
 
 @pytest.mark.cross_backend

@@ -19,6 +19,7 @@
 - With `coalesce=True`, a merged key whose two sides have different dtypes reports an unknown dtype in `.schema`, matching projection inference for `coalesce`.
 
 ### Fixed
+- Value checks, including `TYPE_FORMAT`, now construct Boolean failure masks for empty input instead of reporting a `Null`-typed filter-predicate error. Existing conformance/backend limitations and nonempty/null behavior are unchanged.
 - Row-dict data converted to Arrow (raw join/union operands on Ibis, transport preflight, JSON record resources) keeps keys that first appear after the first row; previously Arrow's first-row inference silently dropped them.
 
 ## Unreleased — 2026-09-29

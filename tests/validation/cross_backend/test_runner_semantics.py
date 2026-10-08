@@ -101,6 +101,50 @@ class TestOutcomeModel:
         assert row["total_rows"] == 0
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    def test_empty_value_checks_pass(self, backend_name, backend_factory):
+        """Value diagnostics must not turn an empty typed input into an error."""
+        from mountainash.validation import ValueRule, ValueValidatorKey
+        from mountainash.validation.value import VALUE_RULE_REGISTRY
+
+        options = {
+            "TYPE_FORMAT": {"type": "boolean"},
+            "LENGTH": {"min_length": 1},
+            "RANGE": {"minimum": 0},
+            "XSD_PATTERN": {"pattern": "."},
+            "MEMBERSHIP": {"allowed": [True]},
+            "JSON_SCHEMA": {"schema": {}},
+        }
+        checks = [
+            ValueRule(
+                id=key.name,
+                fields=["value"],
+                validator=key,
+                options=options.get(key.name, {}),
+            )
+            for key in VALUE_RULE_REGISTRY
+        ]
+        checks.append(ValueRule(
+            id="composite_unique",
+            fields=["value", "other"],
+            validator=ValueValidatorKey.UNIQUE,
+            options={},
+        ))
+        source = backend_factory.create({"value": [True], "other": [1]}, backend_name)
+        result = ValidationRunner().validate_relation(ma.relation(source).head(0), checks)
+        rows = result.check_summaries.select(
+            "check_id", "status", "total_rows", "pass_count", "fail_count",
+            "unknown_count", "error",
+        ).to_dicts()
+        assert {row["check_id"] for row in rows} == {check.id for check in checks}
+        for row in rows:
+            assert (
+                row["status"], row["total_rows"], row["pass_count"],
+                row["fail_count"], row["unknown_count"], row["error"],
+            ) == ("passed", 0, 0, 0, 0, None), (backend_name, row)
+        assert result.passes is True
+        assert result.failure_cases.to_dicts() == []
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_scalar_rule_verdict_and_diagnostic(self, backend_name, backend_factory):
         df = backend_factory.create({"age": [10, 20, 30]}, backend_name)
         checks = [

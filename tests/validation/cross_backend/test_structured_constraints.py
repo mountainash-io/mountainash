@@ -376,6 +376,20 @@ class TestMalformedAndWrongRootStructuredInput:
         assert summary["fail_count"] == 1, backend_name
         assert summary["unknown_count"] == 0, backend_name
 
+    def test_discarded_rows_leave_passing_empty_value_check(self, backend_name, backend_factory):
+        """Discarding every malformed row leaves no values that can fail."""
+        rel = _object_relation(
+            backend_name, backend_factory, ["{broken"], action="discard_row",
+        )
+        result = _value_check(rel, "TYPE_FORMAT", options={"type": "object"})
+        row = result.check_summaries.row(0, named=True)
+        assert (
+            row["status"], row["total_rows"], row["pass_count"],
+            row["fail_count"], row["unknown_count"], row["error"],
+        ) == ("passed", 0, 0, 0, 0, None), (backend_name, row)
+        assert result.passes is True
+        assert result.failure_cases.to_dicts() == []
+
     def test_wrong_root_is_unknown_not_a_crash(self, backend_name, backend_factory):
         """An ARRAY-declared field whose JSON text decodes to an object
         root is a structural mismatch, not a value the check ever sees."""
