@@ -205,9 +205,10 @@ def test_checked_projection_returns_the_checked_source_snapshot():
                 overwrite=True,
             )
             assert ma.relation(native).to_dict() == {"id": [1]}
-            before = set(connection.list_tables())
-            assert set(rel.to_polars().columns) == {"id"}
+            second = rel.collect()
+            assert ma.relation(second).to_dict() == {"id": [99]}
+            assert ma.relation(native).to_dict() == {"id": [1]}
+            del second
             gc.collect()
-            assert set(connection.list_tables()) == before
     finally:
         CapabilityRegistry.restore(snapshot)

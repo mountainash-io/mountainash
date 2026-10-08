@@ -395,6 +395,10 @@ class RelationDAG:
             return render_execution(prepared), None
 
         session._execution_phase = phase
+        if key_target_name is not None and phase is ExecutionPhase.EXECUTE:
+            from mountainash.relations.core.owned_copy import require_copy_idle
+
+            require_copy_idle(prepared.locations[prepared.root_key].connection)
         session._execution_tokens = prepared.tokens
         key_context = (KeyDriftContext(
             resource_name=key_target_name,

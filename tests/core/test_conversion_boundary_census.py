@@ -131,7 +131,7 @@ def test_every_wrapped_candidate_uses_a_literal_boundary_key(tmp_path):
         "from mountainash.core.transit import BoundaryKey, transit_call\n"
         "\n"
         "def convert(value):\n"
-        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+        "    return transit_call(BoundaryKey.OWNED_COPY, value.execute)\n"
     )
     discovered = discover_transit_candidates(tmp_path)
     assert len(discovered) == 1
@@ -142,19 +142,19 @@ def test_wrapped_candidate_retains_literal_boundary_key(tmp_path):
     (tmp_path / "wrapped.py").write_text(
         "from mountainash.core.transit import BoundaryKey, transit_call\n"
         "def convert(value):\n"
-        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+        "    return transit_call(BoundaryKey.OWNED_COPY, value.execute)\n"
     )
     candidate, = discover_transit_candidates(tmp_path)
     assert candidate.wrapped is True
-    assert candidate.boundary_key == "IBIS_NATIVE_CACHE"
+    assert candidate.boundary_key == "OWNED_COPY"
 
 
 def test_repeated_wrapped_candidates_preserve_multiplicity(tmp_path):
     (tmp_path / "repeated.py").write_text(
         "from mountainash.core.transit import BoundaryKey, transit_call\n"
         "def convert(value):\n"
-        "    transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
-        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+        "    transit_call(BoundaryKey.OWNED_COPY, value.execute)\n"
+        "    return transit_call(BoundaryKey.OWNED_COPY, value.execute)\n"
     )
     discovered = discover_transit_candidates(tmp_path)
     assert len(discovered) == 2
@@ -188,7 +188,7 @@ def test_computed_boundary_key_is_unwrapped_and_fails_inventory_generation(tmp_p
     (tmp_path / "computed.py").write_text(
         "from mountainash.core.transit import BoundaryKey, transit_call\n"
         "def convert(value):\n"
-        "    key = BoundaryKey.IBIS_NATIVE_CACHE\n"
+        "    key = BoundaryKey.OWNED_COPY\n"
         "    return transit_call(key, value.execute)\n"
     )
     candidate, = discover_transit_candidates(tmp_path)
@@ -201,11 +201,11 @@ def test_registry_derivation_matches_boundary_spec(tmp_path):
     (tmp_path / "wrapped.py").write_text(
         "from mountainash.core.transit import BoundaryKey, transit_call\n"
         "def convert(value):\n"
-        "    return transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.execute)\n"
+        "    return transit_call(BoundaryKey.OWNED_COPY, value.execute)\n"
     )
     entry, = build_inventory(tmp_path)
-    spec = BOUNDARY_REGISTRY[BoundaryKey.IBIS_NATIVE_CACHE]
-    assert entry.boundary_key == BoundaryKey.IBIS_NATIVE_CACHE.name
+    spec = BOUNDARY_REGISTRY[BoundaryKey.OWNED_COPY]
+    assert entry.boundary_key == BoundaryKey.OWNED_COPY.name
     assert entry.transit_class == spec.transit_class.name
     assert entry.reason == spec.reason
     assert entry.since == spec.since.isoformat()
@@ -431,11 +431,6 @@ _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
     "LOGICAL_SNAPSHOT_NARWHALS_TO_ARROW": (
         "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
         "test_narwhals_snapshot_captures_every_declared_dialect_directly.",
-        "2026-08-27",
-    ),
-    "LOGICAL_SNAPSHOT_IBIS_TO_ARROW": (
-        "Exercised functionally by tests/relations/test_logical_terminal_snapshot.py's "
-        "test_ibis_snapshot_reads_cache_once_and_never_touches_pandas.",
         "2026-08-27",
     ),
     "LOGICAL_SNAPSHOT_POLARS_DISPATCH": (

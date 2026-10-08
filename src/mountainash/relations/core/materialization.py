@@ -3,7 +3,7 @@
 Preserves native backend identity across the collection boundary: a Polars
 ``LazyFrame`` becomes an eager Polars ``DataFrame``, a Narwhals ``LazyFrame``
 becomes an eager Narwhals ``DataFrame``, and an Ibis table stays an Ibis
-table — cached only when the caller's purpose requires eager forcing (never
+table — copied only when the caller's purpose requires eager forcing (never
 executed to pandas). See ``mountainash-central/04.planning/mountainash/
 superpowers/specs/2026-08-27-pandas-transit-elimination-design.md`` section 7.
 """
@@ -39,7 +39,7 @@ class MaterializationPurpose(Enum):
     """Why a caller is materializing a compiled backend value.
 
     ``VALIDATION_SOURCE`` and ``DAG_CANONICAL`` are the purposes that force
-    an Ibis table eager via ``.cache()`` (spec 7.2's "validation or forced
+    an Ibis table eager via an owned copy (spec 7.2's "validation or forced
     residue" row); every other purpose passes an Ibis table through
     untouched.
     """
@@ -53,7 +53,7 @@ class MaterializationPurpose(Enum):
     EXPLICIT_EGRESS = auto()
 
 
-_IBIS_FORCE_CACHE_PURPOSES = frozenset(
+_IBIS_FORCE_COPY_PURPOSES = frozenset(
     {
         MaterializationPurpose.VALIDATION_SOURCE,
         MaterializationPurpose.DAG_CANONICAL,
@@ -204,7 +204,7 @@ def materialize_native(
     Polars/Narwhals lazy values become eager native values via their own
     ``collect()``. An Ibis table passes through unchanged for ordinary
     collection; ``VALIDATION_SOURCE``/``DAG_CANONICAL`` purposes force it
-    eager via ``.cache()`` instead — never ``.execute()``, which would
+    eager via an owned copy instead — never ``.execute()``, which would
     silently convert it to pandas. Any other native value (including a
     pandas-selected source) passes through with its identity re-detected.
 
@@ -241,13 +241,15 @@ def materialize_native(
         return NativeExecutionValue(value, compiler_identity, eager_identity, ExecutionForm.EAGER, target=target)
 
     if is_ibis_table(value):
-        if purpose in _IBIS_FORCE_CACHE_PURPOSES:
-            cached = transit_call(BoundaryKey.IBIS_NATIVE_CACHE, value.cache)
-            if scope is not None:
-                scope.own(cached.release)
-            value_identity = identify_backend_identity(cached)
+        if purpose in _IBIS_FORCE_COPY_PURPOSES:
+            from mountainash.relations.core.owned_copy import owned_ibis_table
+
+            copy = owned_ibis_table(value)
+            if scope is not None and copy.release is not None:
+                scope.own(copy.release, owner=copy.value)
+            value_identity = identify_backend_identity(copy.value)
             _assert_declared_family(compiler_identity, value_identity)
-            return NativeExecutionValue(cached, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)
+            return NativeExecutionValue(copy.value, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)
         value_identity = identify_backend_identity(value)
         _assert_declared_family(compiler_identity, value_identity)
         return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)

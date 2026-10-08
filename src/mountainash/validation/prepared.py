@@ -6,7 +6,7 @@ conform-laden) plan via ``Relation.collect(unwrap=False)`` -- a generic
 per-check executor re-executed the whole query plan from scratch. This
 module compiles the relation exactly once and materializes it with the
 dedicated ``VALIDATION_SOURCE`` purpose instead, which forces an Ibis table
-eager via a single ``.cache()`` call (spec 7.2), owned by the caller's
+eager via a single owned copy, held by the caller's
 ``MaterializationScope``.
 
 One shared logical-terminal snapshot (Tasks 3/4) is then resolved once with
@@ -151,7 +151,7 @@ def prepare_validation_input(
     """Compile *relation* once and materialize it with the dedicated
     ``VALIDATION_SOURCE`` purpose (spec section 6).
 
-    An Ibis source is forced eager via exactly one ``.cache()`` call, owned
+    An Ibis source is forced eager via exactly one owned copy, held
     by *scope*, so every downstream check executor reuses the same
     materialized result instead of re-executing the whole query plan once
     per check. The resulting logical-terminal snapshot adds exactly one
@@ -167,6 +167,16 @@ def prepare_validation_input(
     )
 
     rel = relation if isinstance(relation, Relation) else as_relation(relation)
+    from mountainash.relations.core.execution.preparation import ExecutionPhase, prepare_execution
+    from mountainash.relations.core.owned_copy import require_copy_idle
+
+    dag = getattr(rel, "_dag", None)
+    prepared = prepare_execution(
+        rel._node, phase=ExecutionPhase.EXPLAIN, backend=backend,
+        identity_resolver=(lambda name: dag.relations[name]._node) if dag is not None else None,
+        execution_context=execution_context,
+    )
+    require_copy_idle(prepared.locations[prepared.root_key].connection)
     result, visitor = rel._compile_and_execute_with_visitor(
         backend=backend, execution_context=execution_context,
     )
@@ -210,7 +220,7 @@ def prepare_validation_input_from_session(
     ``session.validation_native()`` forces exactly one ``.collect()`` on
     top of that shared canonical value the first time *name* is
     validated, memoized per name -- an Ibis DAG-canonical native is
-    already forced eager via ``.cache()`` at DAG_CANONICAL compile time
+    already forced eager via an owned copy at DAG_CANONICAL compile time
     (spec 10.2) and passes through unchanged.
     """
     from mountainash.relations import relation as as_relation

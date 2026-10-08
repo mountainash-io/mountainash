@@ -178,21 +178,7 @@ def test_union_rejects_structured_tag_only_on_later_input(backend_name, backend_
         rel.collect()
 
 
-@pytest.mark.parametrize(
-    "backend_name",
-    [
-        pytest.param(
-            name,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="Ibis-Polars repeated structured-plan union panics in Polars CSE optimizer",
-            ),
-        )
-        if name == "ibis-polars"
-        else name
-        for name in REGISTRY
-    ],
-)
+@pytest.mark.parametrize("backend_name", list(REGISTRY))
 def test_union_all_of_matching_origin_keeps_logical_array(backend_name, backend_factory):
     frame = backend_factory.create({"id": [1], "payload": ["[1,2]"]}, backend_name)
     spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])

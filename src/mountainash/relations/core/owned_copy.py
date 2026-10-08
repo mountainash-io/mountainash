@@ -161,6 +161,15 @@ def owned_copy(native: Any) -> OwnedCopy:
     return OwnedCopy(transit_call(BoundaryKey.OWNED_COPY, _inprocess_copy, native))
 
 
+def require_copy_idle(connection: Any) -> None:
+    """Admit known SQL copy work without draining or acquiring a transaction."""
+    if connection is None or connection.name == "polars":
+        return
+    from mountainash.relations.backends.relation_systems.ibis._physical import adopt_connection, require_idle
+    with adopt_connection(connection) as backend:
+        require_idle(backend)
+
+
 def owned_ibis_table(expr: Any) -> OwnedCopy:
     """Copy on the explicit bound connection; never infer a default backend."""
     try:
