@@ -25,7 +25,13 @@ def _refusal(dialect: str, reason: str) -> BackendCapabilityError:
 
 @contextmanager
 def adopt_connection(connection: Any) -> Iterator[Any]:
-    """Borrow an existing SQL connection; release only our wrapper on exit."""
+    """Borrow an existing SQL connection for the duration of this scope.
+
+    Upstream forbids close() while a public transaction is registered on the
+    handle, even for a non-owner. In that case discard this resource-free wrapper
+    without closing it; the caller retains connection and transaction ownership.
+    The yielded wrapper must not be retained beyond this scope.
+    """
     dialect = connection.name
     if dialect not in {"sqlite", "duckdb", "postgres"}:
         raise _refusal(dialect, "unsupported SQL dialect")
@@ -36,12 +42,14 @@ def adopt_connection(connection: Any) -> Iterator[Any]:
         yield backend
     except BaseException as original:
         try:
-            backend.close()
+            if not backend.in_transaction():
+                backend.close()
         except BaseException as cleanup:
             original.add_note(f"Non-owning wrapper release failed: {type(cleanup).__name__}")
         raise
     else:
-        backend.close()
+        if not backend.in_transaction():
+            backend.close()
 
 
 def require_idle(backend: Any) -> None:

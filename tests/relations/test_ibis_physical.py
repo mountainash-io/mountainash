@@ -201,6 +201,37 @@ def test_caller_transaction_is_refused_without_ending_it(connection, completion,
     assert drop_owned_tables(connection, (source,)) is True
 
 
+@pytest.mark.parametrize("caller_fails", [False, True], ids=["commit", "rollback"])
+def test_cleanup_defers_inside_caller_public_transaction(connection, caller_fails):
+    name = _name()
+    caller_error = RuntimeError("caller chooses rollback")
+    owner = IbisBackend.from_ibis_connection(connection, dialect=connection.name, owns_connection=False)
+    try:
+        with owner.transaction():
+            owner.create_table(name, ibis.memtable({"x": [7]}), temp=True)
+        try:
+            with owner.transaction():
+                _caller_sql(connection, f'UPDATE "{name}" SET x = 88')
+                assert drop_owned_tables(connection, (name,)) is False
+                assert owner.in_transaction() and owner.native_transaction_open() is True
+                with adopt_connection(connection) as borrowed:
+                    with pytest.raises(BackendCapabilityError):
+                        with owned_transaction(borrowed):
+                            pytest.fail("caller public transaction admitted")
+                assert owner.run_expr(owner.table(name))["x"].tolist() == [88]
+                if caller_fails:
+                    raise caller_error
+        except RuntimeError as exc:
+            assert caller_fails and exc is caller_error
+        with owner.transaction():
+            assert owner.run_expr(owner.table(name))["x"].tolist() == [7 if caller_fails else 88]
+        assert drop_owned_tables(connection, (name,)) is True
+        with owner.transaction():
+            assert name not in owner.list_tables()
+    finally:
+        owner.close()
+
+
 def test_commit_ack_failure_propagates_without_replaying(connection, monkeypatch):
     name = _name()
     failure = RuntimeError("commit acknowledgement lost")
