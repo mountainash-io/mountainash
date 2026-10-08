@@ -13,7 +13,7 @@ from mountainash.core.lazy_imports import import_mountainash_data
 from mountainash.core.types import BackendCapabilityError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
 
 def _refusal(dialect: str, reason: str) -> BackendCapabilityError:
@@ -64,3 +64,30 @@ def owned_transaction(backend: Any) -> Iterator[Any]:
     require_idle(backend)
     with backend.transaction(required=True):
         yield backend
+
+
+def drop_owned_tables(connection: Any, names: Sequence[str]) -> bool:
+    """Delete unique owned identifiers, acknowledging only committed cleanup.
+
+    False means native state could not admit cleanup. Operation and completion
+    errors propagate. The caller must retain pending names on False or error;
+    force=True permits a later retry after an ambiguous transaction outcome.
+    """
+    if not names:
+        return True
+    with adopt_connection(connection) as backend:
+        try:
+            state = backend.native_transaction_open()
+        except Exception:
+            return False
+        if state is not False:
+            return False
+        try:
+            require_idle(backend)
+        except BackendCapabilityError:
+            return False
+        # Admission failures defer; errors from the physical unit must not.
+        with backend.transaction(required=True):
+            for name in names:
+                backend.drop_table(name, force=True)
+    return True
