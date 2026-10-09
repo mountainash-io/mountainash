@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from .canonical import MountainashDtype as D
+from .canonical import (
+    CanonicalDtype,
+    DecimalDtype,
+    MountainashDtype as D,
+    _decimal_from_native,
+)
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, str] = {
@@ -14,9 +19,17 @@ SCHEMA_TYPES: dict[D, str] = {
     D.STRING: "string", D.BINARY: "object", D.DATE: "datetime64[ns]",
     D.TIME: "object", D.TIMESTAMP: "datetime64[ns]",
     D.DURATION: "timedelta64[ns]", D.LIST: "object", D.STRUCT: "object",
-    D.JSON: "string", D.XSD_DURATION: "string",
-    D.XSD_YEAR: "string", D.XSD_YEARMONTH: "string",
+    D.JSON: "string", D.XSD_DURATION: "string", D.XSD_YEAR: "string",
+    D.XSD_YEARMONTH: "string", D.LEXICAL_INTEGER: "string",
+    D.LEXICAL_DECIMAL: "string",
 }
+
+
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    import pandas as pd
+    import pyarrow as pa
+
+    return pd.ArrowDtype(pa.decimal128(dtype.precision, dtype.scale))
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})
 
@@ -40,7 +53,16 @@ def _base_name(native: Any) -> str:
     return str(native).split("[", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def from_native(native: Any) -> Optional[CanonicalDtype]:
+    arrow_dtype = getattr(native, "pyarrow_dtype", None)
+    if arrow_dtype is not None:
+        import pyarrow as pa
+
+        if pa.types.is_decimal(arrow_dtype):
+            return _decimal_from_native(
+                arrow_dtype.precision, arrow_dtype.scale, "pandas ArrowDtype"
+            )
+        native = arrow_dtype
     name = _base_name(native)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]

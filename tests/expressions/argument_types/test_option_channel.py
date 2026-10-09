@@ -122,3 +122,20 @@ def test_flag_options_reject_non_boolean(build):
     silently coerced to an enum through truthiness (arguments-vs-options.md)."""
     with pytest.raises(TypeError):
         build()
+
+
+@pytest.mark.parametrize(
+    "option,value",
+    [
+        ("rounding", "DOWN"),
+        ("rounding", None),
+        ("rounding", ma.col("policy")),
+        ("failure_behavior", "ignore"),
+        ("failure_behavior", None),
+        ("failure_behavior", ma.col("policy")),
+    ],
+)
+def test_numeric_cast_rejects_invalid_literal_policies(option, value):
+    target = ma.DecimalDtype(precision=5, scale=2)
+    with pytest.raises((TypeError, ValueError)):
+        ma.col("x").cast(target, **{option: value})

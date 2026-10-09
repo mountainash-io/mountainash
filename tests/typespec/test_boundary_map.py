@@ -68,10 +68,6 @@ def test_geopoint_requires_field_context() -> None:
 
 
 class TestReverse:
-    def test_all_canon_members_present(self):
-        from mountainash.typespec.universal_types import CANONICAL_TO_UNIVERSAL
-        assert set(CANONICAL_TO_UNIVERSAL) == set(D)
-
     @pytest.mark.parametrize("d,expected", [
         (D.I8, (U.INTEGER, None)), (D.U64, (U.INTEGER, None)),
         (D.FP32, (U.NUMBER, None)),

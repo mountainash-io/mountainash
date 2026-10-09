@@ -23,7 +23,7 @@ from mountainash.expressions.backends.expression_systems.polars import PolarsExp
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
 )
-from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
     CaseFailureBehaviour,
 )
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor

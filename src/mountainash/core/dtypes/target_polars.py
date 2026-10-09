@@ -6,7 +6,12 @@ from typing import Any, Optional
 
 import polars as pl
 
-from .canonical import MountainashDtype as D
+from .canonical import (
+    CanonicalDtype,
+    DecimalDtype,
+    MountainashDtype as D,
+    _decimal_from_native,
+)
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -18,7 +23,12 @@ SCHEMA_TYPES: dict[D, Any] = {
     D.LIST: pl.List, D.STRUCT: pl.Struct,
     D.JSON: pl.String, D.XSD_DURATION: pl.String,
     D.XSD_YEAR: pl.String, D.XSD_YEARMONTH: pl.String,
+    D.LEXICAL_INTEGER: pl.String, D.LEXICAL_DECIMAL: pl.String,
 }
+
+
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    return pl.Decimal(precision=dtype.precision, scale=dtype.scale)
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})
 
@@ -44,8 +54,14 @@ def _base_name(native: Any) -> str:
     return str(native).split("(", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def from_native(native: Any) -> Optional[CanonicalDtype]:
     name = _base_name(native)
+    if name == "Decimal":
+        if isinstance(native, type):
+            raise UnknownDtypeError(
+                "Polars Decimal class has no precision/scale; pass a Decimal dtype instance."
+            )
+        return _decimal_from_native(native.precision, native.scale, "Polars")
     if name in _UNTYPED_NAMES:
         return None
     if name in _FROM_NATIVE:

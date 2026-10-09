@@ -27,6 +27,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_VALUE.VALUE_KIND, "x"),
     (FK_VALUE.BOOLEAN_VALUE, "x"),
     (FK_VALUE.TEXT_VALUE, "x"),
+    (FK_VALUE.NUMERIC_CAST, "x"),
 ]
 
 TESTED_OPTION_PARAMS = [
@@ -34,6 +35,24 @@ TESTED_OPTION_PARAMS = [
         "MountainAshScalarValueExpressionSystemProtocol",
         "boolean_value",
         "source",
+        "value-sensitive",
+    ),
+    (
+        "MountainAshScalarValueExpressionSystemProtocol",
+        "numeric_cast",
+        "dtype",
+        "value-sensitive",
+    ),
+    (
+        "MountainAshScalarValueExpressionSystemProtocol",
+        "numeric_cast",
+        "rounding",
+        "value-sensitive",
+    ),
+    (
+        "MountainAshScalarValueExpressionSystemProtocol",
+        "numeric_cast",
+        "failure_behavior",
         "value-sensitive",
     ),
 ]
@@ -101,6 +120,8 @@ OPTION_DISPOSITIONS.extend(
     for backend in ALL_BACKENDS
 )
 
+_HUGE_INTEGER = 2**200 + 19
+
 OP_SPECS: list[OpSpec] = [
     OpSpec(
         function_key=FK_VALUE.VALUE_KIND,
@@ -145,6 +166,23 @@ OP_SPECS: list[OpSpec] = [
         expected_by_input={
             "raw": ["text"], "lit": ["text"],
             "col": ["text", "other"], "complex": ["text", "other"],
+        },
+    ),
+    OpSpec(
+        function_key=FK_VALUE.NUMERIC_CAST,
+        op_name="numeric_cast",
+        build=lambda receiver, _arg: receiver.cast(ma.MountainashDtype.LEXICAL_INTEGER),
+        raw_arg=_HUGE_INTEGER,
+        arg_col_name="numeric_input",
+        param_name="x",
+        data={"numeric_input": ["+00020", "100"]},
+        complex_builder=lambda name: ma.col(name).str.strip_chars(" "),
+        matrix_arg_is_input=True,
+        expected_by_input={
+            "raw": [str(_HUGE_INTEGER)],
+            "lit": [str(_HUGE_INTEGER)],
+            "col": ["20", "100"],
+            "complex": ["20", "100"],
         },
     ),
 ]

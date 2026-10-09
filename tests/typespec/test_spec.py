@@ -24,6 +24,86 @@ from mountainash.typespec.spec import (
     compare_specs,
 )
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+
+
+def test_numeric_descriptors_change_authored_schema_identity() -> None:
+    def spec(dtype=None, field_type=UniversalType.NUMBER):
+        return TypeSpec(fields=[FieldSpec(name="amount", type=field_type, dtype=dtype)])
+
+    expected = spec(DecimalDtype(precision=20, scale=3))
+    for actual in (
+        spec(DecimalDtype(precision=20, scale=2)),
+        spec(DecimalDtype(precision=21, scale=3)),
+        spec(),
+    ):
+        diff = compare_specs(actual, expected)
+        assert not diff.is_compatible
+        assert "amount" in diff.type_changes
+
+
+@pytest.mark.parametrize(
+    "left_dtype,right_dtype,left_type,right_type",
+    [
+        (MountainashDtype.LEXICAL_INTEGER, MountainashDtype.LEXICAL_DECIMAL,
+         UniversalType.STRING, UniversalType.STRING),
+        (MountainashDtype.LEXICAL_INTEGER, None,
+         UniversalType.STRING, UniversalType.STRING),
+    ],
+)
+def test_lexical_declarations_are_not_plain_string_identity(
+    left_dtype, right_dtype, left_type, right_type
+) -> None:
+    left = TypeSpec(fields=[FieldSpec(
+        name="value", type=left_type, dtype=left_dtype
+    )])
+    right = TypeSpec(fields=[FieldSpec(
+        name="value", type=right_type, dtype=right_dtype
+    )])
+
+    assert "value" in compare_specs(left, right).type_changes
+
+
+def test_nested_numeric_descriptor_changes_authored_schema_identity() -> None:
+    def spec(precision):
+        return TypeSpec(fields=[FieldSpec(
+            name="record",
+            type=UniversalType.OBJECT,
+            object_fields=[FieldSpec(
+                name="amount",
+                type=UniversalType.NUMBER,
+                dtype=DecimalDtype(precision=precision, scale=3),
+            )],
+        )])
+
+    diff = compare_specs(spec(20), spec(21))
+
+    assert not diff.is_compatible
+    assert any("amount" in name for name in diff.type_changes)
+
+
+@pytest.mark.parametrize(
+    "dtype,field_type",
+    [
+        (DecimalDtype(precision=20, scale=3), UniversalType.STRING),
+        (MountainashDtype.LEXICAL_INTEGER, UniversalType.NUMBER),
+        (MountainashDtype.LEXICAL_DECIMAL, UniversalType.NUMBER),
+        (MountainashDtype.DECIMAL, UniversalType.NUMBER),
+    ],
+)
+def test_field_dtype_requires_matching_portable_type(dtype, field_type) -> None:
+    with pytest.raises(ValueError):
+        FieldSpec(name="value", type=field_type, dtype=dtype)
+
+
+def test_field_dtype_rejects_backend_type_conflict() -> None:
+    with pytest.raises(ValueError, match="backend_type"):
+        FieldSpec(
+            name="amount",
+            type=UniversalType.NUMBER,
+            dtype=DecimalDtype(precision=20, scale=3),
+            backend_type="Float64",
+        )
 
 
 # ============================================================================

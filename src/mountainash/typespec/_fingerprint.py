@@ -8,6 +8,8 @@ import hashlib
 from types import MappingProxyType
 from typing import Any
 
+from pydantic import BaseModel
+
 
 def freeze_declaration(value: Any) -> Any:
     """Recursively replace mutable declaration values with immutable tagged data."""
@@ -21,6 +23,18 @@ def freeze_declaration(value: Any) -> Any:
                     {
                         item.name: freeze_declaration(getattr(value, item.name))
                         for item in fields(value)
+                    }
+                ),
+            }
+        )
+    if isinstance(value, BaseModel):
+        return MappingProxyType(
+            {
+                "__pydantic__": f"{value.__class__.__module__}:{value.__class__.__qualname__}",
+                "fields": MappingProxyType(
+                    {
+                        name: freeze_declaration(getattr(value, name))
+                        for name in value.__class__.model_fields
                     }
                 ),
             }

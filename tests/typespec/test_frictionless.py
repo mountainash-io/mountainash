@@ -25,6 +25,87 @@ from mountainash.typespec.spec import (
     TypeSpec,
 )
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+
+
+def test_numeric_descriptors_round_trip_recursively() -> None:
+    spec = TypeSpec(fields=[
+        FieldSpec(
+            name="amount",
+            type=UniversalType.NUMBER,
+            dtype=DecimalDtype(precision=20, scale=3),
+        ),
+        FieldSpec(
+            name="record",
+            type=UniversalType.OBJECT,
+            object_fields=[
+                FieldSpec(
+                    name="code",
+                    type=UniversalType.STRING,
+                    dtype=MountainashDtype.LEXICAL_INTEGER,
+                )
+            ],
+        ),
+    ])
+
+    encoded = json.loads(json.dumps(typespec_to_frictionless(spec)))
+    assert encoded["fields"][0]["x-mountainash"]["dtype"] == {
+        "kind": "decimal",
+        "precision": 20,
+        "scale": 3,
+    }
+    assert encoded["fields"][1]["x-mountainash"]["object_fields"][0][
+        "x-mountainash"
+    ]["dtype"] == {"kind": "lexical_integer"}
+    restored = typespec_from_frictionless(encoded)
+
+    assert restored.fields[0].dtype == DecimalDtype(precision=20, scale=3)
+    assert (
+        restored.fields[1].object_fields[0].dtype
+        is MountainashDtype.LEXICAL_INTEGER
+    )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        {
+            "name": "amount",
+            "type": "number",
+            "x-mountainash": {
+                "dtype": {"kind": "decimal", "precision": 20, "scale": 3, "extra": 1}
+            },
+        },
+        {
+            "name": "amount",
+            "type": "string",
+            "x-mountainash": {
+                "dtype": {"kind": "decimal", "precision": 20, "scale": 3}
+            },
+        },
+        {
+            "name": "amount",
+            "type": "number",
+            "x-mountainash": {
+                "dtype": {"kind": "decimal", "precision": 20, "scale": 3},
+                "backend_type": "Float64",
+            },
+        },
+        {
+            "name": "code",
+            "type": "string",
+            "x-mountainash": {"dtype": {"kind": "lexical_integer", "scale": 0}},
+        },
+        {
+            "name": "code",
+            "type": "string",
+            "x-mountainash": {"dtype": {"kind": "mystery"}},
+        },
+    ],
+)
+def test_invalid_numeric_descriptor_declarations_are_rejected(field) -> None:
+    with pytest.raises((ValueError, TypeError)):
+        typespec_from_frictionless({"fields": [field]})
 
 if TYPE_CHECKING:
     from pathlib import Path

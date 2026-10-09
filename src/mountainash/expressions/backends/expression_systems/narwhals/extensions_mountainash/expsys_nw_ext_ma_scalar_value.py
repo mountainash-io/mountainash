@@ -7,6 +7,8 @@ from typing import Any, Callable, Literal, cast
 import narwhals as nw
 from narwhals._expression_parsing import ExprNode, evaluate_node
 
+from mountainash.core.dtypes import CanonicalDtype, DecimalDtype, TypeTarget, registry
+from mountainash.core.dtypes.numeric import convert_numeric
 from mountainash.core.lazy_imports import import_numpy, import_pandas, import_polars
 from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.core.value_classification import ValueKind, boolean_value, text_value, value_kind
@@ -16,7 +18,6 @@ from mountainash.expressions.backends.expression_systems.narwhals.base import (
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
     MountainAshScalarValueExpressionSystemProtocol,
 )
-
 
 _ObjectProjection = Callable[[object], bool | str | None]
 
@@ -251,6 +252,68 @@ class MountainAshNarwhalsScalarValueExpressionSystem(
     MountainAshScalarValueExpressionSystemProtocol[nw.Expr],
 ):
     """Narwhals implementation of value-domain classification and projections."""
+    def numeric_cast(
+        self,
+        x: Any,
+        /,
+        *,
+        dtype: CanonicalDtype,
+        rounding: Literal["TIE_TO_EVEN", "TIE_AWAY_FROM_ZERO"] = "TIE_TO_EVEN",
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> nw.Expr:
+        """Apply exact numeric conversion through the native batch carrier."""
+        output_dtype = registry.to_native_schema(dtype, TypeTarget.NARWHALS)
+        if x is None:
+            return nw.lit(None, dtype=output_dtype)
+        if not isinstance(x, nw.Expr):
+            return nw.lit(
+                convert_numeric(x, dtype, rounding, failure_behavior), dtype=output_dtype
+            )
+
+        if self.dialect == "narwhals-pandas":
+            def convert_pandas(series: Any) -> Any:
+                native = series.native
+                pandas = import_pandas()
+                if isinstance(dtype, DecimalDtype):
+                    import pyarrow as pa
+
+                    result_dtype = pandas.ArrowDtype(
+                        pa.decimal128(dtype.precision, dtype.scale)
+                    )
+                else:
+                    result_dtype = pandas.StringDtype()
+                values = [
+                    None if _pandas_object_kind(value) is ValueKind.ABSENT
+                    else convert_numeric(value, dtype, rounding, failure_behavior)
+                    for value in native
+                ]
+                output = transit_call(
+                    BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
+                    pandas.Series,
+                    pandas.array(values, dtype=result_dtype),
+                    index=native.index,
+                    name=native.name,
+                    trace_source=series,
+                )
+                return series._with_native(output)
+
+            return _pandas_elementwise_batches(x, convert_pandas, output_dtype)
+
+        polars = import_polars()
+        polars_dtype = registry.to_native_schema(dtype, TypeTarget.POLARS)
+
+        def convert_polars(batch: Any) -> Any:
+            return polars.Series(
+                batch.name,
+                [
+                    convert_numeric(batch[index], dtype, rounding, failure_behavior)
+                    for index in range(len(batch))
+                ],
+                dtype=polars_dtype,
+            )
+
+        return _polars_elementwise_batches(x, convert_polars, polars_dtype)
+
 
     def value_kind(self, x: nw.Expr, /) -> nw.Expr:
         descriptor = self.operand_type("x")

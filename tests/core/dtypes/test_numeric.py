@@ -1,0 +1,68 @@
+"""Exact scalar boundary cases not reachable after native inference has lost digits."""
+from decimal import Decimal, localcontext
+
+import pytest
+
+
+def test_preserving_decimal_rejects_loss_but_allows_equivalent_scale():
+    from mountainash.core.dtypes import DecimalDtype
+    from mountainash.core.dtypes.numeric import convert_numeric
+    from mountainash.core.dtypes.errors import NumericConversionError
+
+    target = DecimalDtype(precision=5, scale=2)
+    assert convert_numeric(Decimal("12.340"), target, preserve=True) == Decimal("12.34")
+    with pytest.raises(NumericConversionError):
+        convert_numeric(Decimal("12.345"), target, preserve=True)
+    with pytest.raises(NumericConversionError):
+        convert_numeric(True, target, preserve=True)
+
+
+def test_lexical_codec_is_independent_of_decimal_context_and_integer_string_limit():
+    from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.core.dtypes.numeric import convert_numeric
+
+    digits = "9" * 5000
+    with localcontext() as context:
+        context.prec = 6
+        assert convert_numeric(Decimal(digits), D.LEXICAL_INTEGER) == digits
+        assert convert_numeric(10**4999 + 1, D.LEXICAL_INTEGER) == "1" + "0" * 4998 + "1"
+        assert convert_numeric(Decimal("12345678901234567890.0012300"), D.LEXICAL_DECIMAL) == "12345678901234567890.00123"
+        assert context.prec == 6
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity", "1.5", "12x"])
+def test_invalid_integral_domain_is_a_row_error(value):
+    from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.core.dtypes.numeric import convert_numeric
+    from mountainash.core.dtypes.errors import NumericConversionError
+
+    with pytest.raises(NumericConversionError):
+        convert_numeric(value, D.LEXICAL_INTEGER)
+    assert convert_numeric(value, D.LEXICAL_INTEGER, failure_behavior="null") is None
+
+
+def test_extreme_exponents_do_not_expand_before_bounded_conversion():
+    from mountainash.core.dtypes import DecimalDtype
+    from mountainash.core.dtypes.numeric import convert_numeric
+    from mountainash.core.dtypes.errors import NumericConversionError
+
+    target = DecimalDtype(precision=5, scale=2)
+    with pytest.raises(NumericConversionError):
+        convert_numeric("1e100000000", target)
+    assert convert_numeric("1e-100000000", target) == Decimal("0.00")
+    with pytest.raises(NumericConversionError):
+        convert_numeric("1e-100000000", target, preserve=True)
+
+
+def test_explicit_rounding_does_not_inherit_callers_decimal_traps():
+    from decimal import Inexact
+    from mountainash.core.dtypes import DecimalDtype
+    from mountainash.core.dtypes.numeric import convert_numeric
+
+    target = DecimalDtype(precision=5, scale=2)
+    with localcontext() as context:
+        context.prec = 2
+        context.traps[Inexact] = True
+        assert convert_numeric("12.345", target) == Decimal("12.34")
+        assert context.prec == 2
+        assert context.traps[Inexact]

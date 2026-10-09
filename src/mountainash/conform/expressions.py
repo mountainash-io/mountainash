@@ -657,7 +657,7 @@ def _build_field_expr(
     """Lower one field through the backend-neutral expression API."""
     import mountainash as ma
     from mountainash.core.dtypes import MountainashDtype
-    from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+    from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldSpec
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 

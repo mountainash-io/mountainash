@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 from typing import Any, Optional
 
-from .canonical import MountainashDtype as D
+from .canonical import DecimalDtype, MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -17,7 +17,14 @@ SCHEMA_TYPES: dict[D, Any] = {
     D.LIST: list, D.STRUCT: dict,
     D.JSON: str, D.XSD_DURATION: str,
     D.XSD_YEAR: str, D.XSD_YEARMONTH: str,
+    D.LEXICAL_INTEGER: str, D.LEXICAL_DECIMAL: str,
 }
+
+
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    from decimal import Decimal
+
+    return Decimal
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset()  # not an expression backend
 

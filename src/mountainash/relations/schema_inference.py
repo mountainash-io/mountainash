@@ -16,7 +16,12 @@ from mountainash.conform.expressions import (
     UNDETERMINED,
     resolve_conform_output,
 )
-from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import (
+    CanonicalDtype,
+    MountainashDtype,
+    TypeTarget,
+    registry,
+)
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_NAME,
@@ -24,9 +29,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 from mountainash.expressions.core.output_names import resolve_output_names
 from mountainash.relations.core.projection_names import require_projection_names
 from mountainash.typespec.frictionless import typespec_from_frictionless
-from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.converters import resolve_field_canonical
-from mountainash.typespec.universal_types import parse_universal
 
 
 class SchemaTypeStatus(Enum):
@@ -34,6 +37,8 @@ class SchemaTypeStatus(Enum):
 
     UNKNOWN = "unknown"            # not inferable from this plan node
     UNCONSTRAINED = "unconstrained"  # source declared ANY (explicitly typeless)
+
+SchemaDtype = CanonicalDtype | SchemaTypeStatus
 
 
 def infer_expression_name(expr_node: Any) -> Optional[str]:
@@ -84,7 +89,7 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
 
 def _canon(
     native: Any, target: TypeTarget = TypeTarget.POLARS
-) -> MountainashDtype | SchemaTypeStatus:
+) -> SchemaDtype:
     """Map a native dtype to a canonical MountainashDtype or status.
 
     ``None`` from the registry means the native is explicitly untyped
@@ -100,7 +105,7 @@ def _canon(
 
 def _schema_from_dataframe(
     df: Any,
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Extract canonical schema from a native dataframe.
 
     Supports Polars DataFrame/LazyFrame, Ibis tables, pandas DataFrame, and
@@ -140,7 +145,7 @@ def _schema_from_dataframe(
         # `dict(df.dtypes)` itself, or an exotic extension dtype's __str__,
         # could misbehave on inputs the pandas target module hasn't seen —
         # introspection must never raise, only degrade to UNKNOWN.
-        result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+        result: dict[str, SchemaDtype] = {}
         try:
             items = dict(df.dtypes).items()
         except Exception:
@@ -154,7 +159,7 @@ def _schema_from_dataframe(
     if isinstance(df, dict):
         return {str(name): SchemaTypeStatus.UNKNOWN for name in df}
     if isinstance(df, (list, tuple)) and df and all(isinstance(row, dict) for row in df):
-        names: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+        names: dict[str, SchemaDtype] = {}
         for row in df:
             for name in row:
                 names.setdefault(str(name), SchemaTypeStatus.UNKNOWN)
@@ -162,12 +167,12 @@ def _schema_from_dataframe(
     return {}
 def _schema_from_table_schema(
     table_schema: dict,
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Extract field-aware canonical schema from a Frictionless table schema."""
     fields = table_schema.get("fields", [])
     if not fields:
         return {}
-    result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+    result: dict[str, SchemaDtype] = {}
     for raw_field in fields:
         name = raw_field.get("name")
         if not name or not raw_field.get("type"):
@@ -175,13 +180,7 @@ def _schema_from_table_schema(
                 result[name] = SchemaTypeStatus.UNKNOWN
             continue
         try:
-            field = FieldSpec(
-                name=name,
-                type=parse_universal(raw_field["type"]),
-                format=raw_field.get("format", "default"),
-                item_type=raw_field.get("itemType"),
-                delimiter=raw_field.get("delimiter"),
-            )
+            field = typespec_from_frictionless({"fields": [raw_field]}).fields[0]
             canonical = resolve_field_canonical(field)
         except (KeyError, TypeError, ValueError):
             result[name] = SchemaTypeStatus.UNKNOWN
@@ -194,10 +193,10 @@ def _schema_from_table_schema(
 
 def _schema_from_typespec(
     spec: Any,
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Extract field-aware canonical schema from a resolved TypeSpec."""
     fields = getattr(spec, "fields", ())
-    result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
+    result: dict[str, SchemaDtype] = {}
     for field in fields:
         try:
             canonical = resolve_field_canonical(field)
@@ -213,11 +212,11 @@ def _schema_from_typespec(
 def infer_schema(
     node: Any,
     ref_resolver: Optional[
-        Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
+        Callable[[str], dict[str, SchemaDtype]]
     ] = None,
     *,
     _drifts: Optional[list] = None,
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Walk a RelationNode tree and return {column_name: type} without compilation.
 
     Values are canonical ``MountainashDtype`` where inferable, or a
@@ -353,7 +352,7 @@ def infer_schema(
 def assess_drift(
     node: Any,
     ref_resolver: Optional[
-        Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
+        Callable[[str], dict[str, SchemaDtype]]
     ] = None,
 ) -> list:
     """Schema-only pre-flight: assess drift at every ``ConformRelNode`` in the plan.
@@ -383,8 +382,8 @@ def assess_drift(
 
 def _declared_dtype_for_infer(
     em: Any,
-    input_schema: dict[str, MountainashDtype | SchemaTypeStatus],
-) -> MountainashDtype | SchemaTypeStatus:
+    input_schema: dict[str, SchemaDtype],
+) -> SchemaDtype:
     """Resolve an EmittedField's declared_type against an upstream schema.
 
     - ``type_action == "evolve"`` (item 48 Task 9, R2) → the output keeps the
@@ -416,7 +415,7 @@ def _declared_dtype_for_infer(
 
 def _schema_from_source_data(
     data: Any,
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Extract column names and infer types from Python source data.
 
     Delegates to _schema_from_dataframe via pl.DataFrame(data, strict=False) so
@@ -447,7 +446,7 @@ def _schema_from_source_data(
 
 def _infer_project_schema(
     node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Infer schema for ProjectRelNode based on its operation type."""
     from mountainash.relations.core.relation_system.relation_keys.enums import (
         RKEY_SUBSTRAIT_REL,
@@ -592,7 +591,7 @@ def _aggregate_key_source(expression: Any) -> str | None:
 
 def _infer_aggregate_schema(
     node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Resolve complete aggregate names and retain only proven key source types."""
     input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
     if not node.measures:
@@ -620,7 +619,7 @@ def _infer_aggregate_schema(
 
 def _infer_join_schema(
     node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
-) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+) -> dict[str, SchemaDtype]:
     """Infer schema for JoinRelNode; keyed joins follow ``join_layout``."""
     from mountainash.core.constants import JoinType
 
@@ -634,7 +633,7 @@ def _infer_join_schema(
 
     if keyed_layout_applies(node):
         layout = layout_for_node(node, list(left_schema), list(right_schema))
-        keyed: dict[str, MountainashDtype | SchemaTypeStatus] = dict(left_schema)
+        keyed: dict[str, SchemaDtype] = dict(left_schema)
         for name, dtype in right_schema.items():
             keyed[layout.right_rename.get(name, name)] = dtype
         for name in layout.drop:
@@ -648,7 +647,7 @@ def _infer_join_schema(
                 keyed[left_key] = SchemaTypeStatus.UNKNOWN
         return keyed
 
-    result: dict[str, MountainashDtype | SchemaTypeStatus] = dict(left_schema)
+    result: dict[str, SchemaDtype] = dict(left_schema)
 
     join_keys_right: set[str] = set()
     if node.on:

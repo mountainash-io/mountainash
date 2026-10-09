@@ -432,7 +432,7 @@ class TestRealNamespaces:
         assert expr._node.function_key == FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL
 
     def test_type_namespace_cast(self):
-        """CastNamespace.cast creates correct node."""
+        """Ordinary targets still create the standard CastNode."""
         from mountainash.expressions import col
         from mountainash.expressions.core.expression_nodes import CastNode
 
@@ -463,7 +463,9 @@ class TestRealNamespaces:
             SubstraitScalarArithmeticAPIBuilder as ScalarArithmeticNamespace,
             SubstraitScalarRoundingAPIBuilder as ScalarRoundingNamespace,
             SubstraitScalarLogarithmicAPIBuilder as ScalarLogarithmicNamespace,
-            SubstraitCastAPIBuilder as CastNamespace,
+        )
+        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash import (
+            MountainAshCastAPIBuilder as CastNamespace,
         )
 
         namespaces = BooleanExpressionAPI._FLAT_NAMESPACES

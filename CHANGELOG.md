@@ -4,6 +4,8 @@
 
 ### Added
 - Owned `Relation.snapshot()` and `ma.materialization_scope()` with checkpoint policy, detach, and sequential batch capture (257). See [Owned snapshots](docs/guides/owned-snapshots.md) for supported routes, lifetime, and SQL preparation limits.
+- Portable `DecimalDtype(precision=..., scale=...)`, `LEXICAL_INTEGER` and `LEXICAL_DECIMAL` declarations, including strict `FieldSpec.dtype`, Frictionless persistence, parameter-preserving native schema extraction and numeric schema comparison (241).
+- Checked decimal and lexical numeric casts with ties-to-even/ties-away rounding, post-round overflow checks, throw/null failure behavior and exact large-literal preparation. SQLite explicitly refuses fixed-decimal targets; lexical conversions remain available (241). See [Exact numeric types](README.md#exact-decimal-and-lexical-numeric-types).
 
 ### Fixed
 - Repeated Ibis DAG, validation, logical-terminal, and transport materialization now observes fresh source values while earlier results remain alive (257).

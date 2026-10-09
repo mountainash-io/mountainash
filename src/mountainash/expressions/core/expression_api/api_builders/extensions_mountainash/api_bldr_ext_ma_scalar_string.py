@@ -17,7 +17,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_DATETIME,
     FKEY_MOUNTAINASH_SCALAR_LIST,
 )
-from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode, IfThenNode, LiteralNode
 from ._operation_options import (
     validate_delimiter,

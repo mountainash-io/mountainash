@@ -11,7 +11,7 @@ from mountainash.typespec.temporal import (
 
 from mountainash import col
 from mountainash.core.errors import InvalidOptionValueError
-from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
 
 @pytest.mark.parametrize(
     "text,expected_year",

@@ -14,6 +14,8 @@ from fixtures.backend_registry import ALL_BACKENDS
 from _pytest.outcomes import Failed
 from ibis.common.exceptions import OperationNotDefinedError
 from mountainash.core.types import BackendCapabilityError
+from decimal import Decimal
+import mountainash
 from fixtures.call_expectations import expect_call_failure
 
 
@@ -238,7 +240,7 @@ class TestCastFailureBehavior:
     """
 
     def test_cast_failure_behavior_null(self, backend_name, backend_factory, collect_expr):
-        from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+        from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
             CaseFailureBehaviour,
         )
 
@@ -311,7 +313,7 @@ class TestCastThrowSqliteLenient:
 
     def test_cast_failure_behavior_throw_explicit(self, backend_name, backend_factory, collect_expr):
         """Explicit failure_behavior=THROW behaves identically to the default."""
-        from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+        from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
             CaseFailureBehaviour,
         )
 
@@ -325,3 +327,207 @@ class TestCastThrowSqliteLenient:
         ):
             with pytest.raises(Exception):
                 collect_expr(df, expr)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestExactNumericCast:
+    """Exact numeric targets must retain their value domain and cast policies."""
+
+    def test_rounding_options_survive_composed_projection(self, backend_name, backend_factory):
+        target = mountainash.DecimalDtype(precision=5, scale=2)
+        df = backend_factory.create({
+            "value": ["12.345", "-12.345", "12.34501", "-12.34501", "12.355", "-12.355", None]
+        }, backend_name)
+        even = ma.col("value").cast(target).name.alias("even")
+        away = ma.col("value").cast(target, rounding="TIE_AWAY_FROM_ZERO").name.alias("away")
+        relation = mountainash.relation(df).select(even, away)
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                relation.to_dict()
+            return
+        assert relation.to_dict() == {
+            "even": [Decimal("12.34"), Decimal("-12.34"), Decimal("12.35"), Decimal("-12.35"),
+                     Decimal("12.36"), Decimal("-12.36"), None],
+            "away": [Decimal("12.35"), Decimal("-12.35"), Decimal("12.35"), Decimal("-12.35"),
+                     Decimal("12.36"), Decimal("-12.36"), None],
+        }
+
+    def test_precision_and_scale_control_post_round_overflow(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create({"value": ["999.995", "-999.995", "12.345", "bad", None]}, backend_name)
+        narrow = ma.col("value").cast(
+            mountainash.DecimalDtype(precision=5, scale=2), failure_behavior="null"
+        )
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                collect_expr(df, narrow)
+            return
+        assert collect_expr(df, narrow) == [None, None, Decimal("12.34"), None, None]
+        wide = ma.col("value").cast(
+            mountainash.DecimalDtype(precision=6, scale=2), failure_behavior="null"
+        )
+        assert collect_expr(df, wide) == [
+            Decimal("1000.00"), Decimal("-1000.00"), Decimal("12.34"), None, None
+        ]
+        fine = ma.col("value").cast(
+            mountainash.DecimalDtype(precision=6, scale=3), failure_behavior="null"
+        )
+        assert collect_expr(df, fine) == [
+            Decimal("999.995"), Decimal("-999.995"), Decimal("12.345"), None, None
+        ]
+
+    @pytest.mark.parametrize(
+        "kind,values,expected",
+        [
+            ("LEXICAL_INTEGER", ["+00020", "1e80", "-0", "1.25", "12x", None],
+             ["20", "1" + "0" * 80, "0", None, None, None]),
+            ("LEXICAL_DECIMAL", ["+00020.5000", "1.23e-8", "-0.0", "NaN", "12x", None],
+             ["20.5", "0.0000000123", "0", None, None, None]),
+        ],
+    )
+    def test_lexical_values_are_canonical_and_checked(
+        self, backend_name, backend_factory, collect_expr, kind, values, expected
+    ):
+        target = getattr(mountainash.MountainashDtype, kind)
+        df = backend_factory.create({"value": values}, backend_name)
+        assert collect_expr(df, ma.col("value").cast(target, failure_behavior="null")) == expected
+
+    @pytest.mark.parametrize("named", [False, True])
+    def test_exact_literals_are_prepared_before_native_inference(
+        self, backend_name, backend_factory, named
+    ):
+        integer = 2**200 + 19
+        decimal = Decimal("123456789012345678901234567890123456789012345678901234567890.12345678901234567890")
+        df = backend_factory.create({"row": [1, 2]}, backend_name)
+        integer_expr, decimal_expr = ma.lit(integer), ma.lit(decimal)
+        if named:
+            integer_expr = integer_expr.name.alias("raw_integer")
+            decimal_expr = decimal_expr.name.alias("raw_decimal")
+        result = mountainash.relation(df).with_columns(
+            integer_expr.cast(mountainash.MountainashDtype.LEXICAL_INTEGER).name.alias("integer"),
+            decimal_expr.cast(mountainash.MountainashDtype.LEXICAL_DECIMAL).name.alias("decimal"),
+        ).to_dict()
+        assert result == {
+            "row": [1, 2],
+            "integer": ["1606938044258990275541962092341162602522202993782792835301395"] * 2,
+            "decimal": ["123456789012345678901234567890123456789012345678901234567890.1234567890123456789"] * 2,
+        }
+
+    def test_null_literal_retains_target_type(self, backend_name, backend_factory):
+        import polars as pl
+
+        df = backend_factory.create({"row": [1, 2]}, backend_name)
+        expr = ma.lit(None).cast(mountainash.DecimalDtype(precision=20, scale=3))
+        result = mountainash.relation(df).with_columns(expr.name.alias("value"))
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                result.to_polars()
+            return
+        frame = result.to_polars()
+        assert frame.to_dict(as_series=False) == {"row": [1, 2], "value": [None, None]}
+        assert frame.schema["value"] == pl.Decimal(20, 3)
+
+    def test_explicit_float_conversion_uses_binary_value(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create({"value": [2.675, -2.675, None]}, backend_name)
+        expr = ma.col("value").cast(mountainash.DecimalDtype(precision=5, scale=2))
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                collect_expr(df, expr)
+            return
+        assert collect_expr(df, expr) == [Decimal("2.67"), Decimal("-2.67"), None]
+
+    @pytest.mark.parametrize("values", [[], [None, None]])
+    @pytest.mark.parametrize("failure_behavior", ["throw", "null"])
+    def test_empty_and_null_inputs_do_not_bypass_capabilities(
+        self, backend_name, backend_factory, values, failure_behavior
+    ):
+        import polars as pl
+
+        # Retain a declared text carrier even on engines that cannot create NULL-typed tables.
+        df = backend_factory.create({
+            "value": ["0", *values], "keep": [False, *([True] * len(values))]
+        }, backend_name)
+        expr = ma.col("value").cast(
+            mountainash.DecimalDtype(precision=20, scale=3),
+            failure_behavior=failure_behavior,
+        ).name.alias("value")
+        source = mountainash.relation(df).filter(ma.col("keep")).select("value")
+        result = source.with_columns(expr)
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                result.to_polars()
+            return
+        frame = result.to_polars()
+        assert frame.to_dict(as_series=False) == {"value": values}
+        assert frame.schema["value"] == pl.Decimal(20, 3)
+
+    @pytest.mark.parametrize("value", ["999.995", "-999.995", "12x", "NaN"])
+    def test_throw_policy_rejects_bad_rows(self, backend_name, backend_factory, collect_expr, value):
+        from mountainash.exceptions import NumericConversionError
+
+        df = backend_factory.create({"value": [value]}, backend_name)
+        expr = ma.col("value").cast(
+            mountainash.DecimalDtype(precision=5, scale=2), failure_behavior="throw"
+        )
+        error = NumericConversionError
+        if backend_name == "ibis-sqlite":
+            error = BackendCapabilityError
+        elif backend_name == "ibis-duckdb":
+            import duckdb
+
+            error = duckdb.InvalidInputException
+        with pytest.raises(error):
+            collect_expr(df, expr)
+
+    @pytest.mark.parametrize("values,expected", [
+        ([9007199254740993, -9007199254740993],
+         [Decimal("9007199254740993.000"), Decimal("-9007199254740993.000")]),
+        ([Decimal("12.3455"), Decimal("-12.3555")],
+         [Decimal("12.346"), Decimal("-12.356")]),
+    ])
+    def test_native_numeric_columns_do_not_pass_through_float(
+        self, backend_name, backend_factory, collect_expr, values, expected
+    ):
+        if backend_name == "ibis-sqlite" and isinstance(values[0], Decimal):
+            # SQLite cannot bind a native Decimal source, independently of casts.
+            import sqlite3
+
+            with pytest.raises(sqlite3.ProgrammingError):
+                backend_factory.create({"value": values}, backend_name)
+            return
+        df = backend_factory.create({"value": values}, backend_name)
+        expr = ma.col("value").cast(mountainash.DecimalDtype(precision=20, scale=3))
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                collect_expr(df, expr)
+            return
+        assert collect_expr(df, expr) == expected
+
+    def test_unbounded_integer_literal_avoids_python_string_limit(self, backend_name, backend_factory):
+        df = backend_factory.create({"row": [1]}, backend_name)
+        expr = ma.lit(10**4999 + 1).cast(
+            mountainash.MountainashDtype.LEXICAL_INTEGER
+        ).name.alias("value")
+        result = mountainash.relation(df).with_columns(expr).to_dict()
+        assert result == {"row": [1], "value": ["1" + "0" * 4998 + "1"]}
+
+    @pytest.mark.parametrize("precision,scale,value", [
+        (20, 3, Decimal("9007199254740993.125")),
+        (38, 38, Decimal("0.12345678901234567890123456789012345678")),
+    ])
+    def test_fixed_decimal_literal_broadcasts_without_native_inference_loss(
+        self, backend_name, backend_factory, precision, scale, value
+    ):
+        df = backend_factory.create({"row": [1, 2]}, backend_name)
+        expr = ma.lit(value).cast(
+            mountainash.DecimalDtype(precision=precision, scale=scale)
+        ).name.alias("amount")
+        result = mountainash.relation(df).with_columns(expr)
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                result.to_dict()
+            return
+        assert result.to_dict() == {
+            "row": [1, 2],
+            "amount": [value, value],
+        }

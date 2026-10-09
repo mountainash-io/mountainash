@@ -14,7 +14,6 @@ from .api_base import BaseExpressionAPI
 
 # Import flat namespaces from new Substrait-aligned core
 from .api_builders.substrait import (
-    SubstraitCastAPIBuilder,
     SubstraitFieldReferenceAPIBuilder,
     SubstraitLiteralAPIBuilder,
     SubstraitScalarAggregateAPIBuilder,
@@ -29,6 +28,7 @@ from .api_builders.substrait import (
     SubstraitScalarDatetimeAPIBuilder,
     SubstraitScalarStringAPIBuilder,
 )
+from .api_builders.extensions_mountainash import MountainAshCastAPIBuilder
 
 from .api_builders.extensions_mountainash import (
     MountainAshNameAPIBuilder,
@@ -143,8 +143,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
         MountainAshNativeAPIBuilder,
         MountainAshScalarSetAPIBuilder,
         MountainAshScalarValueAPIBuilder,
-        # Substrait core
-        SubstraitCastAPIBuilder,
+        MountainAshCastAPIBuilder,
         SubstraitFieldReferenceAPIBuilder,
         SubstraitLiteralAPIBuilder,
         SubstraitScalarAggregateAPIBuilder,

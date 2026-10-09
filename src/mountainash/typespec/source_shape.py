@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import CanonicalDtype, MountainashDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.core.types import (
@@ -29,7 +29,7 @@ _NUMERIC_CANONICALS = frozenset(
 class SourceShape:
     """Recursive type evidence exposed by a native schema."""
 
-    canonical_type: MountainashDtype | None
+    canonical_type: CanonicalDtype | None
     item_shape: SourceShape | None = None
     struct_fields: tuple[tuple[str, SourceShape], ...] = ()
 
@@ -45,10 +45,10 @@ class SourceShape:
             raise ValueError("struct field names must be unique")
 
 
-def _canonical(native: Any, target: TypeTarget) -> MountainashDtype | None:
+def _canonical(native: Any, target: TypeTarget) -> CanonicalDtype | None:
     try:
         return registry.from_native(native, target=target)
-    except (UnknownDtypeError, TypeError, ValueError):
+    except (UnknownDtypeError, TypeError):
         return None
 
 

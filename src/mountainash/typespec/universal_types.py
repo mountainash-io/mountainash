@@ -19,7 +19,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Optional, Tuple
 
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import CanonicalDtype, DecimalDtype, MountainashDtype
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.typespec.errors import AmbiguousGeospatialTypeError
 
@@ -142,11 +142,20 @@ def to_canonical(universal: UniversalType) -> Optional[MountainashDtype]:
 
 
 def from_canonical(
-    dtype: Optional[MountainashDtype],
+    dtype: Optional[CanonicalDtype],
 ) -> Tuple[UniversalType, Optional[str]]:
-    """Map canon (or None = untyped) back to (UniversalType, format hint)."""
+    """Map canonical dtypes to the portable Frictionless type and format."""
     if dtype is None:
         return (UniversalType.ANY, None)
+    if isinstance(dtype, DecimalDtype):
+        return (UniversalType.NUMBER, None)
+    if (
+        dtype is MountainashDtype.LEXICAL_INTEGER
+        or dtype is MountainashDtype.LEXICAL_DECIMAL
+    ):
+        return (UniversalType.STRING, None)
+    if dtype is MountainashDtype.DECIMAL:
+        raise UnknownDtypeError("Bare DECIMAL is incomplete without precision and scale")
     return CANONICAL_TO_UNIVERSAL[dtype]
 
 

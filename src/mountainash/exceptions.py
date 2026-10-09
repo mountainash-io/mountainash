@@ -40,6 +40,7 @@ from mountainash.core.dtypes.errors import (
     DtypeError,
     UnknownDtypeError,
     DtypeMappingError,
+    NumericConversionError,
 )
 from mountainash.core.types import BackendCapabilityError
 from mountainash.typespec.validation import SchemaValidationError
@@ -111,6 +112,7 @@ __all__ = [
     "DtypeError",
     "UnknownDtypeError",
     "DtypeMappingError",
+    "NumericConversionError",
     "BackendCapabilityError",
     "SchemaValidationError",
     "DescriptorError",

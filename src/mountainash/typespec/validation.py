@@ -10,7 +10,7 @@ import logging
 from mountainash.core.errors import MountainashError
 
 if TYPE_CHECKING:
-    from .spec import TypeSpec
+    from .spec import FieldSpec, TypeSpec
     from mountainash.core.types import SupportedDataFrames
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,20 @@ logger = logging.getLogger(__name__)
 class SchemaValidationError(MountainashError):
     """Raised when schema validation fails."""
     pass
+
+
+def _index_fields(
+    fields: List["FieldSpec"], prefix: str = ""
+) -> dict[str, "FieldSpec"]:
+    indexed = {}
+    for field in fields:
+        path = f"{prefix}.{field.name}" if prefix else field.name
+        indexed[path] = field
+        if field.object_fields is not None:
+            indexed.update(_index_fields(field.object_fields, path))
+        if field.item_object_fields is not None:
+            indexed.update(_index_fields(field.item_object_fields, f"{path}[]"))
+    return indexed
 
 
 def validate_match(
@@ -44,9 +58,10 @@ def validate_match(
         >>> is_valid, errors = validate_match(df, expected)
         >>> assert is_valid
     """
+    from mountainash.core.dtypes import MountainashDtype
     from .extraction import extract_from_dataframe
     from .spec import compare_specs
-
+    from .universal_types import UniversalType
     errors = []
 
     # Extract actual schema
@@ -65,12 +80,27 @@ def validate_match(
     if diff.extra_columns and strict:
         errors.append(f"Unexpected columns: {diff.extra_columns}")
 
-    if diff.type_mismatches:
-        for col, actual_type, expected_type in diff.type_mismatches:
-            errors.append(
-                f"Type mismatch for '{col}': "
-                f"expected {expected_type}, got {actual_type}"
+    actual_fields = _index_fields(actual_schema.fields)
+    expected_fields = _index_fields(expected_schema.fields)
+    for col, (actual_type, expected_type) in diff.type_changes.items():
+        actual_field = actual_fields.get(col)
+        expected_field = expected_fields.get(col)
+        if (
+            actual_field is not None
+            and expected_field is not None
+            and actual_field.type is expected_field.type
+            and actual_field.dtype is None
+            and actual_field.type is UniversalType.STRING
+            and expected_field.dtype in (
+                MountainashDtype.LEXICAL_INTEGER,
+                MountainashDtype.LEXICAL_DECIMAL,
             )
+        ):
+            continue
+        errors.append(
+            f"Type mismatch for '{col}': "
+            f"expected {expected_type}, got {actual_type}"
+        )
 
     is_valid = len(errors) == 0
     return is_valid, errors

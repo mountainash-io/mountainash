@@ -6,6 +6,8 @@ Single source of truth for type vocabulary and per-target mappings.
 from __future__ import annotations
 
 from .canonical import (
+    CanonicalDtype,
+    DecimalDtype,
     DTYPE_ALIASES,
     MountainashDtype,
     NativeDtype,
@@ -24,7 +26,7 @@ from .targets import TypeTarget, detect_target
 
 
 __all__ = [
-    "MountainashDtype", "NativeDtype", "DTYPE_ALIASES",
+    "MountainashDtype", "DecimalDtype", "CanonicalDtype", "NativeDtype", "DTYPE_ALIASES",
     "parse_dtype", "parse_cast_target",
     "TypeTarget", "detect_target",
     "DtypeRegistry", "registry",

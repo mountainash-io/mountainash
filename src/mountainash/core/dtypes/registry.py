@@ -10,13 +10,12 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Any, Optional
 
+from .canonical import CanonicalDtype, DecimalDtype, MountainashDtype
 from .errors import DtypeMappingError, UnknownDtypeError
 from .targets import TypeTarget, detect_target
 
 if TYPE_CHECKING:
     from types import ModuleType
-
-    from .canonical import MountainashDtype
 
 _MODULES: dict[TypeTarget, str] = {
     TypeTarget.POLARS: "target_polars",
@@ -39,21 +38,32 @@ class DtypeRegistry:
             )
         return self._loaded[target]
 
-    def to_native_schema(self, dtype: MountainashDtype, target: TypeTarget) -> Any:
-        """Native type for schema/materialization use. Complete over all members."""
+    def to_native_schema(self, dtype: CanonicalDtype, target: TypeTarget) -> Any:
+        """Native type for schema/materialization use."""
+        if dtype is MountainashDtype.DECIMAL:
+            raise DtypeMappingError(
+                "Bare DECIMAL is incomplete; use DecimalDtype(precision, scale)."
+            )
         mod = self._target(target)
+        if isinstance(dtype, DecimalDtype):
+            return mod.to_native_decimal(dtype)
         try:
             return mod.SCHEMA_TYPES[dtype]
         except KeyError:
+            name = getattr(dtype, "value", repr(dtype))
             raise DtypeMappingError(
-                f"No {target.value} schema mapping for {dtype.value!r}. "
+                f"No {target.value} schema mapping for {name!r}. "
                 f"Supported: {sorted(d.value for d in mod.SCHEMA_TYPES)}"
             ) from None
 
-    def to_native_cast(self, dtype: MountainashDtype, target: TypeTarget) -> Any:
+    def to_native_cast(self, dtype: CanonicalDtype, target: TypeTarget) -> Any:
         """Native type for expression cast use. Bare containers raise."""
+        if dtype is MountainashDtype.DECIMAL:
+            raise DtypeMappingError(
+                "Bare DECIMAL is incomplete; use DecimalDtype(precision, scale)."
+            )
         mod = self._target(target)
-        if dtype in mod.CAST_UNSUPPORTED:
+        if isinstance(dtype, MountainashDtype) and dtype in mod.CAST_UNSUPPORTED:
             supported = sorted(
                 d.value for d in mod.SCHEMA_TYPES if d not in mod.CAST_UNSUPPORTED
             )
@@ -67,12 +77,8 @@ class DtypeRegistry:
 
     def from_native(
         self, native: Any, target: Optional[TypeTarget] = None
-    ) -> Optional[MountainashDtype]:
-        """Collapse a native dtype to canon. None = explicitly untyped native.
-
-        target=None auto-detects from the object's module — convenience for
-        public entry points; internal paths pass an explicit target.
-        """
+    ) -> Optional[CanonicalDtype]:
+        """Collapse a native dtype to canonical form; None means untyped."""
         if target is None:
             target = detect_target(native)
             if target is None:
@@ -81,7 +87,6 @@ class DtypeRegistry:
                     f"pass target= explicitly."
                 )
         return self._target(target).from_native(native)
-
     def parse_type_string(self, s: str, target: TypeTarget) -> Optional[Any]:
         """Best-effort FieldSpec.backend_type parser. None = unparseable."""
         return self._target(target).parse_type_string(s)

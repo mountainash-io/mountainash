@@ -158,13 +158,39 @@ class TypeContext:
             )
         raise self._unresolved(node, f"no metadata-only resolver for {type(node).__name__}")
 
+    def _numeric_cast_input_type(self, argument: Any) -> ResolvedOperand:
+        from mountainash.expressions.core.expression_nodes import LiteralNode
+
+        if (
+            isinstance(argument, LiteralNode)
+            and not argument.is_native
+            and not self.backend.is_native_expression(argument.value)
+        ):
+            from mountainash.expressions.core.numeric_cast import prepare_numeric_cast_literal
+
+            carrier = prepare_numeric_cast_literal(argument.value)
+            return self.backend.literal_operand_type(carrier, argument.dtype)
+        return self.resolve_native(argument)
+
     def _scalar_result_type(self, node: Any, input_data: Any) -> ResolvedOperand:
         from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_VALUE,
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
         )
         from mountainash.expressions.core.expression_system.function_mapping.registry import (
             ExpressionFunctionRegistry,
         )
+
+        if node.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST:
+            argument = self._argument_by_name(
+                ExpressionFunctionRegistry.get(node.function_key).protocol_method,
+                node.arguments,
+                "x",
+            )
+            input_type = self._numeric_cast_input_type(argument)
+            return self.backend.cast_operand_type(
+                node.options["dtype"], input_type.descriptor
+            )
 
         if node.function_key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
             return self._common_result_type(node.arguments, conditional=False)
@@ -207,11 +233,24 @@ class TypeContext:
         self, node: Any
     ) -> ResolvedOperand | None:
         from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_VALUE,
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
         )
         from mountainash.expressions.core.expression_system.function_mapping.registry import (
             ExpressionFunctionRegistry,
         )
+
+        if node.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST:
+            definition = ExpressionFunctionRegistry.get(node.function_key)
+            argument = self._argument_by_name(
+                definition.protocol_method, node.arguments, "x"
+            )
+            input_type = self._numeric_cast_input_type(argument)
+            if input_type is None:
+                return None
+            return self.backend.cast_operand_type(
+                node.options["dtype"], input_type.descriptor
+            )
 
         if node.function_key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
             if any(
@@ -220,6 +259,7 @@ class TypeContext:
             ):
                 return None
             return self._common_result_type(node.arguments, conditional=False)
+
 
         definition = ExpressionFunctionRegistry.get(node.function_key)
         rule = definition.result_type
