@@ -4,7 +4,7 @@ from __future__ import annotations
 import narwhals as nw
 
 from mountainash.core.dtypes import TypeTarget
-from mountainash.core.dtypes.numeric import convert_nested_numeric, has_nested_numeric_fields
+from mountainash.core.dtypes.numeric import has_nested_numeric_fields
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarStructExpressionSystemProtocol
@@ -44,18 +44,14 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
             from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
                 _polars_elementwise_batches,
             )
-            from mountainash.core.lazy_imports import import_polars
+            from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_struct import (
+                _convert_struct_batch,
+            )
 
             native_dtype = _resolve_field_native(field, TypeTarget.POLARS)
 
             def convert_batch(batch):
-                values = []
-                for value in batch:
-                    if value is None:
-                        values.append(None)
-                        continue
-                    values.append(convert_nested_numeric(value, fields))
-                return import_polars().Series(batch.name, values, dtype=native_dtype)
+                return _convert_struct_batch(batch, field, native_dtype, failure_behavior)
 
             return _polars_elementwise_batches(x, convert_batch, native_dtype)
         return x.cast(dtype)

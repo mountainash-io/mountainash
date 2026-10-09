@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Literal, Protocol
 
-from mountainash.core.dtypes import CanonicalDtype
+from mountainash.core.dtypes import CanonicalDtype  # noqa: TC001 — runtime protocol get_type_hints
 from mountainash.core.types import ExpressionT
 
 

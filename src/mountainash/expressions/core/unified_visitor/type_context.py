@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, Iterator
+from typing import Any, Iterator, TYPE_CHECKING
 
 from mountainash.core.dtypes.metadata import FixedResultType, OperandType, PreserveResultType
 from mountainash.core.types import BackendCapabilityError
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass(frozen=True)
@@ -62,7 +64,7 @@ class TypeContext:
         output_index: int = 0,
     ) -> Any:
         """Return semantic evidence carried by an expression without evaluating it."""
-        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
+        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, parse_cast_target
         from mountainash.expressions.core.expression_nodes import (
             CastNode, FieldReferenceNode, IfThenNode, LiteralNode, OverNode, ScalarFunctionNode,
         )
@@ -93,6 +95,10 @@ class TypeContext:
         if isinstance(node, LiteralNode):
             return None
         if isinstance(node, CastNode):
+            if isinstance(node.target_type, NativeDtype):
+                # Native targets retain backend-owned parameters and do not
+                # establish portable numeric evidence.
+                return None
             target = parse_cast_target(node.target_type)
             if target is MountainashDtype.STRING:
                 return None

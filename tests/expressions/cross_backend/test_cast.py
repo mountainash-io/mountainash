@@ -539,7 +539,11 @@ class TestExactNumericCast:
         df = backend_factory.create({
             "value": ["0", "+00020", "255", "256", "-1", "1.5", "12junk", None]
         }, backend_name)
-        expr = ma.col("value").cast(D.U8, failure_behavior="null")
+        # Checked bounded conversion consumes validated lexical evidence, not
+        # ordinary STRING casts with their existing backend-specific behavior.
+        expr = ma.col("value").cast(D.LEXICAL_DECIMAL, failure_behavior="null").cast(
+            D.U8, failure_behavior="null"
+        )
         assert collect_expr(df, expr) == [0, 20, 255, None, None, None, None, None]
 
     @pytest.mark.parametrize("failure_behavior", ["throw", "null"])
@@ -549,9 +553,36 @@ class TestExactNumericCast:
         from mountainash import MountainashDtype as D
 
         df = backend_factory.create({"value": ["7", None]}, backend_name)
-        expr = ma.col("value").cast(D.U64, failure_behavior=failure_behavior)
+        expr = ma.col("value").cast(D.LEXICAL_INTEGER).cast(
+            D.U64, failure_behavior=failure_behavior
+        )
         if backend_name == "ibis-sqlite":
             with pytest.raises(BackendCapabilityError):
                 collect_expr(df, expr)
             return
         assert collect_expr(df, expr) == [7, None]
+
+    def test_native_numeric_cast_requires_explicit_lexical_opt_out(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        from mountainash import MountainashDtype as D
+        from mountainash.core.dtypes.errors import LexicalNumericUseError
+
+        if backend_name.startswith("polars"):
+            import polars as pl
+
+            target = pl.Int64
+        elif backend_name.startswith("ibis-"):
+            import ibis.expr.datatypes as dt
+
+            target = dt.int64
+        else:
+            import narwhals as nw
+
+            target = nw.Int64
+
+        df = backend_factory.create({"value": ["20", "100"]}, backend_name)
+        lexical = ma.col("value").cast(D.LEXICAL_INTEGER)
+        with pytest.raises(LexicalNumericUseError, match="canonical"):
+            collect_expr(df, lexical.cast(target))
+        assert collect_expr(df, lexical.cast(D.STRING).cast(target)) == [20, 100]

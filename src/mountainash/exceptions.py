@@ -114,6 +114,7 @@ __all__ = [
     "UnknownDtypeError",
     "DtypeMappingError",
     "LexicalNumericUseError",
+    "NumericConversionError",
     "BackendCapabilityError",
     "SchemaValidationError",
     "DescriptorError",

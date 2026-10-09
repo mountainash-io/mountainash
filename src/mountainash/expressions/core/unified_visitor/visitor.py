@@ -189,7 +189,7 @@ class UnifiedExpressionVisitor:
             yield
 
     def _guard_semantic_use(self, node: ExpressionNode) -> None:
-        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
+        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, parse_cast_target
         from mountainash.core.dtypes.errors import LexicalNumericUseError
         from mountainash.expressions.core.expression_nodes import (
             CastNode, IfThenNode, ScalarFunctionNode, SingularOrListNode,
@@ -231,6 +231,11 @@ class UnifiedExpressionVisitor:
             source = self.type_context.semantic_shape(node.input)
             if not TypeContext.has_lexical_evidence(source):
                 return
+            if isinstance(node.target_type, NativeDtype):
+                raise LexicalNumericUseError(
+                    "lexical numeric values require a canonical numeric dtype "
+                    "or canonical STRING opt-out, not a native cast target"
+                )
             target = parse_cast_target(node.target_type)
             bounded = {
                 MountainashDtype.I8, MountainashDtype.U8, MountainashDtype.I16,
@@ -839,13 +844,18 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend cast expression
         """
-        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
+        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, parse_cast_target
         from mountainash.expressions.core.expression_system.function_keys.enums import (
             FKEY_MOUNTAINASH_SCALAR_VALUE, FKEY_SUBSTRAIT_CAST,
         )
 
         source_shape = self.type_context.semantic_shape(node.input)
-        target = parse_cast_target(node.target_type)
+        # Native targets already carry their owning backend and parameters.
+        # Leave their validation and lowering with the ordinary cast backend.
+        target = (
+            None if isinstance(node.target_type, NativeDtype)
+            else parse_cast_target(node.target_type)
+        )
         numeric_targets = {
             MountainashDtype.I8, MountainashDtype.U8, MountainashDtype.I16,
             MountainashDtype.U16, MountainashDtype.I32, MountainashDtype.U32,

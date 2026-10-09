@@ -10,6 +10,7 @@
 
 ### Fixed
 - Cast safety now distinguishes SAFE, NARROWING, LOSSY and UNSAFE over full numeric domains, including decimal parameters and validated lexical types. Integer→float precision loss and timestamp→date are no longer SAFE; conform and foreign-key drift retain the actual non-safe category (241).
+- Numeric-aware structured casts preserve ordinary nested leaf conversion and whole-container null-on-failure semantics. Native dtype casts retain ordinary backend passthrough, but cannot bypass validated lexical checks (241).
 - Repeated Ibis DAG, validation, logical-terminal, and transport materialization now observes fresh source values while earlier results remain alive (257).
 - Ibis `collect()` documentation now describes deferred pass-through behavior.
 

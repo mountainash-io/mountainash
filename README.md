@@ -270,6 +270,11 @@ Cast to `"string"` to opt out and use textual ordering. Same-kind canonical
 equality, grouping and distinct operations remain available; mixing lexical
 values with unvalidated strings requires an explicit conversion.
 
+Checked bounded integer/float casts apply to validated lexical inputs. Ordinary
+casts of unvalidated strings retain backend semantics. Use canonical Mountainash
+targets for lexical conversion; backend-native dtype wrappers cannot bypass
+lexical checks or replace the explicit `"string"` opt-out.
+
 | Execution backend | Fixed decimal result | Lexical numeric result |
 |---|---|---|
 | Polars eager/lazy; Narwhals-Polars eager/lazy | Native Decimal(p,s) | String |

@@ -9,7 +9,7 @@ import math
 from types import MappingProxyType
 from typing import Any, Literal, NoReturn
 
-from mountainash.typespec.source_shape import SourceShape
+from mountainash.typespec.source_shape import SourceShape  # noqa: TC001 -- Pydantic resolves nested field-plan annotations at runtime.
 
 
 class StructuredRoot(str, Enum):

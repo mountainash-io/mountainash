@@ -12,14 +12,15 @@ from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 from mountainash.core.dtypes.errors import NumericConversionError
-from mountainash.core.dtypes.numeric import convert_nested_numeric
-from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
+from mountainash.core.dtypes.numeric import convert_nested_numeric, has_nested_numeric_fields
+from .expsys_pl_ext_ma_scalar_struct import _cast_numeric_batch, _invalid_nested
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
 _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 
-def _convert_list_batch(batch: pl.Series, fields: tuple[FieldSpec, ...], dtype, failure_behavior):
+def _convert_list_batch(batch: pl.Series, field: FieldSpec, dtype, failure_behavior):
+    fields = tuple(field.item_object_fields or ())
     values = []
     for value in batch:
         if value is None:
@@ -37,7 +38,9 @@ def _convert_list_batch(batch: pl.Series, fields: tuple[FieldSpec, ...], dtype, 
                 values.append(None)
             else:
                 raise
-    return pl.Series(batch.name, values, dtype=dtype)
+    return _cast_numeric_batch(batch, values, field, dtype, failure_behavior)
+
+
 class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of list operations."""
     def parse_list(
@@ -126,10 +129,10 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
             item_object_fields=list(item_object_fields),
         )
         dtype = _resolve_field_native(field, TypeTarget.POLARS)
-        if item_object_fields:
+        if has_nested_numeric_fields(item_object_fields):
             return x.map_batches(
                 lambda batch: _convert_list_batch(
-                    batch, item_object_fields, dtype, failure_behavior
+                    batch, field, dtype, failure_behavior
                 ),
                 return_dtype=dtype,
                 is_elementwise=True,

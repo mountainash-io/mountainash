@@ -359,6 +359,10 @@ class UnifiedRelationVisitor:
 
         children = self._numeric_input_types(node, op)
         incoming = children[0] if children else {}
+        if self.expr_visitor is None:
+            return propagate_numeric_types(
+                node, children, None, output_names_resolver=self._ref_output_names,
+            )
         with self.expr_visitor.input_scope(None, incoming):
             return propagate_numeric_types(
                 node, children, self.expr_visitor.type_context,
@@ -511,7 +515,7 @@ class UnifiedRelationVisitor:
 
                     expressions = expand_named_field_selectors(
                         getattr(node, binding.field),
-                        input_names=_relation_output_names(node.input, self._ref_output_names),
+                        input_names=lambda: _relation_output_names(node.input, self._ref_output_names),
                     )
                     value = [self.compile_expression(expr) for expr in expressions]
                 else:

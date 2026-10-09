@@ -27,17 +27,25 @@ def has_lexical(shape):
 def project_numeric_types(expressions, incoming, context, input_names, *, keep=False):
     """Use the expression visitor's semantic resolver and shared naming rules."""
     result = dict(incoming) if keep else {}
+    names = None
     for expression in expressions:
         node = _expression_node(expression)
         if isinstance(node, str):
             node = FieldReferenceNode(field=node)
-        output = resolve_output_names(node, input_names=tuple(input_names))
+        if not incoming and context.semantic_shape(node) is None:
+            continue
+        output = resolve_output_names(node)
+        if output.kind == "expansion":
+            if names is None:
+                names = tuple(input_names() if callable(input_names) else input_names)
+            output = resolve_output_names(node, input_names=names)
         if output.names is None or any(name is None for name in output.names):
             if any(has_lexical(shape) for shape in incoming.values()):
                 raise LexicalNumericUseError("Cannot prove numeric identity through an opaque projection")
+            result.clear()
             continue
         for index, name in enumerate(output.names):
-            shape = context.semantic_shape(node, input_names=tuple(input_names), output_index=index)
+            shape = context.semantic_shape(node, input_names=names, output_index=index)
             result.pop(name, None)
             if shape is not None:
                 result[name] = shape
@@ -51,7 +59,6 @@ def propagate_numeric_types(node, child_maps, context, *, output_names_resolver=
     if key in {RS.READ, RM.SOURCE, RM.READ_RESOURCE, RM.EMPTY_FRAME, RM.REF, RM.CONFORM}:
         return MappingProxyType({})
     if key in {RS.PROJECT_SELECT, RS.PROJECT_WITH_COLUMNS, RS.AGGREGATE}:
-        names = _relation_output_names(node.input, output_names_resolver)
         if key is RS.AGGREGATE:
             from mountainash.relations.core.aggregate_names import normalize_aggregate
             keys, measures = normalize_aggregate(node.keys, node.measures)
@@ -59,8 +66,15 @@ def propagate_numeric_types(node, child_maps, context, *, output_names_resolver=
         else:
             expressions = node.expressions
         return project_numeric_types(
-            expressions, incoming, context, names, keep=key is RS.PROJECT_WITH_COLUMNS,
+            expressions, incoming, context,
+            lambda: _relation_output_names(node.input, output_names_resolver),
+            keep=key is RS.PROJECT_WITH_COLUMNS,
         )
+    if not any(child_maps):
+        if key is RS.FILTER and context is not None:
+            if has_lexical(context.semantic_shape(_expression_node(node.predicate))):
+                raise LexicalNumericUseError("A lexical numeric value is not a boolean predicate")
+        return MappingProxyType({})
     if key is RS.PROJECT_RENAME:
         renames = node.rename_mapping or {}
         return MappingProxyType({renames.get(name, name): shape for name, shape in incoming.items()})

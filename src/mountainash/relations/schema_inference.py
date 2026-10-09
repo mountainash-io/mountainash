@@ -18,7 +18,6 @@ from mountainash.conform.expressions import (
 )
 from mountainash.core.dtypes import (
     CanonicalDtype,
-    MountainashDtype,
     TypeTarget,
     registry,
 )

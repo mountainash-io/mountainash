@@ -4,9 +4,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Protocol, TYPE_CHECKING
 
-from mountainash.core.dtypes import CanonicalDtype
-
 if TYPE_CHECKING:
+    from mountainash.core.dtypes import CanonicalDtype
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
 
 

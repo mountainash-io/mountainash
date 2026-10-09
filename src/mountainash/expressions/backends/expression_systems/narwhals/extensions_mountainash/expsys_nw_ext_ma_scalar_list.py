@@ -14,6 +14,7 @@ from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 from mountainash.core.dtypes.numeric import convert_nested_numeric, has_nested_numeric_fields
+from mountainash.core.transit import BoundaryKey, transit_call
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
@@ -145,24 +146,26 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
                     ]
                     pandas = import_pandas()
                     return series._with_native(
-                        pandas.Series(values, index=native.index, name=native.name, dtype=object)
+                        transit_call(
+                            BoundaryKey.EXPRESSION_NARWHALS_PANDAS_STRUCTURED_CALLBACK,
+                            pandas.Series,
+                            values,
+                            index=native.index,
+                            name=native.name,
+                            dtype=object,
+                            trace_source=native,
+                        )
                     )
 
                 return _pandas_elementwise_batches(x, convert_pandas, dtype)
-            from mountainash.core.lazy_imports import import_polars
+            from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_list import (
+                _convert_list_batch,
+            )
 
             native_dtype = _resolve_field_native(field, TypeTarget.POLARS)
 
             def convert_polars(batch):
-                values = [
-                    None if items is None else [
-                        convert_nested_numeric(item, item_object_fields)
-                        if item is not None else None
-                        for item in items
-                    ]
-                    for items in batch
-                ]
-                return import_polars().Series(batch.name, values, dtype=native_dtype)
+                return _convert_list_batch(batch, field, native_dtype, failure_behavior)
 
             return _polars_elementwise_batches(x, convert_polars, native_dtype)
         return x.cast(dtype)

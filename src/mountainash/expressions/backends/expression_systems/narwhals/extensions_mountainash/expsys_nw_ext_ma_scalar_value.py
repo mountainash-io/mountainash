@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal, cast
 import narwhals as nw
 from narwhals._expression_parsing import ExprNode, evaluate_node
 
-from mountainash.core.dtypes import CanonicalDtype, DecimalDtype, TypeTarget, registry
+from mountainash.core.dtypes import CanonicalDtype, TypeTarget, registry
 from mountainash.core.dtypes.numeric import convert_numeric
 from mountainash.core.lazy_imports import import_numpy, import_pandas, import_polars
 from mountainash.core.transit import BoundaryKey, transit_call

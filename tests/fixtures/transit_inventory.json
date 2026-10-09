@@ -99,6 +99,28 @@
     "legacy_unwrapped": false
   },
   {
+    "module": "mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_list",
+    "owner": "MountainAshNarwhalsScalarListExpressionSystem.convert_pandas",
+    "callee": "Series",
+    "fingerprint": "6ebceb305039b959",
+    "boundary_key": "EXPRESSION_NARWHALS_PANDAS_STRUCTURED_CALLBACK",
+    "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
+    "reason": "Constructs an index-preserving object Series after declared nested numeric conversion and immediately rewraps it in the same Narwhals-Pandas callback; no cross-backend pandas transit occurs.",
+    "since": "2026-10-09",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value",
+    "owner": "MountainAshNarwhalsScalarValueExpressionSystem.convert_pandas",
+    "callee": "Series",
+    "fingerprint": "fc316d322248e353",
+    "boundary_key": "EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK",
+    "transit_class": "SEMANTICS_PRESERVING_ADAPTER",
+    "reason": "Unwraps a compliant Narwhals-Pandas Series only for a vectorized nullable Boolean/String projection and immediately rewraps the same-index result; no native values escape as execution data.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
     "module": "mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value",
     "owner": "_pandas_object_projection",
     "callee": "Series",
@@ -1015,6 +1037,17 @@
     "module": "mountainash.relations.core.materialization",
     "owner": "coerce_to_narwhals",
     "callee": "collect",
+    "fingerprint": "0245013cfdd58b1e",
+    "boundary_key": "POLARS_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Polars LazyFrame.collect() stays a native Polars eager frame; no cross-family conversion occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "coerce_to_narwhals",
+    "callee": "collect",
     "fingerprint": "3e7ac7b6af0de5cd",
     "boundary_key": "POLARS_LAZY_COLLECT",
     "transit_class": "NON_PANDAS_OPERATION",
@@ -1060,6 +1093,17 @@
     "owner": "coerce_to_narwhals",
     "callee": "from_native",
     "fingerprint": "63f99c8088a324b9",
+    "boundary_key": "NARWHALS_NATIVE_WRAP",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.materialization",
+    "owner": "coerce_to_narwhals",
+    "callee": "from_native",
+    "fingerprint": "71ca1b47a32c1eff",
     "boundary_key": "NARWHALS_NATIVE_WRAP",
     "transit_class": "NON_PANDAS_OPERATION",
     "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
