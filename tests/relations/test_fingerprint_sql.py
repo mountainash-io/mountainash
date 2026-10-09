@@ -103,3 +103,49 @@ def test_duckdb_typed_values_match_native_polars(duckdb_connection, empty):
             rel = rel.filter(ma.col("k") < 0)
         return rel.fingerprint(keys=["k"], columns=values, batch_size=1)
     assert calculate(native).equals(calculate(frame))
+
+
+def test_duckdb_late_source_failure_preserves_error_and_connection(duckdb_connection):
+    source = duckdb_connection.sql(
+        "SELECT i::BIGINT AS k, CAST(CASE WHEN i=900001 THEN 'bad' ELSE '1' END AS INTEGER) AS v "
+        "FROM range(1000000) s(i)", schema={"k": "int64", "v": "int32"},
+    )
+    sizes = []
+    with pytest.raises(OSError, match="Could not convert string 'bad'"):
+        consume_native_batches(source, compiler_identity=identify_backend_identity(source),
+                               batch_size=5000, on_schema=lambda schema: None,
+                               on_batch=lambda frame: sizes.append(frame.height))
+    assert 0 < sum(sizes) < 1_000_000
+    assert duckdb_connection.con.execute("SELECT 7").fetchone() == (7,)
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_dag_fingerprint_releases_owned_sql_caches(duckdb_connection, fail):
+    """Detached summaries/errors must not retain the DAG's canonical SQL copies."""
+    from duckdb import ConversionException
+    from mountainash.relations.core.owned_copy import drain_pending_drops
+
+    left = duckdb_connection
+    right = ibis.duckdb.connect()
+    try:
+        a = left.create_table("left_source", pl.DataFrame({"k": [1, 2], "v": ["7", "bad" if fail else "8"]}).to_arrow())
+        b = right.create_table("right_source", pl.DataFrame({"k": [1, 2], "w": [10, 20]}).to_arrow())
+        dag = ma.RelationDAG()
+        dag.add("a", ma.relation(a))
+        dag.add("b", ma.relation(b))
+        rel = dag.ref("a").join(dag.ref("b"), on="k", execute_on="left").with_columns(ma.col("v").cast("int64"))
+        if fail:
+            # Retain the traceback: cleanup must not depend on its collection.
+            with pytest.raises(ConversionException, match="Could not convert") as caught:
+                rel.fingerprint(keys=["k"], columns=["v"])
+            assert caught.value is not None
+        else:
+            result = rel.fingerprint(keys=["k"], columns=["v"])
+            assert result["row_count"].to_list() == [2, 2]
+        for con, source_name in [(left, "left_source"), (right, "right_source")]:
+            # The existing ownership contract queues physical drops until idle.
+            drain_pending_drops(con)
+            assert not any(name.startswith("ma_owned_") for name in con.list_tables())
+            assert con.con.execute(f"SELECT count(*) FROM {source_name}").fetchone() == (2,)
+    finally:
+        right.disconnect()

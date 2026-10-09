@@ -108,3 +108,28 @@ def test_physical_structured_encoding_is_not_hashed_as_logical_data():
     with pytest.raises(LogicalTerminalRequired):
         rel.fingerprint(keys=["k"], columns=["payload"])
     assert rel.fingerprint(keys=["k"], columns=["v"])["row_count"].to_list() == [1, 1]
+
+
+@pytest.mark.parametrize("backend_name", sorted(SUPPORTED))
+def test_selector_shaped_names_are_literal(backend_name):
+    # Include a real v and a potential internal alias to detect expansion/collision.
+    data = {"*": [1, 2], "^v$": [7, 8], "v": [99, 99], "__ma_fingerprint_0": [3, 4]}
+    source = REGISTRY[backend_name].build(data, "literal_fingerprint")
+    result = ma.relation(source).fingerprint(keys=["*"], columns=["^v$", "__ma_fingerprint_0"], batch_size=1)
+    assert result["column"].to_list() == [None, "^v$", "__ma_fingerprint_0"]
+    assert result["key_schema"][0] == '[["*",{"type":"Int64"}]]'
+    assert result["value_schema"][1] == '["^v$",{"type":"Int64"}]'
+    assert result["row_count"].to_list() == [2, 2, 2]
+    # Only caller-visible names change the descriptors, not the framed values.
+    ordinary = ma.relation(pl.DataFrame({"k": [1, 2], "v": [7, 8], "w": [3, 4]})).fingerprint(keys=["k"], columns=["v", "w"])
+    assert result["fingerprint"].to_list() == ordinary["fingerprint"].to_list()
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_literal_names_after_backend_resolved_projection(lazy):
+    # Polars regex projection is executable even when AST inference is incomplete.
+    source = pl.DataFrame({"k": [1], "^v$": [7]})
+    rel = ma.relation(source.lazy() if lazy else source).select("^.*$")
+    out = rel.fingerprint(keys=["k"], columns=["^v$"])
+    assert out["row_count"].to_list() == [1, 1]
+    assert out["value_schema"][1] == '["^v$",{"type":"Int64"}]'

@@ -35,7 +35,7 @@ class RelationBase:
 
     def _compile_and_execute_with_visitor(
         self, backend: "str | None" = None, execution_context: "_ExecutionContext | None" = None,
-        *, phase: ExecutionPhase = ExecutionPhase.EXECUTE,
+        *, phase: ExecutionPhase = ExecutionPhase.EXECUTE, retain_execution_scope: bool = False,
     ) -> "tuple[Any, UnifiedRelationVisitor]":
         """Compile the relational AST and return ``(result, visitor)``.
 
@@ -44,6 +44,10 @@ class RelationBase:
         terminals needing post-compile visitor state -- e.g.
         ``Relation.collect_with_drift()``'s ``visitor.drift_reports`` -- can
         retrieve it without a second compilation pass.
+
+        ``retain_execution_scope`` asks DAG subclasses to retain canonical-copy
+        ownership until the terminal closes the returned visitor's session.
+        Standalone compilation already retains its whole scope this way.
 
         Args:
             backend: Optional explicit backend name (``"polars"``, ``"ibis"``,

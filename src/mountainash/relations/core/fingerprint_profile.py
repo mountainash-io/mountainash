@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import json
 
 import polars as pl
+import polars.selectors as cs
 
 _MASK = (1 << 64) - 1
 _SEEDS = (17, 991)
@@ -72,13 +73,14 @@ class FingerprintAccumulator:
             raise ValueError(f"Fingerprint fields missing from schema: {sorted(missing)}")
         fields = {name: [name, describe_dtype(schema[name], path=name)] for name in self._names}
         self._schema = pl.Schema({name: schema[name] for name in self._names})
+        self._aliases = {name: f"f{i}" for i, name in enumerate(self._names)}
         self._key_schema = _json([fields[name] for name in self._keys])
         self._value_schemas = [None, *(_json(fields[name]) for name in self._columns)]
         self._expressions = []
         for index, name in enumerate((None, *self._columns)):
-            members = [pl.col(key).alias(f"k{i}") for i, key in enumerate(self._keys)]
+            members = [pl.col(self._aliases[key]).alias(f"k{i}") for i, key in enumerate(self._keys)]
             if name is not None:
-                members.append(pl.col(name).alias("v"))
+                members.append(pl.col(self._aliases[name]).alias("v"))
             for seed in _SEEDS:
                 self._expressions.append(pl.struct(members).hash(
                     seed=seed, seed_1=seed, seed_2=seed, seed_3=seed,
@@ -88,13 +90,15 @@ class FingerprintAccumulator:
 
     def update(self, batch):
         """Merge a batch only if its selected schema still matches the domain."""
-        selected = batch.select(self._names)
+        selected = batch.select(cs.by_name(*self._names))
         if selected.schema != self._schema:
             raise ValueError("Fingerprint batch schema differs from the initial schema")
         count = self._count + batch.height
         if count > _MASK:
             raise OverflowError("Fingerprint row count exceeds UInt64")
-        partials = selected.select(self._expressions).row(0)
+        # Older Polars expands selector-shaped names again inside struct/alias
+        # expressions. Literal projection then a zero-copy rename avoids that.
+        partials = selected.rename(self._aliases).select(self._expressions).row(0)
         self._totals = [(old + part) & _MASK for old, part in zip(self._totals, partials)]
         self._count = count
 

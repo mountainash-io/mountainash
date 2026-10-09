@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Mapping, Optional, Seq
 
 
 if TYPE_CHECKING:
+    import polars as pl
     from mountainash.conform.drift import ConformCollection, ConformDrift
     from mountainash.core.capabilities.identity import BackendIdentity
     from mountainash.core.dtypes import MountainashDtype
@@ -999,7 +1000,7 @@ class Relation(RelationBase):
         from mountainash.pydata.egress.egress_pydata_from_polars import EgressFromPolars
         return EgressFromPolars
 
-    def fingerprint(self, *, keys, columns, batch_size: int = 5_000) -> Any:
+    def fingerprint(self, *, keys: Sequence[str], columns: Sequence[str], batch_size: int = 5_000) -> pl.DataFrame:
         """Calculate version-tagged, per-column fingerprints of this relation.
 
         Filter the relation first to select rows. ``keys`` is the complete ordered
