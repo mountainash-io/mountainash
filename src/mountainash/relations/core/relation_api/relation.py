@@ -1007,7 +1007,7 @@ class Relation(RelationBase):
         row contributes, including duplicates. The small Polars result includes
         counts and schema/profile descriptors: compare only compatible domains.
 
-        Supports bounded native Polars and Ibis DuckDB/PostgreSQL ingestion.
+        Supports bounded native Polars and Ibis DuckDB ingestion.
         Hash equality is probabilistic, not proof of identity or key uniqueness.
         """
         from .fingerprint import fingerprint_relation

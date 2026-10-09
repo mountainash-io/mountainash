@@ -62,8 +62,10 @@ def consume_native_batches(value, *, compiler_identity, batch_size, on_schema, o
             raise failure
         return
 
+    # PostgreSQL's Arrow reader does not own early-close cleanup safely yet
+    # (backlog 265). A batch API alone is not sufficient qualification.
     if (compiler_identity.family != CONST_BACKEND.IBIS
-            or compiler_identity.dialect not in {"ibis-duckdb", "ibis-postgres"}
+            or compiler_identity.dialect != "ibis-duckdb"
             or not hasattr(value, "to_pyarrow_batches")):
         raise _unsupported(compiler_identity)
     arrow_schema = transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, value.schema().to_pyarrow)
