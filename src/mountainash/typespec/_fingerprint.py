@@ -11,6 +11,9 @@ from typing import Any
 
 def freeze_declaration(value: Any) -> Any:
     """Recursively replace mutable declaration values with immutable tagged data."""
+    from mountainash.core.dtypes.spike_numeric import NumericDtype
+    if isinstance(value, NumericDtype):
+        return freeze_declaration(value.model_dump(exclude_none=True))
     if isinstance(value, Enum):
         return ("__enum__", value.__class__.__module__, value.__class__.__qualname__, value.value)
     if is_dataclass(value) and not isinstance(value, type):

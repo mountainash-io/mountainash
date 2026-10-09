@@ -11,12 +11,13 @@ import polars as pl
 
 from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
+from .extensions_mountainash.expsys_pl_ext_ma_spike_numeric import SpikePolarsNumeric
 
 if TYPE_CHECKING:
     from mountainash.core.dtypes.metadata import LogicalKind
 
 
-class PolarsBaseExpressionSystem(BaseExpressionSystem):
+class PolarsBaseExpressionSystem(SpikePolarsNumeric, BaseExpressionSystem):
     """Base class for Polars expression system components.
 
     Provides common functionality and backend identification for all

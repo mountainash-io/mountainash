@@ -54,6 +54,8 @@ def resolve_field_canonical(field: "FieldSpec") -> Any:
     Every other UniversalType delegates to to_canonical(field.type)
     unchanged.
     """
+    if field.dtype is not None:
+        return field.dtype
     fmt = field.format
     if field.type is UniversalType.GEOPOINT:
         if not isinstance(fmt, str) or fmt not in _GEOPOINT_FORMAT_CANONICAL:

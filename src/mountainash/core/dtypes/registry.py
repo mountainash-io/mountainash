@@ -41,6 +41,9 @@ class DtypeRegistry:
 
     def to_native_schema(self, dtype: MountainashDtype, target: TypeTarget) -> Any:
         """Native type for schema/materialization use. Complete over all members."""
+        from .spike_numeric import NumericDtype, numeric_native
+        if isinstance(dtype, NumericDtype):
+            return numeric_native(dtype, target)
         mod = self._target(target)
         try:
             return mod.SCHEMA_TYPES[dtype]
@@ -80,6 +83,10 @@ class DtypeRegistry:
                     f"Cannot auto-detect a type target for {native!r}; "
                     f"pass target= explicitly."
                 )
+        from .spike_numeric import native_decimal
+        decimal = native_decimal(native, target)
+        if decimal is not None:
+            return decimal
         return self._target(target).from_native(native)
 
     def parse_type_string(self, s: str, target: TypeTarget) -> Optional[Any]:

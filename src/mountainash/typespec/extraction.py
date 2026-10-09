@@ -57,6 +57,7 @@ def _field_from_source_shape(
     backend_type: str | None = None,
 ) -> FieldSpec:
     """Build a complete native field descriptor from recursive schema evidence."""
+    from mountainash.core.dtypes.spike_numeric import NumericDtype
     if universal_type is None:
         universal_type = (
             from_canonical(shape.canonical_type)[0]
@@ -89,7 +90,8 @@ def _field_from_source_shape(
         type=universal_type,
         object_fields=object_fields,
         item_object_fields=item_object_fields,
-        backend_type=backend_type,
+        backend_type=None if isinstance(shape.canonical_type, NumericDtype) else backend_type,
+        dtype=shape.canonical_type if isinstance(shape.canonical_type, NumericDtype) else None,
     )
 
 # ============================================================================

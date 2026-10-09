@@ -297,6 +297,8 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
         field_dict["delimiter"] = fspec.delimiter
 
     field_extensions: Dict[str, Any] = {}
+    if fspec.dtype is not None:
+        field_extensions["dtype"] = fspec.dtype.model_dump(exclude_none=True)
     if fspec.rename_from is not None:
         field_extensions["rename_from"] = fspec.rename_from
     if fspec.null_fill is not None:
@@ -468,6 +470,7 @@ def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
         true_values=true_values,
         false_values=false_values,
         backend_type=backend_type,
+        dtype=field_ext.get("dtype"),
         rename_from=rename_from,
         null_fill=null_fill,
         custom_cast=custom_cast,

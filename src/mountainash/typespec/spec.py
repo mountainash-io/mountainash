@@ -150,8 +150,15 @@ class FieldSpec:
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
+    dtype: Any = None  # Disposable item-241 portable declaration.
 
     def __post_init__(self) -> None:
+        if self.dtype is not None:
+            from mountainash.core.dtypes.spike_numeric import NumericDtype
+            self.dtype = NumericDtype.model_validate(self.dtype)
+            expected = UniversalType.NUMBER if self.dtype.kind == "decimal" else UniversalType.STRING
+            if self.type is not expected or self.backend_type is not None:
+                raise ValueError("portable numeric dtype conflicts with field type/backend_type")
         if self.item_type is not None and self.type is not UniversalType.LIST:
             raise IncompatibleFieldPropertiesError(
                 self.name,

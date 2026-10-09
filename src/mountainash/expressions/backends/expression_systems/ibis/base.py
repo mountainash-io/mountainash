@@ -11,12 +11,13 @@ import ibis.expr.types as ir
 
 from mountainash.expressions.core.constants import CONST_BACKEND
 from mountainash.expressions.backends.expression_systems.base import BaseExpressionSystem
+from .extensions_mountainash.expsys_ib_ext_ma_spike_numeric import SpikeIbisNumeric
 
 if TYPE_CHECKING:
     from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
 
 
-class IbisBaseExpressionSystem(BaseExpressionSystem):
+class IbisBaseExpressionSystem(SpikeIbisNumeric, BaseExpressionSystem):
     """Base class for Ibis expression system components.
 
     Provides common functionality and backend identification for all

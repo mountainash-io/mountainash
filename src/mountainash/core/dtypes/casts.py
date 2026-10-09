@@ -48,39 +48,36 @@ UNSAFE_CASTS: frozenset[tuple[D, D]] = frozenset({
 
 
 def is_safe_cast(from_type: D, to_type: D) -> bool:
-    if from_type is to_type:
-        return True
-    return (from_type, to_type) in SAFE_CASTS
+    return classify_cast(from_type, to_type) is CastSafety.SAFE
 
 
 class CastSafety(Enum):
-    """Classification of actual -> declared casts for drift detection.
-
-    Binary today: every pair in the canonical vocabulary is either backed
-    by an entry in SAFE_CASTS (or is an identity cast) or it is not. There
-    is no independent judgment of "lossy" or "narrowing" here beyond what
-    the structural table already encodes.
-
-    LOSSY/NARROWING are room-to-grow members for a later, more granular
-    classification (e.g. distinguishing "narrows precision" from "cannot
-    parse") without breaking existing consumers — until that lands, callers
-    must not assume UNSAFE means anything more specific than "not in
-    SAFE_CASTS and not identity."
-    """
+    """Type-domain preservation classification; explicit casts remain permitted."""
 
     SAFE = "safe"
     UNSAFE = "unsafe"
+    LOSSY = "lossy"
+    NARROWING = "narrowing"
 
 
 def classify_cast(from_type: D, to_type: D) -> CastSafety:
-    """Classify a cast from `from_type` to `to_type` in canonical space.
-
-    Delegates directly to `is_safe_cast`, which already treats identity
-    casts as safe and defaults unlisted pairs to unsafe. This function only
-    wraps that boolean judgment in an enum so downstream consumers (e.g.
-    `TypeDrift.safety`) get a typed, self-describing value instead of a
-    bare bool.
-    """
-    if is_safe_cast(from_type, to_type):
+    """Disposable parameter-aware classifier, not a complete safe-table audit."""
+    from .spike_numeric import NumericDtype
+    if from_type == to_type:
         return CastSafety.SAFE
-    return CastSafety.UNSAFE
+    if isinstance(from_type, NumericDtype) and isinstance(to_type, NumericDtype):
+        if from_type.kind == to_type.kind == "decimal":
+            if to_type.scale < from_type.scale:
+                return CastSafety.LOSSY
+            if to_type.precision - to_type.scale < from_type.precision - from_type.scale:
+                return CastSafety.NARROWING
+            return CastSafety.SAFE
+        return CastSafety.UNSAFE
+    integers = {D.I8, D.I16, D.I32, D.I64, D.U8, D.U16, D.U32, D.U64}
+    if from_type in integers and to_type in integers:
+        return CastSafety.SAFE if (from_type, to_type) in SAFE_CASTS else CastSafety.NARROWING
+    if isinstance(from_type, NumericDtype) and from_type.kind == "lexical_integer" and to_type in integers:
+        return CastSafety.NARROWING
+    if (from_type, to_type) in {(D.I64, D.FP64), (D.U64, D.FP64), (D.TIMESTAMP, D.DATE)}:
+        return CastSafety.LOSSY
+    return CastSafety.SAFE if (from_type, to_type) in SAFE_CASTS else CastSafety.UNSAFE

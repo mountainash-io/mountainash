@@ -145,6 +145,9 @@ def from_canonical(
     dtype: Optional[MountainashDtype],
 ) -> Tuple[UniversalType, Optional[str]]:
     """Map canon (or None = untyped) back to (UniversalType, format hint)."""
+    from mountainash.core.dtypes.spike_numeric import NumericDtype
+    if isinstance(dtype, NumericDtype):
+        return (UniversalType.NUMBER if dtype.kind == "decimal" else UniversalType.STRING, None)
     if dtype is None:
         return (UniversalType.ANY, None)
     return CANONICAL_TO_UNIVERSAL[dtype]

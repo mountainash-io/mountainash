@@ -33,6 +33,7 @@ class SubstraitCastAPIBuilder(BaseExpressionAPIBuilder, SubstraitCastAPIBuilderP
         dtype: Union[str, type, Any],
         *,
         failure_behavior: Optional[CaseFailureBehaviour] = CaseFailureBehaviour.THROW,
+        rounding: str = "TIE_TO_EVEN",
     ) -> BaseExpressionAPI:
         """
         Cast to the specified data type.
@@ -57,6 +58,13 @@ class SubstraitCastAPIBuilder(BaseExpressionAPIBuilder, SubstraitCastAPIBuilderP
             >>> col("date_str").cast("date", failure_behavior="null")  # Safe cast
         """
         from mountainash.core.dtypes import parse_cast_target
+        from mountainash.core.dtypes.spike_numeric import NumericDtype
+        if isinstance(dtype, NumericDtype):
+            from ..extensions_mountainash.api_bldr_ext_ma_spike_numeric import numeric_cast_node
+            fb = failure_behavior.value if isinstance(failure_behavior, CaseFailureBehaviour) else failure_behavior
+            return self._build(numeric_cast_node(self._node, dtype, rounding, fb))
+        if rounding != "TIE_TO_EVEN":
+            raise ValueError("spike rounding option requires a portable numeric target")
 
         target_type = parse_cast_target(dtype)
 

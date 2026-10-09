@@ -29,6 +29,7 @@ from mountainash.conform.structured_transport import (
 )
 from mountainash.typespec._fingerprint import declaration_fingerprint, freeze_typespec
 from mountainash.typespec.source_shape import SourceShape
+from mountainash.core.dtypes.spike_numeric import NumericDtype
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift, KeyDrift
@@ -229,7 +230,7 @@ def _declared_canonical(fld: "FieldSpec") -> Optional["MountainashDtype"]:
     from mountainash.core.dtypes import MountainashDtype
 
     value = _resolve_declared_type(fld, fld.source_name)
-    return value if isinstance(value, MountainashDtype) else None
+    return value if isinstance(value, (MountainashDtype, NumericDtype)) else None
 
 
 def _shape_for(
@@ -564,7 +565,7 @@ def resolve_conform_output(
                     em.field.name,
                     declared,
                     actual_dtype,
-                    "unsafe",
+                    classify_cast(actual_dtype, declared).value,
                     None,
                     "cast_safety",
                     str(actual_dtype),
@@ -625,7 +626,7 @@ def resolve_conform_output(
                 child = emitted_by_name.get(local)
                 child_type = child.effective_type if child and child.effective_type is not None else (child.declared_type if child else None)
                 parent_type = parent.get(remote)
-                if isinstance(child_type, MountainashDtype) and isinstance(parent_type, MountainashDtype) and classify_cast(child_type, parent_type) is CastSafety.UNSAFE:
+                if isinstance(child_type, (MountainashDtype, NumericDtype)) and isinstance(parent_type, (MountainashDtype, NumericDtype)) and classify_cast(child_type, parent_type) is not CastSafety.SAFE:
                     key_changes.append(KeyDrift("fk_type_mismatch", [local], target, declared=parent_type, actual=child_type, action=contract.keys))
         if contract.keys == "freeze" and key_changes and raise_on_freeze:
             _raise_drift(key_changes=key_changes, node_identity=node_identity)
@@ -664,7 +665,7 @@ def _build_field_expr(
     fld = field
     if type_action == "null_fill":
         output = ma.lit(None)
-        if isinstance(declared_type, MountainashDtype):
+        if isinstance(declared_type, (MountainashDtype, NumericDtype)):
             output = output.cast(declared_type)
         return FieldBuildResult(output.name.alias(fld.name))
 
@@ -924,7 +925,7 @@ def _build_field_expr(
                 )
             if typed_value is not None:
                 output = ma.when(ma.lit(False)).then(typed_value).otherwise(output)
-            elif isinstance(declared_type, MountainashDtype):
+            elif isinstance(declared_type, (MountainashDtype, NumericDtype)):
                 output = output.cast(declared_type)
             discard = None
             if type_action == "discard_row":
@@ -934,7 +935,9 @@ def _build_field_expr(
     residue: list[MaterializationResidueCheck] = []
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(fld.name))
-    if fld.type == UniversalType.LIST and lexical:
+    if fld.dtype is not None:
+        expr = expr.cast(fld.dtype, failure_behavior=failure)
+    elif fld.type == UniversalType.LIST and lexical:
         expr = expr.str.parse_list(
             item_type=fld.item_type or "string",
             delimiter=fld.delimiter or ",",
@@ -1087,7 +1090,7 @@ def _build_conform_exprs(
             import mountainash as ma
             if emitted.type_action == "null_fill":
                 source = ma.lit(None)
-                if isinstance(emitted.declared_type, MountainashDtype):
+                if isinstance(emitted.declared_type, (MountainashDtype, NumericDtype)):
                     source = source.cast(emitted.declared_type)
                 exprs.append(source.name.alias(emitted.field.name))
                 continue

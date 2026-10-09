@@ -38,6 +38,7 @@ class CompilationMetadata:
         default_factory=lambda: MappingProxyType({})
     )
     resources: tuple = ()
+    numeric_types: Any = field(default_factory=lambda: MappingProxyType({}))
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,7 @@ class MetadataSession:
             drift_reports=_unique_identity(visitor.drift_reports),
             structured_field_plans=freeze_structured_field_plans(visitor.structured_field_plans),
             resources=tuple(getattr(visitor, "owned_resources", ())),
+            numeric_types=MappingProxyType(dict(visitor.numeric_types)),
         )
         # The native value may be the same object for two distinct compilations.
         return CompiledSubtree(value, location, self.tokens.token(object()), metadata)
@@ -105,6 +107,7 @@ class MetadataSession:
         if isinstance(child_node, RefRelNode):
             visitor._resolved_refs_by_name[child_node.name] = child.value
         visitor._structured_plans_by_node[id(child_node)] = child.metadata.structured_field_plans
+        visitor._numeric_types_by_node[id(child_node)] = child.metadata.numeric_types
         checks_by_node = getattr(visitor, "_owned_checks_by_node", None)
         if checks_by_node is None:
             checks_by_node = visitor._owned_checks_by_node = {}

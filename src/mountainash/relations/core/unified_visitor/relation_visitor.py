@@ -200,6 +200,8 @@ class UnifiedRelationVisitor:
         self._conform_metadata_by_node: dict[int, tuple[bool, frozenset[str], frozenset[str]]] = {}
         self._ref_plans_by_node: dict[int, Any] = {}
         self.structured_field_plans: Any = MappingProxyType({})
+        self._numeric_types_by_node: dict[int, Any] = {}
+        self.numeric_types: Any = MappingProxyType({})
 
     def visit(self, node: RelationNode) -> Any:
         """Single dispatch site (spec §3.5): third-party visit-registry
@@ -347,6 +349,13 @@ class UnifiedRelationVisitor:
 
     def _prepare_transport_lineage(self, node: RelationNode, op: Any | None = None) -> None:
         """Reject unsafe transport consumers before expression or backend dispatch."""
+        from mountainash.relations.core.spike_numeric_lineage import propagate_numeric
+        from mountainash.relations.core.relation_system.relation_mapping.registry import RelationOperationRegistry
+        numeric_op = op or RelationOperationRegistry.get(node.operation_key)
+        propagate_numeric(node, [
+            self._numeric_types_by_node.get(id(child), {})
+            for child in self._relation_children(node, numeric_op)
+        ])
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
             RelationOperationRegistry,
         )
@@ -374,6 +383,12 @@ class UnifiedRelationVisitor:
 
     def _complete_transport_lineage(self, node: RelationNode, op: Any) -> None:
         """Record a node's transport output only after its native dispatch succeeds."""
+        from mountainash.relations.core.spike_numeric_lineage import propagate_numeric
+        self.numeric_types = MappingProxyType(propagate_numeric(node, [
+            self._numeric_types_by_node.get(id(child), {})
+            for child in self._relation_children(node, op)
+        ]))
+        self._numeric_types_by_node[id(node)] = self.numeric_types
         from mountainash.conform.structured_transport import (
             freeze_structured_field_plans,
         )
