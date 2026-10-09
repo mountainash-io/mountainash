@@ -87,6 +87,7 @@ TERMINAL_EXCEPTIONS = {
     "collect_with_drift": "shares _compile_and_execute_with_visitor with collect(), already exercised",
 }
 TERMINAL_SMOKE_ARGS = {
+    "fingerprint": ((), {"keys": ["x"], "columns": ["y"]}),
     "item": (("x",), {}),
     "sum": (("x",), {}),
     "avg": (("x",), {}),

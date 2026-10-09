@@ -47,7 +47,7 @@ class DAGRelation(Relation):
         self,
         backend: "str | None" = None,
         execution_context: Any = None,
-        *, phase: ExecutionPhase = ExecutionPhase.EXECUTE,
+        *, phase: ExecutionPhase = ExecutionPhase.EXECUTE, retain_execution_scope: bool = False,
     ) -> "tuple[Any, Any]":
         from mountainash.core.capabilities.policy import _resolve_policy
 
@@ -57,6 +57,7 @@ class DAGRelation(Relation):
         return self._dag._execute_with_visitor(
             self, backend=backend, execution_policy=execution_policy,
             phase=phase, execution_context=execution_context,
+            retain_execution_scope=retain_execution_scope,
         )
 
     def explain(self) -> str:

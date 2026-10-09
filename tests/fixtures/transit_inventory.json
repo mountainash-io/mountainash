@@ -682,6 +682,17 @@
     "legacy_unwrapped": false
   },
   {
+    "module": "mountainash.relations.core.batch_materialization",
+    "owner": "consume_native_batches",
+    "callee": "to_pyarrow",
+    "fingerprint": "2ff19784f5f000ea",
+    "boundary_key": "NON_PANDAS_ARROW_TERMINAL",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "A declared PyArrow-producing terminal; never pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
     "module": "mountainash.relations.core.execution.compilation",
     "owner": "CompilationSession.compile",
     "callee": "to_pyarrow",

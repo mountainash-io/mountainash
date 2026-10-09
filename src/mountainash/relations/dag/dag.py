@@ -320,6 +320,7 @@ class RelationDAG:
         execution_policy: "CapabilityPolicy",
         phase: ExecutionPhase = ExecutionPhase.EXECUTE,
         execution_context: Any = None,
+        retain_execution_scope: bool = False,
     ) -> "tuple[Any, Any]":
         """``execute()`` variant returning ``(result, visitor)`` for terminals
         needing post-compile visitor state (e.g. ``collect_with_drift``).
@@ -353,6 +354,7 @@ class RelationDAG:
             execution_policy=execution_policy,
             phase=phase,
             execution_context=execution_context,
+            retain_execution_scope=retain_execution_scope,
         )
 
     def _compile_with_refs(
@@ -365,6 +367,7 @@ class RelationDAG:
         execution_policy: "CapabilityPolicy",
         phase: ExecutionPhase = ExecutionPhase.EXECUTE,
         execution_context: Any = None,
+        retain_execution_scope: bool = False,
     ) -> "tuple[Any, Any]":
         """Preflight the complete root before compiling any named dependency.
 
@@ -420,14 +423,15 @@ class RelationDAG:
 
                 _guard_native_terminal(visitor.structured_field_plans)
                 envelope = session.cache_root(key_target_name, envelope, visitor)
-            visitor._execution_session = compilation
+            visitor._execution_session = session if retain_execution_scope else compilation
             return envelope.value, visitor
         except BaseException:
             compilation.close(release_owned=True)
             session.close(release_owned=True)
             raise
         finally:
-            session.close(release_owned=False)
+            if not retain_execution_scope:
+                session.close(release_owned=False)
 
     def schema(
         self, name: str
