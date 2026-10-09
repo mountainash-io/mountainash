@@ -62,8 +62,6 @@ def test_adoption_preserves_distinct_diagnostics_and_source_owned_checks():
         marker = f"__ma_residue_{index}"
         check = MaterializationResidueCheck(None, "payload", marker)
         visitor = SimpleNamespace(
-            semantic_types={},
-            _semantic_types_by_node={},
             diagnostic_traces={(location.family, location.dialect): trace},
             residue_checks=[check],
             residue_check_nodes={marker: record.conform_node_id},
@@ -74,8 +72,6 @@ def test_adoption_preserves_distinct_diagnostics_and_source_owned_checks():
         )
         children.append(session.capture(visitor, owner_key=f"root/{index}", location=location, value=object()))
     parent = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[],
         residue_check_nodes={},
@@ -103,8 +99,6 @@ def test_join_suffix_maps_source_marker_without_changing_owner(opaque):
     source = ExecutionLocation(CONST_BACKEND.IBIS, "ibis-duckdb", ExecutionForm.DEFERRED, "bound")
     owner = session.capture(
         SimpleNamespace(
-            semantic_types={},
-            _semantic_types_by_node={},
             diagnostic_traces={},
             residue_checks=[MaterializationResidueCheck(None, "payload", "__ma_residue_0")],
             residue_check_nodes={},
@@ -185,8 +179,6 @@ def test_capture_uses_output_check_after_rename_not_stale_local_marker():
     old = MaterializationResidueCheck(None, "payload", "__ma_residue_0")
     moved = MaterializationResidueCheck(None, "payload", "__ma_residue_0_right")
     visitor = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[old],
         owned_residue_checks=[OwnedResidue(moved, "source", location)],
@@ -269,8 +261,6 @@ def test_pending_source_check_cannot_be_dropped_by_parent_projection():
     child = ma.relation({"id": [1], "payload": ["[1]"]})
     check = MaterializationResidueCheck(None, "payload", "__ma_residue_0")
     visitor = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[check],
         residue_check_nodes={},
@@ -292,8 +282,6 @@ def test_pending_source_check_cannot_be_overwritten_or_misaligned(operation):
     location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
     source = ma.relation({"id": [1], "payload": ["[1]"]})
     visitor = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[MaterializationResidueCheck(None, "payload", "__ma_residue_0")],
         owned_residue_checks=[],
@@ -334,8 +322,6 @@ def test_visitor_rejects_projection_removing_adopted_marker_before_native_dispat
     session = MetadataSession(IdentityTokens())
     marker = MaterializationResidueCheck(None, "payload", "__ma_residue_0")
     source = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[marker],
         owned_residue_checks=[],
@@ -420,8 +406,6 @@ def test_capture_is_immutable_snapshot_not_live_visitor_state():
     record = OperationDiagnostic(None, "polars", "polars", "source", (), None, "payload", "array", "")
     trace.extend((record,))
     visitor = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={(CONST_BACKEND.POLARS, "polars"): trace},
         residue_checks=[],
         owned_residue_checks=[],
@@ -441,8 +425,6 @@ def test_adopt_keeps_child_resource_dependencies_without_releasing_them():
     location = ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
     resource = object()
     visitor = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[],
         owned_residue_checks=[],
@@ -454,8 +436,6 @@ def test_adopt_keeps_child_resource_dependencies_without_releasing_them():
     child = session.capture(visitor, owner_key="source", location=location, value=object())
     visitor.owned_resources.clear()
     parent = SimpleNamespace(
-        semantic_types={},
-        _semantic_types_by_node={},
         diagnostic_traces={},
         residue_checks=[],
         owned_residue_checks=[],

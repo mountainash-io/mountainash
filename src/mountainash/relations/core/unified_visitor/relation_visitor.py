@@ -200,9 +200,6 @@ class UnifiedRelationVisitor:
         self._conform_metadata_by_node: dict[int, tuple[bool, frozenset[str], frozenset[str]]] = {}
         self._ref_plans_by_node: dict[int, Any] = {}
         self.structured_field_plans: Any = MappingProxyType({})
-        self._semantic_types_by_node: dict[int, Any] = {}
-        self._pending_semantic_types: dict[int, Any] = {}
-        self.semantic_types: Any = MappingProxyType({})
 
     def visit(self, node: RelationNode) -> Any:
         """Single dispatch site (spec §3.5): third-party visit-registry
@@ -348,27 +345,6 @@ class UnifiedRelationVisitor:
         return None
 
 
-    def _numeric_input_types(self, node: RelationNode, op: Any) -> list[Any]:
-        return [
-            self._semantic_types_by_node.get(id(child), MappingProxyType({}))
-            for child in self._relation_children(node, op)
-        ]
-
-    def _prepare_numeric_lineage(self, node: RelationNode, op: Any) -> Any:
-        from mountainash.relations.core.numeric_lineage import propagate_numeric_types
-
-        children = self._numeric_input_types(node, op)
-        incoming = children[0] if children else {}
-        if self.expr_visitor is None:
-            return propagate_numeric_types(
-                node, children, None, output_names_resolver=self._ref_output_names,
-            )
-        with self.expr_visitor.input_scope(None, incoming):
-            return propagate_numeric_types(
-                node, children, self.expr_visitor.type_context,
-                output_names_resolver=self._ref_output_names,
-            )
-
     def _prepare_transport_lineage(self, node: RelationNode, op: Any | None = None) -> None:
         """Reject unsafe transport consumers before expression or backend dispatch."""
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
@@ -377,7 +353,6 @@ class UnifiedRelationVisitor:
         from mountainash.relations.core.structured_lineage import propagate_structured_plans
 
         operation = op or RelationOperationRegistry.get(node.operation_key)
-        self._pending_semantic_types[id(node)] = self._prepare_numeric_lineage(node, operation)
         conform_plans = self._conform_plans_by_node.get(
             id(node), self._ref_plans_by_node.get(id(node), MappingProxyType({}))
         )
@@ -438,13 +413,6 @@ class UnifiedRelationVisitor:
             output_checks = (*carried, *self._local_checks_by_node.get(id(node), ()))
             self._owned_checks_by_node[id(node)] = output_checks
             self.owned_residue_checks = list(output_checks)
-        numeric = self._pending_semantic_types.pop(id(node), None)
-        if numeric is None:
-            numeric = self._semantic_types_by_node.get(id(node))
-        if numeric is None:
-            numeric = self._prepare_numeric_lineage(node, op)
-        self._semantic_types_by_node[id(node)] = numeric
-        self.semantic_types = numeric
 
     @staticmethod
     def _relation_children(node: RelationNode, op: Any) -> list[RelationNode]:
@@ -497,27 +465,13 @@ class UnifiedRelationVisitor:
         method = getattr(self.backend, op.protocol_method.__name__)
         # Generic expression bindings belong to the operation's immediate input,
         # not the root source (projection and join may have changed its schema).
-        numeric_inputs = self._numeric_input_types(node, op)
-        with self.expr_visitor.input_scope(
-            prepared_inputs.get("input"), numeric_inputs[0] if numeric_inputs else {},
-        ):
+        with self.expr_visitor.input_scope(prepared_inputs.get("input")):
             args = []
             for binding in op.args:
                 if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}:
                     value = prepared_inputs[binding.field]
                 elif aggregate_values is not None and binding.field in aggregate_values:
                     value = [self.compile_expression(expr) for expr in aggregate_values[binding.field]]
-                elif binding.kind is ArgKind.EXPRESSION_LIST and op.operation_key in {
-                    RKEY_SUBSTRAIT_REL.PROJECT_SELECT, RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS,
-                }:
-                    from mountainash.relations.core.projection_names import expand_named_field_selectors
-                    from mountainash.relations.core.structured_lineage import _relation_output_names
-
-                    expressions = expand_named_field_selectors(
-                        getattr(node, binding.field),
-                        input_names=lambda: _relation_output_names(node.input, self._ref_output_names),
-                    )
-                    value = [self.compile_expression(expr) for expr in expressions]
                 else:
                     value = self._bind(node, binding)
                 args.append(value)
@@ -706,12 +660,6 @@ class UnifiedRelationVisitor:
         # to today's names-only detection when that degrades to empty, so
         # `available` is unaffected by the new dtype path in either case.
         available_schema = _schema_from_dataframe(native)
-        incoming_numeric = self._semantic_types_by_node.get(
-            id(getattr(owner_node, "input", None)), MappingProxyType({}),
-        )
-        available_schema.update({
-            name: shape.canonical_type for name, shape in incoming_numeric.items()
-        })
         if available_schema:
             available = list(available_schema.keys())
         elif hasattr(native, "collect_schema"):
@@ -728,8 +676,6 @@ class UnifiedRelationVisitor:
             actual_shapes = extract_source_shapes(native)
         except (TypeError, ImportError):
             actual_shapes = None
-        if incoming_numeric:
-            actual_shapes = {**(actual_shapes or {}), **incoming_numeric}
         # bare KeyError on an unknown preset name (pinned by
         # tests/conform/test_contract.py::
         # test_resolve_contract_unknown_fields_match_raises_keyerror) —
@@ -796,21 +742,7 @@ class UnifiedRelationVisitor:
 
         # Zero-column reconstruction (resource-read path only).
         if empty_from_schema and available == [] and schema.fields:
-            result = self.backend.empty_frame(schema)
-            from mountainash.core.dtypes.numeric import has_nested_numeric_fields
-            from mountainash.typespec.source_shape import declared_field_shape
-
-            numeric_outputs = MappingProxyType({
-                field.name: declared_field_shape(field)
-                for field in schema.fields
-                if apply_value_transforms
-                and resolved_contract.data_type in {"coerce", "discard_value", "discard_row"}
-                and has_nested_numeric_fields((field,))
-            })
-            if owner_node is not None:
-                self._semantic_types_by_node[id(owner_node)] = numeric_outputs
-            self.semantic_types = numeric_outputs
-            return result
+            return self.backend.empty_frame(schema)
 
         use_open = (
             resolved_contract.extra_columns == "evolve"
@@ -840,17 +772,7 @@ class UnifiedRelationVisitor:
         self.expr_visitor.conform_node_id = node_id
         self.expr_visitor.raising_diagnostic = None
         try:
-            with self.expr_visitor.input_scope(native, incoming_numeric):
-                from mountainash.relations.core.numeric_lineage import project_numeric_types
-
-                numeric_outputs = project_numeric_types(
-                    conform_result.exprs, incoming_numeric,
-                    self.expr_visitor.type_context, available or (), keep=use_open,
-                )
-                numeric_outputs = MappingProxyType({
-                    name: shape for name, shape in numeric_outputs.items()
-                    if name not in conform_result.renamed_sources
-                })
+            with self.expr_visitor.input_scope(native):
                 compiled_exprs = [
                     self.compile_expression(expr) for expr in conform_result.exprs
                 ]
@@ -931,9 +853,6 @@ class UnifiedRelationVisitor:
                 rel = self.backend.project_select(
                     rel, compiled_exprs + marker_exprs
                 )
-            if owner_node is not None:
-                self._semantic_types_by_node[id(owner_node)] = numeric_outputs
-            self.semantic_types = numeric_outputs
             return rel
         except (BackendCapabilityError, ConformError):
             raise

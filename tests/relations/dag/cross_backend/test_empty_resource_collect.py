@@ -242,9 +242,8 @@ def test_uninspectable_columns_does_not_trigger_empty_frame():
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", _COLLECT_BACKENDS)
-def test_empty_resource_retains_declared_lexical_identity(backend_name):
+def test_empty_lexical_resource_collects_and_sorts(backend_name):
     from mountainash.core.dtypes import MountainashDtype
-    from mountainash.core.dtypes.errors import LexicalNumericUseError
     from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
     from mountainash.typespec.frictionless import typespec_to_frictionless
 
@@ -258,5 +257,4 @@ def test_empty_resource_retains_declared_lexical_identity(backend_name):
     assert _columns(frame) == ["n"]
     assert _nrows(frame) == 0
     dag.add("sorted", dag.ref("empty").sort("n"))
-    with pytest.raises(LexicalNumericUseError):
-        dag.collect("sorted", backend=backend_name)
+    assert _nrows(dag.collect("sorted", backend=backend_name)) == 0

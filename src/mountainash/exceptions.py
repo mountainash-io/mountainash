@@ -38,7 +38,6 @@ from mountainash.relations.dag.errors import (
 )
 from mountainash.core.dtypes.errors import (
     DtypeError,
-    LexicalNumericUseError,
     NumericConversionError,
     DtypeMappingError,
     UnknownDtypeError,
@@ -113,7 +112,6 @@ __all__ = [
     "DtypeError",
     "UnknownDtypeError",
     "DtypeMappingError",
-    "LexicalNumericUseError",
     "NumericConversionError",
     "BackendCapabilityError",
     "SchemaValidationError",

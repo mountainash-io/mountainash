@@ -263,17 +263,10 @@ exponent, redundant sign/zeros or fractional trailing zeros; zero is `"0"`.
 Lexical integer rejects fractional values. These representations preserve
 unbounded numeric values, not original source spelling or XSD/JSON lexical rules.
 
-Validated lexical identity follows projections, renames, compatible joins/unions,
-nested fields and DAG references. Arithmetic and numeric ordering raise
-`LexicalNumericUseError` until you explicitly cast to a numeric target.
-Cast to `"string"` to opt out and use textual ordering. Same-kind canonical
-equality, grouping and distinct operations remain available; mixing lexical
-values with unvalidated strings requires an explicit conversion.
-
-Checked bounded integer/float casts apply to validated lexical inputs. Ordinary
-casts of unvalidated strings retain backend semantics. Use canonical Mountainash
-targets for lexical conversion; backend-native dtype wrappers cannot bypass
-lexical checks or replace the explicit `"string"` opt-out.
+Lexical columns are ordinary strings at runtime: every string operation works,
+and sorting is textual. Cast explicitly (for example to `ma.DecimalDtype(...)` or
+`"i64"`) when you need numeric semantics; casts to bounded types follow the
+backend's ordinary string casting.
 
 | Execution backend | Fixed decimal result | Lexical numeric result |
 |---|---|---|
@@ -295,8 +288,7 @@ Raw egress returns native Decimal values and strings, not automatic source-model
 decoding. Cast policies belong to expressions, not TypeSpec persistence.
 Model egress with an explicit numeric TypeSpec honors that declaration rather
 than replacing it with bounded integer/float types inferred from annotations.
-Model constructors own any subsequent decoding. Exporting a native frame and
-rewrapping it ends live lexical protection.
+Model constructors own any subsequent decoding.
 
 Conform applies exact numeric conversion to declared OBJECT and ARRAY-of-OBJECT
 children. Null containers, null children and null items remain distinct.

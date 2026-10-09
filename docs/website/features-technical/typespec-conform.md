@@ -53,10 +53,8 @@ for backend representations and SQLite's fixed-decimal refusal.
 
 Numeric conform uses the checked conversion contract, including nested OBJECT
 and ARRAY-of-OBJECT fields within the existing structured support matrix.
-Validated lexical identity survives transparent expression/relation operations
-and DAG references. Arithmetic, ordering and incompatible-domain consumers raise
-`LexicalNumericUseError`; an explicit numeric cast checks conversion, while a
-STRING cast opts out. Native export/rewrap loses live semantic identity.
+Lexical columns behave as ordinary strings in expressions and relations; cast
+explicitly when numeric semantics are needed.
 
 An explicit numeric TypeSpec also owns model egress; annotations do not silently
 replace exact declarations with bounded integer/float types. Model constructors

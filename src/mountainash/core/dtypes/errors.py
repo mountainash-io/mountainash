@@ -28,9 +28,6 @@ class DtypeMappingError(DtypeError):
 class NumericConversionError(DtypeError):
     """A numeric value cannot be represented under the requested conversion policy."""
 
-class LexicalNumericUseError(DtypeError):
-    """A validated lexical numeric value needs an explicit numeric conversion."""
-
 
 class InvalidBackendTypeError(DtypeError):
     """A non-empty FieldSpec.backend_type could not be parsed for the target."""
