@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-09
+
+### Added
+- `Relation.fingerprint(keys=..., columns=..., batch_size=5000)` for scoped, runtime-versioned per-column drift fingerprints on Polars and Ibis-DuckDB. Includes exact row counts and typed compatibility descriptors; PostgreSQL is deferred pending reader lifecycle fixes. See [Selective fingerprints](docs/guides/selective-fingerprints.md).
+
 ## Unreleased — 2026-10-08
 
 ### Added
