@@ -150,3 +150,42 @@ def test_nested_numeric_projection_keeps_child_domain(backend_name, backend_fact
     assert rel.to_dict()["n"] == ["20", "100"]
     with pytest.raises(LexicalNumericUseError):
         rel.sort("n").to_dict()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_lexical_conditional_predicate_is_refused_before_dispatch(backend_name, backend_factory):
+    rel = _declared_relation(backend_name, backend_factory)
+    with pytest.raises(LexicalNumericUseError):
+        rel.select(ma.when(ma.col("n")).then(1).otherwise(0)).to_dict()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_null_equality_does_not_depend_on_operand_order(backend_name, backend_factory):
+    rel = _declared_relation(backend_name, backend_factory)
+    expected = {"id": [], "n": []}
+    assert rel.filter(ma.col("n").eq(ma.lit(None))).to_dict() == expected
+    assert rel.filter(ma.lit(None).eq(ma.col("n"))).to_dict() == expected
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_lexical_window_order_requires_conversion(backend_name, backend_factory):
+    rel = _declared_relation(backend_name, backend_factory)
+    with pytest.raises(LexicalNumericUseError):
+        rel.select(ma.col("id").sum().over(order_by="n")).to_dict()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_opaque_native_predicate_cannot_bypass_lexical_protection(backend_name, backend_factory):
+    source = backend_factory.create({"n": ["20", "100"]}, backend_name)
+    if backend_name.startswith("ibis-"):
+        import ibis
+        predicate = ibis._["n"] > "30"
+    elif backend_name in {"polars", "polars-lazy"}:
+        import polars as pl
+        predicate = pl.col("n") > "30"
+    else:
+        import narwhals as nw
+        predicate = nw.col("n") > "30"
+    rel = ma.relation(source).with_columns(ma.col("n").cast(ma.MountainashDtype.LEXICAL_INTEGER))
+    with pytest.raises(LexicalNumericUseError):
+        rel.filter(ma.native(predicate)).to_dict()

@@ -65,6 +65,14 @@ Strict readback checks physical schema first, then compares canonical checked
 candidates with unchanged stored lexical values. An inferred frame followed by
 conform is not a preserving constructor.
 
+`classify_cast(source, target)` describes the whole source domain:
+`SAFE` preserves every value, `NARROWING` preserves fitting values but rejects
+others, `LOSSY` can change a successful result, and `UNSAFE` has no established
+guarantee. `is_safe_cast` accepts only `SAFE`. Decimal scale loss takes precedence
+over range narrowing; I64/U64→FP64 and timestamp→date are lossy. Arbitrary STRING
+is not a validated lexical numeric domain. Conform type and foreign-key drift
+retain the category rather than reducing every non-safe cast to `"unsafe"`.
+
 ## Sources
 
 `TypeSpec.from_*` and `ma.typespec(...)` accept many inputs:

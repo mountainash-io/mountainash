@@ -9,6 +9,7 @@
 - Exact numeric conform, nested numeric conversion within the structured support matrix, and validated lexical identity through expression/relation/DAG composition. Lexical arithmetic, ordering and mixed-domain operations require explicit conversion; STRING casts and native export end protection. Explicit numeric schemas control model egress (241).
 
 ### Fixed
+- Cast safety now distinguishes SAFE, NARROWING, LOSSY and UNSAFE over full numeric domains, including decimal parameters and validated lexical types. Integer→float precision loss and timestamp→date are no longer SAFE; conform and foreign-key drift retain the actual non-safe category (241).
 - Repeated Ibis DAG, validation, logical-terminal, and transport materialization now observes fresh source values while earlier results remain alive (257).
 - Ibis `collect()` documentation now describes deferred pass-through behavior.
 

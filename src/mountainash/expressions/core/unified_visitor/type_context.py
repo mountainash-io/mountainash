@@ -40,6 +40,13 @@ class TypeContext:
         """Whether resolution currently has a native input scope."""
         return bool(self._scopes)
 
+    @property
+    def has_lexical_inputs(self) -> bool:
+        return bool(self._scopes) and any(
+            self.has_lexical_evidence(shape)
+            for shape in self._scopes[-1].semantic_types.values()
+        )
+
     @contextmanager
     def input_scope(
         self, input_data: Any, semantic_types: Mapping[str, Any] | None = None,
@@ -57,10 +64,9 @@ class TypeContext:
         """Return semantic evidence carried by an expression without evaluating it."""
         from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
         from mountainash.expressions.core.expression_nodes import (
-            CastNode, FieldReferenceNode, IfThenNode, LiteralNode, ScalarFunctionNode,
+            CastNode, FieldReferenceNode, IfThenNode, LiteralNode, OverNode, ScalarFunctionNode,
         )
         from mountainash.expressions.core.expression_system.function_keys.enums import (
-            FKEY_MOUNTAINASH_SCALAR_COMPARISON,
             FKEY_MOUNTAINASH_SCALAR_VALUE,
             FKEY_MOUNTAINASH_NAME,
             FKEY_MOUNTAINASH_SCALAR_STRUCT,
@@ -80,6 +86,10 @@ class TypeContext:
                 names = (node.field,)
             index = 0 if len(names) == 1 else output_index
             return scope.semantic_types.get(names[index]) if index < len(names) else None
+        if isinstance(node, OverNode):
+            return self.semantic_shape(
+                node.expression, input_names=input_names, output_index=output_index,
+            )
         if isinstance(node, LiteralNode):
             return None
         if isinstance(node, CastNode):

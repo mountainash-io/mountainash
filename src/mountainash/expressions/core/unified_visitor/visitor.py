@@ -206,7 +206,25 @@ class UnifiedExpressionVisitor:
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
         )
 
+        if isinstance(node, LiteralNode) and (
+            node.is_native or self._is_backend_expression(node.value)
+        ) and self.type_context.has_lexical_inputs:
+            raise LexicalNumericUseError(
+                "native expressions cannot prove lexical numeric semantics; cast to STRING first"
+            )
+        if isinstance(node, (OverNode, WindowFunctionNode)) and node.window_spec is not None:
+            for sort in node.window_spec.order_by:
+                shape = self.type_context.semantic_shape(FieldReferenceNode(field=sort.column))
+                if TypeContext.has_lexical_evidence(shape):
+                    raise LexicalNumericUseError(
+                        "lexical numeric window ordering requires an explicit numeric cast"
+                    )
         if isinstance(node, IfThenNode):
+            for predicate, _ in node.conditions:
+                if TypeContext.has_lexical_evidence(self.type_context.semantic_shape(predicate)):
+                    raise LexicalNumericUseError(
+                        "lexical numeric values cannot be boolean conditions; cast explicitly first"
+                    )
             self.type_context.semantic_shape(node)
             return
         if isinstance(node, CastNode):
@@ -240,7 +258,7 @@ class UnifiedExpressionVisitor:
             raise LexicalNumericUseError(
                 "membership across incompatible lexical numeric domains requires explicit conversion"
             )
-        if not isinstance(node, ScalarFunctionNode):
+        if not isinstance(node, (ScalarFunctionNode, WindowFunctionNode)):
             return
         shapes = [self.type_context.semantic_shape(arg) for arg in node.arguments]
         if not any(TypeContext.has_lexical_evidence(shape) for shape in shapes):
@@ -268,8 +286,9 @@ class UnifiedExpressionVisitor:
             FKEY_SUBSTRAIT_SCALAR_COMPARISON.EQUAL,
             FKEY_SUBSTRAIT_SCALAR_COMPARISON.NOT_EQUAL,
         }:
+            lexical = next(shape for shape in shapes if TypeContext.has_lexical_evidence(shape))
             if all(
-                (shape is not None and shape == shapes[0])
+                (shape is not None and shape == lexical)
                 or self.type_context.is_null_scalar(argument)
                 for shape, argument in zip(shapes, node.arguments)
             ):

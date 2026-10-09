@@ -32,7 +32,7 @@ from mountainash.typespec.source_shape import SourceShape, declared_field_shape
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift, KeyDrift
-    from mountainash.core.dtypes import CanonicalDtype, MountainashDtype
+    from mountainash.core.dtypes import CanonicalDtype
     from mountainash.typespec.spec import FieldSpec, ForeignKey, TypeSpec
 
 _VALID_FIELDS_MATCH = frozenset({"open", "exact", "equal", "subset", "superset", "partial"})
@@ -347,7 +347,7 @@ def resolve_conform_output(
 ) -> ConformOutputContract:
     """Resolve structure, source evidence, drift, and per-field action policy."""
     from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
-    from mountainash.core.dtypes import CastSafety, MountainashDtype, classify_cast
+    from mountainash.core.dtypes import CastSafety, DecimalDtype, MountainashDtype, classify_cast
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.universal_types import UniversalType
 
@@ -531,12 +531,12 @@ def resolve_conform_output(
                     requirement,
                     apply_value_transforms,
                 )
-            elif classify_cast(actual_dtype, declared) is not CastSafety.SAFE:
+            elif (safety := classify_cast(actual_dtype, declared)) is not CastSafety.SAFE:
                 mismatch = TypeDrift(
                     em.field.name,
                     declared,
                     actual_dtype,
-                    "unsafe",
+                    safety.value,
                     None,
                     "cast_safety",
                     str(actual_dtype),
@@ -597,8 +597,14 @@ def resolve_conform_output(
                 child = emitted_by_name.get(local)
                 child_type = child.effective_type if child and child.effective_type is not None else (child.declared_type if child else None)
                 parent_type = parent.get(remote)
-                if isinstance(child_type, MountainashDtype) and isinstance(parent_type, MountainashDtype) and classify_cast(child_type, parent_type) is CastSafety.UNSAFE:
-                    key_changes.append(KeyDrift("fk_type_mismatch", [local], target, declared=parent_type, actual=child_type, action=contract.keys))
+                if isinstance(child_type, (MountainashDtype, DecimalDtype)) and isinstance(parent_type, (MountainashDtype, DecimalDtype)):
+                    safety = classify_cast(child_type, parent_type)
+                    if safety is not CastSafety.SAFE:
+                        key_changes.append(KeyDrift(
+                            "fk_type_mismatch", [local], target,
+                            declared=parent_type, actual=child_type, action=contract.keys,
+                            safety=safety.value,
+                        ))
         if contract.keys == "freeze" and key_changes and raise_on_freeze:
             _raise_drift(key_changes=key_changes, node_identity=node_identity)
 

@@ -792,7 +792,21 @@ class UnifiedRelationVisitor:
 
         # Zero-column reconstruction (resource-read path only).
         if empty_from_schema and available == [] and schema.fields:
-            return self.backend.empty_frame(schema)
+            result = self.backend.empty_frame(schema)
+            from mountainash.core.dtypes.numeric import has_nested_numeric_fields
+            from mountainash.typespec.source_shape import declared_field_shape
+
+            numeric_outputs = MappingProxyType({
+                field.name: declared_field_shape(field)
+                for field in schema.fields
+                if apply_value_transforms
+                and resolved_contract.data_type in {"coerce", "discard_value", "discard_row"}
+                and has_nested_numeric_fields((field,))
+            })
+            if owner_node is not None:
+                self._semantic_types_by_node[id(owner_node)] = numeric_outputs
+            self.semantic_types = numeric_outputs
+            return result
 
         use_open = (
             resolved_contract.extra_columns == "evolve"
