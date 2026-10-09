@@ -693,6 +693,16 @@ class Relation(RelationBase):
 
     # --- Terminal operations ---
 
+    def snapshot(self) -> Relation:
+        """Return an independent, native snapshot, held by the current scope if any.
+
+        Outside a scope its storage follows result/derived-plan reachability.
+        SQL snapshots require one idle connection; deferred cleanup runs on the
+        owning thread at a later admitted copy or explicit scope release.
+        """
+        from .materialization_scope import snapshot
+        return snapshot(self)
+
     def compile(self) -> Any:
         """Compile to a native backend plan without materializing.
 
@@ -721,6 +731,8 @@ class Relation(RelationBase):
         prepared = prepare_execution(
             self._apply_optimisations(self._node), phase=ExecutionPhase.EXPLAIN,
         )
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
         from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
 
         if (any(isinstance(node, ResourceReadRelNode) for node in prepared.nodes.values())
@@ -744,10 +756,9 @@ class Relation(RelationBase):
     def collect(self, *, unwrap: bool = True, backend: Optional[str] = None) -> Any:
         """Execute the plan and return a fully materialized native result.
 
-        Always eager: a Polars ``LazyFrame`` source returns a ``DataFrame``,
-        an Ibis expression returns a cached, dialect-intact Ibis ``Table``,
-        narwhals returns its native frame, and so on. One syntax for all
-        backends.
+        A Polars ``LazyFrame`` source returns a ``DataFrame``; Ibis returns a
+        deferred, dialect-intact ``Table``; Narwhals returns its native frame.
+        Use :meth:`snapshot` for independently owned values fixed at this time.
 
         Args:
             unwrap: When *True* (default), narwhals wrappers are stripped so

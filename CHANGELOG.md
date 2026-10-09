@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 2026-10-08
+
+### Added
+- Owned `Relation.snapshot()` and `ma.materialization_scope()` with checkpoint policy, detach, and sequential batch capture (257). See [Owned snapshots](docs/guides/owned-snapshots.md) for supported routes, lifetime, and SQL preparation limits.
+
+### Fixed
+- Repeated Ibis DAG, validation, logical-terminal, and transport materialization now observes fresh source values while earlier results remain alive (257).
+- Ibis `collect()` documentation now describes deferred pass-through behavior.
+
 ## Unreleased — 2026-10-01
 
 ### Changed

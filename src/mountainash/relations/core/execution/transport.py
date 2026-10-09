@@ -229,13 +229,16 @@ class TransportSession:
         from mountainash.relations.core.execution.metadata import CompiledSubtree
 
         if source.location.family is CONST_BACKEND.IBIS:
-            def cache():
-                cached = transit_call(BoundaryKey.IBIS_NATIVE_CACHE, source.value.cache)
-                self._scope.own(cached.release, owner=cached)
-                self._retained.append(cached)
-                return cached
+            from mountainash.relations.core.owned_copy import owned_ibis_table
 
-            value = self._source_export(source, cache)
+            def copy_source():
+                copy = owned_ibis_table(source.value)
+                if copy.release is not None:
+                    self._scope.own(copy.release, owner=copy.value)
+                self._retained.append(copy.value)
+                return copy.value
+
+            value = self._source_export(source, copy_source)
         else:
             deferred = is_polars_lazyframe(source.value) or is_narwhals_lazyframe(source.value)
             value = self._export_checked(source)

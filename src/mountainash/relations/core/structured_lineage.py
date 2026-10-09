@@ -428,6 +428,10 @@ def propagate_structured_plans(
             _raise(name, plan, node, "an unclassified relation operation")
         return _empty()
     if policy is _START:
+        if node.operation_key is RS.READ:
+            return freeze_structured_field_plans(
+                {plan.field_name: plan for plan in node.structured_field_plans}
+            )
         return _empty()
     if policy is _CONFORM:
         return freeze_structured_field_plans(conform_plans)

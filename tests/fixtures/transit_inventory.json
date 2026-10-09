@@ -1298,6 +1298,72 @@
     "legacy_unwrapped": false
   },
   {
+    "module": "mountainash.relations.core.owned_copy",
+    "owner": "_inprocess_copy",
+    "callee": "collect",
+    "fingerprint": "6a904a750d9adf41",
+    "boundary_key": "NARWHALS_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Narwhals LazyFrame.collect() stays within the underlying non-pandas backend detected at runtime; no cross-family conversion occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.owned_copy",
+    "owner": "_inprocess_copy",
+    "callee": "from_native",
+    "fingerprint": "20547331772f99fa",
+    "boundary_key": "NARWHALS_NATIVE_WRAP",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Wraps an arbitrary native value into a Narwhals frame for inspection, resource reading, or adapter ingestion; the wrap call itself never constructs pandas.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.owned_copy",
+    "owner": "_inprocess_copy",
+    "callee": "to_native",
+    "fingerprint": "9722921bdfb7414e",
+    "boundary_key": "NARWHALS_NATIVE_UNWRAP_NON_PANDAS",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "A Narwhals frame wrapping a non-pandas backend unwraps to its native Polars or PyArrow value; no pandas transit occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.owned_copy",
+    "owner": "_inprocess_copy",
+    "callee": "to_native",
+    "fingerprint": "cfd5d45849946d5c",
+    "boundary_key": "NARWHALS_NATIVE_UNWRAP_PANDAS",
+    "transit_class": "EXPLICIT_PANDAS_INPUT",
+    "reason": "A Narwhals frame wrapping a selected pandas backend unwraps to its native pandas value; pandas is the declared source identity.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.owned_copy",
+    "owner": "_polars_copy",
+    "callee": "collect",
+    "fingerprint": "3e7ac7b6af0de5cd",
+    "boundary_key": "POLARS_LAZY_COLLECT",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Polars LazyFrame.collect() stays a native Polars eager frame; no cross-family conversion occurs.",
+    "since": "2026-08-27",
+    "legacy_unwrapped": false
+  },
+  {
+    "module": "mountainash.relations.core.owned_copy",
+    "owner": "_polars_copy",
+    "callee": "to_arrow",
+    "fingerprint": "cf5ac4f8d4412f74",
+    "boundary_key": "OWNED_COPY_POLARS_TO_ARROW",
+    "transit_class": "NON_PANDAS_OPERATION",
+    "reason": "Arrow IPC severs borrowed nested and dictionary buffers.",
+    "since": "2026-10-08",
+    "legacy_unwrapped": false
+  },
+  {
     "module": "mountainash.relations.core.relation_api.relation",
     "owner": "Relation.describe",
     "callee": "collect",

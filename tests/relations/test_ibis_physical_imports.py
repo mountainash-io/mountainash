@@ -23,6 +23,29 @@ def test_missing_physical_dependency_is_lazy_and_actionable():
         ma.col("x").add(1)
         for frame in (pl.DataFrame({"x": [1]}), nw.from_native(pl.DataFrame({"x": [1]}))):
             assert ma.relation(frame).to_polars()["x"].to_list() == [1]
+        import ibis
+        from mountainash.relations.core.owned_copy import owned_copy
+        connection = ibis.polars.connect()
+        source = connection.create_table("source", pl.DataFrame({"x": [7]}))
+        copy = owned_copy(source)
+        name = copy.value.op().name
+        connection.drop_table("source")
+        assert ma.relation(copy.value).to_dicts() == [{"x": 7}]
+        copy.release()
+        assert name not in connection.list_tables()
+        with ma.materialization_scope() as scope:
+            escaped = scope.snapshot(
+                ma.relation(connection.create_table("second", pl.DataFrame({"x": [8]})))
+            )
+            assert escaped.item("x") == 8
+        from mountainash.relations.core.errors import MaterializationScopeClosedError
+        try:
+            escaped.collect()
+        except MaterializationScopeClosedError:
+            pass
+        else:
+            raise AssertionError("closed in-process scope remained readable")
+        connection.disconnect()
         assert "mountainash_data" not in sys.modules
         from mountainash.core.lazy_imports import import_mountainash_data
         try:

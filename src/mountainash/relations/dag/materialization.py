@@ -341,6 +341,12 @@ class DAGMaterializationSession:
                     identity_resolver=self._canonical_node,
                     tokens=tokens, binding=destination if connectionless else None,
                 )
+                from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+                assert_prepared_owned_open(prepared)
+                if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
+                    from mountainash.relations.core.owned_copy import require_copy_idle
+
+                    require_copy_idle(prepared.locations[prepared.root_key].connection)
                 key_context = KeyDriftContext(
                     resource_name=name, constraints_for=self.dag.constraints_for,
                     schema_of=self.dag.schema,
@@ -457,7 +463,7 @@ class DAGMaterializationSession:
         *guard_native_terminal* (Task 9 step 6) raises
         :class:`~mountainash.relations.core.errors.LogicalTerminalRequired`
         immediately after compilation, before ANY native-forcing branch
-        below (including an Ibis DAG_CANONICAL ``.cache()``) -- set only
+        below (including an Ibis DAG_CANONICAL owned copy) -- set only
         by the single top-level call compiling a
         :meth:`RelationDAG.collect`/``collect_with_drift`` request's own
         target, never for a transitively-required dependency reached
@@ -477,6 +483,20 @@ class DAGMaterializationSession:
             raise ValueError(f"relation {name!r} has no _node attribute")
 
         resolved_backend, dialect = self._resolve_identity(name, honor_override=honor_override)
+        from mountainash.relations.core.execution.preparation import prepare_execution
+        from mountainash.relations.core.owned_copy import require_copy_idle
+
+        prepared = prepare_execution(
+            root, phase=ExecutionPhase.EXPLAIN,
+            backend=self.backend if honor_override else None,
+            identity_resolver=self._canonical_node,
+        )
+        placement = prepared.locations[prepared.root_key]
+        from mountainash.relations.core.owned_copy import assert_prepared_owned_open
+        assert_prepared_owned_open(prepared)
+        require_copy_idle(placement.connection)
+        if placement.family is not None:
+            resolved_backend, dialect = placement.family, placement.dialect
 
         # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
         # must reject before caching -- _coerce_to_match's eager-over-lazy
@@ -576,7 +596,7 @@ class DAGMaterializationSession:
 
         if is_ibis_table(compiled):
             # DAG_CANONICAL's whole point (spec 10.2): a shared Ibis
-            # resource is forced eager via ONE .cache() call, so every
+            # resource is forced eager via ONE owned copy, so every
             # later consumer within this session reuses it instead of
             # re-executing the query.
             def _thunk() -> NativeExecutionValue:
@@ -659,7 +679,7 @@ class DAGMaterializationSession:
         In :attr:`SessionMode.NATIVE_COLLECTION` mode, raises
         :class:`~mountainash.relations.core.errors.LogicalTerminalRequired`
         before any native-forcing step (including an Ibis DAG_CANONICAL
-        ``.cache()``) if *name*'s own compiled plans still need a logical
+        owned copy) if *name*'s own compiled plans still need a logical
         terminal -- zero ``materialize_native()`` calls for a request that
         is going to fail closed regardless. A transitively-required
         dependency reached while compiling *name* is never guarded here:
@@ -686,7 +706,7 @@ class DAGMaterializationSession:
         more than once in the same session (e.g. a keyed identity check
         followed by a foreign-key check) shares that one collect instead
         of re-executing the query plan per call. An Ibis DAG-canonical
-        native is already forced eager via ``.cache()`` at DAG_CANONICAL
+        native is already forced eager via an owned copy at DAG_CANONICAL
         compile time and passes through unchanged.
         """
         native, visitor = self.compile_registered(name)
@@ -795,7 +815,7 @@ class DAGMaterializationSession:
 
     def close(self, release_owned: bool) -> None:
         """Discard the session. *release_owned* controls whether its
-        ``MaterializationScope`` (Ibis ``.cache()`` releases) actually
+        ``MaterializationScope`` (Ibis owned-copy releases) actually
         runs: ``False`` for ordinary collection (spec 10.5 -- never
         release a value referenced by the returned native expression
         graph), ``True`` for a validation session (the sole release

@@ -81,7 +81,9 @@ class BoundaryKey(Enum):
     NARWHALS_LAZY_COLLECT = auto()
     NARWHALS_NATIVE_UNWRAP_PANDAS = auto()
     NARWHALS_NATIVE_UNWRAP_NON_PANDAS = auto()
-    IBIS_NATIVE_CACHE = auto()
+    OWNED_COPY = auto()
+    OWNED_COPY_POLARS_TO_ARROW = auto()
+    OWNED_COPY_PANDAS_SERIES = auto()
     IBIS_INTERNAL_EXECUTE = auto()
     IBIS_TO_ARROW_EGRESS = auto()
     IBIS_MEMORY_PAYLOAD_TO_ARROW = auto()
@@ -149,6 +151,32 @@ _MATERIALIZATION_OWNER = "mountainash.relations.core.materialization"
 _LOGICAL_SNAPSHOT_OWNER = "mountainash.relations.core.logical_snapshot"
 
 BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
+    BoundaryKey.OWNED_COPY: BoundarySpec(
+        owner="mountainash.relations.core.owned_copy", consumer="independent native copy",
+        route=RouteKey.NATIVE_MATERIALIZATION, step=1,
+        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
+        source_families=frozenset({"polars", "pandas", "pyarrow", "narwhals", "ibis"}),
+        source_dialects=frozenset({"polars", "pandas", "pyarrow", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow", "ibis-polars", "ibis-duckdb", "ibis-sqlite", "ibis-postgres"}),
+        destination_families=frozenset({"polars", "pandas", "pyarrow", "narwhals", "ibis"}),
+        destination_dialects=frozenset({"polars", "pandas", "pyarrow", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow", "ibis-polars", "ibis-duckdb", "ibis-sqlite", "ibis-postgres"}),
+        reason="Copies preserve native schemas and sever source ownership.", since=date(2026, 10, 8),
+    ),
+    BoundaryKey.OWNED_COPY_POLARS_TO_ARROW: BoundarySpec(
+        owner="mountainash.relations.core.owned_copy", consumer="IPC buffer ownership",
+        route=RouteKey.NATIVE_MATERIALIZATION, step=2,
+        transit_class=TransitClass.NON_PANDAS_OPERATION,
+        source_families=frozenset({"polars"}), source_dialects=frozenset({"polars"}),
+        destination_families=frozenset({"pyarrow"}), destination_dialects=frozenset({"pyarrow"}),
+        reason="Arrow IPC severs borrowed nested and dictionary buffers.", since=date(2026, 10, 8),
+    ),
+    BoundaryKey.OWNED_COPY_PANDAS_SERIES: BoundarySpec(
+        owner="mountainash.relations.core.owned_copy", consumer="pandas Arrow column ownership",
+        route=RouteKey.NATIVE_MATERIALIZATION, step=2,
+        transit_class=TransitClass.EXPLICIT_PANDAS_INPUT,
+        source_families=frozenset({"pandas"}), source_dialects=frozenset({"pandas"}),
+        destination_families=frozenset({"pandas"}), destination_dialects=frozenset({"pandas"}),
+        reason="Rebuild selected pandas Arrow columns over independent IPC buffers.", since=date(2026, 10, 8),
+    ),
     BoundaryKey.POLARS_LAZY_COLLECT: BoundarySpec(
         owner=_MATERIALIZATION_OWNER,
         consumer="native relation collection",
@@ -211,22 +239,6 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
         reason=(
             "A Narwhals frame wrapping a non-pandas backend unwraps to its "
             "native Polars or PyArrow value; no pandas transit occurs."
-        ),
-        since=_SINCE_2026_08_27,
-    ),
-    BoundaryKey.IBIS_NATIVE_CACHE: BoundarySpec(
-        owner=_MATERIALIZATION_OWNER,
-        consumer="ibis validation-source native cache",
-        route=RouteKey.NATIVE_MATERIALIZATION,
-        step=1,
-        transit_class=TransitClass.NON_PANDAS_OPERATION,
-        source_families=frozenset({"ibis"}),
-        source_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
-        destination_families=frozenset({"ibis"}),
-        destination_dialects=frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
-        reason=(
-            "Table.cache() eagerly materializes within the same Ibis backend "
-            "and dialect; no cross-family conversion occurs."
         ),
         since=_SINCE_2026_08_27,
     ),

@@ -247,41 +247,21 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
     identity = identify_backend_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
 
-    cache_calls = []
-    to_pyarrow_calls = []
-    to_pandas_calls = []
-    original_cache = type(table).cache
+    from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 
-    def spy_cache(self, *a, **kw):
-        cache_calls.append(1)
-        cached = original_cache(self, *a, **kw)
-        original_to_pyarrow = type(cached).to_pyarrow
-        original_to_pandas = type(cached).to_pandas
+    def forbidden(*args, **kwargs):
+        raise AssertionError("logical snapshot routed through pandas")
 
-        def spy_to_pyarrow(inner_self, *ia, **ikw):
-            to_pyarrow_calls.append(1)
-            return original_to_pyarrow(inner_self, *ia, **ikw)
-
-        def spy_to_pandas(inner_self, *ia, **ikw):
-            to_pandas_calls.append(1)
-            return original_to_pandas(inner_self, *ia, **ikw)
-
-        monkeypatch.setattr(type(cached), "to_pyarrow", spy_to_pyarrow)
-        monkeypatch.setattr(type(cached), "to_pandas", spy_to_pandas)
-        return cached
-
-    monkeypatch.setattr(type(table), "cache", spy_cache)
-
-    with MaterializationScope() as scope:
+    monkeypatch.setattr(type(table), "to_pandas", forbidden)
+    with MaterializationScope() as scope, capture_conversion_trace() as trace:
         native = materialize_native(
             table, identity, MaterializationPurpose.LOGICAL_TERMINAL,
             execution_context=context, scope=scope,
         )
         result = logical_terminal_snapshot(native)
 
-    assert cache_calls == [1]
-    assert to_pyarrow_calls == [1]
-    assert to_pandas_calls == []
+    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 1
+    assert sum(r.boundary_key is BoundaryKey.LOGICAL_SNAPSHOT_IBIS_TO_ARROW for r in trace.records) == 1
     assert result.row_ordinals == (0, 1, 2)
     assert set(result.columns) == {"age", "name"}
 
