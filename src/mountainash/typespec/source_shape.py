@@ -44,6 +44,52 @@ class SourceShape:
         if len(names) != len(set(names)):
             raise ValueError("struct field names must be unique")
 
+def declared_field_shape(fld: Any) -> SourceShape | None:
+    """Describe a FieldSpec without claiming its values have been validated."""
+    from mountainash.typespec.converters import resolve_field_canonical
+    from mountainash.typespec.universal_types import parse_universal, to_canonical, UniversalType
+
+    canonical = resolve_field_canonical(fld)
+    if canonical is None:
+        return None
+    if fld.type is UniversalType.GEOPOINT:
+        if fld.format == "array":
+            return SourceShape(canonical, SourceShape(MountainashDtype.FP64))
+        if fld.format == "object":
+            return SourceShape(
+                canonical,
+                struct_fields=(
+                    ("lon", SourceShape(MountainashDtype.FP64)),
+                    ("lat", SourceShape(MountainashDtype.FP64)),
+                ),
+            )
+    if canonical is MountainashDtype.LIST:
+        if fld.item_type:
+            item = to_canonical(parse_universal(fld.item_type))
+            return SourceShape(canonical, SourceShape(item)) if item else SourceShape(canonical)
+        if fld.item_object_fields:
+            return SourceShape(
+                canonical,
+                SourceShape(
+                    MountainashDtype.STRUCT,
+                    struct_fields=tuple(
+                        (inner.name, declared_field_shape(inner) or SourceShape(None))
+                        for inner in fld.item_object_fields
+                    ),
+                ),
+            )
+        return SourceShape(canonical)
+    if canonical is MountainashDtype.STRUCT and fld.object_fields:
+        return SourceShape(
+            canonical,
+            struct_fields=tuple(
+                (inner.name, declared_field_shape(inner) or SourceShape(None))
+                for inner in fld.object_fields
+            ),
+        )
+    return SourceShape(canonical)
+
+
 
 def _canonical(native: Any, target: TypeTarget) -> CanonicalDtype | None:
     try:

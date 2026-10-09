@@ -10,6 +10,9 @@ from mountainash.conform.diagnostics import OperationDiagnosticTrace
 from mountainash.conform.structured_transport import freeze_structured_field_plans
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from mountainash.typespec.source_shape import SourceShape
     from mountainash.conform.structured_transport import StructuredFieldPlanMap
     from mountainash.relations.core.execution.location import ExecutionLocation, IdentityTokens
     from mountainash.relations.core.relation_nodes import RelationNode
@@ -38,6 +41,10 @@ class CompilationMetadata:
         default_factory=lambda: MappingProxyType({})
     )
     resources: tuple = ()
+    semantic_types: Mapping[str, SourceShape] = field(default_factory=lambda: MappingProxyType({}))
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "semantic_types", MappingProxyType(dict(self.semantic_types)))
 
 
 @dataclass(frozen=True)
@@ -95,6 +102,7 @@ class MetadataSession:
             drift_reports=_unique_identity(visitor.drift_reports),
             structured_field_plans=freeze_structured_field_plans(visitor.structured_field_plans),
             resources=tuple(getattr(visitor, "owned_resources", ())),
+            semantic_types=visitor.semantic_types,
         )
         # The native value may be the same object for two distinct compilations.
         return CompiledSubtree(value, location, self.tokens.token(object()), metadata)
@@ -105,6 +113,8 @@ class MetadataSession:
         if isinstance(child_node, RefRelNode):
             visitor._resolved_refs_by_name[child_node.name] = child.value
         visitor._structured_plans_by_node[id(child_node)] = child.metadata.structured_field_plans
+        visitor._semantic_types_by_node[id(child_node)] = child.metadata.semantic_types
+        visitor.semantic_types = child.metadata.semantic_types
         checks_by_node = getattr(visitor, "_owned_checks_by_node", None)
         if checks_by_node is None:
             checks_by_node = visitor._owned_checks_by_node = {}

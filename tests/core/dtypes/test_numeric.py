@@ -66,3 +66,57 @@ def test_explicit_rounding_does_not_inherit_callers_decimal_traps():
         assert convert_numeric("12.345", target) == Decimal("12.34")
         assert context.prec == 2
         assert context.traps[Inexact]
+@pytest.mark.parametrize(
+    "kind,value,expected",
+    [
+        ("I8", "127", 127),
+        ("I8", "-128", -128),
+        ("U8", "255", 255),
+        ("U8", "+00020", 20),
+        ("I64", "9223372036854775807", 9223372036854775807),
+        ("U64", "18446744073709551615", 18446744073709551615),
+        ("FP32", "1.25", 1.25),
+        ("FP64", "-1.25", -1.25),
+    ],
+)
+def test_bounded_numeric_conversion_accepts_exact_in_domain_values(kind, value, expected):
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.core.dtypes.numeric import convert_numeric
+
+    assert convert_numeric(value, getattr(MountainashDtype, kind)) == expected
+
+
+@pytest.mark.parametrize(
+    "kind,value",
+    [
+        ("I8", "128"),
+        ("I8", "-129"),
+        ("U8", "-1"),
+        ("U8", "256"),
+        ("I64", "9223372036854775808"),
+        ("U64", "18446744073709551616"),
+        ("I16", "1.5"),
+        ("I32", "12x"),
+        ("FP32", "3.5e38"),
+        ("FP64", "Infinity"),
+    ],
+)
+def test_bounded_numeric_conversion_rejects_fraction_junk_and_out_of_range(kind, value):
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.core.dtypes.errors import NumericConversionError
+    from mountainash.core.dtypes.numeric import convert_numeric
+
+    target = getattr(MountainashDtype, kind)
+    with pytest.raises(NumericConversionError):
+        convert_numeric(value, target)
+    assert convert_numeric(value, target, failure_behavior="null") is None
+
+
+def test_bounded_numeric_conversion_preserves_null_and_never_accepts_prefixes():
+    from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.core.dtypes.errors import NumericConversionError
+    from mountainash.core.dtypes.numeric import convert_numeric
+
+    assert convert_numeric(None, D.I32) is None
+    with pytest.raises(NumericConversionError):
+        convert_numeric("20junk", D.I32)

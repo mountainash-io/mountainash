@@ -11,12 +11,33 @@ from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
+from mountainash.core.dtypes.errors import NumericConversionError
+from mountainash.core.dtypes.numeric import convert_nested_numeric
 from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
 _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 
+def _convert_list_batch(batch: pl.Series, fields: tuple[FieldSpec, ...], dtype, failure_behavior):
+    values = []
+    for value in batch:
+        if value is None:
+            values.append(None)
+            continue
+        try:
+            values.append(
+                [
+                    convert_nested_numeric(item, fields) if item is not None else None
+                    for item in value
+                ]
+            )
+        except NumericConversionError:
+            if failure_behavior == "null":
+                values.append(None)
+            else:
+                raise
+    return pl.Series(batch.name, values, dtype=dtype)
 class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of list operations."""
     def parse_list(
@@ -105,6 +126,14 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
             item_object_fields=list(item_object_fields),
         )
         dtype = _resolve_field_native(field, TypeTarget.POLARS)
+        if item_object_fields:
+            return x.map_batches(
+                lambda batch: _convert_list_batch(
+                    batch, item_object_fields, dtype, failure_behavior
+                ),
+                return_dtype=dtype,
+                is_elementwise=True,
+            )
         result = x.cast(dtype, strict=failure_behavior != "null")
         if failure_behavior == "null":
             invalid = _invalid_nested(x, field)

@@ -274,14 +274,7 @@ class MountainAshNarwhalsScalarValueExpressionSystem(
             def convert_pandas(series: Any) -> Any:
                 native = series.native
                 pandas = import_pandas()
-                if isinstance(dtype, DecimalDtype):
-                    import pyarrow as pa
-
-                    result_dtype = pandas.ArrowDtype(
-                        pa.decimal128(dtype.precision, dtype.scale)
-                    )
-                else:
-                    result_dtype = pandas.StringDtype()
+                result_dtype = registry.to_native_schema(dtype, TypeTarget.PANDAS)
                 values = [
                     None if _pandas_object_kind(value) is ValueKind.ABSENT
                     else convert_numeric(value, dtype, rounding, failure_behavior)

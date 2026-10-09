@@ -531,3 +531,27 @@ class TestExactNumericCast:
             "row": [1, 2],
             "amount": [value, value],
         }
+    def test_bounded_integer_cast_checks_range_fraction_and_lexical_junk(
+        self, backend_name, backend_factory, collect_expr
+    ):
+        from mountainash import MountainashDtype as D
+
+        df = backend_factory.create({
+            "value": ["0", "+00020", "255", "256", "-1", "1.5", "12junk", None]
+        }, backend_name)
+        expr = ma.col("value").cast(D.U8, failure_behavior="null")
+        assert collect_expr(df, expr) == [0, 20, 255, None, None, None, None, None]
+
+    @pytest.mark.parametrize("failure_behavior", ["throw", "null"])
+    def test_sqlite_u64_capability_refusal_precedes_values_and_failure_policy(
+        self, backend_name, backend_factory, collect_expr, failure_behavior
+    ):
+        from mountainash import MountainashDtype as D
+
+        df = backend_factory.create({"value": ["7", None]}, backend_name)
+        expr = ma.col("value").cast(D.U64, failure_behavior=failure_behavior)
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError):
+                collect_expr(df, expr)
+            return
+        assert collect_expr(df, expr) == [7, None]

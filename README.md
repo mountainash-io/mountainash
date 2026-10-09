@@ -263,6 +263,13 @@ exponent, redundant sign/zeros or fractional trailing zeros; zero is `"0"`.
 Lexical integer rejects fractional values. These representations preserve
 unbounded numeric values, not original source spelling or XSD/JSON lexical rules.
 
+Validated lexical identity follows projections, renames, compatible joins/unions,
+nested fields and DAG references. Arithmetic and numeric ordering raise
+`LexicalNumericUseError` until you explicitly cast to a numeric target.
+Cast to `"string"` to opt out and use textual ordering. Same-kind canonical
+equality, grouping and distinct operations remain available; mixing lexical
+values with unvalidated strings requires an explicit conversion.
+
 | Execution backend | Fixed decimal result | Lexical numeric result |
 |---|---|---|
 | Polars eager/lazy; Narwhals-Polars eager/lazy | Native Decimal(p,s) | String |
@@ -281,9 +288,20 @@ Compare persisted data against the declaration's **physical lowering** before
 reconstruction; authored lexical and plain-string schemas are not equivalent.
 Raw egress returns native Decimal values and strings, not automatic source-model
 decoding. Cast policies belong to expressions, not TypeSpec persistence.
+Model egress with an explicit numeric TypeSpec honors that declaration rather
+than replacing it with bounded integer/float types inferred from annotations.
+Model constructors own any subsequent decoding. Exporting a native frame and
+rewrapping it ends live lexical protection.
 
-This checkpoint does not yet include numeric conform integration or live lexical
-domain protection; those remain in the subsequent item-241 implementation units.
+Conform applies exact numeric conversion to declared OBJECT and ARRAY-of-OBJECT
+children. Null containers, null children and null items remain distinct.
+Existing structured limits still apply: Narwhals-Polars and Ibis native struct
+casts refuse whole-struct null-on-failure. Logical opaque/JSON carriers are
+decoded at supported terminals, not exposed as native structured expressions.
+Resource reads may conform values; they are not strict persisted-data validation.
+Strict lexical readback must compare checked canonical candidates against the
+unchanged stored values and reject malformed or noncanonical text.
+
 
 ## Roadmap
 

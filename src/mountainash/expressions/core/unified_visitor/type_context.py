@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any, Iterator
 
 from mountainash.core.dtypes.metadata import FixedResultType, OperandType, PreserveResultType
@@ -20,8 +22,10 @@ class ResolvedOperand:
 @dataclass
 class _Scope:
     input_data: Any
+    semantic_types: Mapping[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     resolved: dict[int, tuple[Any, ResolvedOperand]] = field(default_factory=dict)
-
 
 class TypeContext:
     """Lazily resolve AST identity metadata in one native input scope."""
@@ -37,13 +41,133 @@ class TypeContext:
         return bool(self._scopes)
 
     @contextmanager
-    def input_scope(self, input_data: Any) -> Iterator[None]:
-        self._scopes.append(_Scope(input_data))
+    def input_scope(
+        self, input_data: Any, semantic_types: Mapping[str, Any] | None = None,
+    ) -> Iterator[None]:
+        self._scopes.append(_Scope(input_data, MappingProxyType(dict(semantic_types or {}))))
         try:
             yield
         finally:
             self._scopes.pop()
 
+    def semantic_shape(
+        self, node: Any, *, input_names: tuple[str, ...] | None = None,
+        output_index: int = 0,
+    ) -> Any:
+        """Return semantic evidence carried by an expression without evaluating it."""
+        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
+        from mountainash.expressions.core.expression_nodes import (
+            CastNode, FieldReferenceNode, IfThenNode, LiteralNode, ScalarFunctionNode,
+        )
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_COMPARISON,
+            FKEY_MOUNTAINASH_SCALAR_VALUE,
+            FKEY_MOUNTAINASH_NAME,
+            FKEY_MOUNTAINASH_SCALAR_STRUCT,
+            FKEY_MOUNTAINASH_SCALAR_LIST,
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+        )
+        from mountainash.typespec.source_shape import SourceShape, declared_field_shape
+        from mountainash.expressions.core.output_names import resolve_output_names
+
+        if not self._scopes:
+            return None
+        scope = self._scopes[-1]
+        if isinstance(node, FieldReferenceNode):
+            output = resolve_output_names(node, input_names=input_names)
+            names = output.names or ()
+            if not names and node.field in scope.semantic_types:
+                names = (node.field,)
+            index = 0 if len(names) == 1 else output_index
+            return scope.semantic_types.get(names[index]) if index < len(names) else None
+        if isinstance(node, LiteralNode):
+            return None
+        if isinstance(node, CastNode):
+            target = parse_cast_target(node.target_type)
+            if target is MountainashDtype.STRING:
+                return None
+            if isinstance(target, DecimalDtype) or target in (MountainashDtype.LEXICAL_INTEGER, MountainashDtype.LEXICAL_DECIMAL):
+                return SourceShape(target)
+            source = self.semantic_shape(node.input, input_names=input_names, output_index=output_index)
+            if self.has_lexical_evidence(source):
+                return SourceShape(target)
+            return None
+        if isinstance(node, IfThenNode):
+            branches = [result for _, result in node.conditions] + [node.else_clause]
+            shapes = [self.semantic_shape(branch, input_names=input_names, output_index=output_index) for branch in branches]
+            concrete = [shape for shape, branch in zip(shapes, branches)
+                        if shape is not None or not self.is_null_scalar(branch)]
+            if not concrete:
+                return None
+            if all(shape == concrete[0] for shape in concrete) and self.has_lexical_evidence(concrete[0]):
+                return concrete[0]
+            if any(self.has_lexical_evidence(shape) for shape in concrete):
+                from mountainash.core.dtypes.errors import LexicalNumericUseError
+                raise LexicalNumericUseError("conditional branches have incompatible lexical numeric domains")
+            return None
+        if isinstance(node, ScalarFunctionNode):
+            key = node.function_key
+            if key is FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST:
+                target = parse_cast_target(node.options.get("dtype"))
+                if target is MountainashDtype.STRING:
+                    return None
+                if isinstance(target, DecimalDtype) or target in (MountainashDtype.LEXICAL_INTEGER, MountainashDtype.LEXICAL_DECIMAL):
+                    return SourceShape(target)
+                source = self.semantic_shape(node.arguments[0], input_names=input_names, output_index=output_index)
+                return SourceShape(target) if self.has_lexical_evidence(source) else None
+            if key in set(FKEY_MOUNTAINASH_NAME):
+                return self.semantic_shape(node.arguments[0], input_names=input_names, output_index=output_index)
+            if key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
+                shapes = [self.semantic_shape(arg, input_names=input_names, output_index=output_index) for arg in node.arguments]
+                concrete = [shape for shape, arg in zip(shapes, node.arguments)
+                            if shape is not None or not self.is_null_scalar(arg)]
+                if concrete and all(shape == concrete[0] for shape in concrete):
+                    return concrete[0] if self.has_lexical_evidence(concrete[0]) else None
+                if any(self.has_lexical_evidence(shape) for shape in concrete):
+                    from mountainash.core.dtypes.errors import LexicalNumericUseError
+                    raise LexicalNumericUseError("coalesce branches have incompatible lexical numeric domains")
+                return None
+            if key is FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST:
+                return SourceShape(
+                    MountainashDtype.STRUCT,
+                    struct_fields=tuple(
+                        (field.name, declared_field_shape(field) or SourceShape(None))
+                        for field in node.options["fields"]
+                    ),
+                )
+            if key is FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS and node.options.get("item_object_fields"):
+                return SourceShape(
+                    MountainashDtype.LIST,
+                    SourceShape(
+                        MountainashDtype.STRUCT,
+                        struct_fields=tuple(
+                            (field.name, declared_field_shape(field) or SourceShape(None))
+                            for field in node.options["item_object_fields"]
+                        ),
+                    ),
+                )
+            if key in {FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD, FKEY_MOUNTAINASH_SCALAR_LIST.GET}:
+                source = self.semantic_shape(
+                    node.arguments[0], input_names=input_names, output_index=output_index,
+                )
+                if source is not None:
+                    if key is FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD:
+                        return dict(source.struct_fields).get(node.options["field_name"])
+                    return source.item_shape
+        return None
+
+    @staticmethod
+    def has_lexical_evidence(shape: Any) -> bool:
+        from mountainash.core.dtypes import MountainashDtype
+        if shape is None:
+            return False
+        if shape.canonical_type in (
+            MountainashDtype.LEXICAL_INTEGER, MountainashDtype.LEXICAL_DECIMAL,
+        ):
+            return True
+        if shape.item_shape is not None and TypeContext.has_lexical_evidence(shape.item_shape):
+            return True
+        return any(TypeContext.has_lexical_evidence(child) for _, child in shape.struct_fields)
     def resolve(self, node: Any) -> OperandType:
         return self.resolve_native(node).descriptor
 

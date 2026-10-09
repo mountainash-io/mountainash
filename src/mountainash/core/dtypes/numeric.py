@@ -26,6 +26,20 @@ if TYPE_CHECKING:
 _ROUNDING = {"TIE_TO_EVEN": ROUND_HALF_EVEN, "TIE_AWAY_FROM_ZERO": ROUND_HALF_UP}
 _NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\Z")
 _LEXICAL = frozenset({MountainashDtype.LEXICAL_INTEGER, MountainashDtype.LEXICAL_DECIMAL})
+_INTEGER_RANGES = {
+    MountainashDtype.I8: (-(2**7), 2**7 - 1),
+    MountainashDtype.I16: (-(2**15), 2**15 - 1),
+    MountainashDtype.I32: (-(2**31), 2**31 - 1),
+    MountainashDtype.I64: (-(2**63), 2**63 - 1),
+    MountainashDtype.U8: (0, 2**8 - 1),
+    MountainashDtype.U16: (0, 2**16 - 1),
+    MountainashDtype.U32: (0, 2**32 - 1),
+    MountainashDtype.U64: (0, 2**64 - 1),
+}
+_FLOAT_MAX = {
+    MountainashDtype.FP32: Decimal("3.4028234663852886e38"),
+    MountainashDtype.FP64: Decimal("1.7976931348623157e308"),
+}
 
 
 def convert_numeric(
@@ -35,8 +49,8 @@ def convert_numeric(
     failure_behavior: str = "throw",
     *,
     preserve: bool = False,
-) -> Decimal | str | None:
-    """Convert an original value without an intermediate binary floating carrier.
+) -> Decimal | int | float | str | None:
+    """Convert an original value exactly before bounded/native numeric lowering.
 
     Preserving construction rejects value changes; explicit casts round once.
     Configuration errors are never row-null failures. Backend capability checks
@@ -46,14 +60,30 @@ def convert_numeric(
         raise ValueError("Unknown numeric rounding policy")
     if failure_behavior not in ("throw", "null"):
         raise ValueError("Unknown numeric failure policy")
-    if not isinstance(dtype, DecimalDtype) and dtype not in _LEXICAL:
-        raise ValueError("An exact decimal descriptor or lexical numeric target is required")
+    if not isinstance(dtype, DecimalDtype) and dtype not in (
+        _LEXICAL | frozenset(_INTEGER_RANGES) | frozenset(_FLOAT_MAX)
+    ):
+        raise ValueError("A numeric dtype or exact decimal descriptor is required")
     if value is None:
         return None
     try:
         number = _decimal_value(value)
         if isinstance(dtype, DecimalDtype):
             return _fixed_decimal(number, dtype, _ROUNDING[rounding], preserve)
+        if dtype in _INTEGER_RANGES:
+            lower, upper = _INTEGER_RANGES[dtype]
+            if number != number.to_integral_value(rounding=ROUND_DOWN):
+                raise NumericConversionError("A fractional value is not an integer")
+            if number < lower or number > upper:
+                raise NumericConversionError("Numeric value exceeds the bounded integer range")
+            return int(number)
+        if dtype in _FLOAT_MAX:
+            if number.copy_abs() > _FLOAT_MAX[dtype]:
+                raise NumericConversionError("Numeric value exceeds the bounded float range")
+            converted = float(number)
+            if not converted == converted or converted in (float("inf"), float("-inf")):
+                raise NumericConversionError("Numeric value exceeds the bounded float range")
+            return converted
         if dtype == MountainashDtype.LEXICAL_INTEGER:
             if number != number.to_integral_value(rounding=ROUND_DOWN):
                 raise NumericConversionError("A fractional value is not an integer")
@@ -70,6 +100,72 @@ def convert_numeric(
             raise
         raise NumericConversionError("Numeric value cannot be represented") from error
 
+
+def convert_nested_numeric(value: object, fields: tuple[object, ...]) -> object:
+    """Apply declared exact codecs to numeric leaves of a structured value."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise NumericConversionError("Structured numeric conversion requires a mapping")
+    converted: dict[str, object] = {}
+    for field in fields:
+        name = field.name
+        child = value.get(name)
+        dtype = field.dtype
+        if isinstance(dtype, DecimalDtype) or dtype in _LEXICAL:
+            child = convert_numeric(child, dtype)
+        object_fields = tuple(field.object_fields or ())
+        if object_fields:
+            child = convert_nested_numeric(child, object_fields)
+        item_fields = tuple(field.item_object_fields or ())
+        if item_fields and child is not None:
+            if not isinstance(child, (list, tuple)):
+                raise NumericConversionError("Structured numeric array conversion requires a sequence")
+            child = [
+                convert_nested_numeric(item, item_fields) if item is not None else None
+                for item in child
+            ]
+        converted[name] = child
+    return converted
+
+
+
+def has_nested_numeric_fields(fields: tuple[object, ...]) -> bool:
+    """Whether declared children require the exact numeric codec."""
+    for field in fields:
+        dtype = field.dtype
+        if isinstance(dtype, DecimalDtype) or dtype in _LEXICAL:
+            return True
+        if has_nested_numeric_fields(tuple(field.object_fields or ())):
+            return True
+        if has_nested_numeric_fields(tuple(field.item_object_fields or ())):
+            return True
+    return False
+
+
+def convert_nested_numeric_shape(value: object, shape: object) -> object:
+    """Normalize declared numeric leaves using immutable recursive SourceShape evidence."""
+    if value is None:
+        return None
+    dtype = shape.canonical_type
+    if isinstance(dtype, DecimalDtype) or dtype in _LEXICAL:
+        return convert_numeric(value, dtype)
+    if dtype == MountainashDtype.STRUCT and shape.struct_fields:
+        if not isinstance(value, dict):
+            raise NumericConversionError("Structured numeric conversion requires a mapping")
+        converted = dict(value)
+        for name, child_shape in shape.struct_fields:
+            if name in converted:
+                converted[name] = convert_nested_numeric_shape(converted[name], child_shape)
+        return converted
+    if dtype == MountainashDtype.LIST and shape.item_shape is not None:
+        if not isinstance(value, (list, tuple)):
+            raise NumericConversionError("Structured numeric array conversion requires a sequence")
+        return [
+            convert_nested_numeric_shape(item, shape.item_shape) if item is not None else None
+            for item in value
+        ]
+    return value
 
 def _decimal_value(value: object) -> Decimal:
     if isinstance(value, bool):

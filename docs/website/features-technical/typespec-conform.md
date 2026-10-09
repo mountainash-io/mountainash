@@ -51,10 +51,19 @@ including unbounded values, and raw egress preserves Decimal/string carriers.
 See the [numeric execution matrix](../../../README.md#exact-decimal-and-lexical-numeric-types)
 for backend representations and SQLite's fixed-decimal refusal.
 
-This implementation checkpoint covers declarations, explicit casts and native
-storage/reload. Numeric conform, nested transformations and live lexical-domain
-protection remain in the subsequent item-241 units. An inferred frame followed
-by conform is not a preserving constructor.
+Numeric conform uses the checked conversion contract, including nested OBJECT
+and ARRAY-of-OBJECT fields within the existing structured support matrix.
+Validated lexical identity survives transparent expression/relation operations
+and DAG references. Arithmetic, ordering and incompatible-domain consumers raise
+`LexicalNumericUseError`; an explicit numeric cast checks conversion, while a
+STRING cast opts out. Native export/rewrap loses live semantic identity.
+
+An explicit numeric TypeSpec also owns model egress; annotations do not silently
+replace exact declarations with bounded integer/float types. Model constructors
+own decoding. Resource reads may conform data and are not strict verification.
+Strict readback checks physical schema first, then compares canonical checked
+candidates with unchanged stored lexical values. An inferred frame followed by
+conform is not a preserving constructor.
 
 ## Sources
 

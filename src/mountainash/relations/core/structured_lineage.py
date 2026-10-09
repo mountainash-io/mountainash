@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from mountainash.conform.errors import UnsupportedStructuredTransportUse
 from mountainash.conform.structured_transport import (
+    StructuredCarrier,
     StructuredFieldPlan,
     StructuredFieldPlanMap,
     freeze_structured_field_plans,
@@ -203,7 +204,7 @@ def _reject_consumed_fields(
 ) -> None:
     for name in _referenced_fields(values) | _named_values(values):
         plan = plans.get(name)
-        if plan is not None:
+        if plan is not None and plan.carrier is not StructuredCarrier.NATIVE:
             _raise(name, plan, node, consumer)
 
 

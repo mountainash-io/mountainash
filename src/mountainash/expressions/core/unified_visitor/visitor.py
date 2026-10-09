@@ -181,10 +181,122 @@ class UnifiedExpressionVisitor:
         # force a cold registry to load its optional declaration source.
 
     @contextmanager
-    def input_scope(self, native_input: Any) -> Iterator[None]:
-        """Bind one native relation/frame as metadata-only compilation context."""
-        with self.type_context.input_scope(native_input):
+    def input_scope(
+        self, native_input: Any, semantic_types: Any = None,
+    ) -> Iterator[None]:
+        """Bind native input and optional validated semantic evidence."""
+        with self.type_context.input_scope(native_input, semantic_types):
             yield
+
+    def _guard_semantic_use(self, node: ExpressionNode) -> None:
+        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
+        from mountainash.core.dtypes.errors import LexicalNumericUseError
+        from mountainash.expressions.core.expression_nodes import (
+            CastNode, IfThenNode, ScalarFunctionNode, SingularOrListNode,
+        )
+        from mountainash.expressions.core.unified_visitor.type_context import TypeContext
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_NAME,
+            FKEY_MOUNTAINASH_SCALAR_SET,
+            FKEY_MOUNTAINASH_SCALAR_VALUE,
+            FKEY_MOUNTAINASH_SCALAR_STRUCT,
+            FKEY_MOUNTAINASH_SCALAR_LIST,
+            FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+            FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON,
+        )
+
+        if isinstance(node, IfThenNode):
+            self.type_context.semantic_shape(node)
+            return
+        if isinstance(node, CastNode):
+            source = self.type_context.semantic_shape(node.input)
+            if not TypeContext.has_lexical_evidence(source):
+                return
+            target = parse_cast_target(node.target_type)
+            bounded = {
+                MountainashDtype.I8, MountainashDtype.U8, MountainashDtype.I16,
+                MountainashDtype.U16, MountainashDtype.I32, MountainashDtype.U32,
+                MountainashDtype.I64, MountainashDtype.U64, MountainashDtype.FP32,
+                MountainashDtype.FP64,
+            }
+            if target in bounded or isinstance(target, DecimalDtype) or target in {
+                MountainashDtype.STRING, MountainashDtype.LEXICAL_INTEGER,
+                MountainashDtype.LEXICAL_DECIMAL,
+            }:
+                return
+            raise LexicalNumericUseError(
+                "lexical numeric values require explicit numeric conversion or STRING opt-out"
+            )
+        if isinstance(node, SingularOrListNode):
+            shapes = [self.type_context.semantic_shape(arg) for arg in [node.value, *node.options]]
+            lexical = [shape for shape in shapes if TypeContext.has_lexical_evidence(shape)]
+            if not lexical:
+                return
+            if all(shape is not None and shape == lexical[0]
+                   or self.type_context.is_null_scalar(arg)
+                   for shape, arg in zip(shapes, [node.value, *node.options])):
+                return
+            raise LexicalNumericUseError(
+                "membership across incompatible lexical numeric domains requires explicit conversion"
+            )
+        if not isinstance(node, ScalarFunctionNode):
+            return
+        shapes = [self.type_context.semantic_shape(arg) for arg in node.arguments]
+        if not any(TypeContext.has_lexical_evidence(shape) for shape in shapes):
+            return
+        key = node.function_key
+        if key in set(FKEY_MOUNTAINASH_NAME) or key is FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST:
+            return
+        if key in {
+            FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD,
+            FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
+            FKEY_MOUNTAINASH_SCALAR_LIST.GET,
+            FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+        }:
+            return
+        if key in {
+            FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT,
+            FKEY_SUBSTRAIT_SCALAR_AGGREGATE.COUNT_RECORDS,
+        }:
+            return
+        if key in set(FKEY_SUBSTRAIT_SCALAR_ARITHMETIC):
+            raise LexicalNumericUseError(
+                "lexical numeric values require an explicit numeric cast before arithmetic"
+            )
+        if key in {
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON.EQUAL,
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON.NOT_EQUAL,
+        }:
+            if all(
+                (shape is not None and shape == shapes[0])
+                or self.type_context.is_null_scalar(argument)
+                for shape, argument in zip(shapes, node.arguments)
+            ):
+                return
+            raise LexicalNumericUseError(
+                "equality between incompatible lexical numeric domains requires explicit conversion"
+            )
+        if key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
+            self.type_context.semantic_shape(node)
+            return
+        if key in {
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NULL,
+            FKEY_SUBSTRAIT_SCALAR_COMPARISON.IS_NOT_NULL,
+        }:
+            return
+        if key in {FKEY_MOUNTAINASH_SCALAR_SET.IS_IN, FKEY_MOUNTAINASH_SCALAR_SET.IS_NOT_IN}:
+            lexical_shapes = [shape for shape in shapes if TypeContext.has_lexical_evidence(shape)]
+            if any(shape != lexical_shapes[0] for shape in lexical_shapes):
+                raise LexicalNumericUseError(
+                    "membership across incompatible lexical numeric domains requires explicit conversion"
+                )
+            if all(shape is not None or self.type_context.is_null_scalar(argument)
+                   for shape, argument in zip(shapes, node.arguments)):
+                return
+        raise LexicalNumericUseError(
+            f"{key} cannot consume validated lexical numeric values; cast explicitly first"
+        )
 
     def resolve_operand_type(self, node: ExpressionNode) -> Any:
         """Resolve a node descriptor from the current scope for compiler use."""
@@ -250,7 +362,8 @@ class UnifiedExpressionVisitor:
         """
         if self._input_data is not None and not self.type_context.active:
             with self.input_scope(self._input_data):
-                return node.accept(self)
+                return self.visit(node)
+        self._guard_semantic_use(node)
         return node.accept(self)
 
     def visit_literal(self, node: LiteralNode) -> SupportedExpressions:
@@ -707,7 +820,32 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend cast expression
         """
-        from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+        from mountainash.core.dtypes import DecimalDtype, MountainashDtype, parse_cast_target
+        from mountainash.expressions.core.expression_system.function_keys.enums import (
+            FKEY_MOUNTAINASH_SCALAR_VALUE, FKEY_SUBSTRAIT_CAST,
+        )
+
+        source_shape = self.type_context.semantic_shape(node.input)
+        target = parse_cast_target(node.target_type)
+        numeric_targets = {
+            MountainashDtype.I8, MountainashDtype.U8, MountainashDtype.I16,
+            MountainashDtype.U16, MountainashDtype.I32, MountainashDtype.U32,
+            MountainashDtype.I64, MountainashDtype.U64, MountainashDtype.FP32,
+            MountainashDtype.FP64,
+        }
+        if (
+            self.type_context.has_lexical_evidence(source_shape)
+            and (isinstance(target, DecimalDtype) or target in numeric_targets)
+        ):
+            return self.visit_scalar_function(ScalarFunctionNode(
+                function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST,
+                arguments=[node.input],
+                options={
+                    "dtype": target,
+                    "rounding": "TIE_TO_EVEN",
+                    "failure_behavior": node.failure_behavior,
+                },
+            ))
 
         function_key = FKEY_SUBSTRAIT_CAST.CAST
         func_def = FunctionRegistry.get(function_key)

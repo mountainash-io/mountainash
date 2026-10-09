@@ -73,3 +73,31 @@ def require_projection_names(expressions, *, operation, input_names) -> tuple[st
             seen.add(name)
             names.append(name)
     return tuple(names)
+
+
+def expand_named_field_selectors(expressions, *, input_names):
+    """Expand field/name-only selectors before backend-specific column lookup."""
+    result = []
+    for expression in expressions:
+        node = expression._node if isinstance(expression, BaseExpressionAPI) else expression
+        if isinstance(node, str):
+            node = FieldReferenceNode(field=node)
+        source = node
+        while isinstance(source, ScalarFunctionNode) and isinstance(source.function_key, FKEY_MOUNTAINASH_NAME):
+            source = source.arguments[0]
+        output = resolve_output_names(node, input_names=tuple(input_names))
+        if not isinstance(source, FieldReferenceNode) or output.kind != "expansion":
+            result.append(expression)
+            continue
+        fields = resolve_output_names(source, input_names=tuple(input_names))
+        if fields.names is None or output.names is None:
+            raise IncompleteProjectionSchemaError("Cannot expand field selector names")
+        for field, name in zip(fields.names, output.names, strict=True):
+            column = source.model_copy(update={"field": field})
+            result.append(
+                column if field == name else ScalarFunctionNode(
+                    function_key=FKEY_MOUNTAINASH_NAME.ALIAS,
+                    arguments=[column], options={"name": name},
+                )
+            )
+    return result

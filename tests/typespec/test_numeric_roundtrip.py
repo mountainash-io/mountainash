@@ -42,12 +42,29 @@ expected_rows = {
     ],
     "empty": [],
     "nulls": [{"amount": None, "integer_text": None, "decimal_text": None}] * 2,
+    "independent": [
+        {"amount": Decimal("-0.001"), "integer_text": "-1180591620717411303424",
+         "decimal_text": "0.00000000000000000000000000000000000001"},
+    ],
 }
+def verify_lexical_values(frame):
+    for field in declared.fields:
+        if field.dtype not in (
+            ma.MountainashDtype.LEXICAL_INTEGER, ma.MountainashDtype.LEXICAL_DECIMAL,
+        ):
+            continue
+        candidate = ma.relation(frame).select(
+            ma.col(field.name).cast(field.dtype, failure_behavior="throw").cast("string")
+        ).to_dict()[field.name]
+        if candidate != frame[field.name].to_list():
+            raise ValueError("stored lexical values are not canonical")
+
 for name, expected in expected_rows.items():
     table = pq.read_table(root / (name + ".parquet"))
     assert table.schema == to_arrow_schema(declared)
     frame = pl.from_arrow(table)
     assert compare_specs(extract_from_dataframe(frame), physical).is_compatible
+    verify_lexical_values(frame)
     rows = ma.relation(frame).to_dicts()
     assert rows == expected
     if name == "populated":
@@ -59,6 +76,18 @@ for name in ("wrong_scale", "wrong_precision", "wrong_float"):
     diff = compare_specs(extract_from_dataframe(frame), physical)
     assert not diff.is_compatible
     assert "amount" in diff.type_changes
+
+for name in ("invalid_integer", "noncanonical_integer", "invalid_decimal", "noncanonical_decimal"):
+    frame = pl.read_parquet(root / (name + ".parquet"))
+    assert compare_specs(extract_from_dataframe(frame), physical).is_compatible
+    unchanged = frame.to_dicts()
+    try:
+        verify_lexical_values(frame)
+    except (ValueError, pl.exceptions.ComputeError):
+        pass
+    else:
+        raise AssertionError("strict readback accepted " + name)
+    assert frame.to_dicts() == unchanged
 
 # Actual persisted dtype drives conversion; operation policies remain authored here.
 amount_dtype = declared.get_field("amount").dtype
@@ -103,6 +132,21 @@ def test_numeric_schema_and_values_survive_independent_reload(tmp_path):
         changed = schema.set(0, pa.field("amount", dtype))
         data = {"amount": [value], "integer_text": ["20"], "decimal_text": ["12.34"]}
         pq.write_table(pa.Table.from_pydict(data, schema=changed), tmp_path / (name + ".parquet"))
+    # Independent storage producer: no codec or retained source object participates.
+    independent = {
+        "amount": [Decimal("-0.001")],
+        "integer_text": ["-1180591620717411303424"],
+        "decimal_text": ["0.00000000000000000000000000000000000001"],
+    }
+    pq.write_table(pa.Table.from_pydict(independent, schema=schema), tmp_path / "independent.parquet")
+    for name, column, value in (
+        ("invalid_integer", "integer_text", "12x"),
+        ("noncanonical_integer", "integer_text", "+00020"),
+        ("invalid_decimal", "decimal_text", "1e+"),
+        ("noncanonical_decimal", "decimal_text", "1.2300"),
+    ):
+        data = {**independent, column: [value]}
+        pq.write_table(pa.Table.from_pydict(data, schema=schema), tmp_path / (name + ".parquet"))
     environment = {**os.environ, "PYTHONPATH": str(Path(ma.__file__).parents[1])}
     result = subprocess.run(
         [sys.executable, "-c", _RELOAD, str(tmp_path)],
