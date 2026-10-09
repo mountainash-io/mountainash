@@ -17,35 +17,6 @@ from mountainash.relations.backends.relation_systems.ibis._physical import adopt
 pytest_plugins = ("fixtures.ibis_physical",)
 
 
-@pytest.fixture
-def checked_year():
-    """A real source residue rule, shared by single/batch finishing witnesses."""
-    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
-    from mountainash.core.capabilities.applicability import unbounded
-    from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain
-    from mountainash.core.capabilities.identity import Dialect, Scope
-    from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
-    from mountainash.core.constants import CONST_BACKEND
-    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME as FK
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
-    prior = CapabilityRegistry.snapshot()
-    try:
-        CapabilityRegistry.reset()
-        CapabilityRegistry.register_segment(BoundSegment(
-            "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
-            Scope(CONST_BACKEND.IBIS, Dialect("ibis-duckdb")),
-            CapabilitySegment(Domain.DATETIME, policies=(CapabilityPolicyRule(
-                key=CapabilityKey(FK.PARSE_XSD_PARTIAL_DATE, "*"), level=CapabilityLevel.UNSUPPORTED,
-                message="year residue", consumer=PolicyConsumer.RESULT_PROTECTION,
-                action=PolicyAction.DETECT_NON_NULL_TO_NULL, applicability=unbounded,
-            ),)),
-        ))
-        with ma.capability_policy(ma.CapabilityPolicy.checked()):
-            yield TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
-    finally:
-        CapabilityRegistry.restore(prior)
-
-
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_scope_invalidates_escaped_relation_but_not_detached_relation(backend_name):
     source = REGISTRY[backend_name].build({"x": [7]}, "scope_source")

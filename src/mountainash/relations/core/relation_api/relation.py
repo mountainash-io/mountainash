@@ -130,7 +130,7 @@ def _compiler_identity(visitor: "Any") -> "BackendIdentity":
     return BackendIdentity(visitor.backend.backend_type, visitor.backend.dialect)
 
 
-def _finish_terminal(visitor: Any, thunk: Callable[[], Any]) -> Any:
+def _finish_terminal(visitor: Any, thunk: Callable[[], Any], *, release_owned_on_success: bool = False) -> Any:
     """Keep transfer dependencies alive through egress, then hand off or roll back."""
     scope = getattr(visitor, "_execution_session", None)
     try:
@@ -144,7 +144,7 @@ def _finish_terminal(visitor: Any, thunk: Callable[[], Any]) -> Any:
                     primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
         raise
     if scope is not None:
-        scope.close(release_owned=False)
+        scope.close(release_owned=release_owned_on_success)
     return result
 
 
@@ -998,6 +998,21 @@ class Relation(RelationBase):
     def _egress_strategy():
         from mountainash.pydata.egress.egress_pydata_from_polars import EgressFromPolars
         return EgressFromPolars
+
+    def fingerprint(self, *, keys, columns, batch_size: int = 5_000) -> Any:
+        """Calculate version-tagged, per-column fingerprints of this relation.
+
+        Filter the relation first to select rows. ``keys`` is the complete ordered
+        logical key; ``columns`` names the value fields to check. Every selected
+        row contributes, including duplicates. The small Polars result includes
+        counts and schema/profile descriptors: compare only compatible domains.
+
+        Supports bounded native Polars and Ibis DuckDB/PostgreSQL ingestion.
+        Hash equality is probabilistic, not proof of identity or key uniqueness.
+        """
+        from .fingerprint import fingerprint_relation
+
+        return fingerprint_relation(self, keys=keys, columns=columns, batch_size=batch_size)
 
     def to_polars(self) -> Any:
         """Execute and return a Polars DataFrame.
