@@ -238,3 +238,23 @@ def test_uninspectable_columns_does_not_trigger_empty_frame():
         f"uninspectable (available is None); it returned {result!r}, which "
         "means the zero-column trigger fired on a None (loosened from `== []`)."
     )
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", _COLLECT_BACKENDS)
+def test_empty_lexical_resource_collects_and_sorts(backend_name):
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec.frictionless import typespec_to_frictionless
+
+    spec = TypeSpec(fields_match="open", fields=[
+        FieldSpec(name="n", type=UniversalType.STRING, dtype=MountainashDtype.LEXICAL_INTEGER),
+    ])
+    dag = DataPackage(resources=[
+        DataResource(name="empty", type="table", data=[], schema=typespec_to_frictionless(spec)),
+    ]).to_relation_dag()
+    frame = dag.collect("empty", backend=backend_name)
+    assert _columns(frame) == ["n"]
+    assert _nrows(frame) == 0
+    dag.add("sorted", dag.ref("empty").sort("n"))
+    assert _nrows(dag.collect("sorted", backend=backend_name)) == 0

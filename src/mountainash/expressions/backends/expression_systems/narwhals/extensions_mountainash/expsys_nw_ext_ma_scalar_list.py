@@ -13,6 +13,8 @@ from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
+from mountainash.core.dtypes.numeric import convert_nested_numeric, has_nested_numeric_fields
+from mountainash.core.transit import BoundaryKey, transit_call
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
@@ -124,6 +126,48 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             return x.cast(nw.List(dtype))
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        if has_nested_numeric_fields(item_object_fields):
+            from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
+                _pandas_elementwise_batches,
+                _polars_elementwise_batches,
+            )
+            if self.dialect == "narwhals-pandas":
+                from mountainash.core.lazy_imports import import_pandas
+
+                def convert_pandas(series):
+                    native = series.native
+                    values = [
+                        None if items is None else [
+                            convert_nested_numeric(item, item_object_fields)
+                            if item is not None else None
+                            for item in items
+                        ]
+                        for items in native
+                    ]
+                    pandas = import_pandas()
+                    return series._with_native(
+                        transit_call(
+                            BoundaryKey.EXPRESSION_NARWHALS_PANDAS_STRUCTURED_CALLBACK,
+                            pandas.Series,
+                            values,
+                            index=native.index,
+                            name=native.name,
+                            dtype=object,
+                            trace_source=native,
+                        )
+                    )
+
+                return _pandas_elementwise_batches(x, convert_pandas, dtype)
+            from mountainash.expressions.backends.expression_systems.polars.extensions_mountainash.expsys_pl_ext_ma_scalar_list import (
+                _convert_list_batch,
+            )
+
+            native_dtype = _resolve_field_native(field, TypeTarget.POLARS)
+
+            def convert_polars(batch):
+                return _convert_list_batch(batch, field, native_dtype, failure_behavior)
+
+            return _polars_elementwise_batches(x, convert_polars, native_dtype)
         return x.cast(dtype)
 
     def list_sum(self, x: NarwhalsExpr, /):

@@ -17,7 +17,7 @@ spec = ma.typespec({
 })
 ```
 
-Under the hood this is a Pydantic model with a list of `FieldSpec` entries — name, type, format, constraints, foreign keys, custom metadata. The structure matches Frictionless Table Schema, which means you can load and emit `datapackage.json` and `schema.json` files byte-equivalent.
+`TypeSpec` and `FieldSpec` are dataclasses carrying names, types, formats, constraints, keys and custom metadata. Their typed representation follows Frictionless Table Schema; lossless raw descriptor storage belongs to `DataResource.table_schema`.
 
 ### What's in a `FieldSpec`
 
@@ -26,9 +26,50 @@ Under the hood this is a Pydantic model with a list of `FieldSpec` entries — n
 - `constraints`: required, unique, min, max, pattern, enum
 - `foreign_key`: cross-table reference (drives the DAG's constraint edges)
 - `enum_weights`: for weighted enums (used by synthetic-data generators)
+- `dtype`: a portable fixed-decimal or lexical numeric refinement, persisted under `x-mountainash.dtype`
 - Custom types via `CustomTypeRegistry` for semantic types your domain cares about
 
 `TypeSpec` and `FieldSpec` are deliberately **structurally Frictionless** — flat fields matching the Frictionless layout, not nested custom submodels. If Frictionless gains a property, we add it as a peer field. If we add a property they don't have, it's clearly namespaced.
+
+### Exact numeric declarations
+
+Use `ma.DecimalDtype(precision=p, scale=s)` on a `NUMBER` field, or
+`ma.MountainashDtype.LEXICAL_INTEGER` / `LEXICAL_DECIMAL` on a `STRING` field.
+The decimal descriptor is immutable and strict: `1 <= p <= 38`, `0 <= s <= p`;
+bare `DECIMAL`, Boolean parameters and competing `backend_type` hints are rejected.
+Ordinary `NUMBER` still lowers to FP64 without an explicit refinement.
+
+The descriptor survives nested TypeSpec/Frictionless round trips. Native decimal
+extraction retains p/s, and `compare_specs` distinguishes changed p/s and FP64.
+Native strings do not recover lexical identity: compare stored data against the
+declaration's physical lowering, keeping authored semantic identity separate.
+
+Explicit `.cast(dtype, failure_behavior="throw", rounding="TIE_TO_EVEN")`
+performs checked conversion; `TIE_AWAY_FROM_ZERO` is also available. It rounds
+once before checking decimal range. Lexical results are canonical strings,
+including unbounded values, and raw egress preserves Decimal/string carriers.
+See the [numeric execution matrix](../../../README.md#exact-decimal-and-lexical-numeric-types)
+for backend representations and SQLite's fixed-decimal refusal.
+
+Numeric conform uses the checked conversion contract, including nested OBJECT
+and ARRAY-of-OBJECT fields within the existing structured support matrix.
+Lexical columns behave as ordinary strings in expressions and relations; cast
+explicitly when numeric semantics are needed.
+
+An explicit numeric TypeSpec also owns model egress; annotations do not silently
+replace exact declarations with bounded integer/float types. Model constructors
+own decoding. Resource reads may conform data and are not strict verification.
+Strict readback checks physical schema first, then compares canonical checked
+candidates with unchanged stored lexical values. An inferred frame followed by
+conform is not a preserving constructor.
+
+`classify_cast(source, target)` describes the whole source domain:
+`SAFE` preserves every value, `NARROWING` preserves fitting values but rejects
+others, `LOSSY` can change a successful result, and `UNSAFE` has no established
+guarantee. `is_safe_cast` accepts only `SAFE`. Decimal scale loss takes precedence
+over range narrowing; I64/U64→FP64 and timestamp→date are lossy. Arbitrary STRING
+is not a validated lexical numeric domain. Conform type and foreign-key drift
+retain the category rather than reducing every non-safe cast to `"unsafe"`.
 
 ## Sources
 

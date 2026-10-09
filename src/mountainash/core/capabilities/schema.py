@@ -30,7 +30,7 @@ def _enum_authorities() -> dict[tuple[str, str], type[Enum]]:
     """Known canonical enum classes; never import an authority by text."""
     from mountainash.core import constants
     from mountainash.core.dtypes.canonical import MountainashDtype
-    from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+    from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
         CaseFailureBehaviour,
     )
     from mountainash.expressions.core.expression_system.function_keys import enums as function_enums

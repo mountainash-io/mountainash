@@ -228,6 +228,78 @@ mountainash does not currently provide native Substrait serialization. The align
 
 This support covers the current descriptor, Table Schema, and TypeSpec mapping code. Frictionless v2 also defines separate conformance, validation, and resource-reader boundaries. Those boundaries are not all complete, so this README does not describe v2 support as a complete implementation.
 
+### Exact decimal and lexical numeric types
+
+`DecimalDtype(precision=..., scale=...)` declares a portable fixed decimal:
+precision is 1–38 and scale is 0–precision. Bare `DECIMAL` is incomplete.
+Ordinary `NUMBER` fields still lower to FP64 unless given this refinement.
+
+```python
+import mountainash as ma
+from mountainash.typespec import FieldSpec, UniversalType
+
+fixed = ma.DecimalDtype(precision=5, scale=2)
+schema = ma.TypeSpec(fields=[
+    FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=fixed),
+    FieldSpec(
+        name="external_id", type=UniversalType.STRING,
+        dtype=ma.MountainashDtype.LEXICAL_INTEGER,
+    ),
+])
+rounded = ma.col("amount").cast(
+    fixed, failure_behavior="null", rounding="TIE_AWAY_FROM_ZERO"
+)
+```
+
+Decimal casts round once, then check range. The default is `TIE_TO_EVEN`;
+`12.345` becomes `12.34`, while `TIE_AWAY_FROM_ZERO` produces `12.35`.
+At decimal(5,2), `999.995` overflows after rounding. Invalid values and overflow
+obey `failure_behavior="throw"` or `"null"`; null inputs remain null.
+An explicit float conversion uses the actual binary value, not its display text.
+Exact text, integer and Decimal inputs do not pass through floating point.
+
+`LEXICAL_INTEGER` and `LEXICAL_DECIMAL` use canonical numeric strings with no
+exponent, redundant sign/zeros or fractional trailing zeros; zero is `"0"`.
+Lexical integer rejects fractional values. These representations preserve
+unbounded numeric values, not original source spelling or XSD/JSON lexical rules.
+
+Lexical columns are ordinary strings at runtime: every string operation works,
+and sorting is textual. Cast explicitly (for example to `ma.DecimalDtype(...)` or
+`"i64"`) when you need numeric semantics; casts to bounded types follow the
+backend's ordinary string casting.
+
+| Execution backend | Fixed decimal result | Lexical numeric result |
+|---|---|---|
+| Polars eager/lazy; Narwhals-Polars eager/lazy | Native Decimal(p,s) | String |
+| pandas; Narwhals-pandas | Arrow-backed decimal128(p,s) | Nullable string |
+| Ibis-DuckDB; Ibis-Polars | Native Decimal(p,s) | String |
+| Ibis-SQLite | `BackendCapabilityError` | String |
+
+Conversions use the shared exact codec through native batch callbacks or Ibis
+scalar UDFs; prepared literals retain exact values before native inference.
+Unavailable targets refuse even on empty/all-null input and under null-on-failure.
+
+TypeSpec/Frictionless stores these declarations under `x-mountainash.dtype`.
+Persist the declaration alongside native storage: decimal extraction retains
+precision/scale, but native strings cannot recover lexical identity.
+Compare persisted data against the declaration's **physical lowering** before
+reconstruction; authored lexical and plain-string schemas are not equivalent.
+Raw egress returns native Decimal values and strings, not automatic source-model
+decoding. Cast policies belong to expressions, not TypeSpec persistence.
+Model egress with an explicit numeric TypeSpec honors that declaration rather
+than replacing it with bounded integer/float types inferred from annotations.
+Model constructors own any subsequent decoding.
+
+Conform applies exact numeric conversion to declared OBJECT and ARRAY-of-OBJECT
+children. Null containers, null children and null items remain distinct.
+Existing structured limits still apply: Narwhals-Polars and Ibis native struct
+casts refuse whole-struct null-on-failure. Logical opaque/JSON carriers are
+decoded at supported terminals, not exposed as native structured expressions.
+Resource reads may conform values; they are not strict persisted-data validation.
+Strict lexical readback must compare checked canonical candidates against the
+unchanged stored values and reject malformed or noncanonical text.
+
+
 ## Roadmap
 
 This roadmap is capability-based and has no fixed dates. The order can change when work on `develop` exposes an upstream difference or a deeper dependency.

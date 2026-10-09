@@ -16,6 +16,65 @@ from mountainash.core.dtypes import (
 )
 
 
+
+@pytest.mark.parametrize("precision,scale", [(1, 0), (20, 3), (38, 38)])
+def test_native_decimal_targets_retain_precision_and_scale(precision, scale):
+    import ibis.expr.datatypes as ibis_dt
+    import narwhals as nw
+    import pandas as pd
+    import pyarrow as pa
+    from mountainash.core.dtypes.canonical import DecimalDtype
+
+
+    dtype = DecimalDtype(precision=precision, scale=scale)
+    natives = (
+        pl.Decimal(precision=precision, scale=scale),
+        pa.decimal128(precision, scale),
+        pd.ArrowDtype(pa.decimal128(precision, scale)),
+        ibis_dt.Decimal(precision=precision, scale=scale),
+        nw.Decimal(precision=precision, scale=scale),
+    )
+    modules = (
+        target_polars,
+        target_pyarrow,
+        target_pandas,
+        target_ibis,
+        target_narwhals,
+    )
+    assert [module.from_native(native) for module, native in zip(modules, natives)] == [
+        dtype,
+        dtype,
+        dtype,
+        dtype,
+        dtype,
+    ]
+    import decimal
+
+    assert target_python.to_native_decimal(dtype) is decimal.Decimal
+
+
+def test_native_strings_and_python_decimal_annotations_do_not_infer_semantics():
+    import decimal
+    import pyarrow as pa
+    import narwhals as nw
+
+    assert target_polars.from_native(pl.String) is D.STRING
+    assert target_pyarrow.from_native(pa.string()) is D.STRING
+    assert target_pandas.from_native("string") is D.STRING
+    assert target_narwhals.from_native(nw.String) is D.STRING
+    assert target_ibis.from_native("string") is D.STRING
+    with pytest.raises(UnknownDtypeError):
+        target_python.from_native(decimal.Decimal)
+
+
+def test_pyarrow_decimal_outside_portable_precision_is_rejected():
+    import pyarrow as pa
+
+    from mountainash.core.dtypes.errors import DtypeMappingError
+
+    with pytest.raises(DtypeMappingError, match="portable decimal domain"):
+        target_pyarrow.from_native(pa.decimal256(40, 2))
+
 class TestPolars:
     def test_schema_types(self):
         assert target_polars.SCHEMA_TYPES[D.I64] is pl.Int64
@@ -149,13 +208,14 @@ class TestPython:
 # ============================================================================
 # TestSemanticStringTargets (item 113 Unit B, Task 2)
 #
-# JSON, XSD_DURATION, XSD_YEAR, XSD_YEARMONTH map to each target's string
-# physical type. None of the four enters CAST_UNSUPPORTED. Native reverse
-# maps are UNCHANGED — a native string still infers only STRING, never one
-# of the semantic subtypes (physically indistinguishable).
-# ============================================================================
-
-_SEMANTIC_STRING_DTYPES = (D.JSON, D.XSD_DURATION, D.XSD_YEAR, D.XSD_YEARMONTH)
+_SEMANTIC_STRING_DTYPES = (
+    D.JSON,
+    D.XSD_DURATION,
+    D.XSD_YEAR,
+    D.XSD_YEARMONTH,
+    D.LEXICAL_INTEGER,
+    D.LEXICAL_DECIMAL,
+)
 
 
 class TestSemanticStringTargets:

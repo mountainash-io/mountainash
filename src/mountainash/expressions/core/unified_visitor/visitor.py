@@ -250,7 +250,7 @@ class UnifiedExpressionVisitor:
         """
         if self._input_data is not None and not self.type_context.active:
             with self.input_scope(self._input_data):
-                return node.accept(self)
+                return self.visit(node)
         return node.accept(self)
 
     def visit_literal(self, node: LiteralNode) -> SupportedExpressions:
@@ -707,7 +707,7 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend cast expression
         """
-        from ..expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
+        from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
 
         function_key = FKEY_SUBSTRAIT_CAST.CAST
         func_def = FunctionRegistry.get(function_key)

@@ -1,8 +1,7 @@
 """Typed errors for the canonical dtype system.
 
-`DtypeError` is the subsystem base; both concrete errors share `ValueError`, so
-the builtin is mixed in once on the base and inherited transitively — preserving
-every existing `except ValueError`.
+`DtypeError` is the subsystem base. Concrete errors inherit `ValueError` through
+that base, preserving existing `except ValueError` handlers.
 """
 from __future__ import annotations
 
@@ -24,6 +23,10 @@ class UnknownDtypeError(DtypeError):
 
 class DtypeMappingError(DtypeError):
     """The canonical dtype has no mapping for the requested target/use."""
+
+
+class NumericConversionError(DtypeError):
+    """A numeric value cannot be represented under the requested conversion policy."""
 
 
 class InvalidBackendTypeError(DtypeError):

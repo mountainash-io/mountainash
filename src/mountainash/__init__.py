@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 # Lightweight eager exports: no dataframe backend is imported at package init.
 from mountainash.__version__ import __version__
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import CanonicalDtype, DecimalDtype, MountainashDtype
 from mountainash.core.errors import MountainashError
 from mountainash.core.resource_ref import ResourceRef
 from mountainash.core.types import DataFrameT
@@ -65,8 +65,10 @@ __getattr__, _lazy_dir, _LAZY_EXPORTS = lazy_loader.attach(
             "today",
             "when",
         ],
-        "expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast": [
+        "expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast": [
             "CaseFailureBehaviour",
+            "MountainAshCastAPIBuilderProtocol",
+            "NumericRounding",
         ],
         "pydata.ingress": ["PydataIngress"],
         "relations": ["concat", "relation"],
@@ -163,6 +165,8 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
 __all__ = [
     "__version__",
     "MountainashDtype",
+    "DecimalDtype",
+    "CanonicalDtype",
     "MountainashError",
     "ResourceRef",
     "DataFrameT",

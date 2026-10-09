@@ -1,10 +1,11 @@
 """Polars lowering for Mountainash scalar value classification."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import polars as pl
-
+from mountainash.core.dtypes import CanonicalDtype, TypeTarget, registry
+from mountainash.core.dtypes.numeric import convert_numeric
 from mountainash.core.value_classification import (
     boolean_value as scalar_boolean_value,
 )
@@ -31,6 +32,42 @@ class MountainAshPolarsScalarValueExpressionSystem(
     MountainAshScalarValueExpressionSystemProtocol[pl.Expr],
 ):
     """Polars implementation of original-value classification and projections."""
+    def numeric_cast(
+        self,
+        x: Any,
+        /,
+        *,
+        dtype: CanonicalDtype,
+        rounding: Literal["TIE_TO_EVEN", "TIE_AWAY_FROM_ZERO"] = "TIE_TO_EVEN",
+        failure_behavior: Literal["throw", "null"] = "throw",
+    ) -> PolarsExpr:
+        """Convert a numeric value with the shared exact Decimal codec."""
+        output_dtype = registry.to_native_schema(dtype, TypeTarget.POLARS)
+        if x is None:
+            return pl.lit(None, dtype=output_dtype)
+        if not isinstance(x, pl.Expr):
+            return pl.lit(
+                convert_numeric(x, dtype, rounding, failure_behavior), dtype=output_dtype
+            )
+
+        def convert_batch(batch: pl.Series) -> pl.Series:
+            values = [
+                convert_numeric(
+                    batch[index],
+                    dtype,
+                    rounding,
+                    failure_behavior,
+                )
+                for index in range(len(batch))
+            ]
+            return pl.Series(batch.name, values, dtype=output_dtype)
+
+        return x.map_batches(
+            convert_batch,
+            return_dtype=output_dtype,
+            is_elementwise=True,
+        )
+
 
     def value_kind(self, x: PolarsExpr, /) -> PolarsExpr:
         """Return a null-first label for the original scalar domain."""

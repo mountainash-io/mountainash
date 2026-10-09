@@ -23,6 +23,32 @@ class TestToNative:
         assert registry.to_native_cast(D.I64, TypeTarget.IBIS) == "int64"
 
 
+    @pytest.mark.parametrize(
+        "target",
+        [
+            TypeTarget.POLARS,
+            TypeTarget.PYARROW,
+            TypeTarget.PANDAS,
+            TypeTarget.IBIS,
+            TypeTarget.NARWHALS,
+        ],
+    )
+    @pytest.mark.parametrize("precision,scale", [(1, 0), (20, 3), (38, 38)])
+    def test_decimal_native_round_trip_retains_parameters(
+        self, target, precision, scale
+    ):
+        from mountainash.core.dtypes.canonical import DecimalDtype
+
+        dtype = DecimalDtype(precision=precision, scale=scale)
+
+        native = registry.to_native_schema(dtype, target)
+        assert registry.from_native(native, target=target) == dtype
+        cast_native = registry.to_native_cast(dtype, target)
+        assert registry.from_native(cast_native, target=target) == dtype
+
+    def test_bare_decimal_cannot_lower_to_native_schema(self):
+        with pytest.raises(DtypeMappingError):
+            registry.to_native_schema(D.DECIMAL, TypeTarget.POLARS)
 class TestFromNative:
     def test_explicit_target(self):
         assert registry.from_native(pl.Int32(), target=TypeTarget.POLARS) is D.I32
@@ -38,28 +64,29 @@ class TestFromNative:
         assert registry.from_native("int32", target=TypeTarget.PANDAS) is D.I32
 
 
-# Semantic-string canonical types (item 113 Unit B, Task 2) are physically
-# indistinguishable from STRING on every target — a native string cannot
-# prove JSON/XSD-duration/XSD-year/XSD-yearmonth semantics, so from_native
-# collapses them all to STRING by design. They are structurally excluded
-# from the round-trip identity check below (which is completeness-checked
-# via set(D) so a future canonical addition is still forced to declare
-# itself into one bucket or the other).
+# Semantic-string kinds, including lexical numeric declarations, are
+# physically indistinguishable from STRING on each target.
+# Native strings carry no proof of any such semantic declaration.
+# Bare DECIMAL is separately excluded because parameters are required.
 _SEMANTIC_STRING_DTYPES: frozenset[D] = frozenset({
     D.JSON, D.XSD_DURATION, D.XSD_YEAR, D.XSD_YEARMONTH,
+    D.LEXICAL_INTEGER, D.LEXICAL_DECIMAL,
 })
+_INCOMPLETE_DTYPES: frozenset[D] = frozenset({D.DECIMAL})
 
 
 class TestRoundTrip:
     @pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS])
     @pytest.mark.parametrize(
-        "dtype", [d for d in D if d not in _SEMANTIC_STRING_DTYPES]
+        "dtype",
+        [
+            d for d in D
+            if d not in _SEMANTIC_STRING_DTYPES | _INCOMPLETE_DTYPES
+        ],
     )
     def test_canon_to_native_to_canon(self, dtype, target):
         native = registry.to_native_schema(dtype, target)
         back = registry.from_native(native, target=target)
-        # Width-preserving identity (STRING-collapsing types like
-        # Categorical only appear in from_native, not to_native)
         assert back is dtype
 
     @pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS])
@@ -73,10 +100,8 @@ class TestRoundTrip:
         back = registry.from_native(native, target=target)
         assert back is D.STRING
 
-    def test_round_trip_coverage_is_exhaustive_over_canonical_vocabulary(self):
-        # Every canonical member is in exactly one of the two buckets above.
-        assert _SEMANTIC_STRING_DTYPES <= set(D)
-
+    def test_special_type_buckets_cover_canonical_vocabulary(self):
+        assert _SEMANTIC_STRING_DTYPES | _INCOMPLETE_DTYPES <= set(D)
 
 class TestParseTypeString:
     def test_delegates(self):

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
 
 
+
 class BaseExpressionSystem(ABC):
     """Abstract base class for all backend expression systems.
 
@@ -57,6 +58,12 @@ class BaseExpressionSystem(ABC):
         if companion is None:
             return None
         return companion(resolver_type(visitor, function_key, arguments, compiled_arguments))
+
+    def _prepare_call_numeric_cast(self, operands: Any) -> list[Any]:
+        """Carry exact Python numerics as text before native literal inference."""
+        from mountainash.expressions.core.numeric_cast import prepare_numeric_cast_literal
+
+        return [prepare_numeric_cast_literal(operands.raw_literal_or_native(0))]
 
     @contextmanager
     def operand_types(self, named_operands: Mapping[str, Any]) -> Iterator[None]:
@@ -122,7 +129,13 @@ class BaseExpressionSystem(ABC):
 
     def cast_operand_type(self, target_type: Any, input_type: Any) -> Any:
         """Resolve a cast from its declared target without evaluating a sample."""
-        from mountainash.core.dtypes import MountainashDtype, NativeDtype, TypeTarget, registry
+        from mountainash.core.dtypes import (
+            DecimalDtype,
+            MountainashDtype,
+            NativeDtype,
+            TypeTarget,
+            registry,
+        )
         from mountainash.core.dtypes.metadata import OperandType
         from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
         native_dtype = (
@@ -148,7 +161,16 @@ class BaseExpressionSystem(ABC):
             "Float32": "float", "Float64": "float",
             "string": "text", "str": "text", "text": "text", "String": "text",
         }
-        kind = kinds.get(name)
+        kind = (
+            "float"
+            if isinstance(target_type, DecimalDtype)
+            else "text"
+            if target_type in {
+                MountainashDtype.LEXICAL_INTEGER,
+                MountainashDtype.LEXICAL_DECIMAL,
+            }
+            else kinds.get(name)
+        )
         storage: StorageKind = (
             input_type.storage_kind
             if input_type is not None and input_type.storage_kind != "native"

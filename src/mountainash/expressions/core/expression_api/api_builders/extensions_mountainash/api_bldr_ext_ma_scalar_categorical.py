@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..api_builder_base import BaseExpressionAPIBuilder
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import MountainAshScalarCategoricalAPIBuilderProtocol
-from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_CATEGORICAL
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from ._operation_options import validate_categories, validate_failure_behavior, validate_field_name

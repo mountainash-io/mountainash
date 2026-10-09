@@ -4,7 +4,6 @@ Substrait-aligned APIBuilder implementations.
 """
 from __future__ import annotations
 
-from .api_bldr_cast import SubstraitCastAPIBuilder
 from .api_bldr_conditional import SubstraitConditionalAPIBuilder, SubstraitWhenAPIBuilder, SubstraitThenAPIBuilder
 from .api_bldr_field_reference import SubstraitFieldReferenceAPIBuilder
 from .api_bldr_literal import SubstraitLiteralAPIBuilder
@@ -25,7 +24,6 @@ from .api_bldr_window_arithmetic import SubstraitWindowArithmeticAPIBuilder
 
 __all__ = [
     # Core nodes
-    "SubstraitCastAPIBuilder",
     "SubstraitFieldReferenceAPIBuilder",
     "SubstraitLiteralAPIBuilder",
 

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from mountainash.conform.errors import UnsupportedStructuredTransportUse
 from mountainash.conform.structured_transport import (
+    StructuredCarrier,
     StructuredFieldPlan,
     StructuredFieldPlanMap,
     freeze_structured_field_plans,
@@ -109,23 +110,40 @@ def _expression_node(value: Any) -> Any:
     return value._node if isinstance(value, BaseExpressionAPI) else value
 
 
-def _referenced_fields(value: Any) -> set[str]:
+def _referenced_fields(value: Any, *, native_field_plans: StructuredFieldPlanMap | None = None) -> set[str]:
     """Extract field references from an uncompiled expression tree."""
-    from mountainash.expressions.core.expression_nodes import ExpressionNode
+    from mountainash.expressions.core.expression_nodes import ExpressionNode, ScalarFunctionNode
+    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT
     from mountainash.expressions.core.expression_nodes.substrait.exn_field_reference import (
         FieldReferenceNode,
     )
     from mountainash.relations.core.unified_visitor.relation_visitor import _expression_children
 
     value = _expression_node(value)
+    if (
+        native_field_plans
+        and isinstance(value, ScalarFunctionNode)
+        and value.function_key is FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD
+    ):
+        source = _direct_projection(value.arguments[0])
+        plan = native_field_plans.get(source[0]) if source is not None else None
+        if plan is not None and plan.carrier is StructuredCarrier.NATIVE:
+            return set()
     if isinstance(value, FieldReferenceNode):
         return {value.field}
     if isinstance(value, ExpressionNode):
-        return set().union(*(_referenced_fields(child) for child in _expression_children(value)))
+        return set().union(*(
+            _referenced_fields(child, native_field_plans=native_field_plans)
+            for child in _expression_children(value)
+        ))
     if isinstance(value, Mapping):
-        return set().union(*(_referenced_fields(item) for item in value.values()))
+        return set().union(*(
+            _referenced_fields(item, native_field_plans=native_field_plans) for item in value.values()
+        ))
     if isinstance(value, (list, tuple)):
-        return set().union(*(_referenced_fields(item) for item in value))
+        return set().union(*(
+            _referenced_fields(item, native_field_plans=native_field_plans) for item in value
+        ))
     return set()
 
 
@@ -201,7 +219,8 @@ def _named_values(value: Any) -> set[str]:
 def _reject_consumed_fields(
     node: Any, plans: StructuredFieldPlanMap, values: Any, consumer: str
 ) -> None:
-    for name in _referenced_fields(values) | _named_values(values):
+    native_fields = plans if node.operation_key in {RS.PROJECT_SELECT, RS.PROJECT_WITH_COLUMNS} else None
+    for name in _referenced_fields(values, native_field_plans=native_fields) | _named_values(values):
         plan = plans.get(name)
         if plan is not None:
             _raise(name, plan, node, consumer)

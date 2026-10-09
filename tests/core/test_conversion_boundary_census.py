@@ -269,6 +269,16 @@ def _boundary_key_names(root: Path, *, exclude: "Path | None" = None) -> set[str
 # absence here is a documented choice, not a coverage gap. See the cited
 # test module for the functional proof.
 _STATIC_ONLY_BOUNDARY_KEYS: "dict[str, tuple[str, str]]" = {
+    "EXPRESSION_POLARS_STRUCTURED_CALLBACK": (
+        "Exercised functionally by tests/conform/cross_backend/test_v2_operations.py "
+        "mixed exact/ordinary recursive casts: native values and atomic enclosing nulls.",
+        "2026-10-08",
+    ),
+    "EXPRESSION_NARWHALS_PANDAS_STRUCTURED_CALLBACK": (
+        "Exercised functionally by tests/conform/cross_backend/test_v2_operations.py "
+        "mixed exact/ordinary recursive casts on pandas and narwhals-pandas.",
+        "2026-10-08",
+    ),
     "ARROW_TO_POLARS_EGRESS": (
         "Exercised functionally by tests/relations/test_native_materialization.py "
         "and tests/relations/cross_backend/ Arrow/Ibis-to-Polars egress assertions.",

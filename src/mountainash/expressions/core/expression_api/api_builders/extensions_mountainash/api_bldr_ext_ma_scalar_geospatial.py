@@ -7,7 +7,7 @@ from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import (
     MountainAshScalarGeospatialAPIBuilderProtocol,
 )
-from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
+from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
     CaseFailureBehaviour,
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (

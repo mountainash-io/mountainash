@@ -7,7 +7,12 @@ from typing import Any, Optional
 
 import pyarrow as pa
 
-from .canonical import MountainashDtype as D
+from .canonical import (
+    CanonicalDtype,
+    DecimalDtype,
+    MountainashDtype as D,
+    _decimal_from_native,
+)
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -20,7 +25,13 @@ SCHEMA_TYPES: dict[D, Any] = {
     D.LIST: pa.list_(pa.string()), D.STRUCT: pa.struct([]),
     D.JSON: pa.string(), D.XSD_DURATION: pa.string(),
     D.XSD_YEAR: pa.string(), D.XSD_YEARMONTH: pa.string(),
+    D.LEXICAL_INTEGER: pa.string(), D.LEXICAL_DECIMAL: pa.string(),
 }
+
+
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    return pa.decimal128(dtype.precision, dtype.scale)
+
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})
 
@@ -48,14 +59,18 @@ def _base_name(native: Any) -> str:
     return str(native).split("[", 1)[0].split("<", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def from_native(native: Any) -> Optional[CanonicalDtype]:
+    if isinstance(native, pa.DataType) and pa.types.is_decimal(native):
+        return _decimal_from_native(
+            native.precision, native.scale, "PyArrow"
+        )
+
     name = _base_name(native)
     if name in _UNTYPED_NAMES:
         return None
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]
     raise UnknownDtypeError(f"Unrecognized PyArrow dtype: {native!r}")
-
 
 def parse_type_string(s: str) -> Optional[Any]:
     try:

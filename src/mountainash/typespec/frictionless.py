@@ -34,6 +34,7 @@ from .spec import (
     TypeSpec,
 )
 from .universal_types import UniversalType, parse_universal
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype
 
 
 # The five standard operational field-match modes. ``open`` is the Mountainash
@@ -315,6 +316,15 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
         field_extensions["item_object_fields"] = [
             _field_to_frictionless_dict(inner) for inner in fspec.item_object_fields
         ]
+    if fspec.dtype is not None:
+        if isinstance(fspec.dtype, DecimalDtype):
+            field_extensions["dtype"] = {
+                "kind": MountainashDtype.DECIMAL.value,
+                "precision": fspec.dtype.precision,
+                "scale": fspec.dtype.scale,
+            }
+        else:
+            field_extensions["dtype"] = {"kind": fspec.dtype.value}
     if field_extensions:
         field_dict["x-mountainash"] = field_extensions
 
@@ -430,6 +440,30 @@ def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
     delimiter: Optional[str] = raw_field.get("delimiter")
 
     field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
+    dtype = None
+    if "dtype" in field_ext:
+        raw_dtype = field_ext["dtype"]
+        if not isinstance(raw_dtype, Mapping):
+            raise TypeError("x-mountainash.dtype must be an object")
+        kind = raw_dtype.get("kind")
+        if kind == MountainashDtype.DECIMAL.value:
+            if set(raw_dtype) != {"kind", "precision", "scale"}:
+                raise ValueError(
+                    "decimal dtype requires exactly kind, precision, and scale"
+                )
+            dtype = DecimalDtype(
+                precision=raw_dtype["precision"],
+                scale=raw_dtype["scale"],
+            )
+        elif kind in (
+            MountainashDtype.LEXICAL_INTEGER.value,
+            MountainashDtype.LEXICAL_DECIMAL.value,
+        ):
+            if set(raw_dtype) != {"kind"}:
+                raise ValueError("lexical dtype requires only kind")
+            dtype = MountainashDtype(kind)
+        else:
+            raise ValueError(f"unknown x-mountainash.dtype kind: {kind!r}")
     rename_from: Optional[str] = field_ext.get("rename_from")
     null_fill: Any = field_ext.get("null_fill")
     custom_cast: Optional[str] = field_ext.get("custom_cast")
@@ -468,6 +502,7 @@ def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
         true_values=true_values,
         false_values=false_values,
         backend_type=backend_type,
+        dtype=dtype,
         rename_from=rename_from,
         null_fill=null_fill,
         custom_cast=custom_cast,

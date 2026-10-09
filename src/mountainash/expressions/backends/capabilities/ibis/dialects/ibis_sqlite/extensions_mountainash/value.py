@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 from mountainash.core.capabilities.declarations import CapabilitySegment
-
 from mountainash.core.capabilities.declarations import Domain
 
 
-SEGMENT = CapabilitySegment(
-    domain=Domain.VALUE,
-    changes=(),
-)
+# Exact numeric target refusals are intrinsic backend checks, not optional policies.
+SEGMENT = CapabilitySegment(domain=Domain.VALUE, changes=())

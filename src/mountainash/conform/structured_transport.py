@@ -9,6 +9,8 @@ import math
 from types import MappingProxyType
 from typing import Any, Literal, NoReturn
 
+from mountainash.typespec.source_shape import SourceShape  # noqa: TC001 -- Pydantic resolves nested field-plan annotations at runtime.
+
 
 class StructuredRoot(str, Enum):
     """The declared top-level JSON shape."""
@@ -41,6 +43,7 @@ class StructuredFieldPlan:
     null_fill: Any | None
     declaration_fingerprint: str
     origin_node_id: str
+    numeric_shape: SourceShape | None = None
 
     @property
     def requires_logical_terminal(self) -> bool:
@@ -194,7 +197,19 @@ def _decode_or_null(
         return None
     return decoded
 
+def _apply_nested_numeric_codecs(
+    value: Any, *, plan: StructuredFieldPlan
+) -> Any:
+    """Normalize exact numeric leaves from immutable declared shape evidence."""
+    if value is None or value is INVALID_STRUCTURED_VALUE or plan.numeric_shape is None:
+        return value
+    from mountainash.core.dtypes.errors import NumericConversionError
+    from mountainash.core.dtypes.numeric import convert_nested_numeric_shape
 
+    try:
+        return convert_nested_numeric_shape(value, plan.numeric_shape)
+    except NumericConversionError:
+        return INVALID_STRUCTURED_VALUE
 def resolve_structured_cell(
     value: Any,
     *,
@@ -217,6 +232,8 @@ def resolve_structured_cell(
         plan=plan,
         post_missing_is_null=post_missing_is_null,
     )
+    if plan.apply_value_transforms:
+        decoded = _apply_nested_numeric_codecs(decoded, plan=plan)
     action = plan.configured_action
     if (
         plan.apply_value_transforms

@@ -6,13 +6,15 @@ Single source of truth for type vocabulary and per-target mappings.
 from __future__ import annotations
 
 from .canonical import (
+    CanonicalDtype,
+    DecimalDtype,
     DTYPE_ALIASES,
     MountainashDtype,
     NativeDtype,
     parse_cast_target,
     parse_dtype,
 )
-from .casts import SAFE_CASTS, UNSAFE_CASTS, CastSafety, classify_cast, is_safe_cast
+from .casts import CastSafety, classify_cast, is_safe_cast
 from .errors import (
     DtypeError,
     DtypeMappingError,
@@ -24,11 +26,11 @@ from .targets import TypeTarget, detect_target
 
 
 __all__ = [
-    "MountainashDtype", "NativeDtype", "DTYPE_ALIASES",
+    "MountainashDtype", "DecimalDtype", "CanonicalDtype", "NativeDtype", "DTYPE_ALIASES",
     "parse_dtype", "parse_cast_target",
     "TypeTarget", "detect_target",
     "DtypeRegistry", "registry",
     "DtypeError", "UnknownDtypeError", "DtypeMappingError", "InvalidBackendTypeError",
-    "SAFE_CASTS", "UNSAFE_CASTS", "is_safe_cast",
+    "is_safe_cast",
     "CastSafety", "classify_cast",
 ]

@@ -21,7 +21,9 @@ from .api_bldr_ext_ma_scalar_list import MountainAshScalarListAPIBuilder
 from .api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilder
 from .api_bldr_ext_ma_scalar_value import MountainAshScalarValueAPIBuilder
 
+from .api_bldr_ext_ma_cast import MountainAshCastAPIBuilder
 __all__ = [
+    "MountainAshCastAPIBuilder",
     "MountainAshNameAPIBuilder",
     "MountainAshScalarAggregateAPIBuilder",
     "MountainAshNativeAPIBuilder",

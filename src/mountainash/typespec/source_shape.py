@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import CanonicalDtype, MountainashDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.core.types import (
@@ -29,7 +29,7 @@ _NUMERIC_CANONICALS = frozenset(
 class SourceShape:
     """Recursive type evidence exposed by a native schema."""
 
-    canonical_type: MountainashDtype | None
+    canonical_type: CanonicalDtype | None
     item_shape: SourceShape | None = None
     struct_fields: tuple[tuple[str, SourceShape], ...] = ()
 
@@ -44,11 +44,57 @@ class SourceShape:
         if len(names) != len(set(names)):
             raise ValueError("struct field names must be unique")
 
+def declared_field_shape(fld: Any) -> SourceShape | None:
+    """Describe a FieldSpec without claiming its values have been validated."""
+    from mountainash.typespec.converters import resolve_field_canonical
+    from mountainash.typespec.universal_types import parse_universal, to_canonical, UniversalType
 
-def _canonical(native: Any, target: TypeTarget) -> MountainashDtype | None:
+    canonical = resolve_field_canonical(fld)
+    if canonical is None:
+        return None
+    if fld.type is UniversalType.GEOPOINT:
+        if fld.format == "array":
+            return SourceShape(canonical, SourceShape(MountainashDtype.FP64))
+        if fld.format == "object":
+            return SourceShape(
+                canonical,
+                struct_fields=(
+                    ("lon", SourceShape(MountainashDtype.FP64)),
+                    ("lat", SourceShape(MountainashDtype.FP64)),
+                ),
+            )
+    if canonical is MountainashDtype.LIST:
+        if fld.item_type:
+            item = to_canonical(parse_universal(fld.item_type))
+            return SourceShape(canonical, SourceShape(item)) if item else SourceShape(canonical)
+        if fld.item_object_fields:
+            return SourceShape(
+                canonical,
+                SourceShape(
+                    MountainashDtype.STRUCT,
+                    struct_fields=tuple(
+                        (inner.name, declared_field_shape(inner) or SourceShape(None))
+                        for inner in fld.item_object_fields
+                    ),
+                ),
+            )
+        return SourceShape(canonical)
+    if canonical is MountainashDtype.STRUCT and fld.object_fields:
+        return SourceShape(
+            canonical,
+            struct_fields=tuple(
+                (inner.name, declared_field_shape(inner) or SourceShape(None))
+                for inner in fld.object_fields
+            ),
+        )
+    return SourceShape(canonical)
+
+
+
+def _canonical(native: Any, target: TypeTarget) -> CanonicalDtype | None:
     try:
         return registry.from_native(native, target=target)
-    except (UnknownDtypeError, TypeError, ValueError):
+    except (UnknownDtypeError, TypeError):
         return None
 
 

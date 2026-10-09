@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Literal, Protocol
 
+from mountainash.core.dtypes import CanonicalDtype  # noqa: TC001 — runtime protocol get_type_hints
 from mountainash.core.types import ExpressionT
 
 
@@ -29,4 +30,16 @@ class MountainAshScalarValueExpressionSystemProtocol(Protocol[ExpressionT]):
 
     def text_value(self, x: ExpressionT, /) -> ExpressionT:
         """Return text values without stringifying another scalar domain."""
+        ...
+
+    def numeric_cast(
+        self,
+        x: ExpressionT,
+        /,
+        *,
+        dtype: CanonicalDtype,
+        rounding: Literal["TIE_TO_EVEN", "TIE_AWAY_FROM_ZERO"],
+        failure_behavior: Literal["throw", "null"],
+    ) -> ExpressionT:
+        """Convert exact numeric/lexical values under explicit operation policies."""
         ...

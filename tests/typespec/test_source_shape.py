@@ -8,6 +8,17 @@ from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.source_shape import SourceShape, extract_source_shapes
 
 
+
+def test_arrow_decimal_source_shape_keeps_precision_and_scale() -> None:
+    import pyarrow as pa
+    from mountainash.core.dtypes import DecimalDtype
+
+    shape = extract_source_shapes(
+        pa.table({"amount": pa.array([], type=pa.decimal128(20, 3))})
+    )["amount"]
+
+    assert shape.canonical_type == DecimalDtype(precision=20, scale=3)
+
 def test_source_shape_rejects_children_on_scalar() -> None:
     with pytest.raises(ValueError, match="only LIST can have item_shape"):
         SourceShape(
