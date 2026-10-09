@@ -147,7 +147,12 @@ def test_numeric_schema_and_values_survive_independent_reload(tmp_path):
     ):
         data = {**independent, column: [value]}
         pq.write_table(pa.Table.from_pydict(data, schema=schema), tmp_path / (name + ".parquet"))
-    environment = {**os.environ, "PYTHONPATH": str(Path(ma.__file__).parents[1])}
+    # The reader is an independent process: don't let pytest-cov start coverage in it.
+    environment = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith(("COV_CORE_", "COVERAGE_"))
+    }
+    environment["PYTHONPATH"] = str(Path(ma.__file__).parents[1])
     result = subprocess.run(
         [sys.executable, "-c", _RELOAD, str(tmp_path)],
         cwd=tmp_path, env=environment, capture_output=True, text=True, check=False,
