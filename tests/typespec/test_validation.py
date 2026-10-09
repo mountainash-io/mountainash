@@ -20,35 +20,6 @@ from mountainash.typespec.validation import (
 from mountainash.typespec.spec import TypeSpec
 
 
-from mountainash.core.dtypes import DecimalDtype
-from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
-
-
-@pytest.mark.parametrize(
-    "physical_dtype",
-    [
-        pl.Decimal(precision=20, scale=2),
-        pl.Decimal(precision=21, scale=3),
-        pl.Float64,
-    ],
-)
-def test_validate_match_rejects_decimal_parameter_or_carrier_mismatch(
-    physical_dtype,
-) -> None:
-    expected = TypeSpec(fields=[FieldSpec(
-        name="amount",
-        type=UniversalType.NUMBER,
-        dtype=DecimalDtype(precision=20, scale=3),
-    )])
-    frame = pl.DataFrame(schema={"amount": physical_dtype})
-
-    is_valid, errors = validate_match(frame, expected)
-
-    assert is_valid is False
-    assert any("amount" in error for error in errors)
-
-
 # ============================================================================
 # TestValidateMatch
 # ============================================================================

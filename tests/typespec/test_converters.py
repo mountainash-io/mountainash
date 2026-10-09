@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype as D
+from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.core.dtypes import TypeTarget, registry
 from mountainash.typespec.converters import (
     _resolve_field_native,
@@ -27,22 +27,6 @@ from mountainash.typespec.converters import (
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.universal_types import UniversalType as U
 from mountainash.typespec.spec import FieldSpec, TypeSpec
-
-
-def test_parameterized_decimal_lowers_to_native_schemas() -> None:
-    import pyarrow as pa
-    import polars as pl
-
-    schema = TypeSpec(fields=[
-        FieldSpec(
-            name="amount",
-            type=UniversalType.NUMBER,
-            dtype=DecimalDtype(precision=20, scale=3),
-        )
-    ])
-
-    assert to_arrow_schema(schema).field("amount").type == pa.decimal128(20, 3)
-    assert to_polars_schema(schema)["amount"] == pl.Decimal(precision=20, scale=3)
 
 
 # ============================================================================

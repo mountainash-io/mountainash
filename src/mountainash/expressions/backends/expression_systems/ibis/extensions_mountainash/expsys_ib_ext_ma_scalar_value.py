@@ -1,21 +1,9 @@
 """SQL-native Ibis lowering for value-domain classification and projection."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 import ibis
-
-from mountainash.core.dtypes import (
-    CanonicalDtype,
-    DecimalDtype,
-    MountainashDtype,
-    TypeTarget,
-    registry,
-)
-from mountainash.core.dtypes.numeric import convert_numeric
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_VALUE,
-)
 
 from ..base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import (
@@ -31,54 +19,6 @@ class MountainAshIbisScalarValueExpressionSystem(
     MountainAshScalarValueExpressionSystemProtocol["IbisValueExpr"],
 ):
     """Lower known Ibis domains without materializing or inspecting Python rows."""
-    def numeric_cast(
-        self,
-        x: Any,
-        /,
-        *,
-        dtype: CanonicalDtype,
-        rounding: Literal["TIE_TO_EVEN", "TIE_AWAY_FROM_ZERO"] = "TIE_TO_EVEN",
-        failure_behavior: Literal["throw", "null"] = "throw",
-    ) -> IbisValueExpr:
-        """Apply the shared exact conversion in an Ibis scalar UDF."""
-        from mountainash.core.types import BackendCapabilityError
-
-        if self.dialect == "ibis-sqlite" and (
-            isinstance(dtype, DecimalDtype) or dtype is MountainashDtype.U64
-        ):
-            raise BackendCapabilityError(
-                "Ibis SQLite cannot represent fixed-decimal or U64 numeric casts.",
-                backend=self.BACKEND_NAME,
-                function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST,
-            )
-        output_dtype = registry.to_native_schema(dtype, TypeTarget.IBIS)
-        from ibis.common.deferred import Deferred
-        import ibis.expr.types as ir
-
-        if x is None:
-            return ibis.literal(None, type=output_dtype)
-        if not isinstance(x, (ir.Expr, Deferred)):
-            converted = convert_numeric(x, dtype, rounding, failure_behavior)
-            if isinstance(dtype, DecimalDtype) and converted is not None:
-                # Keep the exact text carrier through native parsing. A numeric
-                # SQL literal can infer DOUBLE before an outer DECIMAL cast.
-                return ibis.literal(format(converted, "f")).cast(output_dtype)
-            return ibis.literal(converted, type=output_dtype)
-
-        def bind(value: IbisValueExpr) -> IbisValueExpr:
-            options = {"null_handling": "special"} if self.dialect == "ibis-duckdb" else {}
-            udf = ibis.udf.scalar.python(
-                signature=((value.type(),), output_dtype),
-                **options,
-            )(
-                lambda item: convert_numeric(
-                    item, dtype, rounding, failure_behavior
-                )
-            )
-            return udf(value)
-
-        return x.pipe(bind)
-
 
     def value_kind(self, x: IbisValueExpr, /) -> IbisValueExpr:
         """Return a row-shaped original-domain label with SQL NULL first."""

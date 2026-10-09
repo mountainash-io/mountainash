@@ -12,12 +12,11 @@ Covers schema extraction from:
 """
 import datetime
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import Optional
 
 import pytest
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.extraction import (
     _DATACLASS_SCHEMA_CACHE,
     extract_schema_from_dataclass,
@@ -35,83 +34,6 @@ from mountainash.typespec.spec import TypeSpec
 from mountainash.typespec.source_shape import extract_source_shapes
 
 
-
-@pytest.mark.parametrize("backend", ["polars", "pandas-arrow", "narwhals", "ibis"])
-def test_native_decimal_extraction_retains_parameters(backend: str) -> None:
-    import pyarrow as pa
-    arrow = pa.array(
-        [Decimal("9007199254740993.125"), None],
-        type=pa.decimal128(20, 3),
-    )
-    if backend == "polars":
-        import polars as pl
-        native = pl.DataFrame({"amount": arrow.to_pylist()}).with_columns(
-            pl.col("amount").cast(pl.Decimal(precision=20, scale=3))
-        )
-    elif backend == "pandas-arrow":
-        import pandas as pd
-        native = pd.DataFrame({
-            "amount": pd.Series(arrow, dtype=pd.ArrowDtype(pa.decimal128(20, 3)))
-        })
-    elif backend == "narwhals":
-        import narwhals as nw
-        import polars as pl
-        frame = pl.DataFrame({"amount": arrow.to_pylist()}).with_columns(
-            pl.col("amount").cast(pl.Decimal(precision=20, scale=3))
-        )
-        native = nw.from_native(frame)
-    else:
-        import ibis
-        native = ibis.memtable(pa.table({"amount": arrow}))
-
-    field = extract_from_dataframe(native).get_field("amount")
-
-    assert field.dtype == DecimalDtype(precision=20, scale=3)
-
-
-def test_pyarrow_decimal_extraction_preserves_parameters_recursively() -> None:
-    import pyarrow as pa
-
-    table = pa.table({
-        "amount": pa.array(
-            [Decimal("9007199254740993.125"), None],
-            type=pa.decimal128(20, 3),
-        ),
-        "record": pa.array(
-            [{"amount": Decimal("1.250")}, None],
-            type=pa.struct([pa.field("amount", pa.decimal128(8, 3))]),
-        ),
-    })
-
-    spec = extract_from_dataframe(table)
-
-    assert spec.get_field("amount").dtype == DecimalDtype(precision=20, scale=3)
-    nested = spec.get_field("record").object_fields[0]
-    assert nested.dtype == DecimalDtype(precision=8, scale=3)
-
-
-def test_pyarrow_decimal_outside_portable_domain_is_not_lowered_to_number() -> None:
-    import pyarrow as pa
-    table = pa.table({
-        "amount": pa.array([], type=pa.decimal256(40, 2)),
-    })
-
-    with pytest.raises((ValueError, TypeError)):
-        extract_from_dataframe(table)
-
-
-
-def test_decimal_annotation_does_not_infer_precision_or_lexical_storage() -> None:
-    from mountainash.typespec.universal_types import UniversalType
-
-    @dataclass
-    class DecimalRecord:
-        amount: Decimal
-
-    field = extract_from_dataclass(DecimalRecord).get_field("amount")
-
-    assert field.dtype is None
-    assert field.type is UniversalType.ANY
 # ============================================================================
 # TestExtractFromPolars
 # ============================================================================
@@ -683,6 +605,13 @@ class TestExtractionOverRegistry:
         collected = empty.collect()
         assert collected.schema["addr"] == pl.Struct({"street": pl.String, "zip": pl.String})
         assert collected.shape == (0, 1)
+    def test_unknown_dtype_raises(self):
+        import polars as pl
+        from mountainash.core.dtypes.errors import UnknownDtypeError
+        from mountainash.typespec.extraction import extract_from_dataframe
+        df = pl.DataFrame({"d": [1]}).cast({"d": pl.Decimal(scale=2)})
+        with pytest.raises(UnknownDtypeError):
+            extract_from_dataframe(df)  # Decimal unmapped -> explicit error, not ANY
 
     def test_null_column_extracts_as_any(self):
         import polars as pl

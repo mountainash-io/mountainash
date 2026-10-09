@@ -24,7 +24,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT,
     FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL as FK_GEO,
 )
-from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
     CaseFailureBehaviour,
 )
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
@@ -494,47 +494,6 @@ def test_list_cast_items_null_mode_invalidates_complete_recursive_value(
         "items",
     )
     assert values == [None, None]
-
-
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-@pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
-def test_list_cast_items_mixed_exact_and_ordinary_leaves(backend_name, failure_behavior):
-    from decimal import Decimal
-
-    fields = (
-        FieldSpec(
-            name="amount", type=UniversalType.NUMBER,
-            dtype=ma.DecimalDtype(precision=6, scale=3),
-        ),
-        FieldSpec(
-            name="meta", type=UniversalType.OBJECT,
-            object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
-        ),
-    )
-    expr = ma.col("items").list.cast_items(
-        item_object_fields=fields, field_name="items", failure_behavior=failure_behavior,
-    )
-    if backend_name == "ibis-sqlite" or (
-        failure_behavior is CaseFailureBehaviour.NULL
-        and backend_name not in {"polars", "polars-lazy"}
-    ):
-        with pytest.raises(BackendCapabilityError) as error:
-            _compile_for(backend_name, expr)
-        assert error.value.function_key is FK_LIST.CAST_ITEMS
-        return
-
-    rows = [[{"amount": "12.345", "meta": {"id": "3"}}], []]
-    expected = [[{"amount": Decimal("12.345"), "meta": {"id": 3}}], []]
-    if failure_behavior is CaseFailureBehaviour.NULL:
-        rows.extend([
-            [{"amount": "12.345", "meta": {"id": "bad"}}],
-            [{"amount": "bad", "meta": {"id": "3"}}],
-            None,
-        ])
-        expected.extend([None, None, None])
-    assert _extract(
-        backend_name, {"items": rows}, _compile_for(backend_name, expr), "items",
-    ) == expected
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

@@ -14,7 +14,6 @@ from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
-from mountainash.core.dtypes.numeric import convert_nested_numeric, has_nested_numeric_fields
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
 
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
@@ -106,24 +105,6 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
             return x.cast(f"array<{dtype}>")
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.IBIS)
-        if has_nested_numeric_fields(item_object_fields):
-            def bind(value):
-                def convert(values):
-                    if values is None:
-                        return None
-                    return [
-                        convert_nested_numeric(item, item_object_fields)
-                        if item is not None else None
-                        for item in values
-                    ]
-
-                udf = ibis.udf.scalar.python(
-                    signature=((value.type(),), dtype),
-                    **({"null_handling": "special"} if self.dialect == "ibis-duckdb" else {}),
-                )(convert)
-                return udf(value)
-
-            return x.pipe(bind)
         return x.cast(dtype)
 
     def list_sum(self, x, /):

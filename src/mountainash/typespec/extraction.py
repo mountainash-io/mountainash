@@ -15,12 +15,7 @@ import enum
 import logging
 import types
 
-from mountainash.core.dtypes import (
-    DecimalDtype,
-    MountainashDtype,
-    TypeTarget,
-    registry,
-)
+from mountainash.core.dtypes import TypeTarget, registry
 
 from .spec import TypeSpec, FieldSpec, FieldConstraints
 from .universal_types import UniversalType, from_canonical
@@ -71,28 +66,30 @@ def _field_from_source_shape(
 
     object_fields = None
     item_object_fields = None
-    canonical = shape.canonical_type
-    if canonical is MountainashDtype.STRUCT:
-        object_fields = [
-            _field_from_source_shape(child_name, child_shape)
-            for child_name, child_shape in shape.struct_fields
-        ]
-    elif canonical is MountainashDtype.LIST:
-        child = shape.item_shape
-        if child is not None and child.canonical_type is MountainashDtype.STRUCT:
-            item_object_fields = [
+    if shape.canonical_type is not None:
+        if shape.canonical_type.name == "STRUCT":
+            object_fields = [
                 _field_from_source_shape(child_name, child_shape)
-                for child_name, child_shape in child.struct_fields
+                for child_name, child_shape in shape.struct_fields
             ]
+        elif shape.canonical_type.name == "LIST":
+            child = shape.item_shape
+            if (
+                child is not None
+                and child.canonical_type is not None
+                and child.canonical_type.name == "STRUCT"
+            ):
+                item_object_fields = [
+                    _field_from_source_shape(child_name, child_shape)
+                    for child_name, child_shape in child.struct_fields
+                ]
 
-    dtype = canonical if isinstance(canonical, DecimalDtype) else None
     return FieldSpec(
         name=name,
         type=universal_type,
         object_fields=object_fields,
         item_object_fields=item_object_fields,
-        dtype=dtype,
-        backend_type=backend_type if dtype is None else None,
+        backend_type=backend_type,
     )
 
 # ============================================================================
@@ -497,7 +494,8 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
         shape = shapes[col_name]
         nested_struct = (
             shape.item_shape is not None
-            and shape.item_shape.canonical_type is MountainashDtype.STRUCT
+            and shape.item_shape.canonical_type is not None
+            and shape.item_shape.canonical_type.name == "STRUCT"
         )
         backend_type_str = None if isinstance(dtype, pl.Struct) or nested_struct else str(dtype)
         fields.append(
@@ -538,7 +536,7 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
         )
         recursive_shape = (
             shape.canonical_type is not None
-            and shape.canonical_type in (MountainashDtype.LIST, MountainashDtype.STRUCT)
+            and shape.canonical_type.name in {"LIST", "STRUCT"}
         )
         fields.append(
             _field_from_source_shape(
@@ -580,7 +578,8 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
         shape = shapes[field.name]
         nested_struct = (
             shape.item_shape is not None
-            and shape.item_shape.canonical_type is MountainashDtype.STRUCT
+            and shape.item_shape.canonical_type is not None
+            and shape.item_shape.canonical_type.name == "STRUCT"
         )
         backend_type_str = (
             None

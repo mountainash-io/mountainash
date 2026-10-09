@@ -15,45 +15,36 @@ from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.core.dtypes.targets import TypeTarget
 
 
+class TestEnum:
+    def test_canonical_members(self):
+        # Assert the exact membership (content-based, not a magic count —
+        # a bare len() check is a refactoring footgun).
+        assert {m.value for m in D} == {
+            "bool",
+            "i8", "i16", "i32", "i64",
+            "u8", "u16", "u32", "u64",
+            "fp32", "fp64",
+            "string", "binary",
+            "date", "time", "timestamp", "duration",
+            "list", "struct",
+            "json", "xsd_duration", "xsd_year", "xsd_yearmonth",
+        }
+
+    def test_new_container_members(self):
+        assert D.LIST.value == "list"
+        assert D.STRUCT.value == "struct"
+
+    def test_v2_semantic_string_members(self):
+        # Task 2 (item 113 Unit B): semantic-string canonical types for the
+        # Frictionless v2 boundary — JSON (GEOJSON), and the XSD lexical-form
+        # types (duration/year/yearmonth). Physically string on every target.
+        assert D.JSON.value == "json"
+        assert D.XSD_DURATION.value == "xsd_duration"
+        assert D.XSD_YEAR.value == "xsd_year"
+        assert D.XSD_YEARMONTH.value == "xsd_yearmonth"
+
 
 class TestParseDtype:
-    @pytest.mark.parametrize("precision,scale", [(1, 0), (38, 0), (38, 38), (20, 3)])
-    def test_decimal_descriptor_accepts_domain_edges(self, precision, scale):
-        from mountainash.core.dtypes.canonical import DecimalDtype
-
-        dtype = DecimalDtype(precision=precision, scale=scale)
-        assert dtype.precision == precision
-        assert dtype.scale == scale
-
-    @pytest.mark.parametrize(
-        "values",
-        [
-            {"precision": 0, "scale": 0},
-            {"precision": 39, "scale": 0},
-            {"precision": 4, "scale": 5},
-            {"precision": True, "scale": 0},
-            {"precision": 4, "scale": False},
-            {"precision": 4.0, "scale": 0},
-            {"precision": "4", "scale": 0},
-            {"precision": 4, "scale": 1, "extra": 1},
-        ],
-    )
-    def test_decimal_descriptor_rejects_invalid_parameters(self, values):
-        from pydantic import ValidationError
-
-        from mountainash.core.dtypes.canonical import DecimalDtype
-
-        with pytest.raises(ValidationError):
-            DecimalDtype(**values)
-
-    def test_decimal_descriptor_is_frozen(self):
-        from pydantic import ValidationError
-
-        from mountainash.core.dtypes.canonical import DecimalDtype
-
-        dtype = DecimalDtype(precision=20, scale=3)
-        with pytest.raises(ValidationError):
-            dtype.precision = 21
     def test_enum_identity(self):
         assert parse_dtype(D.I64) is D.I64
 
@@ -96,19 +87,6 @@ class TestParseDtype:
             with pytest.raises(UnknownDtypeError):
                 parse_dtype(name)
 
-    def test_decimal_descriptor_parses_as_canonical_dtype(self):
-        from mountainash.core.dtypes.canonical import DecimalDtype
-
-        dtype = DecimalDtype(precision=20, scale=3)
-        assert parse_dtype(dtype) is dtype
-
-    def test_bare_decimal_is_rejected_as_cast_target(self):
-        with pytest.raises(UnknownDtypeError, match="precision"):
-            parse_cast_target(D.DECIMAL)
-
-    def test_lexical_kind_aliases_parse(self):
-        assert parse_dtype("lexical_integer") is D.LEXICAL_INTEGER
-        assert parse_dtype("lexical_decimal") is D.LEXICAL_DECIMAL
 
 class TestParseCastTarget:
     def test_canonical_passthrough(self):

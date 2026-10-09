@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Protocol, TYPE_CHECKING
 
-from .prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
+from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import FieldSpec

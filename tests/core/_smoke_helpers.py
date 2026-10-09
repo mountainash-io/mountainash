@@ -229,7 +229,6 @@ def _init_shared_fkey_builders() -> dict[Enum, Callable[[], Any]]:
     """
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
-        FKEY_MOUNTAINASH_SCALAR_VALUE,
         FKEY_MOUNTAINASH_WINDOW,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
@@ -242,7 +241,6 @@ def _init_shared_fkey_builders() -> dict[Enum, Callable[[], Any]]:
     b = ma.col("e")
 
     return {
-        FKEY_MOUNTAINASH_SCALAR_VALUE.NUMERIC_CAST: lambda: c.cast("lexical_integer"),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE: lambda: ma.always_true(),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE: lambda: ma.always_false(),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.IS_TRUE: lambda: c.t_is_true(),

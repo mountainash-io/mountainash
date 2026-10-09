@@ -9,6 +9,7 @@ APIBuilderProtocols define the user-facing API methods that create expression no
 from __future__ import annotations
 
 # Foundation protocols
+from .prtcl_api_bldr_cast import SubstraitCastAPIBuilderProtocol
 from .prtcl_api_bldr_conditional import (
     SubstraitConditionalAPIBuilderProtocol,
     SubstraitWhenAPIBuilderProtocol,
@@ -31,6 +32,7 @@ from .prtcl_api_bldr_window_arithmetic import SubstraitWindowArithmeticAPIBuilde
 
 __all__ = [
     # Foundation - Expression Protocols
+    "SubstraitCastAPIBuilderProtocol",
     "SubstraitConditionalAPIBuilderProtocol",
     "SubstraitFieldReferenceAPIBuilderProtocol",
     "SubstraitLiteralAPIBuilderProtocol",

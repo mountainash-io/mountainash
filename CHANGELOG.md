@@ -9,13 +9,8 @@
 
 ### Added
 - Owned `Relation.snapshot()` and `ma.materialization_scope()` with checkpoint policy, detach, and sequential batch capture (257). See [Owned snapshots](docs/guides/owned-snapshots.md) for supported routes, lifetime, and SQL preparation limits.
-- Portable `DecimalDtype(precision=..., scale=...)`, `LEXICAL_INTEGER` and `LEXICAL_DECIMAL` declarations, including strict `FieldSpec.dtype`, Frictionless persistence, parameter-preserving native schema extraction and numeric schema comparison (241).
-- Checked decimal and lexical numeric casts with ties-to-even/ties-away rounding, post-round overflow checks, throw/null failure behavior and exact large-literal preparation. SQLite explicitly refuses fixed-decimal targets; lexical conversions remain available (241). See [Exact numeric types](README.md#exact-decimal-and-lexical-numeric-types).
-- Exact numeric conform, including nested numeric conversion within the structured support matrix. Lexical columns are ordinary strings at runtime; cast explicitly for numeric semantics. Explicit numeric schemas control model egress (241).
 
 ### Fixed
-- Cast safety now distinguishes SAFE, NARROWING, LOSSY and UNSAFE over full numeric domains, including decimal parameters and validated lexical types. Integer→float precision loss and timestamp→date are no longer SAFE; conform and foreign-key drift retain the actual non-safe category (241).
-- Numeric-aware structured casts preserve ordinary nested leaf conversion and whole-container null-on-failure semantics (241).
 - Repeated Ibis DAG, validation, logical-terminal, and transport materialization now observes fresh source values while earlier results remain alive (257).
 - Ibis `collect()` documentation now describes deferred pass-through behavior.
 

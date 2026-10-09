@@ -28,11 +28,11 @@ from mountainash.conform.structured_transport import (
     freeze_structured_value,
 )
 from mountainash.typespec._fingerprint import declaration_fingerprint, freeze_typespec
-from mountainash.typespec.source_shape import SourceShape, declared_field_shape
+from mountainash.typespec.source_shape import SourceShape
 
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift, KeyDrift
-    from mountainash.core.dtypes import CanonicalDtype
+    from mountainash.core.dtypes import MountainashDtype
     from mountainash.typespec.spec import FieldSpec, ForeignKey, TypeSpec
 
 _VALID_FIELDS_MATCH = frozenset({"open", "exact", "equal", "subset", "superset", "partial"})
@@ -45,7 +45,7 @@ class _DeclaredTypeSentinel(enum.Enum):
 
 PASSTHROUGH = _DeclaredTypeSentinel.PASSTHROUGH
 UNDETERMINED = _DeclaredTypeSentinel.UNDETERMINED
-DeclaredType = Union["CanonicalDtype", _DeclaredTypeSentinel]
+DeclaredType = Union["MountainashDtype", _DeclaredTypeSentinel]
 
 
 @dataclass(frozen=True)
@@ -132,7 +132,6 @@ def _build_structured_field_plans(
     node_identity: tuple | None,
 ) -> StructuredFieldPlanMap:
     """Freeze one transport plan for every declared ARRAY and OBJECT output field."""
-    from mountainash.core.dtypes.numeric import has_nested_numeric_fields
     from mountainash.typespec._categorical import categorical_values
     from mountainash.typespec.universal_types import UniversalType
 
@@ -166,10 +165,6 @@ def _build_structured_field_plans(
             null_fill=freeze_structured_value(item.field.null_fill),
             declaration_fingerprint=declaration_fingerprint,
             origin_node_id=origin_node_id,
-            numeric_shape=(
-                declared_field_shape(item.field)
-                if has_nested_numeric_fields((item.field,)) else None
-            ),
         )
     return freeze_structured_field_plans(plans)
 
@@ -230,11 +225,11 @@ def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
     return PASSTHROUGH
 
 
-def _declared_canonical(fld: "FieldSpec") -> Optional["CanonicalDtype"]:
-    from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+def _declared_canonical(fld: "FieldSpec") -> Optional["MountainashDtype"]:
+    from mountainash.core.dtypes import MountainashDtype
 
     value = _resolve_declared_type(fld, fld.source_name)
-    return value if isinstance(value, (DecimalDtype, MountainashDtype)) else None
+    return value if isinstance(value, MountainashDtype) else None
 
 
 def _shape_for(
@@ -258,13 +253,11 @@ def _shape_for(
 
 
 def _shape_detail(shape: SourceShape | None) -> str | None:
-    from mountainash.core.dtypes import MountainashDtype
-
     if shape is None or shape.canonical_type is None:
         return None
-    if shape.canonical_type is MountainashDtype.LIST and shape.item_shape is not None:
+    if shape.canonical_type.name == "LIST" and shape.item_shape is not None:
         return f"LIST[{_shape_detail(shape.item_shape) or 'unknown'}]"
-    if shape.canonical_type is MountainashDtype.STRUCT:
+    if shape.canonical_type.name == "STRUCT":
         return "STRUCT{" + ",".join(
             f"{name}:{_shape_detail(child) or 'unknown'}"
             for name, child in shape.struct_fields
@@ -278,26 +271,17 @@ def _shape_diff(
     *,
     numeric_children: bool = False,
 ) -> bool:
-    from mountainash.core.dtypes import MountainashDtype
-
     if expected is None or actual is None:
         return False
     if expected.canonical_type is None:
         return False
     if actual.canonical_type is None:
         return True
-    if (
-        numeric_children
-        and isinstance(expected.canonical_type, MountainashDtype)
-        and expected.canonical_type.name.startswith(("I", "U", "FP"))
-    ):
-        return not (
-            isinstance(actual.canonical_type, MountainashDtype)
-            and actual.canonical_type.name.startswith(("I", "U", "FP"))
-        )
+    if numeric_children and expected.canonical_type.name.startswith(("I", "U", "FP")):
+        return not actual.canonical_type.name.startswith(("I", "U", "FP"))
     if expected.canonical_type != actual.canonical_type:
         return True
-    if expected.canonical_type is MountainashDtype.LIST:
+    if expected.canonical_type.name == "LIST":
         if expected.item_shape is None:
             return False
         if actual.item_shape is None:
@@ -307,7 +291,7 @@ def _shape_diff(
             actual.item_shape,
             numeric_children=numeric_children,
         )
-    if expected.canonical_type is MountainashDtype.STRUCT:
+    if expected.canonical_type.name == "STRUCT":
         if not expected.struct_fields:
             return False
         actual_fields = dict(actual.struct_fields)
@@ -329,6 +313,50 @@ def _shape_diff(
     return False
 
 
+def _expected_shape(fld: "FieldSpec") -> SourceShape | None:
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.converters import resolve_field_canonical
+    from mountainash.typespec.universal_types import parse_universal, to_canonical, UniversalType
+
+    canonical = resolve_field_canonical(fld)
+    if canonical is None:
+        return None
+    if fld.type is UniversalType.GEOPOINT:
+        if fld.format == "array":
+            return SourceShape(canonical, SourceShape(MountainashDtype.FP64))
+        if fld.format == "object":
+            return SourceShape(
+                canonical,
+                struct_fields=(
+                    ("lon", SourceShape(MountainashDtype.FP64)),
+                    ("lat", SourceShape(MountainashDtype.FP64)),
+                ),
+            )
+    if canonical is MountainashDtype.LIST:
+        if fld.item_type:
+            item = to_canonical(parse_universal(fld.item_type))
+            return SourceShape(canonical, SourceShape(item)) if item else SourceShape(canonical)
+        if fld.item_object_fields:
+            return SourceShape(
+                canonical,
+                SourceShape(
+                    MountainashDtype.STRUCT,
+                    struct_fields=tuple(
+                        (inner.name, _expected_shape(inner) or SourceShape(None))
+                        for inner in fld.item_object_fields
+                    ),
+                ),
+            )
+        return SourceShape(canonical)
+    if canonical is MountainashDtype.STRUCT and fld.object_fields:
+        return SourceShape(
+            canonical,
+            struct_fields=tuple(
+                (inner.name, _expected_shape(inner) or SourceShape(None))
+                for inner in fld.object_fields
+            ),
+        )
+    return SourceShape(canonical)
 
 
 def resolve_conform_output(
@@ -347,7 +375,7 @@ def resolve_conform_output(
 ) -> ConformOutputContract:
     """Resolve structure, source evidence, drift, and per-field action policy."""
     from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
-    from mountainash.core.dtypes import CastSafety, DecimalDtype, MountainashDtype, classify_cast
+    from mountainash.core.dtypes import CastSafety, MountainashDtype, classify_cast
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.universal_types import UniversalType
 
@@ -453,7 +481,7 @@ def resolve_conform_output(
         actual_dtype = (actual_dtypes or {}).get(em.source_name)
         mismatch: TypeDrift | None = None
         if declared is not None and actual_shapes is not None:
-            expected_shape = declared_field_shape(em.field)
+            expected_shape = _expected_shape(em.field)
             requirement = _shape_detail(expected_shape) or str(declared)
             if actual_shape is None or actual_shape.canonical_type is None:
                 mismatch = TypeDrift(
@@ -518,7 +546,7 @@ def resolve_conform_output(
                     apply_value_transforms,
                 )
         elif declared is not None and actual_dtypes is not None:
-            requirement = _shape_detail(declared_field_shape(em.field)) or str(declared)
+            requirement = _shape_detail(_expected_shape(em.field)) or str(declared)
             if actual_dtype is None or isinstance(actual_dtype, SchemaTypeStatus):
                 mismatch = TypeDrift(
                     em.field.name,
@@ -531,12 +559,12 @@ def resolve_conform_output(
                     requirement,
                     apply_value_transforms,
                 )
-            elif (safety := classify_cast(actual_dtype, declared)) is not CastSafety.SAFE:
+            elif classify_cast(actual_dtype, declared) is not CastSafety.SAFE:
                 mismatch = TypeDrift(
                     em.field.name,
                     declared,
                     actual_dtype,
-                    safety.value,
+                    "unsafe",
                     None,
                     "cast_safety",
                     str(actual_dtype),
@@ -597,14 +625,8 @@ def resolve_conform_output(
                 child = emitted_by_name.get(local)
                 child_type = child.effective_type if child and child.effective_type is not None else (child.declared_type if child else None)
                 parent_type = parent.get(remote)
-                if isinstance(child_type, (MountainashDtype, DecimalDtype)) and isinstance(parent_type, (MountainashDtype, DecimalDtype)):
-                    safety = classify_cast(child_type, parent_type)
-                    if safety is not CastSafety.SAFE:
-                        key_changes.append(KeyDrift(
-                            "fk_type_mismatch", [local], target,
-                            declared=parent_type, actual=child_type, action=contract.keys,
-                            safety=safety.value,
-                        ))
+                if isinstance(child_type, MountainashDtype) and isinstance(parent_type, MountainashDtype) and classify_cast(child_type, parent_type) is CastSafety.UNSAFE:
+                    key_changes.append(KeyDrift("fk_type_mismatch", [local], target, declared=parent_type, actual=child_type, action=contract.keys))
         if contract.keys == "freeze" and key_changes and raise_on_freeze:
             _raise_drift(key_changes=key_changes, node_identity=node_identity)
 
@@ -634,15 +656,15 @@ def _build_field_expr(
 ) -> FieldBuildResult:
     """Lower one field through the backend-neutral expression API."""
     import mountainash as ma
-    from mountainash.core.dtypes import DecimalDtype, MountainashDtype
-    from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldSpec
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     fld = field
     if type_action == "null_fill":
         output = ma.lit(None)
-        if isinstance(declared_type, (DecimalDtype, MountainashDtype)):
+        if isinstance(declared_type, MountainashDtype):
             output = output.cast(declared_type)
         return FieldBuildResult(output.name.alias(fld.name))
 
@@ -841,7 +863,7 @@ def _build_field_expr(
             expr = expr.str.replace(fld.decimal_char, ".")
     post_missing = expr
     transform_input = expr
-    if fld.null_fill is not None and (fld.dtype is None or type_action == "evolve"):
+    if fld.null_fill is not None:
         expr = ma.coalesce(expr, ma.lit(fld.null_fill))
         transform_input = expr
     if incompatible_source:
@@ -902,7 +924,7 @@ def _build_field_expr(
                 )
             if typed_value is not None:
                 output = ma.when(ma.lit(False)).then(typed_value).otherwise(output)
-            elif isinstance(declared_type, (DecimalDtype, MountainashDtype)):
+            elif isinstance(declared_type, MountainashDtype):
                 output = output.cast(declared_type)
             discard = None
             if type_action == "discard_row":
@@ -952,7 +974,7 @@ def _build_field_expr(
         # Plain native containers have no child schema to apply.  The source
         # already has the required physical representation; preserve it.
         pass
-    elif fld.categories is not None and fld.dtype is None:
+    elif fld.categories is not None:
         from mountainash.typespec._categorical import categorical_values
         expr = expr.cat.cast(
             value_type=(fld.type.value if fld.type and fld.type is not UniversalType.ANY else "string"),
@@ -1009,13 +1031,6 @@ def _build_field_expr(
         expr = method(fld.format, field_name=fld.name, failure_behavior=failure)
     elif fld.type == UniversalType.DATETIME and fld.format == "default" and lexical:
         expr = expr.dt.parse_default(field_name=fld.name, failure_behavior=failure)
-    elif fld.dtype is not None:
-        expr = expr.cast(fld.dtype, failure_behavior=failure)
-        if fld.null_fill is not None:
-            # Convert both branches before native inference. Fill source absence,
-            # never a null produced by a failed conversion.
-            fill = ma.lit(fld.null_fill).cast(fld.dtype, failure_behavior=failure)
-            expr = ma.when(post_missing.is_null()).then(fill).otherwise(expr)
     elif fld.type and fld.type is not UniversalType.ANY:
         target = to_canonical(fld.type)
         if target is not None:
@@ -1066,13 +1081,13 @@ def _build_conform_exprs(
     exprs: list[Any] = []
     row_filters: list[Any] = []
     residue_checks: list[MaterializationResidueCheck] = []
-    from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+    from mountainash.core.dtypes import MountainashDtype
     for emitted in output_contract.emitted:
         if not apply_value_transforms:
             import mountainash as ma
             if emitted.type_action == "null_fill":
                 source = ma.lit(None)
-                if isinstance(emitted.declared_type, (DecimalDtype, MountainashDtype)):
+                if isinstance(emitted.declared_type, MountainashDtype):
                     source = source.cast(emitted.declared_type)
                 exprs.append(source.name.alias(emitted.field.name))
                 continue

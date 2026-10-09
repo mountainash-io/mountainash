@@ -420,6 +420,7 @@ from mountainash.expressions.backends.expression_systems.narwhals import Narwhal
 # =============================================================================
 
 from mountainash.expressions.core.expression_protocols.api_builders.substrait import (
+    SubstraitCastAPIBuilderProtocol,
     SubstraitConditionalAPIBuilderProtocol,
     SubstraitFieldReferenceAPIBuilderProtocol,
     SubstraitLiteralAPIBuilderProtocol,
@@ -439,9 +440,9 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait im
 # =============================================================================
 
 from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash import (
-    MountainAshCastAPIBuilderProtocol,
     MountainAshNameAPIBuilderProtocol,
     MountainAshNullAPIBuilderProtocol,
+    # MountainAshScalarAggregateAPIBuilderProtocol,
     MountainAshScalarArithmeticAPIBuilderProtocol,
     MountainAshScalarDatetimeAPIBuilderProtocol,
     MountainAshScalarBooleanAPIBuilderProtocol,
@@ -455,6 +456,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
 # =============================================================================
 
 from mountainash.expressions.core.expression_api.api_builders.substrait import (
+    SubstraitCastAPIBuilder,
     SubstraitConditionalAPIBuilder,
     SubstraitFieldReferenceAPIBuilder,
     SubstraitLiteralAPIBuilder,
@@ -473,7 +475,7 @@ from mountainash.expressions.core.expression_api.api_builders.substrait import (
 # Mountainash API Builder Implementation Imports
 # =============================================================================
 
-from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_cast import MountainAshCastAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_name import MountainAshNameAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_null import MountainAshNullAPIBuilder
 # from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_aggregate import MountainAshScalarAggregateAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_arithmetic import MountainAshScalarArithmeticAPIBuilder
@@ -611,6 +613,7 @@ NARWHALS_MOUNTAINASH_IMPLEMENTATIONS = {
 
 SUBSTRAIT_API_BUILDER_PROTOCOLS = [
     # Foundation
+    (SubstraitCastAPIBuilderProtocol, "cast"),
     (SubstraitConditionalAPIBuilderProtocol, "conditional"),
     (SubstraitFieldReferenceAPIBuilderProtocol, "field_reference"),
     (SubstraitLiteralAPIBuilderProtocol, "literal"),
@@ -627,6 +630,7 @@ SUBSTRAIT_API_BUILDER_PROTOCOLS = [
 ]
 
 SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS = {
+    "cast": SubstraitCastAPIBuilder,
     "conditional": SubstraitConditionalAPIBuilder,
     "field_reference": SubstraitFieldReferenceAPIBuilder,
     "literal": SubstraitLiteralAPIBuilder,
@@ -642,7 +646,6 @@ SUBSTRAIT_API_BUILDER_IMPLEMENTATIONS = {
 }
 
 MOUNTAINASH_API_BUILDER_PROTOCOLS = [
-    (MountainAshCastAPIBuilderProtocol, "cast"),
     (MountainAshNameAPIBuilderProtocol, "name"),
     (MountainAshNullAPIBuilderProtocol, "null"),
     # (MountainAshScalarAggregateAPIBuilderProtocol, "scalar_aggregate"),
@@ -655,7 +658,7 @@ MOUNTAINASH_API_BUILDER_PROTOCOLS = [
 ]
 
 MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
-    "cast": MountainAshCastAPIBuilder,
+    "name": MountainAshNameAPIBuilder,
     "null": MountainAshNullAPIBuilder,
     # "scalar_aggregate": MountainAshScalarAggregateAPIBuilder,
     "scalar_arithmetic": MountainAshScalarArithmeticAPIBuilder,

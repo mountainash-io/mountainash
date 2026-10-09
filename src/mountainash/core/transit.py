@@ -116,8 +116,6 @@ class BoundaryKey(Enum):
     EXPRESSION_NARWHALS_SCHEMA_UNWRAP = auto()
     EXPRESSION_NARWHALS_OBJECT_NATIVE_CALLBACK = auto()
     EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK = auto()
-    EXPRESSION_NARWHALS_PANDAS_STRUCTURED_CALLBACK = auto()
-    EXPRESSION_POLARS_STRUCTURED_CALLBACK = auto()
     DIAGNOSTIC_VIEW_FROM_PANDAS = auto()
     DIAGNOSTIC_VIEW_FROM_ARROW = auto()
     LOGICAL_SNAPSHOT_IBIS_TO_ARROW = auto()
@@ -778,46 +776,6 @@ BOUNDARY_REGISTRY: dict[BoundaryKey, BoundarySpec] = {
             "same-index result; no native values escape as execution data."
         ),
         since=_SINCE_2026_08_27,
-    ),
-    BoundaryKey.EXPRESSION_NARWHALS_PANDAS_STRUCTURED_CALLBACK: BoundarySpec(
-        owner=(
-            "mountainash.expressions.backends.expression_systems.narwhals."
-            "extensions_mountainash.expsys_nw_ext_ma_scalar_list"
-        ),
-        consumer="narwhals-pandas structured exact numeric conversion callback",
-        route=RouteKey.EXPRESSION_OBJECT_ADAPTER,
-        step=1,
-        transit_class=TransitClass.SEMANTICS_PRESERVING_ADAPTER,
-        source_families=frozenset({"narwhals"}),
-        source_dialects=frozenset({"narwhals-pandas"}),
-        destination_families=frozenset({"pandas"}),
-        destination_dialects=frozenset({"narwhals-pandas"}),
-        reason=(
-            "Constructs an index-preserving object Series after declared nested "
-            "numeric conversion and immediately rewraps it in the same "
-            "Narwhals-Pandas callback; no cross-backend pandas transit occurs."
-        ),
-        since=date(2026, 10, 9),
-    ),
-    BoundaryKey.EXPRESSION_POLARS_STRUCTURED_CALLBACK: BoundarySpec(
-        owner=(
-            "mountainash.expressions.backends.expression_systems.polars."
-            "extensions_mountainash.expsys_pl_ext_ma_scalar_struct"
-        ),
-        consumer="Polars-backed structured exact numeric conversion callback",
-        route=RouteKey.EXPRESSION_OBJECT_ADAPTER,
-        step=1,
-        transit_class=TransitClass.NON_PANDAS_OPERATION,
-        source_families=frozenset({"polars", "narwhals"}),
-        source_dialects=frozenset({"polars", "narwhals-polars"}),
-        destination_families=frozenset({"polars"}),
-        destination_dialects=frozenset({"polars", "narwhals-polars"}),
-        reason=(
-            "Constructs a native Polars list/struct batch after declared exact "
-            "numeric conversion, preserving ordinary source leaf types for "
-            "native casting and recursive failure handling; pandas is never used."
-        ),
-        since=date(2026, 10, 9),
     ),
     BoundaryKey.DIAGNOSTIC_VIEW_FROM_PANDAS: BoundarySpec(
         owner="mountainash.relations.core.materialization",

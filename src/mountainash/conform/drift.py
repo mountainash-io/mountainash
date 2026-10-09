@@ -55,7 +55,6 @@ class KeyDrift:
     declared: Optional[Any] = None
     actual: Optional[Any] = None
     action: str = "ignore"
-    safety: str | None = None
 
 
 @dataclass(frozen=True)

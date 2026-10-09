@@ -8,7 +8,6 @@ import polars as pl
 import pytest
 
 import mountainash as ma
-from fixtures.backend_registry import ALL_BACKENDS
 
 
 @dataclass
@@ -283,48 +282,3 @@ class TestStructuredLogicalEgressDelegation:
         result = structured_rel.to_pandas()
         assert result["tags"].dtype == object
         assert result["tags"].tolist() == [[1, 2], [3]]
-
-
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_explicit_numeric_spec_owns_model_egress(backend_name, backend_factory):
-    from pydantic import create_model
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
-
-    @dataclass
-    class NumericRecord:
-        value: int
-
-    model = create_model("NumericRecordModel", value=(int, ...))
-    text = "1606938044258990275541962092341162602522202993782792835301395"
-    source = backend_factory.create({"value": [text]}, backend_name)
-    spec = TypeSpec(fields=[FieldSpec(
-        name="value", type=UniversalType.STRING, dtype=ma.MountainashDtype.LEXICAL_INTEGER,
-    )])
-    rel = ma.relation(source)
-    assert rel.to_dicts() == [{"value": text}]
-    assert rel.to_tuples() == [(text,)]
-    # Explicit schema wins over int annotation; constructor decoding is binding-owned.
-    assert rel.to_dataclasses(NumericRecord, spec=spec)[0].value == text
-    assert rel.to_pydantic(model, spec=spec)[0].value == 2**200 + 19
-
-
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_explicit_decimal_spec_keeps_exact_model_values(backend_name, backend_factory):
-    from decimal import Decimal
-    from pydantic import create_model
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
-
-    @dataclass
-    class DecimalRecord:
-        amount: object
-
-    model = create_model("DecimalRecordModel", amount=(Decimal | None, None))
-    source = backend_factory.create({"amount": ["9007199254740993.125", None]}, backend_name)
-    spec = TypeSpec(fields=[FieldSpec(
-        name="amount", type=UniversalType.NUMBER,
-        dtype=ma.DecimalDtype(precision=20, scale=3),
-    )])
-    rel = ma.relation(source)
-    expected = [Decimal("9007199254740993.125"), None]
-    assert [row.amount for row in rel.to_dataclasses(DecimalRecord, spec=spec)] == expected
-    assert [row.amount for row in rel.to_pydantic(model, spec=spec)] == expected
