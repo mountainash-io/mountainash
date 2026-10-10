@@ -186,7 +186,6 @@ class TestFkTypeMismatch:
                 kind="fk_type_mismatch", fields=["customer_id"],
                 reference="customers", declared=MountainashDtype.I64,
                 actual=MountainashDtype.STRING, action="ignore",
-                safety="unsafe",
             )
         ]
 

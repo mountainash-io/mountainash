@@ -8,7 +8,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
-from mountainash.expressions.core.expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import (
+from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
     CaseFailureBehaviour,
 )
 from mountainash.expressions.core.expression_system.function_keys.enums import (

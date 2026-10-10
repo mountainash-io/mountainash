@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict
 
 from mountainash.core.dtypes import (
-    CanonicalDtype,
     InvalidBackendTypeError,
     MountainashDtype,
     TypeTarget,
@@ -41,7 +40,7 @@ _GEOPOINT_FORMAT_CANONICAL: dict[str, MountainashDtype] = {
 _GEOJSON_FORMATS: frozenset[str] = frozenset({"default", "topojson"})
 
 
-def resolve_field_canonical(field: "FieldSpec") -> CanonicalDtype | None:
+def resolve_field_canonical(field: "FieldSpec") -> Any:
     """Resolve a FieldSpec's canonical dtype, with field-context (format)
     handling for the geospatial types that to_canonical() cannot resolve
     on its own.
@@ -52,11 +51,9 @@ def resolve_field_canonical(field: "FieldSpec") -> CanonicalDtype | None:
     dtype target) regardless of format ("default" or "topojson" — both are
     JSON objects per the Frictionless spec).
 
-    An explicit FieldSpec.dtype refines generic NUMBER or STRING and takes
-    precedence over that default.
+    Every other UniversalType delegates to to_canonical(field.type)
+    unchanged.
     """
-    if field.dtype is not None:
-        return field.dtype
     fmt = field.format
     if field.type is UniversalType.GEOPOINT:
         if not isinstance(fmt, str) or fmt not in _GEOPOINT_FORMAT_CANONICAL:
@@ -85,8 +82,6 @@ def resolve_field_canonical(field: "FieldSpec") -> CanonicalDtype | None:
 
 def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
     """Resolve categories, backend overrides, canonical types, and containers."""
-    if field.dtype is not None:
-        return registry.to_native_schema(field.dtype, target)
     if field.categories is not None and target in (TypeTarget.POLARS, TypeTarget.PANDAS):
         from mountainash.typespec._categorical import categorical_values
         values = categorical_values(field.categories)

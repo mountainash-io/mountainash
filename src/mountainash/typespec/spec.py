@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
-from mountainash.core.dtypes import CanonicalDtype, DecimalDtype, MountainashDtype
 
 from mountainash.typespec.universal_types import UniversalType, parse_universal
 from mountainash.typespec.errors import (
@@ -151,35 +150,8 @@ class FieldSpec:
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
-    dtype: Optional[CanonicalDtype] = None
 
     def __post_init__(self) -> None:
-        if self.dtype is not None:
-            if not isinstance(self.dtype, (DecimalDtype, MountainashDtype)):
-                raise TypeError(
-                    "dtype must be a DecimalDtype or MountainashDtype member"
-                )
-            if self.dtype is MountainashDtype.DECIMAL:
-                raise ValueError(
-                    "bare DECIMAL is incomplete; use DecimalDtype(precision, scale)"
-                )
-            lexical = self.dtype is MountainashDtype.LEXICAL_INTEGER or (
-                self.dtype is MountainashDtype.LEXICAL_DECIMAL
-            )
-            if not lexical and not isinstance(self.dtype, DecimalDtype):
-                raise ValueError(
-                    "FieldSpec.dtype supports DecimalDtype, LEXICAL_INTEGER, "
-                    "or LEXICAL_DECIMAL"
-                )
-            required_type = UniversalType.STRING if lexical else UniversalType.NUMBER
-            if self.type is not required_type:
-                raise IncompatibleFieldPropertiesError(
-                    self.name, "dtype", self.type, (required_type,)
-                )
-            if self.backend_type is not None:
-                raise ValueError(
-                    "backend_type cannot be combined with a portable dtype descriptor"
-                )
         if self.item_type is not None and self.type is not UniversalType.LIST:
             raise IncompatibleFieldPropertiesError(
                 self.name,
@@ -386,54 +358,24 @@ def compare_specs(
     Returns:
         SpecDiff describing the differences
     """
-    from mountainash.typespec.converters import resolve_field_canonical
+    source_names = set(source.field_names)
+    target_names = set(target.field_names)
 
-    diff = SpecDiff()
-
-    def compare_fields(
-        source_fields: List[FieldSpec],
-        target_fields: List[FieldSpec],
-        prefix: str = "",
-    ) -> None:
-        source_by_name = {item.name: item for item in source_fields}
-        target_by_name = {item.name: item for item in target_fields}
-        for name in source_by_name.keys() | target_by_name.keys():
-            source_field = source_by_name.get(name)
-            target_field = target_by_name.get(name)
-            path = f"{prefix}.{name}" if prefix else name
-            if source_field is None:
-                diff.added_fields.append(path)
-                continue
-            if target_field is None:
-                diff.removed_fields.append(path)
-                continue
-
-            source_type = resolve_field_canonical(source_field)
-            target_type = resolve_field_canonical(target_field)
-            if source_field.type != target_field.type:
-                diff.type_changes[path] = (source_field.type, target_field.type)
-            elif source_type != target_type:
-                diff.type_changes[path] = (source_type, target_type)
-
-            for children_name, suffix in (
-                ("object_fields", ""),
-                ("item_object_fields", "[]"),
-            ):
-                source_children = getattr(source_field, children_name)
-                target_children = getattr(target_field, children_name)
-                if source_children is not None or target_children is not None:
-                    compare_fields(
-                        source_children or [],
-                        target_children or [],
-                        f"{path}{suffix}",
-                    )
-
-    compare_fields(source.fields, target.fields)
-    diff.added_fields.sort()
-    diff.removed_fields.sort()
-    diff.is_compatible = (
-        not diff.added_fields and not diff.removed_fields and not diff.type_changes
+    diff = SpecDiff(
+        # Fields in target but not in source → missing from actual output
+        added_fields=sorted(target_names - source_names),
+        # Fields in source but not in target → extra in actual output
+        removed_fields=sorted(source_names - target_names),
     )
+
+    # Check type changes for common fields
+    for name in source_names & target_names:
+        source_field = source.get_field(name)
+        target_field = target.get_field(name)
+        if source_field and target_field and source_field.type != target_field.type:
+            diff.type_changes[name] = (source_field.type, target_field.type)
+
+    diff.is_compatible = not diff.added_fields and not diff.type_changes
     return diff
 
 

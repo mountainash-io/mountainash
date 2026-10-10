@@ -18,6 +18,7 @@ class TestIsSafeCast:
 
     def test_to_string_safe(self):
         assert is_safe_cast(D.I64, D.STRING)
+        assert is_safe_cast(D.TIMESTAMP, D.STRING)
 
     def test_string_parsing_unsafe(self):
         assert not is_safe_cast(D.STRING, D.I64)

@@ -595,7 +595,6 @@ class FKEY_MOUNTAINASH_SCALAR_VALUE(Enum):
     VALUE_KIND = "value_kind"
     BOOLEAN_VALUE = "boolean_value"
     TEXT_VALUE = "text_value"
-    NUMERIC_CAST = "numeric_cast"
 
 
 class FKEY_MOUNTAINASH_SCALAR_AGGREGATE(Enum):

@@ -13,9 +13,10 @@ import dataclasses
 import pytest
 
 from mountainash.conform.contract import resolve_contract
+from mountainash.conform.drift import TypeDrift
 from mountainash.conform.errors import SchemaDriftError
 from mountainash.conform.expressions import resolve_conform_output
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+from mountainash.core.dtypes import CastSafety, MountainashDtype
 from mountainash.relations.schema_inference import SchemaTypeStatus
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
@@ -130,66 +131,3 @@ def test_no_actual_dtypes_and_no_columns_drift_stays_none():
 
     assert out.drift is None
     assert out.emitted[0].type_action == "coerce"
-
-
-@pytest.mark.parametrize("with_shapes", [False, True])
-@pytest.mark.parametrize("policy", ["coerce", "evolve", "freeze"])
-@pytest.mark.parametrize("source,target,category", [
-    (MountainashDtype.I64, None, "lossy"),
-    (DecimalDtype(precision=20, scale=2), DecimalDtype(precision=20, scale=3), "narrowing"),
-])
-def test_cast_category_survives_conform_policy(with_shapes, policy, source, target, category):
-    from mountainash.typespec.source_shape import SourceShape
-
-    spec = _spec(FieldSpec(name="v", type=UniversalType.NUMBER, dtype=target))
-    evidence = {"actual_shapes": {"v": SourceShape(source)}} if with_shapes else {}
-    kwargs = dict(
-        available_columns=["v"], actual_dtypes={"v": source},
-        contract=_contract(policy), **evidence,
-    )
-    if policy == "freeze":
-        with pytest.raises(SchemaDriftError) as error:
-            resolve_conform_output(spec, **kwargs)
-        drift = error.value.drift
-    else:
-        drift = resolve_conform_output(spec, **kwargs).drift
-    mismatch, = drift.type_mismatches
-    assert mismatch.safety == category
-    assert mismatch.action == policy
-    assert mismatch.applied is (policy == "coerce")
-
-
-@pytest.mark.parametrize("child_type,parent_type,category", [
-    (MountainashDtype.I64, MountainashDtype.I8, "narrowing"),
-    (MountainashDtype.I64, MountainashDtype.FP64, "lossy"),
-    (DecimalDtype(precision=5, scale=2), DecimalDtype(precision=4, scale=2), "narrowing"),
-])
-@pytest.mark.parametrize("policy", ["ignore", "freeze"])
-def test_foreign_key_reconciliation_keeps_non_safe_category(child_type, parent_type, category, policy):
-    from mountainash.typespec.spec import ForeignKey, ForeignKeyReference
-
-    field = (
-        FieldSpec(name="v", type=UniversalType.NUMBER, dtype=child_type)
-        if isinstance(child_type, DecimalDtype)
-        else FieldSpec(name="v", type=UniversalType.INTEGER)
-    )
-    spec = _spec(field)
-    kwargs = dict(
-        available_columns=["v"], actual_dtypes={"v": child_type},
-        contract=dataclasses.replace(_contract("coerce"), keys=policy),
-        key_fks=[ForeignKey(fields=["v"], reference=ForeignKeyReference(
-            resource="parent", fields=["id"],
-        ))],
-        schema_of=lambda name: {"id": parent_type},
-    )
-    if policy == "freeze":
-        with pytest.raises(SchemaDriftError) as error:
-            resolve_conform_output(spec, **kwargs)
-        drift = error.value.drift
-    else:
-        drift = resolve_conform_output(spec, **kwargs).drift
-    mismatch, = drift.key_changes
-    assert mismatch.kind == "fk_type_mismatch"
-    assert mismatch.safety == category
-    assert mismatch.actual == child_type
-    assert mismatch.declared == parent_type

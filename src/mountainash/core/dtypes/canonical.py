@@ -1,18 +1,18 @@
 # src/mountainash/core/dtypes/canonical.py
-"""Canonical Mountainash dtype kinds and portable descriptors.
+"""Canonical mountainash dtype vocabulary.
 
-MountainashDtype contains the canonical kind vocabulary; DecimalDtype is the
-strict parameterized decimal descriptor. UniversalType (Frictionless) lives at
-the TypeSpec boundary and maps here via typespec.universal_types.
+MountainashDtype is the ONLY in-memory type vocabulary. Substrait-aligned,
+structural. UniversalType (Frictionless) lives at the TypeSpec boundary and
+maps here via typespec.universal_types.
 """
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, TypeAlias, Union
+from typing import Any, Union
 
-from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict
 
-from .errors import DtypeMappingError, UnknownDtypeError
+from .errors import UnknownDtypeError
 from .targets import TypeTarget, detect_target
 
 
@@ -41,40 +41,6 @@ class MountainashDtype(str, Enum):
     XSD_DURATION = "xsd_duration"
     XSD_YEAR = "xsd_year"
     XSD_YEARMONTH = "xsd_yearmonth"
-
-    DECIMAL = "decimal"
-    LEXICAL_INTEGER = "lexical_integer"
-    LEXICAL_DECIMAL = "lexical_decimal"
-
-
-class DecimalDtype(BaseModel):
-    """Portable fixed decimal descriptor with Substrait precision/scale bounds."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    precision: StrictInt
-    scale: StrictInt
-
-    @model_validator(mode="after")
-    def _validate_decimal_domain(self) -> DecimalDtype:
-        if not 1 <= self.precision <= 38:
-            raise ValueError("precision must be between 1 and 38")
-        if not 0 <= self.scale <= self.precision:
-            raise ValueError("scale must be between 0 and precision")
-        return self
-
-
-CanonicalDtype: TypeAlias = Union[MountainashDtype, DecimalDtype]
-
-
-def _decimal_from_native(precision: int, scale: int, target: str) -> DecimalDtype:
-    try:
-        return DecimalDtype(precision=precision, scale=scale)
-    except ValidationError as exc:
-        raise DtypeMappingError(
-            f"{target} decimal({precision}, {scale}) is outside the portable "
-            "decimal domain (precision 1..38, scale 0..precision)."
-        ) from exc
 
 
 DTYPE_ALIASES: dict[str, MountainashDtype] = {
@@ -163,8 +129,8 @@ class NativeDtype(BaseModel):
     target: TypeTarget
 
 
-def parse_dtype(value: Any) -> CanonicalDtype:
-    """Normalize a dtype specifier to a canonical kind or descriptor.
+def parse_dtype(value: Any) -> MountainashDtype:
+    """Normalize a canonical dtype specifier to the MountainashDtype enum.
 
     Accepts enum members, Python types (int/float/str/bool/bytes and the
     datetime types), and alias strings. Native backend dtype objects are NOT
@@ -174,8 +140,6 @@ def parse_dtype(value: Any) -> CanonicalDtype:
     Raises:
         UnknownDtypeError: input is not a recognizable canonical dtype.
     """
-    if isinstance(value, DecimalDtype):
-        return value
     if isinstance(value, MountainashDtype):
         return value
     if isinstance(value, type):
@@ -204,19 +168,14 @@ def parse_dtype(value: Any) -> CanonicalDtype:
     )
 
 
-def parse_cast_target(value: Any) -> Union[CanonicalDtype, NativeDtype]:
+def parse_cast_target(value: Any) -> Union[MountainashDtype, NativeDtype]:
     """Resolve a user-facing cast target.
 
     Canonical inputs normalize via parse_dtype. Native backend dtype objects
     wrap in NativeDtype WITHOUT normalization (parameters preserved).
     """
     try:
-        dtype = parse_dtype(value)
-        if dtype is MountainashDtype.DECIMAL:
-            raise UnknownDtypeError(
-                "Bare DECIMAL is incomplete; use DecimalDtype(precision, scale)."
-            )
-        return dtype
+        return parse_dtype(value)
     except UnknownDtypeError:
         target = detect_target(value)
         if target is not None:

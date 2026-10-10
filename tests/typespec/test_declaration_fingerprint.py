@@ -5,19 +5,6 @@ from mountainash.typespec._fingerprint import declaration_fingerprint
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.plan import build_compiled_plan, freeze_typespec
-from mountainash.core.dtypes import DecimalDtype
-
-
-def test_numeric_descriptor_parameters_are_part_of_fingerprint():
-    def fingerprint(precision):
-        spec = TypeSpec(fields=[FieldSpec(
-            name="amount",
-            type=UniversalType.NUMBER,
-            dtype=DecimalDtype(precision=precision, scale=3),
-        )])
-        return declaration_fingerprint(freeze_typespec(spec))
-
-    assert fingerprint(20) != fingerprint(21)
 
 
 def test_shared_fingerprint_matches_compiled_validation_plan():

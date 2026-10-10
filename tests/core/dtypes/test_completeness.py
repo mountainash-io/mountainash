@@ -13,7 +13,7 @@ ALL_TARGETS = list(TypeTarget)
 
 
 @pytest.mark.parametrize("target", ALL_TARGETS)
-@pytest.mark.parametrize("dtype", [dtype for dtype in D if dtype is not D.DECIMAL])
+@pytest.mark.parametrize("dtype", list(D))
 def test_schema_mapping_complete(dtype, target):
     """Schema use is complete over all members for every target."""
     native = registry.to_native_schema(dtype, target)
@@ -21,7 +21,7 @@ def test_schema_mapping_complete(dtype, target):
 
 
 @pytest.mark.parametrize("target", ALL_TARGETS)
-@pytest.mark.parametrize("dtype", [dtype for dtype in D if dtype is not D.DECIMAL])
+@pytest.mark.parametrize("dtype", list(D))
 def test_cast_mapping_resolves_or_declares(dtype, target):
     """Cast use either resolves or raises DtypeMappingError via the module's
     explicit CAST_UNSUPPORTED set — never KeyError or silence."""
@@ -31,14 +31,6 @@ def test_cast_mapping_resolves_or_declares(dtype, target):
             registry.to_native_cast(dtype, target)
     else:
         assert registry.to_native_cast(dtype, target) is not None
-
-
-@pytest.mark.parametrize("target", ALL_TARGETS)
-def test_bare_decimal_is_rejected_as_incomplete_target(target):
-    with pytest.raises(DtypeMappingError, match="Bare DECIMAL is incomplete"):
-        registry.to_native_schema(D.DECIMAL, target)
-    with pytest.raises(DtypeMappingError, match="Bare DECIMAL is incomplete"):
-        registry.to_native_cast(D.DECIMAL, target)
 
 
 @pytest.mark.parametrize("target", ALL_TARGETS)

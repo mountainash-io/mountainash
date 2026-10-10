@@ -520,15 +520,6 @@ def coerce_to_narwhals(target: Any, value: Any) -> Any:
 
     from mountainash.core.types import is_ibis_table, is_polars_lazyframe
 
-    if target is None:
-        # Family-only terminal placement declares an eager Narwhals destination,
-        # without a prototype. Use the same Polars carrier as resource reads.
-        native = coerce_to_polars(None, value)
-        native = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, native.collect)
-        return transit_call(
-            BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, native, eager_only=True,
-        )
-
     source_type = type(value).__name__
     target_namespace = nw.get_native_namespace(target)
     try:

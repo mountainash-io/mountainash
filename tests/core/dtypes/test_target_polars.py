@@ -17,6 +17,10 @@ class TestParameterizedRoundTrip:
         ("Datetime(time_unit='us', time_zone='UTC')",
          pl.Datetime(time_unit="us", time_zone="UTC")),
         ("Duration(time_unit='ms')", pl.Duration(time_unit="ms")),
+        # NOTE: MountainashDtype has no canonical DECIMAL member
+        # (canonical.py) — backend_type is Decimal's ONLY path to a schema
+        # entry on every target; there is no canonical fallback to fall back
+        # to. That is why this test has no non-backend_type counterpart.
         ("Decimal(precision=38, scale=10)", pl.Decimal(precision=38, scale=10)),
         ("List(Int64)", pl.List(pl.Int64)),
     ])

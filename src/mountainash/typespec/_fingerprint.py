@@ -3,13 +3,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
-from decimal import Decimal
 from enum import Enum
 import hashlib
 from types import MappingProxyType
 from typing import Any
-
-from pydantic import BaseModel
 
 
 def freeze_declaration(value: Any) -> Any:
@@ -24,18 +21,6 @@ def freeze_declaration(value: Any) -> Any:
                     {
                         item.name: freeze_declaration(getattr(value, item.name))
                         for item in fields(value)
-                    }
-                ),
-            }
-        )
-    if isinstance(value, BaseModel):
-        return MappingProxyType(
-            {
-                "__pydantic__": f"{value.__class__.__module__}:{value.__class__.__qualname__}",
-                "fields": MappingProxyType(
-                    {
-                        name: freeze_declaration(getattr(value, name))
-                        for name in value.__class__.model_fields
                     }
                 ),
             }
@@ -65,11 +50,9 @@ def _canonical_bytes(value: Any) -> bytes:
     if type(value) is bool:  # noqa: E721 — bool has its own canonical tag
         return b"b1" if value else b"b0"
     if type(value) is int:  # noqa: E721 — bool must not become an integer
-        return b"i" + str(Decimal(value)).encode()
+        return f"i{value}".encode()
     if type(value) is float:  # noqa: E721 — preserve exact float encoding
         return f"f{value.hex()}".encode()
-    if isinstance(value, Decimal):
-        return b"d" + _canonical_bytes(tuple(value.as_tuple()))
     if isinstance(value, str):
         encoded = value.encode("utf-8")
         return b"s" + str(len(encoded)).encode() + b":" + encoded

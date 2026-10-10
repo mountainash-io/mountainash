@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Union
 
-from ....expression_protocols.api_builders.extensions_mountainash.prtcl_api_bldr_ext_ma_cast import CaseFailureBehaviour
+from ....expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 from ._operation_options import (
     validate_boolean_tokens,
     validate_failure_behavior,

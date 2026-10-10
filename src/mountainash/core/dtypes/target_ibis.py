@@ -2,15 +2,9 @@
 """Ibis target mappings (string type names — ibis .cast() accepts them)."""
 from __future__ import annotations
 
-import re
 from typing import Any, Optional
 
-from .canonical import (
-    CanonicalDtype,
-    DecimalDtype,
-    MountainashDtype as D,
-    _decimal_from_native,
-)
+from .canonical import MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, str] = {
@@ -22,12 +16,7 @@ SCHEMA_TYPES: dict[D, str] = {
     D.LIST: "array", D.STRUCT: "struct",
     D.JSON: "string", D.XSD_DURATION: "string",
     D.XSD_YEAR: "string", D.XSD_YEARMONTH: "string",
-    D.LEXICAL_INTEGER: "string", D.LEXICAL_DECIMAL: "string",
 }
-
-
-def to_native_decimal(dtype: DecimalDtype) -> str:
-    return f"decimal({dtype.precision}, {dtype.scale})"
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})
 
@@ -50,17 +39,7 @@ def _base_name(native: Any) -> str:
     return s.split("(", 1)[0].split("<", 1)[0]
 
 
-def from_native(native: Any) -> Optional[CanonicalDtype]:
-    text = str(native).lstrip("!")
-    match = re.fullmatch(r"decimal\((\d+),\s*(-?\d+)\)", text, re.IGNORECASE)
-    if match:
-        return _decimal_from_native(
-            int(match.group(1)), int(match.group(2)), "Ibis"
-        )
-    precision = getattr(native, "precision", None)
-    scale = getattr(native, "scale", None)
-    if precision is not None and scale is not None:
-        return _decimal_from_native(precision, scale, "Ibis")
+def from_native(native: Any) -> Optional[D]:
     name = _base_name(native)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]

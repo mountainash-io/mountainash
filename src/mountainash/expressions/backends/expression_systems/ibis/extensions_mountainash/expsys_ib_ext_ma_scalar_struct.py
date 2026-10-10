@@ -1,8 +1,7 @@
-"""Ibis backend for struct field access."""
+"""Ibis backend for mountainash struct operations."""
 from __future__ import annotations
 
 from mountainash.core.dtypes import TypeTarget
-from mountainash.core.dtypes.numeric import convert_nested_numeric, has_nested_numeric_fields
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarStructExpressionSystemProtocol
@@ -10,11 +9,8 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
-
-
 class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of struct field access."""
-
     def cast_struct(
         self,
         x,
@@ -37,20 +33,6 @@ class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, Moun
             )
         field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
         dtype = _resolve_field_native(field, TypeTarget.IBIS)
-        if has_nested_numeric_fields(fields):
-            import ibis
-
-            def bind(value):
-                def convert(item):
-                    return convert_nested_numeric(item, fields)
-
-                udf = ibis.udf.scalar.python(
-                    signature=((value.type(),), dtype),
-                    **({"null_handling": "special"} if self.dialect == "ibis-duckdb" else {}),
-                )(convert)
-                return udf(value)
-
-            return x.pipe(bind)
         return x.cast(dtype)
 
     def struct_field(self, x, /, *, field_name: str):
