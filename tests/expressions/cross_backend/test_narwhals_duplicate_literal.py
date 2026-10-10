@@ -76,30 +76,54 @@ class TestDuplicateLiteralRelation:
         )
 
 
+# narwhals fixed min_horizontal's intermediate naming on pandas in 2.27.0 (yanked for an unrelated
+# Pointblank breakage; 2.27.1 carries the same fix). The project supports narwhals>=2.20.0, so both
+# behaviours are real and each is pinned on the versions it applies to.
+_FIXED_IN = (2, 27, 0)
+
+
+def _narwhals_version() -> tuple[int, ...]:
+    import narwhals as nw
+
+    return tuple(int(part) for part in nw.__version__.split(".")[:3])
+
+
+def _min_horizontal_of_two_literals_on_pandas() -> None:
+    import narwhals as nw
+    import pandas as pd
+
+    nw_df = nw.from_native(pd.DataFrame({"a": [1, 2]}))
+    nw_df.with_columns(nw.min_horizontal(nw.lit(1), nw.lit(2)).alias("result"))
+
+
 @pytest.mark.cross_backend
 class TestMinHorizontalUpstreamBug:
-    """Test B: Verify the upstream narwhals bug still exists.
+    """Test B: Pin the upstream narwhals behaviour on each side of the fix.
 
-    When narwhals fixes ``min_horizontal`` intermediate naming on pandas,
-    this xfail flips to xpass and we can revert ``t_and``/``t_or`` to use
-    ``min_horizontal``/``max_horizontal`` again for clarity.
+    Before narwhals 2.27.0 ``nw.min_horizontal(nw.lit(1), nw.lit(2))`` raises on pandas, which is why
+    ``t_and``/``t_or`` use equivalent ``when/then`` expressions. From 2.27.0 it works, so those could
+    use ``min_horizontal``/``max_horizontal`` again for clarity once the supported floor passes it.
     """
 
+    @pytest.mark.skipif(
+        _narwhals_version() >= _FIXED_IN,
+        reason="narwhals >= 2.27.0 fixed min_horizontal intermediate naming on pandas",
+    )
     @pytest.mark.xfail(
         strict=True,
         reason=(
-            "narwhals-pandas: nw.min_horizontal materialises arguments as "
-            "intermediate columns all named 'literal' — "
-            "mountainash-io/mountainash#77"
+            "narwhals < 2.27.0, pandas: nw.min_horizontal materialises arguments as "
+            "intermediate columns all named 'literal' — mountainash-io/mountainash#77"
         ),
     )
     def test_min_horizontal_duplicate_literal_on_narwhals_pandas(self):
-        """nw.min_horizontal(nw.lit(1), nw.lit(2)) fails on pandas."""
-        import narwhals as nw
-        import pandas as pd
+        """nw.min_horizontal(nw.lit(1), nw.lit(2)) fails on pandas before the upstream fix."""
+        _min_horizontal_of_two_literals_on_pandas()
 
-        df = pd.DataFrame({"a": [1, 2]})
-        nw_df = nw.from_native(df)
-
-        expr = nw.min_horizontal(nw.lit(1), nw.lit(2))
-        nw_df.with_columns(expr.alias("result"))
+    @pytest.mark.skipif(
+        _narwhals_version() < _FIXED_IN,
+        reason="narwhals < 2.27.0 still has the min_horizontal intermediate naming bug on pandas",
+    )
+    def test_min_horizontal_duplicate_literal_fixed_upstream(self):
+        """From narwhals 2.27.0 the same call works on pandas."""
+        _min_horizontal_of_two_literals_on_pandas()

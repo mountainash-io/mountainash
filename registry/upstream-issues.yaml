@@ -1182,8 +1182,12 @@ issues:
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: xfail_strict
-  notes: Narwhals horizontal function issue.
-  last_verified: '2026-05-11'
+  notes: 'Narwhals horizontal function issue. Fixed upstream in narwhals 2.27.0 (yanked for an
+    unrelated Pointblank breakage) and 2.27.1: verified 2026-10-10 that greatest()/least()
+    on pandas/narwhals-pandas return the correct values there and wrong ones on 2.26.0. The
+    project supports narwhals>=2.20.0, so the expected-failure is version-gated in
+    tests/relations/cross_backend/test_rel_expression_integration.py until the floor passes 2.27.'
+  last_verified: '2026-10-10'
 - id: NW-MATH-07
   project: narwhals
   category: math-ops
@@ -1196,8 +1200,11 @@ issues:
   upstream_issue_filed_by: null
   status: needs_investigation
   our_workaround: xfail_strict
-  notes: Narwhals pandas intermediate naming.
-  last_verified: '2026-05-11'
+  notes: 'Narwhals pandas intermediate naming. Fixed upstream in narwhals 2.27.0 (yanked) and
+    2.27.1: verified 2026-10-10 that nw.min_horizontal(nw.lit(1), nw.lit(2)) works on pandas there
+    and raises DuplicateError on 2.26.0. The pin in
+    tests/expressions/cross_backend/test_narwhals_duplicate_literal.py is version-gated.'
+  last_verified: '2026-10-10'
 - id: NW-MATH-08
   project: narwhals
   category: math-ops
