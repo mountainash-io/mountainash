@@ -4,9 +4,9 @@ Corresponds to Substrait's Literal message.
 """
 
 from __future__ import annotations
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype
 
 from .exn_base import ExpressionNode
 
@@ -28,7 +28,7 @@ class LiteralNode(ExpressionNode):
     """
 
     value: Any
-    dtype: Optional[MountainashDtype] = None
+    dtype: Optional[Union[MountainashDtype, DecimalDtype]] = None
     is_native: bool = False
 
     def accept(self, visitor: Any) -> Any:

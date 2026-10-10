@@ -36,5 +36,5 @@ def test_cast_mapping_resolves_or_declares(dtype, target):
 @pytest.mark.parametrize("target", ALL_TARGETS)
 def test_target_module_contract(target):
     mod = registry._target(target)
-    for name in ("SCHEMA_TYPES", "CAST_UNSUPPORTED", "from_native", "parse_type_string"):
+    for name in ("SCHEMA_TYPES", "CAST_UNSUPPORTED", "from_native", "parse_type_string", "to_native_decimal"):
         assert hasattr(mod, name), f"{target.value} module missing {name}"

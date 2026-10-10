@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from .canonical import MountainashDtype as D
+from .canonical import DecimalDtype, MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, str] = {
@@ -39,8 +39,16 @@ def _base_name(native: Any) -> str:
     return s.split("(", 1)[0].split("<", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    import ibis.expr.datatypes as dt
+    return dt.Decimal(dtype.precision, dtype.scale)
+
+
+def from_native(native: Any) -> Optional[D | DecimalDtype]:
     name = _base_name(native)
+    if name == "decimal" and getattr(native, "precision", None) is not None \
+            and getattr(native, "scale", None) is not None:
+        return DecimalDtype(precision=native.precision, scale=native.scale)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]
     raise UnknownDtypeError(f"Unrecognized Ibis dtype: {native!r}")

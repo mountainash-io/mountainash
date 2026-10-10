@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Any, Optional
 
+from .canonical import DecimalDtype
 from .errors import DtypeMappingError, UnknownDtypeError
 from .targets import TypeTarget, detect_target
 
@@ -39,8 +40,12 @@ class DtypeRegistry:
             )
         return self._loaded[target]
 
-    def to_native_schema(self, dtype: MountainashDtype, target: TypeTarget) -> Any:
+    def to_native_schema(
+        self, dtype: MountainashDtype | DecimalDtype, target: TypeTarget
+    ) -> Any:
         """Native type for schema/materialization use. Complete over all members."""
+        if isinstance(dtype, DecimalDtype):
+            return self._target(target).to_native_decimal(dtype)
         mod = self._target(target)
         try:
             return mod.SCHEMA_TYPES[dtype]
@@ -50,8 +55,12 @@ class DtypeRegistry:
                 f"Supported: {sorted(d.value for d in mod.SCHEMA_TYPES)}"
             ) from None
 
-    def to_native_cast(self, dtype: MountainashDtype, target: TypeTarget) -> Any:
+    def to_native_cast(
+        self, dtype: MountainashDtype | DecimalDtype, target: TypeTarget
+    ) -> Any:
         """Native type for expression cast use. Bare containers raise."""
+        if isinstance(dtype, DecimalDtype):
+            return self._target(target).to_native_decimal(dtype)
         mod = self._target(target)
         if dtype in mod.CAST_UNSUPPORTED:
             supported = sorted(
@@ -67,7 +76,7 @@ class DtypeRegistry:
 
     def from_native(
         self, native: Any, target: Optional[TypeTarget] = None
-    ) -> Optional[MountainashDtype]:
+    ) -> Optional[MountainashDtype | DecimalDtype]:
         """Collapse a native dtype to canon. None = explicitly untyped native.
 
         target=None auto-detects from the object's module — convenience for

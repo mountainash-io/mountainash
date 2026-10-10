@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import polars as pl
 
-from .canonical import MountainashDtype as D
+from .canonical import DecimalDtype, MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -44,10 +44,21 @@ def _base_name(native: Any) -> str:
     return str(native).split("(", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    return pl.Decimal(dtype.precision, dtype.scale)
+
+
+def from_native(native: Any) -> Optional[D | DecimalDtype]:
     name = _base_name(native)
     if name in _UNTYPED_NAMES:
         return None
+    if name == "Decimal":
+        precision, scale = getattr(native, "precision", None), getattr(native, "scale", None)
+        if precision is None or scale is None:
+            raise UnknownDtypeError(
+                f"Polars Decimal without explicit precision/scale cannot be mapped: {native!r}"
+            )
+        return DecimalDtype(precision=precision, scale=scale)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]
     raise UnknownDtypeError(f"Unrecognized Polars dtype: {native!r}")

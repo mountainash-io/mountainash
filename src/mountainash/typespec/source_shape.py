@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.core.types import (
@@ -46,10 +46,17 @@ class SourceShape:
 
 
 def _canonical(native: Any, target: TypeTarget) -> MountainashDtype | None:
+    """Structural canonical type of a native dtype, or ``None``.
+
+    A ``DecimalDtype`` is a scalar refinement, not a structural shape, so it is
+    reported as ``None`` here; its precision/scale are read from the native dtype
+    by the field builders.
+    """
     try:
-        return registry.from_native(native, target=target)
+        canonical = registry.from_native(native, target=target)
     except (UnknownDtypeError, TypeError, ValueError):
         return None
+    return None if isinstance(canonical, DecimalDtype) else canonical
 
 
 def _from_polars_dtype(dtype: Any, pl: Any) -> SourceShape:

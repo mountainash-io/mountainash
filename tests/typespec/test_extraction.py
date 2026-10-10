@@ -609,9 +609,17 @@ class TestExtractionOverRegistry:
         import polars as pl
         from mountainash.core.dtypes.errors import UnknownDtypeError
         from mountainash.typespec.extraction import extract_from_dataframe
-        df = pl.DataFrame({"d": [1]}).cast({"d": pl.Decimal(scale=2)})
+        df = pl.DataFrame({"d": [object()]})
         with pytest.raises(UnknownDtypeError):
-            extract_from_dataframe(df)  # Decimal unmapped -> explicit error, not ANY
+            extract_from_dataframe(df)  # unmapped -> explicit error, not ANY
+
+    def test_native_decimal_extracts_as_number(self):
+        import polars as pl
+        from mountainash.typespec.extraction import extract_from_dataframe
+        from mountainash.typespec.universal_types import UniversalType
+        df = pl.DataFrame({"d": [1]}).cast({"d": pl.Decimal(10, 2)})
+        (field,) = extract_from_dataframe(df).fields
+        assert field.type == UniversalType.NUMBER
 
     def test_null_column_extracts_as_any(self):
         import polars as pl

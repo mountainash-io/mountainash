@@ -61,7 +61,7 @@ def col(name: str) -> BaseExpressionAPI:
     return BooleanExpressionAPI(node)
 
 
-def lit(value: Any) -> BaseExpressionAPI:
+def lit(value: Any, *, dtype: Any = None) -> BaseExpressionAPI:
     """
     Create a literal value expression.
 
@@ -70,6 +70,9 @@ def lit(value: Any) -> BaseExpressionAPI:
 
     Args:
         value: Literal value (int, float, str, bool, None, etc.)
+        dtype: Optional canonical dtype for the literal: a ``MountainashDtype``
+            (or its alias/Python type) or a ``DecimalDtype(precision, scale)``.
+            Lowered natively per backend. Native backend dtypes are not accepted.
 
     Returns:
         BooleanExpressionAPI for chaining operations
@@ -77,12 +80,16 @@ def lit(value: Any) -> BaseExpressionAPI:
     Example:
         >>> expr = lit(42)
         >>> expr = lit("hello")
+        >>> expr = lit(Decimal("0.004"), dtype=DecimalDtype(precision=10, scale=3))
         >>> expr = col("age").gt(lit(30))
         >>> expr = col("name").eq(lit(None))  # NULL check
     """
+    from mountainash.core.dtypes import DecimalDtype, parse_dtype
+
     from ..expression_api import BooleanExpressionAPI
 
-    node = LiteralNode(value=value)
+    resolved = dtype if dtype is None or isinstance(dtype, DecimalDtype) else parse_dtype(dtype)
+    node = LiteralNode(value=value, dtype=resolved)
     return BooleanExpressionAPI(node)
 
 
