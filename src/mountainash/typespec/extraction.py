@@ -84,6 +84,15 @@ def _field_from_source_shape(
                     for child_name, child_shape in child.struct_fields
                 ]
 
+    if shape.decimal is not None:
+        # Declared exact decimal: precision/scale are the schema identity, so the
+        # backend-specific type string is redundant (and mutually exclusive).
+        return FieldSpec(
+            name=name,
+            type=UniversalType.NUMBER,
+            dtype=shape.decimal,
+        )
+
     return FieldSpec(
         name=name,
         type=universal_type,

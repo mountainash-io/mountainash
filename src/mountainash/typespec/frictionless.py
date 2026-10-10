@@ -18,7 +18,10 @@ from typing import Any, Dict, List, Optional
 
 from mountainash.conform.contract import validate_contract_dict
 
-from .errors import InvalidFieldMatchDeclaration, InvalidKeyShapeError
+from mountainash.core.dtypes import DecimalDtype
+from mountainash.core.dtypes.errors import UnknownDtypeError
+
+from .errors import InvalidDtypeDeclaration, InvalidFieldMatchDeclaration, InvalidKeyShapeError
 from .frictionless_invariants import (
     InvariantLocation,
     parse_foreign_keys_at,
@@ -245,6 +248,28 @@ def _parse_constraints(
 # Export: TypeSpec → Frictionless dict
 # ---------------------------------------------------------------------------
 
+def _dtype_from_extension(field_name: str, raw: Any) -> Optional[DecimalDtype]:
+    """Rebuild a ``DecimalDtype`` from ``x-mountainash.dtype``; a malformed value raises.
+
+    The extension lives in our own namespace, so an unrecognised kind or a missing/invalid
+    parameter is a malformed declaration, never silently dropped.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, Mapping):
+        raise InvalidDtypeDeclaration(field_name, "x-mountainash.dtype must be an object", raw)
+    kind = raw.get("kind")
+    if kind != "decimal":
+        raise InvalidDtypeDeclaration(
+            field_name, "x-mountainash.dtype kind must be 'decimal'", kind
+        )
+    precision, scale = raw.get("precision"), raw.get("scale")
+    try:
+        return DecimalDtype(precision=precision, scale=scale)
+    except UnknownDtypeError as exc:
+        raise InvalidDtypeDeclaration(field_name, str(exc)) from exc
+
+
 def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
     """Export one FieldSpec to a Frictionless field descriptor dict.
 
@@ -307,6 +332,12 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
         field_extensions["enum_weights"] = fspec.constraints.enum_weights
     if fspec.backend_type is not None:
         field_extensions["backend_type"] = fspec.backend_type
+    if fspec.dtype is not None:
+        field_extensions["dtype"] = {
+            "kind": "decimal",
+            "precision": fspec.dtype.precision,
+            "scale": fspec.dtype.scale,
+        }
     if fspec.object_fields is not None:
         field_extensions["object_fields"] = [
             _field_to_frictionless_dict(inner) for inner in fspec.object_fields
@@ -468,6 +499,7 @@ def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
         true_values=true_values,
         false_values=false_values,
         backend_type=backend_type,
+        dtype=_dtype_from_extension(name, field_ext.get("dtype")),
         rename_from=rename_from,
         null_fill=null_fill,
         custom_cast=custom_cast,
