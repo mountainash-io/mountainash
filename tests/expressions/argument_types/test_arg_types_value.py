@@ -1,9 +1,12 @@
 """Argument and option channel tests for value operations."""
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_VALUE as FK_VALUE,
 )
@@ -27,6 +30,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_VALUE.VALUE_KIND, "x"),
     (FK_VALUE.BOOLEAN_VALUE, "x"),
     (FK_VALUE.TEXT_VALUE, "x"),
+    (FK_VALUE.DECIMAL_CAST, "x"),
 ]
 
 TESTED_OPTION_PARAMS = [
@@ -36,6 +40,13 @@ TESTED_OPTION_PARAMS = [
         "source",
         "value-sensitive",
     ),
+    # decimal_cast options: behaviour is asserted across all nine identities in
+    # tests/expressions/cross_backend/test_decimal_cast.py (rounding, failure_behavior,
+    # precision/scale through the exact result type and values).
+    ("MountainAshScalarValueExpressionSystemProtocol", "decimal_cast", "precision", "value-sensitive"),
+    ("MountainAshScalarValueExpressionSystemProtocol", "decimal_cast", "scale", "value-sensitive"),
+    ("MountainAshScalarValueExpressionSystemProtocol", "decimal_cast", "rounding", "value-sensitive"),
+    ("MountainAshScalarValueExpressionSystemProtocol", "decimal_cast", "failure_behavior", "value-sensitive"),
 ]
 
 _VALUE_PROTOCOL = "MountainAshScalarValueExpressionSystemProtocol"
@@ -147,7 +158,34 @@ OP_SPECS: list[OpSpec] = [
             "col": ["text", "other"], "complex": ["text", "other"],
         },
     ),
+    OpSpec(
+        function_key=FK_VALUE.DECIMAL_CAST,
+        op_name="decimal_cast",
+        build=lambda receiver, _arg: receiver.cast(
+            ma.DecimalDtype(precision=10, scale=3), rounding="half_to_even"
+        ),
+        raw_arg="0.0045",
+        arg_col_name="decimal_input",
+        param_name="x",
+        data={"decimal_input": ["0.0045", "1.5"]},
+        complex_builder=lambda name: ma.col(name).str.strip_chars(" "),
+        matrix_arg_is_input=True,
+        expected_by_input={
+            "raw": [Decimal("0.004")], "lit": [Decimal("0.004")],
+            "col": [Decimal("0.004"), Decimal("1.500")],
+            "complex": [Decimal("0.004"), Decimal("1.500")],
+        },
+    ),
 ]
+
+# decimal_cast is refused on the Narwhals fixtures by a declared capability fact
+# (registry NW-MATH-11 / NW-CAST-01), asserted strictly so an upstream fix shows up as XPASS.
+_DECIMAL_CAST_NW_XFAIL = pytest.mark.xfail(
+    strict=True,
+    raises=BackendCapabilityError,
+    reason="Narwhals has no round mode / non-strict cast: NW-MATH-11 (narwhals#3698), NW-CAST-01 (narwhals#3702)",
+)
+_DECIMAL_CAST_NW_BACKENDS = {"narwhals-polars", "narwhals-pandas"}
 
 
 def _params():
@@ -155,7 +193,11 @@ def _params():
     for op in OP_SPECS:
         for backend in ALL_BACKENDS:
             for input_type in INPUT_TYPES:
-                marks = []
+                marks = (
+                    [_DECIMAL_CAST_NW_XFAIL]
+                    if op.op_name == "decimal_cast" and backend in _DECIMAL_CAST_NW_BACKENDS
+                    else []
+                )
                 cases.append(
                     pytest.param(
                         op,

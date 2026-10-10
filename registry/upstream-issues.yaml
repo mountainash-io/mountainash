@@ -2157,3 +2157,37 @@ issues:
     mountainash''s own memtable-construction call sites, not connections
     created directly via mountainash-data.'
   last_verified: '2026-08-19'
+- id: NW-MATH-11
+  project: narwhals
+  category: math-ops
+  summary: Expr.round has no rounding mode; tie behaviour differs by backend
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3698
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: xfail_strict
+  notes: Blocks DECIMAL_CAST (item 241 R13); a contribution is tracked in central
+    backlog item 282. The refusal is a declared capability fact, not a raise.
+  last_verified: '2026-10-10'
+- id: NW-CAST-01
+  project: narwhals
+  category: cast-semantics
+  summary: Expr.cast has no strict/non-strict option
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  - narwhals-polars
+  - narwhals-lazy
+  upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3702
+  upstream_issue_filed_by: other
+  status: open
+  our_workaround: xfail_strict
+  notes: Blocks DECIMAL_CAST null mode (item 241 R13); see also central backlog items
+    282 and 283.
+  last_verified: '2026-10-10'

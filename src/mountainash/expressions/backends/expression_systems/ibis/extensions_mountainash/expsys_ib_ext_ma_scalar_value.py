@@ -62,6 +62,71 @@ class MountainAshIbisScalarValueExpressionSystem(
             return ibis.ifelse(x.isnull(), self._null_like(x, "string"), x)
         return self._null_like(x, "string")
 
+    def decimal_cast(
+        self,
+        x: IbisValueExpr,
+        /,
+        *,
+        precision: int,
+        scale: int,
+        rounding: str,
+        failure_behavior: str,
+    ) -> IbisValueExpr:
+        """Exact decimal cast built only from casts, ``round`` and typed decimal literals.
+
+        Ibis ``round`` has no mode: it follows the backend's own tie rule (DuckDB rounds
+        half away from zero, Polars half to even). Exact ties are detected with decimal
+        arithmetic and corrected one ulp, so every backend returns the requested mode.
+        No floor/ceil, integer intermediates, division or modulo. Every literal is typed
+        explicitly: DuckDB's default literal type is DECIMAL(18,3), Ibis only combines
+        decimals when one type dominates both precision and scale, and Polars returns null
+        when a decimal multiply result has precision == scale.
+        """
+        from decimal import Decimal
+
+        import ibis.expr.datatypes as dt
+
+        def decimal_literal(value: Decimal, literal_scale: int) -> IbisValueExpr:
+            return ibis.literal(
+                value, type=dt.Decimal(precision=min(38, literal_scale + 2), scale=literal_scale)
+            )
+
+        intermediate_precision = 18 if precision <= 16 else 38
+        intermediate_scale = intermediate_precision - (precision - scale) - 1
+        intermediate = dt.Decimal(intermediate_precision, intermediate_scale)
+
+        # Floats convert by their shortest string form; text is trimmed and "_" removed.
+        text = x.cast("string").strip().replace("_", "")
+        parsed = (
+            text.try_cast(intermediate)
+            if failure_behavior == "null"
+            else text.cast(intermediate)
+        )
+        rounded = parsed.round(scale).cast(dt.Decimal(intermediate_precision, scale))
+
+        ulp = decimal_literal(Decimal(1).scaleb(-scale), scale)
+        negative_ulp = decimal_literal(-Decimal(1).scaleb(-scale), scale)
+        is_exact_tie = (parsed - rounded).abs() == decimal_literal(
+            Decimal(5).scaleb(-(scale + 1)), scale + 1
+        )
+        # Parity of the rounded value's last digit without modulo: r is even iff r*0.5 has
+        # no digit beyond `scale`.
+        half = rounded.cast(dt.Decimal(intermediate_precision, scale + 1)) * ibis.literal(
+            Decimal("0.5"), type=dt.Decimal(2, 1)
+        )
+        is_odd = half.round(scale) != half
+        # Step away from zero by one ulp, selected by the sign of the INPUT (never r, which
+        # can round to zero) and without multiplying by a sign (the Polars multiply bug).
+        away = ibis.ifelse(parsed < decimal_literal(Decimal(0), 0), negative_ulp, ulp)
+
+        if rounding == "half_to_even":
+            result = ibis.ifelse(is_exact_tie & is_odd, rounded - away, rounded)
+        elif rounding == "half_away_from_zero":
+            result = ibis.ifelse(is_exact_tie & (rounded.abs() < parsed.abs()), rounded + away, rounded)
+        else:  # to_zero
+            result = ibis.ifelse(rounded.abs() > parsed.abs(), rounded - away, rounded)
+        return result.cast(dt.Decimal(precision, scale))
+
     def _typed_value_kind(self, x: IbisValueExpr, logical_kind: str) -> IbisValueExpr:
         label = {
             "boolean": "boolean",

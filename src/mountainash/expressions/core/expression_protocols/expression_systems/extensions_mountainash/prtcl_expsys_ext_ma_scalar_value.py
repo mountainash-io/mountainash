@@ -30,3 +30,16 @@ class MountainAshScalarValueExpressionSystemProtocol(Protocol[ExpressionT]):
     def text_value(self, x: ExpressionT, /) -> ExpressionT:
         """Return text values without stringifying another scalar domain."""
         ...
+
+    def decimal_cast(
+        self,
+        x: ExpressionT,
+        /,
+        *,
+        precision: int,
+        scale: int,
+        rounding: Literal["half_to_even", "half_away_from_zero", "to_zero"],
+        failure_behavior: Literal["throw", "null"],
+    ) -> ExpressionT:
+        """Cast ``x`` to an exact ``DECIMAL(precision, scale)`` with an explicit rounding mode."""
+        ...

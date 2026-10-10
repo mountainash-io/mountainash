@@ -29,6 +29,7 @@ from .prtcl_api_bldr_ext_ma_scalar_struct import MountainAshScalarStructAPIBuild
 from .prtcl_api_bldr_ext_ma_scalar_categorical import MountainAshScalarCategoricalAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilderProtocol
+from .prtcl_api_bldr_ext_ma_cast import MountainAshCastAPIBuilderProtocol
 from .prtcl_api_bldr_ext_ma_scalar_value import MountainAshScalarValueAPIBuilderProtocol
 
 
@@ -48,5 +49,6 @@ __all__ = [
     "MountainAshScalarGeospatialAPIBuilderProtocol",
     "MountainAshScalarCategoricalAPIBuilderProtocol",
     "MountainAshScalarTernaryAPIBuilderProtocol",
+    "MountainAshCastAPIBuilderProtocol",
     "MountainAshScalarValueAPIBuilderProtocol",
 ]

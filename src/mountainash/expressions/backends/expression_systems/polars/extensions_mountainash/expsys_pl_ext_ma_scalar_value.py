@@ -78,6 +78,34 @@ class MountainAshPolarsScalarValueExpressionSystem(
             return x
         return _null_like(x, pl.String)
 
+    def decimal_cast(
+        self,
+        x: PolarsExpr,
+        /,
+        *,
+        precision: int,
+        scale: int,
+        rounding: str,
+        failure_behavior: str,
+    ) -> PolarsExpr:
+        """Exact decimal cast: parse into a wide intermediate, round natively, strict-cast.
+
+        One vectorised chain; no UDFs, no validation layer. Integer-part overflow raises
+        under both failure behaviours (the final cast is always strict); only the parse
+        into the intermediate is non-strict under ``"null"``.
+        """
+        intermediate_precision = 18 if precision <= 16 else 38
+        intermediate = pl.Decimal(
+            intermediate_precision, intermediate_precision - (precision - scale) - 1
+        )
+        # Floats convert by their shortest string form; text is trimmed and "_" removed.
+        text = x.cast(pl.String).str.strip_chars().str.replace_all("_", "", literal=True)
+        parsed = text.cast(intermediate, strict=(failure_behavior == "throw"))
+        rounded = (
+            parsed.truncate(scale) if rounding == "to_zero" else parsed.round(scale, mode=rounding)
+        )
+        return rounded.cast(pl.Decimal(precision, scale), strict=True)
+
 
 def _kind_for_typed_operand(x: PolarsExpr, logical_kind: str) -> PolarsExpr:
     label = {

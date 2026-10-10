@@ -227,6 +227,14 @@ def _intrinsic_refusals(enum_name, members, backends, reason):
             )
 
 
+# DECIMAL_CAST is refused through declared capability facts: Narwhals has no round mode or
+# non-strict cast (NW-MATH-11 / NW-CAST-01, narwhals#3698 / #3702), and SQLite has no
+# fixed-precision decimal type. The refusal must name the exercised function key.
+_intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_VALUE", "DECIMAL_CAST", _NARWHALS_CASES,
+                    "Narwhals has no round mode or non-strict cast: NW-MATH-11, NW-CAST-01.")
+_intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_VALUE", "DECIMAL_CAST", ("ibis-sqlite",),
+                    "SQLite has no fixed-precision decimal type.")
+
 # Scalar arithmetic backend methods explicitly reject these bitwise operations.
 _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC", "BITWISE_XOR",
                     _NARWHALS_CASES, "Narwhals has no bitwise XOR implementation.")
