@@ -131,6 +131,10 @@ class MountainAshPolarsScalarValueExpressionSystem(
             engine = resolved(text.cast(wide, strict=False), wide).truncate(scale)
             plain = text.str.contains(r"^[+-]?[0-9]*\.?[0-9]*$") & text.str.contains(r"[0-9]")
             cut = text.str.extract(rf"^[+-]?[0-9]*(?:\.[0-9]{{0,{scale}}})?", 0).cast(pl.Decimal(38, scale), strict=False)
+            if scale == 0:
+                # At scale 0 the cut of ".99" is "." (no digits), which does not parse; a plain value whose
+                # cut has no integer digit truncates to zero, whatever follows the point.
+                cut = cut.fill_null(pl.when(plain).then(pl.lit(0).cast(pl.Decimal(38, 0))))
             return pl.when(plain & cut.is_not_null()).then(cut).otherwise(engine).cast(target, strict=True)
         # Parse at the target scale into the widest decimal: the engine rounds once here, and the
         # strict narrowing below raises for a value that does not fit the target, in both modes.

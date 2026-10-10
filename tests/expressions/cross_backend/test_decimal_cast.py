@@ -499,6 +499,70 @@ def test_to_zero_of_a_very_long_plain_fraction_is_exact_where_the_engine_allows(
     assert collect_expr(df, _cast("v", 10, 2, "to_zero")) == [D("1.99"), D("-1.99")]
 
 
+# Long fractions with no integer digit: at scale 0 the plain-text cut is a bare point, which must still
+# truncate to zero (Rules re-review of de6d36de). Polars is exact; the Ibis backends are the documented
+# window (limit 1), so rows beyond it are pinned there as strict xfails.
+_LONG_LEADING_POINT = [
+    # (text list, p, s, expected)
+    (["." + "9" * 40, "-." + "9" * 40, "+." + "9" * 40, "0." + "9" * 40], 10, 0, [D("0")] * 4),
+    (["." + "9" * 40, "-." + "9" * 40, "+." + "9" * 40], 10, 2, [D("0.99"), D("-0.99"), D("0.99")]),
+]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        pytest.param(b, marks=pytest.mark.xfail(strict=True, reason="Ibis to_zero window (documented limit 1)"))
+        if b in ("ibis-duckdb", "ibis-polars") else b
+        for b in BACKENDS
+    ],
+)
+@pytest.mark.parametrize("texts,p,s,expected", _LONG_LEADING_POINT)
+def test_to_zero_of_a_long_leading_point_fraction_is_exact_on_polars(backend_name, backend_factory, collect_expr, texts, p, s, expected):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": texts}, backend_name)
+    assert collect_expr(df, _cast("v", p, s, "to_zero")) == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_to_zero_of_a_short_leading_point_fraction_is_exact_everywhere(backend_name, backend_factory, collect_expr):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [".999", "-.999", "+.999", ".5", "-.5"]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 0, "to_zero")) == [D("0")] * 5
+
+
+# A native Float64 column converts through its shortest text, which DuckDB writes with an exponent below 1e-4
+# (Polars writes plain digits). DuckDB then rounds a value below one unit of the target's last place up by one
+# unit (documented limit 3), so the same float differs by engine. Rules re-review of de6d36de.
+@pytest.mark.cross_backend
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        pytest.param(b, marks=pytest.mark.xfail(strict=True, reason="DuckDB exponent rounding below the last place (documented limit 3)"))
+        if b == "ibis-duckdb" else b
+        for b in BACKENDS
+    ],
+)
+def test_a_float_below_one_unit_of_the_last_place_rounds_to_zero(backend_name, backend_factory, collect_expr):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [7e-11, 9.99e-05, -9.99e-05]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 3, "half_to_even")) == [D("0.000")] * 3
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_a_float_at_or_above_1e_minus_4_converts_exactly_everywhere(backend_name, backend_factory, collect_expr):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [0.0045, 0.0001, 0.0005, 2.675, -0.0045]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 3, "half_to_even")) == [D("0.004"), D("0.000"), D("0.000"), D("2.675"), D("-0.004")]
+
+
 # A finite number too large for any float is still a number: it is out of range, so it raises under
 # both failure behaviours. Only text that is not a number is null under "null".
 @pytest.mark.cross_backend
