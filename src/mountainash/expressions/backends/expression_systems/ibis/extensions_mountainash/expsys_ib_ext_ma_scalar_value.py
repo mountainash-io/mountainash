@@ -81,9 +81,10 @@ class MountainAshIbisScalarValueExpressionSystem(
         text (exponents included) takes the engine's own rounding.
 
         ``to_zero`` truncates on the decimal: it parses into a 64-bit decimal, rounds natively and
-        steps back one unit when that rounded away from zero. The parse keeps ``min(8, 17 - p + s)``
-        fractional digits, so ``min(8 - s, 17 - p)`` digits beyond the target scale are exact; past that
-        the parse rounds first (documented).
+        steps back one unit when that rounded away from zero. The parse keeps ``17 - p + s``
+        fractional digits (falling back to 8 where DuckDB's own parse returns nothing for valid exponent
+        text), so ``17 - p`` digits beyond the target scale are exact; past that the parse rounds first
+        (documented).
 
         Invalid text raises under ``"throw"`` and becomes null under ``"null"``. Integer-part
         overflow raises under both, because the narrowing to the target is a strict cast.
@@ -97,25 +98,44 @@ class MountainAshIbisScalarValueExpressionSystem(
         # re_replace, not replace: Ibis' replace removes only the first match on the Polars backend.
         text = x.cast("string").strip().re_replace("_", "")
 
-        if rounding == "to_zero":
-            # Keep as many fractional digits as the 64-bit width allows beside the target's integers,
-            # capped at 8: DuckDB's own exponent parse fails (null) for valid in-range numbers once the
-            # scale grows past that (about 7% of exponent inputs at scale 12, none up to 8).
-            fraction = min(8, 18 - (precision - scale) - 1)
-            parsed = text.try_cast(dt.Decimal(18, fraction))
+        def truncated_to_scale(parsed):
+            """Truncate toward zero on the decimal: round, then step back one unit if that rounded away."""
             rounded = parsed.round(scale)
             unit = ibis.literal(Decimal(1).scaleb(-scale), type=dt.Decimal(18, scale))
             zero = ibis.literal(Decimal(0), type=dt.Decimal(2, 0))
             stepped = ibis.ifelse(parsed < zero, rounded + unit, rounded - unit)
-            converted = ibis.ifelse(rounded.abs() > parsed.abs(), stepped, rounded)
+            return ibis.ifelse(rounded.abs() > parsed.abs(), stepped, rounded)
+
+        if rounding == "to_zero":
+            # Keep as many fractional digits as the 64-bit width allows beside the target's integers, so an
+            # already-representable value is never touched. DuckDB's own parse returns null for some valid
+            # exponent text at a large scale, so where the wide parse is null the parse falls back to scale 8.
+            fraction = 18 - (precision - scale) - 1
+            wide = text.try_cast(dt.Decimal(18, fraction))
+            if fraction > 8:
+                narrow = text.try_cast(dt.Decimal(18, 8))
+                converted = ibis.ifelse(wide.notnull(), truncated_to_scale(wide), truncated_to_scale(narrow))
+            else:
+                converted = truncated_to_scale(wide)
         else:
             parsed = text.try_cast(dt.Decimal(18, scale))
             converted = parsed
             # An exact tie is resolved from the truncated text, not from the engine's tie rule.
             tie = text.re_search(rf"^[+-]?[0-9]*\.[0-9]{{{scale}}}50*$")
+            # A tie may have no integer digit (".5", "-.5"). That digit is a zero: the retained digit at
+            # scale 0 is then "0", and the kept prefix gains a "0" so that it parses as a number.
+            no_integer = ~text.re_search(r"^[+-]?[0-9]")
             kept_pattern = r"([0-9])\.50*$" if scale == 0 else rf"\.[0-9]{{{scale - 1}}}([0-9])50*$"
-            kept = text.re_extract(kept_pattern, 1).cast("int64")
-            truncated = text.re_extract(rf"^[+-]?[0-9]*(?:\.[0-9]{{0,{scale}}})?", 0).try_cast(dt.Decimal(18, scale))
+            kept_text = text.re_extract(kept_pattern, 1)
+            if scale == 0:
+                # No digit before the point (".5") is a zero. DuckDB returns "" for no match and Ibis-Polars
+                # null, so both are normalised first. The digit is only read where `tie` holds.
+                kept_text = ibis.coalesce(kept_text.nullif(""), ibis.literal("0"))
+            kept = kept_text.cast("int64")
+            prefix = text.re_extract(rf"^[+-]?[0-9]*(?:\.[0-9]{{0,{scale}}})?", 0)
+            sign = ibis.ifelse(text.startswith("-"), "-", "")
+            unsigned = ibis.ifelse(text.startswith("-") | text.startswith("+"), prefix.substr(1), prefix)
+            truncated = ibis.ifelse(no_integer, sign + "0" + unsigned, prefix).try_cast(dt.Decimal(18, scale))
             unit = ibis.literal(Decimal(1).scaleb(-scale), type=dt.Decimal(18, scale))
             away = ibis.ifelse(text.startswith("-"), truncated - unit, truncated + unit)
             if rounding == "half_away_from_zero":
@@ -124,14 +144,14 @@ class MountainAshIbisScalarValueExpressionSystem(
                 tie_value = ibis.ifelse(kept % 2 == 1, away, truncated)
             converted = ibis.ifelse(tie, tie_value, converted)
 
-        # The parse is non-strict so that the two reasons a row can fail to parse can be told apart. A
-        # DOUBLE parse is only a classifier (never used for the value): it succeeds for any finite number
-        # however large and fails for text that is not one (nan and infinity are not numbers a decimal can
-        # hold, so they count as invalid text). A finite number the parse cannot hold is out of range and
-        # always raises; text that is not a number raises under "throw" and stays null under "null".
+        # The parse is non-strict so that the two reasons a row can fail to parse can be told apart.
+        # Whether the text is a finite number is decided by its shape (digits, one point, an exponent),
+        # never by a float parse: that overflows to infinity for a huge finite number, which is then
+        # indistinguishable from the text "inf". nan, infinity and anything else are invalid text. A
+        # finite number the parse cannot hold is out of range and always raises; text that is not a
+        # number raises under "throw" and stays null under "null".
         unparsed = converted.isnull() & text.notnull()
-        as_double = text.try_cast("float64")
-        is_number = as_double.notnull() & ~as_double.isnan() & ~as_double.isinf()
+        is_number = text.re_search(r"^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$")
         must_fail = unparsed if failure_behavior == "throw" else unparsed & is_number
         # The failure is forced by a strict cast whose *input* is masked: only rows that must fail see a
         # character no number can contain (the error names the value). Some engines evaluate a strict

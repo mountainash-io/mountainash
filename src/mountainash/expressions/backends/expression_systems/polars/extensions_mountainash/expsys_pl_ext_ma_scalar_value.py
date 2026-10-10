@@ -103,10 +103,11 @@ class MountainAshPolarsScalarValueExpressionSystem(
         target = pl.Decimal(precision, scale)
         # Floats convert by their shortest string form; text is trimmed and "_" removed.
         text = x.cast(pl.String).str.strip_chars().str.replace_all("_", "", literal=True)
-        # A Float64 parse is only a classifier (never used for the value): it succeeds for any finite
-        # number however large and fails for text that is not one.
-        as_double = text.cast(pl.Float64, strict=False)
-        is_number = as_double.is_not_null() & as_double.is_finite()
+        # Whether the text is a finite number is decided by its shape (digits, one point, an exponent),
+        # never by a float parse: that overflows to infinity for a huge finite number, which is then
+        # indistinguishable from the text "inf". nan, infinity and anything else are invalid text.
+        # It is only consulted for rows the parse returned null for, so valid input never pays for it.
+        shape = r"^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$"
 
         def resolved(parsed: PolarsExpr, wide: pl.Decimal) -> PolarsExpr:
             """Return ``parsed``, raising for the rows that must fail.
@@ -118,15 +119,19 @@ class MountainAshPolarsScalarValueExpressionSystem(
             whatever the condition, so the condition must change the cast input, not skip the cast.)
             """
             unparsed = parsed.is_null() & text.is_not_null()
-            must_fail = unparsed if failure_behavior == "throw" else unparsed & is_number
+            must_fail = unparsed if failure_behavior == "throw" else unparsed & text.str.contains(shape)
             forced = pl.when(must_fail).then(text + pl.lit("!")).otherwise(pl.lit("0")).cast(wide, strict=True)
             return pl.when(must_fail).then(forced).otherwise(parsed)
 
         if rounding == "to_zero":
-            # Parse wide enough to hold any value that can fit the target once the exponent is
-            # applied, then truncate on the decimal: nothing reads the text, so nothing misreads it.
+            # Plain decimal text of any length is cut after `scale` fractional digits and parsed: exact,
+            # because no digit past the cut is ever rounded. Any other text (exponents) goes to the
+            # engine: a wide parse then a native truncate, exact while the value fits the 38-digit parse.
             wide = pl.Decimal(38, 38 - (precision - scale) - 3)
-            return resolved(text.cast(wide, strict=False), wide).truncate(scale).cast(target, strict=True)
+            engine = resolved(text.cast(wide, strict=False), wide).truncate(scale)
+            plain = text.str.contains(r"^[+-]?[0-9]*\.?[0-9]*$") & text.str.contains(r"[0-9]")
+            cut = text.str.extract(rf"^[+-]?[0-9]*(?:\.[0-9]{{0,{scale}}})?", 0).cast(pl.Decimal(38, scale), strict=False)
+            return pl.when(plain & cut.is_not_null()).then(cut).otherwise(engine).cast(target, strict=True)
         # Parse at the target scale into the widest decimal: the engine rounds once here, and the
         # strict narrowing below raises for a value that does not fit the target, in both modes.
         wide = pl.Decimal(38, scale)
@@ -136,11 +141,13 @@ class MountainAshPolarsScalarValueExpressionSystem(
             # neighbour is the lower one, i.e. when the last kept digit is even. The patterns match
             # plain decimal text only, so other text keeps the engine's rounding.
             tie = text.str.contains(rf"^[+-]?[0-9]*\.[0-9]{{{scale}}}50*$")
-            kept = (
-                text.str.extract(r"([0-9])\.50*$", 1)
-                if scale == 0
-                else text.str.extract(rf"\.[0-9]{{{scale - 1}}}([0-9])50*$", 1)
-            ).cast(pl.Int8, strict=False)
+            # At scale 0 the kept digit is the one before the point; ".5" has none, which is a zero. The
+            # digit is only read where `tie` holds, so defaulting it elsewhere changes nothing.
+            if scale == 0:
+                kept_digit = text.str.extract(r"([0-9])\.50*$", 1).fill_null("0")
+            else:
+                kept_digit = text.str.extract(rf"\.[0-9]{{{scale - 1}}}([0-9])50*$", 1)
+            kept = kept_digit.cast(pl.Int8, strict=False)
             ulp = pl.lit(Decimal(1).scaleb(-scale), dtype=target)
             away = pl.when(text.str.starts_with("-")).then(converted - ulp).otherwise(converted + ulp)
             # Decimal arithmetic widens the type; cast back so the result type is exact and a corrected

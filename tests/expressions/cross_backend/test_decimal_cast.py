@@ -359,6 +359,23 @@ def test_exponent_text_at_a_high_target_scale(backend_name, backend_factory, col
     assert collect_expr(df, _cast("v", p, s, "half_to_even", fb)) == [expected]
 
 
+# to_zero falls back to a smaller parse where DuckDB's own parse returns nothing, so it is not affected.
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("fb", ["throw", "null"])
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("text,p,s,expected", [
+    ("8386712e-7", 16, 12, D("0.838671200000")),
+    ("83867e-7", 16, 16, D("0.0083867000000000")),
+    ("83867e-7", 1, 0, D("0")),
+    ("-64279e-9", 2, 0, D("0")),
+])
+def test_to_zero_converts_exponent_text_the_half_modes_cannot_parse(backend_name, backend_factory, collect_expr, fb, text, p, s, expected):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [text]}, backend_name)
+    assert collect_expr(df, _cast("v", p, s, "to_zero", fb)) == [expected]
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", BACKENDS)
 def test_the_same_value_as_plain_text_at_a_high_target_scale(backend_name, backend_factory, collect_expr):
@@ -371,9 +388,9 @@ def test_the_same_value_as_plain_text_at_a_high_target_scale(backend_name, backe
 
 # Documented limit of `to_zero` on the Ibis backends. DuckDB has no truncate-to-places and a wide decimal
 # parse costs ~17 s per million rows, so `to_zero` rounds on a 64-bit parse and steps back one unit. The
-# parse keeps min(8, 17 - p + s) fractional digits, so min(8 - s, 17 - p) digits beyond the target scale are
-# exact (the cap of 8 keeps DuckDB's own exponent parse from failing); past that the parse rounds first.
-# At (16, 2) one extra digit is exact, so "1.99999" (three) gives 2.00 instead of 1.99. Polars is exact.
+# parse keeps 17 - p + s fractional digits, so 17 - p digits beyond the target scale are exact; past that the
+# parse rounds first. At (16, 2) one extra digit is exact, so "1.99999" (three) gives 2.00 instead of 1.99.
+# Polars cuts plain text after the scale, so it is exact for any length.
 # Reported by the Rules consumer review of PR 355.
 _TO_ZERO_BEYOND_17_MINUS_P = (["1.99999", "-1.99999", "12.3499999"], 16, 2, [D("1.99"), D("-1.99"), D("12.34")])
 
@@ -404,13 +421,109 @@ def test_to_zero_beyond_the_ibis_exactness_limit(backend_name, backend_factory, 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", BACKENDS)
 def test_to_zero_within_the_ibis_exactness_limit(backend_name, backend_factory, collect_expr):
-    """Within min(8 - s, 17 - p) extra digits `to_zero` is exact on every engine (p=10, s=3: five)."""
-    values = ["1.99999999", "-1.99999999", "0.00099999"]   # three kept digits plus five extra
+    """Within 17 - p extra digits `to_zero` is exact on every engine (p=10: seven)."""
+    values = ["1.9999999999", "-1.9999999999", "0.0009999999"]   # three kept digits plus seven extra
     expected = [D("1.999"), D("-1.999"), D("0.000")]
     if backend_name == "ibis-sqlite":
         pytest.skip("covered by the refusal tests")
     df = backend_factory.create({"v": values}, backend_name)
     assert collect_expr(df, _cast("v", 10, 3, "to_zero")) == expected
+
+
+# Regressions from the Rules consumer review of 47ec97d. Expectations are written by hand.
+# Plain decimal text may omit the integer digit: ".5" is 0.5 and must tie like it at every scale.
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize(
+    "mode,expected",
+    [
+        ("half_away_from_zero", [D("1"), D("-1"), D("1"), D("3"), D("-3"), D("0")]),
+        ("half_to_even", [D("0"), D("0"), D("0"), D("2"), D("-2"), D("0")]),
+    ],
+)
+def test_a_leading_point_text_ties_like_the_same_value_with_a_zero(
+    backend_name, backend_factory, collect_expr, mode, expected
+):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [".5", "-.5", "+.5", "2.5", "-2.5", ".4"]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 0, mode)) == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("text", [".", "-.", "+.", ".e3"])
+def test_a_bare_point_is_not_a_number(backend_name, backend_factory, collect_expr, text):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [text]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 2, "half_to_even", "null")) == [None]
+
+
+# A value that already fits the target needs no digits discarded, so no mode may change it.
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero", "to_zero"])
+@pytest.mark.parametrize("text,p,s", [
+    ("0.1234567890123456", 16, 16),
+    ("0.123456789012", 16, 12),
+    ("0.12345678901", 16, 11),
+    ("-0.1234567890123456", 16, 16),
+    ("1.23456789", 16, 8),
+])
+def test_a_value_that_already_fits_the_target_is_unchanged(backend_name, backend_factory, collect_expr, mode, text, p, s):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [text]}, backend_name)
+    assert collect_expr(df, _cast("v", p, s, mode)) == [D(text)]
+
+
+# to_zero reads plain text of any length exactly on Polars (cut after `scale` digits); the Ibis backends
+# keep the documented window (limit 1), so this row is pinned for them as a strict xfail.
+_LONG_NINES = "1." + "9" * 40
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        pytest.param(b, marks=pytest.mark.xfail(strict=True, reason="Ibis to_zero window (documented limit 1)"))
+        if b in ("ibis-duckdb", "ibis-polars") else b
+        for b in BACKENDS
+    ],
+)
+def test_to_zero_of_a_very_long_plain_fraction_is_exact_where_the_engine_allows(backend_name, backend_factory, collect_expr):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [_LONG_NINES, "-" + _LONG_NINES]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 2, "to_zero")) == [D("1.99"), D("-1.99")]
+
+
+# A finite number too large for any float is still a number: it is out of range, so it raises under
+# both failure behaviours. Only text that is not a number is null under "null".
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("fb", ["throw", "null"])
+@pytest.mark.parametrize("text", ["1e309", "9" * 400, "-" + "9" * 400])
+def test_a_finite_number_beyond_any_float_raises_in_both_failure_modes(backend_name, backend_factory, collect_expr, fb, text):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [text]}, backend_name)
+    with pytest.raises(Exception) as err:
+        collect_expr(df, _cast("v", 10, 3, "half_to_even", fb))
+    if backend_name in NARWHALS:
+        raise err.value  # a refusal is the declared outcome there (the strict xfail on BackendCapabilityError)
+    assert not isinstance(err.value, BackendCapabilityError)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("text", ["nan", "inf", "-inf", "infinity", "12x", "1e", "e5"])
+def test_text_that_is_not_a_finite_number_is_null_under_null_mode(backend_name, backend_factory, collect_expr, text):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [text]}, backend_name)
+    assert collect_expr(df, _cast("v", 10, 3, "half_to_even", "null")) == [None]
 
 
 # A literal source is a constant to the engines. Polars-based engines evaluate a strict cast for a constant
