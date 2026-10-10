@@ -169,7 +169,7 @@ There are exactly three, and no default: a conversion that loses digits should s
 
 ### Precision limits
 
-A **declaration** can use any precision up to 38. A **cast target** is limited to precision 36 (`.cast(DecimalDtype(37, ...))` raises when the expression is built), because the conversion needs one spare integer digit and one spare fractional digit beyond the target.
+A **declaration** can use any precision up to 38. A **cast target** is limited to precision 16 (`.cast(DecimalDtype(17, ...))` raises when the expression is built). The conversion runs in an 18-digit intermediate, and Polars aborts the whole process (a Rust panic that `except Exception` does not catch) when its own `Decimal.round` carries out of a type's integer width, so the rounding runs in a wider decimal. A 38-digit intermediate has no wider type to use. Casts to 17 or more digits are available once Polars fixes `Decimal.round`.
 
 ### Sources
 
@@ -192,8 +192,8 @@ A refusal is a declared capability, raised before any data is read. It never fal
 
 The conversion is one vectorised native expression with no per-row checks, so three edge cases follow the engine's own behaviour. They are documented rather than detected:
 
-1. **Wider than the intermediate.** The text is first parsed into an intermediate decimal of `18` digits (when `precision <= 16`) or `38` digits, with `intermediate_scale = width - (precision - scale) - 1`. A value with more integer digits than that fits raises under `"throw"` and becomes null under `"null"`, indistinguishable from invalid text.
-2. **More fractional digits than the intermediate scale** (more than `18 - (p - s) - 1` for `p <= 16`, otherwise `38 - (p - s) - 1`). The parse rounds first, then the mode rounds again, so the result can be rounded twice. For example `"0.00449999999999"` to `DecimalDtype(10, 3)` with `half_away_from_zero` gives `0.005` (the exact answer is `0.004`), because the parse first rounds it to `0.0045`.
+1. **Wider than the intermediate.** The text is first parsed into an 18-digit intermediate decimal with `18 - (precision - scale) - 1` fractional digits, so it holds `precision - scale + 1` integer digits. A value with more integer digits than that raises under `"throw"` and becomes null under `"null"`, indistinguishable from invalid text.
+2. **More fractional digits past the target scale than the intermediate keeps.** The intermediate has `18 - (p - s) - 1` fractional digits, so an input is converted exactly only when it has at most `17 - p` digits beyond the target scale `s` (16 extra digits at `p = 1`, 7 at `p = 10`, 2 at `p = 15`, 1 at `p = 16`). Past that the parse rounds first and the mode rounds again, so the result can be rounded twice. For example `"0.00449999999999"` to `DecimalDtype(10, 3)` with `half_away_from_zero` gives `0.005` (the exact answer is `0.004`), because the parse first rounds it to `0.0045`. Near the cap it is easy to reach: `"0.51"` to `DecimalDtype(16, 0)` with `half_to_even` gives `0`, not `1`, because the parse rounds it to `0.5` first. Results are identical on every supported backend; they differ from the exact answer only in this region. Choose a smaller precision when inputs carry many more digits than the target scale.
 3. **Separator normalisation is lenient.** Removing `_` means `"1__0"` and `"_1"` convert to `10` and `1`.
 
 ### Conform

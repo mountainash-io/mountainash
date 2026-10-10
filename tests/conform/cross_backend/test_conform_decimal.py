@@ -7,6 +7,7 @@ explicit ``.cast(DecimalDtype(...), rounding=...)``.
 """
 from __future__ import annotations
 
+import sqlite3
 from decimal import Decimal as D
 
 import ibis
@@ -22,6 +23,21 @@ from mountainash.conform.errors import DecimalConversionRequiredError, SchemaDri
 from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
 
 D103 = ma.DecimalDtype(precision=10, scale=3)
+
+# A matching native decimal column cannot be built on SQLite (create_table raises). Strict xfail keeps the
+# identity visible: if SQLite ever gains a decimal column, this XPASSes and the test must be revisited.
+NATIVE_DECIMAL_BACKENDS = [
+    pytest.param(
+        b,
+        marks=pytest.mark.xfail(
+            strict=True,
+            raises=sqlite3.ProgrammingError,
+            reason="SQLite has no fixed-precision decimal type; a native decimal column cannot be created",
+        ),
+    )
+    if b == "ibis-sqlite" else b
+    for b in ALL_BACKENDS
+]
 SPEC = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
 
 
@@ -42,7 +58,8 @@ def _decimal_frame(backend_name, precision, scale, value):
         return ibis.duckdb.connect().create_table("t", table, overwrite=True)
     if backend_name == "ibis-polars":
         return ibis.polars.connect().create_table("t", pl.from_arrow(table), overwrite=True)
-    pytest.skip(f"{backend_name} has no native decimal column")
+    # ibis-sqlite: SQLite has no fixed-precision decimal type, so the column cannot be created.
+    return ibis.sqlite.connect(":memory:").create_table("t", table, overwrite=True)
 
 
 @pytest.mark.cross_backend
@@ -81,11 +98,7 @@ def test_freeze_raises_drift(backend_name, backend_factory):
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize(
-    "backend_name",
-    ["polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "pandas", "narwhals-pandas",
-     "ibis-duckdb", "ibis-polars"],
-)
+@pytest.mark.parametrize("backend_name", NATIVE_DECIMAL_BACKENDS)
 @pytest.mark.parametrize("mode", ["coerce", "evolve", "freeze", "discard_value"])
 def test_matching_decimal_passes_unchanged(backend_name, mode):
     frame = _decimal_frame(backend_name, 10, 3, D("1.500"))
@@ -95,11 +108,7 @@ def test_matching_decimal_passes_unchanged(backend_name, mode):
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize(
-    "backend_name",
-    ["polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "pandas", "narwhals-pandas",
-     "ibis-duckdb", "ibis-polars"],
-)
+@pytest.mark.parametrize("backend_name", NATIVE_DECIMAL_BACKENDS)
 def test_different_precision_scale_is_a_mismatch(backend_name):
     frame = _decimal_frame(backend_name, 12, 4, D("1.5000"))
     with pytest.raises(DecimalConversionRequiredError) as err:

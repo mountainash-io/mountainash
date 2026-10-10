@@ -91,18 +91,21 @@ class MountainAshIbisScalarValueExpressionSystem(
                 value, type=dt.Decimal(precision=min(38, literal_scale + 2), scale=literal_scale)
             )
 
-        intermediate_precision = 18 if precision <= 16 else 38
-        intermediate_scale = intermediate_precision - (precision - scale) - 1
-        intermediate = dt.Decimal(intermediate_precision, intermediate_scale)
+        intermediate_scale = 18 - (precision - scale) - 1
+        intermediate = dt.Decimal(18, intermediate_scale)
+        # Rounding runs in a 38-digit decimal of the same scale so a carry out of the integer part
+        # cannot abort Polars-engine backends (see MountainAshCastAPIBuilder.MAX_CAST_PRECISION).
+        wide = dt.Decimal(38, intermediate_scale)
 
         # Floats convert by their shortest string form; text is trimmed and "_" removed.
-        text = x.cast("string").strip().replace("_", "")
+        # re_replace, not replace: Ibis' replace removes only the first match on the Polars backend.
+        text = x.cast("string").strip().re_replace("_", "")
         parsed = (
             text.try_cast(intermediate)
             if failure_behavior == "null"
             else text.cast(intermediate)
         )
-        rounded = parsed.round(scale).cast(dt.Decimal(intermediate_precision, scale))
+        rounded = parsed.cast(wide).round(scale).cast(dt.Decimal(18, scale))
 
         ulp = decimal_literal(Decimal(1).scaleb(-scale), scale)
         negative_ulp = decimal_literal(-Decimal(1).scaleb(-scale), scale)
@@ -111,7 +114,7 @@ class MountainAshIbisScalarValueExpressionSystem(
         )
         # Parity of the rounded value's last digit without modulo: r is even iff r*0.5 has
         # no digit beyond `scale`.
-        half = rounded.cast(dt.Decimal(intermediate_precision, scale + 1)) * ibis.literal(
+        half = rounded.cast(dt.Decimal(18, scale + 1)) * ibis.literal(
             Decimal("0.5"), type=dt.Decimal(2, 1)
         )
         is_odd = half.round(scale) != half

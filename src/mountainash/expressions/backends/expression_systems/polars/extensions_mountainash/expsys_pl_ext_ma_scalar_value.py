@@ -94,15 +94,16 @@ class MountainAshPolarsScalarValueExpressionSystem(
         under both failure behaviours (the final cast is always strict); only the parse
         into the intermediate is non-strict under ``"null"``.
         """
-        intermediate_precision = 18 if precision <= 16 else 38
-        intermediate = pl.Decimal(
-            intermediate_precision, intermediate_precision - (precision - scale) - 1
-        )
+        intermediate = pl.Decimal(18, 18 - (precision - scale) - 1)
         # Floats convert by their shortest string form; text is trimmed and "_" removed.
         text = x.cast(pl.String).str.strip_chars().str.replace_all("_", "", literal=True)
         parsed = text.cast(intermediate, strict=(failure_behavior == "throw"))
+        # Round in a 38-digit decimal of the same scale: Polars aborts the process when a rounding
+        # carry needs more integer digits than the type holds ("99.5" -> precision 1), so the carry
+        # must have room and surface at the final strict cast as a normal typed error.
+        widened = parsed.cast(pl.Decimal(38, intermediate.scale))
         rounded = (
-            parsed.truncate(scale) if rounding == "to_zero" else parsed.round(scale, mode=rounding)
+            widened.truncate(scale) if rounding == "to_zero" else widened.round(scale, mode=rounding)
         )
         return rounded.cast(pl.Decimal(precision, scale), strict=True)
 

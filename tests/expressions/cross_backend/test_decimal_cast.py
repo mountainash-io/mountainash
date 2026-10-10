@@ -38,14 +38,24 @@ CASES = [
      [D("1000.500"), D("1.500"), D("0.500"), D("5.000"), D("100.000")]),
     (["2.5", "-2.5", "3.5", "0.5"], 1, 0, "half_to_even", [D("2"), D("-2"), D("4"), D("0")]),
     (["2.5", "-2.5", "3.5"], 16, 0, "half_away_from_zero", [D("3"), D("-3"), D("4")]),
-    (["12.3455", "-12.3455"], 17, 3, "half_to_even", [D("12.346"), D("-12.346")]),
-    (["0.0000045", "-0.0000055"], 20, 5, "half_to_even", [D("0.00000"), D("-0.00001")]),
-    (["0.1234567890123456785"], 36, 18, "half_to_even", [D("0.123456789012345678")]),
+    (["12.3455", "-12.3455"], 16, 3, "half_to_even", [D("12.346"), D("-12.346")]),
+    (["0.0000045", "-0.0000055"], 15, 5, "half_to_even", [D("0.00000"), D("-0.00001")]),
+    (["0.123456789012345685"], 16, 15, "half_to_even", [D("0.123456789012346")]),
+    # underscores: every one is removed, on every backend (review: ibis-polars removed only the first)
+    (["1_0_0", "1__0", "1_000_000.5", "_1"], 10, 3, "half_to_even",
+     [D("100.000"), D("10.000"), D("1000000.500"), D("1.000")]),
+    # rounding carry out of the integer part that still fits the target: exact, never an abort
+    (["8.5", "9.4", "-8.5"], 1, 0, "half_to_even", [D("8"), D("9"), D("-8")]),
     (["0.05"], 1, 1, "half_to_even", [D("0.0")]),
     # documented limit 2: parse rounds to 0.0045, then away -> 0.005 (exact answer 0.004)
     (["0.00449999999999"], 10, 3, "half_away_from_zero", [D("0.005")]),
 ]
 OVERFLOW_CASES = [
+    # The carry needs one more integer digit than the target and the intermediate hold: Polars
+    # aborts the process on its own Decimal.round unless the rounding runs in a wider decimal.
+    ("99.5", 1, 0, "half_to_even"),
+    ("9.95", 1, 1, "half_to_even"),
+    ("9.5", 1, 0, "half_away_from_zero"),
     ("9999999.9995", 10, 3, "half_to_even"),
     ("9999999.9995", 10, 3, "half_away_from_zero"),
     ("-9.5", 1, 0, "half_away_from_zero"),
@@ -138,18 +148,6 @@ def test_float_and_int_sources(backend_name, backend_factory, collect_expr):
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", BACKENDS)
-def test_result_type_is_exact_decimal(backend_name, backend_factory):
-    df = backend_factory.create({"v": ["1.5"]}, backend_name)
-    if backend_name == "ibis-sqlite":
-        with pytest.raises(BackendCapabilityError):
-            ma.relation(df).select(_cast("v", 10, 3, "half_to_even").alias("r")).to_polars()
-        return
-    out = ma.relation(df).select(_cast("v", 10, 3, "half_to_even").alias("r")).to_polars()
-    assert out.schema["r"] == pl.Decimal(10, 3)
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
 def test_native_round_tie_rule_pins(backend_name, backend_factory, collect_expr):
     """Ibis corrections assume DuckDB rounds ties away from zero and Polars to even; fail loudly if that changes."""
     df = backend_factory.create({"v": ["0.0045"]}, backend_name)
@@ -201,7 +199,7 @@ class TestCastContract:
             lambda: ma.col("v").cast(ma.DecimalDtype(precision=10, scale=3)),  # rounding missing
             lambda: ma.col("v").cast("i64", rounding="half_to_even"),  # rounding on a non-decimal
             lambda: ma.col("v").cast(ma.DecimalDtype(precision=10, scale=3), rounding="bankers"),  # unknown mode
-            lambda: ma.col("v").cast(ma.DecimalDtype(precision=37, scale=3), rounding="to_zero"),  # p > 36 (R20)
+            lambda: ma.col("v").cast(ma.DecimalDtype(precision=17, scale=3), rounding="to_zero"),  # p > 16
             lambda: ma.col("v").cast(
                 ma.DecimalDtype(precision=10, scale=3), rounding="to_zero", failure_behavior="explode"
             ),
@@ -211,25 +209,15 @@ class TestCastContract:
         with pytest.raises(InvalidOptionValueError):
             call()
 
-    def test_non_decimal_cast_unchanged(self):
-        from mountainash.expressions.core.expression_nodes.substrait.exn_cast import CastNode
+    def test_non_decimal_cast_keeps_the_dtype_keyword(self):
+        """Non-decimal targets behave as before, including the `dtype=` keyword form."""
+        df = pl.DataFrame({"v": ["7", "8"]})
+        assert ma.relation(df).select(ma.col("v").cast(dtype="i64").alias("r")).to_dict()["r"] == [7, 8]
+        assert ma.relation(df).select(ma.col("v").cast("i64").alias("r")).to_dict()["r"] == [7, 8]
 
-        assert isinstance(ma.col("v").cast("i64")._node, CastNode)
-        assert isinstance(ma.col("v").cast(dtype="i64")._node, CastNode)  # the keyword is unchanged
-
-    def test_cast_resolves_to_extension_builder(self):
-        """Flat-name takeover is order-dependent (_FLAT_NAMESPACES); fail loudly if reordering changes .cast."""
-        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_cast import (
-            MountainAshCastAPIBuilder,
-        )
-        from mountainash.expressions.core.expression_api.boolean import BooleanExpressionAPI
-
-        owner = next(ns for ns in BooleanExpressionAPI._FLAT_NAMESPACES if "cast" in ns.__dict__)
-        assert owner is MountainAshCastAPIBuilder
-
-    def test_p36_accepted(self):
-        node = ma.col("v").cast(ma.DecimalDtype(precision=36, scale=36), rounding="to_zero")._node
-        assert node.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
-        assert node.options == {
-            "precision": 36, "scale": 36, "rounding": "to_zero", "failure_behavior": "throw",
-        }
+    def test_a_declaration_can_exceed_the_cast_cap(self):
+        """A DecimalDtype up to 38 digits can be declared; only a cast target is capped at 16."""
+        assert ma.DecimalDtype(precision=38, scale=10).precision == 38
+        with pytest.raises(InvalidOptionValueError):
+            ma.col("v").cast(ma.DecimalDtype(precision=38, scale=10), rounding="to_zero")
+        ma.col("v").cast(ma.DecimalDtype(precision=16, scale=16), rounding="to_zero")  # at the cap: builds

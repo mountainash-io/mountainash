@@ -30,9 +30,11 @@ if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
 
 ROUNDING_MODES = ("half_to_even", "half_away_from_zero", "to_zero")
-# R20: the intermediate keeps one spare integer digit and one spare fractional digit beyond the
-# target only while precision <= 36 (a precision-38 intermediate has no room above that).
-MAX_CAST_PRECISION = 36
+# Decimal cast targets are limited to precision 16 so the conversion always runs in an 18-digit
+# intermediate that can be widened before rounding. Polars aborts the process (a Rust panic, not a
+# catchable error) when Decimal.round carries out of the type's integer width, and a 38-digit
+# intermediate has no wider type to carry into. Declarations (TypeSpec) allow precision up to 38.
+MAX_CAST_PRECISION = 16
 
 
 class MountainAshCastAPIBuilder(BaseExpressionAPIBuilder, MountainAshCastAPIBuilderProtocol):

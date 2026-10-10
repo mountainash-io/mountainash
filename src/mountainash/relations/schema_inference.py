@@ -85,7 +85,10 @@ def infer_expression_name(expr_node: Any) -> Optional[str]:
 def _canon(
     native: Any, target: TypeTarget = TypeTarget.POLARS
 ) -> MountainashDtype | SchemaTypeStatus:
-    """Map a native dtype to a canonical MountainashDtype or status.
+    """Map a native dtype to a canonical dtype or status.
+
+    The canonical dtype is a ``MountainashDtype``, or a ``DecimalDtype`` for a native
+    decimal column (precision and scale kept).
 
     ``None`` from the registry means the native is explicitly untyped
     (UNCONSTRAINED); an unrecognized native degrades to UNKNOWN rather than

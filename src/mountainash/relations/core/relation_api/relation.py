@@ -1265,8 +1265,9 @@ class Relation(RelationBase):
         """Output schema as {column_name: dtype} dict.
 
         Infers the schema from the AST without compilation or backend
-        involvement. Values are canonical ``MountainashDtype`` where inferable,
-        or a ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+        involvement. Values are canonical ``MountainashDtype`` (or ``DecimalDtype``
+        for a native decimal column) where inferable, or a ``SchemaTypeStatus``
+        (UNKNOWN / UNCONSTRAINED) where not.
         """
         from mountainash.relations.schema_inference import infer_schema
         return infer_schema(self._node)
