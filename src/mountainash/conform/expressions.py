@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, Optional, Sequence, Un
 from mountainash.conform.contract import ConformContract, resolve_contract
 from mountainash.conform.errors import (
     ConformError,
+    DecimalConversionRequiredError,
     ExactFieldsMismatchError,
     ExtraFieldsError,
     IncompatibleSourceTypeError,
@@ -375,7 +376,7 @@ def resolve_conform_output(
 ) -> ConformOutputContract:
     """Resolve structure, source evidence, drift, and per-field action policy."""
     from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
-    from mountainash.core.dtypes import CastSafety, MountainashDtype, classify_cast
+    from mountainash.core.dtypes import CastSafety, DecimalDtype, MountainashDtype, classify_cast
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.universal_types import UniversalType
 
@@ -480,6 +481,36 @@ def resolve_conform_output(
         declared = _declared_canonical(em.field)
         actual_dtype = (actual_dtypes or {}).get(em.source_name)
         mismatch: TypeDrift | None = None
+        if em.field.dtype is not None:
+            # Declared exact decimal (item 241 R19): verified, never converted. It matches only
+            # an equal DecimalDtype; any other actual type is a mismatch under the data_type policy.
+            if actual_shapes is not None or actual_dtypes is not None:
+                actual_decimal = (
+                    actual_shape.decimal if actual_shape is not None
+                    else actual_dtype if isinstance(actual_dtype, DecimalDtype)
+                    else None
+                )
+                if actual_decimal != em.field.dtype:
+                    if actual_decimal is not None:
+                        actual_report: Any = actual_decimal
+                    elif actual_shape is not None and actual_shape.canonical_type is not None:
+                        actual_report = actual_shape.canonical_type
+                    elif actual_shape is None and isinstance(actual_dtype, MountainashDtype):
+                        actual_report = actual_dtype
+                    else:
+                        actual_report = None
+                    mismatch = TypeDrift(
+                        em.field.name,
+                        em.field.dtype,
+                        actual_report,
+                        "unknown" if actual_report is None else "unsafe",
+                        None,
+                        "unknown" if actual_report is None else "representation",
+                        None if actual_report is None else str(actual_report),
+                        str(em.field.dtype),
+                        apply_value_transforms,
+                    )
+            declared = None  # skip the canonical comparisons below
         if declared is not None and actual_shapes is not None:
             expected_shape = _expected_shape(em.field)
             requirement = _shape_detail(expected_shape) or str(declared)
@@ -582,6 +613,16 @@ def resolve_conform_output(
         )
         mismatch = dataclasses.replace(mismatch, action=reported_action, applied=applied)
         type_mismatches.append(mismatch)
+        if (
+            em.field.dtype is not None
+            and apply_value_transforms
+            and action in {"coerce", "discard_value", "discard_row"}
+        ):
+            # Conform verifies a declared decimal and never converts it: a conversion needs an
+            # explicit rounding mode that a declaration does not carry (backlog 280).
+            raise DecimalConversionRequiredError(
+                em.field.name, em.field.dtype, mismatch.actual or "an unknown type"
+            )
         if action == "evolve":
             em = dataclasses.replace(em, type_action="evolve", effective_type=mismatch.actual)
         elif action in {"discard_value", "discard_row"}:
@@ -663,6 +704,9 @@ def _build_field_expr(
 
     fld = field
     if type_action == "null_fill":
+        if fld.dtype is not None:
+            # Declared exact decimal: a typed null keeps the declared precision/scale.
+            return FieldBuildResult(ma.lit(None, dtype=fld.dtype).name.alias(fld.name))
         output = ma.lit(None)
         if isinstance(declared_type, MountainashDtype):
             output = output.cast(declared_type)
@@ -675,6 +719,11 @@ def _build_field_expr(
             expr = expr.struct.field(part)
     else:
         expr = ma.col(source_name)
+
+    if fld.dtype is not None:
+        # Declared exact decimal: verified upstream (resolve_conform_output), never converted here.
+        # A matching column passes through; text sentinels do not apply to a decimal column.
+        return FieldBuildResult(expr.name.alias(fld.name))
 
     shape_known = source_shape is not None
     shape = source_shape or SourceShape(None)
@@ -1086,8 +1135,8 @@ def _build_conform_exprs(
         if not apply_value_transforms:
             import mountainash as ma
             if emitted.type_action == "null_fill":
-                source = ma.lit(None)
-                if isinstance(emitted.declared_type, MountainashDtype):
+                source = ma.lit(None, dtype=emitted.field.dtype) if emitted.field.dtype is not None else ma.lit(None)
+                if emitted.field.dtype is None and isinstance(emitted.declared_type, MountainashDtype):
                     source = source.cast(emitted.declared_type)
                 exprs.append(source.name.alias(emitted.field.name))
                 continue
@@ -1099,7 +1148,7 @@ def _build_conform_exprs(
             sentinels = emitted.field.missing_values if emitted.field.missing_values is not None else schema_missing_values
             from mountainash.typespec._categorical import categorical_values
             values = categorical_values(list(sentinels))
-            if lexical_source and values:
+            if lexical_source and values and emitted.field.dtype is None:
                 source = ma.when(source.is_in(*values)).then(ma.lit(None)).otherwise(source)
             exprs.append(source.name.alias(emitted.field.name))
             continue
