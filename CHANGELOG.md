@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 2026-10-10
+
+### Added
+- `ma.DecimalDtype(precision, scale)`, an exact decimal descriptor, with `.cast(DecimalDtype(...), rounding=...)` for native conversion on Polars, Polars-lazy, Ibis-DuckDB and Ibis-Polars with identical results, and `ma.lit(value, dtype=...)` for typed literals. `rounding=` takes `"half_to_even"`, `"half_away_from_zero"` or `"to_zero"` and is required for decimal targets. Integer-part overflow always raises; invalid text raises or becomes null per `failure_behavior`. The Narwhals-based backends and SQLite refuse with a declared `BackendCapabilityError` (Narwhals #3698/#3702). See [Exact decimals](docs/website/features-technical/typespec-conform.md#exact-decimals) for the three documented edge-case limits (241).
+- `FieldSpec.dtype` declares a field's exact decimal. It persists under `x-mountainash.dtype` (including inside object and array-item fields), lowers to each backend's native decimal, is extracted from native decimal columns with precision and scale kept, and is compared by `compare_specs`. A malformed `x-mountainash.dtype` raises `InvalidDtypeDeclaration` on load.
+- `conform()` verifies a declared decimal field and never converts it: a matching column passes unchanged (previously a decimal column raised during conform), and any other type follows the `data_type` policy, with `coerce`/`discard_*` raising `DecimalConversionRequiredError`. A missing declared decimal column under `null_fill` becomes a typed decimal null (241).
+
+### Changed
+- Native decimal columns now extract as `NUMBER` fields carrying `dtype` instead of raising `UnknownDtypeError`, and relation schema inference reports them as `DecimalDtype`. `.cast` is now provided by a Mountainash extension builder that builds the unchanged Substrait cast for every non-decimal target.
+
 ## Unreleased — 2026-10-09
 
 ### Added

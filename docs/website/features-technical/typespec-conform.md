@@ -125,6 +125,81 @@ closed on.
 uniqueness, and foreign-key checks compare decoded logical values, never raw
 transported text — whitespace and object-key order never change the outcome.
 
+## Exact decimals
+
+`ma.DecimalDtype(precision, scale)` is an exact decimal: `precision` is the total number of digits, `scale` the digits after the point (`1 <= precision <= 38`, `0 <= scale <= precision`). Declare it on a field, and convert into it with an explicit rounding mode:
+
+```python
+from decimal import Decimal
+
+import mountainash as ma
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+
+d = ma.DecimalDtype(precision=10, scale=3)
+
+# Declare it (persisted under `x-mountainash.dtype`; the Frictionless type stays `number`)
+spec = TypeSpec(fields=[FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=d)])
+
+# Convert into it: `rounding=` is required for a decimal target and rejected for any other
+ma.col("amount_text").cast(d, rounding="half_to_even")
+ma.col("amount_text").cast(d, rounding="to_zero", failure_behavior="null")
+
+# A typed literal in the same domain, so comparisons are exact
+ma.col("amount_text").cast(d, rounding="half_to_even") >= ma.lit(Decimal("0.010"), dtype=d)
+```
+
+### Rounding modes
+
+There are exactly three, and no default: a conversion that loses digits should say how.
+
+| Input | `half_to_even` | `half_away_from_zero` | `to_zero` |
+|---|---|---|---|
+| `"0.00449"` | `0.004` | `0.004` | `0.004` |
+| `"0.0045"` | `0.004` | `0.005` | `0.004` |
+| `"-0.0045"` | `-0.004` | `-0.005` | `-0.004` |
+| `"0.0055"` | `0.006` | `0.006` | `0.005` |
+| `"-0.0059"` | `-0.006` | `-0.006` | `-0.005` |
+
+(all to `DecimalDtype(10, 3)`)
+
+### Failures
+
+- **Invalid text** (`"12x"`, `""`, `NaN`, infinity) raises under `failure_behavior="throw"` (the default) and becomes null under `"null"`. Null stays null.
+- **Integer-part overflow after rounding raises under both behaviours.** `"9999999.9995"` to `DecimalDtype(10, 3)` rounds up to `10000000.000`, which does not fit, so it raises even with `failure_behavior="null"`. A range mistake in your declaration is never silently turned into nulls. `to_zero` cannot carry, so `"9999999.9995"` gives `9999999.999`.
+
+### Precision limits
+
+A **declaration** can use any precision up to 38. A **cast target** is limited to precision 36 (`.cast(DecimalDtype(37, ...))` raises when the expression is built), because the conversion needs one spare integer digit and one spare fractional digit beyond the target.
+
+### Sources
+
+- **Text** is trimmed and `_` separators are removed before parsing, on every backend, so `" 1_000.5 "` becomes `1000.5`. Exponents (`"1e2"`) and a leading `+` or `.` parse. This applies to decimal-target casts only, not to ordinary values.
+- **Floats** convert by their shortest displayed form, not their binary value: `2.675` with `half_to_even` at scale 2 gives `2.68`, and with `to_zero` gives `2.67`. Converting the exact binary value would give `2.67` for both and differ between engines.
+- **Integers and decimals** convert exactly.
+
+### Backend support
+
+| Identity | Decimal casts |
+|---|---|
+| polars, polars-lazy | supported |
+| ibis-duckdb, ibis-polars | supported, identical results |
+| narwhals-polars, narwhals-lazy, narwhals-pandas, pandas | refused with `BackendCapabilityError`, pending Narwhals [#3698](https://github.com/narwhals-dev/narwhals/issues/3698) (no round mode) and [#3702](https://github.com/narwhals-dev/narwhals/issues/3702) (no non-strict cast) |
+| ibis-sqlite | refused with `BackendCapabilityError`: SQLite has no fixed-precision decimal type |
+
+A refusal is a declared capability, raised before any data is read. It never falls back to another engine.
+
+### Known limits
+
+The conversion is one vectorised native expression with no per-row checks, so three edge cases follow the engine's own behaviour. They are documented rather than detected:
+
+1. **Wider than the intermediate.** The text is first parsed into an intermediate decimal of `18` digits (when `precision <= 16`) or `38` digits, with `intermediate_scale = width - (precision - scale) - 1`. A value with more integer digits than that fits raises under `"throw"` and becomes null under `"null"`, indistinguishable from invalid text.
+2. **More fractional digits than the intermediate scale** (more than `18 - (p - s) - 1` for `p <= 16`, otherwise `38 - (p - s) - 1`). The parse rounds first, then the mode rounds again, so the result can be rounded twice. For example `"0.00449999999999"` to `DecimalDtype(10, 3)` with `half_away_from_zero` gives `0.005` (the exact answer is `0.004`), because the parse first rounds it to `0.0045`.
+3. **Separator normalisation is lenient.** Removing `_` means `"1__0"` and `"_1"` convert to `10` and `1`.
+
+### Conform
+
+`conform()` verifies a declared decimal field and never converts it. An actual column that is exactly that decimal passes unchanged under every `data_type` mode. Any other actual type (text, float, a different precision or scale) follows the policy: `evolve` keeps the actual column, `freeze` raises `SchemaDriftError`, and `coerce`/`discard_value`/`discard_row` raise `DecimalConversionRequiredError`, which names the explicit `.cast(DecimalDtype(...), rounding=...)` to use. A missing declared decimal column under `null_fill` becomes a typed `Decimal(p, s)` null. Conforming by converting is tracked as backlog item 280.
+
 ## DataPackage
 
 Frictionless `datapackage.json` is the multi-resource container format. mountainash supports it natively:
