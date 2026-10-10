@@ -1,6 +1,7 @@
 """Polars lowering for Mountainash scalar value classification."""
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -88,24 +89,64 @@ class MountainAshPolarsScalarValueExpressionSystem(
         rounding: str,
         failure_behavior: str,
     ) -> PolarsExpr:
-        """Exact decimal cast: parse into a wide intermediate, round natively, strict-cast.
+        """Exact decimal cast: one native rounding of the value the author wrote.
 
-        One vectorised chain; no UDFs, no validation layer. Integer-part overflow raises
-        under both failure behaviours (the final cast is always strict); only the parse
-        into the intermediate is non-strict under ``"null"``.
+        The engine's own text-to-decimal cast parses and rounds the original text once (half to
+        even on Polars), so no intermediate can round first. ``to_zero`` parses into a wide decimal
+        and truncates natively, so the engine interprets the text (exponents included). The tie
+        correction for ``half_away_from_zero`` reads plain decimal text only; any other text,
+        exponents included, simply takes the engine's own rounding.
+
+        Invalid text raises under ``"throw"`` and becomes null under ``"null"``; integer-part
+        overflow always raises, because the final cast is strict in both modes.
         """
-        intermediate = pl.Decimal(18, 18 - (precision - scale) - 1)
+        target = pl.Decimal(precision, scale)
         # Floats convert by their shortest string form; text is trimmed and "_" removed.
         text = x.cast(pl.String).str.strip_chars().str.replace_all("_", "", literal=True)
-        parsed = text.cast(intermediate, strict=(failure_behavior == "throw"))
-        # Round in a 38-digit decimal of the same scale: Polars aborts the process when a rounding
-        # carry needs more integer digits than the type holds ("99.5" -> precision 1), so the carry
-        # must have room and surface at the final strict cast as a normal typed error.
-        widened = parsed.cast(pl.Decimal(38, intermediate.scale))
-        rounded = (
-            widened.truncate(scale) if rounding == "to_zero" else widened.round(scale, mode=rounding)
-        )
-        return rounded.cast(pl.Decimal(precision, scale), strict=True)
+        # A Float64 parse is only a classifier (never used for the value): it succeeds for any finite
+        # number however large and fails for text that is not one.
+        as_double = text.cast(pl.Float64, strict=False)
+        is_number = as_double.is_not_null() & as_double.is_finite()
+
+        def resolved(parsed: PolarsExpr, wide: pl.Decimal) -> PolarsExpr:
+            """Return ``parsed``, raising for the rows that must fail.
+
+            A finite number the decimal parse cannot hold is out of range and always raises; text that
+            is not a number raises under ``"throw"`` and stays null under ``"null"``. The failure is
+            forced by a strict cast whose *input* is masked, so only the rows that must fail see a
+            value that cannot parse. (A strict cast under ``when/then`` is evaluated for constants
+            whatever the condition, so the condition must change the cast input, not skip the cast.)
+            """
+            unparsed = parsed.is_null() & text.is_not_null()
+            must_fail = unparsed if failure_behavior == "throw" else unparsed & is_number
+            forced = pl.when(must_fail).then(text + pl.lit("!")).otherwise(pl.lit("0")).cast(wide, strict=True)
+            return pl.when(must_fail).then(forced).otherwise(parsed)
+
+        if rounding == "to_zero":
+            # Parse wide enough to hold any value that can fit the target once the exponent is
+            # applied, then truncate on the decimal: nothing reads the text, so nothing misreads it.
+            wide = pl.Decimal(38, 38 - (precision - scale) - 3)
+            return resolved(text.cast(wide, strict=False), wide).truncate(scale).cast(target, strict=True)
+        # Parse at the target scale into the widest decimal: the engine rounds once here, and the
+        # strict narrowing below raises for a value that does not fit the target, in both modes.
+        wide = pl.Decimal(38, scale)
+        converted = resolved(text.cast(wide, strict=False), wide).cast(target, strict=True)
+        if rounding == "half_away_from_zero":
+            # The native cast rounds an exact tie to even; half-away differs exactly when the even
+            # neighbour is the lower one, i.e. when the last kept digit is even. The patterns match
+            # plain decimal text only, so other text keeps the engine's rounding.
+            tie = text.str.contains(rf"^[+-]?[0-9]*\.[0-9]{{{scale}}}50*$")
+            kept = (
+                text.str.extract(r"([0-9])\.50*$", 1)
+                if scale == 0
+                else text.str.extract(rf"\.[0-9]{{{scale - 1}}}([0-9])50*$", 1)
+            ).cast(pl.Int8, strict=False)
+            ulp = pl.lit(Decimal(1).scaleb(-scale), dtype=target)
+            away = pl.when(text.str.starts_with("-")).then(converted - ulp).otherwise(converted + ulp)
+            # Decimal arithmetic widens the type; cast back so the result type is exact and a corrected
+            # value that no longer fits (9999999.999 + one ulp) raises like any other overflow.
+            converted = pl.when(tie & (kept % 2 == 0)).then(away).otherwise(converted).cast(target, strict=True)
+        return converted
 
 
 def _kind_for_typed_operand(x: PolarsExpr, logical_kind: str) -> PolarsExpr:

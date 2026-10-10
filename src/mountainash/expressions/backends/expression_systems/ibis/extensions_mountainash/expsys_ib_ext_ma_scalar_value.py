@@ -72,63 +72,74 @@ class MountainAshIbisScalarValueExpressionSystem(
         rounding: str,
         failure_behavior: str,
     ) -> IbisValueExpr:
-        """Exact decimal cast built only from casts, ``round`` and typed decimal literals.
+        """Exact decimal cast: one native rounding of the value the author wrote.
 
-        Ibis ``round`` has no mode: it follows the backend's own tie rule (DuckDB rounds
-        half away from zero, Polars half to even). Exact ties are detected with decimal
-        arithmetic and corrected one ulp, so every backend returns the requested mode.
-        No floor/ceil, integer intermediates, division or modulo. Every literal is typed
-        explicitly: DuckDB's default literal type is DECIMAL(18,3), Ibis only combines
-        decimals when one type dominates both precision and scale, and Polars returns null
-        when a decimal multiply result has precision == scale.
+        The engine's own text-to-decimal cast parses and rounds the original text once, so no
+        intermediate can round first. The two Ibis backends disagree on how that cast breaks an
+        exact tie (DuckDB away from zero, Polars to even), so exact ties are resolved from the
+        text instead of the engine: the pattern matches plain decimal text only, and any other
+        text (exponents included) takes the engine's own rounding.
+
+        ``to_zero`` truncates on the decimal: it parses into a 64-bit decimal, rounds natively and
+        steps back one unit when that rounded away from zero. The parse keeps ``min(8, 17 - p + s)``
+        fractional digits, so ``min(8 - s, 17 - p)`` digits beyond the target scale are exact; past that
+        the parse rounds first (documented).
+
+        Invalid text raises under ``"throw"`` and becomes null under ``"null"``. Integer-part
+        overflow raises under both, because the narrowing to the target is a strict cast.
         """
         from decimal import Decimal
 
         import ibis.expr.datatypes as dt
 
-        def decimal_literal(value: Decimal, literal_scale: int) -> IbisValueExpr:
-            return ibis.literal(
-                value, type=dt.Decimal(precision=min(38, literal_scale + 2), scale=literal_scale)
-            )
-
-        intermediate_scale = 18 - (precision - scale) - 1
-        intermediate = dt.Decimal(18, intermediate_scale)
-        # Rounding runs in a 38-digit decimal of the same scale so a carry out of the integer part
-        # cannot abort Polars-engine backends (see MountainAshCastAPIBuilder.MAX_CAST_PRECISION).
-        wide = dt.Decimal(38, intermediate_scale)
-
+        target = dt.Decimal(precision, scale)
         # Floats convert by their shortest string form; text is trimmed and "_" removed.
         # re_replace, not replace: Ibis' replace removes only the first match on the Polars backend.
         text = x.cast("string").strip().re_replace("_", "")
-        parsed = (
-            text.try_cast(intermediate)
-            if failure_behavior == "null"
-            else text.cast(intermediate)
-        )
-        rounded = parsed.cast(wide).round(scale).cast(dt.Decimal(18, scale))
 
-        ulp = decimal_literal(Decimal(1).scaleb(-scale), scale)
-        negative_ulp = decimal_literal(-Decimal(1).scaleb(-scale), scale)
-        is_exact_tie = (parsed - rounded).abs() == decimal_literal(
-            Decimal(5).scaleb(-(scale + 1)), scale + 1
-        )
-        # Parity of the rounded value's last digit without modulo: r is even iff r*0.5 has
-        # no digit beyond `scale`.
-        half = rounded.cast(dt.Decimal(18, scale + 1)) * ibis.literal(
-            Decimal("0.5"), type=dt.Decimal(2, 1)
-        )
-        is_odd = half.round(scale) != half
-        # Step away from zero by one ulp, selected by the sign of the INPUT (never r, which
-        # can round to zero) and without multiplying by a sign (the Polars multiply bug).
-        away = ibis.ifelse(parsed < decimal_literal(Decimal(0), 0), negative_ulp, ulp)
+        if rounding == "to_zero":
+            # Keep as many fractional digits as the 64-bit width allows beside the target's integers,
+            # capped at 8: DuckDB's own exponent parse fails (null) for valid in-range numbers once the
+            # scale grows past that (about 7% of exponent inputs at scale 12, none up to 8).
+            fraction = min(8, 18 - (precision - scale) - 1)
+            parsed = text.try_cast(dt.Decimal(18, fraction))
+            rounded = parsed.round(scale)
+            unit = ibis.literal(Decimal(1).scaleb(-scale), type=dt.Decimal(18, scale))
+            zero = ibis.literal(Decimal(0), type=dt.Decimal(2, 0))
+            stepped = ibis.ifelse(parsed < zero, rounded + unit, rounded - unit)
+            converted = ibis.ifelse(rounded.abs() > parsed.abs(), stepped, rounded)
+        else:
+            parsed = text.try_cast(dt.Decimal(18, scale))
+            converted = parsed
+            # An exact tie is resolved from the truncated text, not from the engine's tie rule.
+            tie = text.re_search(rf"^[+-]?[0-9]*\.[0-9]{{{scale}}}50*$")
+            kept_pattern = r"([0-9])\.50*$" if scale == 0 else rf"\.[0-9]{{{scale - 1}}}([0-9])50*$"
+            kept = text.re_extract(kept_pattern, 1).cast("int64")
+            truncated = text.re_extract(rf"^[+-]?[0-9]*(?:\.[0-9]{{0,{scale}}})?", 0).try_cast(dt.Decimal(18, scale))
+            unit = ibis.literal(Decimal(1).scaleb(-scale), type=dt.Decimal(18, scale))
+            away = ibis.ifelse(text.startswith("-"), truncated - unit, truncated + unit)
+            if rounding == "half_away_from_zero":
+                tie_value = away
+            else:  # half_to_even: step away from zero only when the last kept digit is odd
+                tie_value = ibis.ifelse(kept % 2 == 1, away, truncated)
+            converted = ibis.ifelse(tie, tie_value, converted)
 
-        if rounding == "half_to_even":
-            result = ibis.ifelse(is_exact_tie & is_odd, rounded - away, rounded)
-        elif rounding == "half_away_from_zero":
-            result = ibis.ifelse(is_exact_tie & (rounded.abs() < parsed.abs()), rounded + away, rounded)
-        else:  # to_zero
-            result = ibis.ifelse(rounded.abs() > parsed.abs(), rounded - away, rounded)
-        return result.cast(dt.Decimal(precision, scale))
+        # The parse is non-strict so that the two reasons a row can fail to parse can be told apart. A
+        # DOUBLE parse is only a classifier (never used for the value): it succeeds for any finite number
+        # however large and fails for text that is not one (nan and infinity are not numbers a decimal can
+        # hold, so they count as invalid text). A finite number the parse cannot hold is out of range and
+        # always raises; text that is not a number raises under "throw" and stays null under "null".
+        unparsed = converted.isnull() & text.notnull()
+        as_double = text.try_cast("float64")
+        is_number = as_double.notnull() & ~as_double.isnan() & ~as_double.isinf()
+        must_fail = unparsed if failure_behavior == "throw" else unparsed & is_number
+        # The failure is forced by a strict cast whose *input* is masked: only rows that must fail see a
+        # character no number can contain (the error names the value). Some engines evaluate a strict
+        # cast for constants whatever the condition, so the condition must change the input, not skip it.
+        forced = ibis.ifelse(must_fail, text + "!", ibis.literal("0")).cast(dt.Decimal(18, scale))
+        converted = ibis.ifelse(must_fail, forced, converted)
+        # Narrowing to the target is strict, so a value that does not fit raises under both behaviours.
+        return converted.cast(target)
 
     def _typed_value_kind(self, x: IbisValueExpr, logical_kind: str) -> IbisValueExpr:
         label = {

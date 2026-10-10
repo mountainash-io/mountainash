@@ -169,12 +169,20 @@ There are exactly three, and no default: a conversion that loses digits should s
 
 ### Precision limits
 
-A **declaration** can use any precision up to 38. A **cast target** is limited to precision 16 (`.cast(DecimalDtype(17, ...))` raises when the expression is built). The conversion runs in an 18-digit intermediate, and Polars aborts the whole process (a Rust panic that `except Exception` does not catch) when its own `Decimal.round` carries out of a type's integer width, so the rounding runs in a wider decimal. A 38-digit intermediate has no wider type to use. Casts to 17 or more digits are available once Polars fixes `Decimal.round`.
+A **declaration** can use any precision up to 38. A **cast target** is limited to precision 16 (`.cast(DecimalDtype(17, ...))` raises when the expression is built). Polars aborts the whole process (a Rust panic that `except Exception` does not catch) when its own `Decimal.round` carries out of a type's integer width, and a decimal parse wider than 18 digits costs DuckDB about 330 times more (17 s against 0.05 s per million rows). Casts to 17 or more digits are available once Polars fixes `Decimal.round`.
+
+### How a conversion rounds
+
+The value is rounded **once, from the text you wrote**, using the engine's own text-to-decimal cast. There is no preliminary rounding stage, so the result does not depend on the target precision: `"1.2451"` gives `1.25` at both `DecimalDtype(10, 2)` and `DecimalDtype(16, 2)`, and `"0.0045"` gives `0.004` or `0.005` according to the mode, however many digits follow.
+
+- **`half_to_even` and `half_away_from_zero`:** the engine's cast does the rounding. Polars breaks an exact tie to even and DuckDB away from zero, so exact ties are resolved from the text instead, which makes every backend agree. This reads plain decimal text, so an exact tie **written with an exponent** (`"5e-11"` at scale 10) takes the engine's own tie rule (see the limits below).
+- **`to_zero`:** truncates on the decimal, with no text reading, so exponent text is interpreted by the engine. Polars parses into a wide decimal and truncates natively. DuckDB cannot (see the limits below).
 
 ### Sources
 
-- **Text** is trimmed and `_` separators are removed before parsing, on every backend, so `" 1_000.5 "` becomes `1000.5`. Exponents (`"1e2"`) and a leading `+` or `.` parse. This applies to decimal-target casts only, not to ordinary values.
-- **Floats** convert by their shortest displayed form, not their binary value: `2.675` with `half_to_even` at scale 2 gives `2.68`, and with `to_zero` gives `2.67`. Converting the exact binary value would give `2.67` for both and differ between engines.
+- **Text** is trimmed and `_` separators are removed before parsing, on every backend, so `" 1_000.5 "` becomes `1000.5`. A leading `+` or `.` and a trailing `.` parse. This applies to decimal-target casts only, not to ordinary values.
+- **Exponents** (`"1e2"`, `"1.5e-3"`) are not interpreted by mountainash: they go to the backend's own cast, which parses them exactly on Polars and Ibis-Polars. DuckDB has two documented limits for exponent text (below).
+- **Floats** convert by their shortest displayed form, not their binary value: `2.675` with `half_to_even` at scale 2 gives `2.68`, and with `to_zero` gives `2.67`. Converting the exact binary value would give `2.67` for both and differ between engines. A float whose shortest form is an exponent (`1e-07`) goes through the exponent path.
 - **Integers and decimals** convert exactly.
 
 ### Backend support
@@ -190,11 +198,14 @@ A refusal is a declared capability, raised before any data is read. It never fal
 
 ### Known limits
 
-The conversion is one vectorised native expression with no per-row checks, so three edge cases follow the engine's own behaviour. They are documented rather than detected:
+The conversion is one vectorised native expression with no per-row checks, so some edge cases follow the engine's own behaviour. They are documented rather than detected:
 
-1. **Wider than the intermediate.** The text is first parsed into an 18-digit intermediate decimal with `18 - (precision - scale) - 1` fractional digits, so it holds `precision - scale + 1` integer digits. A value with more integer digits than that raises under `"throw"` and becomes null under `"null"`, indistinguishable from invalid text.
-2. **More fractional digits past the target scale than the intermediate keeps.** The intermediate has `18 - (p - s) - 1` fractional digits, so an input is converted exactly only when it has at most `17 - p` digits beyond the target scale `s` (16 extra digits at `p = 1`, 7 at `p = 10`, 2 at `p = 15`, 1 at `p = 16`). Past that the parse rounds first and the mode rounds again, so the result can be rounded twice. For example `"0.00449999999999"` to `DecimalDtype(10, 3)` with `half_away_from_zero` gives `0.005` (the exact answer is `0.004`), because the parse first rounds it to `0.0045`. Near the cap it is easy to reach: `"0.51"` to `DecimalDtype(16, 0)` with `half_to_even` gives `0`, not `1`, because the parse rounds it to `0.5` first. Results are identical on every supported backend; they differ from the exact answer only in this region. Choose a smaller precision when inputs carry many more digits than the target scale.
-3. **Separator normalisation is lenient.** Removing `_` means `"1__0"` and `"_1"` convert to `10` and `1`.
+1. **`to_zero` on the Ibis backends (Ibis-DuckDB and Ibis-Polars).** DuckDB has no truncate-to-places, so `to_zero` rounds on a 64-bit decimal parse and steps back one unit when that rounded away from zero. The parse keeps `min(8, 17 - p + s)` fractional digits, so an input is exact when it has at most `min(8 - s, 17 - p)` digits beyond the target scale. Past that the parse rounds first. At `DecimalDtype(10, 3)` that is five extra digits; at `DecimalDtype(16, 2)` it is one, so `"1.99999"` gives `2.00` instead of `1.99`. Polars is exact for any length. The other two modes have no such window.
+2. **An exact tie written with an exponent takes the engine's own tie rule.** Mountainash resolves exact ties by reading plain decimal text, so for `"5e-11"` to `DecimalDtype(10, 10)` Polars and Ibis-Polars (half to even) give `0E-10` under `half_away_from_zero` (the exact answer is `1E-10`), and DuckDB (half away from zero) gives the wrong result under `half_to_even`. This affected 3 of 1,234 random exponent inputs. Write the value without an exponent when an exact tie matters.
+3. **DuckDB rounds exponent text below the last place by its mantissa digit.** `"7e-11"` to `DecimalDtype(10, 3)` gives `0.001`, where the exact value rounds to `0.000`; `"4e-11"` gives `0.000`. The error is always exactly one unit in the last place and only turns a true zero into `±0.001`. Exponent text at or above the last place is exact, as is the same value written without an exponent (`"0.00000000007"`).
+4. **DuckDB cannot parse some valid exponent text at a large target scale.** With a target scale of 12 or more, DuckDB's own parse returns nothing for a valid in-range number whose mantissa and exponent need many digits (8% of random exponent inputs at scale 12, 26% at scale 16, none up to scale 10). The conversion raises, naming the value, under both `"throw"` and `"null"`. Plain text at the same scale is unaffected.
+5. **A number too large for the target raises, in both failure behaviours.** A finite number that the engine's parse cannot hold, however large, is an out-of-range value, not invalid text. `nan` and infinity are invalid text.
+6. **Separator normalisation is lenient.** Removing `_` means `"1__0"` and `"_1"` convert to `10` and `1`.
 
 ### Conform
 
