@@ -526,6 +526,25 @@ def test_to_zero_of_a_long_leading_point_fraction_is_exact_on_polars(backend_nam
     assert collect_expr(df, _cast("v", p, s, "to_zero")) == expected
 
 
+# An integer too wide for the engine's parse is overflow, not zero. A parse that returns nothing is
+# ambiguous (no integer digit, or too wide), so the zero for ".99" must come from the text; this guards the
+# neighbouring case against that confusion (Rules verification of 1361460e: 39 nines became 0 on Polars).
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("mode", ["to_zero", "half_to_even", "half_away_from_zero"])
+@pytest.mark.parametrize("fb", ["throw", "null"])
+@pytest.mark.parametrize("text", ["9" * 39, "-" + "9" * 39, "9" * 400, "-" + "9" * 400, "9" * 39 + ".5", "9" * 12])
+def test_an_integer_too_wide_for_the_target_raises_at_scale_zero(backend_name, backend_factory, collect_expr, mode, fb, text):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": [text]}, backend_name)
+    with pytest.raises(Exception) as err:
+        collect_expr(df, _cast("v", 10, 0, mode, fb))
+    if backend_name in NARWHALS:
+        raise err.value  # a refusal is the declared outcome there (the strict xfail on BackendCapabilityError)
+    assert not isinstance(err.value, BackendCapabilityError)
+
+
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", BACKENDS)
 def test_to_zero_of_a_short_leading_point_fraction_is_exact_everywhere(backend_name, backend_factory, collect_expr):
