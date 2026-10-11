@@ -177,6 +177,39 @@ class TestJoinAnti:
         ]
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestJoinValueEqualOperands:
+    @pytest.mark.parametrize("operand", ["same", "wrappers", "aggregates"])
+    @pytest.mark.parametrize("keys", [["k"], ["k", "v"]])
+    @pytest.mark.parametrize("key_style", ["on", "paired"])
+    @pytest.mark.parametrize("how", ["anti", "semi"])
+    def test_equal_operands(
+        self, backend_name, backend_factory, operand, keys, key_style, how
+    ):
+        source = backend_factory.create(
+            {"k": ["A", "A", "B"], "v": [7, 7, 2]}, backend_name
+        )
+        left = ma.relation(source)
+        right = left if operand == "same" else ma.relation(source)
+        expected = [
+            {"k": "A", "v": 7}, {"k": "A", "v": 7}, {"k": "B", "v": 2}
+        ]
+        if operand == "aggregates":
+            left = left.group_by("k").agg(ma.col("v").sum().alias("v"))
+            right = right.group_by("k").agg(ma.col("v").sum().alias("v"))
+            expected = [{"k": "A", "v": 14}, {"k": "B", "v": 2}]
+        kwargs = (
+            {"on": keys} if key_style == "on"
+            else {"left_on": keys, "right_on": keys}
+        )
+        result = left.join(right, how=how, **kwargs).to_polars()
+        assert result.columns == ["k", "v"]
+        assert sorted_dicts(result.to_dicts(), ["k", "v"]) == (
+            [] if how == "anti" else expected
+        )
+
+
 # ---------------------------------------------------------------------------
 # Cross Join
 # ---------------------------------------------------------------------------

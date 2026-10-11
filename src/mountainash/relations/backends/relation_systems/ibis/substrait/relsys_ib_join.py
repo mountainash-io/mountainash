@@ -44,14 +44,12 @@ class SubstraitIbisJoinRelationSystem(SubstraitJoinRelationSystemProtocol[ir.Tab
                 f"Supported: {list(_JOIN_TYPE_MAP.keys())}"
             )
 
-        # Build predicates.
+        # Resolve keys against their own sides; bound expressions are ambiguous
+        # when Ibis operands are structurally equal.
         if on is not None:
-            # Simple equi-join on shared column names.
-            predicates = [left[col] == right[col] for col in on]
+            predicates = [(col, col) for col in on]
         elif left_on is not None and right_on is not None:
-            predicates = [
-                left[lc] == right[rc] for lc, rc in zip(left_on, right_on)
-            ]
+            predicates = list(zip(left_on, right_on))
         else:
             # Cross join or no predicate.
             predicates = []
