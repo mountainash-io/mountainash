@@ -166,12 +166,7 @@ class ConformTransformError(ConformError):
 
 
 class DecimalConversionRequiredError(ConformError):
-    """A declared exact-decimal field's actual column is not that decimal type.
-
-    Conform verifies a declared ``DecimalDtype`` and never converts it: a conversion needs an
-    explicit rounding mode, which a declaration does not carry. Convert first with
-    ``.cast(DecimalDtype(...), rounding=...)``.
-    """
+    """Decimal conversion requires an explicit FieldSpec rounding instruction."""
 
     def __init__(self, field_name: str, declared: Any, actual: Any) -> None:
         self.field_name = field_name
@@ -179,9 +174,9 @@ class DecimalConversionRequiredError(ConformError):
         self.actual = actual
         super().__init__(
             f"field {field_name!r} is declared {declared} but actual column is {actual}; "
-            f"convert first with .cast(DecimalDtype(precision={declared.precision}, "
-            f"scale={declared.scale}), rounding=...) "
-            "(conform conversion: backlog 280)"
+            f"declare FieldSpec.rounding or convert first with "
+            f".cast(DecimalDtype(precision={declared.precision}, "
+            f"scale={declared.scale}), rounding=...)"
         )
 
 

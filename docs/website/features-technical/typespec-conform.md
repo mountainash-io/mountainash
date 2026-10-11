@@ -209,7 +209,54 @@ The conversion is one vectorised native expression with no per-row checks, so so
 
 ### Conform
 
-`conform()` verifies a declared decimal field and never converts it. An actual column that is exactly that decimal passes unchanged under every `data_type` mode. Any other actual type (text, float, a different precision or scale) follows the policy: `evolve` keeps the actual column, `freeze` raises `SchemaDriftError`, and `coerce`/`discard_value`/`discard_row` raise `DecimalConversionRequiredError`, which names the explicit `.cast(DecimalDtype(...), rounding=...)` to use. A missing declared decimal column under `null_fill` becomes a typed `Decimal(p, s)` null. Conforming by converting is tracked as backlog item 280.
+Declare `FieldSpec.rounding` to let `conform()` convert a **top-level** field to its exact decimal type:
+
+```python
+spec = TypeSpec(fields=[FieldSpec(
+    name="amount",
+    type=UniversalType.NUMBER,
+    dtype=ma.DecimalDtype(precision=5, scale=2),
+    rounding="half_to_even",
+)])
+result = ma.relation({"amount": ["12.345", "bad", None]}).conform(
+    spec, contract={"data_type": "discard_row"},
+).to_polars()
+# amount: [Decimal("12.34"), None], dtype Decimal(5, 2)
+```
+
+The instruction accepts the three cast modes above. There is no default rounding mode or
+per-call override. When conversion is needed and the instruction is absent,
+`DecimalConversionRequiredError` points to `FieldSpec.rounding` or the explicit `.cast(...)`
+alternative. Unknown/non-string modes or rounding without a decimal target raise
+`InvalidDtypeDeclaration`.
+
+The Frictionless reader/writer persist the instruction alongside dtype, not inside it:
+
+```json
+{"name": "amount", "type": "number", "x-mountainash": {
+  "dtype": {"kind": "decimal", "precision": 5, "scale": 2},
+  "rounding": "half_to_even"
+}}
+```
+
+Absent or null rounding reads as `None` and is omitted on write. Rounding is a conversion
+instruction, not type identity: changing it alone does not create dtype drift.
+
+For a mismatching source, `coerce` throws on invalid input, `discard_value` replaces it
+with null, and `discard_row` removes failed non-null conversions. Source nulls and declared
+missing sentinels are retained. Existing lexical missing-value, numeric-text and `null_fill`
+instructions run before the native decimal cast. Overflow still raises under both discard
+policies. Converted output, inferred schema and effective schema retain exact precision/scale.
+
+A matching decimal column passes unchanged, **including nulls even when `null_fill` is set**.
+`evolve` retains a mismatching source type and values; `freeze` raises `SchemaDriftError`.
+Structural-only conform does not convert. A missing declared column under the
+`missing_columns="null_fill"` policy becomes a typed decimal null. These paths need no rounding.
+
+Conform reuses the existing cast, including its backend support and all limits above:
+conversion targets allow precision up to 16, while an already matching decimal can have
+precision up to 38. Nested field declarations can persist rounding, but nested conversion
+is not supported by this operation.
 
 ## DataPackage
 

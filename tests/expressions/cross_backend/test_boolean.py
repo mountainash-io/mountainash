@@ -17,7 +17,6 @@ import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
-from fixtures.call_expectations import expect_call_failure
 
 
 # =============================================================================
@@ -462,8 +461,7 @@ class TestComplexBooleanExpressions:
 @pytest.mark.integration
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestComplexEligibilityCheck:
-    """OR-of-AND eligibility predicate — xfail-gated on ibis-duckdb (IB-REL-18):
-    DuckDB does not guarantee filtered-scan row order for this predicate shape."""
+    """OR-of-AND eligibility values with explicit, backend-independent ordering."""
 
     def test_complex_eligibility_check(self, backend_name, backend_factory):
         """Test complex eligibility criteria."""
@@ -479,16 +477,6 @@ class TestComplexEligibilityCheck:
         expr = ((ma.col("age") >= 18) & (ma.col("score") >= 80)) | (
             (ma.col("premium") == True) & (ma.col("score") >= 85)
         )
-        with expect_call_failure(
-            when=backend_name == 'ibis-duckdb',
-            reason='Relation.filter() with certain compound boolean predicates may return rows in a different order than the input on ibis-duckdb; matched VALUES are always correct, only row position differs',
-            errors=(AssertionError,),
-        ):
-            actual = ma_top.relation(df).filter(expr).to_dict()["applicant"]
-            # Alice: (17>=18 & 95>=80) | (True & 95>=85) = False | True = True
-            # Bob: (25>=18 & 70>=80) | (False & 70>=85) = False | False = False
-            # Charlie: (35>=18 & 85>=80) | (True & 85>=85) = True | True = True
-            # David: (30>=18 & 90>=80) | (False & 90>=85) = True | False = True
-            # Eve: (22>=18 & 88>=80) | (True & 88>=85) = True | True = True
-            expected = ["Alice", "Charlie", "David", "Eve"]
-            assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+        actual = ma_top.relation(df).filter(expr).sort("applicant").to_dict()["applicant"]
+        expected = ["Alice", "Charlie", "David", "Eve"]
+        assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"

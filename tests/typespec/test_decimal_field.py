@@ -45,6 +45,15 @@ class TestFieldSpecDecimal:
         with pytest.raises(error):
             FieldSpec(name="a", dtype=D103, **kwargs)
 
+    @pytest.mark.parametrize("mode", ["bankers", 1])
+    def test_invalid_rounding_declaration(self, mode):
+        with pytest.raises(InvalidDtypeDeclaration):
+            FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103, rounding=mode)
+
+    def test_rounding_requires_decimal_target(self):
+        with pytest.raises(InvalidDtypeDeclaration):
+            FieldSpec(name="x", type=UniversalType.NUMBER, rounding="half_to_even")
+
 
 class TestCompareSpecsDecimal:
     def test_precision_scale_difference_is_a_type_change(self):
@@ -64,6 +73,16 @@ class TestCompareSpecsDecimal:
         a = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
         b = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
         assert not compare_specs(a, b).type_changes
+
+    def test_rounding_is_not_type_incompatibility(self):
+        left = TypeSpec(fields=[FieldSpec(
+            name="x", type=UniversalType.NUMBER, dtype=D103, rounding="half_to_even",
+        )])
+        right = TypeSpec(fields=[FieldSpec(
+            name="x", type=UniversalType.NUMBER, dtype=D103, rounding="to_zero",
+        )])
+        result = compare_specs(left, right)
+        assert result.is_compatible and not result.type_changes
 
     def test_extra_actual_field_still_compatible(self):
         # Baseline behaviour measured on develop, must be unchanged.
@@ -86,7 +105,7 @@ class TestCompareSpecsDecimal:
 
 class TestFrictionlessDecimal:
     def test_round_trip_including_nested(self):
-        child = FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=D103)
+        child = FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=D103, rounding="half_to_even")
         spec = TypeSpec(
             fields=[
                 child,
@@ -103,6 +122,46 @@ class TestFrictionlessDecimal:
         assert back.fields[0].dtype == D103
         assert back.fields[1].object_fields[0].dtype == D103
         assert back.fields[2].item_object_fields[0].dtype == D103
+        assert back.fields[0].rounding == "half_to_even"
+        assert back.fields[1].object_fields[0].rounding == "half_to_even"
+        assert back.fields[2].item_object_fields[0].rounding == "half_to_even"
+
+    @pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero", "to_zero"])
+    def test_rounding_descriptor_contract(self, mode):
+        descriptor = {"fields": [{
+            "name": "amount", "type": "number",
+            "x-mountainash": {
+                "dtype": {"kind": "decimal", "precision": 5, "scale": 2},
+                "rounding": mode,
+            },
+        }]}
+        spec = typespec_from_frictionless(descriptor)
+        assert spec.fields[0].rounding == mode
+        assert typespec_to_frictionless(spec) == descriptor
+
+    @pytest.mark.parametrize("rounding_extension", [{}, {"rounding": None}])
+    def test_legacy_rounding_is_omitted_on_write(self, rounding_extension):
+        dtype = {"kind": "decimal", "precision": 10, "scale": 3}
+        descriptor = {"fields": [{
+            "name": "x", "type": "number",
+            "x-mountainash": {"dtype": dtype, **rounding_extension},
+        }]}
+        spec = typespec_from_frictionless(descriptor)
+        assert spec.fields[0].rounding is None
+        assert spec.fields[0].dtype == D103
+        assert typespec_to_frictionless(spec) == {"fields": [{
+            "name": "x", "type": "number", "x-mountainash": {"dtype": dtype},
+        }]}
+
+    @pytest.mark.parametrize("extension", [
+        {"dtype": {"kind": "decimal", "precision": 10, "scale": 3}, "rounding": "bankers"},
+        {"rounding": "half_to_even"},
+    ])
+    def test_invalid_rounding_descriptor(self, extension):
+        with pytest.raises(InvalidDtypeDeclaration):
+            typespec_from_frictionless({"fields": [{
+                "name": "x", "type": "number", "x-mountainash": extension,
+            }]})
 
     def test_plain_number_emits_no_dtype_extension(self):
         desc = typespec_to_frictionless(
@@ -178,6 +237,7 @@ def test_decimal_extraction_per_backend(backend_name):
     assert field.type is UniversalType.NUMBER
     assert field.dtype == ma.DecimalDtype(precision=12, scale=4)
     assert field.backend_type is None
+    assert field.rounding is None
 
 
 def test_decimal_extraction_survives_a_round_trip_through_lowering():
