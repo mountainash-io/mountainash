@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional, Union
 
+from mountainash.core.constants import DECIMAL_ROUNDING_MODES
 from mountainash.core.dtypes import DecimalDtype, parse_cast_target
 from mountainash.expressions.core.expression_api.api_builders.api_builder_base import (
     BaseExpressionAPIBuilder,
@@ -29,7 +30,6 @@ from ._operation_options import invalid
 if TYPE_CHECKING:
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
 
-ROUNDING_MODES = ("half_to_even", "half_away_from_zero", "to_zero")
 # Decimal cast targets are limited to precision 16 so the conversion always runs in an 18-digit
 # intermediate that can be widened before rounding. Polars aborts the process (a Rust panic, not a
 # catchable error) when Decimal.round carries out of the type's integer width, and a 38-digit
@@ -71,10 +71,10 @@ class MountainAshCastAPIBuilder(BaseExpressionAPIBuilder, MountainAshCastAPIBuil
             # Same node as SubstraitCastAPIBuilder.cast (api_bldr_cast.py); keep the two in sync.
             return self._build(CastNode(input=self._node, target_type=target, failure_behavior=fb))
 
-        modes = ", ".join(ROUNDING_MODES)
+        modes = ", ".join(DECIMAL_ROUNDING_MODES)
         if rounding is None:
             invalid("cast", "rounding", f"required for DecimalDtype targets: one of {modes}")
-        if rounding not in ROUNDING_MODES:
+        if rounding not in DECIMAL_ROUNDING_MODES:
             invalid("cast", "rounding", f"{rounding!r} is not one of {modes}")
         if target.precision > MAX_CAST_PRECISION:
             invalid(

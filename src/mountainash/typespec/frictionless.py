@@ -338,6 +338,8 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
             "precision": fspec.dtype.precision,
             "scale": fspec.dtype.scale,
         }
+    if fspec.rounding is not None:
+        field_extensions["rounding"] = fspec.rounding
     if fspec.object_fields is not None:
         field_extensions["object_fields"] = [
             _field_to_frictionless_dict(inner) for inner in fspec.object_fields
@@ -500,6 +502,7 @@ def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
         false_values=false_values,
         backend_type=backend_type,
         dtype=_dtype_from_extension(name, field_ext.get("dtype")),
+        rounding=field_ext.get("rounding"),
         rename_from=rename_from,
         null_fill=null_fill,
         custom_cast=custom_cast,
