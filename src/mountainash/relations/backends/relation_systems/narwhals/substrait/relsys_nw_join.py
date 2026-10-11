@@ -45,7 +45,7 @@ class SubstraitNarwhalsJoinRelationSystem(
         # keys survive as ordinary columns, then select the canonical
         # left-then-right order (which also drops the private copies).
         order: list[str] | None = None
-        if left_on and right_on:
+        if left_on and right_on and join_type not in (JoinType.SEMI, JoinType.ANTI):
             order = list(left.columns) + list(right.columns)
             taken = set(order)
             la = _fresh_names("__ma_lk", len(left_on), taken)

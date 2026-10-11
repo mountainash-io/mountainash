@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2026-10-11
+
+### Fixed
+- Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
+- Narwhals semi/anti joins using `left_on`/`right_on` preserve the left-only output without projecting absent or duplicate right columns (258).
+
 ## Unreleased — 2026-10-10
 
 ### Added
