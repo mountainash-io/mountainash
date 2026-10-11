@@ -235,6 +235,10 @@ _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_VALUE", "DECIMAL_CAST", _NARWHALS_C
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_VALUE", "DECIMAL_CAST", ("ibis-sqlite",),
                     "SQLite has no fixed-precision decimal type.")
 
+_intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_AGGREGATE", "PRODUCT",
+                    (*_NARWHALS_CASES, *_IBIS_CASES),
+                    "Product is supported only on direct Polars routes.")
+
 # Scalar arithmetic backend methods explicitly reject these bitwise operations.
 _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC", "BITWISE_XOR",
                     _NARWHALS_CASES, "Narwhals has no bitwise XOR implementation.")

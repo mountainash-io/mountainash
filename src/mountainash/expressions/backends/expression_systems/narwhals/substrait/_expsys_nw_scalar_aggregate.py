@@ -9,6 +9,11 @@ from typing import Any, TYPE_CHECKING
 
 import narwhals as nw
 
+from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+)
+
 from ..base import NarwhalsBaseExpressionSystem
 
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import (
@@ -192,21 +197,12 @@ class SubstraitNarwhalsAggregateArithmeticExpressionSystem(
         /,
         overflow: Any = None,
     ) -> NarwhalsExpr:
-        """Product of a set of values. Returns 1 for empty input.
-
-        Args:
-            x: Expression to multiply.
-            overflow: Overflow handling (ignored in Narwhals).
-
-        Returns:
-            Product expression.
-
-        Note:
-            Narwhals doesn't have a direct product aggregate.
-            Falls back to exp(sum(log(x))) which works for positive values.
-        """
-        # Using exp(sum(log(x))) for product - works for positive values
-        return x.log().sum().exp()
+        """Reject product: Narwhals has no supported native product implementation."""
+        raise BackendCapabilityError(
+            "product is unsupported on Narwhals; use a direct Polars backend.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT,
+        )
 
     def std_dev(
         self,

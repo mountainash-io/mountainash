@@ -6,7 +6,7 @@ Examples are render-only illustrations, not executable tests, runtime rules, or 
 Catalogue descriptions retain their native/public layers and authored scope. Related policies are listed, not evaluated.
 Neither these examples nor upstream issue status establishes a verified version range.
 
-Illustrative examples: **444**
+Illustrative examples: **436**
 
 ## ibis/family — cum_prod() raises on all Ibis backends
 
@@ -1083,25 +1083,6 @@ Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR`
     Input data: {"values": {"g": ["a", "a", "a", "a"], "x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, 4.0, 6.0, 8.0]}}
     Reference result: {"historical_source_claim": 1.0}
     Contrasting result: {"historical_source_claim": "ma.corr() raises on all backends except ibis-polars"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-duckdb — product() over a zero factor fails/diverges on ibis SQL
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"a": [10, 20, 0, 30]}}
-    Reference result: {"historical_source_claim": 0}
-    Contrasting result: {"historical_source_claim": "product() over a zero factor fails/diverges on ibis SQL"}
 
 ### Catalogue descriptions
 
@@ -2473,120 +2454,6 @@ Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.AVG`
     Input data: {"values": {"a": [null, null, null]}}
     Reference result: {"historical_source_claim": null}
     Contrasting result: {"historical_source_claim": "historical NullColumn AttributeError"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-polars — product() returns None on ibis-polars
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"a": [10, 20, 0, 30]}}
-    Reference result: {"historical_source_claim": 0}
-    Contrasting result: {"historical_source_claim": "historical None"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-polars — product() returns None on ibis-polars
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"a": [2, 3, 4]}}
-    Reference result: {"historical_source_claim": 24}
-    Contrasting result: {"historical_source_claim": "historical None"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-polars — product() returns None on ibis-polars
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"a": [42]}}
-    Reference result: {"historical_source_claim": 42}
-    Contrasting result: {"historical_source_claim": "historical None"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-polars — product() returns None on ibis-polars
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"a": [5, 1, 1, 1]}}
-    Reference result: {"historical_source_claim": 5}
-    Contrasting result: {"historical_source_claim": "historical None"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-polars — product() returns None on ibis-polars
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"g": ["a", "a", "a", "b", "b"], "x": [1, 2, 3, 4, 6]}}
-    Reference result: {"historical_source_claim": [6, 24]}
-    Contrasting result: {"historical_source_claim": "historical None"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-polars — product() returns None on ibis-polars
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"x": [1, 2, 3, 4, 6]}}
-    Reference result: {"historical_source_claim": 144}
-    Contrasting result: {"historical_source_claim": "historical None"}
 
 ### Catalogue descriptions
 
@@ -4285,25 +4152,6 @@ Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR`
     Input data: {"values": {"g": ["a", "a", "a", "a"], "x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, 4.0, 6.0, 8.0]}}
     Reference result: {"historical_source_claim": 1.0}
     Contrasting result: {"historical_source_claim": "ma.corr() raises on all backends except ibis-polars"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/ibis-sqlite — product() over a zero factor fails/diverges on ibis SQL
-
-Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT`
-
-### Illustration
-
-    Input data: {"values": {"a": [10, 20, 0, 30]}}
-    Reference result: {"historical_source_claim": 0}
-    Contrasting result: {"historical_source_claim": "product() over a zero factor fails/diverges on ibis SQL"}
 
 ### Catalogue descriptions
 

@@ -76,6 +76,10 @@ ma.relation(df).group_by("category").agg(
 
 `group_by()` returns a `GroupedRelation` that exposes only `.agg()`.
 
+`product()` aggregates are supported only on direct Polars routes. Ibis and
+Narwhals routes raise `BackendCapabilityError`; this includes pandas DataFrames,
+which route through Narwhals.
+
 ### Joins (cross-type)
 
 ```python

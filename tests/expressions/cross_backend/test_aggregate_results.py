@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_api.relation import Relation
 from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
@@ -45,10 +46,6 @@ def _collect_agg(df, expr, alias="__value__"):
 # min/max/count all-null: only ibis-duckdb rejects the table (IB-REL-06).
 
 # mode() / any_value(): order-dependent, rejected on a narwhals LazyFrame (NW-AGG-03).
-
-# product() non-zero data: ibis-polars returns None (IB-AGG-05); ibis-duckdb/sqlite compute it.
-
-# product() with a zero factor: ibis-polars None (IB-AGG-05); ibis-duckdb/sqlite break (IB-AGG-07).
 
 # any_value()/n_unique() all-null: narwhals-lazy (NW-AGG-03) + ibis-duckdb
 # (IB-REL-06); ibis-polars/ibis-sqlite compute None over an all-null column.
@@ -565,53 +562,24 @@ class TestAggregateMode:
 @pytest.mark.cross_backend
 class TestAggregateProduct:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-    def test_product_integers(self, backend_name, backend_factory):
-        data = {"a": [2, 3, 4]}
-        df = backend_factory.create(data, backend_name)
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='product() returns None on ibis-polars',
-            errors=(AssertionError,),
-        ):
-            actual = _collect_agg(df, ma.col("a").product())
-            # pandas/narwhals compute via log/exp — allow float approximation
-            assert actual == pytest.approx(24)
-
-    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-    def test_product_with_one(self, backend_name, backend_factory):
-        data = {"a": [5, 1, 1, 1]}
-        df = backend_factory.create(data, backend_name)
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='product() returns None on ibis-polars',
-            errors=(AssertionError,),
-        ):
-            actual = _collect_agg(df, ma.col("a").product())
-            assert actual == pytest.approx(5)
-
-    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-    def test_product_with_zero(self, backend_name, backend_factory):
-        data = {"a": [10, 20, 0, 30]}
-        df = backend_factory.create(data, backend_name)
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'ibis-duckdb' or backend_name == 'ibis-sqlite',
-            reason=('product() returns None on ibis-polars' if backend_name == 'ibis-polars' else ('product() over a zero factor fails/diverges on ibis SQL' if backend_name == 'ibis-duckdb' else 'product() over a zero factor fails/diverges on ibis SQL')),
-            errors=((AssertionError,) if backend_name == 'ibis-polars' else ((OutOfRangeException,) if backend_name == 'ibis-duckdb' else (AssertionError,))),
-        ):
-            actual = _collect_agg(df, ma.col("a").product())
-            assert actual == 0
-
-    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-    def test_product_single_element(self, backend_name, backend_factory):
-        data = {"a": [42]}
-        df = backend_factory.create(data, backend_name)
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='product() returns None on ibis-polars',
-            errors=(AssertionError,),
-        ):
-            actual = _collect_agg(df, ma.col("a").product())
-            assert actual == pytest.approx(42)
+    @pytest.mark.parametrize(
+        "values,expected",
+        [
+            ([2, 3, 4], 24),
+            ([10, 0, 30], 0),
+            ([-2, 3], -6),
+            ([9007199254740993, 1], 9007199254740993),
+            ([2, None, 3], 6),
+        ],
+        ids=["positive", "zero", "negative", "exact-int64", "null-operand"],
+    )
+    def test_product_backend_contract(self, backend_name, backend_factory, values, expected):
+        df = backend_factory.create({"a": values}, backend_name)
+        if backend_name.startswith("polars"):
+            assert _collect_agg(df, ma.col("a").product()) == expected
+        else:
+            with pytest.raises(BackendCapabilityError):
+                _collect_agg(df, ma.col("a").product())
 
 
 # ─── AnyValue ───────────────────────────────────────────────────────────────

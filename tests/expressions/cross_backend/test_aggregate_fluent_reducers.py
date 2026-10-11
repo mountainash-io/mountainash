@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
+from mountainash.core.types import BackendCapabilityError
 from mountainash.relations import relation
 from fixtures.backend_registry import ALL_BACKENDS
 from narwhals.exceptions import InvalidOperationError
@@ -47,14 +48,12 @@ class TestFluentReducers:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_product(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='product() returns None on ibis-polars',
-            errors=(AssertionError,),
-        ):
+        if backend_name.startswith("polars"):
             result = _agg(df, lambda c: c.product())
-            # narwhals computes product via exp(sum(log(x))) which introduces float error
-            assert result["v"] == pytest.approx([6, 24]), f"[{backend_name}]"
+            assert result["v"] == [6, 24], f"[{backend_name}]"
+        else:
+            with pytest.raises(BackendCapabilityError):
+                _agg(df, lambda c: c.product())
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_std_dev(self, backend_name, backend_factory):

@@ -154,7 +154,7 @@ issues:
 - id: IB-AGG-01
   project: ibis
   category: aggregate-ops
-  summary: No product aggregate function — no SQL standard equivalent
+  summary: No native product aggregate function
   root_cause: upstream_feature_gap
   affected_backends:
   - ibis-duckdb
@@ -163,8 +163,10 @@ issues:
   upstream_issue: null
   upstream_issue_filed_by: null
   status: needs_filing
-  our_workaround: xfail_strict
-  notes: Could be implemented as EXP(SUM(LN(x))).
+  our_workaround: none
+  notes: 'Ibis has no native product aggregate. Do not recommend EXP(SUM(LN(x))):
+    it changes product semantics for zero, negative, null, and other edge cases.
+    Mountainash rejects PRODUCT for all Ibis dialects.'
   last_verified: '2026-05-11'
 - id: IB-AGG-02
   project: ibis
