@@ -4,6 +4,9 @@ from enum import Enum, IntEnum, StrEnum, auto
 from dataclasses import dataclass
 
 
+DECIMAL_ROUNDING_MODES = ("half_to_even", "half_away_from_zero", "to_zero")
+
+
 class CONST_BACKEND(StrEnum):
     """
     Unified backend enumeration — detection level.

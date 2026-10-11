@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
+from mountainash.core.constants import DECIMAL_ROUNDING_MODES
 from mountainash.core.dtypes import DecimalDtype  # noqa: TC001 - runtime pydantic resolution via DataResource
 from mountainash.typespec.universal_types import UniversalType, parse_universal
 from mountainash.typespec.errors import (
@@ -153,6 +154,7 @@ class FieldSpec:
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
+    rounding: str | None = None  # x-mountainash: conversion instruction, not dtype identity
 
     def __post_init__(self) -> None:
         if self.item_type is not None and self.type is not UniversalType.LIST:
@@ -189,6 +191,13 @@ class FieldSpec:
             if self.categories is not None:
                 raise InvalidDtypeDeclaration(
                     self.name, "dtype and categories cannot be combined"
+                )
+        if self.rounding is not None:
+            if not isinstance(self.dtype, DecimalDtype):
+                raise InvalidDtypeDeclaration(self.name, "rounding requires a DecimalDtype")
+            if not isinstance(self.rounding, str) or self.rounding not in DECIMAL_ROUNDING_MODES:
+                raise InvalidDtypeDeclaration(
+                    self.name, "invalid decimal rounding mode", self.rounding
                 )
 
     @property

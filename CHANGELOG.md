@@ -2,6 +2,9 @@
 
 ## Unreleased — 2026-10-11
 
+### Added
+- Top-level decimal conversion through `Relation.conform()` with explicit `FieldSpec.rounding`, persisted as `x-mountainash.rounding` beside dtype (280). Reuses the native decimal cast and existing coerce/discard policies, preserves exact output/inferred types, and applies existing numeric-text preparation and null filling on conversion. Matching decimals remain unchanged, including nulls; evolve/freeze and missing-column policies are unchanged. Existing precision, backend and rounding limits still apply.
+
 ### Fixed
 - Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
 - Narwhals semi/anti joins using `left_on`/`right_on` preserve the left-only output without projecting absent or duplicate right columns (258).

@@ -482,8 +482,8 @@ def resolve_conform_output(
         actual_dtype = (actual_dtypes or {}).get(em.source_name)
         mismatch: TypeDrift | None = None
         if em.field.dtype is not None:
-            # Declared exact decimal (item 241 R19): verified, never converted. It matches only
-            # an equal DecimalDtype; any other actual type is a mismatch under the data_type policy.
+            # Exact decimals match only equal precision/scale. All other source types
+            # are mismatches resolved by the existing data_type policy below.
             if actual_shapes is not None or actual_dtypes is not None:
                 actual_decimal = (
                     actual_shape.decimal if actual_shape is not None
@@ -615,11 +615,11 @@ def resolve_conform_output(
         type_mismatches.append(mismatch)
         if (
             em.field.dtype is not None
+            and em.field.rounding is None
             and apply_value_transforms
             and action in {"coerce", "discard_value", "discard_row"}
         ):
-            # Conform verifies a declared decimal and never converts it: a conversion needs an
-            # explicit rounding mode that a declaration does not carry (backlog 280).
+            # A mismatch requires an explicit instruction; declarations alone never choose rounding.
             raise DecimalConversionRequiredError(
                 em.field.name, em.field.dtype, mismatch.actual or "an unknown type"
             )
@@ -720,9 +720,12 @@ def _build_field_expr(
     else:
         expr = ma.col(source_name)
 
-    if fld.dtype is not None:
-        # Declared exact decimal: verified upstream (resolve_conform_output), never converted here.
-        # A matching column passes through; text sentinels do not apply to a decimal column.
+    if fld.dtype is not None and (
+        source_shape is None
+        or source_shape.decimal == fld.dtype
+        or type_action == "evolve"
+    ):
+        # Matching decimals and metadata-free ingress keep their existing pass-through.
         return FieldBuildResult(expr.name.alias(fld.name))
 
     shape_known = source_shape is not None
@@ -891,6 +894,8 @@ def _build_field_expr(
         or canonical is MountainashDtype.STRING
         or (fld.type is UniversalType.GEOJSON and canonical is MountainashDtype.JSON)
     )
+    if fld.dtype is not None and shape.decimal is not None:
+        lexical = False
     sentinels = fld.missing_values if fld.missing_values is not None else schema_missing_values
     from mountainash.typespec._categorical import categorical_values
     sentinel_values = categorical_values(list(sentinels))
@@ -913,7 +918,12 @@ def _build_field_expr(
     post_missing = expr
     transform_input = expr
     if fld.null_fill is not None:
-        expr = ma.coalesce(expr, ma.lit(fld.null_fill))
+        fill = ma.lit(fld.null_fill)
+        if fld.dtype is not None and shape.decimal is not None:
+            # Preserve fill digits: casting to the source scale first can double-round.
+            expr = expr.cast(MountainashDtype.STRING)
+            fill = fill.cast(MountainashDtype.STRING)
+        expr = ma.coalesce(expr, fill)
         transform_input = expr
     if incompatible_source:
         if type_action == "coerce":
@@ -983,7 +993,9 @@ def _build_field_expr(
     residue: list[MaterializationResidueCheck] = []
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(fld.name))
-    if fld.type == UniversalType.LIST and lexical:
+    if fld.dtype is not None:
+        expr = expr.cast(fld.dtype, rounding=fld.rounding, failure_behavior=failure)
+    elif fld.type == UniversalType.LIST and lexical:
         expr = expr.str.parse_list(
             item_type=fld.item_type or "string",
             delimiter=fld.delimiter or ",",

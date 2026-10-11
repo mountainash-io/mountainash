@@ -285,3 +285,16 @@ class TestHybridEndToEnd:
 
         # safe_float must NOT be in python_only
         assert "amount" not in python_only
+
+
+def test_decimal_rename_survives_evidence_free_lowering():
+    """This ingress boundary constructs Polars frames; it has no backend parameter."""
+    from decimal import Decimal
+    from mountainash.core.dtypes import DecimalDtype
+
+    spec = TypeSpec(fields=[FieldSpec(
+        name="amount", rename_from="raw", type=UniversalType.NUMBER,
+        dtype=DecimalDtype(precision=38, scale=2),
+    )], fields_match="open")
+    result = apply_hybrid_conversion([{"raw": Decimal("1.25")}], spec)
+    assert result["amount"].to_list() == [Decimal("1.25")]
