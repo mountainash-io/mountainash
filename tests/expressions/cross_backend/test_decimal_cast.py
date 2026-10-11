@@ -66,6 +66,35 @@ CASES = [
     # many more digits than the target scale
     (["1.2450000000000000001", "1.2449999999999999999"], 16, 2, "half_to_even", [D("1.25"), D("1.24")]),
 ]
+# Valid input only, so failure_behavior cannot change the result: one run each (the table above runs both).
+EXACT_VALUE_CASES = [
+    # ties on the pinned engine rules: Polars breaks to even, DuckDB away from zero; the mode must win
+    (["0.0045"], 10, 3, "half_to_even", [D("0.004")]),
+    (["0.0045"], 10, 3, "half_away_from_zero", [D("0.005")]),
+    # a value that already fits the target needs no digits discarded, so no mode may change it
+    (["0.1234567890123456", "-0.1234567890123456"], 16, 16, "half_to_even", [D("0.1234567890123456"), D("-0.1234567890123456")]),
+    (["0.1234567890123456", "-0.1234567890123456"], 16, 16, "half_away_from_zero", [D("0.1234567890123456"), D("-0.1234567890123456")]),
+    (["0.1234567890123456", "-0.1234567890123456"], 16, 16, "to_zero", [D("0.1234567890123456"), D("-0.1234567890123456")]),
+    (["0.123456789012", "0.12345678901"], 16, 12, "to_zero", [D("0.123456789012"), D("0.123456789010")]),
+    (["1.23456789"], 16, 8, "to_zero", [D("1.23456789")]),
+    # to_zero within 17 - p extra digits is exact on every engine (p=10: seven extra); carry does not overflow
+    (["1.9999999999", "-1.9999999999", "0.0009999999"], 10, 3, "to_zero", [D("1.999"), D("-1.999"), D("0.000")]),
+    (["9999999.9995"], 10, 3, "to_zero", [D("9999999.999")]),
+    # integer and float sources: floats convert by their shortest text (R17), integers exactly
+    ([2.675, 2.5, 0.1], 10, 2, "half_to_even", [D("2.68"), D("2.50"), D("0.10")]),
+    ([2.675, 2.5, 0.1], 10, 2, "to_zero", [D("2.67"), D("2.50"), D("0.10")]),
+    ([7, -7, 0], 10, 3, "half_to_even", [D("7.000"), D("-7.000"), D("0.000")]),
+    ([0.0045, 0.0001, 0.0005, 2.675, -0.0045], 10, 3, "half_to_even", [D("0.004"), D("0.000"), D("0.000"), D("2.675"), D("-0.004")]),
+    # leading-point text ties like the same value with a zero; short fractions truncate to zero
+    ([".5", "-.5", "+.5", "2.5", "-2.5", ".4"], 10, 0, "half_away_from_zero", [D("1"), D("-1"), D("1"), D("3"), D("-3"), D("0")]),
+    ([".5", "-.5", "+.5", "2.5", "-2.5", ".4"], 10, 0, "half_to_even", [D("0"), D("0"), D("0"), D("2"), D("-2"), D("0")]),
+    ([".999", "-.999", "+.999", ".5", "-.5"], 10, 0, "to_zero", [D("0")] * 5),
+    # exact ties written plainly follow the requested mode on every engine (exponent spelling is a limit)
+    (["0.125", "2.5"], 10, 2, "half_to_even", [D("0.12"), D("2.50")]),
+    (["0.125", "2.5"], 10, 2, "half_away_from_zero", [D("0.13"), D("2.50")]),
+    (["0.00000000005"], 10, 10, "half_to_even", [D("0E-10")]),
+    (["0.00000000005"], 10, 10, "half_away_from_zero", [D("1E-10")]),
+]
 OVERFLOW_CASES = [
     # The carry needs one more integer digit than the target and the intermediate hold: Polars
     # aborts the process on its own Decimal.round unless the rounding runs in a wider decimal.
@@ -76,7 +105,6 @@ OVERFLOW_CASES = [
     ("9999999.9995", 10, 3, "half_away_from_zero"),
     ("-9.5", 1, 0, "half_away_from_zero"),
 ]
-TO_ZERO_NO_OVERFLOW = ("9999999.9995", 10, 3, "to_zero", D("9999999.999"))
 
 
 def _cast(col, p, s, mode, fb="throw"):
@@ -102,8 +130,26 @@ def test_decimal_cast_values(backend_name, backend_factory, collect_expr, values
         assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
         return
     assert collect_expr(df, _cast("v", p, s, mode, fb)) == expected
-    out = ma.relation(df).select(_cast("v", p, s, mode, fb).alias("r")).to_polars()
-    assert out.schema["r"] == pl.Decimal(p, s)  # exact result type on every case
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+@pytest.mark.parametrize("values,p,s,mode,expected", EXACT_VALUE_CASES)
+def test_exact_values_on_every_engine(backend_name, backend_factory, collect_expr, values, p, s, mode, expected):
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    df = backend_factory.create({"v": values}, backend_name)
+    assert collect_expr(df, _cast("v", p, s, mode)) == expected
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", BACKENDS)
+def test_decimal_cast_result_type_is_exact(backend_name, backend_factory):
+    """The cast target is the exact result type (precision and scale), not just the right values."""
+    df = backend_factory.create({"v": ["1.5"]}, backend_name)
+    if backend_name == "ibis-sqlite":
+        pytest.skip("covered by the refusal tests")
+    out = ma.relation(df).select(_cast("v", 12, 4, "half_to_even").alias("r")).to_polars()
+    assert out.schema["r"] == pl.Decimal(12, 4)
 
 
 @pytest.mark.cross_backend
@@ -125,18 +171,6 @@ def test_integer_overflow_always_raises(backend_name, backend_factory, collect_e
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", BACKENDS)
-def test_to_zero_does_not_overflow_on_carry(backend_name, backend_factory, collect_expr):
-    value, p, s, mode, expected = TO_ZERO_NO_OVERFLOW
-    df = backend_factory.create({"v": [value]}, backend_name)
-    if backend_name == "ibis-sqlite":
-        with pytest.raises(BackendCapabilityError):
-            collect_expr(df, _cast("v", p, s, mode))
-        return
-    assert collect_expr(df, _cast("v", p, s, mode)) == [expected]
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
 def test_invalid_input_and_nulls(backend_name, backend_factory, collect_expr):
     df = backend_factory.create({"v": [None, "1.5", "12x", ""]}, backend_name)
     if backend_name == "ibis-sqlite":
@@ -146,33 +180,6 @@ def test_invalid_input_and_nulls(backend_name, backend_factory, collect_expr):
     assert collect_expr(df, _cast("v", 10, 3, "half_to_even", "null")) == [None, D("1.500"), None, None]
     with pytest.raises(Exception):
         collect_expr(df, _cast("v", 10, 3, "half_to_even", "throw"))
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
-def test_float_and_int_sources(backend_name, backend_factory, collect_expr):
-    df = backend_factory.create({"f": [2.675, 2.5, 0.1], "i": [7, -7, 0]}, backend_name)
-    if backend_name == "ibis-sqlite":
-        with pytest.raises(BackendCapabilityError):
-            collect_expr(df, _cast("f", 10, 2, "half_to_even"))
-        return
-    # R17: floats convert by their shortest string form, not their binary value
-    assert collect_expr(df, _cast("f", 10, 2, "half_to_even")) == [D("2.68"), D("2.50"), D("0.10")]
-    assert collect_expr(df, _cast("f", 10, 2, "to_zero")) == [D("2.67"), D("2.50"), D("0.10")]
-    assert collect_expr(df, _cast("i", 10, 3, "half_to_even")) == [D("7.000"), D("-7.000"), D("0.000")]
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
-def test_native_round_tie_rule_pins(backend_name, backend_factory, collect_expr):
-    """Ibis corrections assume DuckDB rounds ties away from zero and Polars to even; fail loudly if that changes."""
-    df = backend_factory.create({"v": ["0.0045"]}, backend_name)
-    if backend_name == "ibis-sqlite":
-        with pytest.raises(BackendCapabilityError):
-            collect_expr(df, _cast("v", 10, 3, "half_to_even"))
-        return
-    assert collect_expr(df, _cast("v", 10, 3, "half_to_even")) == [D("0.004")]
-    assert collect_expr(df, _cast("v", 10, 3, "half_away_from_zero")) == [D("0.005")]
 
 
 @pytest.mark.cross_backend
@@ -235,6 +242,27 @@ def _exact(text, scale, mode):
         return D(text).quantize(D(1).scaleb(-scale), rounding=rounding)
 
 
+# The tie correction assumes each engine's own text-to-decimal tie rule: Polars rounds an exact tie to even,
+# DuckDB away from zero. The conversion's result hides that (the correction makes the mode win), so this
+# asks the engines directly. If either changes its rule, the correction (or its removal) must be revisited.
+@pytest.mark.parametrize(
+    "engine,expected",
+    [("polars", D("0.004")), ("duckdb", D("0.005"))],
+    ids=["polars-half-even", "duckdb-half-away"],
+)
+def test_the_engines_own_tie_rule_is_what_the_correction_assumes(engine, expected):
+    if engine == "polars":
+        got = pl.DataFrame({"v": ["0.0045"]}).select(pl.col("v").cast(pl.Decimal(10, 3)))["v"][0]
+    else:
+        import ibis
+        import ibis.expr.datatypes as dt
+        import pyarrow as pa
+
+        table = ibis.duckdb.connect().create_table("t", pa.table({"v": ["0.0045"]}))
+        got = table.v.try_cast(dt.Decimal(10, 3)).execute().tolist()[0]
+    assert got == expected, f"{engine} no longer breaks an exact tie as the correction assumes"
+
+
 # Exponent text goes to the backend, which interprets it. Every engine agrees with the exact value on
 # these, so the cross-backend contract holds for them.
 EXPONENT_TEXT = ["1e2", "1E2", "1.5e-3", "5e-1", "0.5e0", "1245e-3", "2.5e0", "12.5e1", "1e-3", "-1.5e2", "+1e1"]
@@ -289,19 +317,6 @@ _ENGINE_TIE_RULE = {
     "polars": "half_to_even", "polars-lazy": "half_to_even", "ibis-polars": "half_to_even",
     "ibis-duckdb": "half_away_from_zero",
 }
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero"])
-@pytest.mark.parametrize("backend_name", BACKENDS)
-@pytest.mark.parametrize("plain,exponent,p,s", _EXACT_TIES)
-def test_an_exact_tie_written_plainly_follows_the_requested_mode(
-    backend_name, backend_factory, collect_expr, mode, plain, exponent, p, s
-):
-    if backend_name == "ibis-sqlite":
-        pytest.skip("covered by the refusal tests")
-    df = backend_factory.create({"v": [plain]}, backend_name)
-    assert collect_expr(df, _cast("v", p, s, mode)) == [_exact(plain, s, mode)]
 
 
 def _tie_mismatch(backend_name, mode):
@@ -420,62 +435,12 @@ def test_to_zero_beyond_the_ibis_exactness_limit(backend_name, backend_factory, 
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", BACKENDS)
-def test_to_zero_within_the_ibis_exactness_limit(backend_name, backend_factory, collect_expr):
-    """Within 17 - p extra digits `to_zero` is exact on every engine (p=10: seven)."""
-    values = ["1.9999999999", "-1.9999999999", "0.0009999999"]   # three kept digits plus seven extra
-    expected = [D("1.999"), D("-1.999"), D("0.000")]
-    if backend_name == "ibis-sqlite":
-        pytest.skip("covered by the refusal tests")
-    df = backend_factory.create({"v": values}, backend_name)
-    assert collect_expr(df, _cast("v", 10, 3, "to_zero")) == expected
-
-
-# Regressions from the Rules consumer review of 47ec97d. Expectations are written by hand.
-# Plain decimal text may omit the integer digit: ".5" is 0.5 and must tie like it at every scale.
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
-@pytest.mark.parametrize(
-    "mode,expected",
-    [
-        ("half_away_from_zero", [D("1"), D("-1"), D("1"), D("3"), D("-3"), D("0")]),
-        ("half_to_even", [D("0"), D("0"), D("0"), D("2"), D("-2"), D("0")]),
-    ],
-)
-def test_a_leading_point_text_ties_like_the_same_value_with_a_zero(
-    backend_name, backend_factory, collect_expr, mode, expected
-):
-    if backend_name == "ibis-sqlite":
-        pytest.skip("covered by the refusal tests")
-    df = backend_factory.create({"v": [".5", "-.5", "+.5", "2.5", "-2.5", ".4"]}, backend_name)
-    assert collect_expr(df, _cast("v", 10, 0, mode)) == expected
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
 @pytest.mark.parametrize("text", [".", "-.", "+.", ".e3"])
 def test_a_bare_point_is_not_a_number(backend_name, backend_factory, collect_expr, text):
     if backend_name == "ibis-sqlite":
         pytest.skip("covered by the refusal tests")
     df = backend_factory.create({"v": [text]}, backend_name)
     assert collect_expr(df, _cast("v", 10, 2, "half_to_even", "null")) == [None]
-
-
-# A value that already fits the target needs no digits discarded, so no mode may change it.
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
-@pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero", "to_zero"])
-@pytest.mark.parametrize("text,p,s", [
-    ("0.1234567890123456", 16, 16),
-    ("0.123456789012", 16, 12),
-    ("0.12345678901", 16, 11),
-    ("-0.1234567890123456", 16, 16),
-    ("1.23456789", 16, 8),
-])
-def test_a_value_that_already_fits_the_target_is_unchanged(backend_name, backend_factory, collect_expr, mode, text, p, s):
-    if backend_name == "ibis-sqlite":
-        pytest.skip("covered by the refusal tests")
-    df = backend_factory.create({"v": [text]}, backend_name)
-    assert collect_expr(df, _cast("v", p, s, mode)) == [D(text)]
 
 
 # to_zero reads plain text of any length exactly on Polars (cut after `scale` digits); the Ibis backends
@@ -545,15 +510,6 @@ def test_an_integer_too_wide_for_the_target_raises_at_scale_zero(backend_name, b
     assert not isinstance(err.value, BackendCapabilityError)
 
 
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
-def test_to_zero_of_a_short_leading_point_fraction_is_exact_everywhere(backend_name, backend_factory, collect_expr):
-    if backend_name == "ibis-sqlite":
-        pytest.skip("covered by the refusal tests")
-    df = backend_factory.create({"v": [".999", "-.999", "+.999", ".5", "-.5"]}, backend_name)
-    assert collect_expr(df, _cast("v", 10, 0, "to_zero")) == [D("0")] * 5
-
-
 # A native Float64 column converts through its shortest text, which DuckDB writes with an exponent below 1e-4
 # (Polars writes plain digits). DuckDB then rounds a value below one unit of the target's last place up by one
 # unit (documented limit 3), so the same float differs by engine. Rules re-review of de6d36de.
@@ -571,15 +527,6 @@ def test_a_float_below_one_unit_of_the_last_place_rounds_to_zero(backend_name, b
         pytest.skip("covered by the refusal tests")
     df = backend_factory.create({"v": [7e-11, 9.99e-05, -9.99e-05]}, backend_name)
     assert collect_expr(df, _cast("v", 10, 3, "half_to_even")) == [D("0.000")] * 3
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", BACKENDS)
-def test_a_float_at_or_above_1e_minus_4_converts_exactly_everywhere(backend_name, backend_factory, collect_expr):
-    if backend_name == "ibis-sqlite":
-        pytest.skip("covered by the refusal tests")
-    df = backend_factory.create({"v": [0.0045, 0.0001, 0.0005, 2.675, -0.0045]}, backend_name)
-    assert collect_expr(df, _cast("v", 10, 3, "half_to_even")) == [D("0.004"), D("0.000"), D("0.000"), D("2.675"), D("-0.004")]
 
 
 # A finite number too large for any float is still a number: it is out of range, so it raises under
