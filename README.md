@@ -29,27 +29,27 @@ hatch run mypy:check
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch rules, pull requests, and coding standards. See [TESTING.md](TESTING.md) for test tiers and backend test commands.
 
-### Ibis physical transaction support (development)
+### Ibis physical transaction support
 
-The local and CI test environments include the sibling `mountainash-data`
-checkout for the internal SQL owned-copy adapter. It uses Ibis 12 or later and
-upstream's `sqlglot>=29.0.1,<30.18.0` constraint. Drivers remain explicit (for
-example, `ibis-framework[duckdb]`); the adapter supports SQLite, DuckDB and
-PostgreSQL with one connection, one user and sequential execution.
+The `ibis` extra declares `mountainash-data>=0.1.0,<0.2` for SQL transaction
+and owned-copy support, alongside Ibis 12 or later and
+`sqlglot>=29.0.1,<30.18.0`. Local and CI environments resolve Data from its
+sibling checkout. Drivers remain explicit (for example,
+`ibis-framework[duckdb]`); the adapter supports SQLite, DuckDB and PostgreSQL
+with one connection, one user and sequential execution.
 
 The adapter borrows an existing connection, refuses caller transactions for
 owned-copy work, and performs physical operations through mountainash-data's
 public API. Base Polars/Narwhals execution does not import mountainash-data.
-Snapshot/capture integration is separate work; ordinary collection does not
-automatically enter a transaction.
+Ordinary collection does not automatically enter a transaction.
 
-The package's `ibis` extra has not yet been cut over to mountainash-data: a
-verified public release containing its transaction and dependency fixes is
-required first. Source-backed tests do not establish public-install acceptance.
+Public installation of `mountainash[ibis]` requires the Data, Settings and
+Auth-client releases to be published first. Candidate-wheel rehearsal verifies
+the dependency declaration, not public-index availability.
 
 ## Installed-artifact hello world
 
-There is not yet a supported public PyPI release. Build a candidate with [RELEASE.md](RELEASE.md), then install its wheel into a fresh Python 3.12 environment outside the checkout. Dependencies must come from public PyPI, not sibling checkouts. Files/storage/cloud extras also require their sibling releases to be public; a working base example does not establish those extras.
+There is not yet a supported public PyPI release. Build a candidate with [RELEASE.md](RELEASE.md), then install its wheel into a fresh Python 3.12 environment outside the checkout. Dependencies must come from public PyPI, not sibling checkouts. Ibis/files/storage/cloud extras also require their sibling releases to be public; a working base example does not establish those extras.
 
 The candidate verification command runs this transformation and checks the expected rows:
 

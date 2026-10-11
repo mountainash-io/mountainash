@@ -2,6 +2,7 @@
 # HATCH_SIBLINGS is a file URI: ../ locally, temp/ in CI.
 mountainash-settings @ ${HATCH_SIBLINGS}/mountainash-settings
 mountainash-auth-client @ ${HATCH_SIBLINGS}/mountainash-auth-client
+mountainash-data @ ${HATCH_SIBLINGS}/mountainash-data
 mountainash-transport @ ${HATCH_SIBLINGS}/mountainash-transport
 mountainash-files @ ${HATCH_SIBLINGS}/mountainash-files
 # Shared analytical dependency set exercised during release preparation.
