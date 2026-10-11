@@ -369,13 +369,6 @@
   {
     "backend": "ibis",
     "dialect": "ibis-duckdb",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() over a zero factor fails/diverges on ibis SQL",
-    "text": "Input data: {\"values\": {\"a\": [10, 20, 0, 30]}}\nReference result: {\"historical_source_claim\": 0}\nContrasting result: {\"historical_source_claim\": \"product() over a zero factor fails/diverges on ibis SQL\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
     "target": "FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH",
     "title": "hyperbolic functions raise on ibis-polars and ibis-duckdb",
     "text": "Input data: {\"values\": {\"val\": [1.0, 2.0]}}\nReference result: {\"historical_source_claim\": [0.0, \"math.acosh(2.0)\"]}\nContrasting result: {\"historical_source_claim\": \"historical unsupported native function\"}"
@@ -806,48 +799,6 @@
     "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.AVG",
     "title": "all-null sum/mean/std_dev/variance raise on ibis-polars/ibis-sqlite",
     "text": "Input data: {\"values\": {\"a\": [null, null, null]}}\nReference result: {\"historical_source_claim\": null}\nContrasting result: {\"historical_source_claim\": \"historical NullColumn AttributeError\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() returns None on ibis-polars",
-    "text": "Input data: {\"values\": {\"a\": [10, 20, 0, 30]}}\nReference result: {\"historical_source_claim\": 0}\nContrasting result: {\"historical_source_claim\": \"historical None\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() returns None on ibis-polars",
-    "text": "Input data: {\"values\": {\"a\": [2, 3, 4]}}\nReference result: {\"historical_source_claim\": 24}\nContrasting result: {\"historical_source_claim\": \"historical None\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() returns None on ibis-polars",
-    "text": "Input data: {\"values\": {\"a\": [42]}}\nReference result: {\"historical_source_claim\": 42}\nContrasting result: {\"historical_source_claim\": \"historical None\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() returns None on ibis-polars",
-    "text": "Input data: {\"values\": {\"a\": [5, 1, 1, 1]}}\nReference result: {\"historical_source_claim\": 5}\nContrasting result: {\"historical_source_claim\": \"historical None\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() returns None on ibis-polars",
-    "text": "Input data: {\"values\": {\"g\": [\"a\", \"a\", \"a\", \"b\", \"b\"], \"x\": [1, 2, 3, 4, 6]}}\nReference result: {\"historical_source_claim\": [6, 24]}\nContrasting result: {\"historical_source_claim\": \"historical None\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-polars",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() returns None on ibis-polars",
-    "text": "Input data: {\"values\": {\"x\": [1, 2, 3, 4, 6]}}\nReference result: {\"historical_source_claim\": 144}\nContrasting result: {\"historical_source_claim\": \"historical None\"}"
   },
   {
     "backend": "ibis",
@@ -1376,13 +1327,6 @@
     "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR",
     "title": "ma.corr() raises on all backends except ibis-polars",
     "text": "Input data: {\"values\": {\"g\": [\"a\", \"a\", \"a\", \"a\"], \"x\": [1.0, 2.0, 3.0, 4.0], \"y\": [2.0, 4.0, 6.0, 8.0]}}\nReference result: {\"historical_source_claim\": 1.0}\nContrasting result: {\"historical_source_claim\": \"ma.corr() raises on all backends except ibis-polars\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT",
-    "title": "product() over a zero factor fails/diverges on ibis SQL",
-    "text": "Input data: {\"values\": {\"a\": [10, 20, 0, 30]}}\nReference result: {\"historical_source_claim\": 0}\nContrasting result: {\"historical_source_claim\": \"product() over a zero factor fails/diverges on ibis SQL\"}"
   },
   {
     "backend": "ibis",

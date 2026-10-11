@@ -5,6 +5,7 @@
 ### Fixed
 - Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
 - Narwhals semi/anti joins using `left_on`/`right_on` preserve the left-only output without projecting absent or duplicate right columns (258).
+- Ibis dialects and all Narwhals variants (including pandas DataFrames routed through Narwhals) now reject product aggregates with `BackendCapabilityError`; Polars product behavior is unchanged. Retired the Ibis `EXP(SUM(LN(x)))` workaround recommendation and historical product-divergence examples (239).
 
 ## Unreleased — 2026-10-10
 

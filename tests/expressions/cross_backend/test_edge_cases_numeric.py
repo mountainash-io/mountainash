@@ -180,6 +180,7 @@ class TestModuloSign:
 class TestOverflow:
 
     def test_large_product(self, backend_name, backend_factory):
+        from mountainash.core.types import BackendCapabilityError
         from mountainash.relations.core.relation_api.relation import Relation
         from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import AggregateRelNode
 
@@ -189,17 +190,12 @@ class TestOverflow:
         aggregated = Relation(
             AggregateRelNode(input=r._node, keys=[], measures=[ma.col("a").product().alias("p")])
         )
-        actual = aggregated.item("p")
-        # 10^6 * 10^6 * 10^6 = 10^18 — fits in int64
-        # Some backends compute product as float64 (precision loss), ibis-polars returns None
-        from fixtures.call_expectations import expect_call_failure
-
-        with expect_call_failure(
-            when=backend_name == "ibis-polars",
-            errors=(AssertionError,),
-            reason="The Ibis Polars aggregate product returns NULL for this non-null Int64 input",
-        ):
-            assert actual == pytest.approx(1_000_000_000_000_000_000, rel=1e-6)
+        if backend_name.startswith("polars"):
+            # 10^6 * 10^6 * 10^6 = 10^18 — fits in int64.
+            assert aggregated.item("p") == 1_000_000_000_000_000_000
+        else:
+            with pytest.raises(BackendCapabilityError):
+                aggregated.item("p")
 
     def test_large_sum(self, backend_name, backend_factory):
         from mountainash.relations.core.relation_api.relation import Relation
