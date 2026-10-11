@@ -449,6 +449,7 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
     MountainAshScalarGeospatialAPIBuilderProtocol,
     MountainAshScalarTernaryAPIBuilderProtocol,
     MountainAshScalarValueAPIBuilderProtocol,
+    MountainAshCastAPIBuilderProtocol,
 )
 
 # =============================================================================
@@ -484,6 +485,7 @@ from mountainash.expressions.core.expression_api.api_builders.extensions_mountai
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_geospatial import MountainAshScalarGeospatialAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_ternary import MountainAshScalarTernaryAPIBuilder
 from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_scalar_value import MountainAshScalarValueAPIBuilder
+from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash.api_bldr_ext_ma_cast import MountainAshCastAPIBuilder
 
 
 # =============================================================================
@@ -655,6 +657,7 @@ MOUNTAINASH_API_BUILDER_PROTOCOLS = [
     (MountainAshScalarBooleanAPIBuilderProtocol, "scalar_boolean"),
     (MountainAshScalarTernaryAPIBuilderProtocol, "scalar_ternary"),
     (MountainAshScalarValueAPIBuilderProtocol, "scalar_value"),
+    (MountainAshCastAPIBuilderProtocol, "cast"),
 ]
 
 MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
@@ -667,6 +670,7 @@ MOUNTAINASH_API_BUILDER_IMPLEMENTATIONS = {
     "scalar_geospatial": MountainAshScalarGeospatialAPIBuilder,
     "scalar_ternary": MountainAshScalarTernaryAPIBuilder,
     "scalar_value": MountainAshScalarValueAPIBuilder,
+    "cast": MountainAshCastAPIBuilder,
 }
 
 

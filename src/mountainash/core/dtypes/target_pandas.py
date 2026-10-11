@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from .canonical import MountainashDtype as D
+from .canonical import DecimalDtype, MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, str] = {
@@ -40,7 +40,18 @@ def _base_name(native: Any) -> str:
     return str(native).split("[", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    import pyarrow as pa
+    import pandas as pd
+    return pd.ArrowDtype(pa.decimal128(dtype.precision, dtype.scale))
+
+
+def from_native(native: Any) -> Optional[D | DecimalDtype]:
+    pyarrow_type = getattr(native, "pyarrow_dtype", None)
+    if pyarrow_type is not None:
+        import pyarrow as pa
+        if pa.types.is_decimal(pyarrow_type):
+            return DecimalDtype(precision=pyarrow_type.precision, scale=pyarrow_type.scale)
     name = _base_name(native)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]

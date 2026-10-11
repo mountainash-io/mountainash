@@ -1,43 +1,45 @@
 {
   "stamp": {
-    "segments": 114,
-    "operations": 341,
-    "implementation_records": 1023,
-    "information": 1327,
-    "policies": 13
+    "segments": 115,
+    "operations": 342,
+    "implementation_records": 1026,
+    "information": 1334,
+    "policies": 17
   },
   "stats": {
     "backends": {
       "polars": {
-        "implemented": 338,
+        "implemented": 339,
         "implemented_via_handler": 3,
         "not_implemented": 0,
         "unknown": 0
       },
       "narwhals": {
-        "implemented": 338,
+        "implemented": 339,
         "implemented_via_handler": 3,
         "not_implemented": 0,
         "unknown": 0
       },
       "ibis": {
-        "implemented": 338,
+        "implemented": 339,
         "implemented_via_handler": 3,
         "not_implemented": 0,
         "unknown": 0
       }
     },
     "information_by_layer": {
-      "native": 1266,
+      "native": 1273,
       "public": 61
     },
     "policies_by_consumer": {
       "result_protection": 8,
+      "gate": 4,
       "materialization_error": 4,
       "immediate_error": 1
     },
     "policies_by_action": {
       "detect_non_null_to_null": 8,
+      "block": 4,
       "enrich": 5
     }
   },
@@ -15405,6 +15407,636 @@
               "impl_protocol": "MountainAshIbisScalarValueExpressionSystem",
               "information": [],
               "policies": []
+            }
+          }
+        },
+        {
+          "op": {
+            "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+            "op": "DECIMAL_CAST"
+          },
+          "cells": {
+            "polars": {
+              "impl": "implemented",
+              "impl_method": "decimal_cast",
+              "impl_protocol": "MountainAshPolarsScalarValueExpressionSystem",
+              "information": [],
+              "policies": []
+            },
+            "narwhals": {
+              "impl": "implemented",
+              "impl_method": "decimal_cast",
+              "impl_protocol": "MountainAshNarwhalsScalarValueExpressionSystem",
+              "information": [
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-lazy"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+                  "workaround": null,
+                  "issue": "NW-MATH-11",
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-lazy"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/value.py",
+                        "entry": "information[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "58d9eee09ba2b51222ebcfe6a530603ed6a3e4d712e3bb0f08fab91fa0b57d29"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-lazy"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "failure_behavior",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals Expr.cast has no non-strict option (narwhals#3702).",
+                  "workaround": null,
+                  "issue": "NW-CAST-01",
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-lazy"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[1]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/value.py",
+                        "entry": "information[1]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "58d9eee09ba2b51222ebcfe6a530603ed6a3e4d712e3bb0f08fab91fa0b57d29"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-pandas"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+                  "workaround": null,
+                  "issue": "NW-MATH-11",
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-pandas"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/extensions_mountainash/value.py",
+                        "entry": "information[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "e360e284a0bcf7002e5ee80579d6cbe67f205c491bf449992cc3e2d03056d047"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-pandas"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "failure_behavior",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals Expr.cast has no non-strict option (narwhals#3702).",
+                  "workaround": null,
+                  "issue": "NW-CAST-01",
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-pandas"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[1]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/extensions_mountainash/value.py",
+                        "entry": "information[1]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "e360e284a0bcf7002e5ee80579d6cbe67f205c491bf449992cc3e2d03056d047"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-polars"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+                  "workaround": null,
+                  "issue": "NW-MATH-11",
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-polars"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_polars/extensions_mountainash/value.py",
+                        "entry": "information[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "ee38a963fa2096c6990f10a8910c6a0d65e24f5edd1ab07529c694335c70c1d7"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-polars"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "failure_behavior",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals Expr.cast has no non-strict option (narwhals#3702).",
+                  "workaround": null,
+                  "issue": "NW-CAST-01",
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-polars"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[1]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_polars/extensions_mountainash/value.py",
+                        "entry": "information[1]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "ee38a963fa2096c6990f10a8910c6a0d65e24f5edd1ab07529c694335c70c1d7"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "policies": [
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-lazy"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "level": "unsupported",
+                  "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+                  "consumer": "gate",
+                  "action": "block",
+                  "native_errors": [],
+                  "native_issue": null,
+                  "information": {
+                    "scope": {
+                      "backend": "narwhals",
+                      "dialect": "narwhals-lazy"
+                    },
+                    "operation": {
+                      "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                      "op": "DECIMAL_CAST"
+                    },
+                    "subject": "*",
+                    "selector": {
+                      "kind": "unconditioned",
+                      "value": null
+                    },
+                    "variant": null,
+                    "layer": "native"
+                  },
+                  "issue_classes": [
+                    "unclassified"
+                  ],
+                  "applicability": {
+                    "regions": null
+                  },
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-lazy"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "policies[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/value.py",
+                        "entry": "policies[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "58d9eee09ba2b51222ebcfe6a530603ed6a3e4d712e3bb0f08fab91fa0b57d29"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-pandas"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "level": "unsupported",
+                  "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+                  "consumer": "gate",
+                  "action": "block",
+                  "native_errors": [],
+                  "native_issue": null,
+                  "information": {
+                    "scope": {
+                      "backend": "narwhals",
+                      "dialect": "narwhals-pandas"
+                    },
+                    "operation": {
+                      "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                      "op": "DECIMAL_CAST"
+                    },
+                    "subject": "*",
+                    "selector": {
+                      "kind": "unconditioned",
+                      "value": null
+                    },
+                    "variant": null,
+                    "layer": "native"
+                  },
+                  "issue_classes": [
+                    "unclassified"
+                  ],
+                  "applicability": {
+                    "regions": null
+                  },
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-pandas"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "policies[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/extensions_mountainash/value.py",
+                        "entry": "policies[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "e360e284a0bcf7002e5ee80579d6cbe67f205c491bf449992cc3e2d03056d047"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": "narwhals-polars"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "level": "unsupported",
+                  "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+                  "consumer": "gate",
+                  "action": "block",
+                  "native_errors": [],
+                  "native_issue": null,
+                  "information": {
+                    "scope": {
+                      "backend": "narwhals",
+                      "dialect": "narwhals-polars"
+                    },
+                    "operation": {
+                      "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                      "op": "DECIMAL_CAST"
+                    },
+                    "subject": "*",
+                    "selector": {
+                      "kind": "unconditioned",
+                      "value": null
+                    },
+                    "variant": null,
+                    "layer": "native"
+                  },
+                  "issue_classes": [
+                    "unclassified"
+                  ],
+                  "applicability": {
+                    "regions": null
+                  },
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": "narwhals-polars"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "policies[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_polars/extensions_mountainash/value.py",
+                        "entry": "policies[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "ee38a963fa2096c6990f10a8910c6a0d65e24f5edd1ab07529c694335c70c1d7"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "ibis": {
+              "impl": "implemented",
+              "impl_method": "decimal_cast",
+              "impl_protocol": "MountainAshIbisScalarValueExpressionSystem",
+              "information": [
+                {
+                  "scope": {
+                    "backend": "ibis",
+                    "dialect": "ibis-sqlite"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "SQLite has no fixed-precision decimal type; Ibis lowers decimal to REAL.",
+                  "workaround": null,
+                  "issue": null,
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "ibis",
+                        "dialect": "ibis-sqlite"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "information[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/value.py",
+                        "entry": "information[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "4475b6607a60dcb0640e257f16fb0f68884992511b293d8dfbdcf3596eb88a95"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "policies": [
+                {
+                  "scope": {
+                    "backend": "ibis",
+                    "dialect": "ibis-sqlite"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                    "op": "DECIMAL_CAST"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "level": "unsupported",
+                  "message": "SQLite has no fixed-precision decimal type; Ibis lowers decimal to REAL.",
+                  "consumer": "gate",
+                  "action": "block",
+                  "native_errors": [],
+                  "native_issue": null,
+                  "information": {
+                    "scope": {
+                      "backend": "ibis",
+                      "dialect": "ibis-sqlite"
+                    },
+                    "operation": {
+                      "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+                      "op": "DECIMAL_CAST"
+                    },
+                    "subject": "*",
+                    "selector": {
+                      "kind": "unconditioned",
+                      "value": null
+                    },
+                    "variant": null,
+                    "layer": "native"
+                  },
+                  "issue_classes": [
+                    "unclassified"
+                  ],
+                  "applicability": {
+                    "regions": null
+                  },
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.value",
+                      "scope": {
+                        "backend": "ibis",
+                        "dialect": "ibis-sqlite"
+                      },
+                      "source": "mountainash",
+                      "domain": "value",
+                      "entry": "policies[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/value.py",
+                        "entry": "policies[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "4475b6607a60dcb0640e257f16fb0f68884992511b293d8dfbdcf3596eb88a95"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
             }
           }
         },
@@ -75121,6 +75753,16 @@
       "changes": []
     },
     {
+      "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-polars"
+      },
+      "source": "mountainash",
+      "domain": "value",
+      "changes": []
+    },
+    {
       "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.substrait.arithmetic",
       "scope": {
         "backend": "narwhals",
@@ -82367,6 +83009,53 @@
             "artifact": {
               "encoding": "sha256",
               "value": "b19addde627ff551a573b8e3248c06f2e3920f5f2884331d9d68c4de5a8179ba"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "ibis",
+        "dialect": "ibis-sqlite"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "SQLite has no fixed-precision decimal type; Ibis lowers decimal to REAL.",
+      "workaround": null,
+      "issue": null,
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.value",
+          "scope": {
+            "backend": "ibis",
+            "dialect": "ibis-sqlite"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/value.py",
+            "entry": "information[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "4475b6607a60dcb0640e257f16fb0f68884992511b293d8dfbdcf3596eb88a95"
             }
           }
         }
@@ -96763,6 +97452,100 @@
         "dialect": "narwhals-lazy"
       },
       "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+      "workaround": null,
+      "issue": "NW-MATH-11",
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-lazy"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/value.py",
+            "entry": "information[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "58d9eee09ba2b51222ebcfe6a530603ed6a3e4d712e3bb0f08fab91fa0b57d29"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-lazy"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "failure_behavior",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals Expr.cast has no non-strict option (narwhals#3702).",
+      "workaround": null,
+      "issue": "NW-CAST-01",
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-lazy"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[1]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/value.py",
+            "entry": "information[1]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "58d9eee09ba2b51222ebcfe6a530603ed6a3e4d712e3bb0f08fab91fa0b57d29"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-lazy"
+      },
+      "operation": {
         "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
         "op": "CONTAINS"
       },
@@ -98667,6 +99450,100 @@
             "artifact": {
               "encoding": "sha256",
               "value": "6d2888354e4c6830222cc41b28ef367af1fa8aacbc53510616ee22341c7a904c"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-pandas"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+      "workaround": null,
+      "issue": "NW-MATH-11",
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-pandas"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/extensions_mountainash/value.py",
+            "entry": "information[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "e360e284a0bcf7002e5ee80579d6cbe67f205c491bf449992cc3e2d03056d047"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-pandas"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "failure_behavior",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals Expr.cast has no non-strict option (narwhals#3702).",
+      "workaround": null,
+      "issue": "NW-CAST-01",
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-pandas"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[1]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/extensions_mountainash/value.py",
+            "entry": "information[1]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "e360e284a0bcf7002e5ee80579d6cbe67f205c491bf449992cc3e2d03056d047"
             }
           }
         }
@@ -112700,6 +113577,100 @@
             "artifact": {
               "encoding": "sha256",
               "value": "abab74564e6ed6a5525469192f0a4c46ac419ada7d005036c9a6c699732f3634"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-polars"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+      "workaround": null,
+      "issue": "NW-MATH-11",
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-polars"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_polars/extensions_mountainash/value.py",
+            "entry": "information[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "ee38a963fa2096c6990f10a8910c6a0d65e24f5edd1ab07529c694335c70c1d7"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-polars"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "failure_behavior",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals Expr.cast has no non-strict option (narwhals#3702).",
+      "workaround": null,
+      "issue": "NW-CAST-01",
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-polars"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "information[1]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_polars/extensions_mountainash/value.py",
+            "entry": "information[1]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "ee38a963fa2096c6990f10a8910c6a0d65e24f5edd1ab07529c694335c70c1d7"
             }
           }
         }
@@ -138945,6 +139916,140 @@
     },
     {
       "scope": {
+        "backend": "ibis",
+        "dialect": "ibis-sqlite"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "level": "unsupported",
+      "message": "SQLite has no fixed-precision decimal type; Ibis lowers decimal to REAL.",
+      "consumer": "gate",
+      "action": "block",
+      "native_errors": [],
+      "native_issue": null,
+      "information": {
+        "scope": {
+          "backend": "ibis",
+          "dialect": "ibis-sqlite"
+        },
+        "operation": {
+          "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+          "op": "DECIMAL_CAST"
+        },
+        "subject": "*",
+        "selector": {
+          "kind": "unconditioned",
+          "value": null
+        },
+        "variant": null,
+        "layer": "native"
+      },
+      "issue_classes": [
+        "unclassified"
+      ],
+      "applicability": {
+        "regions": null
+      },
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.value",
+          "scope": {
+            "backend": "ibis",
+            "dialect": "ibis-sqlite"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "policies[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/value.py",
+            "entry": "policies[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "4475b6607a60dcb0640e257f16fb0f68884992511b293d8dfbdcf3596eb88a95"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-lazy"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "level": "unsupported",
+      "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+      "consumer": "gate",
+      "action": "block",
+      "native_errors": [],
+      "native_issue": null,
+      "information": {
+        "scope": {
+          "backend": "narwhals",
+          "dialect": "narwhals-lazy"
+        },
+        "operation": {
+          "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+          "op": "DECIMAL_CAST"
+        },
+        "subject": "*",
+        "selector": {
+          "kind": "unconditioned",
+          "value": null
+        },
+        "variant": null,
+        "layer": "native"
+      },
+      "issue_classes": [
+        "unclassified"
+      ],
+      "applicability": {
+        "regions": null
+      },
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-lazy"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "policies[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_lazy/extensions_mountainash/value.py",
+            "entry": "policies[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "58d9eee09ba2b51222ebcfe6a530603ed6a3e4d712e3bb0f08fab91fa0b57d29"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
         "backend": "narwhals",
         "dialect": "narwhals-pandas"
       },
@@ -139258,6 +140363,73 @@
         "dialect": "narwhals-pandas"
       },
       "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "level": "unsupported",
+      "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+      "consumer": "gate",
+      "action": "block",
+      "native_errors": [],
+      "native_issue": null,
+      "information": {
+        "scope": {
+          "backend": "narwhals",
+          "dialect": "narwhals-pandas"
+        },
+        "operation": {
+          "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+          "op": "DECIMAL_CAST"
+        },
+        "subject": "*",
+        "selector": {
+          "kind": "unconditioned",
+          "value": null
+        },
+        "variant": null,
+        "layer": "native"
+      },
+      "issue_classes": [
+        "unclassified"
+      ],
+      "applicability": {
+        "regions": null
+      },
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-pandas"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "policies[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_pandas/extensions_mountainash/value.py",
+            "entry": "policies[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "e360e284a0bcf7002e5ee80579d6cbe67f205c491bf449992cc3e2d03056d047"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-pandas"
+      },
+      "operation": {
         "family": "FKEY_SUBSTRAIT_SCALAR_STRING",
         "op": "SPLIT"
       },
@@ -139487,6 +140659,73 @@
             "artifact": {
               "encoding": "sha256",
               "value": "e8fa0f0fb890f31e6dcd3884715319064f17e9606befb46aa99f8ed1073c61ca"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": "narwhals-polars"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+        "op": "DECIMAL_CAST"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "level": "unsupported",
+      "message": "Narwhals cannot express decimal casts natively: no round mode (narwhals#3698) and no non-strict cast (narwhals#3702).",
+      "consumer": "gate",
+      "action": "block",
+      "native_errors": [],
+      "native_issue": null,
+      "information": {
+        "scope": {
+          "backend": "narwhals",
+          "dialect": "narwhals-polars"
+        },
+        "operation": {
+          "family": "FKEY_MOUNTAINASH_SCALAR_VALUE",
+          "op": "DECIMAL_CAST"
+        },
+        "subject": "*",
+        "selector": {
+          "kind": "unconditioned",
+          "value": null
+        },
+        "variant": null,
+        "layer": "native"
+      },
+      "issue_classes": [
+        "unclassified"
+      ],
+      "applicability": {
+        "regions": null
+      },
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_polars.extensions_mountainash.value",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": "narwhals-polars"
+          },
+          "source": "mountainash",
+          "domain": "value",
+          "entry": "policies[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/dialects/narwhals_polars/extensions_mountainash/value.py",
+            "entry": "policies[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "ee38a963fa2096c6990f10a8910c6a0d65e24f5edd1ab07529c694335c70c1d7"
             }
           }
         }

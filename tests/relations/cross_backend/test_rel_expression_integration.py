@@ -24,6 +24,22 @@ from mountainash.relations import relation
 #     "ibis-sqlite",
 # ]
 
+# narwhals < 2.27.0 returns the unchanged column for max_horizontal/min_horizontal with a literal on
+# pandas (NW-MATH-06), so greatest()/least() give wrong values there. 2.27.0 (yanked for an unrelated
+# Pointblank breakage) and 2.27.1 fixed it. The project supports narwhals>=2.20.0, so both are pinned.
+_HORIZONTAL_FIXED_IN = (2, 27, 0)
+_PANDAS_HORIZONTAL_REASON = (
+    "narwhals < 2.27.0: relation greatest()/least() diverge on pandas/narwhals-pandas "
+    "(NW-MATH-06); polars/narwhals-polars and ibis agree"
+)
+
+
+def _pandas_horizontal_functions_diverge(backend_name: str) -> bool:
+    """True where the installed narwhals still has the pandas horizontal-function bug."""
+    version = tuple(int(part) for part in nw.__version__.split(".")[:3])
+    return backend_name in ("narwhals-pandas", "pandas") and version < _HORIZONTAL_FIXED_IN
+
+
 SAMPLE_DATA = {
     "id": [1, 2, 3, 4, 5],
     "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
@@ -223,9 +239,9 @@ class TestHorizontalFunctions:
     def test_greatest(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         with expect_call_failure(
-            when=backend_name in ("narwhals-pandas", "pandas"),
+            when=_pandas_horizontal_functions_diverge(backend_name),
             errors=(AssertionError,),
-            reason="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
+            reason=_PANDAS_HORIZONTAL_REASON,
         ):
             result = (
                 relation(df)
@@ -239,9 +255,9 @@ class TestHorizontalFunctions:
     def test_least(self, backend_name, backend_factory):
         df = self._df(backend_name, backend_factory)
         with expect_call_failure(
-            when=backend_name in ("narwhals-pandas", "pandas"),
+            when=_pandas_horizontal_functions_diverge(backend_name),
             errors=(AssertionError,),
-            reason="Relation greatest()/least() diverge on pandas/narwhals-pandas; polars/narwhals-polars and ibis agree",
+            reason=_PANDAS_HORIZONTAL_REASON,
         ):
             result = (
                 relation(df).with_columns(least(col("score"), lit(90)).name.alias("capped_at_90")).sort("id").to_dict()

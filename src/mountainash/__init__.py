@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 # Lightweight eager exports: no dataframe backend is imported at package init.
 from mountainash.__version__ import __version__
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype
 from mountainash.core.errors import MountainashError
 from mountainash.core.resource_ref import ResourceRef
 from mountainash.core.types import DataFrameT
@@ -162,6 +162,7 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
 
 __all__ = [
     "__version__",
+    "DecimalDtype",
     "MountainashDtype",
     "MountainashError",
     "ResourceRef",

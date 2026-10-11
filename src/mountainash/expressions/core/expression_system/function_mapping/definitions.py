@@ -1845,6 +1845,15 @@ def register_all_functions() -> None:
             type_arguments=("x",),
         ),
         ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST,
+            projection_rule=PROPAGATE_FIRST,
+            substrait_uri=MountainashExtension.VALUE,
+            substrait_name="decimal_cast",
+            is_extension=True,
+            options=("precision", "scale", "rounding", "failure_behavior"),
+            protocol_method=MountainAshScalarValueExpressionSystemProtocol.decimal_cast,
+        ),
+        ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_VALUE.TEXT_VALUE,
             projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.VALUE,

@@ -21,11 +21,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
+from mountainash.core.dtypes import DecimalDtype  # noqa: TC001 - runtime pydantic resolution via DataResource
 from mountainash.typespec.universal_types import UniversalType, parse_universal
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
     InvalidDescriptorRelationship,
     InvalidKeyShapeError,
+    InvalidDtypeDeclaration,
 )
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
@@ -147,6 +149,7 @@ class FieldSpec:
     item_object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: ARRAY item struct schema
     delimiter: Optional[str] = None  # valid only when type is LIST (lexical)
     backend_type: Optional[str] = None
+    dtype: Optional[DecimalDtype] = None  # x-mountainash: portable exact decimal (item 241)
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
@@ -174,6 +177,19 @@ class FieldSpec:
             raise IncompatibleFieldPropertiesError(
                 self.name, "object_fields", self.type, (UniversalType.OBJECT,)
             )
+        if self.dtype is not None:
+            if self.type is not UniversalType.NUMBER:
+                raise IncompatibleFieldPropertiesError(
+                    self.name, "dtype", self.type, (UniversalType.NUMBER,)
+                )
+            if self.backend_type is not None:
+                raise InvalidDtypeDeclaration(
+                    self.name, "dtype and backend_type are mutually exclusive"
+                )
+            if self.categories is not None:
+                raise InvalidDtypeDeclaration(
+                    self.name, "dtype and categories cannot be combined"
+                )
 
     @property
     def source_name(self) -> str:
@@ -372,8 +388,15 @@ def compare_specs(
     for name in source_names & target_names:
         source_field = source.get_field(name)
         target_field = target.get_field(name)
-        if source_field and target_field and source_field.type != target_field.type:
+        if not (source_field and target_field):
+            continue
+        if source_field.type != target_field.type:
             diff.type_changes[name] = (source_field.type, target_field.type)
+        elif source_field.dtype != target_field.dtype:
+            # Declared exact decimals differ in p/s (or only one side declares one).
+            # Fields without a dtype on either side are compared exactly as before.
+            diff.type_changes[name] = (source_field.dtype or source_field.type,
+                                       target_field.dtype or target_field.type)
 
     diff.is_compatible = not diff.added_fields and not diff.type_changes
     return diff

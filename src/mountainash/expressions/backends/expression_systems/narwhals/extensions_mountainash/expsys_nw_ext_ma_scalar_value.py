@@ -390,3 +390,22 @@ class MountainAshNarwhalsScalarValueExpressionSystem(
             )
         null_text = nw.lit(None, dtype=nw.String)
         return nw.when(x.is_null()).then(null_text).otherwise(null_text)
+
+    def decimal_cast(
+        self,
+        x: nw.Expr,
+        /,
+        *,
+        precision: int,
+        scale: int,
+        rounding: str,
+        failure_behavior: str,
+    ) -> nw.Expr:
+        """Not implemented: Narwhals has no round mode or non-strict cast (narwhals#3698, #3702).
+
+        Reachable only when the capability gate is disabled. The public refusal is a declared
+        capability fact (NW-MATH-11 / NW-CAST-01), never a raise in backend code.
+        """
+        raise NotImplementedError(
+            "Narwhals has no rounding mode or non-strict cast (narwhals#3698, #3702)"
+        )

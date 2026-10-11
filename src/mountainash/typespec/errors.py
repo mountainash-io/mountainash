@@ -195,6 +195,22 @@ class InvalidFieldMatchDeclaration(TypeSpecError):
         )
 
 
+class InvalidDtypeDeclaration(TypeSpecError):
+    """A field's portable ``dtype`` declaration is malformed or inapplicable.
+
+    Raised for a malformed ``x-mountainash.dtype`` on load, and for a ``dtype`` that
+    cannot be combined with another field property. Never silently dropped.
+    """
+
+    def __init__(self, field_name: str | None, reason: str, rejected_value: Any = None) -> None:
+        self.field_name = field_name
+        self.reason = reason
+        self.rejected_value = rejected_value
+        scope = f"field {field_name!r}: " if field_name is not None else ""
+        suffix = f" (got {rejected_value!r})" if rejected_value is not None else ""
+        super().__init__(f"{scope}invalid dtype declaration: {reason}{suffix}")
+
+
 __all__ = [
     "DescriptorError",
     "InvalidDescriptorSyntax",
@@ -209,6 +225,7 @@ __all__ = [
     "TypeSpecError",
     "InvalidTypeSpecSemantics",
     "InvalidConstraintDeclaration",
+    "InvalidDtypeDeclaration",
     "InvalidJSONSchemaConstraint",
     "JSONSchemaReferenceDenied",
     "AmbiguousFieldName",

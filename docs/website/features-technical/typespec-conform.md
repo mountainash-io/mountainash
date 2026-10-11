@@ -125,6 +125,92 @@ closed on.
 uniqueness, and foreign-key checks compare decoded logical values, never raw
 transported text — whitespace and object-key order never change the outcome.
 
+## Exact decimals
+
+`ma.DecimalDtype(precision, scale)` is an exact decimal: `precision` is the total number of digits, `scale` the digits after the point (`1 <= precision <= 38`, `0 <= scale <= precision`). Declare it on a field, and convert into it with an explicit rounding mode:
+
+```python
+from decimal import Decimal
+
+import mountainash as ma
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+
+d = ma.DecimalDtype(precision=10, scale=3)
+
+# Declare it (persisted under `x-mountainash.dtype`; the Frictionless type stays `number`)
+spec = TypeSpec(fields=[FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=d)])
+
+# Convert into it: `rounding=` is required for a decimal target and rejected for any other
+ma.col("amount_text").cast(d, rounding="half_to_even")
+ma.col("amount_text").cast(d, rounding="to_zero", failure_behavior="null")
+
+# A typed literal in the same domain, so comparisons are exact
+ma.col("amount_text").cast(d, rounding="half_to_even") >= ma.lit(Decimal("0.010"), dtype=d)
+```
+
+### Rounding modes
+
+There are exactly three, and no default: a conversion that loses digits should say how.
+
+| Input | `half_to_even` | `half_away_from_zero` | `to_zero` |
+|---|---|---|---|
+| `"0.00449"` | `0.004` | `0.004` | `0.004` |
+| `"0.0045"` | `0.004` | `0.005` | `0.004` |
+| `"-0.0045"` | `-0.004` | `-0.005` | `-0.004` |
+| `"0.0055"` | `0.006` | `0.006` | `0.005` |
+| `"-0.0059"` | `-0.006` | `-0.006` | `-0.005` |
+
+(all to `DecimalDtype(10, 3)`)
+
+### Failures
+
+- **Invalid text** (`"12x"`, `""`, `NaN`, infinity) raises under `failure_behavior="throw"` (the default) and becomes null under `"null"`. Null stays null.
+- **Integer-part overflow after rounding raises under both behaviours.** `"9999999.9995"` to `DecimalDtype(10, 3)` rounds up to `10000000.000`, which does not fit, so it raises even with `failure_behavior="null"`. A range mistake in your declaration is never silently turned into nulls. `to_zero` cannot carry, so `"9999999.9995"` gives `9999999.999`.
+
+### Precision limits
+
+A **declaration** can use any precision up to 38. A **cast target** is limited to precision 16 (`.cast(DecimalDtype(17, ...))` raises when the expression is built). Polars aborts the whole process (a Rust panic that `except Exception` does not catch) when its own `Decimal.round` carries out of a type's integer width, and a decimal parse wider than 18 digits costs DuckDB about 330 times more (17 s against 0.05 s per million rows). Casts to 17 or more digits are available once Polars fixes `Decimal.round`.
+
+### How a conversion rounds
+
+The value is rounded **once, from the text you wrote**, using the engine's own text-to-decimal cast. There is no preliminary rounding stage, so the result does not depend on the target precision: `"1.2451"` gives `1.25` at both `DecimalDtype(10, 2)` and `DecimalDtype(16, 2)`, and `"0.0045"` gives `0.004` or `0.005` according to the mode, however many digits follow.
+
+- **`half_to_even` and `half_away_from_zero`:** the engine's cast does the rounding. Polars breaks an exact tie to even and DuckDB away from zero, so exact ties are resolved from the text instead, which makes every backend agree. This reads plain decimal text, so an exact tie **written with an exponent** (`"5e-11"` at scale 10) takes the engine's own tie rule (see the limits below).
+- **`to_zero`:** truncates on the decimal, with no text reading, so exponent text is interpreted by the engine. Polars parses into a wide decimal and truncates natively. DuckDB cannot (see the limits below).
+
+### Sources
+
+- **Text** is trimmed and `_` separators are removed before parsing, on every backend, so `" 1_000.5 "` becomes `1000.5`. A leading `+` or `.` (`".5"` is `0.5`) and a trailing `.` parse; a lone `.` does not. This applies to decimal-target casts only, not to ordinary values.
+- **Exponents** (`"1e2"`, `"1.5e-3"`) are not interpreted by mountainash: they go to the backend's own cast, which parses them exactly on Polars and Ibis-Polars. DuckDB has two documented limits for exponent text (below).
+- **Floats** convert by their shortest displayed form, not their binary value: `2.675` with `half_to_even` at scale 2 gives `2.68`, and with `to_zero` gives `2.67`. Converting the exact binary value would give `2.67` for both and differ between engines. The text is produced by the engine, and a float below `1e-4` is written with an exponent on DuckDB (`9.99e-05`) but in plain digits on Polars, so such a float takes the exponent path, with its limits below, on DuckDB only. A native `Float64` column therefore reaches those limits without any text in the input.
+- **Integers and decimals** convert exactly.
+
+### Backend support
+
+| Identity | Decimal casts |
+|---|---|
+| polars, polars-lazy | supported |
+| ibis-duckdb, ibis-polars | supported, identical results |
+| narwhals-polars, narwhals-lazy, narwhals-pandas, pandas | refused with `BackendCapabilityError`, pending Narwhals [#3698](https://github.com/narwhals-dev/narwhals/issues/3698) (no round mode) and [#3702](https://github.com/narwhals-dev/narwhals/issues/3702) (no non-strict cast) |
+| ibis-sqlite | refused with `BackendCapabilityError`: SQLite has no fixed-precision decimal type |
+
+A refusal is a declared capability, raised before any data is read. It never falls back to another engine.
+
+### Known limits
+
+The conversion is one vectorised native expression with no per-row checks, so some edge cases follow the engine's own behaviour. They are documented rather than detected:
+
+1. **`to_zero` on the Ibis backends (Ibis-DuckDB and Ibis-Polars).** DuckDB has no truncate-to-places, so `to_zero` rounds on a 64-bit decimal parse and steps back one unit when that rounded away from zero. The parse keeps `17 - p + s` fractional digits, so an input is exact when it has at most `17 - p` digits beyond the target scale `s` (`16` extra at `p = 1`, `5` at `p = 12`, `1` at `p = 16`). A value that already fits the target has no digits to discard, so it is never changed. Past the window the parse rounds first: at `DecimalDtype(16, 2)`, `"1.99999"` gives `2.00` instead of `1.99`. Polars cuts plain text after `s` fractional digits, so it is exact for plain text of any length; its parse of exponent text is exact while the value fits a 38-digit decimal. The other two modes have no such window.
+2. **An exact tie written with an exponent takes the engine's own tie rule.** Mountainash resolves exact ties by reading plain decimal text, so for `"5e-11"` to `DecimalDtype(10, 10)` Polars and Ibis-Polars (half to even) give `0E-10` under `half_away_from_zero` (the exact answer is `1E-10`), and DuckDB (half away from zero) gives the wrong result under `half_to_even`. This affected 3 of 1,234 random exponent inputs. Write the value without an exponent when an exact tie matters.
+3. **DuckDB rounds exponent text below the last place by its mantissa digit.** `"7e-11"` to `DecimalDtype(10, 3)` gives `0.001`, where the exact value rounds to `0.000`; `"4e-11"` gives `0.000`. The error is always exactly one unit in the last place and only turns a true zero into `±0.001`. It applies to a `Float64` too: a value below one unit of the target's last place (`7e-11` and `9.99e-05` at scale 3) is affected, and about half of floats below `1e-4` at scale 3 round up by one unit on DuckDB, none on Polars. The same float is exact at a scale where it is not below one unit (3 of 6,000 at scale 6). Exponent text at or above the last place is exact, as is the same value written without an exponent (`"0.00000000007"`).
+4. **DuckDB cannot parse some valid exponent text at a large target scale.** With a target scale of 12 or more, DuckDB's own parse returns nothing for a valid in-range number whose mantissa and exponent need many digits (8% of random exponent inputs at scale 12, 26% at scale 16, none up to scale 10). Under `half_to_even` and `half_away_from_zero` the conversion raises, naming the value, under both `"throw"` and `"null"`; `to_zero` falls back to a smaller parse and is unaffected. Plain text at the same scale is unaffected.
+5. **A number too large for the target raises, in both failure behaviours.** Whether text is a number is decided by its shape (digits, one point, an exponent), not by a float parse, so `"1e309"` and a 400-digit integer raise rather than becoming null. `nan`, `inf`, `infinity` and any other text are invalid: null under `"null"`, an error under `"throw"`.
+6. **Separator normalisation is lenient.** Removing `_` means `"1__0"` and `"_1"` convert to `10` and `1`.
+
+### Conform
+
+`conform()` verifies a declared decimal field and never converts it. An actual column that is exactly that decimal passes unchanged under every `data_type` mode. Any other actual type (text, float, a different precision or scale) follows the policy: `evolve` keeps the actual column, `freeze` raises `SchemaDriftError`, and `coerce`/`discard_value`/`discard_row` raise `DecimalConversionRequiredError`, which names the explicit `.cast(DecimalDtype(...), rounding=...)` to use. A missing declared decimal column under `null_fill` becomes a typed `Decimal(p, s)` null. Conforming by converting is tracked as backlog item 280.
+
 ## DataPackage
 
 Frictionless `datapackage.json` is the multi-resource container format. mountainash supports it natively:

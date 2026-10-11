@@ -315,6 +315,7 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_STRUCT,
         FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL,
         FKEY_MOUNTAINASH_SCALAR_TERNARY,
+        FKEY_MOUNTAINASH_SCALAR_VALUE,
         FKEY_MOUNTAINASH_WINDOW,
         FKEY_SUBSTRAIT_CONDITIONAL,
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
@@ -328,6 +329,11 @@ def _init_a2_local_builders() -> dict:
     b = ma.col("e")
 
     return {
+        # .cast is the flat public name; the protocol method is decimal_cast, so
+        # _resolve_api_callable cannot find it by method name.
+        FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST: lambda: c.cast(
+            ma.DecimalDtype(precision=10, scale=3), rounding="half_to_even"
+        ),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_UNKNOWN: lambda: ma.always_unknown(),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_TRUE: lambda: ma.always_true(),
         FKEY_MOUNTAINASH_SCALAR_TERNARY.ALWAYS_FALSE: lambda: ma.always_false(),

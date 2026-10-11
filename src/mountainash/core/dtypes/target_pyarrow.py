@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 import pyarrow as pa
 
-from .canonical import MountainashDtype as D
+from .canonical import DecimalDtype, MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -48,10 +48,17 @@ def _base_name(native: Any) -> str:
     return str(native).split("[", 1)[0].split("<", 1)[0]
 
 
-def from_native(native: Any) -> Optional[D]:
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    return pa.decimal128(dtype.precision, dtype.scale)
+
+
+def from_native(native: Any) -> Optional[D | DecimalDtype]:
     name = _base_name(native)
     if name in _UNTYPED_NAMES:
         return None
+    if pa.types.is_decimal(native):
+        # decimal256 beyond precision 38 is outside DecimalDtype bounds -> typed error
+        return DecimalDtype(precision=native.precision, scale=native.scale)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]
     raise UnknownDtypeError(f"Unrecognized PyArrow dtype: {native!r}")

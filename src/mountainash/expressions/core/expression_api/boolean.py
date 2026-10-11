@@ -47,6 +47,7 @@ from .api_builders.extensions_mountainash import (
     MountainAshScalarCategoricalAPIBuilder,
     MountainAshScalarTernaryAPIBuilder,
     MountainAshScalarValueAPIBuilder,
+    MountainAshCastAPIBuilder,
 )
 
 # Import descriptor for explicit namespaces
@@ -133,6 +134,7 @@ class BooleanExpressionAPI(BaseExpressionAPI):
     """
     _FLAT_NAMESPACES: ClassVar[tuple[type[BaseExpressionAPIBuilder], ...]] = (
         # Mountainash extensions first
+        MountainAshCastAPIBuilder,  # must precede SubstraitCastAPIBuilder: takes over the flat .cast name
         MountainAshScalarTernaryAPIBuilder,
         MountainAshNullAPIBuilder,
         MountainAshNameAPIBuilder,

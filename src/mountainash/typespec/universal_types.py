@@ -19,7 +19,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Optional, Tuple
 
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.typespec.errors import AmbiguousGeospatialTypeError
 
@@ -142,11 +142,17 @@ def to_canonical(universal: UniversalType) -> Optional[MountainashDtype]:
 
 
 def from_canonical(
-    dtype: Optional[MountainashDtype],
+    dtype: Optional[MountainashDtype | DecimalDtype],
 ) -> Tuple[UniversalType, Optional[str]]:
-    """Map canon (or None = untyped) back to (UniversalType, format hint)."""
+    """Map canon (or None = untyped) back to (UniversalType, format hint).
+
+    A ``DecimalDtype`` is a NUMBER refinement: its precision/scale are carried
+    by ``FieldSpec.dtype``, not by the universal type.
+    """
     if dtype is None:
         return (UniversalType.ANY, None)
+    if isinstance(dtype, DecimalDtype):
+        return (UniversalType.NUMBER, None)
     return CANONICAL_TO_UNIVERSAL[dtype]
 
 

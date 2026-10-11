@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from .canonical import (
     DTYPE_ALIASES,
+    DecimalDtype,
     MountainashDtype,
     NativeDtype,
     parse_cast_target,
@@ -24,7 +25,7 @@ from .targets import TypeTarget, detect_target
 
 
 __all__ = [
-    "MountainashDtype", "NativeDtype", "DTYPE_ALIASES",
+    "MountainashDtype", "NativeDtype", "DecimalDtype", "DTYPE_ALIASES",
     "parse_dtype", "parse_cast_target",
     "TypeTarget", "detect_target",
     "DtypeRegistry", "registry",

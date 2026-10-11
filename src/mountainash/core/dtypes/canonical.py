@@ -7,6 +7,7 @@ maps here via typespec.universal_types.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union
 
@@ -129,6 +130,36 @@ class NativeDtype(BaseModel):
     target: TypeTarget
 
 
+@dataclass(frozen=True)
+class DecimalDtype:
+    """Portable exact decimal: precision = total digits, scale = fractional digits.
+
+    A dataclass, not a pydantic model, so the typed error is not wrapped in
+    ``pydantic.ValidationError``.
+    """
+
+    precision: int
+    scale: int
+
+    def __post_init__(self) -> None:
+        p, s = self.precision, self.scale
+        if (
+            isinstance(p, bool) or isinstance(s, bool)
+            or not isinstance(p, int) or not isinstance(s, int)
+        ):
+            raise UnknownDtypeError(
+                f"DecimalDtype precision/scale must be int, got {p!r}, {s!r}"
+            )
+        if not 1 <= p <= 38 or not 0 <= s <= p:
+            raise UnknownDtypeError(
+                "DecimalDtype requires 1 <= precision <= 38 and "
+                f"0 <= scale <= precision, got ({p}, {s})"
+            )
+
+    def __str__(self) -> str:
+        return f"decimal({self.precision},{self.scale})"
+
+
 def parse_dtype(value: Any) -> MountainashDtype:
     """Normalize a canonical dtype specifier to the MountainashDtype enum.
 
@@ -168,12 +199,17 @@ def parse_dtype(value: Any) -> MountainashDtype:
     )
 
 
-def parse_cast_target(value: Any) -> Union[MountainashDtype, NativeDtype]:
+def parse_cast_target(
+    value: Any,
+) -> Union[MountainashDtype, DecimalDtype, NativeDtype]:
     """Resolve a user-facing cast target.
 
-    Canonical inputs normalize via parse_dtype. Native backend dtype objects
-    wrap in NativeDtype WITHOUT normalization (parameters preserved).
+    Canonical inputs normalize via parse_dtype. ``DecimalDtype`` passes through
+    unchanged. Native backend dtype objects wrap in NativeDtype WITHOUT
+    normalization (parameters preserved).
     """
+    if isinstance(value, DecimalDtype):
+        return value
     try:
         return parse_dtype(value)
     except UnknownDtypeError:

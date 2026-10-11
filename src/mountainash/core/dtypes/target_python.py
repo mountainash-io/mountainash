@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import datetime
+import decimal
 from typing import Any, Optional
 
-from .canonical import MountainashDtype as D
+from .canonical import DecimalDtype, MountainashDtype as D
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -44,6 +45,10 @@ _FROM_NAME: dict[str, D] = {
 }
 
 _UNTYPED_NAMES = {"Any"}
+
+
+def to_native_decimal(dtype: DecimalDtype) -> Any:
+    return decimal.Decimal
 
 
 def from_native(native: Any) -> Optional[D]:

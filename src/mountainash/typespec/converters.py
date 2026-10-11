@@ -81,7 +81,9 @@ def resolve_field_canonical(field: "FieldSpec") -> Any:
 # ============================================================================
 
 def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
-    """Resolve categories, backend overrides, canonical types, and containers."""
+    """Resolve declared decimals, categories, backend overrides, canonical types, and containers."""
+    if field.dtype is not None:
+        return registry.to_native_schema(field.dtype, target)
     if field.categories is not None and target in (TypeTarget.POLARS, TypeTarget.PANDAS):
         from mountainash.typespec._categorical import categorical_values
         values = categorical_values(field.categories)

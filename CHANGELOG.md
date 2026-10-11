@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 2026-10-10
+
+### Added
+- `ma.DecimalDtype(precision, scale)`, an exact decimal descriptor, with `.cast(DecimalDtype(...), rounding=...)` for native conversion on Polars, Polars-lazy, Ibis-DuckDB and Ibis-Polars, and `ma.lit(value, dtype=...)` for typed literals. `rounding=` takes `"half_to_even"`, `"half_away_from_zero"` or `"to_zero"` and is required for decimal targets. The value is rounded once, from the text as written, by the engine's own text-to-decimal cast, so the result does not depend on the target precision (`"1.2451"` gives `1.25` at both `(10,2)` and `(16,2)`). Exponent text is passed to the engine, not interpreted by mountainash. Integer-part overflow always raises; invalid text raises or becomes null per `failure_behavior`. The Narwhals-based backends and SQLite refuse with a declared `BackendCapabilityError` (Narwhals #3698/#3702). Cast targets are limited to precision 16 (declarations allow up to 38) because Polars' own `Decimal.round` aborts the process when a carry exceeds the type's width. Known limits, all documented and each covered by a strict test: `to_zero` on the Ibis backends is exact only within `17 - p` digits past the scale (a value that already fits the target is never changed); DuckDB mis-rounds exponent text below the last place and cannot parse some exponent text at scale 12 or more under the two half modes; and an exact tie written with an exponent follows the engine's own tie rule. Text is classified as a number by its shape, so a finite number too large for any float raises under both failure behaviours. See [Exact decimals](docs/website/features-technical/typespec-conform.md#exact-decimals) (241).
+- `FieldSpec.dtype` declares a field's exact decimal. It persists under `x-mountainash.dtype` (including inside object and array-item fields), lowers to each backend's native decimal, is extracted from native decimal columns with precision and scale kept, and is compared by `compare_specs`. A malformed `x-mountainash.dtype` raises `InvalidDtypeDeclaration` on load.
+- `conform()` verifies a declared decimal field and never converts it: a matching column passes unchanged (previously a decimal column raised during conform), and any other type follows the `data_type` policy, with `coerce`/`discard_*` raising `DecimalConversionRequiredError`. A missing declared decimal column under `null_fill` becomes a typed decimal null (241).
+
+### Changed
+- Native decimal columns now extract as `NUMBER` fields carrying `dtype` instead of raising `UnknownDtypeError`, and relation schema inference reports them as `DecimalDtype`. `.cast` is now provided by a Mountainash extension builder that builds the unchanged Substrait cast for every non-decimal target.
+
 ## Unreleased — 2026-10-09
 
 ### Added

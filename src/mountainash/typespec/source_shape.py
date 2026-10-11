@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.core.transit import BoundaryKey, transit_call
 from mountainash.core.types import (
@@ -32,8 +32,13 @@ class SourceShape:
     canonical_type: MountainashDtype | None
     item_shape: SourceShape | None = None
     struct_fields: tuple[tuple[str, SourceShape], ...] = ()
+    decimal: DecimalDtype | None = None
 
     def __post_init__(self) -> None:
+        if self.decimal is not None and (
+            self.canonical_type is not None or self.item_shape is not None or self.struct_fields
+        ):
+            raise ValueError("a decimal shape is a scalar leaf")
         if self.item_shape is not None and self.canonical_type is not MountainashDtype.LIST:
             raise ValueError("only LIST can have item_shape")
         if self.struct_fields and self.canonical_type is not MountainashDtype.STRUCT:
@@ -45,11 +50,25 @@ class SourceShape:
             raise ValueError("struct field names must be unique")
 
 
-def _canonical(native: Any, target: TypeTarget) -> MountainashDtype | None:
+def _resolve(native: Any, target: TypeTarget) -> MountainashDtype | DecimalDtype | None:
     try:
         return registry.from_native(native, target=target)
     except (UnknownDtypeError, TypeError, ValueError):
         return None
+
+
+def _canonical(native: Any, target: TypeTarget) -> MountainashDtype | None:
+    """Structural canonical type of a native dtype; ``None`` for untyped or decimal."""
+    resolved = _resolve(native, target)
+    return None if isinstance(resolved, DecimalDtype) else resolved
+
+
+def _leaf(native: Any, target: TypeTarget) -> SourceShape:
+    """Scalar shape for a native dtype, carrying decimal precision/scale when present."""
+    resolved = _resolve(native, target)
+    if isinstance(resolved, DecimalDtype):
+        return SourceShape(None, decimal=resolved)
+    return SourceShape(resolved)
 
 
 def _from_polars_dtype(dtype: Any, pl: Any) -> SourceShape:
@@ -63,7 +82,7 @@ def _from_polars_dtype(dtype: Any, pl: Any) -> SourceShape:
             for field in getattr(dtype, "fields", ())
         )
         return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
-    return SourceShape(canonical)
+    return _leaf(dtype, TypeTarget.POLARS)
 
 
 def _from_polars_schema(schema: Any) -> dict[str, SourceShape]:
@@ -89,13 +108,12 @@ def _is_pyarrow_list(dtype: Any, pa: Any) -> bool:
     )
 
 def _from_pyarrow_dtype(dtype: Any, pa: Any) -> SourceShape:
-    canonical = _canonical(dtype, TypeTarget.PYARROW)
     if _is_pyarrow_list(dtype, pa):
         return SourceShape(MountainashDtype.LIST, _from_pyarrow_dtype(dtype.value_type, pa))
     if pa.types.is_struct(dtype):
         fields = tuple((field.name, _from_pyarrow_dtype(field.type, pa)) for field in dtype)
         return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
-    return SourceShape(canonical)
+    return _leaf(dtype, TypeTarget.PYARROW)
 
 
 def _from_pyarrow_schema(schema: Any) -> dict[str, SourceShape]:
@@ -114,7 +132,7 @@ def _from_pandas_dtype(dtype: Any) -> SourceShape:
         from mountainash.core.lazy_imports import import_pyarrow
 
         return _from_pyarrow_dtype(arrow_dtype, import_pyarrow())
-    return SourceShape(_canonical(dtype, TypeTarget.PANDAS))
+    return _leaf(dtype, TypeTarget.PANDAS)
 
 
 def _from_pandas_dtypes(dtypes: Any) -> dict[str, SourceShape]:
@@ -135,7 +153,7 @@ def _from_ibis_dtype(dtype: Any) -> SourceShape:
                 for field in raw_fields
             )
         return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
-    return SourceShape(canonical)
+    return _leaf(dtype, TypeTarget.IBIS)
 
 
 def _from_ibis_schema(schema: Any) -> dict[str, SourceShape]:
@@ -152,7 +170,7 @@ def _from_narwhals_dtype(dtype: Any) -> SourceShape:
             for field in getattr(dtype, "fields", ())
         )
         return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
-    return SourceShape(canonical)
+    return _leaf(dtype, TypeTarget.NARWHALS)
 
 
 def _from_narwhals_schema(native: Any) -> dict[str, SourceShape]:
