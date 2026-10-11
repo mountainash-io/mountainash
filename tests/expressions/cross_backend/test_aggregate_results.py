@@ -16,7 +16,7 @@ from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
 )
 from fixtures.backend_registry import ALL_BACKENDS
-from duckdb.duckdb import OutOfRangeException
+from duckdb import OutOfRangeException
 from ibis.common.exceptions import IbisTypeError
 from narwhals.exceptions import InvalidOperationError
 from fixtures.call_expectations import expect_call_failure

@@ -17,7 +17,7 @@ All tests run across backends: Polars, Narwhals, and Ibis (Polars/DuckDB).
 
 import pytest
 import mountainash.expressions as ma
-from duckdb.duckdb import ParserException
+from duckdb import ParserException
 from fixtures.call_expectations import expect_call_failure
 
 

@@ -4,6 +4,7 @@ mountainash-settings @ ${HATCH_SIBLINGS}/mountainash-settings
 mountainash-auth-client @ ${HATCH_SIBLINGS}/mountainash-auth-client
 mountainash-transport @ ${HATCH_SIBLINGS}/mountainash-transport
 mountainash-files @ ${HATCH_SIBLINGS}/mountainash-files
-# Exact compatible pair used in the candidate rehearsal.
+# Shared analytical dependency set exercised during release preparation.
 ibis-framework==12.0.0
-sqlglot==29.0.1
+sqlglot==30.17.0
+duckdb==1.5.6

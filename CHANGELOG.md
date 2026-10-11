@@ -5,9 +5,16 @@
 ### Added
 - Top-level decimal conversion through `Relation.conform()` with explicit `FieldSpec.rounding`, persisted as `x-mountainash.rounding` beside dtype (280). Reuses the native decimal cast and existing coerce/discard policies, preserves exact output/inferred types, and applies existing numeric-text preparation and null filling on conversion. Matching decimals remain unchanged, including nulls; evolve/freeze and missing-column policies are unchanged. Existing precision, backend and rounding limits still apply.
 
+### Changed
+- The Ibis extra now requires Ibis 12+ and SQLGlot `>=29.0.1,<30.18.0`, matching mountainash-data. SQLGlot 30.22.0 still fails Ibis 12 table deletion; the existing ceiling remains necessary.
+- Local/CI analytical rehearsal pins are Ibis 12.0.0, SQLGlot 30.17.0 and DuckDB 1.5.6. DuckDB test environments no longer impose `<1.3`; their floor is 1.5.6.
+- Backward ASOF on Ibis-DuckDB permits any right row tied at the nearest eligible key; last-input-row selection is not portable. The duplicate-right regression accepts either valid complete output on DuckDB and retains exact last-row assertions on other backends. No runtime planner override or xfail is used.
+
 ### Fixed
 - Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
 - Narwhals semi/anti joins using `left_on`/`right_on` preserve the left-only output without projecting absent or duplicate right columns (258).
+- Cross-backend tests import exceptions from DuckDB's public API rather than the removed `duckdb.duckdb` module, allowing collection on current DuckDB releases.
+- The compound eligibility regression explicitly sorts its output instead of expecting an incidental DuckDB filter-order failure; eligible-row assertions remain unchanged.
 
 ## Unreleased — 2026-10-10
 

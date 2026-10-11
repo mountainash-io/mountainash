@@ -436,7 +436,12 @@ class Relation(RelationBase):
         tolerance: Any = None,
         execute_on: ExecutionTarget | Literal["left", "right"] | None = None,
     ) -> Relation:
-        """Asof join with another relation or raw data."""
+        """Asof join with another relation or raw data.
+
+        On Ibis-DuckDB, backward joins may select any right row tied at the
+        nearest eligible key; input order does not guarantee a last-row winner.
+        Deduplicate right-side keys explicitly when the choice matters.
+        """
         return _combine_result(
             JoinRelNode(
                 left=self._node,
