@@ -8,6 +8,8 @@
 ### Fixed
 - Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
 - Narwhals semi/anti joins using `left_on`/`right_on` preserve the left-only output without projecting absent or duplicate right columns (258).
+- Cross-backend tests import exceptions from DuckDB's public API rather than the removed `duckdb.duckdb` module, allowing collection on current DuckDB releases.
+- The compound eligibility regression explicitly sorts its output instead of expecting an incidental DuckDB filter-order failure; eligible-row assertions remain unchanged.
 
 ## Unreleased — 2026-10-10
 
