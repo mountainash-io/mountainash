@@ -7,7 +7,8 @@
 
 ### Changed
 - The Ibis extra now requires Ibis 12+ and SQLGlot `>=29.0.1,<30.18.0`, matching mountainash-data. SQLGlot 30.22.0 still fails Ibis 12 table deletion; the existing ceiling remains necessary.
-- Local/CI analytical rehearsal pins are Ibis 12.0.0, SQLGlot 30.17.0 and DuckDB 1.5.6. DuckDB test environments no longer impose `<1.3`; their floor is 1.5.6. The duplicate-right ASOF tie mismatch remains unresolved, not hidden by a version cap or changed assertion.
+- Local/CI analytical rehearsal pins are Ibis 12.0.0, SQLGlot 30.17.0 and DuckDB 1.5.6. DuckDB test environments no longer impose `<1.3`; their floor is 1.5.6.
+- Backward ASOF on Ibis-DuckDB permits any right row tied at the nearest eligible key; last-input-row selection is not portable. The duplicate-right regression accepts either valid complete output on DuckDB and retains exact last-row assertions on other backends. No runtime planner override or xfail is used.
 
 ### Fixed
 - Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
