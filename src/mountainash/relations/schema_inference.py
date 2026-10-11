@@ -409,6 +409,8 @@ def _declared_dtype_for_infer(
             if em.effective_type is not None
             else SchemaTypeStatus.UNKNOWN
         )
+    if em.field.dtype is not None:
+        return em.field.dtype
     dt = em.declared_type
     if dt is PASSTHROUGH:
         return input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
