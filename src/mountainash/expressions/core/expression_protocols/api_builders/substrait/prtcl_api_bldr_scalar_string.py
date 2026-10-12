@@ -440,12 +440,12 @@ class SubstraitScalarStringAPIBuilderProtocol(Protocol):
         """
         ...
 
-    def regex_contains(self, pattern: str, *, case_sensitive: bool = True) -> BaseExpressionAPI:
-        """Test if pattern matches. Alias for regexp_match_substring (returns bool)."""
+    def regex_contains(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], *, case_sensitive: bool = True) -> BaseExpressionAPI:
+        """Search for a literal or expression-valued regex; native limits apply."""
         ...
 
     def regex_match(self, pattern: str, *, case_sensitive: bool = True) -> BaseExpressionAPI:
-        """Alias for regexp_match_substring."""
+        """Match a literal regex anchored with ^ and $."""
         ...
 
     def regex_replace(self, pattern: Union[BaseExpressionAPI, ExpressionNode, Any], replacement: Union[BaseExpressionAPI, ExpressionNode, Any], case_sensitive: bool = True) -> BaseExpressionAPI:

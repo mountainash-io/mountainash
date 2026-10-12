@@ -111,6 +111,37 @@ does not repair operation signatures, add backend support, or prove a selector
 has one output. Internal `COLLECT_VALUES` is a membership collection encoder,
 not a standalone projectable operation.
 
+## Per-row regex patterns
+
+Use the public regex predicate when a pattern comes from another column:
+
+```python
+source = pl.DataFrame({"value": ["AU", "NZ"], "pattern": ["^AU$", "^AU$"]})
+predicate = ma.col("value").str.regex_contains(ma.col("pattern"))
+scored = ma.relation(source).with_columns(
+    ma.when(predicate).then(1).otherwise(-1).alias("score")
+)
+assert scored.columns == ["value", "pattern", "score"]
+assert scored.to_dict()["score"] == [1, -1]
+```
+
+`regex_contains` accepts literal strings, literal expressions, columns and
+computed string expressions. A plain string is a regex pattern, not a column
+name. The predicate performs regex search, so a successful empty-string match
+is still a match.
+
+Dynamic patterns execute on Polars and Narwhals-Polars (eager/lazy), Ibis-DuckDB
+and Ibis-SQLite. Narwhals-pandas/PyArrow and Ibis-Polars accept construction and
+output-name introspection but reject dynamic patterns during native execution;
+literal strings and literal expressions remain supported. Known names do not
+guarantee backend execution capability. Other Ibis dialects are not qualified
+by this support statement.
+
+`regex_match` remains a literal-pattern wrapper that adds `^` and `$`; it does
+not accept expression patterns. The existing `case_sensitive=False` option is
+currently ignored by both regex methods (tracked separately in backlog 297).
+This change does not normalize native regex dialects or null behavior.
+
 ## Native expressions, selectors and complete schemas
 
 Raw native expressions and `ma.native(...)` retain their execution passthrough.

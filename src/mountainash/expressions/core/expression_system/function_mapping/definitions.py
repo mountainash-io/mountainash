@@ -877,7 +877,6 @@ def register_all_functions() -> None:
             substrait_name="regex_contains",
             is_extension=True,
             protocol_method=MountainAshScalarStringExpressionSystemProtocol.regex_contains,
-            options=("pattern",),
         ),
         ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.STRIP_SUFFIX,

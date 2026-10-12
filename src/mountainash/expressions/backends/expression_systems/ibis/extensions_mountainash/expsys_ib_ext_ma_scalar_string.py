@@ -20,14 +20,15 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         self,
         input,
         /,
+        pattern,
         *,
-        pattern: str,
         case_sensitivity: Any = None,
     ):
         """Regex containment via Ibis re_search.
 
         re_search returns a true boolean and propagates null on null input.
         """
+        input = self._lift_deferred_receiver(input, pattern)
         return input.re_search(pattern)
 
     def strip_suffix(self, x, /, *, suffix: str):

@@ -747,7 +747,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("MountainAshScalarStringExpressionSystemProtocol", "json_decode", "dtype"),
         ("MountainAshScalarStringExpressionSystemProtocol", "json_path_match", "json_path"),
         ("MountainAshScalarStringExpressionSystemProtocol", "regex_contains", "case_sensitivity"),
-        ("MountainAshScalarStringExpressionSystemProtocol", "regex_contains", "pattern"),
         ("MountainAshScalarStringExpressionSystemProtocol", "strip_suffix", "suffix"),
         ("MountainAshScalarStringExpressionSystemProtocol", "to_integer", "base"),
         ("MountainAshScalarStringExpressionSystemProtocol", "to_time", "format"),
