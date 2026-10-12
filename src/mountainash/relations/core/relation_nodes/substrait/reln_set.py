@@ -21,10 +21,13 @@ class SetRelNode(RelationNode):
     Attributes:
         inputs: List of child relation nodes to combine
         set_type: The set operation type (UNION_ALL, UNION_DISTINCT)
+        timezone: Optional target for pre-union timestamp projections (lowering
+            metadata, not an additional Substrait SetRel wire field).
     """
 
     inputs: list[RelationNode]
     set_type: SetType
+    timezone: str | None = None
 
     @property
     def operation_key(self):

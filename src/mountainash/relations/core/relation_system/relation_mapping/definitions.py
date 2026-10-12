@@ -162,6 +162,7 @@ SUBSTRAIT_OPERATIONS = [
         substrait_op="SET_OP_UNION_ALL",
         protocol_method=SubstraitSetRelationSystemProtocol.union_all,
         args=(ArgBinding("inputs", ArgKind.INPUT_LIST),),
+        options=("timezone",),
     ),
     RelationOperationDef(
         operation_key=RS.UNION_DISTINCT,
@@ -170,6 +171,7 @@ SUBSTRAIT_OPERATIONS = [
         substrait_op="SET_OP_UNION_DISTINCT",
         protocol_method=SubstraitSetRelationSystemProtocol.union_distinct,
         args=(ArgBinding("inputs", ArgKind.INPUT_LIST),),
+        options=("timezone",),
     ),
 ]
 

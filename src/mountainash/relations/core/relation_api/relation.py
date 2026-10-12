@@ -1387,15 +1387,34 @@ def relation(data: Any) -> Relation:
     return Relation(ReadRelNode(dataframe=data))
 
 
-def concat(relations: Sequence[Relation], *, distinct: bool = False) -> Relation:
+def concat(
+    relations: Sequence[Relation], *, distinct: bool = False, timezone: str | None = None,
+) -> Relation:
     """Concatenate multiple Relations via UNION ALL (or UNION DISTINCT).
+
+    Timestamp precision widens without timezone conversion by default. An
+    explicit IANA ``timezone`` converts top-level aware timestamp columns,
+    preserving instants; naive and mixed-awareness columns are not localized.
+    SQLite retains native default behavior but does not support this explicit
+    aware normalization. Nested timestamp columns are not reconciled.
 
     If any input is a ``DAGRelation``, all DAG-bound inputs must share one DAG
     (else ``ValueError``) and the result is a ``DAGRelation`` bound to it;
     plain-``Relation`` inputs mix in freely.
     """
+    if timezone is not None:
+        from mountainash.core.capabilities.schema import ValueClass
+        from mountainash.expressions.core.expression_api.api_builders.api_builder_base import (
+            _reject_expression,
+        )
+        from mountainash.expressions.core.expression_api.api_builders.extensions_mountainash._ma_option_domains import (
+            validate_open_value,
+        )
+
+        _reject_expression("timezone", timezone, "concat")
+        timezone = validate_open_value(ValueClass.IANA_TIMEZONE, "timezone", timezone, "concat")
     nodes = [r._node for r in relations]
     set_type = SetType.UNION_DISTINCT if distinct else SetType.UNION_ALL
     return _combine_result(
-        SetRelNode(inputs=nodes, set_type=set_type), list(relations)
+        SetRelNode(inputs=nodes, set_type=set_type, timezone=timezone), list(relations)
     )
