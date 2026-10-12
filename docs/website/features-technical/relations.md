@@ -63,6 +63,25 @@ The minimal AST is deliberate — most operations are parameter values on these 
 
 `.group_by()` returns a `GroupedRelation` that exposes only `.agg()` — by design, so you can't accidentally chain a filter onto a partial group.
 
+### Row indices and partial schemas
+
+`with_row_index(name="index")` assigns native zero-based ordinals. Its dtype,
+column position and name-collision behavior follow the backend. It is not a
+persistent row identity: SQL routes promise neither output row order nor
+repeatable row-to-ordinal assignment across executions. In particular,
+`sort(...).with_row_index()` does not order the SQL numbering window, and
+independently indexed chunks do not share a global sequence. Ordered native
+frames retain their documented position semantics.
+
+Schema inspection does not execute the plan. When the native route is known,
+the ordinal's dtype and column placement are reported. When it is unresolved,
+inspection retains known fields and includes the ordinal with `UNKNOWN` dtype.
+A new ordinal name is appended to that partial mapping for presentation, not
+as a promise of native column order. `.columns` and `.width` then describe
+available metadata, not a certified complete source schema. Missing metadata
+alone does not add an error; existing invalid-plan errors still apply.
+
+
 ### Projection output names
 
 `select` and `with_columns` use portable names for resolvable single-output

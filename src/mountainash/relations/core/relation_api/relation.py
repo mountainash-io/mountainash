@@ -506,7 +506,14 @@ class Relation(RelationBase):
         )
 
     def with_row_index(self, *, name: str = "index") -> Relation:
-        """Add a row-index column."""
+        """Add a native zero-based ordinal, not a persistent row identity.
+
+        Dtype, column placement and name collisions follow the native backend.
+        There is no portable guarantee of output row order or repeatable
+        row-to-ordinal assignment across executions. In particular, sorting
+        before this operation does not order the SQL row-number window.
+        Ordered native frames retain their documented position semantics.
+        """
         return self._make(
             ExtensionRelNode(
                 input=self._node,
@@ -1262,17 +1269,22 @@ class Relation(RelationBase):
 
     @property
     def columns(self) -> list[str]:
-        """Return column names from the compiled plan's schema."""
+        """Return the column names available from schema inference."""
         return list(self.schema.keys())
 
     @property
     def schema(self) -> dict[str, MountainashDtype | SchemaTypeStatus]:
         """Output schema as {column_name: dtype} dict.
 
-        Infers the schema from the AST without compilation or backend
-        involvement. Values are canonical ``MountainashDtype`` (or ``DecimalDtype``
+        Infers from the AST and cheap native metadata without compilation or
+        execution. Values are canonical ``MountainashDtype`` (or ``DecimalDtype``
         for a native decimal column) where inferable, or a ``SchemaTypeStatus``
         (UNKNOWN / UNCONSTRAINED) where not.
+
+        An unresolved row-index route retains known fields and exposes the
+        ordinal as UNKNOWN. A new ordinal name is appended descriptively:
+        mapping order is not a native-layout guarantee, and missing source
+        fields are not certified absent. Existing invalid-plan errors remain.
         """
         from mountainash.relations.schema_inference import infer_schema
         return infer_schema(self._node)
