@@ -856,6 +856,73 @@ def test_aggregate_subset_distinct_does_not_promise_portable_expansion():
     assert base.group_by("x").agg(ma.lit(1).alias("one")).columns == ["x", "one"]
 
 
+@pytest.mark.parametrize("backend_name", [
+    "polars", "narwhals-polars", "narwhals-pandas", "narwhals-pyarrow",
+    "ibis-duckdb", "ibis-sqlite",
+])
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("name", ["index", "ordinal"])
+def test_row_index_native_schema(backend_factory, backend_name, empty, name):
+    """Ordinal metadata must describe native type/placement, including empty sources."""
+    import numpy as np
+
+    data = {"value": np.array([] if empty else [8, 3], dtype=np.int64)}
+    if backend_name == "narwhals-pyarrow":
+        import narwhals as nw
+        import pyarrow as pa
+
+        source = nw.from_native(pa.table(data))
+    else:
+        source = backend_factory.create(data, backend_name)
+    rel = ma.relation(source).with_row_index(**({} if name == "index" else {"name": name}))
+    dtype = D.U64 if pl.get_index_type() == pl.UInt64 else D.U32
+    if backend_name not in {"polars", "narwhals-polars"}:
+        dtype = D.I64
+    expected = [("value", D.I64), (name, dtype)] if backend_name.startswith("ibis") else [
+        (name, dtype), ("value", D.I64),
+    ]
+    assert list(rel.schema.items()) == expected
+    result = rel.to_polars()
+    assert result.columns == [field for field, _ in expected]
+    assert sorted(result[name].to_list()) == list(range(0 if empty else 2))
+    assert rel.select(name).schema == {name: dtype}
+
+
+@pytest.mark.parametrize("input_schema", [{}, {"value": D.I64}, {"ordinal": D.STRING}])
+def test_row_index_unknown_route_preserves_partial_evidence(input_schema):
+    """Unbound refs expose the ordinal without inventing native metadata or mutating input."""
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    rel = Relation(RefRelNode(name="source")).with_row_index(name="ordinal")
+    assert rel.schema == {"ordinal": SchemaTypeStatus.UNKNOWN}
+    original = dict(input_schema)
+    assert infer_schema(rel._node, lambda _: input_schema) == {
+        **input_schema, "ordinal": SchemaTypeStatus.UNKNOWN,
+    }
+    assert input_schema == original
+
+
+def test_row_index_unbound_ibis_has_known_metadata():
+    """A connection is unnecessary to describe Ibis's native ordinal."""
+    import ibis
+
+    rel = ma.relation(ibis.table({"value": "int64"}, name="source")).with_row_index(name="ordinal")
+    assert list(rel.schema.items()) == [("value", D.I64), ("ordinal", D.I64)]
+
+
+@pytest.mark.parametrize("execute_on", ["left", "right"])
+def test_row_index_follows_selected_join_location(backend_factory, execute_on):
+    """Indexing after a mixed join follows its target, not the first source."""
+    left = ma.relation(pl.DataFrame({"value": [8, 3]}))
+    right = ma.relation(backend_factory.create({"value": [8, 3]}, "ibis-duckdb"))
+    rel = left.join(right, on="value", execute_on=execute_on).with_row_index(name="ordinal")
+    dtype = D.U64 if pl.get_index_type() == pl.UInt64 else D.U32
+    expected = [("ordinal", dtype), ("value", D.I64)] if execute_on == "left" else [
+        ("value", D.I64), ("ordinal", D.I64),
+    ]
+    assert list(rel.schema.items()) == expected
+    assert rel.to_polars().columns == [name for name, _ in expected]
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb"])
 @pytest.mark.parametrize("empty", [False, True])
 @pytest.mark.parametrize("reshape", [False, True])

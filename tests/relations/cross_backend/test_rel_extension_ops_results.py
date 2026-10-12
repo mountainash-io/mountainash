@@ -7,6 +7,8 @@ sample across backends.
 
 from __future__ import annotations
 
+from collections import Counter
+
 import pytest
 
 import mountainash as ma
@@ -98,31 +100,23 @@ class TestDropNans:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 class TestWithRowIndex:
-    def test_with_row_index_default_name(self, backend_name, backend_factory):
-        df = backend_factory.create({"a": [10, 20, 30]}, backend_name)
+    @pytest.mark.parametrize("name", ["index", "row_num"])
+    def test_with_row_index(self, backend_name, backend_factory, name):
+        values = ["b", "b", None, "a"]
+        df = backend_factory.create({"a": values}, backend_name)
         with expect_call_failure(
             when=backend_name in {"narwhals-lazy", "ibis-polars"},
             errors=(TypeError,) if backend_name == "narwhals-lazy" else (BackendCapabilityError,),
             reason="Relation.with_row_index() is unavailable on narwhals-lazy and ibis-polars; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
         ):
-            result = ma.relation(df).with_row_index().to_dicts()
-            assert result == [
-                {"index": 0, "a": 10},
-                {"index": 1, "a": 20},
-                {"index": 2, "a": 30},
-            ]
-
-        with expect_call_failure(
-            when=backend_name in {"narwhals-lazy", "ibis-polars"},
-            errors=(TypeError,) if backend_name == "narwhals-lazy" else (BackendCapabilityError,),
-            reason="Relation.with_row_index() is unavailable on narwhals-lazy and ibis-polars; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
-        ):
-            result = ma.relation(df).with_row_index(name="row_num").to_dicts()
-            assert result == [
-                {"row_num": 0, "a": 10},
-                {"row_num": 1, "a": 20},
-                {"row_num": 2, "a": 30},
-            ]
+            rel = ma.relation(df).with_row_index(**({} if name == "index" else {"name": name}))
+            result = rel.to_dicts()
+            assert sorted(row[name] for row in result) == list(range(len(values)))
+            assert Counter(row["a"] for row in result) == Counter(values)
+            if not backend_name.startswith("ibis-"):
+                # Ordered frames index their native row positions; SQL does not
+                # promise either output order or a repeatable payload pairing.
+                assert result == [{name: index, "a": value} for index, value in enumerate(values)]
 
 
 # ---------------------------------------------------------------------------

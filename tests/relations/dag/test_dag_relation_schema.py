@@ -78,3 +78,25 @@ def test_assess_drift_plain_relation_over_ref_is_degenerate():
     # Should not raise; returns a list (possibly under-assessed). This is the
     # baseline the DAGRelation override improves on.
     assert isinstance(plain.assess_drift(), list)
+
+
+@pytest.mark.parametrize("backend_name", ["polars", "ibis-duckdb"])
+def test_row_index_schema_resolves_dag_identity(backend_factory, backend_name):
+    """Source identity must survive a ref and projection, not degrade to UNKNOWN."""
+    from mountainash.core.dtypes import MountainashDtype as D
+
+    dag = RelationDAG()
+    dag.add("raw", ma.relation(backend_factory.create({"value": [8, 3]}, backend_name)))
+    indexed = dag.ref("raw").with_row_index(name="ordinal")
+    dag.add("indexed", indexed)
+    dtype = D.I64 if backend_name == "ibis-duckdb" else (
+        D.U64 if pl.get_index_type() == pl.UInt64 else D.U32
+    )
+    expected = [("value", D.I64), ("ordinal", dtype)] if backend_name == "ibis-duckdb" else [
+        ("ordinal", dtype), ("value", D.I64),
+    ]
+    assert list(indexed.schema.items()) == expected
+    assert list(dag.schema("indexed").items()) == expected
+    projected = indexed.select("ordinal")
+    assert projected.schema == {"ordinal": dtype}
+    assert sorted(projected.to_polars()["ordinal"].to_list()) == [0, 1]

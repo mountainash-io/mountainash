@@ -81,7 +81,10 @@ class DAGRelation(Relation):
         def resolver(ref_name: str):
             return self._dag.schema(ref_name)
 
-        return infer_schema(self._node, ref_resolver=resolver)
+        return infer_schema(
+            self._node, ref_resolver=resolver,
+            identity_resolver=lambda name: self._dag.relations[name]._node,
+        )
 
     def assess_drift(self) -> "list":
         """Schema-only drift pre-flight, resolving ``RefRelNode`` leaves via the
@@ -94,7 +97,10 @@ class DAGRelation(Relation):
         def resolver(ref_name: str):
             return self._dag.schema(ref_name)
 
-        return _assess_drift(self._node, ref_resolver=resolver)
+        return _assess_drift(
+            self._node, ref_resolver=resolver,
+            identity_resolver=lambda name: self._dag.relations[name]._node,
+        )
 
 
 def _dag_of(rel: Any) -> "RelationDAGProtocol | None":

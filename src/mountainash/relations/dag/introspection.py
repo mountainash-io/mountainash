@@ -30,7 +30,10 @@ def schema(
     ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
         return schema(dag, ref_name)
 
-    return infer_schema(node, ref_resolver=resolver)
+    return infer_schema(
+        node, ref_resolver=resolver,
+        identity_resolver=lambda name: dag.relations[name]._node,
+    )
 
 
 def describe(dag: RelationDAGProtocol) -> dict[str, dict[str, Any]]:
