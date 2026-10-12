@@ -39,8 +39,10 @@ class MountainAshScalarStringExpressionSystemProtocol(Protocol[ExpressionT]):
             input: String expression.
             pattern: Compiled regex expression. Native routes may require a
                 literal expression rather than a column or computed pattern.
-            case_sensitivity: "CASE_SENSITIVE" or "CASE_INSENSITIVE".
-                The non-default value is currently not honored.
+            case_sensitivity: "CASE_SENSITIVE" leaves the pattern unchanged;
+                "CASE_INSENSITIVE" enables native case-insensitive matching.
+                Explicit inline flags retain their native meaning. Unicode
+                case equivalence is backend-dependent.
 
         Returns:
             Boolean expression — True on match, False on no-match,

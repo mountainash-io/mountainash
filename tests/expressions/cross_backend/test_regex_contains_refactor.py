@@ -76,7 +76,8 @@ class TestRegexContainsRefactor:
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", REGEX_BACKENDS)
 @pytest.mark.parametrize("shape", ["column", "computed", "literal-receiver"])
-def test_regex_pattern_projection(backend_name, backend_factory, shape):
+@pytest.mark.parametrize("case_sensitive", [True, False])
+def test_regex_pattern_projection(backend_name, backend_factory, shape, case_sensitive):
     """Per-row patterns retain names and payload without hiding native limits."""
     data = {
         "id": list(range(7)),
@@ -85,10 +86,11 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape):
     }
     pattern = ma.col("pattern")
     if shape == "computed":
-        pattern = pattern.str.upper()
+        pattern = pattern.str.lower()
     value = ma.lit("AU") if shape == "literal-receiver" else ma.col("value")
     query = ma.relation(backend_factory.create(data, backend_name)).with_columns(
-        ma.when(value.str.regex_contains(pattern)).then(1).otherwise(-1).alias("score")
+        ma.when(value.str.regex_contains(pattern, case_sensitive=case_sensitive))
+        .then(1).otherwise(-1).alias("score")
     )
     assert query.columns == ["id", "value", "pattern", "score"]
     unsupported = backend_name in {"pandas", "narwhals-pandas", "ibis-polars"}
@@ -100,9 +102,51 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape):
     ):
         result = query.to_polars().sort("id")
         expected = {
-            "column": [1, -1, 1, 1, -1, -1, -1],
-            "computed": [1, -1, 1, 1, -1, -1, 1],
-            "literal-receiver": [1, 1, 1, 1, 1, -1, -1],
-        }[shape]
+            (True, "column"): [1, -1, 1, 1, -1, -1, -1],
+            (True, "computed"): [-1, -1, 1, 1, -1, -1, -1],
+            (True, "literal-receiver"): [1, 1, 1, 1, 1, -1, -1],
+            (False, "column"): [1, -1, 1, 1, -1, -1, 1],
+            (False, "computed"): [1, -1, 1, 1, -1, -1, 1],
+            (False, "literal-receiver"): [1, 1, 1, 1, 1, -1, 1],
+        }[case_sensitive, shape]
         assert result["score"].to_list() == expected
         assert result.select("id", "value", "pattern").to_dict(as_series=False) == data
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", REGEX_BACKENDS)
+@pytest.mark.parametrize("shape", ["contains", "literal-expression", "match"])
+@pytest.mark.parametrize(
+    "pattern,case_sensitive,expected",
+    [
+        ("au", True, [False, True, False, False, False, False]),
+        ("au", False, [True, True, True, False, False, False]),
+        ("(?i:au)", True, [True, True, True, False, False, False]),
+        ("(?-i:au)", False, [False, True, False, False, False, False]),
+    ],
+)
+def test_regex_case_sensitivity(
+    backend_name, backend_factory, shape, pattern, case_sensitive, expected
+):
+    """Honor the option without breaking literals or explicit inline overrides."""
+    data = {"id": list(range(7)), "value": ["AU", "au", "aU", "xauy", "123", "", None]}
+    value = ma.col("value")
+    if shape == "match":
+        predicate = value.str.regex_match(pattern, case_sensitive=case_sensitive)
+    else:
+        pattern = f"^{pattern}$"
+        if shape == "literal-expression":
+            pattern = ma.lit(pattern)
+        predicate = value.str.regex_contains(pattern, case_sensitive=case_sensitive)
+    result = (
+        ma.relation(backend_factory.create(data, backend_name))
+        .select(ma.col("id"), predicate.alias("match"))
+        .to_polars()
+        .sort("id")["match"]
+        .to_list()
+    )
+    assert result[:6] == expected
+    if backend_name in {"pandas", "narwhals-pandas"}:
+        assert result[6] is False or result[6] is None
+    else:
+        assert result[6] is None

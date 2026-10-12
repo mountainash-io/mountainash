@@ -32,6 +32,8 @@ class SubstraitNarwhalsScalarStringExpressionSystem(NarwhalsBaseExpressionSystem
 
         Note: narwhals/pandas may return False (not None) for null input.
         """
+        if case_sensitivity == "CASE_INSENSITIVE":
+            pattern = nw.concat_str([nw.lit("(?i)"), pattern], ignore_nulls=False)
         return input.str.contains(pattern)
 
     def strip_suffix(self, x, /, *, suffix: str):
