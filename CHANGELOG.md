@@ -5,6 +5,7 @@
 ### Fixed
 - `Relation.with_row_index()` now exposes its native ordinal dtype and column placement during schema introspection, including DAG references (#366). Unresolved references expose the ordinal with `UNKNOWN` dtype without requiring execution; native execution and collision behavior are unchanged.
 - Row-index documentation and cross-backend assertions now distinguish native frame positions from SQL's unspecified row order and row-to-ordinal assignment. Ordinals are not persistent identity, and unresolved metadata does not certify complete source fields or native column order.
+- Whole-row `Relation.unique()` now preserves inferred input field names, order and types, including empty inputs and downstream joins (#365). Keyed DISTINCT and execution behavior are unchanged.
 
 ## Unreleased — 2026-10-11
 

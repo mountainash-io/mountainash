@@ -29,10 +29,11 @@ def test_projection_expansion_collisions_rejected_when_schema_known(operation):
         _ = rel.columns
 
 
-def test_incomplete_projection_schema_survives_downstream_projection():
+@pytest.mark.parametrize("transform", [lambda r: r.select("n"), lambda r: r.unique()])
+def test_incomplete_projection_schema_survives_downstream_operation(transform):
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
 
-    rel = ma.relation([{"n": 1}]).with_columns(ma.native(object()).alias("x")).select("n")
+    rel = transform(ma.relation([{"n": 1}]).with_columns(ma.native(object()).alias("x")))
     with pytest.raises(IncompleteProjectionSchemaError, match="PROJECT_WITH_COLUMNS.*expression 0"):
         _ = rel.schema
 
@@ -922,3 +923,66 @@ def test_row_index_follows_selected_join_location(backend_factory, execute_on):
     ]
     assert list(rel.schema.items()) == expected
     assert rel.to_polars().columns == [name for name, _ in expected]
+@pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb"])
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("reshape", [False, True])
+def test_whole_row_distinct_schema_matches_execution(backend_factory, backend_name, empty, reshape):
+    """Keyless DISTINCT must not discard known fields, even on empty inputs."""
+    data = pl.DataFrame(
+        {"request_id": [1, 1, 2], "amount": [5, 5, None]},
+        schema={"request_id": pl.Int64, "amount": pl.Int64},
+    )
+    if empty:
+        data = data.clear()
+    rel = ma.relation(backend_factory.create(data, backend_name))
+    names = ["request_id", "amount"]
+    rows = [(1, 5), (2, None)]
+    if reshape:
+        rel = rel.rename({"amount": "value"}).select("value", "request_id")
+        names = ["value", "request_id"]
+        rows = [(5, 1), (None, 2)]
+    distinct = rel.unique()
+    assert list(distinct.schema.items()) == [(name, D.I64) for name in names]
+    assert distinct.columns == names
+    assert distinct.dtypes == [D.I64, D.I64]
+    assert distinct.width == 2
+    result = distinct.to_polars()
+    assert result.columns == names
+    from collections import Counter
+    assert Counter(result.rows()) == Counter([] if empty else rows)
+
+
+@pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb"])
+def test_whole_row_distinct_join_preserves_identity(backend_factory, backend_name):
+    """Schema and execution preserve request identity and payload multiplicity."""
+    left, right = backend_factory.create_pair(
+        pl.DataFrame(
+            {"request_id": [1, 1, 2], "amount": [5, 5, None]},
+            schema={"request_id": pl.Int64, "amount": pl.Int64},
+        ),
+        {"request_id": [1, 1, 2], "slot": [7, 7, 8]},
+        backend_name,
+    )
+    joined = ma.relation(left).unique().join(ma.relation(right), on="request_id")
+    assert list(joined.schema.items()) == [
+        ("request_id", D.I64), ("amount", D.I64), ("slot", D.I64),
+    ]
+    result = joined.to_polars()
+    assert result.columns == ["request_id", "amount", "slot"]
+    from collections import Counter
+    assert Counter(result.rows()) == Counter([(1, 5, 7), (1, 5, 7), (2, None, 8)])
+
+
+def test_whole_row_distinct_preserves_partial_type_evidence():
+    """DISTINCT cannot erase known names just because their types are unknown."""
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+    rel = Relation(RefRelNode(name="source")).unique()
+    assert infer_schema(rel._node, lambda _: {
+        "known": D.I64, "unknown": SchemaTypeStatus.UNKNOWN,
+        "unconstrained": SchemaTypeStatus.UNCONSTRAINED,
+    }) == {
+        "known": D.I64, "unknown": SchemaTypeStatus.UNKNOWN,
+        "unconstrained": SchemaTypeStatus.UNCONSTRAINED,
+    }
