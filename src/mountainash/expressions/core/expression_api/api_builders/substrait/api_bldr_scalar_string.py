@@ -1242,8 +1242,9 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         Args:
             pattern: Literal regex string. For expression-valued patterns,
                 use :meth:`regex_contains`, which does not add anchors.
-            case_sensitive: Whether matching is case-sensitive (default True).
-                The non-default False value is currently not honored.
+            case_sensitive: True leaves the pattern unchanged; False enables
+                native case-insensitive matching. Explicit inline flags retain
+                their native meaning; Unicode case equivalence is backend-dependent.
         """
         if not isinstance(pattern, str):
             raise TypeError(
@@ -1272,8 +1273,9 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
                 work on Polars, Narwhals-Polars, Ibis-DuckDB and Ibis-SQLite.
                 Narwhals-pandas/PyArrow and Ibis-Polars reject dynamic patterns
                 during native execution; expression literals remain supported.
-            case_sensitive: Whether matching is case-sensitive (default True).
-                The non-default False value is currently not honored.
+            case_sensitive: True leaves the pattern unchanged; False enables
+                native case-insensitive matching. Explicit inline flags retain
+                their native meaning; Unicode case equivalence is backend-dependent.
 
         Output names remain inspectable for ordinary single-output expressions
         even when the selected native route cannot execute a dynamic pattern.

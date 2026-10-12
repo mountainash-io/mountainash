@@ -138,9 +138,18 @@ guarantee backend execution capability. Other Ibis dialects are not qualified
 by this support statement.
 
 `regex_match` remains a literal-pattern wrapper that adds `^` and `$`; it does
-not accept expression patterns. The existing `case_sensitive=False` option is
-currently ignored by both regex methods (tracked separately in backlog 297).
-This change does not normalize native regex dialects or null behavior.
+not accept expression patterns.
+
+Both methods honor `case_sensitive=False` by enabling native case-insensitive
+matching. For example, `ma.col("value").str.regex_contains("^au$", case_sensitive=False)`
+matches both `"AU"` and `"au"`. With the default `case_sensitive=True`, the
+pattern is passed through unchanged.
+
+The option sets the initial matching mode, not an override of the regex itself:
+`(?i:au)` can enable case-insensitivity with the default option, and `(?-i:au)`
+can restore case-sensitive matching inside a pattern with `case_sensitive=False`.
+Inline syntax, Unicode case equivalence and null behavior remain native.
+Do not assume universal Unicode or regex-engine equivalence.
 
 ## Native expressions, selectors and complete schemas
 

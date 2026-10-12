@@ -29,6 +29,10 @@ class SubstraitIbisScalarStringExpressionSystem(IbisBaseExpressionSystem, Substr
         re_search returns a true boolean and propagates null on null input.
         """
         input = self._lift_deferred_receiver(input, pattern)
+        if case_sensitivity == "CASE_INSENSITIVE":
+            # Keep literals literal for native routes that reject expression patterns.
+            literal = self._extract_literal_if_possible(pattern)
+            pattern = "(?i)" + (literal if isinstance(literal, str) else pattern)
         return input.re_search(pattern)
 
     def strip_suffix(self, x, /, *, suffix: str):
