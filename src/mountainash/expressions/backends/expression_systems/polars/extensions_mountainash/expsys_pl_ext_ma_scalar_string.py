@@ -32,6 +32,8 @@ class SubstraitPolarsScalarStringExpressionSystem(PolarsBaseExpressionSystem, Su
         Polars str.contains propagates null on null input, returning a
         true boolean (no extract/null-mismatch hack needed).
         """
+        if case_sensitivity == "CASE_INSENSITIVE":
+            pattern = pl.concat_str([pl.lit("(?i)"), pattern], ignore_nulls=False)
         return input.str.contains(pattern, literal=False)
 
     def strip_suffix(self, x, /, *, suffix: str):
