@@ -1,8 +1,8 @@
 """AST-level schema inference for relation node trees.
 
 Walks the relation AST to extract {column_name: type} without compilation
-or backend involvement. Types come from the source data (DataFrames,
-DataResource schemas); column names come from the AST structure.
+or execution. Types come from source schemas and cheap native-route metadata;
+column names come from the AST structure.
 """
 from __future__ import annotations
 
@@ -219,12 +219,16 @@ def infer_schema(
         Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
     ] = None,
     *,
+    identity_resolver: Optional[Callable[[str], Any]] = None,
     _drifts: Optional[list] = None,
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Walk a RelationNode tree and return {column_name: type} without compilation.
 
     Values are canonical ``MountainashDtype`` where inferable, or a
     ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
+
+    ``identity_resolver`` optionally supplies referenced nodes for native
+    metadata; ``ref_resolver`` continues to supply their inferred schemas.
 
     ``_drifts`` is a private accumulator (item 48 Task 9): when a caller
     passes a list, every ``ConformRelNode`` encountered during the walk
@@ -272,25 +276,25 @@ def infer_schema(
 
     # --- Pass-through nodes ---
     if isinstance(node, (FilterRelNode, SortRelNode, FetchRelNode)):
-        return infer_schema(node.input, ref_resolver, _drifts=_drifts)
+        return infer_schema(node.input, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
 
     # --- Reshaping nodes ---
     if isinstance(node, ProjectRelNode):
-        return _infer_project_schema(node, ref_resolver, _drifts=_drifts)
+        return _infer_project_schema(node, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
 
     if isinstance(node, AggregateRelNode):
-        return _infer_aggregate_schema(node, ref_resolver, _drifts=_drifts)
+        return _infer_aggregate_schema(node, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
 
     if isinstance(node, JoinRelNode):
-        return _infer_join_schema(node, ref_resolver, _drifts=_drifts)
+        return _infer_join_schema(node, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
 
     if isinstance(node, SetRelNode):
         if node.inputs:
-            return infer_schema(node.inputs[0], ref_resolver, _drifts=_drifts)
+            return infer_schema(node.inputs[0], ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
         return {}
 
     if isinstance(node, ConformRelNode):
-        input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
+        input_schema = infer_schema(node.input, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
         spec = node.spec
         if isinstance(spec, dict):
             spec = typespec_from_frictionless(spec)
@@ -348,9 +352,51 @@ def infer_schema(
         return emitted
 
     if isinstance(node, ExtensionRelNode):
-        return infer_schema(node.input, ref_resolver, _drifts=_drifts)
+        from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
+        input_schema = infer_schema(node.input, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
+        if node.operation == RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX:
+            return _infer_row_index_schema(node, input_schema, identity_resolver)
+        return input_schema
 
     return {}
+
+
+def _infer_row_index_schema(
+    node: Any, input_schema: dict, identity_resolver: Any,
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Describe native ordinal metadata without requiring an executable source."""
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.core.lazy_imports import import_polars
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+    from mountainash.relations.dag.errors import RelationDAGRequired
+
+    name = node.options.get("name", "index")
+    dtype = SchemaTypeStatus.UNKNOWN
+    prepend = False
+    try:
+        location = LocationResolver(
+            IdentityTokens(), identity_resolver=identity_resolver,
+        ).resolve(node)
+    except RelationDAGRequired:
+        # A schema-only ref is useful to inspect before its source is bound.
+        location = None
+    if location is not None:
+        if location.family is CONST_BACKEND.POLARS or location.dialect == "narwhals-polars":
+            dtype = _canon(import_polars().get_index_type())
+            prepend = True
+        elif location.family is CONST_BACKEND.IBIS:
+            dtype = MountainashDtype.I64
+        elif location.family in {CONST_BACKEND.PANDAS, CONST_BACKEND.PYARROW} or location.dialect in {
+            "narwhals-pandas", "narwhals-pyarrow",
+        }:
+            dtype = MountainashDtype.I64
+            prepend = True
+    # For unknown routes this position is descriptive, not a native-layout promise.
+    result = {name: dtype} if prepend else {}
+    result.update(input_schema)
+    result[name] = dtype
+    return result
 
 
 def assess_drift(
@@ -358,6 +404,8 @@ def assess_drift(
     ref_resolver: Optional[
         Callable[[str], dict[str, MountainashDtype | SchemaTypeStatus]]
     ] = None,
+    *,
+    identity_resolver: Optional[Callable[[str], Any]] = None,
 ) -> list:
     """Schema-only pre-flight: assess drift at every ``ConformRelNode`` in the plan.
 
@@ -380,7 +428,7 @@ def assess_drift(
         nothing (honest non-assessment).
     """
     drifts: list = []
-    infer_schema(node, ref_resolver, _drifts=drifts)
+    infer_schema(node, ref_resolver, identity_resolver=identity_resolver, _drifts=drifts)
     return drifts
 
 
@@ -451,14 +499,14 @@ def _schema_from_source_data(
 
 
 def _infer_project_schema(
-    node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
+    node: Any, ref_resolver: Any, *, identity_resolver: Any = None, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for ProjectRelNode based on its operation type."""
     from mountainash.relations.core.relation_system.relation_keys.enums import (
         RKEY_SUBSTRAIT_REL,
     )
 
-    input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
+    input_schema = infer_schema(node.input, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
 
     if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_RENAME:
         mapping = node.rename_mapping or {}
@@ -596,10 +644,10 @@ def _aggregate_key_source(expression: Any) -> str | None:
 
 
 def _infer_aggregate_schema(
-    node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
+    node: Any, ref_resolver: Any, *, identity_resolver: Any = None, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Resolve complete aggregate names and retain only proven key source types."""
-    input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
+    input_schema = infer_schema(node.input, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
     if not node.measures:
         # Preserve the existing key-only DISTINCT schema behavior.
         result = {}
@@ -624,13 +672,13 @@ def _infer_aggregate_schema(
 
 
 def _infer_join_schema(
-    node: Any, ref_resolver: Any, *, _drifts: Optional[list] = None
+    node: Any, ref_resolver: Any, *, identity_resolver: Any = None, _drifts: Optional[list] = None
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Infer schema for JoinRelNode; keyed joins follow ``join_layout``."""
     from mountainash.core.constants import JoinType
 
-    left_schema = infer_schema(node.left, ref_resolver, _drifts=_drifts)
-    right_schema = infer_schema(node.right, ref_resolver, _drifts=_drifts)
+    left_schema = infer_schema(node.left, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
+    right_schema = infer_schema(node.right, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
 
     if node.join_type in (JoinType.SEMI, JoinType.ANTI):
         return left_schema

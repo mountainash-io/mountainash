@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-12
+
+### Fixed
+- `Relation.with_row_index()` now exposes its native ordinal dtype and column placement during schema introspection, including DAG references (#366). Unresolved references expose the ordinal with `UNKNOWN` dtype without requiring execution; native execution and collision behavior are unchanged.
+
 ## Unreleased — 2026-10-11
 
 ### Added
