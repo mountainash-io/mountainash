@@ -1231,52 +1231,6 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
 
 
 
-    # def regex_match(
-    #     self,
-    #     pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    #     case_sensitive: bool = True,
-    # ) -> BaseExpressionAPI:
-    #     """
-    #     Check if entire string matches regex pattern.
-
-    #     This anchors the pattern with ^ and $ to match the full string.
-    #     For partial matching, use regex_contains().
-
-    #     Args:
-    #         pattern: Regular expression pattern.
-    #         case_sensitive: Case sensitivity (default: True).
-
-    #     Returns:
-    #         New ExpressionAPI with boolean result.
-    #     """
-    #     # Anchor pattern to match entire string
-    #     if isinstance(pattern, str):
-    #         anchored_pattern = f"^{pattern}$"
-    #     else:
-    #         # If pattern is an expression, we can't easily anchor it
-    #         # Fall back to using the pattern as-is
-    #         anchored_pattern = pattern
-
-    #     return self.regex_contains(anchored_pattern, case_sensitive=case_sensitive)
-
-    # def regex_contains(
-    #     self,
-    #     pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
-    #     case_sensitive: bool = True,
-    # ) -> BaseExpressionAPI:
-    #     """
-    #     Check if string contains a match for regex pattern.
-
-    #     Args:
-    #         pattern: Regular expression pattern.
-    #         case_sensitive: Case sensitivity (default: True).
-
-    #     Returns:
-    #         New ExpressionAPI with boolean result.
-    #     """
-    #     # Use contains with regex pattern - backends interpret patterns as regex
-    #     return self.contains(pattern, case_sensitive=case_sensitive)
-
     def regex_match(
         self,
         pattern: str,
@@ -1286,22 +1240,22 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         """Check if entire string matches regex pattern (anchored with ^ and $).
 
         Args:
-            pattern: Regex pattern. Must be a literal ``str``. See
-                :meth:`regex_contains` for the rationale and the escape
-                hatch for dynamic patterns.
+            pattern: Literal regex string. For expression-valued patterns,
+                use :meth:`regex_contains`, which does not add anchors.
             case_sensitive: Whether matching is case-sensitive (default True).
+                The non-default False value is currently not honored.
         """
         if not isinstance(pattern, str):
             raise TypeError(
                 f"regex_match pattern must be a literal str, "
-                f"got {type(pattern).__name__}. For dynamic patterns, use "
-                f"rel.compile() to drop into the native backend."
+                f"got {type(pattern).__name__}. regex_contains accepts "
+                f"expression-valued patterns without adding anchors."
             )
         return self.regex_contains(f"^{pattern}$", case_sensitive=case_sensitive)
 
     def regex_contains(
         self,
-        pattern: str,
+        pattern: Union[BaseExpressionAPI, "ExpressionNode", Any],
         *,
         case_sensitive: bool = True,
     ) -> BaseExpressionAPI:
@@ -1313,30 +1267,24 @@ class SubstraitScalarStringAPIBuilder(BaseExpressionAPIBuilder, SubstraitScalarS
         with literal=False, ibis re_search, narwhals str.contains).
 
         Args:
-            pattern: Regex pattern. Must be a literal ``str``. Mountainash
-                does not support dynamic regex patterns drawn from another
-                column or computed at runtime — every supported backend
-                requires the pattern as a literal at compile time.
-
-                For dynamic patterns, use ``rel.compile()`` to drop into
-                the native backend (Polars, Ibis, narwhals) and apply that
-                backend's own dynamic-regex API directly.
+            pattern: Literal regex string or string expression. Plain strings
+                are patterns, not column names. Column and computed patterns
+                work on Polars, Narwhals-Polars, Ibis-DuckDB and Ibis-SQLite.
+                Narwhals-pandas/PyArrow and Ibis-Polars reject dynamic patterns
+                during native execution; expression literals remain supported.
             case_sensitive: Whether matching is case-sensitive (default True).
+                The non-default False value is currently not honored.
+
+        Output names remain inspectable for ordinary single-output expressions
+        even when the selected native route cannot execute a dynamic pattern.
         """
-        if not isinstance(pattern, str):
-            raise TypeError(
-                f"regex_contains pattern must be a literal str, "
-                f"got {type(pattern).__name__}. For dynamic patterns, use "
-                f"rel.compile() to drop into the native backend."
-            )
         from mountainash.expressions.core.expression_system.function_keys.enums import (
             FKEY_MOUNTAINASH_SCALAR_STRING,
         )
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRING.REGEX_CONTAINS,
-            arguments=[self._node],
+            arguments=[self._node, self._to_substrait_node(pattern)],
             options={
-                "pattern": pattern,
                 "case_sensitivity": "CASE_SENSITIVE" if case_sensitive else "CASE_INSENSITIVE",
             },
         )

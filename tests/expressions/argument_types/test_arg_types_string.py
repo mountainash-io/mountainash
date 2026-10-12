@@ -1156,6 +1156,7 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STR.CONCAT_WS, "separator"),
     (FK_STR.CONTAINS, "substring"),
     # Mountainash string extensions — 8 ops (json_decode has no OP_SPEC; others have one)
+    (FK_MA_STR.REGEX_CONTAINS, "pattern"),
     (FK_MA_STR.STRIP_SUFFIX, "x"),
     ("to_integer", "x"),
     ("to_time", "x"),
@@ -1527,6 +1528,22 @@ OP_SPECS: list[OpSpec] = [
     ),
     # -- Mountainash string extensions --
     OpSpec(
+        function_key=FK_MA_STR.REGEX_CONTAINS,
+        op_name="regex_contains",
+        build=lambda col, arg: col.str.regex_contains(arg),
+        raw_arg="^AU$",
+        arg_col_name="pattern",
+        param_name="pattern",
+        data={"text": ["AU", "NZ", "AU"], "pattern": ["^AU$", "^AU$", "au"]},
+        complex_builder=lambda name: ma.col(name).str.upper(),
+        expected_by_input={
+            "raw": [True, False, True],
+            "lit": [True, False, True],
+            "col": [True, False, False],
+            "complex": [True, False, True],
+        },
+    ),
+    OpSpec(
         function_key=FK_MA_STR.STRIP_SUFFIX,
         op_name="strip_suffix",
         build=lambda col, _arg: col.str.strip_suffix("_old"),
@@ -1759,6 +1776,18 @@ if OP_SPECS:
 
     @pytest.mark.parametrize("op,backend,input_type", _params())
     def test_argument_channel(op: OpSpec, backend: str, input_type: str):
+        if (
+            op.function_key == FK_MA_STR.REGEX_CONTAINS
+            and backend == "narwhals-pandas"
+            and input_type in {"col", "complex"}
+        ):
+            with expect_call_failure(
+                errors=(TypeError,),
+                reason="Narwhals-pandas native regex predicate rejects dynamic patterns",
+            ):
+                run_argument_matrix(op, backend, input_type)
+            return
+
         if backend == "narwhals-pandas" and op.op_name == "string_split" and input_type in ("raw", "lit"):
             with expect_call_failure(
                 reason="Narwhals pandas string_split requires pyarrow-backed storage",
