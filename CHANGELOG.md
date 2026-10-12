@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-12
+
+### Fixed
+- Whole-row `Relation.unique()` now preserves inferred input field names, order and types, including empty inputs and downstream joins (#365). Keyed DISTINCT and execution behavior are unchanged.
+
 ## Unreleased — 2026-10-11
 
 ### Added

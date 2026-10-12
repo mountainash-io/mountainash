@@ -601,7 +601,9 @@ def _infer_aggregate_schema(
     """Resolve complete aggregate names and retain only proven key source types."""
     input_schema = infer_schema(node.input, ref_resolver, _drifts=_drifts)
     if not node.measures:
-        # Preserve the existing key-only DISTINCT schema behavior.
+        if not node.keys:
+            return input_schema  # Whole-row DISTINCT preserves every input field.
+        # Preserve the existing key-only schema behavior for keyed DISTINCT.
         result = {}
         for key in node.keys:
             name = infer_expression_name(key)
