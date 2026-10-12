@@ -10,9 +10,13 @@ from mountainash.core.types import RelationT
 class SubstraitSetRelationSystemProtocol(Protocol[RelationT]):
     """Contract for set operations (union, etc.) on relations."""
 
-    def union_all(self, relations: list[RelationT], /) -> RelationT: ...
+    def union_all(
+        self, relations: list[RelationT], /, *, timezone: str | None = None,
+    ) -> RelationT: ...
 
-    def union_distinct(self, relations: list[RelationT], /) -> RelationT: ...
+    def union_distinct(
+        self, relations: list[RelationT], /, *, timezone: str | None = None,
+    ) -> RelationT: ...
 
     # --- Aspirational (Substrait SetOp domain; not yet wired) ---
 

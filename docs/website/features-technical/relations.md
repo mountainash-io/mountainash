@@ -52,7 +52,7 @@ The minimal AST is deliberate — most operations are parameter values on these 
 | Sort / fetch | `.sort(*by, descending=...)`, `.head(n)`, `.tail(n)`, `.slice(offset, length)` |
 | Join | `.join(other, on=... \| left_on=..., right_on=..., how=..., suffix=..., coalesce=..., execute_on=...)`, `.cross_join(other, execute_on=...)`, `.join_asof(..., execute_on=...)` (cross-type allowed) |
 | Group / aggregate | `.group_by(*keys).agg(*exprs)` |
-| Set ops | `.union(other)`, `.intersection(other)`, `.difference(other)` |
+| Concatenation | `ma.concat(relations, distinct=False, timezone=None)` |
 | Unique / null | `.unique(*cols)`, `.drop_nulls(subset=...)`, `.drop_nans(subset=...)`, `.has_nulls()`, `.null_count()` |
 | Sampling | `.sample(n=..., fraction=...)`, `.with_row_index()` |
 | Pivots | `.unpivot(on=..., index=...)`, `.pivot(on=..., index=...)` |
@@ -62,6 +62,36 @@ The minimal AST is deliberate — most operations are parameter values on these 
 | Pipeline params | `.params(**kwargs)` — see [Pipelines](pipelines.md) |
 
 `.group_by()` returns a `GroupedRelation` that exposes only `.agg()` — by design, so you can't accidentally chain a filter onto a partial group.
+
+### Timestamp concatenation
+
+```python
+combined = ma.concat([left, right])                  # Precision widening only
+utc_rows = ma.concat([left, right], timezone="UTC")  # Normalize aware columns
+unique = ma.concat([left, right], distinct=True, timezone="America/New_York")
+```
+
+On Polars, Narwhals (including pandas) and Ibis-DuckDB/Ibis-Polars, concat
+widens corresponding top-level timestamp columns to the finest input
+precision. By default, aware columns must share a zone for this preparation;
+different zones retain native compatibility behavior rather than being
+converted implicitly.
+
+An explicit IANA timezone target converts each all-aware column independently,
+preserving instants. Naive columns remain naive; a target does not interpret
+mixed naive/aware values. Nested timestamps are not traversed. Nulls stay null,
+typed empty columns contribute their declared precision, and distinct compares
+complete rows after preparation. A single input also honors the timezone target.
+
+SQLite timestamp reconciliation is **unsupported**. Default concat retains
+its existing native behavior; an explicit target on an all-aware column raises
+`BackendCapabilityError`, including a UTC target. No normalization is performed
+at egress to hide this limitation.
+
+Preparation happens after existing execution-location/transfer resolution.
+It cannot restore precision already lost at ingestion (notably aware ns values
+in DuckDB's us storage), and native timestamp range limits still apply.
+
 
 ### Row indices and partial schemas
 
