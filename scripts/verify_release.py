@@ -23,7 +23,7 @@ from packaging.utils import canonicalize_name
 PYPI = "https://pypi.org/simple"
 EXTRA_IMPORTS = {
     "pandas": ("pandas",),
-    "ibis": ("ibis",),
+    "ibis": ("ibis", "mountainash_data"),
     "storage": ("mountainash_transport",),
     "files": ("mountainash_files",),
     "dbos": ("dbos",),

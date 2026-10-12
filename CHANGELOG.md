@@ -11,6 +11,7 @@
 - Backward ASOF on Ibis-DuckDB permits any right row tied at the nearest eligible key; last-input-row selection is not portable. The duplicate-right regression accepts either valid complete output on DuckDB and retains exact last-row assertions on other backends. No runtime planner override or xfail is used.
 
 ### Fixed
+- The `ibis` extra now declares `mountainash-data>=0.1.0,<0.2`, required by the existing SQL transaction/owned-copy integration (261). Base installations remain Data-free; development/CI source constraints and release import checks include the dependency. Public-extra installation still requires sibling publication.
 - Ibis semi/anti joins between identical or structurally equal relations no longer raise `IbisInputError` (258).
 - Narwhals semi/anti joins using `left_on`/`right_on` preserve the left-only output without projecting absent or duplicate right columns (258).
 - Ibis dialects and all Narwhals variants (including pandas DataFrames routed through Narwhals) now reject product aggregates with `BackendCapabilityError`; Polars product behavior is unchanged. Retired the Ibis `EXP(SUM(LN(x)))` workaround recommendation and historical product-divergence examples (239).
