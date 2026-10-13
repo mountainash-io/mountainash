@@ -93,6 +93,25 @@ It cannot restore precision already lost at ingestion (notably aware ns values
 in DuckDB's us storage), and native timestamp range limits still apply.
 
 
+### Declared dataclass source schemas
+
+For a flat dataclass instance or homogeneous list of instances, schema inspection
+uses declared fields and scalar types without scanning rows or reading field
+values. Nullable scalar annotations retain their declared dtype even when every
+value is null or the first non-null value occurs after row 100. This allows
+dataclass sources to compose through conformance and structured joins without
+materializing either input first.
+
+Only instance fields are exposed; `ClassVar` and `InitVar` are excluded. If
+annotation extraction fails, known field names remain with `UNKNOWN` types.
+Successfully extracted `ANY` declarations, including unresolved multi-type unions,
+remain `UNCONSTRAINED`. Nested dataclass ingress is not covered by this guarantee.
+
+No class scan is performed for mixed-class lists. They remain accepted by ingress,
+but additional runtime fields may be absent from inferred metadata; accurate
+mixed-class schema inference and composition are not guaranteed. The native
+100-row inference fallback is unchanged.
+
 ### Projection schema introspection
 
 `.schema` uses the plan and available source metadata, without compiling or

@@ -6,6 +6,7 @@ column names come from the AST structure.
 """
 from __future__ import annotations
 
+from dataclasses import fields, is_dataclass
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -472,13 +473,34 @@ def _schema_from_source_data(
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Extract column names and infer types from Python source data.
 
-    Delegates to _schema_from_dataframe via pl.DataFrame(data, strict=False) so
-    inference matches the runtime ingress path exactly. strict=False matches
-    pydata/ingress paths that also use strict=False.
-
-    Falls back to names-only (UNKNOWN) if DataFrame construction fails — preserving
-    old behaviour for genuinely-unconstructable data.
+    Dataclass instances and homogeneous lists use declarations without reading
+    row values. Mixed-class lists do not have a complete-schema guarantee.
+    Dictionary inputs use pl.DataFrame(data, strict=False), matching ingress,
+    with names-only (UNKNOWN) fallback if construction fails.
     """
+    instance = data[0] if isinstance(data, list) and data else data
+    if is_dataclass(instance) and not isinstance(instance, type):
+        from mountainash.typespec.extraction import extract_from_dataclass
+        from mountainash.typespec.universal_types import UniversalType as U
+
+        model_type = type(instance)
+        schema = {field.name: SchemaTypeStatus.UNKNOWN for field in fields(model_type)}
+        try:
+            spec = extract_from_dataclass(model_type)
+        except Exception:
+            # Hint resolution is best-effort metadata; names remain usable.
+            return schema
+        declared = _schema_from_typespec(spec)
+        # Match the flat model evidence honored by PyData ingress. ANY retains
+        # the existing unconstrained status, not a fabricated concrete dtype.
+        scalar_types = {
+            U.STRING, U.INTEGER, U.NUMBER, U.BOOLEAN, U.DATE, U.DATETIME,
+            U.TIME, U.DURATION, U.YEAR, U.YEARMONTH, U.ANY,
+        }
+        for field in spec.fields:
+            if field.name in schema and field.type in scalar_types:
+                schema[field.name] = declared[field.name]
+        return schema
     if isinstance(data, list) and data and isinstance(data[0], dict):
         keys = list(data[0].keys())
         import polars as pl

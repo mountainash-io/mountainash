@@ -1,9 +1,63 @@
+from dataclasses import dataclass, make_dataclass
+from typing import Any, ClassVar
+
 import polars as pl
 import pytest
 
 import mountainash as ma
 from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.relations.schema_inference import SchemaTypeStatus, infer_schema
+
+
+@dataclass
+class DeclaredRow:
+    id: str
+    label: str | None
+    marker: ClassVar[str] = "not a column"
+
+
+@dataclass
+class UncertainRow:
+    id: str
+    payload: Any
+    mixed: int | str | None
+
+
+UnresolvedRow = make_dataclass(
+    "UnresolvedRow", [("id", str), ("payload", "Item289MissingType")]
+)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        DeclaredRow("a", None),
+        [DeclaredRow("a", None)],
+        [DeclaredRow("a", None)] * 100 + [DeclaredRow("b", "late")],
+    ],
+    ids=["instance", "list", "late-value"],
+)
+def test_dataclass_source_uses_declared_fields(source):
+    schema = infer_schema(ma.relation(source)._node)
+    assert schema == {"id": D.STRING, "label": D.STRING}
+    assert list(schema) == ["id", "label"]
+
+
+def test_dataclass_uncertain_declarations_remain_unconstrained():
+    schema = infer_schema(ma.relation(UncertainRow("a", None, "00123"))._node)
+    assert schema == {
+        "id": D.STRING,
+        "payload": SchemaTypeStatus.UNCONSTRAINED,
+        "mixed": SchemaTypeStatus.UNCONSTRAINED,
+    }
+
+
+def test_dataclass_hint_resolution_failure_retains_names():
+    schema = infer_schema(ma.relation(UnresolvedRow("a", None))._node)
+    assert schema == {
+        "id": SchemaTypeStatus.UNKNOWN,
+        "payload": SchemaTypeStatus.UNKNOWN,
+    }
 
 
 def test_dataframe_schema_is_canonical():
