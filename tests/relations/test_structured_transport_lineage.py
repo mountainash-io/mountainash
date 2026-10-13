@@ -1,6 +1,7 @@
 """Closed lineage rules for structured physical transport."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType, SimpleNamespace
 
@@ -25,6 +26,32 @@ from mountainash.relations.core.structured_lineage import (
     TRANSPORT_LINEAGE_POLICIES,
     propagate_structured_plans,
 )
+
+
+@dataclass
+class JoinRow:
+    id: str
+    label: str
+
+
+def test_dataclass_source_conforms_and_joins_structured_relation():
+    import polars as pl
+
+    from mountainash.typespec.extraction import extract_from_dataclass
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType as U
+
+    left = ma.relation([JoinRow("a", "first")]).conform(extract_from_dataclass(JoinRow))
+    right_spec = TypeSpec(fields=[
+        FieldSpec("id", U.STRING),
+        FieldSpec("metadata", U.OBJECT, object_fields=[FieldSpec("tag", U.STRING)]),
+    ])
+    right = ma.relation(pl.DataFrame({
+        "id": ["a"], "metadata": [{"tag": "kept"}],
+    })).conform(right_spec)
+    assert left.join(right, on="id").to_dicts() == [
+        {"id": "a", "label": "first", "metadata": {"tag": "kept"}},
+    ]
 
 
 def transport_plan(name: str = "payload") -> StructuredFieldPlan:
