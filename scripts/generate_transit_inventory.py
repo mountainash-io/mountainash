@@ -2,8 +2,7 @@
 """Generate the deterministic AST-derived transit inventory.
 
 Run:
-    hatch run test:python scripts/generate_transit_inventory.py \
-        --write tests/fixtures/transit_inventory.json
+    hatch run test:python scripts/generate_transit_inventory.py
 """
 from __future__ import annotations
 
