@@ -93,6 +93,20 @@ It cannot restore precision already lost at ingestion (notably aware ns values
 in DuckDB's us storage), and native timestamp range limits still apply.
 
 
+### Projection schema introspection
+
+`.schema` uses the plan and available source metadata, without compiling or
+executing it. Ordinary field selections retain their source dtype through aliases
+and name-only transformations, including selectors whose output names are known.
+Computed projections report `SchemaTypeStatus.UNKNOWN`, even when replacing an
+existing column with the same name. A cast or Decimal arithmetic expression does
+not promise its executed precision through this best-effort metadata.
+
+Decimal conform declarations remain inspectable after such projections: unknown
+source evidence does not establish a conversion requirement. Execution still
+checks the native type and requires explicit rounding when conversion is needed.
+Authors remain responsible for sufficient Decimal precision and explicit widening.
+
 ### Row indices and partial schemas
 
 `with_row_index(name="index")` assigns native zero-based ordinals. Its dtype,
