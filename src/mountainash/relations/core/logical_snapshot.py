@@ -241,12 +241,17 @@ def _resolution_error(field_name: str, plan: Any, row_ordinal: int) -> ConformTr
 
 
 def _python_value(value: Any) -> Any:
-    """Normalize one physical cell to a Python-native scalar before
-    structured resolution. PyArrow-native snapshot columns (the PyArrow,
-    Narwhals, and Ibis adapters all capture Arrow columns) yield ``Scalar``
-    wrapper objects when iterated, not the underlying Python value the
-    shared decoder expects; every other adapter's native sequence type
-    already yields native Python scalars."""
+    """Normalize a backend cell before structured resolution.
+
+    Arrow scalar wrappers use ``as_py()``; native Polars array cells use
+    ``to_list()``. The latter copies contents, costing time and memory
+    proportional to the converted values during the existing logical-value
+    traversal. It is not zero-copy, schema inference, or another source execution.
+    """
+    import polars as pl
+
+    if isinstance(value, pl.Series):
+        return value.to_list()
     as_py = getattr(value, "as_py", None)
     return as_py() if callable(as_py) else value
 

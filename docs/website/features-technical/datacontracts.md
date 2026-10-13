@@ -42,6 +42,20 @@ The contract checks:
 
 Validation runs through the cross-backend expression system — the same engine that compiles `ma.col("x").gt(5)` to a native Polars / Ibis / Narwhals expression. There is no second validation path; if the expression system can compile it, the contract can validate it.
 
+### Native array values
+
+`ma.datacontract(spec).validate_datacontract(df)` accepts native arrays for
+declared `ARRAY` fields, including populated and empty lists and optional nulls.
+Declared object elements retain their nested constraints; required nulls and
+invalid nested values still fail. Native arrays do not need JSON serialization
+before validation.
+
+Structured value checks consume logical Python values. At that boundary, native
+Polars array cells are converted to Python lists, copying their contents with
+time and memory proportional to the converted values. This happens during the
+existing logical-value traversal, not schema inference or another source
+execution. Physical columns remain native.
+
 ## Why this matters
 
 Most data validation tools are tied to a particular runtime:
