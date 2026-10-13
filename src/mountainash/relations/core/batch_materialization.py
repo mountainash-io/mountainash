@@ -73,6 +73,8 @@ def consume_native_batches(value, *, compiler_identity, batch_size, on_schema, o
     reader = value.to_pyarrow_batches(chunk_size=batch_size)
     try:
         for record_batch in reader:
+            if record_batch.schema != arrow_schema:
+                record_batch = record_batch.cast(arrow_schema, safe=True)
             frame = transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, record_batch)
             deliver(frame)
     except BaseException as primary:
