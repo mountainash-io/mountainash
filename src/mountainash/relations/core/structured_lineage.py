@@ -267,7 +267,7 @@ def _join_name_maps(
     inference use): left names are unchanged, right names are renamed and
     merged/dropped keys disappear.
     """
-    from mountainash.relations.core.join_layout import keyed_layout_applies, layout_for_node
+    from mountainash.relations.core.join_layout import asof_right_name_map, keyed_layout_applies, layout_for_node
 
     left, right = child_maps
     if not left and not right:
@@ -289,6 +289,10 @@ def _join_name_maps(
         layout = layout_for_node(node, left_order, right_order)
         final = {name: layout.right_rename.get(name, name) for name in right}
         return [left_map, {name: out for name, out in final.items() if out not in layout.drop}]
+
+    if getattr(getattr(node, "join_type", None), "name", None) == "ASOF":
+        final = asof_right_name_map(node, left_order, right_order)
+        return [left_map, {name: final[name] for name in right if name in final}]
 
     suffix = getattr(node, "suffix", "_right") or "_right"
     left_names = set(left_order)

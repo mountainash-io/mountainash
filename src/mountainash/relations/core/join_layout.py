@@ -99,6 +99,17 @@ def layout_for_node(node: Any, left_names: list[str], right_names: list[str]) ->
     )
 
 
+def asof_right_name_map(node: Any, left_names: list[str], right_names: list[str]) -> dict[str, str]:
+    """ASOF keeps left keys and drops their right counterparts before suffixing payloads."""
+    # ASOF dispatch uses the first on key; by may contain several grouping keys.
+    keys = set((node.on or node.left_on or [])[:1]) | set(node.by or [])
+    left = set(left_names)
+    return {
+        name: f"{name}{node.suffix}" if name in left else name
+        for name in right_names if name not in keys
+    }
+
+
 def native_column_names(native: Any) -> list[str]:
     """Ordered output column names of a compiled native relation."""
     from mountainash.relations.schema_inference import _schema_from_dataframe

@@ -258,11 +258,8 @@ class MountainashNarwhalsExtensionRelationSystem(
         )
 
         right_payload_out = [rename_map[c] for c in right_payload_raw]
-        left_payload = [c for c in left_cols if c not in (by_cols + [on])]
 
-        keep = [merged[on], merged["_ma_left_id"]]
-        keep += [merged[c] for c in by_cols]
-        keep += [merged[c] for c in left_payload]
+        keep = [merged[c] for c in left_cols] + [merged["_ma_left_id"]]
         for c in right_payload_out:
             keep.append(
                 nw.when(fwd_wins).then(merged[f"{c}_fwd"]).otherwise(merged[c]).alias(c)
