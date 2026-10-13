@@ -25,6 +25,19 @@ def test_implicit_projection_keeps_dag_terminal_routing(backend_name, backend_fa
     assert rel.to_dict() == {"n": [0, 2]}
 
 
+@pytest.mark.cross_backend
+def test_projection_schema_distinguishes_computation_through_ref(backend_name, backend_factory):
+    from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+
+    dag = RelationDAG()
+    dag.add("raw", ma.relation(backend_factory.create({"n": [1, 2]}, backend_name)))
+    derived = dag.ref("raw").select((ma.col("n") + 1).alias("n"), ma.col("n").alias("copy"))
+    dag.add("derived", derived)
+    assert dag.schema("derived") == {"n": SchemaTypeStatus.UNKNOWN, "copy": D.I64}
+    assert derived.to_dict() == {"n": [2, 3], "copy": [1, 2]}
+
+
 def test_schema_resolves_over_ref_tree():
     dag = _dag()
     rel = dag.ref("raw").filter(ma.col("x").gt(0))

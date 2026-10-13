@@ -513,12 +513,23 @@ def _infer_project_schema(
         return {mapping.get(k, k): v for k, v in input_schema.items()}
 
     if node.operation in {RKEY_SUBSTRAIT_REL.PROJECT_SELECT, RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS}:
+        input_names = tuple(input_schema)
         names = require_projection_names(
-            node.expressions, operation=node.operation, input_names=tuple(input_schema)
+            node.expressions, operation=node.operation, input_names=input_names
         )
         result = dict(input_schema) if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_WITH_COLUMNS else {}
         for name in names:
-            result[name] = input_schema.get(name, SchemaTypeStatus.UNKNOWN)
+            result[name] = SchemaTypeStatus.UNKNOWN
+        for expression in node.expressions:
+            # Aggregate keys and projections share the same field-identity rule.
+            source = _aggregate_key_source(expression)
+            if source is None:
+                continue
+            source_names = resolve_output_names(source, input_names=input_names).names
+            output_names = resolve_output_names(expression, input_names=input_names).names
+            if source_names is not None and output_names is not None and len(source_names) == len(output_names):
+                for output_name, source_name in zip(output_names, source_names):
+                    result[output_name] = input_schema.get(source_name, SchemaTypeStatus.UNKNOWN)
         return result
 
     if node.operation == RKEY_SUBSTRAIT_REL.PROJECT_DROP:

@@ -34,6 +34,69 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType as U
 
 
+@pytest.fixture(params=["polars", "ibis-duckdb"])
+def decimal_projection_source(request):
+    # Decimal casts execute on these engines; Narwhals declares NW-MATH-11.
+    from decimal import Decimal
+
+    frame = pl.DataFrame({"value": pl.Series([Decimal("10.00"), None], dtype=pl.Decimal(4, 2))})
+    if request.param == "polars":
+        yield ma.relation(frame)
+    else:
+        import ibis
+
+        con = ibis.duckdb.connect()
+        try:
+            yield ma.relation(con.create_table("decimal_source", frame.to_arrow()))
+        finally:
+            con.disconnect()
+
+
+def test_projected_decimal_conform_introspection_and_execution(decimal_projection_source):
+    from decimal import Decimal
+
+    dtype = ma.DecimalDtype(precision=4, scale=2)
+    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=dtype)])
+    projected = decimal_projection_source.select(
+        ma.col("value").cast(dtype, rounding="half_to_even").alias("value")
+    )
+    assert projected.schema == {"value": SchemaTypeStatus.UNKNOWN}
+    matched = projected.conform(spec)
+    assert matched.schema == {"value": dtype}
+    assert matched.assess_drift()[0].type_mismatches[0].reason == "unknown"
+    assert matched.to_polars()["value"].to_list() == [Decimal("10.00"), None]
+    assert projected.conform(spec, apply_value_transforms=False).schema == {"value": SchemaTypeStatus.UNKNOWN}
+    assert projected.conform(spec, contract={"data_type": "evolve"}).schema == {"value": SchemaTypeStatus.UNKNOWN}
+
+
+def test_projected_decimal_conform_still_enforces_concrete_conversion(decimal_projection_source):
+    from mountainash.conform.errors import DecimalConversionRequiredError
+
+    source_dtype = ma.DecimalDtype(precision=4, scale=2)
+    target = ma.DecimalDtype(precision=3, scale=1)
+    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=target)])
+    with pytest.raises(DecimalConversionRequiredError):
+        _ = decimal_projection_source.conform(spec).schema
+    projected = decimal_projection_source.select(
+        ma.col("value").cast(source_dtype, rounding="half_to_even").alias("value")
+    ).conform(spec)
+    assert projected.schema == {"value": target}
+    with pytest.raises(DecimalConversionRequiredError):
+        projected.to_polars()
+
+
+def test_decimal_conform_terminal_unknown_requires_rounding():
+    from mountainash.conform.errors import DecimalConversionRequiredError
+    from mountainash.conform.expressions import resolve_conform_output
+
+    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=ma.DecimalDtype(4, 2))])
+    with pytest.raises(DecimalConversionRequiredError):
+        resolve_conform_output(
+            spec, available_columns=["value"],
+            actual_dtypes={"value": SchemaTypeStatus.UNKNOWN}, raise_on_freeze=True,
+        )
+
+
 def _infer(rel):
     return infer_schema(rel._node)
 

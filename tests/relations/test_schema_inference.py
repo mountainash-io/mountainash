@@ -13,6 +13,65 @@ from mountainash.relations.schema_inference import (
 )
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("expression,expected", [
+    (ma.col("n").alias("copy"), {"copy": D.I64}),
+    (ma.col("*").name.prefix("p_"), {"p_n": D.I64, "p_text": D.STRING}),
+    (ma.col("*").name.suffix("_s"), {"n_s": D.I64, "text_s": D.STRING}),
+    (ma.col("*").name.to_uppercase(), {"N": D.I64, "TEXT": D.STRING}),
+    (ma.col("*").name.to_uppercase().name.to_lowercase(), {"n": D.I64, "text": D.STRING}),
+    (ma.col("^n$").alias("copy"), {"copy": D.I64}),
+])
+def test_projection_preserves_source_identity(backend_name, backend_factory, expression, expected):
+    rel = ma.relation(backend_factory.create({"n": [1], "text": ["a"]}, backend_name))
+    assert list(rel.select(expression).schema.items()) == list(expected.items())
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("expression", [
+    ma.col("n") + 1,
+    ma.col("n") > 0,
+    ma.col("n").cast(D.STRING),
+    ma.lit(3),
+    (ma.col("n") + 1).name.prefix("computed_"),
+])
+def test_projection_computation_does_not_inherit_replaced_type(backend_name, backend_factory, expression):
+    rel = ma.relation(backend_factory.create({"n": [1], "text": ["a"]}, backend_name))
+    changed = rel.with_columns(expression.alias("n"))
+    assert changed.schema == {"n": SchemaTypeStatus.UNKNOWN, "text": D.STRING}
+    assert rel.select(expression.alias("new")).schema == {"new": SchemaTypeStatus.UNKNOWN}
+
+
+@pytest.mark.cross_backend
+def test_projection_unknown_survives_rename_and_select(backend_name, backend_factory):
+    rel = ma.relation(backend_factory.create({"n": [1]}, backend_name))
+    changed = rel.with_columns((ma.col("n") + 1).alias("n"))
+    assert changed.rename({"n": "renamed"}).select(ma.col("renamed").alias("copy")).schema == {
+        "copy": SchemaTypeStatus.UNKNOWN,
+    }
+
+
+@pytest.mark.cross_backend
+def test_projection_replacements_use_original_input(backend_name, backend_factory):
+    rel = ma.relation(backend_factory.create({"n": [1], "text": ["a"]}, backend_name))
+    changed = rel.with_columns(ma.col("text").alias("n"), ma.col("n").alias("copy"))
+    assert changed.schema == {"n": D.STRING, "text": D.STRING, "copy": D.I64}
+    empty = rel.head(0).with_columns(ma.col("text").alias("n"), ma.col("n").alias("copy"))
+    assert empty.schema == {"n": D.STRING, "text": D.STRING, "copy": D.I64}
+
+
+def test_projection_preserves_unconstrained_source_status():
+    # A declared ANY resource has no backend; this tests metadata, not execution.
+    pkg = ma.DataPackage(resources=[ma.DataResource(
+        name="source", path="not-read.csv", type="table", format="csv",
+        table_schema={"fields": [{"name": "free", "type": "any"}]},
+    )])
+    dag = pkg.to_relation_dag()
+    assert dag.ref("source").select(ma.col("free").alias("copy")).schema == {
+        "copy": SchemaTypeStatus.UNCONSTRAINED,
+    }
+
+
 @pytest.mark.parametrize("operation", ["select", "with_columns"])
 @pytest.mark.parametrize("selector,names", [("*", ["n", "m"]), ("^n$", ["n"]), ("^absent$", [])])
 def test_complete_projection_expansion_schema(operation, selector, names):

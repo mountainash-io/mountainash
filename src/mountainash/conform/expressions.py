@@ -618,8 +618,10 @@ def resolve_conform_output(
             and em.field.rounding is None
             and apply_value_transforms
             and action in {"coerce", "discard_value", "discard_row"}
+            and (raise_on_freeze or mismatch.reason != "unknown")
         ):
-            # A mismatch requires an explicit instruction; declarations alone never choose rounding.
+            # Unknown inference evidence does not prove conversion is required.
+            # Concrete mismatches and terminal resolution still require rounding.
             raise DecimalConversionRequiredError(
                 em.field.name, em.field.dtype, mismatch.actual or "an unknown type"
             )
