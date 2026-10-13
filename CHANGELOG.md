@@ -3,6 +3,7 @@
 ## Unreleased — 2026-10-13
 
 ### Fixed
+- Ibis-DuckDB fingerprint batches now safely conform to the compiled result's declared Arrow schema, fixing Decimal arithmetic schema mismatches (backlog 304). Typed-empty results and reader/transaction ownership are preserved. Overflow and fractional-digit loss raise; authors remain responsible for explicit Decimal widening.
 - Flat dataclass and Pydantic ingress now uses declared scalar source types during construction, preserving late non-null values and typed all-null columns (backlog 302). Nullable Pydantic annotations resolve to their value type without changing whether the field is required.
 - PyData ingress accepts keyword-only `source_spec` and `inline_conform`. Explicit source declarations override model annotations; unrefined `ANY` falls through to existing evidence. Target `type_spec` remains separate, target conversion defaults to enabled, and undeclared row inference remains bounded to 100 rows with no extra scan or retry.
 - Conversion-boundary CI checks now enforce policy against the live AST census rather than a copied source-fingerprint snapshot. Unwrapped/unknown boundaries and prohibited transit remain rejected; the inventory CLI remains available for audit reports.

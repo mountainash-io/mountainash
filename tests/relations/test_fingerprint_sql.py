@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import ibis
 import polars as pl
+import pyarrow as pa
 import pytest
 
 import mountainash as ma
@@ -103,6 +104,85 @@ def test_duckdb_typed_values_match_native_polars(duckdb_connection, empty):
             rel = rel.filter(ma.col("k") < 0)
         return rel.fingerprint(keys=["k"], columns=values, batch_size=1)
     assert calculate(native).equals(calculate(frame))
+
+
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("typed", [False, True])
+def test_decimal_arithmetic_fingerprint_schema(duckdb_connection, empty, typed):
+    """DuckDB transport must honor the declared schema, even after arithmetic."""
+    source = pl.DataFrame({
+        "k": [1, 2, 3],
+        "v": pl.Series([Decimal("10.00"), None, Decimal("20.00")], dtype=pl.Decimal(4, 2)),
+    })
+    native = duckdb_connection.create_table("decimal_fp", source.to_arrow(), temp=True)
+    delta = (ma.lit(Decimal("0.01"), dtype=ma.DecimalDtype(precision=4, scale=2))
+             if typed else Decimal("1.00"))
+    rel = ma.relation(native).with_columns((ma.col("v") + delta).alias("v"))
+    expected = pl.DataFrame({
+        "k": [1, 2, 3],
+        "v": pl.Series(
+            [Decimal("10.01"), None, Decimal("20.01")] if typed
+            else [Decimal("11.00"), None, Decimal("21.00")],
+            dtype=pl.Decimal(4, 2) if typed else pl.Decimal(38, 9)),
+    })
+    if empty:
+        rel = rel.filter(ma.col("k") < 0)
+        expected = expected.clear()
+    assert pl.from_arrow(rel.to_pyarrow()).equals(expected)
+    actual = rel.fingerprint(keys=["k"], columns=["v"], batch_size=1)
+    oracle = ma.relation(expected).fingerprint(keys=["k"], columns=["v"], batch_size=1)
+    assert actual.equals(oracle)
+
+
+@pytest.mark.parametrize("physical_value", [
+    pytest.param("100.00::DECIMAL(5,2)", id="precision-overflow"),
+    pytest.param("10.001::DECIMAL(5,3)", id="fractional-loss"),
+])
+def test_unsafe_batch_conversion_preserves_reader_and_transaction(
+    duckdb_connection, monkeypatch, physical_value,
+):
+    """Conversion errors must not deliver unsafe values or abandon the reader."""
+    connection = duckdb_connection
+    source = connection.sql(
+        f"SELECT 1::BIGINT AS k, {physical_value} AS v",
+        schema={"k": "int64", "v": "decimal(4,2)"},
+    )
+    original = type(source).to_pyarrow_batches
+    closed = []
+
+    class ObservedReader:
+        def __init__(self, reader):
+            self.reader = reader
+
+        def __iter__(self):
+            return iter(self.reader)
+
+        def close(self):
+            self.reader.close()
+            closed.append(True)
+
+    def observed(table, *args, **kwargs):
+        return ObservedReader(original(table, *args, **kwargs))
+
+    monkeypatch.setattr(type(source), "to_pyarrow_batches", observed)
+    delivered = []
+    driver = connection.con
+    driver.execute("CREATE TEMP TABLE conversion_marker (k BIGINT)")
+    driver.execute("BEGIN")
+    driver.execute("INSERT INTO conversion_marker VALUES (7)")
+    try:
+        with pytest.raises(pa.ArrowInvalid):
+            consume_native_batches(
+                source, compiler_identity=identify_backend_identity(source),
+                batch_size=1, on_schema=lambda schema: None, on_batch=delivered.append,
+            )
+        assert delivered == []
+        assert closed == [True]
+        assert driver.execute("SELECT k FROM conversion_marker").fetchall() == [(7,)]
+        assert driver.execute("SELECT 1").fetchone() == (1,)
+    finally:
+        driver.execute("ROLLBACK")
+    assert driver.execute("SELECT k FROM conversion_marker").fetchall() == []
 
 
 def test_duckdb_late_source_failure_preserves_error_and_connection(duckdb_connection):

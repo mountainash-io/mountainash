@@ -82,7 +82,9 @@ Null, empty string and zero are distinct. Strings are exact. Signed floating zer
 are equal; all NaNs are equal within a type and distinct from null; infinities
 remain distinct. Lists preserve order and multiplicity. Struct descriptors retain
 field names, order and types. Temporal units/timezones and decimal precision/scale
-must match. No implicit normalization is performed.
+must match between compared fingerprint domains; those domains are not implicitly
+normalized. Ibis-DuckDB batch transport separately enforces its compiled result
+schema as described below.
 
 Object, categorical/enum, fixed arrays, Int128, unspecified Decimal and untyped
 Null are rejected, including nested occurrences. Explicitly cast categories to
@@ -98,6 +100,33 @@ uses lazy plans and requires the public `sink_batches` API; runtimes missing it
 raise `BackendCapabilityError`. PostgreSQL is explicitly rejected pending reader
 cleanup fixes (backlog 265). Ibis-Polars, SQLite and Narwhals routes also reject;
 there is no eager fallback.
+
+Ibis-DuckDB batches are safely converted to the compiled Ibis result's declared
+Arrow schema before hashing. Matching batches are left unchanged; empty results
+retain the declared schema without reading a first batch. This does not infer
+arithmetic result types or repair best-effort `Relation.schema` metadata.
+
+Values must fit the declaration. For example, `10.01` fits Decimal(4,2), but
+`100.00` does not. Overflow or loss of fractional digits raises rather than
+widening automatically, rounding during transport, or returning a partial
+fingerprint. The expression author is responsible for choosing sufficient
+capacity. For a Decimal(4,2) source, widen before addition:
+
+```python
+from decimal import Decimal
+
+widened = source.with_columns((
+    ma.col("value").cast(
+        ma.DecimalDtype(precision=5, scale=2), rounding="half_to_even"
+    ) + ma.lit(Decimal("0.01"), dtype=ma.DecimalDtype(precision=4, scale=2))
+).alias("value"))
+summary = widened.fingerprint(keys=["key"], columns=["value"])
+```
+
+Here a source value of `99.99` produces exact `100.00`. The explicit expression
+cast requires a rounding choice; batch transport itself never enables rounding
+or unsafe casts. A cast after an overflowing intermediate cannot be relied on
+to rescue that intermediate.
 
 Source filters/projection execute before transfer. Shared vectorized Polars
 hashing consumes bounded batches, retaining fixed per-column aggregate state.
