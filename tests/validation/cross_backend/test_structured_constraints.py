@@ -13,6 +13,69 @@ from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.call_expectations import expect_call_failure
 
 
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("element_kind", ["scalar", "object"])
+def test_generated_datacontract_accepts_native_arrays(
+    backend_name, backend_factory, element_kind
+):
+    if element_kind == "scalar":
+        values = [["a", "b"], [], None]
+        field = FieldSpec("x", UniversalType.ARRAY)
+        expected = {"x_type_format": (3, 0, 0)}
+    else:
+        values = [[{"tag": "a"}, {"tag": "b"}], [], None]
+        field = FieldSpec(
+            "x", UniversalType.ARRAY,
+            item_object_fields=[FieldSpec("tag", UniversalType.STRING)],
+        )
+        expected = {"x_type_format": (3, 0, 0), "x_nested": (3, 0, 0)}
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite cannot construct the native Array input",
+    ):
+        source = backend_factory.create({"x": values}, backend_name)
+    spec = TypeSpec(fields=[field], missing_values=[])
+    report = ma.datacontract(spec).validate_datacontract(source)
+    assert report.passes
+    assert {
+        row["check_id"]: (row["pass_count"], row["fail_count"], row["unknown_count"])
+        for row in report.check_summaries.to_dicts()
+    } == expected
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_generated_native_array_contract_retains_constraints(
+    backend_name, backend_factory
+):
+    values = [[{"tag": "good"}], [{"tag": "bad"}], [], None]
+    field = FieldSpec(
+        "x", UniversalType.ARRAY,
+        constraints=FieldConstraints(required=True),
+        item_object_fields=[FieldSpec(
+            "tag", UniversalType.STRING,
+            constraints=FieldConstraints(pattern="^good$"),
+        )],
+    )
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite cannot construct the native Array input",
+    ):
+        source = backend_factory.create({"x": values}, backend_name)
+    spec = TypeSpec(fields=[field], missing_values=[])
+    report = ma.datacontract(spec).validate_datacontract(source)
+    assert not report.passes
+    assert {
+        row["check_id"]: (row["pass_count"], row["fail_count"], row["unknown_count"])
+        for row in report.check_summaries.to_dicts()
+    } == {
+        "x_type_format": (4, 0, 0),
+        "x_nested": (3, 1, 0),
+        "x__not_null": (3, 1, 0),
+    }
+
+
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_compiled_json_schema_reports_logical_object_failure(backend_name, backend_factory):
