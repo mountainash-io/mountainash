@@ -696,7 +696,11 @@ def _infer_join_schema(
     if node.join_type in (JoinType.SEMI, JoinType.ANTI):
         return left_schema
 
-    from mountainash.relations.core.join_layout import keyed_layout_applies, layout_for_node
+    from mountainash.relations.core.join_layout import asof_right_name_map, keyed_layout_applies, layout_for_node
+
+    if node.join_type == JoinType.ASOF:
+        names = asof_right_name_map(node, list(left_schema), list(right_schema))
+        return {**left_schema, **{final: right_schema[name] for name, final in names.items()}}
 
     if keyed_layout_applies(node):
         layout = layout_for_node(node, list(left_schema), list(right_schema))

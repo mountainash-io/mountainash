@@ -438,6 +438,10 @@ class Relation(RelationBase):
     ) -> Relation:
         """Asof join with another relation or raw data.
 
+        Output retains all left columns in their original order, followed by
+        right payload columns. Shared ``on`` and ``by`` keys appear only on
+        the left; colliding right payload names receive ``_right``.
+
         On Ibis-DuckDB, backward joins may select any right row tied at the
         nearest eligible key; input order does not guarantee a last-row winner.
         Deduplicate right-side keys explicitly when the choice matters.

@@ -3,6 +3,7 @@
 ## Unreleased — 2026-10-13
 
 ### Fixed
+- ASOF schema inference and transport lineage now omit merged right-side `on`/`by` keys, so `select(*joined.columns)` and subsequent joins no longer reference phantom columns (backlog 255). Pandas-backed nearest ASOF preserves left-column order; matching, tie selection and row ordering are unchanged.
 - Projection schema inference now preserves source types through field aliases and name-only selectors, and reports `UNKNOWN` for computed outputs instead of retaining a replaced column's stale type (backlog 303, #376). Decimal conform introspection accepts unknown evidence without weakening concrete conversion or terminal validation.
 - Ibis-DuckDB fingerprint batches now safely conform to the compiled result's declared Arrow schema, fixing Decimal arithmetic schema mismatches (backlog 304). Typed-empty results and reader/transaction ownership are preserved. Overflow and fractional-digit loss raise; authors remain responsible for explicit Decimal widening.
 - Flat dataclass and Pydantic ingress now uses declared scalar source types during construction, preserving late non-null values and typed all-null columns (backlog 302). Nullable Pydantic annotations resolve to their value type without changing whether the field is required.

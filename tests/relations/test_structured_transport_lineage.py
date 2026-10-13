@@ -638,6 +638,34 @@ def test_join_tracks_right_transport_under_backend_suffix():
     assert result["payload"].to_list() == ["left"]
     assert result["payload_right"].to_list() == [[2]]
 
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_asof_payload_lineage_survives_following_join(backend_name, backend_factory):
+    """A merged grouping key must not reserve a phantom name for the next join."""
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    left, right = backend_factory.create_pair(
+        {"g": ["a"], "t": [2], "payload": ["left"]},
+        {"g": ["a"], "t": [1], "payload": ["[1]"]}, backend_name,
+    )
+    right = ma.relation(right).conform(TypeSpec(
+        fields_match="open",
+        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+    ))
+    extra = ma.relation(backend_factory.create(
+        {"g": ["a"], "g_right": ["[2]"]}, backend_name,
+    )).conform(TypeSpec(
+        fields_match="open",
+        fields=[FieldSpec(name="g_right", type=UniversalType.ARRAY)],
+    ))
+    joined = ma.relation(left).join_asof(right, on="t", by="g").join(extra, on="g")
+    assert joined.columns == ["g", "t", "payload", "payload_right", "g_right"]
+    assert joined.select(*joined.columns).to_dict() == {
+        "g": ["a"], "t": [2], "payload": ["left"],
+        "payload_right": [[1]], "g_right": [[2]],
+    }
+
+
 def test_join_asof_rejects_transport_used_as_group_key(monkeypatch):
     """A transported ``by`` key is rejected before join-asof dispatch."""
     import polars as pl
