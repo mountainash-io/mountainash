@@ -22,16 +22,24 @@ class PydataIngress():
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                type_spec: Optional['TypeSpec'] = None,
+                *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert Python data structure to Polars DataFrame.
 
-        This is the main public interface for data conversion.
+        Source dtypes resolve per column: explicit source_spec, then model
+        annotations, then bounded native inference. Unrefined ANY is no override.
+        type_spec is a conversion target, never source-type evidence.
 
         Args:
             data: Input data (dataclass, Pydantic model, dict of lists, or list of dicts)
             type_spec: Optional TypeSpec for column type coercion and renaming
+            source_spec: Optional input dtype declarations, not transformations.
+            inline_conform: Run target conversions (default True). False still
+                applies source typing during construction.
 
         Returns:
             pl.DataFrame: Converted DataFrame
@@ -45,4 +53,7 @@ class PydataIngress():
             True
         """
         strategy = PydataIngressFactory.get_strategy(data)
-        return strategy.convert(data, type_spec=type_spec)
+        return strategy.convert(
+            data, type_spec=type_spec, source_spec=source_spec,
+            inline_conform=inline_conform,
+        )

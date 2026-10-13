@@ -97,7 +97,7 @@ class TransitCandidate:
 
 @dataclass(frozen=True)
 class InventoryEntry:
-    """One characterized row from `tests/fixtures/transit_inventory.json`."""
+    """One classified conversion boundary discovered in production source."""
 
     module: str
     owner: str
@@ -461,7 +461,3 @@ def render_inventory(entries: Sequence[InventoryEntry]) -> str:
     return json.dumps([asdict(entry) for entry in entries], indent=2) + "\n"
 
 
-def load_inventory(path: Path) -> tuple[InventoryEntry, ...]:
-    """Load the characterized inventory fixture."""
-    raw = json.loads(path.read_text())
-    return tuple(InventoryEntry(**entry) for entry in raw)

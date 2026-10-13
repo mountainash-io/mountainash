@@ -31,14 +31,19 @@ class BasePydataIngressHandler(ABC):
     @abstractmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                type_spec: Optional['TypeSpec'] = None,
+                *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert input data to a Polars DataFrame.
 
         Args:
             data: Input data to convert
-            column_mapping: Optional column mapping dictionary
+            type_spec: Optional conversion target, not source evidence.
+            source_spec: Optional source dtype declarations.
+            inline_conform: Whether to apply target conversions.
 
         Returns:
             pl.DataFrame: Converted data

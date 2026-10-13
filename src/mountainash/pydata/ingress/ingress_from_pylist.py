@@ -26,7 +26,10 @@ class DataframeFromPylist(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                type_spec: Optional['TypeSpec'] = None,
+                *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert list of dictionaries to Polars DataFrame.
@@ -41,6 +44,8 @@ class DataframeFromPylist(BasePydataIngressHandler):
             data: List of dictionaries (row format)
                   Example: [{"col1": 1, "col2": "a"}, {"col1": 2, "col2": "b"}]
             type_spec: Optional TypeSpec for column type coercion and renaming
+            source_spec: Optional source dtype declarations.
+            inline_conform: Whether to apply target conversions.
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -49,16 +54,11 @@ class DataframeFromPylist(BasePydataIngressHandler):
         if pl is None:
             raise ImportError("polars is required for this operation")
 
-        # Apply hybrid conversion strategy if spec provided
-        if type_spec is not None:
-            from .custom_type_helpers import apply_hybrid_conversion
+        from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
 
-            # HYBRID STRATEGY:
-            # 1. Custom converters at edges (Python layer)
-            # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data, type_spec)
-        else:
-            # No spec - just create DataFrame
-            df = pl.DataFrame(data, strict=False)
+        df = apply_hybrid_conversion(
+            data, type_spec, schema_overrides=_source_schema_overrides(source_spec),
+            inline_conform=inline_conform,
+        )
 
         return df

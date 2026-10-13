@@ -80,7 +80,9 @@ class IngressFromCollection(BasePydataIngressHandler):
     def convert(cls,
                 data: Any, /,
                 type_spec: Optional['TypeSpec'] = None,
-                column_name: Optional[str] = None) -> PolarsFrame:
+                column_name: Optional[str] = None, *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True) -> PolarsFrame:
         """
         Convert basic container (list/set/frozenset) to single-column Polars DataFrame.
 
@@ -88,6 +90,8 @@ class IngressFromCollection(BasePydataIngressHandler):
             data: List, set, or frozenset of scalar values
             column_config: Optional column transformation configuration
             column_name: Name for the single column. Defaults to 'value'
+            source_spec: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply type_spec after construction.
 
         Returns:
             pl.DataFrame: Single-column DataFrame
@@ -107,6 +111,8 @@ class IngressFromCollection(BasePydataIngressHandler):
             >>> df = DataframeFromContainer.convert(data, column_name='fruit')
             >>> # Columns: ['fruit']
         """
+        from .custom_type_helpers import _source_schema_overrides
+        schema_overrides = _source_schema_overrides(source_spec)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
@@ -159,10 +165,10 @@ class IngressFromCollection(BasePydataIngressHandler):
                 )
 
         # Create single-column DataFrame
-        df = pl.DataFrame({column_name: data_list})
+        df = pl.DataFrame({column_name: data_list}, schema_overrides=schema_overrides)
 
         # Apply column transformations if provided
-        if type_spec is not None:
+        if type_spec is not None and inline_conform:
             import mountainash as ma
             df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(type_spec).to_polars)
 

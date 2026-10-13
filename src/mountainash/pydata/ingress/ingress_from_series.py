@@ -66,13 +66,17 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                type_spec: Optional['TypeSpec'] = None, *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True
         ) -> PolarsFrame:
         """
         Convert dictionary of Series to Polars DataFrame.
 
         Args:
             data: Dictionary mapping column names to Series objects
+            source_spec: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply type_spec after construction.
             column_config: Optional column transformation configuration
 
         Returns:
@@ -90,6 +94,8 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
             ... }
             >>> df = DataframeFromSeriesDict.convert(data)
         """
+        from .custom_type_helpers import _source_schema_overrides
+        schema_overrides = _source_schema_overrides(source_spec)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
@@ -119,7 +125,7 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
 
         if module_name.startswith('polars'):
             # Native Polars Series - can create DataFrame directly
-            df = pl.DataFrame(data)
+            df = pl.DataFrame(data, schema_overrides=schema_overrides)
         elif module_name.startswith('pandas'):
             # Pandas Series - need to convert
             # Import pandas only if needed
@@ -139,12 +145,12 @@ class DataframeFromSeriesDict(BasePydataIngressHandler):
 
             # Create pandas DataFrame first, then convert to Polars
             pandas_df = transit_call(BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT, pd.DataFrame, data)
-            df = transit_call(BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT, pl.from_pandas, pandas_df)
+            df = transit_call(BoundaryKey.PYDATA_EXPLICIT_PANDAS_INPUT, pl.from_pandas, pandas_df, schema_overrides=schema_overrides)
         else:
             raise ValueError(f"Unsupported Series type from module: {module_name}")
 
         # Apply column transformations if provided
-        if type_spec is not None:
+        if type_spec is not None and inline_conform:
             import mountainash as ma
             df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(type_spec).to_polars)
 

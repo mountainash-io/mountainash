@@ -375,15 +375,33 @@ class TestExtractFromPydantic:
         schema = extract_from_pydantic(optional_model)
         assert "email" in schema.field_names
 
-    def test_optional_field_type(self, optional_model):
-        # Pydantic v2 exposes Optional[str] as the full annotation; the extractor
-        # currently does not unwrap Optional unions before resolving via the
-        # dtype registry, so the resolved universal type falls back to "any".
-        schema = extract_from_pydantic(optional_model)
-        field = schema.get_field("email")
-        assert field is not None
-        # The field is present even if the type resolution falls back
-        assert field.type in ("string", "any")
+    @pytest.mark.parametrize(
+        ("annotation", "expected"),
+        [(Optional[str], "string"), (str | None, "string"), (int | None, "integer")],
+    )
+    def test_nullable_type_preserves_requiredness(self, annotation, expected):
+        from pydantic import create_model
+
+        model = create_model(
+            "NullableModel",
+            required_value=(annotation, ...),
+            defaulted_value=(annotation, None),
+        )
+        schema = extract_from_pydantic(model)
+        required = schema.get_field("required_value")
+        defaulted = schema.get_field("defaulted_value")
+        assert required.type == expected
+        assert defaulted.type == expected
+        assert required.constraints.required is True
+        assert defaulted.constraints.required is False
+
+    def test_multi_type_union_is_not_reduced_to_one_member(self):
+        from pydantic import BaseModel
+
+        class MixedModel(BaseModel):
+            value: str | int | None = None
+
+        assert extract_from_pydantic(MixedModel).get_field("value").type == "any"
 
     def test_caching_returns_same_object(self, basic_model):
         from mountainash.typespec.extraction import _PYDANTIC_SCHEMA_CACHE

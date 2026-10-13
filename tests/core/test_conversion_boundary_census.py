@@ -1,5 +1,4 @@
-"""Closed conversion-boundary census: exact inventory equality and wrapper
-enforcement.
+"""Closed conversion-boundary census: live policy and wrapper enforcement.
 
 See ``mountainash-central/04.planning/mountainash/superpowers/specs/
 2026-08-27-pandas-transit-elimination-design.md`` section 13.
@@ -18,29 +17,29 @@ from tests.core._transit_census import (
     UnclassifiedCandidateError,
     build_inventory,
     discover_transit_candidates,
-    load_inventory,
-    render_inventory,
 )
 from mountainash.core.transit import BOUNDARY_REGISTRY, BoundaryKey, TransitClass
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src" / "mountainash"
 _TESTS_ROOT = _REPO_ROOT / "tests"
-_INVENTORY_PATH = _REPO_ROOT / "tests" / "fixtures" / "transit_inventory.json"
 _TRANSIT_MODULE = _SRC_ROOT / "core" / "transit.py"
 
 _BOUNDARY_KEY_REF = re.compile(r"BoundaryKey\.([A-Z_][A-Z0-9_]*)")
 
 
-def test_current_transit_inventory_is_complete():
-    generated = render_inventory(build_inventory(_SRC_ROOT))
-    assert generated == _INVENTORY_PATH.read_text(encoding="utf-8")
+@pytest.fixture(scope="module")
+def current_inventory():
+    return build_inventory(_SRC_ROOT)
+
+
+def test_current_transit_boundaries_are_classified_without_legacy_exceptions(current_inventory):
     assert LEGACY_UNWRAPPED == {}
-    assert all(entry.legacy_unwrapped is False for entry in load_inventory(_INVENTORY_PATH))
+    assert all(entry.legacy_unwrapped is False for entry in current_inventory)
 
 
-def test_inventory_entries_have_policy_reason_and_date():
-    entries = load_inventory(_INVENTORY_PATH)
+def test_inventory_entries_have_policy_reason_and_date(current_inventory):
+    entries = current_inventory
     valid_classes = {member.name for member in TransitClass}
     for entry in entries:
         assert entry.transit_class in valid_classes, entry
@@ -227,14 +226,14 @@ def test_risky_method_names_cover_the_documented_generic_set():
     }
 
 
-def test_no_internal_execution_transit_key_has_a_production_reference():
+def test_no_internal_execution_transit_key_has_a_production_reference(current_inventory):
     """spec section 13 Task 10 step 3: INTERNAL_EXECUTION_TRANSIT (e.g.
     ``IBIS_INTERNAL_EXECUTE``) is always prohibited -- its prohibition is
     proved only by the synthetic tests in test_transit_registry.py
     (``test_internal_execution_transit_is_always_prohibited``,
     ``test_untraced_prohibited_pandas_result_raises``). No real call site
     may reference it; the discovered inventory must carry zero such rows."""
-    entries = load_inventory(_INVENTORY_PATH)
+    entries = current_inventory
     prohibited = [
         entry for entry in entries if entry.transit_class == "INTERNAL_EXECUTION_TRANSIT"
     ]

@@ -27,7 +27,10 @@ class DataframeFromPydict(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                type_spec: Optional['TypeSpec'] = None,
+                *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert dictionary of lists to Polars DataFrame.
@@ -42,6 +45,8 @@ class DataframeFromPydict(BasePydataIngressHandler):
             data: Dictionary of lists (columnar format)
                   Example: {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
             type_spec: Optional TypeSpec for column type coercion and renaming
+            source_spec: Optional source dtype declarations.
+            inline_conform: Whether to apply target conversions.
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -50,9 +55,10 @@ class DataframeFromPydict(BasePydataIngressHandler):
         if pl is None:
             raise ImportError("polars is required for this operation")
 
-        # Apply hybrid conversion strategy if spec provided
-        if type_spec is not None:
-            from .custom_type_helpers import apply_hybrid_conversion
+        from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
+
+        overrides = _source_schema_overrides(source_spec)
+        if type_spec is not None and inline_conform:
 
             # Convert columnar format (dict of lists) to row format (list of dicts)
             # for hybrid conversion
@@ -72,9 +78,9 @@ class DataframeFromPydict(BasePydataIngressHandler):
             # HYBRID STRATEGY:
             # 1. Custom converters at edges (Python layer)
             # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data_dicts, type_spec)
+            df = apply_hybrid_conversion(data_dicts, type_spec, schema_overrides=overrides)
         else:
             # No spec - just create DataFrame directly from columnar data
-            df = pl.DataFrame(data, strict=False)
+            df = pl.DataFrame(data, strict=False, schema_overrides=overrides)
 
         return df
