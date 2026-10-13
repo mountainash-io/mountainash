@@ -7,6 +7,7 @@ Implements the hybrid strategy for optimal performance:
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import logging
 
@@ -295,9 +296,56 @@ def _apply_narwhals_custom_converters(
     return result
 
 
+def _source_schema_overrides(
+    source_spec: Optional["TypeSpec"] = None,
+    *,
+    model_spec: Optional["TypeSpec"] = None,
+) -> Dict[str, Any]:
+    """Resolve source declarations without inspecting values or target specs."""
+    if source_spec is None and model_spec is None:
+        return {}
+
+    from mountainash.typespec.converters import to_polars_schema
+    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    # Automatic model evidence is scalar only; nested ingress is a separate concern.
+    scalar_types = {
+        UniversalType.STRING, UniversalType.INTEGER, UniversalType.NUMBER,
+        UniversalType.BOOLEAN, UniversalType.DATE, UniversalType.DATETIME,
+        UniversalType.TIME, UniversalType.DURATION, UniversalType.YEAR,
+        UniversalType.YEARMONTH,
+    }
+    fields = {
+        field.source_name: field
+        for field in model_spec.fields
+        if field.type in scalar_types
+    } if model_spec is not None else {}
+    if source_spec is not None:
+        for field in source_spec.fields:
+            if (
+                field.type != UniversalType.ANY
+                or field.dtype is not None
+                or field.backend_type
+                or field.categories is not None
+            ):
+                fields[field.source_name] = field
+    if not fields:
+        return {}
+    # Resolve in the source namespace: a target alias can name another source field.
+    source_fields = [
+        field if field.name == name else replace(field, name=name)
+        for name, field in fields.items()
+    ]
+    return to_polars_schema(TypeSpec(fields=source_fields))
+
+
 def apply_hybrid_conversion(
     data_dicts: List[Dict[str, Any]],
     spec: Optional["TypeSpec"] = None,
+    *,
+    schema_overrides: Optional[Dict[str, Any]] = None,
+    inline_conform: bool = True,
 ) -> "PolarsFrame":
     """
     Apply THREE-TIER hybrid conversion strategy with Narwhals vectorization.
@@ -319,6 +367,8 @@ def apply_hybrid_conversion(
     Args:
         data_dicts: List of dictionaries to convert
         spec: Optional TypeSpec with field specifications
+        schema_overrides: Native source dtypes, independent of conversion targets.
+        inline_conform: Whether to run target conversion stages.
 
     Returns:
         Polars DataFrame with hybrid conversions applied
@@ -329,8 +379,8 @@ def apply_hybrid_conversion(
     if pl is None:
         raise ImportError("polars is required for this operation")
 
-    if spec is None:
-        return pl.DataFrame(data_dicts, strict=False)
+    if spec is None or not inline_conform:
+        return pl.DataFrame(data_dicts, strict=False, schema_overrides=schema_overrides)
 
     # STEP 1: Separate conversions into THREE tiers
     python_only, narwhals_custom, native = separate_conversions(spec)
@@ -344,10 +394,17 @@ def apply_hybrid_conversion(
     # STEP 2: Apply PYTHON-ONLY custom converters at edges (TIER 3)
     if python_only:
         data_dicts = apply_custom_converters_to_dicts(data_dicts, python_only)
+        # Edge converters may change the carrier or return the original on failure.
+        # Neither the old source dtype nor converter metadata proves the output dtype.
+        if schema_overrides:
+            schema_overrides = {
+                name: dtype for name, dtype in schema_overrides.items()
+                if name not in python_only
+            }
         logger.debug(f"Applied Python-only custom converters to {len(data_dicts)} records")
 
     # STEP 3: Create DataFrame
-    df = pl.DataFrame(data_dicts, strict=False)
+    df = pl.DataFrame(data_dicts, strict=False, schema_overrides=schema_overrides)
 
     # STEP 4: Apply NARWHALS CUSTOM converters (TIER 2 — vectorized expressions)
     if narwhals_custom:

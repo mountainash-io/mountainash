@@ -126,6 +126,34 @@ spec = ma.typespec({"name": "string", "age": "integer"})
 result = ma.relation({"name": ["Ada"], "age": ["37"]}).conform(spec).collect()
 ```
 
+Python ingress resolves source dtypes per column: explicit `source_spec`, then
+dataclass/Pydantic scalar annotations, then native inference. Unrefined `ANY`
+leaves the next source of evidence in control. Declared nullable columns retain
+their types even when all values are null or the first non-null value is late.
+Undeclared row input still uses Polars' 100-row inference limit; ingress does not
+scan farther or retry on failure.
+
+`type_spec` describes a conversion target, not the source representation:
+
+```python
+from mountainash.pydata import PydataIngress
+
+rows = [{"raw": None}] * 100 + [{"raw": "2026-10-12"}]
+raw = PydataIngress.convert(
+    rows,
+    source_spec=ma.typespec({"raw": "string"}),
+    type_spec=ma.typespec({"raw": "date"}),
+    inline_conform=False,
+)  # String source; no target conversion
+dates = ma.relation(raw).conform(ma.typespec({"raw": "date"})).to_polars()
+```
+
+`inline_conform` defaults to `True`. Setting it to `False` suppresses target
+transforms, including custom converters, but not constructor typing/coercion.
+Source declarations do not perform renaming, null filling, or validation.
+Python-only custom converters retain their existing pre-construction behavior;
+their output uses bounded inference rather than stale source-type overrides.
+
 Use `.compile()` for the backend-native result. Lazy backends return an unexecuted plan, but eager backends can return materialized data. Use `.collect()` when you require eager materialization. Use `.to_polars()`, `.to_pandas()`, `.to_dict()`, or `.to_dicts()` when you need a specific output form.
 
 ## Architecture and execution model

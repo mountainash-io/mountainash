@@ -38,6 +38,9 @@ class DataframeFromPydantic(BasePydataIngressHandler):
     def convert(cls,
                 data: Any, /,
                 type_spec: Optional['TypeSpec'] = None,
+                *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert Pydantic model(s) to Polars DataFrame.
@@ -51,6 +54,8 @@ class DataframeFromPydantic(BasePydataIngressHandler):
         Args:
             data: Single Pydantic model or list of Pydantic models
             type_spec: Optional TypeSpec for column type coercion and renaming
+            source_spec: Explicit source dtypes, overriding scalar model declarations.
+            inline_conform: Apply type_spec conversions after source extraction.
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -83,16 +88,15 @@ class DataframeFromPydantic(BasePydataIngressHandler):
             else:
                 raise ValueError(f"Unknown Pydantic model type: {type(data)}")
 
-        # Apply hybrid conversion strategy if spec provided
-        if type_spec is not None:
-            from .custom_type_helpers import apply_hybrid_conversion
+        from mountainash.typespec.extraction import extract_from_pydantic
+        from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
 
-            # HYBRID STRATEGY:
-            # 1. Custom converters at edges (Python layer)
-            # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data_dicts, type_spec)
-        else:
-            # No spec - just create DataFrame
-            df = pl.DataFrame(data_dicts, strict=False)
+        model_type = type(data[0]) if isinstance(data, list) and data else type(data)
+        model_spec = extract_from_pydantic(model_type) if data_dicts else None
+        overrides = _source_schema_overrides(source_spec, model_spec=model_spec)
+        df = apply_hybrid_conversion(
+            data_dicts, type_spec, schema_overrides=overrides,
+            inline_conform=inline_conform,
+        )
 
         return df

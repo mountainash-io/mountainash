@@ -26,17 +26,26 @@ class DataframeFromDefault(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                type_spec: Optional['TypeSpec'] = None, *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True
     ) -> PolarsFrame:
-        """Convert data to Polars DataFrame using default behavior."""
+        """Convert data to Polars DataFrame using default behavior.
+
+        Args:
+            source_spec: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply type_spec after construction.
+        """
+        from .custom_type_helpers import _source_schema_overrides
+        schema_overrides = _source_schema_overrides(source_spec)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
 
         # Create DataFrame
-        df = pl.DataFrame(data, strict=False)
+        df = pl.DataFrame(data, strict=False, schema_overrides=schema_overrides)
 
-        if type_spec is not None:
+        if type_spec is not None and inline_conform:
             import mountainash as ma
             df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(type_spec).to_polars)
 

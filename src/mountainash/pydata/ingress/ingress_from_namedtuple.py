@@ -40,14 +40,18 @@ class DataframeFromNamedTuple(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
-    ) -> PolarsFrame:
+                type_spec: Optional['TypeSpec'] = None, *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True
+        ) -> PolarsFrame:
         """
         Convert named tuple(s) to Polars DataFrame.
 
         Args:
             data: Single named tuple or sequence of named tuples
             column_config: Optional column transformation configuration
+            source_spec: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply type_spec after construction.
 
         Returns:
             pl.DataFrame: Converted DataFrame
@@ -68,6 +72,8 @@ class DataframeFromNamedTuple(BasePydataIngressHandler):
             >>> people = [Person('Alice', 30, 'NYC'), Person('Bob', 25, 'LA')]
             >>> df = DataframeFromNamedTuple.convert(people)
         """
+        from .custom_type_helpers import _source_schema_overrides
+        schema_overrides = _source_schema_overrides(source_spec)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
@@ -112,10 +118,10 @@ class DataframeFromNamedTuple(BasePydataIngressHandler):
                 dict_data.append(dict(zip(field_names, item)))
 
         # Create DataFrame from list of dictionaries
-        df = pl.DataFrame(dict_data, strict=False)
+        df = pl.DataFrame(dict_data, strict=False, schema_overrides=schema_overrides)
 
         # Apply column transformations if provided
-        if type_spec is not None:
+        if type_spec is not None and inline_conform:
             import mountainash as ma
             df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(type_spec).to_polars)
 

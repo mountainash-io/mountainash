@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2026-10-13
+
+### Fixed
+- Flat dataclass and Pydantic ingress now uses declared scalar source types during construction, preserving late non-null values and typed all-null columns (backlog 302). Nullable Pydantic annotations resolve to their value type without changing whether the field is required.
+- PyData ingress accepts keyword-only `source_spec` and `inline_conform`. Explicit source declarations override model annotations; unrefined `ANY` falls through to existing evidence. Target `type_spec` remains separate, target conversion defaults to enabled, and undeclared row inference remains bounded to 100 rows with no extra scan or retry.
+
 ## Unreleased — 2026-10-12
 
 ### Fixed

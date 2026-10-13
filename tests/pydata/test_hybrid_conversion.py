@@ -298,3 +298,32 @@ def test_decimal_rename_survives_evidence_free_lowering():
     )], fields_match="open")
     result = apply_hybrid_conversion([{"raw": Decimal("1.25")}], spec)
     assert result["amount"].to_list() == [Decimal("1.25")]
+
+
+@pytest.mark.parametrize("inline", [False, True])
+@pytest.mark.parametrize("vectorized", [False, True])
+def test_source_typing_does_not_undo_custom_conversion(inline, vectorized):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    name = "safe_float" if vectorized else "_item302_digits_to_integer"
+    if not vectorized:
+        CustomTypeRegistry.register(
+            name=name, target_universal_type="integer",
+            python_converter=lambda value, **kwargs: None if value is None else int(value),
+        )
+    source = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
+    target = TypeSpec(fields=[FieldSpec(name="x", custom_cast=name)])
+    try:
+        result = PydataIngress.convert(
+            [{"x": "00123"}, {"x": None}, {"x": "00456"}],
+            type_spec=target, source_spec=source, inline_conform=inline,
+        )
+        if inline:
+            assert result["x"].dtype == (pl.Float64 if vectorized else pl.Int64)
+            assert result["x"].to_list() == [123, None, 456]
+        else:
+            assert result["x"].dtype == pl.String
+            assert result["x"].to_list() == ["00123", None, "00456"]
+    finally:
+        if not vectorized:
+            CustomTypeRegistry.unregister(name)

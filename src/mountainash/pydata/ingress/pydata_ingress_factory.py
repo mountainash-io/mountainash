@@ -21,7 +21,10 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None
+                type_spec: Optional['TypeSpec'] = None,
+                *,
+                source_spec: Optional['TypeSpec'] = None,
+                inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert Python data structure to Polars DataFrame.
@@ -31,6 +34,8 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
         Args:
             data: Input data (dataclass, Pydantic model, dict of lists, or list of dicts)
             type_spec: Optional TypeSpec for column type coercion and renaming
+            source_spec: Input dtypes overriding model evidence; ANY leaves inference.
+            inline_conform: Apply target conversions, independently of source typing.
 
         Returns:
             pl.DataFrame: Converted DataFrame
@@ -45,7 +50,10 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
             True
         """
         strategy = cls.get_strategy(data)
-        return strategy.convert(data, type_spec=type_spec)
+        return strategy.convert(
+            data, type_spec=type_spec, source_spec=source_spec,
+            inline_conform=inline_conform,
+        )
 
 
     @classmethod

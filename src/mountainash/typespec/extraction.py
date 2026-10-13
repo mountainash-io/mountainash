@@ -10,7 +10,7 @@ All extractors use lazy imports to avoid loading unnecessary dependencies.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, get_type_hints
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union, get_args, get_origin, get_type_hints
 import enum
 import logging
 import types
@@ -172,8 +172,10 @@ def extract_from_dataclass(
             args = getattr(field_type, '__args__', ())
             if type(None) in args:
                 is_optional = True
-                # Get the non-None type
-                field_type = next(arg for arg in args if arg is not type(None))
+                # Only a singleton nullable union is concrete source evidence.
+                non_null = tuple(arg for arg in args if arg is not type(None))
+                if len(non_null) == 1:
+                    field_type = non_null[0]
 
         # Enum fields resolve via their native value mixin — StrEnum -> str,
         # IntEnum -> int, etc. — rather than falling through to ANY.
@@ -350,6 +352,12 @@ def _from_pydantic_v2(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
     for field_name, field_info in model_fields.items():
         # Get annotation (type)
         field_type = field_info.annotation
+        # Nullability supplies the value type, not whether the field is required.
+        if get_origin(field_type) in (Union, types.UnionType):
+            members = get_args(field_type)
+            non_null = tuple(member for member in members if member is not type(None))
+            if type(None) in members and len(non_null) == 1:
+                field_type = non_null[0]
 
         # Check if required
         is_optional = not field_info.is_required()
