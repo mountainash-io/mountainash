@@ -102,3 +102,26 @@ def test_enrich_materialization_does_not_execute_successful_ibis_table():
         diagnostic_trace=trace,
     )
     assert result is table
+
+
+@pytest.mark.parametrize("last_marker", [False, None, True])
+def test_arrow_residue_uses_boolean_values_across_chunks(last_marker):
+    """False/null markers pass; a true marker cannot silently evade attribution."""
+    from types import SimpleNamespace
+
+    import pyarrow as pa
+
+    from mountainash.core.errors import CapabilityResidueInvariantError
+
+    table = pa.table({
+        "id": [1, 2, 3],
+        "__ma_residue_x": pa.chunked_array([[False, None], [last_marker]], type=pa.bool_()),
+    })
+    backend = SimpleNamespace(backend_type=CONST_BACKEND.IBIS, dialect=None)
+    check = SimpleNamespace(marker="__ma_residue_x", function_key=FK.SPLIT, field_name="id")
+    if last_marker is True:
+        with pytest.raises(CapabilityResidueInvariantError, match="no declared fact"):
+            enrich_materialization(backend, lambda: table, residue_checks=(check,))
+    else:
+        result = enrich_materialization(backend, lambda: table, residue_checks=(check,))
+        assert result.to_pydict() == {"id": [1, 2, 3]}
