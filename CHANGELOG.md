@@ -11,6 +11,7 @@
 - Removed the transit policy registry, call wrappers, tracing API, AST census and inventory generator (248, first deletion slice). Native operations, conversion routes, outputs, placement, ownership and real conversion errors are unchanged; the wrapper's pandas-result rejection and trace records are retired. Upstream-internal pandas, native pandas execution and requested pandas output remain supported. Conversion simplification and validation/materialization work in 248/249 remain open.
 
 ### Fixed
+- Schema inspection (311) preserves independently known column names when dtype compilation requires unsupported transport. DAG-bound data-dependent outputs no longer advertise stale input columns, and package export refuses to discard declared foreign keys when output fields are unavailable.
 - Install the existing pinned `pytest-mock` test dependency in the CI Hatch environment so migrated ownership, extraction and reuse tests can resolve their `mocker` fixture.
 - Remove the logical-snapshot test's blanket `to_pandas()` prohibition; retain owned-copy/extraction counts and assert exact snapshot values across Ibis backends.
 

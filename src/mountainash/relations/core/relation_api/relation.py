@@ -1265,8 +1265,14 @@ class Relation(RelationBase):
 
     @property
     def columns(self) -> list[str]:
-        """Return the column names available from schema inference."""
-        return list(self.schema.keys())
+        """Return proven output names, using native inference only when needed."""
+        from mountainash.relations.schema_inference import _aggregate_input_names
+        from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+        try:
+            names = _aggregate_input_names(self._node)
+        except IncompleteProjectionSchemaError:
+            names = None
+        return list(names) if names is not None else list(self.schema)
 
     @property
     def schema(self) -> dict[str, Any]:

@@ -262,7 +262,16 @@ def _schema_from_dataframe(
                         for name, native_type in native_types.items()
                     }
                 else:
-                    described = connection.sql(query).schema()
+                    from ibis.common.exceptions import IbisError
+                    try:
+                        described = connection.sql(query).schema()
+                    except IbisError as error:
+                        if not str(error).startswith("Failed to infer types for columns "):
+                            raise
+                        from mountainash.relations.core.errors import CompileRequiresExecutionError
+                        raise CompileRequiresExecutionError(
+                            f"SQLite native metadata has no rows from which to infer output types: {error}"
+                        ) from error
                     native_types = {}
                 result = {
                     name: _canon(dtype, target=TypeTarget.IBIS)
@@ -749,7 +758,7 @@ def _aggregate_input_names(node: Any) -> tuple[str, ...] | None:
     """Prove aggregate input names independently of best-effort dtype inference."""
     from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT as PF
     from mountainash.relations.core.relation_nodes import (
-        AggregateRelNode, FetchRelNode, FilterRelNode, ProjectRelNode, ReadRelNode, SortRelNode,
+        AggregateRelNode, FetchRelNode, FilterRelNode, JoinRelNode, ProjectRelNode, ReadRelNode, SortRelNode,
     )
     from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode, SourceRelNode
     from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL as RS
@@ -762,6 +771,15 @@ def _aggregate_input_names(node: Any) -> tuple[str, ...] | None:
         return None  # Indexed dictionaries/tuples are rows, not column mappings.
     if isinstance(node, ResourceReadRelNode):
         return _aggregate_resource_names(node)
+    if isinstance(node, JoinRelNode):
+        from mountainash.relations.core.join_layout import keyed_layout_applies, layout_for_node
+        left = _aggregate_input_names(node.left)
+        right = _aggregate_input_names(node.right)
+        if left is not None and right is not None and keyed_layout_applies(node):
+            layout = layout_for_node(node, list(left), list(right))
+            right_output = (layout.right_rename.get(name, name) for name in right)
+            return (*left, *(name for name in right_output if name not in layout.drop))
+        return None
     if isinstance(node, (FilterRelNode, SortRelNode, FetchRelNode)):
         return _aggregate_input_names(node.input)
     if isinstance(node, AggregateRelNode):

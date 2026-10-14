@@ -35,7 +35,7 @@ def test_projection_preserves_source_identity(backend_name, backend_factory, exp
     source_schema = _native_source_schema(frame, backend_name)
     expected = {name: source_schema[source] for name, source in origins.items()}
     rel = ma.relation(frame)
-    assert list(rel.select(expression).schema.items()) == list(expected.items())
+    assert list(infer_schema(rel.select(expression)._node).items()) == list(expected.items())
 
 
 @pytest.mark.cross_backend
@@ -51,6 +51,8 @@ def test_projection_computation_has_native_result_type(backend_name, backend_fac
     rel = ma.relation(frame)
     changed = rel.with_columns(expression.alias("n"))
     from mountainash.core.dtypes import dtype_family
+    if backend_name == "ibis-sqlite" and expected_type is D.BOOL:
+        expected_type = D.I64  # SQLite's physical Boolean result is an integer.
     assert changed.schema["text"] == source_schema["text"]
     assert list(changed.schema) == ["n", "text"]
     assert dtype_family(changed.schema["n"]) is expected_type
@@ -881,10 +883,10 @@ def test_aggregate_resource_names_require_closed_effective_contract(fields_match
     base = Relation(ResourceReadRelNode(resource=resource, apply_schema_conform=apply_conform))
     q = base.group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
     if complete and apply_conform:
-        assert q.columns == ["x", "one"]
+        assert list(infer_schema(q._node)) == ["x", "one"]
     else:
         with pytest.raises(IncompleteProjectionSchemaError):
-            _ = q.columns
+            infer_schema(q._node)
 
 
 def test_aggregate_exact_resource_selector_schema_matches_execution(tmp_path):

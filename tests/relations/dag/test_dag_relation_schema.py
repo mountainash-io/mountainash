@@ -33,7 +33,8 @@ def test_projection_schema_distinguishes_computation_through_ref(backend_name, b
     dag.add("raw", ma.relation(backend_factory.create({"n": [1, 2]}, backend_name)))
     derived = dag.ref("raw").select((ma.col("n") > 1).alias("n"), ma.col("n").alias("copy"))
     dag.add("derived", derived)
-    assert dag.schema("derived") == {"n": D.BOOL, "copy": D.I64}
+    boolean_type = D.I64 if backend_name == "ibis-sqlite" else D.BOOL
+    assert dag.schema("derived") == {"n": boolean_type, "copy": D.I64}
     assert derived.to_dict() == {"n": [False, True], "copy": [1, 2]}
 
 

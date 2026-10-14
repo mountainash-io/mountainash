@@ -97,19 +97,29 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
 
     node = relation._node
     if isinstance(node, ReadRelNode) and _is_native(node.dataframe):
-        return _native_evidence(node.dataframe)
+        try:
+            return _native_evidence(node.dataframe)
+        except CompileRequiresExecutionError as error:
+            names = _schema_from_dataframe(node.dataframe)
+            return _SchemaEvidence(
+                {name: SchemaTypeStatus.UNKNOWN for name in names},
+                True, str(error), authoritative=False,
+            )
     schema = infer_schema(node, ref_resolver, identity_resolver=identity_resolver)
     if preserves_types(node):
         return _SchemaEvidence(schema, True)
-    names = _aggregate_input_names(node)
+    output_node = node
+    while isinstance(output_node, RefRelNode) and identity_resolver is not None:
+        output_node = identity_resolver(output_node.name)
+    names = _aggregate_input_names(output_node)
     if changes_types(node):
         original = schema
         schema = {name: SchemaTypeStatus.UNKNOWN for name in schema}
-        if isinstance(node, ExtensionRelNode):
-            if node.operation is RM.WITH_ROW_INDEX:
-                ordinal = node.options.get("name", "index")
+        if isinstance(output_node, ExtensionRelNode):
+            if output_node.operation is RM.WITH_ROW_INDEX:
+                ordinal = output_node.options.get("name", "index")
                 schema[ordinal] = original[ordinal]
-            elif node.operation not in preserving_extensions:
+            elif output_node.operation not in preserving_extensions:
                 schema = {}
     return _SchemaEvidence(schema, names is not None, authoritative=False)
 

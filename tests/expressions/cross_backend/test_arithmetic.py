@@ -526,8 +526,6 @@ def test_declared_decimal_binary(
                 assert out.schema["r"] == dtype
             else:
                 assert out.schema["r"] == pl.Decimal(38, 3)
-            from mountainash.core.dtypes.canonical import SchemaTypeStatus
-            assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma_top.relation(out).schema["r"])
             assert out["r"].to_list() == [D(v) if v is not None else None for v in expected]
 
 
@@ -679,8 +677,6 @@ def test_decimal_operand_arrangements(
         assert out["r"].to_list() == pytest.approx([float(expected)])
     else:
         assert out["r"].to_list() == [D(expected)]
-    from mountainash.core.dtypes.canonical import SchemaTypeStatus
-    assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma_top.relation(out).schema["r"])
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

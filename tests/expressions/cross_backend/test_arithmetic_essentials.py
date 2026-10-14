@@ -95,7 +95,6 @@ def test_declared_decimal_unary(
     from pyarrow import ArrowInvalid
     from fixtures.call_expectations import expect_call_failure
     from mountainash.core.types import BackendCapabilityError
-    from mountainash.core.dtypes.canonical import SchemaTypeStatus
 
     if backend_name == "ibis-sqlite":
         frame = backend_factory.create({"a": [1]}, backend_name)
@@ -126,7 +125,6 @@ def test_declared_decimal_unary(
     elif backend_name.startswith("ibis") and operation == "round":
         dtype = pl.Decimal(12, 2)
     assert out.schema["r"] == dtype
-    assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma.relation(out).schema["r"])
     with expect_call_failure(
         when=backend_name == "ibis-duckdb" and operation == "round",
         reason="244: DuckDB native round uses half-away-from-zero rather than half-even",

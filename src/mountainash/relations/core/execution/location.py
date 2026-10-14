@@ -78,6 +78,10 @@ def schema_prototype(value: Any) -> Any:
     if is_narwhals_dataframe(value):
         native = value.to_native()
         import narwhals as nw
+        if is_polars_dataframe(native):
+            # Narwhals' eager and lazy APIs admit different expressions.
+            # Preserve the source's API while retaining only its dtype metadata.
+            return nw.from_native(native.clear())
         return nw.from_native(schema_prototype(native))
     if is_pandas_dataframe(value):
         return value.iloc[:0]

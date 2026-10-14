@@ -76,13 +76,14 @@ def visit_join(node: Any, visitor: Any) -> Any:
         )
     if layout.right_rename:
         right = visitor.backend.project_rename(right, layout.right_rename)
-    for original, final in layout.collisions:
-        warnings.warn(
-            f"join: right column {original!r} renamed to {final!r} because "
-            f"{original + node.suffix!r} already exists",
-            UserWarning,
-            stacklevel=2,
-        )
+    if visitor.execution_phase is None or visitor.execution_phase.name != "SCHEMA":
+        for original, final in layout.collisions:
+            warnings.warn(
+                f"join: right column {original!r} renamed to {final!r} because "
+                f"{original + node.suffix!r} already exists",
+                UserWarning,
+                stacklevel=2,
+            )
     result = visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
         lambda: visitor.backend.join(

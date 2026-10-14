@@ -117,6 +117,10 @@ def to_package(dag: RelationDAGProtocol, *, strict: bool = False) -> DataPackage
                 continue
             inferred = None
         out = None if inferred is None else _frictionless_from_inferred(inferred)
+        if declared_fks and out is None:
+            raise MissingResourceSchema(
+                f"{name!r}: cannot preserve declared foreign keys without complete output schema"
+            )
 
         # FK source is determined by resource kind: pass-through resources
         # emitted their lossless table_schema above (metadata never
