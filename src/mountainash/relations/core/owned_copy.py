@@ -8,7 +8,7 @@ import uuid
 import weakref
 
 from mountainash.core.lazy_imports import import_narwhals, import_numpy, import_pandas, import_polars, import_pyarrow
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.core.types import (
     BackendCapabilityError, is_ibis_table, is_narwhals_dataframe,
     is_narwhals_lazyframe, is_pandas_dataframe, is_polars_dataframe,
@@ -188,11 +188,11 @@ def ipc_copy(table: Any) -> Any:
 def _polars_copy(value):
     pl = import_polars()
     if is_polars_lazyframe(value):
-        value = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+        value = value.collect()
     for name, dtype in value.schema.items():
         if dtype == pl.Object:
             raise UnownableSnapshotValueError(f"Cannot independently own Polars Object column {name!r}")
-    arrow = transit_call(BoundaryKey.OWNED_COPY_POLARS_TO_ARROW, value.to_arrow)
+    arrow = value.to_arrow()
     return pl.from_arrow(ipc_copy(arrow), rechunk=False)
 
 
@@ -251,10 +251,7 @@ def _pandas_copy(value):
             ))
         elif hasattr(series.array, "__arrow_array__"):
             arrow = pa.table({"value": series.array.__arrow_array__()})
-            copied = transit_call(
-                BoundaryKey.OWNED_COPY_PANDAS_SERIES, pd.Series,
-                ipc_copy(arrow)["value"], index=result.index, name=series.name, dtype=series.dtype,
-            )
+            copied = pd.Series(ipc_copy(arrow)["value"], index=result.index, name=series.name, dtype=series.dtype,)
             result.isetitem(index, copied)
     return result
 
@@ -267,14 +264,11 @@ def _inprocess_copy(value):
     if is_pyarrow_table(value):
         return ipc_copy(value)
     if is_narwhals_lazyframe(value):
-        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+        value = value.collect()
     if is_narwhals_dataframe(value):
         nw = import_narwhals()
-        if value.implementation.is_pandas():
-            native = transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
-        else:
-            native = transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
-        return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, _inprocess_copy(native))
+        native = value.to_native()
+        return nw.from_native(_inprocess_copy(native))
     raise TypeError(f"Unsupported owned-copy value: {type(value).__name__}")
 
 
@@ -282,7 +276,7 @@ def owned_copy(native: Any) -> OwnedCopy:
     """Copy once in the source's native backend, with no shared source buffers."""
     if is_ibis_table(native):
         return owned_ibis_table(native)
-    value = transit_call(BoundaryKey.OWNED_COPY, _inprocess_copy, native)
+    value = _inprocess_copy(native)
     _bind_state(value, _OwnedState())
     return OwnedCopy(value)
 
@@ -312,7 +306,7 @@ def owned_ibis_table(expr: Any) -> OwnedCopy:
         def copy():
             frame = _polars_copy(connection.compile(expr))
             return connection.create_table(name, frame)
-        table = transit_call(BoundaryKey.OWNED_COPY, copy)
+        table = copy()
         return register_owned_ibis_table(connection, name, table)
     except BaseException as original:
         _failed_copy(connection, (name,), original)
@@ -350,7 +344,7 @@ def owned_sql_batch(connection: Any, expressions: Sequence[Any]) -> tuple[OwnedC
                         backend.insert(name, expr)
                         return backend.table(name)
 
-                    tables.append(transit_call(BoundaryKey.OWNED_COPY, copy))
+                    tables.append(copy())
             for name, table in zip(attempted, tables):
                 copies.append(register_owned_ibis_table(connection, name, table))
             return tuple(copies)

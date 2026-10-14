@@ -9,7 +9,6 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.errors import BackendConversionError
 from mountainash.relations.core.materialization import (
@@ -30,31 +29,35 @@ import mountainash.expressions.backends  # noqa: F401
 
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
 def test_prepare_validation_input_uses_one_native_ibis_cache(
-    backend_name, backend_factory, monkeypatch
+    backend_name, backend_factory, mocker
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    with MaterializationScope() as scope, capture_conversion_trace() as trace:
+    from mountainash.relations.core import owned_copy
+
+    copies = mocker.spy(owned_copy, "owned_ibis_table")
+    with MaterializationScope() as scope:
         prepared = prepare_validation_input(
             ma.relation(table), scope=scope,
             execution_context=_new_execution_context(table, policy=CapabilityPolicy.trusted()),
         )
         assert prepared.native.value_identity.dialect == backend_name
-        assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 1
+        assert copies.call_count == 1
 
 
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
 def test_prepare_validation_input_snapshot_uses_one_arrow_extraction(
-    backend_name, backend_factory, monkeypatch
+    backend_name, backend_factory, mocker
 ):
     """Spec Task 6 step 1: one cache(), one Arrow extraction for the shared
     physical snapshot -- never a per-check re-execution."""
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    with MaterializationScope() as scope, capture_conversion_trace() as trace:
+    exports = mocker.spy(type(table), "to_pyarrow")
+    with MaterializationScope() as scope:
         prepared = prepare_validation_input(
             ma.relation(table), scope=scope,
             execution_context=_new_execution_context(table, policy=CapabilityPolicy.trusted()),
         )
-        assert sum(r.boundary_key is BoundaryKey.LOGICAL_SNAPSHOT_IBIS_TO_ARROW for r in trace.records) == 1
+        assert exports.call_count == 1
         assert prepared.snapshot.columns["age"].to_pylist() == [30, -1, None]
         assert prepared.logical_snapshot.logical_columns["age"] is prepared.snapshot.columns["age"]
 

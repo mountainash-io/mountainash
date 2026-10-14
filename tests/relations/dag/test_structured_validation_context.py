@@ -21,8 +21,7 @@ from types import MappingProxyType
 import polars as pl
 
 import mountainash as ma
-from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
-from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.relations.core.materialization import DiagnosticFrameView
 from mountainash.relations.dag import DAGMaterializationSession, RelationDAG
 from mountainash.relations.dag.materialization import _SessionRefResolver
@@ -126,7 +125,6 @@ class TestPerCallValidationContext:
         table = backend_factory.create(
             {"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']}, "ibis-duckdb"
         )
-        from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 
         arrow_calls = 0
         from mountainash.relations.core import logical_snapshot as logical_snapshot_module
@@ -164,13 +162,11 @@ class TestPerCallValidationContext:
         session = DAGMaterializationSession(dag, execution_policy=validation_execution_policy)
         context = DAGValidationContext(session)
 
-        with capture_conversion_trace() as trace:
-            first = context.prepare("resource")
-            second = context.prepare("resource")
+        first = context.prepare("resource")
+        second = context.prepare("resource")
 
         assert first is second
         assert compile_calls == 1
-        assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 1
         assert session.canonical_keys == frozenset({"resource"})
         assert arrow_calls == 1
         session.close(release_owned=False)

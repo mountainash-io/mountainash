@@ -304,26 +304,29 @@ def test_explain_ref_transfer_never_materializes_canonical(monkeypatch):
     assert "ibis-sqlite" in explanation
 
 
-def test_named_ibis_dependency_is_cached_once_when_collected(monkeypatch):
-    from mountainash.core.transit import BoundaryKey, capture_conversion_trace
+def test_named_ibis_dependency_is_cached_once_when_collected(mocker):
+    from mountainash.relations.core import owned_copy
+
     table = REGISTRY["ibis-duckdb"].build({"id": [1, 2]}, "source")
     dag = ma.RelationDAG()
     dag.add("source", ma.relation(table).filter(ma.col("id") > 0))
     dag.add("target", ma.concat([dag.ref("source"), dag.ref("source")]))
-    with capture_conversion_trace() as trace:
-        result = dag.collect("target")
+    copies = mocker.spy(owned_copy, "owned_ibis_table")
+    result = dag.collect("target")
+    assert copies.call_count == 2  # one shared dependency and one named root
     assert sorted(ma.relation(result).to_dict()["id"]) == [1, 1, 2, 2]
-    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 2
 
 
-def test_named_ibis_root_is_materialized_at_canonical_boundary(monkeypatch):
-    from mountainash.core.transit import BoundaryKey, capture_conversion_trace
+def test_named_ibis_root_is_materialized_at_canonical_boundary(mocker):
+    from mountainash.relations.core import owned_copy
+
     table = REGISTRY["ibis-duckdb"].build({"id": [1]}, "root")
     dag = ma.RelationDAG()
     dag.add("root", ma.relation(table).filter(ma.col("id") > 0))
-    with capture_conversion_trace() as trace:
-        assert ma.relation(dag.collect("root")).to_dict() == {"id": [1]}
-    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 1
+    copies = mocker.spy(owned_copy, "owned_ibis_table")
+    result = dag.collect("root")
+    assert copies.call_count == 1
+    assert ma.relation(result).to_dict() == {"id": [1]}
 
 
 def test_repeated_named_ref_prepares_original_plan_once(monkeypatch):

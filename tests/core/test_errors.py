@@ -31,3 +31,23 @@ def test_schema_validation_error_under_root():
     from mountainash.core.errors import MountainashError
     from mountainash.typespec.validation import SchemaValidationError
     assert issubclass(SchemaValidationError, MountainashError)
+
+
+def test_backend_conversion_error_preserves_typeerror_compatibility():
+    from mountainash.core.errors import BackendConversionError, MountainashError
+
+    error = BackendConversionError(
+        "unsupported conversion",
+        boundary_key=None,
+        source_family="ibis",
+        source_dialect="ibis-duckdb",
+        destination_family="narwhals",
+        destination_dialect="narwhals-pandas",
+        source_type="ibis.expr.types.relations.Table",
+        route="native_materialization",
+        reason="unsupported destination representation",
+    )
+    assert isinstance(error, MountainashError)
+    assert isinstance(error, TypeError)
+    assert error.boundary_key is None
+    assert error.destination_dialect == "narwhals-pandas"

@@ -13,7 +13,7 @@ from mountainash.conform.structured_transport import (
     resolve_structured_cell,
 )
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.transit import BoundaryKey, transit_call
+
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -129,17 +129,11 @@ class _BaseSnapshotAdapter:
         columns: dict[str, Any] = {}
         for name in names:
             if name in transported:
-                columns[name] = transit_call(
-                    BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY,
-                    pd.Series,
-                    transported[name],
-                    dtype=object,
-                )
+                columns[name] = pd.Series(transported[name],
+                dtype=object,)
             else:
                 columns[name] = _native_column_to_pandas(self.family, untagged[name])
-        return transit_call(
-            BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_FRAME_ASSEMBLY, pd.DataFrame, columns
-        )
+        return pd.DataFrame(columns)
 
 
 def _native_column_to_polars(family: CONST_BACKEND, column: Any) -> "pl.Series":
@@ -150,11 +144,11 @@ def _native_column_to_polars(family: CONST_BACKEND, column: Any) -> "pl.Series":
     if family is CONST_BACKEND.PANDAS:
         return cast(
             "pl.Series",
-            transit_call(BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_TO_POLARS, pl.from_pandas, column),
+            pl.from_pandas(column),
         )
     return cast(
         "pl.Series",
-        transit_call(BoundaryKey.LOGICAL_SNAPSHOT_ARROW_TO_POLARS, pl.from_arrow, column),
+        pl.from_arrow(column),
     )
 
 
@@ -164,11 +158,11 @@ def _native_column_to_pandas(family: CONST_BACKEND, column: Any) -> "pd.Series":
     if family is CONST_BACKEND.POLARS:
         return cast(
             "pd.Series",
-            transit_call(BoundaryKey.LOGICAL_SNAPSHOT_POLARS_TO_PANDAS, column.to_pandas),
+            column.to_pandas(),
         )
     return cast(
         "pd.Series",
-        transit_call(BoundaryKey.LOGICAL_SNAPSHOT_ARROW_TO_PANDAS, column.to_pandas),
+        column.to_pandas(),
     )
 
 
@@ -204,7 +198,7 @@ class _NarwhalsSnapshotAdapter(_BaseSnapshotAdapter):
     family = CONST_BACKEND.NARWHALS
 
     def snapshot(self, native: Any) -> LogicalTerminalSnapshot:
-        arrow = transit_call(BoundaryKey.LOGICAL_SNAPSHOT_NARWHALS_TO_ARROW, native.value.to_arrow)
+        arrow = native.value.to_arrow()
         return _snapshot_from_columns(
             native, {name: arrow.column(name) for name in arrow.column_names}
         )
@@ -214,7 +208,7 @@ class _IbisSnapshotAdapter(_BaseSnapshotAdapter):
     family = CONST_BACKEND.IBIS
 
     def snapshot(self, native: Any) -> LogicalTerminalSnapshot:
-        arrow = transit_call(BoundaryKey.LOGICAL_SNAPSHOT_IBIS_TO_ARROW, native.value.to_pyarrow)
+        arrow = native.value.to_pyarrow()
         return _snapshot_from_columns(
             native, {name: arrow.column(name) for name in arrow.column_names}
         )
@@ -329,7 +323,7 @@ def resolved_snapshot_to_polars(resolved: ResolvedLogicalSnapshot) -> "pl.DataFr
     retaining untagged-column dtypes and tagging transported columns
     ``pl.Object`` (spec Task 4 step 6)."""
     adapter = LOGICAL_SNAPSHOT_ADAPTERS[resolved.physical.source_identity.family]
-    return transit_call(BoundaryKey.LOGICAL_SNAPSHOT_POLARS_DISPATCH, adapter.to_polars, resolved)
+    return adapter.to_polars(resolved)
 
 
 def logical_column_values(
@@ -367,7 +361,7 @@ def resolved_snapshot_to_pandas(resolved: ResolvedLogicalSnapshot) -> Any:
     retaining untagged-column dtypes and giving transported columns
     ``dtype=object`` (spec Task 4 step 6)."""
     adapter = LOGICAL_SNAPSHOT_ADAPTERS[resolved.physical.source_identity.family]
-    return transit_call(BoundaryKey.LOGICAL_SNAPSHOT_PANDAS_DISPATCH, adapter.to_pandas, resolved)
+    return adapter.to_pandas(resolved)
 
 
 __all__ = [
