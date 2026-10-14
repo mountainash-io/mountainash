@@ -84,6 +84,15 @@ class _CallOperandResolver:
     def __len__(self) -> int:
         return len(self._arguments)
 
+    def body_compiler(self, index: int):
+        """Visit a scoped operand afresh after the backend binds its element."""
+        argument = self._arguments[index]
+        return lambda: (
+            self._visitor.visit(argument)
+            if isinstance(argument, ExpressionNode)
+            else argument
+        )
+
     def native(self, index: int) -> Any:
         """Return the native operand, compiling at most once."""
         if index not in self._native:

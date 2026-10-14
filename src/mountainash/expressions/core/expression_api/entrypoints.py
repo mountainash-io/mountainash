@@ -25,6 +25,7 @@ from ..expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_COMPARISON,
     FKEY_SUBSTRAIT_SCALAR_BOOLEAN,
     FKEY_SUBSTRAIT_SCALAR_ARITHMETIC,
+    FKEY_MOUNTAINASH_SCALAR_LIST,
 )
 from .api_builders.substrait.api_bldr_conditional import SubstraitWhenAPIBuilder
 
@@ -59,6 +60,20 @@ def col(name: str) -> BaseExpressionAPI:
 
     node = FieldReferenceNode(field=name)
     return BooleanExpressionAPI(node)
+
+
+def element() -> BaseExpressionAPI:
+    """Create an expression referring to each item inside a native list body.
+
+    Use inside ``ma.col("xs").list.agg(...)`` or
+    ``ma.col("xs").list.filter(...)``; this is not a named-column reference.
+    """
+    from ..expression_api import BooleanExpressionAPI
+
+    return BooleanExpressionAPI(ScalarFunctionNode(
+        function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+        arguments=[],
+    ))
 
 
 def lit(value: Any, *, dtype: Any = None) -> BaseExpressionAPI:
@@ -672,4 +687,5 @@ __all__ = [
     # Datetime entry points
     "today",
     "now",
+    "element",
 ]

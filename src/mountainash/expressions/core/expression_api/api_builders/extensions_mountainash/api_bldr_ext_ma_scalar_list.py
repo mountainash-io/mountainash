@@ -1,4 +1,11 @@
-"""List operations API builder."""
+"""List operations API builder.
+
+List bodies can use the public element reference, for example
+``ma.col("xs").list.agg(ma.element() * 2)`` or
+``ma.col("xs").list.filter(ma.element() > 1)``. The body determines the
+result shape; ``ma.col("xs")`` remains a named column reference, not an
+element reference.
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Union

@@ -294,13 +294,13 @@ for _backend in _NARWHALS_CASES:
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST",
                     "DROP_NULLS MEDIAN STD VAR N_UNIQUE COUNT_MATCHES ITEM REVERSE HEAD TAIL "
                     "SLICE GATHER GATHER_EVERY SHIFT DIFF SET_DIFFERENCE SET_SYMMETRIC_DIFFERENCE "
-                    "FILTER TO_STRUCT TO_ARRAY ARG_MIN ARG_MAX SAMPLE AGG",
+                    "TO_STRUCT TO_ARRAY ARG_MIN ARG_MAX SAMPLE",
                     ("ibis-polars", "ibis-duckdb"), "Ibis has no compatible array operation.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST",
                     "EXPLODE JOIN ALL ANY DROP_NULLS STD VAR N_UNIQUE COUNT_MATCHES ITEM REVERSE "
                     "HEAD TAIL SLICE GATHER GATHER_EVERY SHIFT DIFF SET_UNION SET_INTERSECTION "
                     "SET_DIFFERENCE SET_SYMMETRIC_DIFFERENCE CONCAT FILTER TO_STRUCT TO_ARRAY "
-                    "ARG_MIN ARG_MAX SAMPLE AGG",
+                    "ARG_MIN ARG_MAX SAMPLE AGG ELEMENT",
                     _NARWHALS_CASES, "Narwhals has no compatible list operation.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST", "PARSE",
                     ("ibis-sqlite",), "SQLite cannot parse a string into a typed array.")

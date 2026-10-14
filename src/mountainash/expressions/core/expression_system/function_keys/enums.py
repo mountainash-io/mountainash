@@ -718,6 +718,7 @@ class FKEY_MOUNTAINASH_SCALAR_LIST(Enum):
     ARG_MAX = auto()
     SAMPLE = auto()
     AGG = auto()
+    ELEMENT = auto()
 
 
 class FKEY_MOUNTAINASH_SCALAR_TERNARY(Enum):

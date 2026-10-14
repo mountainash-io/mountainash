@@ -316,6 +316,7 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
             format="default", field_name="c"
         ),
         FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: l.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT: lambda: l.list.agg(ma.element()),
         FKEY_MOUNTAINASH_SCALAR_LIST.GATHER: lambda: l.list.gather(ma.col("b")),
         FKEY_MOUNTAINASH_SCALAR_LIST.FILTER: lambda: l.list.filter(ma.lit(True)),
         FKEY_MOUNTAINASH_SCALAR_LIST.AGG: lambda: l.list.agg(ma.lit(1)),
