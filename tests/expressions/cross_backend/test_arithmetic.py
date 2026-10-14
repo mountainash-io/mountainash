@@ -12,6 +12,12 @@ These tests validate that arithmetic works consistently across
 all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
 """
 
+from decimal import Decimal as D
+
+import polars as pl
+import narwhals as nw
+import mountainash as ma_top
+from mountainash.core.types import BackendCapabilityError
 import pytest
 import mountainash.expressions as ma
 
@@ -436,3 +442,296 @@ class TestModuloWithNegatives:
             expected = [2, -2, -1]
 
             assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
+
+
+def _sqlite_decimal_refusal(backend_factory):
+    frame = backend_factory.create({"a": ["1.25"]}, "ibis-sqlite")
+    with pytest.raises(BackendCapabilityError, match="fixed-precision decimal"):
+        ma_top.relation(frame).select(
+            ma.col("a").cast(ma_top.DecimalDtype(12, 3), rounding="half_to_even")
+        ).to_polars()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("working", [False, True], ids=["native-decimal", "authored-fp64"])
+@pytest.mark.parametrize(
+    "operation, expected",
+    [
+        ("add", ["8.25", "-4.25", "2", None]),
+        ("subtract", ["4.25", "-8.25", "-2", None]),
+        ("multiply", ["12.5", "-12.5", "0", None]),
+        ("divide", ["3.125", "-3.125", "0", None]),
+        ("floor_divide", ["3", "-4", "0", None]),
+        ("modulus", ["0.25", "1.75", "0", None]),
+        ("power", ["39.0625", "39.0625", "0", None]),
+    ],
+)
+def test_declared_decimal_binary(
+    backend_name, declared_decimal_frame, backend_factory, working, operation, expected
+):
+    """Catch wrong lowering/order/null handling without hiding native arithmetic behind casts."""
+    if backend_name == "ibis-sqlite":
+        _sqlite_decimal_refusal(backend_factory)
+        return
+    frame = declared_decimal_frame(
+        {"a": [D("6.250"), D("-6.250"), D("0"), None],
+         "b": [D("2.00")] * 4},
+        {"a": (12, 3), "b": (10, 2)},
+    )
+    a, b = ma.col("a"), ma.col("b")
+    if working:
+        a, b = a.cast("fp64"), b.cast("fp64")
+    expr = getattr(a, operation)(b)
+    if working:
+        expr = expr.cast(ma_top.DecimalDtype(16, 5), rounding="half_to_even")
+    query = ma_top.relation(frame).select(expr.alias("r"))
+    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+        with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
+            query.to_polars()
+        return
+    unsupported = (
+        not working
+        and operation in {"floor_divide", "modulus", "power"}
+        and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"}
+    )
+    with expect_call_failure(
+        when=unsupported,
+        reason="Polars 1.44.2 native Decimal floor-divide/remainder/power kernels are unsupported (288)",
+        errors=(nw.exceptions.InvalidOperationError,) if backend_name.startswith("narwhals") else (pl.exceptions.InvalidOperationError,),
+    ):
+        with expect_call_failure(
+            when=(operation == "modulus" and backend_name == "ibis-duckdb")
+            or (not working and operation == "power" and backend_name == "ibis-duckdb"),
+            reason="IB-MATH-05 remainder sign; Ibis 12 Decimal power extraction rounds native DOUBLE to input scale (288)",
+            errors=(AssertionError,),
+        ):
+            with expect_call_failure(
+                when=not working and operation == "modulus" and backend_name in {"pandas", "narwhals-pandas"},
+                reason="pandas 3 Arrow Decimal remainder is not implemented (288)",
+                errors=(NotImplementedError,),
+            ):
+                out = query.to_polars()
+            if working:
+                assert out.schema["r"] == pl.Decimal(16, 5)
+            elif backend_name in {"pandas", "narwhals-pandas"}:
+                # Arrow's decimal promotion rules; power returns floating point.
+                dtype = {
+                    "add": pl.Decimal(13, 3), "subtract": pl.Decimal(13, 3),
+                    "multiply": pl.Decimal(23, 5), "divide": pl.Decimal(23, 12),
+                    "floor_divide": pl.Decimal(23, 12), "power": pl.Float64,
+                }[operation]
+                assert out.schema["r"] == dtype
+            elif backend_name.startswith("ibis"):
+                dtype = {"divide": pl.Float64, "floor_divide": pl.Int64}.get(operation, pl.Decimal(12, 3))
+                assert out.schema["r"] == dtype
+            else:
+                assert out.schema["r"] == pl.Decimal(38, 3)
+            from mountainash.relations.schema_inference import SchemaTypeStatus
+            assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma_top.relation(out).schema["r"])
+            assert out["r"].to_list() == [D(v) if v is not None else None for v in expected]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_authored_decimal_chain(backend_name, declared_decimal_frame, backend_factory):
+    """Premature conversion of either multiplicand loses the fourth fractional digit."""
+    if backend_name == "ibis-sqlite":
+        _sqlite_decimal_refusal(backend_factory)
+        return
+    frame = declared_decimal_frame(
+        {"a": [D("1.235"), D("-2.345"), D("0"), None],
+         "b": [D("2.50"), D("3.00"), D("4.00"), D("5.00")]},
+        {"a": (12, 3), "b": (10, 2)},
+    )
+    a, b = ma.col("a").cast("fp64"), ma.col("b").cast("fp64")
+    query = ma_top.relation(frame).select(
+        (a * b + a).cast(ma_top.DecimalDtype(16, 5), rounding="half_to_even").alias("r")
+    )
+    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+        with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
+            query.to_polars()
+        return
+    out = query.to_polars()
+    assert out.schema["r"] == pl.Decimal(16, 5)
+    assert out["r"].to_list() == [D("4.32250"), D("-9.38000"), D("0.00000"), None]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    "left,right,declaration,expected",
+    [
+        ("0.105", "0.105", (10, 3), "0.011025"),
+        ("12.34", "5.67", (10, 2), "69.967800"),
+        ("9999.99", "9999.99", (6, 2), "99999800.000100"),
+    ],
+)
+@pytest.mark.parametrize("working", [False, True], ids=["native-decimal", "authored-fp64"])
+def test_decimal_multiplication_fractional_witnesses(
+    backend_name, declared_decimal_frame, backend_factory, left, right, declaration, expected, working
+):
+    """Keep the original 288 witnesses: operand scale must not masquerade as exact product."""
+    if backend_name == "ibis-sqlite":
+        _sqlite_decimal_refusal(backend_factory)
+        return
+    frame = declared_decimal_frame(
+        {"a": [D(left)], "b": [D(right)]}, {"a": declaration, "b": declaration}
+    )
+    a, b = ma.col("a"), ma.col("b")
+    if working:
+        a, b = a.cast("fp64"), b.cast("fp64")
+    expr = a * b
+    if working:
+        expr = expr.cast(ma_top.DecimalDtype(16, 6), rounding="half_to_even")
+    query = ma_top.relation(frame).select(expr.alias("r"))
+    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+        with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
+            query.to_polars()
+        return
+    import pyarrow as pa
+    with expect_call_failure(
+        when=not working and (
+            backend_name == "ibis-duckdb" or (backend_name == "ibis-polars" and declaration == (6, 2))
+        ),
+        reason="Ibis 12 Decimal product extraction narrows native scale/precision (288)",
+        errors=(pa.ArrowInvalid,),
+    ):
+        out = query.to_polars()
+    if working:
+        assert out.schema["r"] == pl.Decimal(16, 6)
+    with expect_call_failure(
+        when=not working and backend_name in {
+            "polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"
+        },
+        reason="Polars native Decimal multiplication retains operand scale (288/284)",
+        errors=(AssertionError,),
+    ):
+        assert out["r"].to_list() == [D(expected)]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("working", [False, True], ids=["native-decimal", "authored-fp64"])
+@pytest.mark.parametrize(
+    "operation,operand,expected",
+    [
+        ("subtract", "decimal-literal", "4.25"),
+        ("rsubtract", "decimal-literal", "-4.25"),
+        ("divide", "decimal-literal", "3.125"),
+        ("rdivide", "decimal-literal", "0.32"),
+        ("rfloor_divide", "integer-literal", "0"),
+        ("rmodulus", "integer-literal", "2"),
+        ("rpower", "float-literal", "76.10926"),
+        ("add", "integer-column", "8.25"),
+        ("multiply", "float-column", "15.625"),
+        ("multiply", "integer-literal", "12.5"),
+        ("subtract", "float-literal", "4.25"),
+    ],
+)
+def test_decimal_operand_arrangements(
+    backend_name, declared_decimal_frame, backend_factory, working, operation, operand, expected
+):
+    """Typed literals, reversed noncommutative operations and mixed columns preserve operand roles."""
+    if backend_name == "ibis-sqlite":
+        _sqlite_decimal_refusal(backend_factory)
+        return
+    frame = declared_decimal_frame(
+        {"a": [D("6.250")], "i": [2], "f": [2.5]}, {"a": (12, 3)}
+    )
+    a = ma.col("a")
+    b = {
+        "decimal-literal": ma_top.lit(D("2.00"), dtype=ma_top.DecimalDtype(10, 2)),
+        "integer-literal": ma.lit(2),
+        "float-literal": ma.lit(2.0),
+        "integer-column": ma.col("i"),
+        "float-column": ma.col("f"),
+    }[operand]
+    if working:
+        a, b = a.cast("fp64"), b.cast("fp64")
+    expr = getattr(a, operation)(b)
+    if working:
+        expr = expr.cast(ma_top.DecimalDtype(16, 5), rounding="half_to_even")
+    query = ma_top.relation(frame).select(expr.alias("r"))
+    if working and backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
+        with pytest.raises(BackendCapabilityError, match="NW-MATH-11"):
+            query.to_polars()
+        return
+    with expect_call_failure(
+        when=not working and operation in {"rfloor_divide", "rmodulus", "rpower"}
+        and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"},
+        reason="Polars 1.44.2 Decimal reverse floor-divide/remainder/power kernels unsupported (288)",
+        errors=(nw.exceptions.InvalidOperationError,) if backend_name.startswith("narwhals") else (pl.exceptions.InvalidOperationError,),
+    ):
+        with expect_call_failure(
+            when=not working and operation == "rmodulus" and backend_name in {"pandas", "narwhals-pandas"},
+            reason="pandas 3 Arrow Decimal remainder not implemented (288)",
+            errors=(NotImplementedError,),
+        ):
+            out = query.to_polars()
+    if working:
+        assert out.schema["r"] == pl.Decimal(16, 5)
+        assert out["r"].to_list() == [D(expected)]
+    elif operation == "rpower":
+        with expect_call_failure(
+            when=backend_name == "ibis-duckdb",
+            reason="Ibis 12 power extraction rounds native DOUBLE to Decimal operand scale (288)",
+            errors=(AssertionError,),
+        ):
+            assert float(out["r"][0]) == pytest.approx(76.10925536017415)
+    elif out.schema["r"].is_float():
+        assert out["r"].to_list() == pytest.approx([float(expected)])
+    else:
+        assert out["r"].to_list() == [D(expected)]
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+    assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma_top.relation(out).schema["r"])
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("working", [False, True], ids=["native-decimal", "authored-fp64"])
+@pytest.mark.parametrize("operation", ["divide", "floor_divide", "modulus"])
+def test_decimal_zero_divisor_computation_boundary(
+    backend_name, declared_decimal_frame, backend_factory, working, operation
+):
+    """Distinguish computation errors/nonfinite values from final Decimal conversion."""
+    import math
+    import duckdb
+    import pyarrow as pa
+
+    if backend_name == "ibis-sqlite":
+        _sqlite_decimal_refusal(backend_factory)
+        return
+    frame = declared_decimal_frame(
+        {"a": [D("1.250")], "b": [D("0.00")]}, {"a": (12, 3), "b": (10, 2)}
+    )
+    a, b = ma.col("a"), ma.col("b")
+    if working:
+        a, b = a.cast("fp64"), b.cast("fp64")
+    query = ma_top.relation(frame).select(getattr(a, operation)(b).alias("r"))
+    arrow_pandas = backend_name in {"pandas", "narwhals-pandas"}
+    polars_kernel = backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"}
+    errors = nw.exceptions if backend_name.startswith("narwhals") else pl.exceptions
+    error = None
+    if arrow_pandas and operation == "modulus":
+        error = NotImplementedError
+    elif not working and operation == "divide":
+        if arrow_pandas:
+            error = pa.ArrowInvalid
+        elif polars_kernel:
+            error = errors.ComputeError
+    elif not working and polars_kernel:
+        error = errors.InvalidOperationError
+    if operation == "floor_divide" and backend_name.startswith("ibis"):
+        if backend_name == "ibis-duckdb":
+            error = duckdb.ConversionException
+        elif working:
+            error = pa.ArrowInvalid
+    if error is not None:
+        with pytest.raises(error):
+            query.to_polars()
+        return
+    out = query.to_polars()
+    if (arrow_pandas and operation == "floor_divide") or (
+        not working and backend_name == "ibis-duckdb" and operation == "modulus"
+    ):
+        assert out["r"].to_list() == [None]
+    elif operation == "modulus":
+        assert math.isnan(out["r"][0])
+    else:
+        assert out["r"].to_list() == [float("inf")]
