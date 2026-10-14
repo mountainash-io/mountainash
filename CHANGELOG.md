@@ -11,6 +11,7 @@
 - Install the existing pinned `pytest-mock` test dependency in the CI Hatch environment so migrated ownership, extraction and reuse tests can resolve their `mocker` fixture.
 - Remove the logical-snapshot test's blanket `to_pandas()` prohibition; retain owned-copy/extraction counts and assert exact snapshot values across Ibis backends.
 - Materialization residue checks now inspect Arrow scalar values rather than scalar-object truthiness, preventing false/null markers from rejecting valid results on PyArrow 16 while retaining true-marker rejection.
+- Removed the obsolete egress-factory test requiring pandas input rejection: pandas is registered, and the test depended on incidental version-specific type detection rather than a supported rejection contract.
 
 ## Unreleased — 2026-10-13
 
