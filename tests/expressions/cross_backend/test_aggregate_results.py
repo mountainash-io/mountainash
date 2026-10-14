@@ -745,7 +745,6 @@ class TestDeclaredDecimalAggregateArithmetic:
         assert output["result"].to_list() == [expected]
 
 
-    @pytest.mark.cross_backend
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     @pytest.mark.parametrize("operation", tuple(_DECIMAL_AGGREGATE_ORACLES))
     @pytest.mark.parametrize("data,values", _DECIMAL_AGGREGATE_INPUTS)
