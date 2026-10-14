@@ -118,7 +118,8 @@ def _is_true_marker(result: Any, marker: str) -> bool:
         return False
     if hasattr(values, "any"):
         return bool(values.any())
-    return any(bool(value) for value in values)
+    # Older Arrow scalars are truthy even when their stored value is False/null.
+    return any(bool(value.as_py() if hasattr(value, "as_py") else value) for value in values)
 
 def _drop_markers(result: Any, markers: Iterable[str]) -> Any:
     names = tuple(dict.fromkeys(markers))

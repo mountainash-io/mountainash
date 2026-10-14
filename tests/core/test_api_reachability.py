@@ -63,6 +63,7 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         MD.CEIL: lambda: c.dt.ceil("day"),
         MD.FLOOR: lambda: c.dt.floor("day"),
         MD.ROUND: lambda: c.dt.round("day"),
+        ML.ELEMENT: ma.element,
         ML.GET: lambda: c.list.get(0),
         ML.TO_ARRAY: lambda: c.list.to_array(width=2),
         ML.CAST_ITEMS: lambda: c.list.cast_items(item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
