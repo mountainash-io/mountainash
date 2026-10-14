@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from decimal import Decimal as D
 
+import math
 import polars as pl
 import pytest
 
@@ -19,6 +20,8 @@ from mountainash.expressions.core.expression_api.api_builders.extensions_mountai
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_VALUE,
 )
+
+from fixtures.call_expectations import expect_call_failure
 
 NARWHALS = {"narwhals-polars", "narwhals-lazy", "narwhals-pandas", "pandas"}
 REFUSAL_REASON = (
@@ -625,3 +628,223 @@ class TestCastContract:
         with pytest.raises(InvalidOptionValueError):
             ma.col("v").cast(ma.DecimalDtype(precision=38, scale=10), rounding="to_zero")
         ma.col("v").cast(ma.DecimalDtype(precision=16, scale=16), rounding="to_zero")  # at the cap: builds
+
+
+def _assert_cast_schema_not_contradictory(query, output):
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+
+    assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma.relation(output).schema["r"])
+
+
+def _conversion_errors(backend_name):
+    if backend_name == "ibis-duckdb":
+        import duckdb
+
+        return (duckdb.ConversionException,)
+    return (pl.exceptions.InvalidOperationError,)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    "mode,expected",
+    [
+        ("half_to_even", [D("2"), D("-2"), D("1"), D("-1"), D("0"), None]),
+        ("half_away_from_zero", [D("3"), D("-3"), D("1"), D("-1"), D("0"), None]),
+        ("to_zero", [D("2"), D("-2"), D("1"), D("-1"), D("0"), None]),
+    ],
+)
+def test_arithmetic_then_final_cast_honors_rounding_mode(
+    backend_name, declared_decimal_frame, backend_factory, mode, expected
+):
+    values = [2.5, -2.5, 1.25, -1.25, 0.0, None]
+    if backend_name == "ibis-sqlite":
+        df = backend_factory.create({"a": values}, backend_name)
+    else:
+        df = declared_decimal_frame(
+            {"a": [None if v is None else D(str(v)) for v in values]},
+            {"a": (4, 2)},
+        )
+    expr = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
+        ma.DecimalDtype(precision=4, scale=0), rounding=mode
+    ).alias("r")
+    query = ma.relation(df).select(expr)
+    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
+        with pytest.raises(BackendCapabilityError) as err:
+            query.to_polars()
+        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+        return
+    out = query.to_polars()
+    _assert_cast_schema_not_contradictory(query, out)
+    assert out.schema["r"] == pl.Decimal(4, 0)
+    assert out["r"].to_list() == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize(
+    "mode,expected",
+    [
+        ("half_to_even", [D("2.12"), D("-2.12")]),
+        ("half_away_from_zero", [D("2.13"), D("-2.13")]),
+        ("to_zero", [D("2.12"), D("-2.12")]),
+    ],
+)
+def test_arithmetic_then_final_cast_honors_rounding_at_fractional_scale(
+    backend_name, declared_decimal_frame, backend_factory, mode, expected
+):
+    if backend_name == "ibis-sqlite":
+        df = backend_factory.create({"a": [2.125, -2.125]}, backend_name)
+    else:
+        df = declared_decimal_frame(
+            {"a": [D("2.125"), D("-2.125")]}, {"a": (5, 3)}
+        )
+    expr = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
+        ma.DecimalDtype(precision=4, scale=2), rounding=mode
+    ).alias("r")
+    query = ma.relation(df).select(expr)
+    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
+        with pytest.raises(BackendCapabilityError) as err:
+            query.to_polars()
+        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+        return
+    out = query.to_polars()
+    _assert_cast_schema_not_contradictory(query, out)
+    assert out.schema["r"] == pl.Decimal(4, 2)
+    assert out["r"].to_list() == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("failure_behavior", ["throw", "null"])
+def test_arithmetic_rounding_carry_and_overflow(
+    backend_name, declared_decimal_frame, backend_factory, failure_behavior
+):
+    values = [D("9.5"), D("-9.5")]
+    df = (
+        backend_factory.create({"a": [9.5, -9.5]}, backend_name)
+        if backend_name == "ibis-sqlite"
+        else declared_decimal_frame({"a": values}, {"a": (3, 1)})
+    )
+    # The fit case establishes carry rounding; p=1 has no integer capacity for
+    # the rounded 10 and must raise even with failure_behavior="null".
+    fit = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
+        ma.DecimalDtype(precision=3, scale=0),
+        rounding="half_away_from_zero",
+        failure_behavior=failure_behavior,
+    ).alias("r")
+    overflow = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
+        ma.DecimalDtype(precision=1, scale=0),
+        rounding="half_away_from_zero",
+        failure_behavior=failure_behavior,
+    ).alias("r")
+    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
+        with pytest.raises(BackendCapabilityError) as err:
+            ma.relation(df).select(fit).to_polars()
+        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+        return
+    out = ma.relation(df).select(fit).to_polars()
+    assert out.schema["r"] == pl.Decimal(3, 0)
+    assert out["r"].to_list() == [D("10"), D("-10")]
+    with pytest.raises(_conversion_errors(backend_name)):
+        ma.relation(df).select(overflow).to_polars()
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("nonfinite_kind", ["infinity", "nan"])
+@pytest.mark.parametrize("failure_behavior", ["throw", "null"])
+def test_arithmetic_generated_nonfinite_reaches_final_cast(
+    backend_name, declared_decimal_frame, backend_factory, nonfinite_kind, failure_behavior
+):
+    value = D("9000000000000000") if nonfinite_kind == "infinity" else D("0")
+    source = {"a": [value]}
+    df = (
+        backend_factory.create({"a": [float(value)]}, backend_name)
+        if backend_name == "ibis-sqlite"
+        else declared_decimal_frame(source, {"a": (16, 0)})
+    )
+    if nonfinite_kind == "infinity":
+        working = ma.col("a").cast("fp64") * ma.lit(1e308)
+    else:
+        working = ma.col("a").cast("fp64") / ma.lit(0.0)
+    generated = ma.relation(df).select(working.alias("wide")).to_polars()
+    observed = generated["wide"][0]
+    if nonfinite_kind == "nan" and backend_name in {"pandas", "narwhals-pandas", "ibis-sqlite"}:
+        # These native routes normalize arithmetic NaN to null before the cast.
+        assert observed is None
+    else:
+        observed = float(observed)
+        assert math.isinf(observed) if nonfinite_kind == "infinity" else math.isnan(observed)
+    expr = working.cast(
+        ma.DecimalDtype(precision=16, scale=3),
+        rounding="half_to_even",
+        failure_behavior=failure_behavior,
+    ).alias("r")
+    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
+        with pytest.raises(BackendCapabilityError) as err:
+            ma.relation(df).select(expr).to_polars()
+        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+        return
+    if failure_behavior == "throw":
+        with pytest.raises(_conversion_errors(backend_name)):
+            ma.relation(df).select(expr).to_polars()
+    else:
+        out = ma.relation(df).select(expr).to_polars()
+        assert out["r"].to_list() == [None]
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_small_arithmetic_result_uses_existing_exponent_cast_behavior(
+    backend_name, declared_decimal_frame, backend_factory
+):
+    source = {"a": [D("0.00001")]}
+    df = (
+        backend_factory.create({"a": [0.00001]}, backend_name)
+        if backend_name == "ibis-sqlite"
+        else declared_decimal_frame(source, {"a": (8, 5)})
+    )
+    expr = (ma.col("a").cast("fp64") * ma.lit(0.000007)).cast(
+        ma.DecimalDtype(precision=10, scale=3), rounding="half_to_even"
+    ).alias("r")
+    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
+        with pytest.raises(BackendCapabilityError) as err:
+            ma.relation(df).select(expr).to_polars()
+        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+        return
+    out = ma.relation(df).select(expr).to_polars()
+    assert out.schema["r"] == pl.Decimal(10, 3)
+    with expect_call_failure(
+        when=backend_name == "ibis-duckdb",
+        reason="Item 287: DuckDB's Float64 exponent rendering rounds this sub-last-place value up",
+        errors=(AssertionError,),
+    ):
+        assert out["r"].to_list() == [D("0.000")]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_high_scale_exponent_result_after_arithmetic(
+    backend_name, declared_decimal_frame, backend_factory
+):
+    value = D("0.0000008386712")
+    df = (
+        backend_factory.create({"a": [float(value)]}, backend_name)
+        if backend_name == "ibis-sqlite"
+        else declared_decimal_frame({"a": [value]}, {"a": (16, 13)})
+    )
+    expr = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
+        ma.DecimalDtype(precision=16, scale=12), rounding="half_to_even"
+    ).alias("r")
+    query = ma.relation(df).select(expr)
+    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
+        with pytest.raises(BackendCapabilityError) as err:
+            query.to_polars()
+        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+        return
+    out = query.to_polars()
+    _assert_cast_schema_not_contradictory(query, out)
+    assert out.schema["r"] == pl.Decimal(16, 12)
+    assert out["r"].to_list() == [D("0.000000838671")]
+
+
