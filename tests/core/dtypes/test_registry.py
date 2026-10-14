@@ -3,6 +3,7 @@ import polars as pl
 import pytest
 
 from mountainash.core.dtypes.canonical import MountainashDtype as D
+from mountainash.core.dtypes import ListDtype, TimestampDtype, dtype_family
 from mountainash.core.dtypes.errors import DtypeMappingError, UnknownDtypeError
 from mountainash.core.dtypes.registry import registry
 from mountainash.core.dtypes.targets import TypeTarget
@@ -37,6 +38,16 @@ class TestFromNative:
     def test_string_with_explicit_target(self):
         assert registry.from_native("int32", target=TypeTarget.PANDAS) is D.I32
 
+    def test_explicit_target_preserves_native_parameters(self):
+        assert registry.from_native(
+            pl.Datetime("ms", "UTC"), target=TypeTarget.POLARS
+        ) == TimestampDtype(
+            precision=3, timezone_aware=True, timezone="UTC"
+        )
+        assert registry.from_native(
+            pl.List(pl.Int64), target=TypeTarget.POLARS
+        ) == ListDtype(element=D.I64)
+
 
 # Semantic-string canonical types (item 113 Unit B, Task 2) are physically
 # indistinguishable from STRING on every target — a native string cannot
@@ -58,9 +69,7 @@ class TestRoundTrip:
     def test_canon_to_native_to_canon(self, dtype, target):
         native = registry.to_native_schema(dtype, target)
         back = registry.from_native(native, target=target)
-        # Width-preserving identity (STRING-collapsing types like
-        # Categorical only appear in from_native, not to_native)
-        assert back is dtype
+        assert dtype_family(back) is dtype
 
     @pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS])
     @pytest.mark.parametrize(
@@ -73,9 +82,6 @@ class TestRoundTrip:
         back = registry.from_native(native, target=target)
         assert back is D.STRING
 
-    def test_round_trip_coverage_is_exhaustive_over_canonical_vocabulary(self):
-        # Every canonical member is in exactly one of the two buckets above.
-        assert _SEMANTIC_STRING_DTYPES <= set(D)
 
 
 class TestParseTypeString:

@@ -2,6 +2,10 @@
 
 ## Unreleased — 2026-10-14
 
+### Added
+- Detailed native schema values in `mountainash.core.dtypes` (311): timestamp precision and awareness, time precision, duration semantics, recursive lists/structs, fixed-array dimensions, and retained native refinements. Native Null and dynamic/object types remain explicit instead of becoming unknown or string. Existing TypeSpec/Frictionless exports continue to use broad type families; these metadata descriptors do not introduce new cast targets.
+- Native-first relation schema resolution (311): `.schema` uses available backend inference for computed outputs, and `.collect_schema(*, allow_execution=False)` requires complete names and detailed dtypes. Execution is opt-in and metadata remains the first choice even with permission. Standalone and DAG-bound relations share resolution; native inference errors retain their original types.
+
 ### Changed
 - Removed the transit policy registry, call wrappers, tracing API, AST census and inventory generator (248, first deletion slice). Native operations, conversion routes, outputs, placement, ownership and real conversion errors are unchanged; the wrapper's pandas-result rejection and trace records are retired. Upstream-internal pandas, native pandas execution and requested pandas output remain supported. Conversion simplification and validation/materialization work in 248/249 remain open.
 

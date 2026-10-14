@@ -10,7 +10,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Any, Optional
 
-from .canonical import DecimalDtype
+from .canonical import DecimalDtype, MountainashDtype, NativeDtype
 from .errors import DtypeMappingError, UnknownDtypeError
 from .targets import TypeTarget, detect_target
 
@@ -40,12 +40,27 @@ class DtypeRegistry:
             )
         return self._loaded[target]
 
-    def to_native_schema(
-        self, dtype: MountainashDtype | DecimalDtype, target: TypeTarget
-    ) -> Any:
-        """Native type for schema/materialization use. Complete over all members."""
+    def to_native_schema(self, dtype: Any, target: TypeTarget) -> Any:
+        """Convert schema types without silently discarding descriptor parameters."""
+        native = getattr(dtype, "native", None)
+        if native is not None:
+            if native.target is not target:
+                raise DtypeMappingError(
+                    f"Native refinement targets {native.target.value}, not {target.value}"
+                )
+            if target is TypeTarget.PYARROW:
+                import pyarrow as pa
+                if isinstance(native.value, pa.Field):
+                    raise DtypeMappingError(
+                        "Arrow field qualifiers cannot be represented by a dtype-only schema mapping"
+                    )
+            return native.value
         if isinstance(dtype, DecimalDtype):
             return self._target(target).to_native_decimal(dtype)
+        if not isinstance(dtype, MountainashDtype):
+            raise DtypeMappingError(
+                f"No lossless {target.value} schema mapping for parameterized dtype {dtype!r}"
+            )
         mod = self._target(target)
         try:
             return mod.SCHEMA_TYPES[dtype]
@@ -60,7 +75,7 @@ class DtypeRegistry:
     ) -> Any:
         """Native type for expression cast use. Bare containers raise."""
         if isinstance(dtype, DecimalDtype):
-            return self._target(target).to_native_decimal(dtype)
+            return self.to_native_schema(dtype, target)
         mod = self._target(target)
         if dtype in mod.CAST_UNSUPPORTED:
             supported = sorted(
@@ -76,18 +91,13 @@ class DtypeRegistry:
 
     def from_native(
         self, native: Any, target: Optional[TypeTarget] = None
-    ) -> Optional[MountainashDtype | DecimalDtype]:
-        """Collapse a native dtype to canon. None = explicitly untyped native.
-
-        target=None auto-detects from the object's module — convenience for
-        public entry points; internal paths pass an explicit target.
-        """
+    ) -> Any:
+        """Decode detailed native type metadata through its owning adapter."""
         if target is None:
             target = detect_target(native)
             if target is None:
                 raise UnknownDtypeError(
-                    f"Cannot auto-detect a type target for {native!r}; "
-                    f"pass target= explicitly."
+                    f"Cannot auto-detect a type target for {native!r}; pass target= explicitly."
                 )
         return self._target(target).from_native(native)
 

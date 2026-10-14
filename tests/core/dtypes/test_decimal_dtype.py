@@ -11,7 +11,7 @@ import pyarrow as pa
 import pytest
 
 import mountainash as ma
-from mountainash.core.dtypes import DecimalDtype, TypeTarget, parse_cast_target, registry
+from mountainash.core.dtypes import DecimalDtype, NativeDtype, TypeTarget, parse_cast_target, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 
 
@@ -65,7 +65,6 @@ def test_lowering_keeps_precision_and_scale(target, expected):
     [
         (pl.Decimal(12, 4), TypeTarget.POLARS),
         (pa.decimal128(12, 4), TypeTarget.PYARROW),
-        (pa.decimal256(12, 4), TypeTarget.PYARROW),
         (dt.Decimal(12, 4), TypeTarget.IBIS),
         (nw.Decimal(12, 4), TypeTarget.NARWHALS),
         (pd.ArrowDtype(pa.decimal128(12, 4)), TypeTarget.PANDAS),
@@ -75,15 +74,24 @@ def test_extraction_keeps_precision_and_scale(native, target):
     assert registry.from_native(native, target) == DecimalDtype(precision=12, scale=4)
 
 
+def test_decimal256_extraction_preserves_native_bitwidth():
+    native = pa.decimal256(12, 4)
+    dtype = registry.from_native(native, TypeTarget.PYARROW)
+    assert dtype.precision == 12
+    assert dtype.scale == 4
+    assert dtype.native == NativeDtype(value=native, target=TypeTarget.PYARROW)
+
+
 def test_extraction_of_unparameterised_python_decimal_is_not_decimal_dtype():
     # A bare decimal.Decimal hint carries no p/s: it must not become a DecimalDtype.
     with pytest.raises(UnknownDtypeError):
         registry.from_native(Decimal, TypeTarget.PYTHON)
 
 
-def test_arrow_decimal_beyond_precision_38_is_rejected():
-    with pytest.raises(UnknownDtypeError):
-        registry.from_native(pa.decimal256(50, 4), TypeTarget.PYARROW)
+def test_arrow_decimal_beyond_precision_38_is_preserved_as_native():
+    dtype = registry.from_native(pa.decimal256(50, 4), TypeTarget.PYARROW)
+    assert isinstance(dtype, NativeDtype)
+    assert dtype.value == pa.decimal256(50, 4)
 
 
 def test_typed_literal_lowers_natively_on_polars():

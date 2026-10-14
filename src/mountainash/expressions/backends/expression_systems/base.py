@@ -122,7 +122,7 @@ class BaseExpressionSystem(ABC):
 
     def cast_operand_type(self, target_type: Any, input_type: Any) -> Any:
         """Resolve a cast from its declared target without evaluating a sample."""
-        from mountainash.core.dtypes import MountainashDtype, NativeDtype, TypeTarget, registry
+        from mountainash.core.dtypes import MountainashDtype, NativeDtype, TypeTarget, dtype_family, registry
         from mountainash.core.dtypes.metadata import OperandType
         from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
         native_dtype = (
@@ -134,6 +134,7 @@ class BaseExpressionSystem(ABC):
         target = getattr(target_type, "target", None)
         if target is not None:
             dtype = registry.from_native(dtype, target=target)
+        dtype = dtype_family(dtype)
         if isinstance(dtype, MountainashDtype):
             dtype = dtype.value
         name = str(dtype).split("(", 1)[0]

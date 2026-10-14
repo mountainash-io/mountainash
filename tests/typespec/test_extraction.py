@@ -140,6 +140,16 @@ class TestExtractFromPandas:
         schema = extract_from_dataframe(pandas_df, preserve_backend_types=True)
         assert schema.get_field("id").backend_type == "int64"
 
+    def test_preserve_string_dtype_metadata(self):
+        pd = pytest.importorskip("pandas")
+        from mountainash.typespec.extraction import extract_from_dataframe
+
+        native = pd.StringDtype(storage="python", na_value=pd.NA)
+        frame = pd.DataFrame({"name": pd.Series(["a", None], dtype=native)})
+        field = extract_from_dataframe(frame, preserve_backend_types=True).get_field("name")
+        assert field.type == "string"
+        assert field.backend_type == str(native)
+
 
 # ============================================================================
 # TestExtractFromPyArrow
@@ -623,13 +633,14 @@ class TestExtractionOverRegistry:
         collected = empty.collect()
         assert collected.schema["addr"] == pl.Struct({"street": pl.String, "zip": pl.String})
         assert collected.shape == (0, 1)
-    def test_unknown_dtype_raises(self):
+    def test_polars_object_is_a_known_dynamic_type(self):
         import polars as pl
-        from mountainash.core.dtypes.errors import UnknownDtypeError
         from mountainash.typespec.extraction import extract_from_dataframe
-        df = pl.DataFrame({"d": [object()]})
-        with pytest.raises(UnknownDtypeError):
-            extract_from_dataframe(df)  # unmapped -> explicit error, not ANY
+        from mountainash.typespec.universal_types import UniversalType
+
+        df = pl.DataFrame({"dynamic": [object()]})
+        field = extract_from_dataframe(df).get_field("dynamic")
+        assert field.type is UniversalType.ANY
 
     def test_native_decimal_extracts_as_number(self):
         import polars as pl

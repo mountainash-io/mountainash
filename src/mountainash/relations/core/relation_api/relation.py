@@ -7,8 +7,6 @@ if TYPE_CHECKING:
     import polars as pl
     from mountainash.conform.drift import ConformCollection, ConformDrift
     from mountainash.core.capabilities.identity import BackendIdentity
-    from mountainash.core.dtypes import MountainashDtype
-    from mountainash.relations.schema_inference import SchemaTypeStatus
 
 from mountainash.core.constants import (
     ExecutionTarget,
@@ -1271,21 +1269,26 @@ class Relation(RelationBase):
         return list(self.schema.keys())
 
     @property
-    def schema(self) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-        """Output schema as {column_name: dtype} dict.
+    def schema(self) -> dict[str, Any]:
+        """Best available output schema, including native dtype parameters.
 
-        Infers from the AST and cheap native metadata without compilation or
-        execution. Values are canonical ``MountainashDtype`` (or ``DecimalDtype``
-        for a native decimal column) where inferable, or a ``SchemaTypeStatus``
-        (UNKNOWN / UNCONSTRAINED) where not.
-
-        An unresolved row-index route retains known fields and exposes the
-        ordinal as UNKNOWN. A new ordinal name is appended descriptively:
-        mapping order is not a native-layout guarantee, and missing source
-        fields are not certified absent. Existing invalid-plan errors remain.
+        Uses structural evidence and native schema inference, which may probe
+        sources or invoke documented inference callbacks. Does not deliberately
+        evaluate the result or transfer source rows. Unresolved types remain
+        explicit; use ``collect_schema()`` to require a complete schema.
         """
-        from mountainash.relations.schema_inference import infer_schema
-        return infer_schema(self._node)
+        from mountainash.relations.schema_resolution import resolve_schema
+        return resolve_schema(self)
+
+    def collect_schema(self, *, allow_execution: bool = False) -> dict[str, Any]:
+        """Resolve every output name and dtype or raise IncompleteSchemaError.
+
+        Native metadata is always tried first. ``allow_execution=True`` permits
+        ordinary execution only when metadata cannot establish the schema;
+        native inference errors are not retried through execution.
+        """
+        from mountainash.relations.schema_resolution import resolve_schema
+        return resolve_schema(self, require_complete=True, allow_execution=allow_execution)
 
     @property
     def dtypes(self) -> list:
@@ -1302,17 +1305,17 @@ class Relation(RelationBase):
         """Best-effort Frictionless schema dict for this relation, or None if no
         columns are determinable.
 
-        Ref-free convenience: derived from ``self.schema`` (which has no
-        ref_resolver), so a relation containing a RefRelNode infers ``{}`` and this
-        returns None. The DAG export authority is ``dag.schema(name)`` /
-        ``dag.to_package()``, NOT this property -- use those for DAG export."""
+        Derived from ``self.schema`` using broad Frictionless type families.
+        DAG-bound relations resolve refs through their owning DAG; an unbound
+        ref has no source schema. Use ``dag.to_package()`` for package export.
+        """
         from mountainash.relations.dag.packaging import _frictionless_from_inferred
         return _frictionless_from_inferred(self.schema)
 
     def assess_drift(self) -> "list[ConformDrift]":
         """Schema-only pre-flight: assess drift at every conform node in the plan.
 
-        Walks the plan tree (the same AST walk as ``.schema``) and evaluates
+        Walks the structural plan tree and evaluates
         each ``ConformRelNode`` in infer mode with drift assembly enabled but
         policy enforcement (raising/filtering) disabled -- folds item 17-P8
         into a build-time pre-flight. Never raises ``SchemaDriftError``

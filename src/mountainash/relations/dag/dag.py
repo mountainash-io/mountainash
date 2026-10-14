@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.dag.dag_relation import DAGRelation
     from mountainash.relations.dag.errors import UnknownRelationRef
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
     from .validation import DAGValidationResult
 
@@ -394,10 +394,11 @@ class RelationDAG:
 
             require_copy_idle(prepared.locations[prepared.root_key].connection)
         session._execution_tokens = prepared.tokens
+        from mountainash.relations.dag.introspection import structural_schema
         key_context = (KeyDriftContext(
             resource_name=key_target_name,
             constraints_for=self.constraints_for,
-            schema_of=self.schema,
+            schema_of=lambda name: structural_schema(self, name),
         ) if key_target_name is not None else None)
         compilation = CompilationSession(
             prepared, ref_resolver_factory=session.resolver_for,

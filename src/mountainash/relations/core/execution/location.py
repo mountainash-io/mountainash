@@ -58,6 +58,38 @@ class ExecutionLocation:
         return f"connection-{self.connection_token}" if self.connection_token is not None else None
 
 
+def schema_prototype(value: Any) -> Any:
+    """Use a native lazy plan, or a dtype-faithful empty eager prototype."""
+    from mountainash.core.types import (
+        is_narwhals_dataframe, is_narwhals_lazyframe, is_pandas_dataframe,
+        is_polars_dataframe, is_polars_lazyframe,
+    )
+    if isinstance(value, dict) or (
+        isinstance(value, (list, tuple)) and all(isinstance(row, dict) for row in value)
+    ):
+        import polars as pl
+        # Existing literal ingress, not evaluation or sampling of a lazy source.
+        return pl.DataFrame(value, strict=False).lazy()
+
+    if is_polars_dataframe(value):
+        return value.lazy()
+    if is_polars_lazyframe(value) or is_narwhals_lazyframe(value):
+        return value
+    if is_narwhals_dataframe(value):
+        native = value.to_native()
+        import narwhals as nw
+        return nw.from_native(schema_prototype(native))
+    if is_pandas_dataframe(value):
+        return value.iloc[:0]
+    try:
+        import pyarrow as pa
+        if isinstance(value, (pa.Table, pa.RecordBatch)):
+            return value.slice(0, 0)
+    except ImportError:
+        pass
+    return value
+
+
 class LocationResolver:
     """Resolve outputs in a supplied binding context without reading rows."""
 

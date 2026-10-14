@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 class ExecutionPhase(Enum):
     COMPILE = auto()
+    SCHEMA = auto()
     EXPLAIN = auto()
     EXECUTE = auto()
 
@@ -249,8 +250,7 @@ def prepare_execution(
     prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens,
                                  execution_context, policy)
     # Gate every reachable occurrence before phase rejection or any transfer.
-    preflight_capabilities(prepared)
-    if phase is not ExecutionPhase.EXPLAIN:
+    if phase not in (ExecutionPhase.EXPLAIN, ExecutionPhase.SCHEMA):
         for key, occurrence in locations.items():
             if occurrence.family is CONST_BACKEND.IBIS and occurrence.binding == "unbound":
                 raise UnresolvedExecutionLocationError(
@@ -258,15 +258,17 @@ def prepare_execution(
                     node_key=key, source=_label(occurrence),
                 )
     selected = locations["root"]
-    if phase is not ExecutionPhase.EXPLAIN and selected.family is CONST_BACKEND.IBIS \
-            and selected.binding != "bound":
+    if phase not in (ExecutionPhase.EXPLAIN, ExecutionPhase.SCHEMA) \
+            and selected.family is CONST_BACKEND.IBIS and selected.binding != "bound":
         raise UnresolvedExecutionLocationError(
             f"Selected execution location at root has unresolved Ibis binding: {_label(selected)}",
             node_key="root", destination=_label(selected),
         )
-    if phase is ExecutionPhase.COMPILE:
+    if phase in (ExecutionPhase.COMPILE, ExecutionPhase.SCHEMA):
         for requirement in transfers.values():
-            if requirement.requires_execution:
+            # Schema compilation may not export or materialize rows, even on
+            # routes whose ordinary compile contract happens to be row-free.
+            if phase is ExecutionPhase.SCHEMA or requirement.requires_execution:
                 raise CompileRequiresExecutionError(
                     f"Boundary {requirement.source_key} requires execution; use .collect()",
                     node_key=requirement.source_key, destination=_label(requirement.destination),

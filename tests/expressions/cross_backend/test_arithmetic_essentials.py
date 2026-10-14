@@ -95,7 +95,7 @@ def test_declared_decimal_unary(
     from pyarrow import ArrowInvalid
     from fixtures.call_expectations import expect_call_failure
     from mountainash.core.types import BackendCapabilityError
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
 
     if backend_name == "ibis-sqlite":
         frame = backend_factory.create({"a": [1]}, backend_name)

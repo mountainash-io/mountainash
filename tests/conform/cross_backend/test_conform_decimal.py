@@ -99,7 +99,12 @@ def test_no_conversion_keeps_actual_values_and_drift(backend_name, backend_facto
     )
     out = rel.collect_with_drift()
     assert out.frame["x"].to_list() == ["1.5"]
-    assert out.effective_schema == rel.schema == {"x": ma.MountainashDtype.STRING}
+    from mountainash.core.dtypes import dtype_family
+
+    assert out.effective_schema == rel.schema
+    assert {name: dtype_family(dtype) for name, dtype in rel.schema.items()} == {
+        "x": ma.MountainashDtype.STRING,
+    }
     mismatch, = out.drift.type_mismatches
     assert mismatch.action == action
     assert mismatch.applied is False

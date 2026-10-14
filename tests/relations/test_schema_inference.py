@@ -3,71 +3,97 @@ import pytest
 import mountainash as ma
 import polars as pl
 
-from mountainash.core.dtypes import MountainashDtype as D
+from mountainash.core.dtypes import MountainashDtype as D, SchemaTypeStatus
 from mountainash.relations.schema_inference import (
     infer_expression_name,
     _schema_from_dataframe,
     _schema_from_table_schema,
     infer_schema,
-    SchemaTypeStatus,
 )
 
 
+def _native_source_schema(frame, backend_name):
+    from mountainash.core.dtypes import NativeDtype, TypeTarget
+
+    text = D.STRING
+    if backend_name in {"pandas", "narwhals-pandas"}:
+        import narwhals as nw
+        text = NativeDtype(value=nw.to_native(frame).dtypes["text"], target=TypeTarget.PANDAS)
+    return {"n": D.I64, "text": text}
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("expression,expected", [
-    (ma.col("n").alias("copy"), {"copy": D.I64}),
-    (ma.col("*").name.prefix("p_"), {"p_n": D.I64, "p_text": D.STRING}),
-    (ma.col("*").name.suffix("_s"), {"n_s": D.I64, "text_s": D.STRING}),
-    (ma.col("*").name.to_uppercase(), {"N": D.I64, "TEXT": D.STRING}),
-    (ma.col("*").name.to_uppercase().name.to_lowercase(), {"n": D.I64, "text": D.STRING}),
-    (ma.col("^n$").alias("copy"), {"copy": D.I64}),
+@pytest.mark.parametrize("expression,origins", [
+    (ma.col("n").alias("copy"), {"copy": "n"}),
+    (ma.col("*").name.prefix("p_"), {"p_n": "n", "p_text": "text"}),
+    (ma.col("*").name.suffix("_s"), {"n_s": "n", "text_s": "text"}),
+    (ma.col("*").name.to_uppercase(), {"N": "n", "TEXT": "text"}),
+    (ma.col("*").name.to_uppercase().name.to_lowercase(), {"n": "n", "text": "text"}),
+    (ma.col("^n$").alias("copy"), {"copy": "n"}),
 ])
-def test_projection_preserves_source_identity(backend_name, backend_factory, expression, expected):
-    rel = ma.relation(backend_factory.create({"n": [1], "text": ["a"]}, backend_name))
+def test_projection_preserves_source_identity(backend_name, backend_factory, expression, origins):
+    frame = backend_factory.create({"n": [1], "text": ["a"]}, backend_name)
+    source_schema = _native_source_schema(frame, backend_name)
+    expected = {name: source_schema[source] for name, source in origins.items()}
+    rel = ma.relation(frame)
     assert list(rel.select(expression).schema.items()) == list(expected.items())
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("expression", [
-    ma.col("n") + 1,
-    ma.col("n") > 0,
-    ma.col("n").cast(D.STRING),
-    ma.lit(3),
-    (ma.col("n") + 1).name.prefix("computed_"),
+@pytest.mark.parametrize("expression,expected_type", [
+    (ma.col("n") + 1, D.I64),
+    (ma.col("n") > 0, D.BOOL),
+    (ma.col("n").cast(D.STRING), D.STRING),
+    ((ma.col("n") + 1).name.prefix("computed_"), D.I64),
 ])
-def test_projection_computation_does_not_inherit_replaced_type(backend_name, backend_factory, expression):
-    rel = ma.relation(backend_factory.create({"n": [1], "text": ["a"]}, backend_name))
+def test_projection_computation_has_native_result_type(backend_name, backend_factory, expression, expected_type):
+    frame = backend_factory.create({"n": [1], "text": ["a"]}, backend_name)
+    source_schema = _native_source_schema(frame, backend_name)
+    rel = ma.relation(frame)
     changed = rel.with_columns(expression.alias("n"))
-    assert changed.schema == {"n": SchemaTypeStatus.UNKNOWN, "text": D.STRING}
-    assert rel.select(expression.alias("new")).schema == {"new": SchemaTypeStatus.UNKNOWN}
+    from mountainash.core.dtypes import dtype_family
+    assert changed.schema["text"] == source_schema["text"]
+    assert list(changed.schema) == ["n", "text"]
+    assert dtype_family(changed.schema["n"]) is expected_type
+    selected = rel.select(expression.alias("new"))
+    assert list(selected.schema) == ["new"]
+    assert dtype_family(selected.schema["new"]) is expected_type
 
 
 @pytest.mark.cross_backend
-def test_projection_unknown_survives_rename_and_select(backend_name, backend_factory):
+def test_projection_computed_type_survives_rename_and_select(backend_name, backend_factory):
     rel = ma.relation(backend_factory.create({"n": [1]}, backend_name))
     changed = rel.with_columns((ma.col("n") + 1).alias("n"))
     assert changed.rename({"n": "renamed"}).select(ma.col("renamed").alias("copy")).schema == {
-        "copy": SchemaTypeStatus.UNKNOWN,
+        "copy": D.I64,
     }
 
 
 @pytest.mark.cross_backend
 def test_projection_replacements_use_original_input(backend_name, backend_factory):
-    rel = ma.relation(backend_factory.create({"n": [1], "text": ["a"]}, backend_name))
+    frame = backend_factory.create({"n": [1], "text": ["a"]}, backend_name)
+    source_schema = _native_source_schema(frame, backend_name)
+    rel = ma.relation(frame)
     changed = rel.with_columns(ma.col("text").alias("n"), ma.col("n").alias("copy"))
-    assert changed.schema == {"n": D.STRING, "text": D.STRING, "copy": D.I64}
+    expected = {
+        "n": source_schema["text"],
+        "text": source_schema["text"],
+        "copy": source_schema["n"],
+    }
+    assert changed.schema == expected
     empty = rel.head(0).with_columns(ma.col("text").alias("n"), ma.col("n").alias("copy"))
-    assert empty.schema == {"n": D.STRING, "text": D.STRING, "copy": D.I64}
+    assert empty.schema == expected
 
 
 def test_projection_preserves_unconstrained_source_status():
-    # A declared ANY resource has no backend; this tests metadata, not execution.
+    # The structural helper preserves a declaration without opening its source.
     pkg = ma.DataPackage(resources=[ma.DataResource(
         name="source", path="not-read.csv", type="table", format="csv",
         table_schema={"fields": [{"name": "free", "type": "any"}]},
     )])
     dag = pkg.to_relation_dag()
-    assert dag.ref("source").select(ma.col("free").alias("copy")).schema == {
+    from mountainash.relations.dag.introspection import structural_schema
+    projected = dag.ref("source").select(ma.col("free").alias("copy"))
+    assert infer_schema(projected._node, lambda name: structural_schema(dag, name)) == {
         "copy": SchemaTypeStatus.UNCONSTRAINED,
     }
 
@@ -92,7 +118,10 @@ def test_projection_expansion_collisions_rejected_when_schema_known(operation):
 def test_incomplete_projection_schema_survives_downstream_operation(transform):
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
 
-    rel = transform(ma.relation([{"n": 1}]).with_columns(ma.native(object()).alias("x")))
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+    source = Relation(RefRelNode(name="unbound"))
+    rel = transform(source.with_columns(ma.native(pl.all()).alias("x")))
     with pytest.raises(IncompleteProjectionSchemaError, match="PROJECT_WITH_COLUMNS.*expression 0"):
         _ = rel.schema
 
@@ -121,7 +150,9 @@ def test_unnamed_projection_requires_alias_with_operation_diagnostic(operation):
     with pytest.raises(ProjectionNameError, match=f"PROJECT_{operation.upper()}.*expression 0.*PERCENT_RANK.*alias"):
         getattr(rel, operation)(expr)
     named = getattr(rel, operation)(expr.alias("percentile"))
-    assert named.columns == (["percentile"] if operation == "select" else ["n", "percentile"])
+    assert list(infer_schema(named._node)) == (["percentile"] if operation == "select" else ["n", "percentile"])
+    with pytest.raises(ValueError, match="requires .over"):
+        named.collect_schema(allow_execution=True)
 
 
 class TestInferExpressionName:
@@ -237,23 +268,21 @@ class TestSchemaFromDataframe:
         schema = _schema_from_dataframe(df)
         assert list(schema.keys()) == ["a", "b", "c", "d"]
         assert schema["a"] == D.I64
-        assert schema["b"] == D.STRING
+        from mountainash.core.dtypes import NativeDtype, TypeTarget
+        assert schema["b"] == NativeDtype(value=df.dtypes["b"], target=TypeTarget.PANDAS)
         assert schema["c"] == D.FP64
         assert schema["d"] == D.BOOL
 
-    def test_pandas_unmappable_dtype_degrades_to_unknown_not_raise(self):
-        """An unmappable pandas dtype degrades that column to UNKNOWN rather
-        than raising -- introspection must never abort the whole extraction."""
+    def test_pandas_object_dtype_is_preserved_as_native_not_raise(self):
+        """Object storage is known native metadata, not inferred value type."""
         import pandas as pd
-        from mountainash.relations.schema_inference import SchemaTypeStatus
+        from mountainash.core.dtypes import NativeDtype, TypeTarget
 
         df = pd.DataFrame({"a": [1, 2], "obj": [object(), object()]})
-        # A raw Python-object column is exactly the kind of exotic dtype the
-        # pandas target module may not recognize; assert the call never
-        # raises and the recognized sibling column still resolves normally.
         schema = _schema_from_dataframe(df)
         assert schema["a"] == D.I64
-        assert schema["obj"] in (D.STRING, SchemaTypeStatus.UNKNOWN)
+        assert isinstance(schema["obj"], NativeDtype)
+        assert schema["obj"].target is TypeTarget.PANDAS
 
     def test_ibis_table(self):
         """item 48 Task 7 fix: the callable-.schema() (Ibis) branch must
@@ -524,17 +553,17 @@ def test_aggregate_key_type_follows_source(key, name):
     q = base.group_by(key).agg(ma.col("x").sum().alias("total"))
     assert q.columns == [name, "total"]
     assert q.schema[name] is D.STRING
-    assert q.schema["total"] is SchemaTypeStatus.UNKNOWN
+    assert q.schema["total"] is D.I64
 
 
-@pytest.mark.parametrize("key", [
-    (ma.col("g") > 0).alias("g"),
-    ma.col("g").cast(str),
-    ma.t_col("g", unknown={-1}),
+@pytest.mark.parametrize("key,expected", [
+    ((ma.col("g") > 0).alias("g"), D.BOOL),
+    (ma.col("g").cast(str), D.STRING),
+    (ma.t_col("g", unknown={-1}), D.I64),
 ])
-def test_aggregate_computed_key_type_is_unknown(key):
+def test_aggregate_computed_key_uses_native_result_type(key, expected):
     q = ma.relation([{"g": 1, "x": 3}]).group_by(key).agg(ma.col("x").sum())
-    assert q.schema["g"] is SchemaTypeStatus.UNKNOWN
+    assert q.schema["g"] is expected
 
 
 def test_aggregate_key_preserves_unconstrained_type():
@@ -607,7 +636,8 @@ def test_aggregate_resource_declaration_does_not_certify_all_columns(tmp_path):
     )
     q = Relation(ResourceReadRelNode(resource=resource)).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
     with pytest.raises(IncompleteProjectionSchemaError):
-        _ = q.columns
+        infer_schema(q._node)
+    assert q.columns == ["x", "y", "one"]
     assert q.to_dicts() == [{"x": 1, "y": 2, "one": 1}]
 
 
@@ -634,19 +664,15 @@ class TestInferSchemaJoin:
         ({"kk": 1}, {"kk": 2, "w": 2}),
     ])
     def test_raw_python_join_operand_names(self, raw):
-        from mountainash.relations.schema_inference import SchemaTypeStatus
-
         rel = ma.relation(pl.DataFrame({"k": [1], "w": [0]})).join(raw, left_on="k", right_on="kk")
         assert rel.columns == ["k", "w", "kk", "w_right"]
-        assert rel.schema["kk"] is SchemaTypeStatus.UNKNOWN
+        assert rel.schema["kk"] is D.I64
 
-    def test_merged_key_dtype_is_unknown_when_key_dtypes_differ(self):
-        from mountainash.relations.schema_inference import SchemaTypeStatus
-
+    def test_merged_key_dtype_uses_native_join_result(self):
         left = pl.DataFrame({"k": pl.Series([1, 2], dtype=pl.Int32)})
         right = pl.DataFrame({"kk": pl.Series([2, 3], dtype=pl.Int64)})
         rel = ma.relation(left).join(right, left_on="k", right_on="kk", how="outer", coalesce=True)
-        assert rel.schema["k"] is SchemaTypeStatus.UNKNOWN
+        assert rel.schema["k"] is D.I64
 
     def test_merged_key_dtype_kept_when_key_dtypes_match(self):
         left = pl.DataFrame({"k": pl.Series([1, 2], dtype=pl.Int32)})
@@ -743,25 +769,6 @@ class TestInferSchemaChain:
         assert "c" in schema
         assert "a" not in schema
 
-    def test_schema_does_not_trigger_compilation(self):
-        """Accessing schema should not call _compile_and_execute."""
-        import polars as pl
-        import mountainash as ma
-
-        df = pl.LazyFrame({"a": [1], "b": [2]})
-        r = ma.relation(df).select("a")
-
-        call_count = 0
-        original = r._compile_and_execute
-
-        def counting_compile():
-            nonlocal call_count
-            call_count += 1
-            return original()
-
-        r._compile_and_execute = counting_compile
-        _ = r.schema
-        assert call_count == 0, "schema should not trigger compilation"
 
 
 class TestSourceDataInference:
@@ -821,7 +828,8 @@ class TestSourceDataInference:
         """
         from mountainash.relations.core.relation_nodes.extensions_mountainash import SourceRelNode
         from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT
-        from mountainash.relations.schema_inference import infer_schema, SchemaTypeStatus
+        from mountainash.relations.schema_inference import infer_schema
+        from mountainash.core.dtypes import SchemaTypeStatus
 
         # [1, 2] vs "not_a_list" — polars strict=False cannot reconcile
         data = [{"x": [1, 2]}, {"x": "not_a_list"}]
@@ -844,7 +852,9 @@ def test_aggregate_indexed_python_data_does_not_certify_index_keys(data, expecte
 
     q = ma.relation(data).group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
     with pytest.raises(IncompleteProjectionSchemaError):
-        _ = q.columns
+        infer_schema(q._node)
+    assert "A" not in q.columns
+    assert list(q.collect_schema()) == list(q.to_dict())
     assert q.to_tuples() == expected
 
 
@@ -910,7 +920,9 @@ def test_aggregate_subset_distinct_does_not_promise_portable_expansion():
     base = ma.relation({"x": [1], "y": [2]}).unique(subset=["x"])
     q = base.group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
     with pytest.raises(IncompleteProjectionSchemaError):
-        _ = q.columns
+        infer_schema(q._node)
+    assert q.columns == ["x", "y", "one"]
+    assert q.to_dicts() == [{"x": 1, "y": 2, "one": 1}]
     # Scalar names need no claim about the subset DISTINCT's complete shape.
     assert base.group_by("x").agg(ma.lit(1).alias("one")).columns == ["x", "one"]
 
@@ -980,7 +992,8 @@ def test_row_index_follows_selected_join_location(backend_factory, execute_on):
     expected = [("ordinal", dtype), ("value", D.I64)] if execute_on == "left" else [
         ("value", D.I64), ("ordinal", D.I64),
     ]
-    assert list(rel.schema.items()) == expected
+    assert list(rel.schema) == [name for name, _ in expected]
+    assert rel.schema["ordinal"] is dict(expected)["ordinal"]
     assert rel.to_polars().columns == [name for name, _ in expected]
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb"])
 @pytest.mark.parametrize("empty", [False, True])

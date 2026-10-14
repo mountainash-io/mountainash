@@ -17,9 +17,9 @@ Architecture:
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, dtype_family
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.typespec.errors import AmbiguousGeospatialTypeError
 
@@ -142,18 +142,22 @@ def to_canonical(universal: UniversalType) -> Optional[MountainashDtype]:
 
 
 def from_canonical(
-    dtype: Optional[MountainashDtype | DecimalDtype],
+    dtype: Any,
 ) -> Tuple[UniversalType, Optional[str]]:
-    """Map canon (or None = untyped) back to (UniversalType, format hint).
+    """Map canonical or detailed dtype evidence to its intentionally broad export.
 
     A ``DecimalDtype`` is a NUMBER refinement: its precision/scale are carried
-    by ``FieldSpec.dtype``, not by the universal type.
+    by ``FieldSpec.dtype``, not by the universal type. Other detailed portable
+    descriptors retain their broad family at this lossy export boundary.
     """
     if dtype is None:
         return (UniversalType.ANY, None)
-    if isinstance(dtype, DecimalDtype):
+    family = dtype_family(dtype)
+    if family is None or isinstance(family, NativeDtype):
+        return (UniversalType.ANY, None)
+    if isinstance(family, DecimalDtype):
         return (UniversalType.NUMBER, None)
-    return CANONICAL_TO_UNIVERSAL[dtype]
+    return CANONICAL_TO_UNIVERSAL[family]
 
 
 def parse_universal(type_str: str) -> UniversalType:

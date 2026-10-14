@@ -34,6 +34,10 @@ from mountainash.core.capabilities.schema import PolicyConsumer
 
 from ..relation_nodes import RelationNode, ReadRelNode
 
+from mountainash.relations.core.relation_system.relation_keys.enums import (
+    RKEY_MOUNTAINASH_REL,
+)
+
 if TYPE_CHECKING:
     from mountainash.conform.drift import ConformDrift
     from mountainash.core.capabilities.policy import _ExecutionContext
@@ -144,6 +148,86 @@ def _first_input_node(node: RelationNode) -> "RelationNode | None":
     return None
 
 
+def _schema_prototype_expression(value: Any) -> bool:
+    """Qualify value-independent native operations, never infer their types."""
+    from mountainash.expressions.core.expression_nodes import FieldReferenceNode, LiteralNode
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_NAME,
+        FKEY_SUBSTRAIT_SCALAR_ARITHMETIC as Arithmetic,
+        FKEY_SUBSTRAIT_SCALAR_COMPARISON as Comparison,
+    )
+
+    if isinstance(value, BaseExpressionAPI):
+        value = value._node
+    if isinstance(value, (str, FieldReferenceNode)):
+        return True
+    if isinstance(value, LiteralNode):
+        return not value.is_native
+    if isinstance(value, CastNode):
+        return all(_schema_prototype_expression(child) for child in _expression_children(value))
+    if not isinstance(value, ScalarFunctionNode):
+        return False
+    key = value.function_key
+    qualified = (
+        isinstance(key, FKEY_MOUNTAINASH_NAME)
+        or key in {Arithmetic.ADD, Arithmetic.SUBTRACT, Arithmetic.MULTIPLY,
+                   Arithmetic.DIVIDE, Arithmetic.NEGATE, Arithmetic.ABS}
+        or key in {Comparison.EQUAL, Comparison.NOT_EQUAL, Comparison.GT,
+                   Comparison.LT, Comparison.GTE, Comparison.LTE,
+                   Comparison.IS_NULL, Comparison.IS_NOT_NULL}
+        or key is FKEY_SUBSTRAIT_CAST.CAST
+    )
+    return qualified and all(_schema_prototype_expression(arg) for arg in value.arguments)
+
+
+def _numeric_schema_prototype_aggregate(value: Any, aggregates: Any) -> bool:
+    """Qualify native numeric reductions without calculating replacement types."""
+    from mountainash.core.types import is_narwhals_dataframe, is_pyarrow_table
+    from mountainash.expressions.core.expression_nodes import FieldReferenceNode
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_NAME,
+        FKEY_SUBSTRAIT_SCALAR_AGGREGATE as Aggregate,
+    )
+
+    if is_narwhals_dataframe(value):
+        value = value.to_native()
+    for aggregate in aggregates:
+        if isinstance(aggregate, BaseExpressionAPI):
+            aggregate = aggregate._node
+        while isinstance(aggregate, ScalarFunctionNode) and isinstance(
+            aggregate.function_key, FKEY_MOUNTAINASH_NAME,
+        ):
+            aggregate = aggregate.arguments[0]
+        if not (
+            isinstance(aggregate, ScalarFunctionNode)
+            and aggregate.function_key in {Aggregate.SUM, Aggregate.COUNT, Aggregate.AVG}
+            and len(aggregate.arguments) == 1
+            and isinstance(aggregate.arguments[0], FieldReferenceNode)
+        ):
+            return False
+        name = aggregate.arguments[0].field
+        if is_pyarrow_table(value):
+            import pyarrow.types as pat
+            dtype = value.schema.field(name).type
+            numeric = pat.is_integer(dtype) or pat.is_floating(dtype)
+        else:
+            import numpy as np
+            dtype = value[name].dtype
+            # Nullable extension reductions can return object on empty input
+            # but float on populated input (for example Int64.mean()).
+            numeric = isinstance(dtype, np.dtype) and dtype.kind in "iuf"
+        if not numeric:
+            return False
+    return bool(aggregates)
+
+def _eager_schema_input(value: Any) -> bool:
+    from mountainash.core.types import is_narwhals_dataframe, is_pandas_dataframe, is_pyarrow_table
+
+    if is_narwhals_dataframe(value):
+        value = value.to_native()
+    return is_pandas_dataframe(value) or is_pyarrow_table(value)
+
+
 class UnifiedRelationVisitor:
     """Walks a relational AST and produces backend-native results.
 
@@ -201,6 +285,22 @@ class UnifiedRelationVisitor:
         self._ref_plans_by_node: dict[int, Any] = {}
         self.structured_field_plans: Any = MappingProxyType({})
 
+    @property
+    def execution_phase(self):
+        """Phase of the prepared traversal, or None for standalone visits."""
+        if self.execution is None:
+            return None
+        return self.execution.prepared.phase
+
+    def require_schema_execution(self, reason: str) -> None:
+        """Fail closed before a schema-phase handler would evaluate rows."""
+        from mountainash.relations.core.execution.preparation import ExecutionPhase
+        from mountainash.relations.core.errors import CompileRequiresExecutionError
+
+        if self.execution_phase is ExecutionPhase.SCHEMA:
+            raise CompileRequiresExecutionError(reason, node_key=self.execution_key)
+
+
     def visit(self, node: RelationNode) -> Any:
         """Single dispatch site (spec §3.5): third-party visit-registry
         handler -> operation registry -> def handler or generic bind+call."""
@@ -216,6 +316,13 @@ class UnifiedRelationVisitor:
         from .visit_registry import RelationVisitRegistry
 
         handler = RelationVisitRegistry.get(type(node))
+        if (handler is not None and self.execution_phase is not None
+                and self.execution_phase.name == "SCHEMA"
+                and getattr(handler, "__module__", "")
+                != "mountainash.relations.core.relation_system.relation_mapping.handlers"):
+            self.require_schema_execution(
+                f"Third-party visitor handler {handler.__qualname__} has no schema-phase contract"
+            )
         if handler is not None:
             try:
                 return handler(node, self)
@@ -437,11 +544,27 @@ class UnifiedRelationVisitor:
             self._gate_capabilities(node, op)
 
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.execution.preparation import ExecutionPhase
+        if self.execution_phase is ExecutionPhase.SCHEMA:
+            if op.operation_key is RKEY_MOUNTAINASH_REL.PIVOT:
+                self.require_schema_execution("Pivot output names depend on source values")
+            if op.operation_key in {
+                RKEY_MOUNTAINASH_REL.SAMPLE, RKEY_MOUNTAINASH_REL.TOP_K,
+                RKEY_MOUNTAINASH_REL.FETCH_FROM_END,
+                RKEY_MOUNTAINASH_REL.DROP_NULLS, RKEY_MOUNTAINASH_REL.DROP_NANS,
+            }:
+                return self.visit(node.input)
 
         if op.handler is not None:
-            # Handler ops own their native call. Each handler visits relation
-            # inputs, prepares lineage, then invokes the backend; completion
-            # stays centralized so every dispatched operation records a map.
+            if (self.execution_phase is not None and self.execution_phase.name == "SCHEMA"
+                    and getattr(op.handler, "__module__", "")
+                    != "mountainash.relations.core.relation_system.relation_mapping.handlers"):
+                self.require_schema_execution(
+                    f"Third-party relation handler {op.handler.__qualname__} has no schema-phase contract"
+                )
+            # Handlers are third-party extension points; their dispatch must
+            # still pass through this phase boundary and may explicitly reject
+            # work that would evaluate or transfer rows.
             result = op.handler(node, self)
             self._complete_transport_lineage(node, op)
             return result
@@ -461,6 +584,32 @@ class UnifiedRelationVisitor:
             for binding in op.args
             if binding.kind in {ArgKind.INPUT, ArgKind.INPUT_LIST}
         }
+        if self.execution_phase is ExecutionPhase.SCHEMA:
+            eager = any(
+                _eager_schema_input(value)
+                for value in prepared_inputs.values()
+                if not isinstance(value, (list, tuple))
+            )
+            if eager and op.operation_key is RKEY_SUBSTRAIT_REL.AGGREGATE:
+                measures = aggregate_values["measures"]
+                input_value = prepared_inputs.get("input")
+                if not _numeric_schema_prototype_aggregate(input_value, measures):
+                    self.require_schema_execution(
+                        "Eager aggregate output typing is not established by a numeric empty prototype"
+                    )
+            if eager:
+                for binding in op.args:
+                    if aggregate_values is not None and binding.field == "measures":
+                        continue  # Qualified against the native input above.
+                    value = getattr(node, binding.field)
+                    expressions = (
+                        value if binding.kind is ArgKind.EXPRESSION_LIST
+                        else [value] if binding.kind is ArgKind.EXPRESSION else []
+                    )
+                    if not all(_schema_prototype_expression(expr) for expr in expressions):
+                        self.require_schema_execution(
+                            "The eager expression has no value-independent schema-only typing contract"
+                        )
         self._prepare_transport_lineage(node, op)
         method = getattr(self.backend, op.protocol_method.__name__)
         # Generic expression bindings belong to the operation's immediate input,
@@ -510,6 +659,18 @@ class UnifiedRelationVisitor:
             ArgKind,
         )
         value = getattr(node, binding.field)
+        if isinstance(node, ReadRelNode) and binding.field == "dataframe" \
+                and self.execution_phase is not None and self.execution_phase.name == "SCHEMA":
+            prototype = self.execution.schema_input(value)
+            if (prototype is value and self.execution is not None
+                    and self.execution.prepared.locations[self.execution_key].form.name == "EAGER"):
+                from mountainash.relations.core.errors import CompileRequiresExecutionError
+
+                raise CompileRequiresExecutionError(
+                    f"Eager {type(value).__name__} has no dtype-faithful schema prototype",
+                    node_key=self.execution_key,
+                )
+            value = prototype
         if binding.kind is ArgKind.INPUT:
             return self.visit(value)
         if binding.kind is ArgKind.INPUT_LIST:
@@ -669,9 +830,11 @@ class UnifiedRelationVisitor:
         else:
             available = None
 
+        from mountainash.relations.core.execution.preparation import ExecutionPhase
+        schema_only = self.execution_phase is ExecutionPhase.SCHEMA
         fields_match = schema.fields_match
         # Validate before resolve_contract(): resolve_contract's
-        # FIELDS_MATCH_PRESETS[fields_match] lookup deliberately raises a
+        # FIELDS_MATCH_PRESETS[fields_match] lookup deliberately raises
         try:
             actual_shapes = extract_source_shapes(native)
         except (TypeError, ImportError):
@@ -732,7 +895,27 @@ class UnifiedRelationVisitor:
             key_resource_name=key_resource_name,
             schema_of=key_schema_of,
             apply_value_transforms=apply_value_transforms,
+            raise_on_freeze=not schema_only,
         )
+        if schema_only:
+            if owner_node is not None:
+                self._conform_plans_by_node[id(owner_node)] = conform_result.structured_field_plans
+            use_open = (
+                resolved_contract.extra_columns == "evolve"
+                and resolved_contract.mapping == "by_name"
+            )
+            with self.expr_visitor.input_scope(native):
+                compiled_exprs = [
+                    self.compile_expression(expr) for expr in conform_result.exprs
+                ]
+            rel = self.backend.read(native)
+            if use_open:
+                rel = self.backend.project_with_columns(rel, compiled_exprs)
+                if conform_result.renamed_sources:
+                    rel = self.backend.project_drop(rel, list(conform_result.renamed_sources))
+            else:
+                rel = self.backend.project_select(rel, compiled_exprs)
+            return rel
         if owner_node is not None:
             self._conform_plans_by_node[id(owner_node)] = (
                 conform_result.structured_field_plans

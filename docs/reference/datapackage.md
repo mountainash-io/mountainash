@@ -100,6 +100,19 @@ in-memory native frame. When the resource has a table schema, the override follo
 the same conform path as a resource read. `dag.collect(name)` therefore applies the
 declared schema before returning the collected frame.
 
+Schema inspection also resolves references through the owning DAG:
+
+```python
+available = dag.schema("orders")          # Best available native output metadata
+complete = dag.ref("orders").collect_schema()  # Complete or IncompleteSchemaError
+```
+
+These calls do not deliberately collect result rows. Native reader inference may
+read metadata or probe the source; resource declarations alone do not certify the
+actual output. `collect_schema(allow_execution=True)` permits ordinary execution
+when metadata is insufficient, including its normal conform and validation rules.
+Constraint edges do not become execution dependencies during schema inspection.
+
 The v2 conform path preserves nulls while it performs the declared conversions:
 
 - lexical `list` fields split with their declared `delimiter` and cast each item;
