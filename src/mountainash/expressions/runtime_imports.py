@@ -28,7 +28,7 @@ def require_module(module_name: str, install_hint: Optional[str] = None) -> Any:
 
 def import_pandas() -> Any:
     """Lazy import of pandas."""
-    return require_module("pandas", "pip install pandas>=2.2.0")
+    return require_module("pandas", "pip install pandas>=3.0.6")
 
 def import_polars() -> Any:
     """Lazy import of polars."""
@@ -90,7 +90,7 @@ def get_available_backends() -> Dict[str, bool]:
 # ============================================================================
 
 INSTALL_COMMANDS = {
-    "pandas": "pip install pandas>=2.2.0",
+    "pandas": "pip install pandas>=3.0.6",
     "polars": "pip install polars==1.16.0",
     "pyarrow": "pip install pyarrow==17.0.0",
     "ibis": "pip install 'ibis-framework[polars,sqlite,duckdb]==10.4.0'",
