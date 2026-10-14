@@ -6,6 +6,7 @@
 - Cross-backend declared-Decimal arithmetic coverage (288): direct native arithmetic is separated from explicitly authored Float64 computation and final Decimal conversion, including operand forms, reductions, rounding modes, nonfinite values and capacity boundaries. Existing Decimal cast/product refusals and native extraction defects remain visible; no automatic widening or numerical policy is introduced.
 
 ### Fixed
+- `dt.to_timezone()` now uses native Ibis timestamp casts instead of refusing every Ibis call (310), retaining the declared timestamp scale. DuckDB and Polars return the requested timezone; SQLite supports UTC and already-matching no-op casts. Dialect-specific precision and composed-expression behavior remain native, documented divergences rather than conversion gates.
 - Removed a redundant tier marker from the direct-Decimal aggregate tests so CI's single-tier collection guard passes; inherited cross-backend coverage is unchanged.
 - Composed window expressions now inherit their enclosing `.over()` context, allowing `pct_change(...).over(...)` to compile its nested lag without applying a second native window. Existing backend window limitations remain.
 - `factorial()` now reports its existing unsupported status explicitly instead of returning `None` from an unfinished builder.

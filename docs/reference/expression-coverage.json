@@ -1,9 +1,9 @@
 {
   "stamp": {
-    "segments": 115,
+    "segments": 116,
     "operations": 342,
     "implementation_records": 1026,
-    "information": 1334,
+    "information": 1338,
     "policies": 17
   },
   "stats": {
@@ -28,8 +28,8 @@
       }
     },
     "information_by_layer": {
-      "native": 1273,
-      "public": 61
+      "native": 1278,
+      "public": 60
     },
     "policies_by_consumer": {
       "result_protection": 8,
@@ -935,15 +935,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[6]",
+                      "entry": "information[5]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[6]",
+                        "entry": "information[5]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1060,15 +1060,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[7]",
+                      "entry": "information[6]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[7]",
+                        "entry": "information[6]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1185,15 +1185,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[11]",
+                      "entry": "information[10]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[11]",
+                        "entry": "information[10]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1310,15 +1310,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[10]",
+                      "entry": "information[9]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[10]",
+                        "entry": "information[9]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1435,15 +1435,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[8]",
+                      "entry": "information[7]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[8]",
+                        "entry": "information[7]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1560,15 +1560,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[5]",
+                      "entry": "information[4]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[5]",
+                        "entry": "information[4]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1685,15 +1685,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[9]",
+                      "entry": "information[8]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[9]",
+                        "entry": "information[8]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -1810,15 +1810,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[4]",
+                      "entry": "information[3]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[4]",
+                        "entry": "information[3]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -2084,7 +2084,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -2131,7 +2131,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -2178,7 +2178,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -2225,7 +2225,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -2272,7 +2272,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -2319,7 +2319,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -2366,7 +2366,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2413,7 +2413,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2460,7 +2460,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2507,7 +2507,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2554,7 +2554,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2601,7 +2601,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2648,7 +2648,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2695,7 +2695,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2742,7 +2742,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2789,7 +2789,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2836,7 +2836,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2883,7 +2883,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -2934,7 +2934,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -3925,7 +3925,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -3972,7 +3972,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4019,7 +4019,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4066,7 +4066,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4113,7 +4113,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4160,7 +4160,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4207,7 +4207,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4254,7 +4254,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4301,7 +4301,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4348,7 +4348,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4395,7 +4395,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4442,7 +4442,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4493,7 +4493,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -4566,15 +4566,15 @@
                       },
                       "source": "mountainash",
                       "domain": "datetime",
-                      "entry": "information[3]",
+                      "entry": "information[2]",
                       "captured": {
                         "repository": "mountainash",
                         "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-                        "entry": "information[3]",
+                        "entry": "information[2]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -4844,7 +4844,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -4969,7 +4969,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
                         }
                       }
                     }
@@ -5244,7 +5244,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+                          "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
                         }
                       }
                     }
@@ -5291,7 +5291,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -5338,7 +5338,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -5391,7 +5391,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+                          "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
                         }
                       }
                     }
@@ -5442,7 +5442,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -5716,7 +5716,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+                          "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
                         }
                       }
                     }
@@ -5763,7 +5763,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -5810,7 +5810,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -5863,7 +5863,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+                          "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
                         }
                       }
                     }
@@ -5914,7 +5914,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6179,7 +6179,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6226,7 +6226,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6273,7 +6273,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6320,7 +6320,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6367,7 +6367,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6414,7 +6414,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
                         }
                       }
                     }
@@ -6461,7 +6461,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6508,7 +6508,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6555,7 +6555,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6602,7 +6602,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6649,7 +6649,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6696,7 +6696,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6743,7 +6743,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6790,7 +6790,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6837,7 +6837,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6884,7 +6884,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6931,7 +6931,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -6978,7 +6978,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7029,7 +7029,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7329,7 +7329,7 @@
                 {
                   "scope": {
                     "backend": "ibis",
-                    "dialect": null
+                    "dialect": "ibis-duckdb"
                   },
                   "operation": {
                     "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
@@ -7345,9 +7345,9 @@
                     }
                   },
                   "variant": null,
-                  "layer": "public",
-                  "level": "unsupported",
-                  "message": "to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)",
+                  "layer": "native",
+                  "level": "expr_capable",
+                  "message": "DuckDB natively converts timestamps to the requested timezone; timestamp precision is limited by the engine.",
                   "workaround": null,
                   "issue": null,
                   "applicability": {
@@ -7356,22 +7356,124 @@
                   "kinds": [],
                   "origins": [
                     {
-                      "module": "mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime",
+                      "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
                       "scope": {
                         "backend": "ibis",
-                        "dialect": null
+                        "dialect": "ibis-duckdb"
                       },
                       "source": "mountainash",
                       "domain": "datetime",
                       "entry": "information[2]",
                       "captured": {
                         "repository": "mountainash",
-                        "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
+                        "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_duckdb/extensions_mountainash/datetime.py",
                         "entry": "information[2]",
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+                          "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "ibis",
+                    "dialect": "ibis-polars"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
+                    "op": "TO_TIMEZONE"
+                  },
+                  "subject": "timezone",
+                  "selector": {
+                    "kind": "value_class",
+                    "value": {
+                      "enum": "mountainash.core.capabilities.schema.ValueClass",
+                      "name": "IANA_TIMEZONE",
+                      "value": "iana_timezone"
+                    }
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "expr_capable",
+                  "message": "Polars natively converts timestamps to the requested timezone; composing date extraction after conversion can yield the UTC day rather than the requested local day.",
+                  "workaround": null,
+                  "issue": null,
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.datetime",
+                      "scope": {
+                        "backend": "ibis",
+                        "dialect": "ibis-polars"
+                      },
+                      "source": "mountainash",
+                      "domain": "datetime",
+                      "entry": "information[14]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_polars/extensions_mountainash/datetime.py",
+                        "entry": "information[14]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "scope": {
+                    "backend": "ibis",
+                    "dialect": "ibis-sqlite"
+                  },
+                  "operation": {
+                    "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
+                    "op": "TO_TIMEZONE"
+                  },
+                  "subject": "timezone",
+                  "selector": {
+                    "kind": "value_class",
+                    "value": {
+                      "enum": "mountainash.core.capabilities.schema.ValueClass",
+                      "name": "IANA_TIMEZONE",
+                      "value": "iana_timezone"
+                    }
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "expr_capable",
+                  "message": "SQLite supports UTC timezone casts and already-matching timezone no-ops; other non-UTC casts raise its native unsupported-operation error. Actual UTC conversions may lose sub-millisecond precision.",
+                  "workaround": null,
+                  "issue": null,
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.datetime",
+                      "scope": {
+                        "backend": "ibis",
+                        "dialect": "ibis-sqlite"
+                      },
+                      "source": "mountainash",
+                      "domain": "datetime",
+                      "entry": "information[54]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/datetime.py",
+                        "entry": "information[54]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7637,7 +7739,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7684,7 +7786,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7731,7 +7833,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7778,7 +7880,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7825,7 +7927,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7872,7 +7974,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7919,7 +8021,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -7966,7 +8068,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -8013,7 +8115,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -8060,7 +8162,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -8107,7 +8209,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -8154,7 +8256,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -8205,7 +8307,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+                          "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
                         }
                       }
                     }
@@ -16810,14 +16912,110 @@
               "impl": "implemented",
               "impl_method": "product",
               "impl_protocol": "SubstraitNarwhalsAggregateArithmeticExpressionSystem",
-              "information": [],
+              "information": [
+                {
+                  "scope": {
+                    "backend": "narwhals",
+                    "dialect": null
+                  },
+                  "operation": {
+                    "family": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
+                    "op": "PRODUCT"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Narwhals has no supported product aggregate; mountainash rejects PRODUCT on every Narwhals variant.",
+                  "workaround": null,
+                  "issue": null,
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.narwhals.family.substrait.aggregate",
+                      "scope": {
+                        "backend": "narwhals",
+                        "dialect": null
+                      },
+                      "source": "substrait",
+                      "domain": "aggregate",
+                      "entry": "information[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/narwhals/family/substrait/aggregate.py",
+                        "entry": "information[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "256301da561e9ee8e02b775e161854285687a85a985779cf8bac0d5cfd1e3037"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
               "policies": []
             },
             "ibis": {
               "impl": "implemented",
               "impl_method": "product",
               "impl_protocol": "SubstraitIbisAggregateArithmeticExpressionSystem",
-              "information": [],
+              "information": [
+                {
+                  "scope": {
+                    "backend": "ibis",
+                    "dialect": null
+                  },
+                  "operation": {
+                    "family": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
+                    "op": "PRODUCT"
+                  },
+                  "subject": "*",
+                  "selector": {
+                    "kind": "unconditioned",
+                    "value": null
+                  },
+                  "variant": null,
+                  "layer": "native",
+                  "level": "unsupported",
+                  "message": "Ibis has no supported product aggregate; mountainash rejects PRODUCT on every Ibis dialect.",
+                  "workaround": null,
+                  "issue": null,
+                  "applicability": {
+                    "regions": null
+                  },
+                  "kinds": [],
+                  "origins": [
+                    {
+                      "module": "mountainash.expressions.backends.capabilities.ibis.family.substrait.aggregate",
+                      "scope": {
+                        "backend": "ibis",
+                        "dialect": null
+                      },
+                      "source": "substrait",
+                      "domain": "aggregate",
+                      "entry": "information[0]",
+                      "captured": {
+                        "repository": "mountainash",
+                        "path": "src/mountainash/expressions/backends/capabilities/ibis/family/substrait/aggregate.py",
+                        "entry": "information[0]",
+                        "revision": null,
+                        "artifact": {
+                          "encoding": "sha256",
+                          "value": "8e8faa4014c00c5b42a5f787ccd586ec994c137e3a0256334a0a91cc00a4a3d9"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
               "policies": []
             }
           }
@@ -48029,7 +48227,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49236,7 +49434,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49283,7 +49481,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49330,7 +49528,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49377,7 +49575,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49424,7 +49622,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49471,7 +49669,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49518,7 +49716,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49569,7 +49767,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49789,7 +49987,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49840,7 +50038,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -49921,7 +50119,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -50887,7 +51085,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -51059,7 +51257,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -51086,7 +51284,7 @@
                   "variant": null,
                   "layer": "native",
                   "level": "unsupported",
-                  "message": "strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone",
+                  "message": "strptime_timestamp drops the timezone and returns a naive timestamp on Ibis; native to_timezone conversion is a separate operation",
                   "workaround": null,
                   "issue": null,
                   "applicability": {
@@ -51110,7 +51308,7 @@
                         "revision": null,
                         "artifact": {
                           "encoding": "sha256",
-                          "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+                          "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
                         }
                       }
                     }
@@ -75463,6 +75661,16 @@
       "changes": []
     },
     {
+      "module": "mountainash.expressions.backends.capabilities.ibis.family.substrait.aggregate",
+      "scope": {
+        "backend": "ibis",
+        "dialect": null
+      },
+      "source": "substrait",
+      "domain": "aggregate",
+      "changes": []
+    },
+    {
       "module": "mountainash.expressions.backends.capabilities.ibis.family.substrait.arithmetic",
       "scope": {
         "backend": "ibis",
@@ -76195,7 +76403,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+              "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
             }
           }
         }
@@ -76242,7 +76450,58 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+              "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "ibis",
+        "dialect": "ibis-duckdb"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
+        "op": "TO_TIMEZONE"
+      },
+      "subject": "timezone",
+      "selector": {
+        "kind": "value_class",
+        "value": {
+          "enum": "mountainash.core.capabilities.schema.ValueClass",
+          "name": "IANA_TIMEZONE",
+          "value": "iana_timezone"
+        }
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "expr_capable",
+      "message": "DuckDB natively converts timestamps to the requested timezone; timestamp precision is limited by the engine.",
+      "workaround": null,
+      "issue": null,
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_duckdb.extensions_mountainash.datetime",
+          "scope": {
+            "backend": "ibis",
+            "dialect": "ibis-duckdb"
+          },
+          "source": "mountainash",
+          "domain": "datetime",
+          "entry": "information[2]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_duckdb/extensions_mountainash/datetime.py",
+            "entry": "information[2]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
             }
           }
         }
@@ -78192,7 +78451,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78239,7 +78498,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78286,7 +78545,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78333,7 +78592,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78380,7 +78639,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78427,7 +78686,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78474,7 +78733,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78521,7 +78780,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78568,7 +78827,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78615,7 +78874,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78662,7 +78921,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78709,7 +78968,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78756,7 +79015,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -78803,7 +79062,58 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "ibis",
+        "dialect": "ibis-polars"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
+        "op": "TO_TIMEZONE"
+      },
+      "subject": "timezone",
+      "selector": {
+        "kind": "value_class",
+        "value": {
+          "enum": "mountainash.core.capabilities.schema.ValueClass",
+          "name": "IANA_TIMEZONE",
+          "value": "iana_timezone"
+        }
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "expr_capable",
+      "message": "Polars natively converts timestamps to the requested timezone; composing date extraction after conversion can yield the UTC day rather than the requested local day.",
+      "workaround": null,
+      "issue": null,
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_polars.extensions_mountainash.datetime",
+          "scope": {
+            "backend": "ibis",
+            "dialect": "ibis-polars"
+          },
+          "source": "mountainash",
+          "domain": "datetime",
+          "entry": "information[14]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_polars/extensions_mountainash/datetime.py",
+            "entry": "information[14]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -80029,7 +80339,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80076,7 +80386,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80123,7 +80433,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80170,7 +80480,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80217,7 +80527,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80264,7 +80574,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80311,7 +80621,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80358,7 +80668,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80405,7 +80715,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80452,7 +80762,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80499,7 +80809,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80546,7 +80856,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80597,7 +80907,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80644,7 +80954,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80691,7 +81001,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80738,7 +81048,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80785,7 +81095,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80832,7 +81142,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80879,7 +81189,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80926,7 +81236,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -80973,7 +81283,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81020,7 +81330,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81067,7 +81377,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81114,7 +81424,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81161,7 +81471,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81212,7 +81522,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81259,7 +81569,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81306,7 +81616,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81353,7 +81663,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81400,7 +81710,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81447,7 +81757,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81494,7 +81804,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81541,7 +81851,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81588,7 +81898,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81635,7 +81945,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81682,7 +81992,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81729,7 +82039,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81776,7 +82086,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81823,7 +82133,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81870,7 +82180,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81921,7 +82231,58 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "ibis",
+        "dialect": "ibis-sqlite"
+      },
+      "operation": {
+        "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
+        "op": "TO_TIMEZONE"
+      },
+      "subject": "timezone",
+      "selector": {
+        "kind": "value_class",
+        "value": {
+          "enum": "mountainash.core.capabilities.schema.ValueClass",
+          "name": "IANA_TIMEZONE",
+          "value": "iana_timezone"
+        }
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "expr_capable",
+      "message": "SQLite supports UTC timezone casts and already-matching timezone no-ops; other non-UTC casts raise its native unsupported-operation error. Actual UTC conversions may lose sub-millisecond precision.",
+      "workaround": null,
+      "issue": null,
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.ibis.dialects.ibis_sqlite.extensions_mountainash.datetime",
+          "scope": {
+            "backend": "ibis",
+            "dialect": "ibis-sqlite"
+          },
+          "source": "mountainash",
+          "domain": "datetime",
+          "entry": "information[54]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/ibis/dialects/ibis_sqlite/extensions_mountainash/datetime.py",
+            "entry": "information[54]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -81968,7 +82329,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82015,7 +82376,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82062,7 +82423,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82109,7 +82470,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82156,7 +82517,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82203,7 +82564,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82250,7 +82611,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82297,7 +82658,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82344,7 +82705,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82391,7 +82752,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82438,7 +82799,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82485,7 +82846,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -82536,7 +82897,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "42071b10766fb2555af1d7f1b05ef1717849fb0fc908f4ffbbaab643d7e1497f"
+              "value": "36021e62501681e7355f815064bf939ce87ad5f3ae3613da7a2eb162d1f30e00"
             }
           }
         }
@@ -83987,15 +84348,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[6]",
+          "entry": "information[5]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[6]",
+            "entry": "information[5]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84034,15 +84395,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[7]",
+          "entry": "information[6]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[7]",
+            "entry": "information[6]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84081,15 +84442,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[11]",
+          "entry": "information[10]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[11]",
+            "entry": "information[10]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84128,15 +84489,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[10]",
+          "entry": "information[9]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[10]",
+            "entry": "information[9]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84175,15 +84536,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[8]",
+          "entry": "information[7]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[8]",
+            "entry": "information[7]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84222,15 +84583,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[5]",
+          "entry": "information[4]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[5]",
+            "entry": "information[4]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84269,15 +84630,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[9]",
+          "entry": "information[8]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[9]",
+            "entry": "information[8]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84316,15 +84677,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[4]",
+          "entry": "information[3]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[4]",
+            "entry": "information[3]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84367,15 +84728,15 @@
           },
           "source": "mountainash",
           "domain": "datetime",
-          "entry": "information[3]",
+          "entry": "information[2]",
           "captured": {
             "repository": "mountainash",
             "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[3]",
+            "entry": "information[2]",
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84422,7 +84783,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -84469,58 +84830,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "scope": {
-        "backend": "ibis",
-        "dialect": null
-      },
-      "operation": {
-        "family": "FKEY_MOUNTAINASH_SCALAR_DATETIME",
-        "op": "TO_TIMEZONE"
-      },
-      "subject": "timezone",
-      "selector": {
-        "kind": "value_class",
-        "value": {
-          "enum": "mountainash.core.capabilities.schema.ValueClass",
-          "name": "IANA_TIMEZONE",
-          "value": "iana_timezone"
-        }
-      },
-      "variant": null,
-      "layer": "public",
-      "level": "unsupported",
-      "message": "to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)",
-      "workaround": null,
-      "issue": null,
-      "applicability": {
-        "regions": null
-      },
-      "kinds": [],
-      "origins": [
-        {
-          "module": "mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime",
-          "scope": {
-            "backend": "ibis",
-            "dialect": null
-          },
-          "source": "mountainash",
-          "domain": "datetime",
-          "entry": "information[2]",
-          "captured": {
-            "repository": "mountainash",
-            "path": "src/mountainash/expressions/backends/capabilities/ibis/family/extensions_mountainash/datetime.py",
-            "entry": "information[2]",
-            "revision": null,
-            "artifact": {
-              "encoding": "sha256",
-              "value": "8ee3821fa633c245613842db2dfd896de799b6442ed38b0d908340233d83b84a"
+              "value": "ae2fcf1a9778150e45b6dd1d1c2db0b81f9546c3288e70161576afddcdad4a0d"
             }
           }
         }
@@ -85072,6 +85382,53 @@
             "artifact": {
               "encoding": "sha256",
               "value": "3b96ddb90c2f8d27949f62ef11a146bbe914f1a7e6239ee8e807f6c0d7e71518"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "ibis",
+        "dialect": null
+      },
+      "operation": {
+        "family": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
+        "op": "PRODUCT"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Ibis has no supported product aggregate; mountainash rejects PRODUCT on every Ibis dialect.",
+      "workaround": null,
+      "issue": null,
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.ibis.family.substrait.aggregate",
+          "scope": {
+            "backend": "ibis",
+            "dialect": null
+          },
+          "source": "substrait",
+          "domain": "aggregate",
+          "entry": "information[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/ibis/family/substrait/aggregate.py",
+            "entry": "information[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "8e8faa4014c00c5b42a5f787ccd586ec994c137e3a0256334a0a91cc00a4a3d9"
             }
           }
         }
@@ -92266,7 +92623,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92313,7 +92670,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92360,7 +92717,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92407,7 +92764,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92454,7 +92811,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92501,7 +92858,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92548,7 +92905,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92595,7 +92952,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92646,7 +93003,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92693,7 +93050,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92744,7 +93101,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92795,7 +93152,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92842,7 +93199,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92889,7 +93246,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -92916,7 +93273,7 @@
       "variant": null,
       "layer": "native",
       "level": "unsupported",
-      "message": "strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone",
+      "message": "strptime_timestamp drops the timezone and returns a naive timestamp on Ibis; native to_timezone conversion is a separate operation",
       "workaround": null,
       "issue": null,
       "applicability": {
@@ -92940,7 +93297,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "48e264741136432d3c13dcf1e29fea72df07b6d029d6fce0b0620e7a199f5b84"
+              "value": "2256b9c33953698491ee0829e4ff20f9f001b1388bf4332ea5e6ff6310499feb"
             }
           }
         }
@@ -126636,6 +126993,53 @@
         "dialect": null
       },
       "operation": {
+        "family": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE",
+        "op": "PRODUCT"
+      },
+      "subject": "*",
+      "selector": {
+        "kind": "unconditioned",
+        "value": null
+      },
+      "variant": null,
+      "layer": "native",
+      "level": "unsupported",
+      "message": "Narwhals has no supported product aggregate; mountainash rejects PRODUCT on every Narwhals variant.",
+      "workaround": null,
+      "issue": null,
+      "applicability": {
+        "regions": null
+      },
+      "kinds": [],
+      "origins": [
+        {
+          "module": "mountainash.expressions.backends.capabilities.narwhals.family.substrait.aggregate",
+          "scope": {
+            "backend": "narwhals",
+            "dialect": null
+          },
+          "source": "substrait",
+          "domain": "aggregate",
+          "entry": "information[0]",
+          "captured": {
+            "repository": "mountainash",
+            "path": "src/mountainash/expressions/backends/capabilities/narwhals/family/substrait/aggregate.py",
+            "entry": "information[0]",
+            "revision": null,
+            "artifact": {
+              "encoding": "sha256",
+              "value": "256301da561e9ee8e02b775e161854285687a85a985779cf8bac0d5cfd1e3037"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": {
+        "backend": "narwhals",
+        "dialect": null
+      },
+      "operation": {
         "family": "FKEY_SUBSTRAIT_SCALAR_DATETIME",
         "op": "STRPTIME_DATE"
       },
@@ -139755,7 +140159,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+              "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
             }
           }
         }
@@ -139806,7 +140210,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "95e521eebf40aa1918cd4fa00c662f6a298a4581e563114ab1c2e60aa46bd502"
+              "value": "596b17b9be074d6fd43431ab9475f6a6df648040235d1f1a0d3249b91a63880c"
             }
           }
         }
@@ -139857,7 +140261,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }
@@ -139908,7 +140312,7 @@
             "revision": null,
             "artifact": {
               "encoding": "sha256",
-              "value": "595cf432d7f6589d4ff1535d49f8241e95040792b91ddca20626073defffb6fa"
+              "value": "506b8a61d0b62df9016a779d839cce2626dc70d14829fc32e533b917cd8b5941"
             }
           }
         }

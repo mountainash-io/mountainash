@@ -11,7 +11,13 @@ from mountainash.core.capabilities.declarations import (
     Domain,
     Selector,
 )
-from mountainash.core.capabilities.schema import CapabilityLevel, InformationLayer, PolicyAction, PolicyConsumer
+from mountainash.core.capabilities.schema import (
+    CapabilityLevel,
+    InformationLayer,
+    PolicyAction,
+    PolicyConsumer,
+    ValueClass,
+)
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME
 
 SEGMENT = CapabilitySegment(
@@ -169,6 +175,17 @@ SEGMENT = CapabilitySegment(
             layer=InformationLayer.NATIVE,
             level=CapabilityLevel.UNSUPPORTED,
             message="The native XSD partial-date parser silently converts invalid lexical values to null even when failure_behavior='throw'.",
+            applicability=unbounded,
+        ),
+        CapabilityInformation(
+            key=CapabilityKey(
+                FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+                "timezone",
+                Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            layer=InformationLayer.NATIVE,
+            level=CapabilityLevel.EXPR_CAPABLE,
+            message="Polars natively converts timestamps to the requested timezone; composing date extraction after conversion can yield the UTC day rather than the requested local day.",
             applicability=unbounded,
         ),
     ),

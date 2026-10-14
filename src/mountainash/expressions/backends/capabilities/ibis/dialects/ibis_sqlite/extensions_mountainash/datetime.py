@@ -602,5 +602,16 @@ SEGMENT = CapabilitySegment(
             layer=InformationLayer.NATIVE,
             applicability=unbounded,
         ),
+        CapabilityInformation(
+            key=CapabilityKey(
+                FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
+                "timezone",
+                Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
+            ),
+            layer=InformationLayer.NATIVE,
+            level=CapabilityLevel.EXPR_CAPABLE,
+            message="SQLite supports UTC timezone casts and already-matching timezone no-ops; other non-UTC casts raise its native unsupported-operation error. Actual UTC conversions may lose sub-millisecond precision.",
+            applicability=unbounded,
+        ),
     ),
 )
