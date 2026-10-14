@@ -20,10 +20,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 if TYPE_CHECKING:
     from mountainash.core.types import IbisValueExpr, IbisTemporalExpr
 
-_TO_TIMEZONE_UNSUPPORTED = (
-    "to_timezone is not supported on ibis — the target zone never reaches the "
-    "engine; see capabilities/datetime/value_classes_ma.py"
-)
 _IS_DST_UNSUPPORTED = (
     "is_dst is not supported on ibis — ibis has no DST/timezone-offset "
     "primitive; see capabilities/datetime/value_classes_ma.py"
@@ -170,7 +166,7 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
 
         Declared UNSUPPORTED on ibis (see capabilities/datetime/value_classes_ma.py)
         — the capability gate raises before this method is reached. The raise
-        here is defence in depth (mirrors to_timezone's established pattern).
+        here is defence in depth.
         """
         raise BackendCapabilityError(
             _IS_DST_UNSUPPORTED,
@@ -541,17 +537,12 @@ class MountainAshIbisScalarDatetimeExpressionSystem(IbisBaseExpressionSystem, Mo
         /,
         timezone: str,
     ) -> IbisValueExpr:
-        """Convert to specified timezone.
+        """Use the native timezone cast, retaining the input timestamp scale.
 
-        Declared UNSUPPORTED on ibis (see
-        capabilities/datetime/value_classes_ma.py) -- the capability gate raises
-        before this method is reached. The raise here is defence in depth.
+        Engine-local composition and precision follow the execution dialect;
+        the capability catalogue describes these without blocking conversion.
         """
-        raise BackendCapabilityError(
-            _TO_TIMEZONE_UNSUPPORTED,
-            backend="ibis",
-            function_key=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
-        )
+        return x.cast(x.type().copy(timezone=timezone))
 
     # =========================================================================
     # Snapshot Methods (Static)

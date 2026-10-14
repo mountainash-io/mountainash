@@ -155,7 +155,7 @@ SEGMENT = CapabilitySegment(
                 selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
             ),
             level=CapabilityLevel.UNSUPPORTED,
-            message="strptime_timestamp silently drops the timezone (returns a naive timestamp) on ibis -- ibis has no timezone primitives, matching assume_timezone/to_timezone/local_timestamp/extract.timezone",
+            message="strptime_timestamp drops the timezone and returns a naive timestamp on Ibis; native to_timezone conversion is a separate operation",
             layer=InformationLayer.NATIVE,
             applicability=unbounded,
         ),

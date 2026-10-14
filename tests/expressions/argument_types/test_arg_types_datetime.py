@@ -437,9 +437,7 @@ if OP_SPECS:
                 FK_MA_DT.ADD_MONTHS, FK_MA_DT.ADD_YEARS,
             }
         )
-        unavailable_zone = backend == "ibis" and op.function_key in {
-            FK_MA_DT.TO_TIMEZONE, FK_DT.LOCAL_TIMESTAMP,
-        }
+        unavailable_zone = backend == "ibis" and op.function_key is FK_DT.LOCAL_TIMESTAMP
         if literal_offset or unavailable_zone:
             with pytest.raises(BackendCapabilityError) as error:
                 run_argument_matrix(op, backend, input_type)
@@ -983,59 +981,11 @@ OPTION_DISPOSITIONS.extend(
 
 # 4. to_timezone
 _TO_TIMEZONE_DOMAIN = ("UTC", "Australia/Sydney", "America/New_York")
-_TO_TZ_DATA = {"ts": [datetime(2026, 7, 21, 13, 37, 45, tzinfo=timezone.utc)]}
+
 
 
 def _to_tz_expr(tz: str):
-    return ma.col("ts").dt.to_timezone(tz).dt.hour()
-
-
-def _to_tz_ref_expr(tz: str):
-    ref_tz = "UTC" if tz != "UTC" else "Australia/Sydney"
-    return _to_tz_expr(ref_tz)
-
-
-def _to_tz_disposition(backend: str) -> str:
-    return "declared_unsupported" if backend == "ibis" else "honored"
-
-
-def _to_tz_backing_mode(backend: str) -> str:
-    return "class" if backend == "ibis" else "absence"
-
-
-def _to_tz_reason(backend: str) -> str:
-    if backend == "ibis":
-        return (
-            "to_timezone is correct only at the materialization boundary -- the "
-            "target zone lives in the ibis output dtype, not in the engine (SQL is a "
-            "bare CAST AS TIMESTAMPTZ), so any expression composed on the result "
-            "raises UnsupportedOperationError"
-        )
-    return "native backend honors to_timezone"
-
-
-def _to_tz_probe(tz: str, backend: str) -> OptionSpec:
-    if _to_tz_disposition(backend) == "honored":
-        return OptionSpec(
-            FK_MA_DT.TO_TIMEZONE,
-            "timezone",
-            tz,
-            "datetime",
-            lambda t=tz: _to_tz_expr(t),
-            lambda t=tz: _to_tz_ref_expr(t),
-            _TO_TZ_DATA,
-            expected_discriminates=True,
-        )
-    return OptionSpec(
-        FK_MA_DT.TO_TIMEZONE,
-        "timezone",
-        tz,
-        "datetime",
-        lambda t=tz: _to_tz_expr(t),
-        lambda t=tz: _to_tz_expr(t),
-        _TO_TZ_DATA,
-        expected_discriminates=True,
-    )
+    return ma.col("ts").dt.to_timezone(tz)
 
 
 OPTION_DISPOSITIONS.extend(
@@ -1047,9 +997,9 @@ OPTION_DISPOSITIONS.extend(
         backend,
         tz,
         "datetime",
-        _to_tz_disposition(backend),
-        _to_tz_reason(backend),
-        _to_tz_backing_mode(backend),
+        "honored",
+        "native backend materializes to_timezone in the requested zone",
+        "absence",
     )
     for backend in ALL_BACKENDS
     for tz in _TO_TIMEZONE_DOMAIN

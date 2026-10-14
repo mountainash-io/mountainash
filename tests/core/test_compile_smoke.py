@@ -271,8 +271,8 @@ _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_DATETIME", "LOCAL_TIMESTAMP",
                     _IBIS_CASES, "Ibis cannot implement local timestamp conversion.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_DATETIME", "PARSE_DEFAULT PARSE_TEMPORAL_ANY",
                     (*_NARWHALS_CASES, *_IBIS_CASES), "Flexible temporal parsing is not implemented.")
-_intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_DATETIME", "IS_DST TO_TIMEZONE",
-                    _IBIS_CASES, "Ibis timezone conversion/DST inspection is unavailable.")
+_intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_DATETIME", "IS_DST",
+                    _IBIS_CASES, "Ibis cannot implement DST inspection.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_DATETIME", "EXTRACT_WEEK",
                     _NARWHALS_CASES, "Narwhals cannot implement this week extraction contract.")
 _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_DATETIME", "STRPTIME_DATE STRPTIME_TIMESTAMP",

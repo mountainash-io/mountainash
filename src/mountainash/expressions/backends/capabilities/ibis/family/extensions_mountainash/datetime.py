@@ -32,17 +32,6 @@ SEGMENT = CapabilitySegment(
         ),
         CapabilityInformation(
             key=CapabilityKey(
-                operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.TO_TIMEZONE,
-                subject="timezone",
-                selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),
-            ),
-            level=CapabilityLevel.UNSUPPORTED,
-            message="to_timezone is correct only at the materialization boundary -- the target zone lives in the ibis output dtype, not in the engine (SQL is a bare CAST AS TIMESTAMPTZ), so any expression composed on the result raises UnsupportedOperationError (verified 2026-07-29, ibis 12.0.0/duckdb)",
-            layer=InformationLayer.PUBLIC,
-            applicability=unbounded,
-        ),
-        CapabilityInformation(
-            key=CapabilityKey(
                 operation=FKEY_MOUNTAINASH_SCALAR_DATETIME.IS_DST,
                 subject="timezone",
                 selector=Selector(kind="value_class", value=ValueClass.IANA_TIMEZONE),

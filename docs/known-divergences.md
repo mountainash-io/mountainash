@@ -1983,7 +1983,7 @@ Target: `FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_MONTHS`
 
 - **native**, family; `months` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Ibis datetime offset operations require literal integer values
   Workaround: Use a literal integer for the offset amount
-  Source: `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime:information[5]`
+  Source: `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime:information[4]`
 
 ### Related executable policies
 
@@ -2007,7 +2007,7 @@ Target: `FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_YEARS`
 
 - **native**, family; `years` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Ibis datetime offset operations require literal integer values
   Workaround: Use a literal integer for the offset amount
-  Source: `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime:information[4]`
+  Source: `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime:information[3]`
 
 ### Related executable policies
 
@@ -3744,7 +3744,7 @@ Target: `FKEY_MOUNTAINASH_SCALAR_DATETIME.ADD_HOURS`
 
 - **native**, family; `hours` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Ibis datetime offset operations require literal integer values
   Workaround: Use a literal integer for the offset amount
-  Source: `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime:information[7]`
+  Source: `mountainash.expressions.backends.capabilities.ibis.family.extensions_mountainash.datetime:information[6]`
 
 ### Related executable policies
 
