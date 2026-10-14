@@ -689,8 +689,6 @@ def _authored_decimal_expected(operation, values, backend_name):
     return exact.quantize(D("0.000001"), rounding=ROUND_HALF_EVEN)
 
 
-def _assert_function_key(error, function_key):
-    assert error.value.function_key is function_key
 
 
 def _global_decimal_aggregate(relation, operation):
@@ -717,7 +715,7 @@ class TestDeclaredDecimalAggregateArithmetic:
         if operation == "product" and not backend_name.startswith("polars"):
             with pytest.raises(BackendCapabilityError) as error:
                 _global_decimal_aggregate(working, operation).to_polars()
-            _assert_function_key(error, FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT)
+            assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT
             return
 
         reduced = _global_decimal_aggregate(working, operation)
@@ -729,14 +727,14 @@ class TestDeclaredDecimalAggregateArithmetic:
         if backend_name == "ibis-sqlite":
             with pytest.raises(BackendCapabilityError) as error:
                 casted.to_polars()
-            _assert_function_key(error, FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST)
+            assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
             return
         if backend_name in {
             "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"
         }:
             with pytest.raises(BackendCapabilityError) as error:
                 casted.to_polars()
-            _assert_function_key(error, FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST)
+            assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
             return
 
         from mountainash.relations.schema_inference import SchemaTypeStatus
@@ -764,7 +762,7 @@ class TestDeclaredDecimalAggregateArithmetic:
             if operation == "product":
                 with pytest.raises(BackendCapabilityError) as error:
                     _global_decimal_aggregate(working, operation).to_polars()
-                _assert_function_key(error, FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT)
+                assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT
             else:
                 reduced = _global_decimal_aggregate(working, operation)
                 with pytest.raises(BackendCapabilityError) as error:
@@ -773,14 +771,14 @@ class TestDeclaredDecimalAggregateArithmetic:
                             ma.DecimalDtype(16, 6), rounding="half_to_even"
                         ).alias("result")
                     ).to_polars()
-                _assert_function_key(error, FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST)
+                assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
             return
 
         frame = declared_decimal_frame({"amount": data}, {"amount": (12, 3)})
         if operation == "product" and not backend_name.startswith("polars"):
             with pytest.raises(BackendCapabilityError) as error:
                 _global_decimal_aggregate(ma.relation(frame), operation).to_polars()
-            _assert_function_key(error, FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT)
+            assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT
             return
         reduced = _global_decimal_aggregate(ma.relation(frame), operation)
 

@@ -196,6 +196,87 @@ The value is rounded **once, from the text you wrote**, using the engine's own t
 
 A refusal is a declared capability, raised before any data is read. It never falls back to another engine.
 
+### Authored arithmetic
+
+Working types, intermediate casts, final precision/scale and rounding belong to
+the expression author. Mountainash does not widen Decimal arithmetic
+automatically. An explicit Float64 working expression can be followed by one
+final Decimal conversion; this does not change native Decimal arithmetic or
+remove the conversion limits below.
+
+```python
+from decimal import Decimal as D
+import polars as pl
+import mountainash as ma
+
+frame = pl.DataFrame(
+    {"a": [D("1.235"), D("-2.345"), D("0"), None],
+     "b": [D("2.50"), D("3.00"), D("4.00"), D("5.00")]},
+    schema={"a": pl.Decimal(12, 3), "b": pl.Decimal(10, 2)},
+)
+source = ma.relation(frame)
+a, b = ma.col("a").cast("fp64"), ma.col("b").cast("fp64")
+result = source.select(
+    (a * b + a).cast(ma.DecimalDtype(16, 5), rounding="half_to_even").alias("r")
+).to_polars()
+# Decimal(16,5): [4.32250, -9.38000, 0.00000, null]
+```
+
+For reductions, aggregate globally before the final conversion. A scalar
+projection of a reducer is not a substitute for `group_by().agg()`.
+
+```python
+frame = pl.DataFrame(
+    {"a": [D("1.001"), D("1.002"), None]},
+    schema={"a": pl.Decimal(12, 3)},
+)
+working = ma.relation(frame).select(ma.col("a").cast("fp64").alias("a"))
+reduced = working.group_by().agg(ma.col("a").mean().alias("r"))
+result = reduced.select(
+    ma.col("r").cast(ma.DecimalDtype(16, 6), rounding="half_to_even").alias("r")
+).to_polars()
+# Decimal(16,6): [1.001500]
+```
+
+#### Arithmetic support and regression owners
+
+Observed with Polars 1.44.2, Ibis 12.0.0, DuckDB 1.5.6, Narwhals 2.27.1,
+pandas 3.0.6 and PyArrow 26.0.0. These are tested versions, not dependency
+pins. “Authored” below means **Decimal source → explicit Float64 working
+operation → explicit final Decimal cast**. A passing refusal test is not
+support for the calculation. Expected failures remain unqualified.
+
+For all rows, Narwhals-Polars eager/lazy and pandas/Narwhals-pandas refuse the
+authored route at final conversion (`NW-MATH-11`), even where native Decimal
+arithmetic works. SQLite has no native fixed-precision Decimal admission and
+refuses the final cast. Product refusal is tested before final conversion.
+
+| Operation / inputs | Direct Decimal computation or extraction | Authored route | Test owner |
+|---|---|---|---|
+| Add/subtract/multiply/divide; signs, zero, null; different declarations | Polars eager/lazy and its Narwhals wrappers return Decimal(38,max scale). Arrow pandas promotes Decimal precision/scale. Ibis add/subtract/multiply extract its declared Decimal; division extracts Float64. | Exact final Decimal values/type on Polars eager/lazy and Ibis DuckDB/Polars for covered inputs. | `test_arithmetic.py::test_declared_decimal_binary` |
+| Floor division/remainder/power | Polars Decimal kernels reject these, including Narwhals-Polars and Ibis-Polars. Arrow pandas lacks remainder; power is Float64. DuckDB floor division is Int64; signed remainder follows dividend (`IB-MATH-05`); Ibis power extraction narrows to operand scale. | Polars and Ibis routes execute; DuckDB signed remainder still differs from Python. | `test_declared_decimal_binary` |
+| Typed Decimal literals on either side; reversed subtraction/division/floor division/remainder/power; mixed integer/float columns and literals | Same native kernel restrictions; Ibis reverse-power extraction also rounds. Reversed division may return Float64 rather than Decimal. | Supported on the four cast-capable identities, subject to operation restrictions above. | `test_decimal_operand_arrangements` |
+| Original equal-declaration multiplication witnesses; fractional chain | Polars retains operand scale; Ibis-DuckDB extraction can raise rescaling loss. Ibis-Polars also fails extraction when its declared capacity cannot hold the native product (author capacity, item 305). | Original products and `(a*b)+a` reach the exact authored final values on all four cast-capable identities. | `test_decimal_multiplication_fractional_witnesses`, `test_authored_decimal_chain` |
+| Divide/floor-divide/remainder by zero | Direct Decimal may raise a kernel/conversion error, return null, or produce infinity depending on operation/backend. Tests distinguish these computation outcomes from final conversion. | Float computation can produce infinity/NaN; pandas Arrow floor-divide and SQLite division can produce null. Ibis floor-divide can fail converting infinity to Int64. | `test_decimal_zero_divisor_computation_boundary`; cast tests below |
+| Negate/abs/sign/ceil/floor/round(2); signed fractional/zero/null | Native Decimal types remain except Narwhals sign (Int64); pandas/Narwhals negation may promote precision. Ibis round changes scale. DuckDB ties use half-away (244); Ibis-Polars ceil/floor fail Arrow extraction (309). | Explicit Float64 then final Decimal works on the four cast-capable identities. Native `.round()` and final-cast rounding are separate operations. | `test_arithmetic_essentials.py::test_declared_decimal_unary`; `TestDeclaredDecimalMath::test_authored_float_math_then_decimal_cast` |
+| sqrt, cbrt | sqrt returns Float64 on Polars/Narwhals; Ibis extracts Decimal. Polars-backed direct Decimal cbrt has no power kernel; Arrow pandas computes Float64; Ibis-DuckDB narrows its result (307). | Positive roots execute on the four cast-capable identities. Negative cbrt retains the existing `power(1/3)` NaN limitation; it is not qualified as a correct real cube root. | `test_math_extension_results.py::TestDeclaredDecimalMath::test_direct_decimal_roots`, `test_direct_decimal_math_method`, `test_authored_float_math_then_decimal_cast`; existing `TestCbrt::test_cbrt_negative` |
+| exp, ln, log10, log2, log1p, log(base) | Polars/Narwhals native results are Float64. Ibis exp and fixed-base logs extract operand-scale Decimal, narrowing results (307); explicit `log(base)` is Float64. | Execute on all four cast-capable identities; tests distinguish log base and exact authored final values. | `test_direct_decimal_math_method`, `test_authored_float_math_then_decimal_cast` |
+| sin/cos/tan/cot, asin/acos/atan, radians/degrees, atan2 | Polars Decimal trig kernels reject inputs; Narwhals methods are unsupported. Ibis-DuckDB trig/angular extraction narrows to Decimal (307), except cot/atan2 Float64. Ibis-Polars trig kernels reject Decimal; angular extraction narrows; atan2 is Float64. | Polars eager/lazy and both Ibis routes execute Float64 trig/angular cases with final Decimal casts. | `test_direct_decimal_math_method`, `test_authored_float_math_then_decimal_cast` |
+| sinh/cosh/tanh/asinh/acosh/atanh | Polars Decimal kernels reject these; Narwhals and Ibis implementations explicitly refuse the methods. | Polars eager/lazy execute the authored route; Ibis method refusals remain, independently of final cast. | `test_direct_decimal_math_method`, `test_authored_float_math_then_decimal_cast` |
+| factorial; bitwise_not/and/or/xor, shift_left/right/right_unsigned | Factorial is explicitly unsupported. Integer-only operations reject Decimal or have existing capability refusals; no implicit integer coercion is added. | Float64 does not make integer-only operations available; their computation refusals remain explicit. | `test_factorial_is_an_explicit_unsupported_operation`, `test_integer_only_operations_do_not_coerce_decimal` |
+| pct_change(n=1,2), partition/order/null semantics | Polars and Arrow-pandas families retain native Decimal results; Ibis-DuckDB returns Float64. Narwhals diff(n>1) and Ibis-Polars windows remain unsupported. An enclosing `.over()` now reaches the composed lag. | Polars eager/lazy and Ibis-DuckDB execute the final-cast case; other identities retain cast/window refusals. | `test_decimal_pct_change_keeps_partition_and_order_semantics`, `test_authored_pct_change_then_decimal_cast`, `test_pct_change_window_does_not_bind_unrelated_lag_sibling` |
+| Invalid sqrt/log/inverse-trig domains | Native kernels may raise, return NaN/infinity or null, or fail Ibis Decimal extraction. Negative and zero log inputs are tested separately so one error cannot mask the other. | Float computation and final conversion have separate assertions; no domain-normalization policy is introduced. | `test_direct_decimal_invalid_sqrt_domain`, `test_direct_decimal_invalid_log_domains`, `test_authored_float_inverse_trig_domain`, `test_invalid_sqrt_separates_float_domain_from_final_decimal_cast` |
+| Global sum/min/max/mean; singleton, signed/zero/null, typed empty/all-null | Polars Decimal mean is Float64; Arrow pandas mean is Decimal; Ibis mean extraction narrows fractional results. Empty/all-null sum is zero on Polars/Narwhals and null on Ibis; min/max/mean are null. | Sum/min/max/mean yield authored Decimal(16,6) on Polars eager/lazy and both Ibis routes. | `test_aggregate_results.py::TestDeclaredDecimalAggregateArithmetic` |
+| Global product; same input boundaries | Direct Polars product retains operand scale; fractional product need not be exact. All Ibis/Narwhals variants retain explicit `PRODUCT` refusal (239). | Polars eager/lazy yield the authored fractional product; other identities refuse, without substitute reducers. | `TestDeclaredDecimalAggregateArithmetic` |
+| Three rounding modes, two scales, signed even/odd ties and non-ties, carry and overflow after arithmetic | Final-conversion contract, not a claim about native intermediate rounding. | Every rounding mode has a distinct expected result vector. Executed target precision/scale checked; capacity overflow raises under both failure modes. | `test_decimal_cast.py::test_arithmetic_then_final_cast_honors_rounding_mode`, `test_arithmetic_rounding_carry_and_overflow` |
+| Arithmetic-generated infinity/NaN, small and high-scale exponent results | Computation output checked before conversion. Existing exponent-conversion limitations (287) remain. | `throw`/`null` options exercised separately. DuckDB's sub-last-place exponent result remains expected-failing, not certified correct. | `test_arithmetic_generated_nonfinite_reaches_final_cast`, `test_small_arithmetic_result_uses_existing_exponent_cast_behavior`, `test_high_scale_exponent_result_after_arithmetic` |
+
+Computed public schema may report `UNKNOWN` (303). Tests check that any concrete
+inferred type agrees with execution, and independently assert the final cast's
+executed Decimal precision and scale. Existing direct-cast tests remain the
+owners for invalid options, missing rounding, precision caps, plain-text
+overflow and high-scale exponent parsing.
+
 ### Known limits
 
 The conversion is one vectorised native expression with no per-row checks, so some edge cases follow the engine's own behaviour. They are documented rather than detected:

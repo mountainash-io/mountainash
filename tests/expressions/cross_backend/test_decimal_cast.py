@@ -646,27 +646,48 @@ def _conversion_errors(backend_name):
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero", "to_zero"])
 @pytest.mark.parametrize(
-    "mode,expected",
+    "values,declaration,scale,expected_by_mode",
     [
-        ("half_to_even", [D("2"), D("-2"), D("1"), D("-1"), D("0"), None]),
-        ("half_away_from_zero", [D("3"), D("-3"), D("1"), D("-1"), D("0"), None]),
-        ("to_zero", [D("2"), D("-2"), D("1"), D("-1"), D("0"), None]),
+        pytest.param(
+            ["2.5", "-2.5", "3.5", "-3.5", "1.25", "-1.25", "0", None],
+            (4, 2), 0,
+            {
+                "half_to_even": ["2", "-2", "4", "-4", "1", "-1", "0", None],
+                "half_away_from_zero": ["3", "-3", "4", "-4", "1", "-1", "0", None],
+                "to_zero": ["2", "-2", "3", "-3", "1", "-1", "0", None],
+            },
+            id="integer-scale",
+        ),
+        pytest.param(
+            ["2.125", "-2.125", "2.375", "-2.375", "2.1875", "-2.1875"],
+            (6, 4), 2,
+            {
+                "half_to_even": ["2.12", "-2.12", "2.38", "-2.38", "2.19", "-2.19"],
+                "half_away_from_zero": ["2.13", "-2.13", "2.38", "-2.38", "2.19", "-2.19"],
+                "to_zero": ["2.12", "-2.12", "2.37", "-2.37", "2.18", "-2.18"],
+            },
+            id="fractional-scale",
+        ),
     ],
 )
 def test_arithmetic_then_final_cast_honors_rounding_mode(
-    backend_name, declared_decimal_frame, backend_factory, mode, expected
+    backend_name, declared_decimal_frame, backend_factory,
+    mode, values, declaration, scale, expected_by_mode,
 ):
-    values = [2.5, -2.5, 1.25, -1.25, 0.0, None]
+    """Signed even/odd ties and non-ties discriminate every authored rounding mode."""
     if backend_name == "ibis-sqlite":
-        df = backend_factory.create({"a": values}, backend_name)
+        df = backend_factory.create(
+            {"a": [float(v) if v is not None else None for v in values]}, backend_name
+        )
     else:
         df = declared_decimal_frame(
-            {"a": [None if v is None else D(str(v)) for v in values]},
-            {"a": (4, 2)},
+            {"a": [D(v) if v is not None else None for v in values]},
+            {"a": declaration},
         )
     expr = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
-        ma.DecimalDtype(precision=4, scale=0), rounding=mode
+        ma.DecimalDtype(precision=4, scale=scale), rounding=mode
     ).alias("r")
     query = ma.relation(df).select(expr)
     if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
@@ -676,42 +697,8 @@ def test_arithmetic_then_final_cast_honors_rounding_mode(
         return
     out = query.to_polars()
     _assert_cast_schema_not_contradictory(query, out)
-    assert out.schema["r"] == pl.Decimal(4, 0)
-    assert out["r"].to_list() == expected
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-@pytest.mark.parametrize(
-    "mode,expected",
-    [
-        ("half_to_even", [D("2.12"), D("-2.12")]),
-        ("half_away_from_zero", [D("2.13"), D("-2.13")]),
-        ("to_zero", [D("2.12"), D("-2.12")]),
-    ],
-)
-def test_arithmetic_then_final_cast_honors_rounding_at_fractional_scale(
-    backend_name, declared_decimal_frame, backend_factory, mode, expected
-):
-    if backend_name == "ibis-sqlite":
-        df = backend_factory.create({"a": [2.125, -2.125]}, backend_name)
-    else:
-        df = declared_decimal_frame(
-            {"a": [D("2.125"), D("-2.125")]}, {"a": (5, 3)}
-        )
-    expr = (ma.col("a").cast("fp64") * ma.lit(1.0)).cast(
-        ma.DecimalDtype(precision=4, scale=2), rounding=mode
-    ).alias("r")
-    query = ma.relation(df).select(expr)
-    if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
-        with pytest.raises(BackendCapabilityError) as err:
-            query.to_polars()
-        assert err.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
-        return
-    out = query.to_polars()
-    _assert_cast_schema_not_contradictory(query, out)
-    assert out.schema["r"] == pl.Decimal(4, 2)
-    assert out["r"].to_list() == expected
+    assert out.schema["r"] == pl.Decimal(4, scale)
+    assert out["r"].to_list() == [D(v) if v is not None else None for v in expected_by_mode[mode]]
 
 
 @pytest.mark.cross_backend
