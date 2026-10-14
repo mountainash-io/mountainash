@@ -19,6 +19,8 @@ _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of list operations."""
+    def list_element(self):
+        return pl.element()
     def parse_list(
         self,
         x,
