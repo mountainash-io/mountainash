@@ -180,7 +180,7 @@ def _schema_prototype_expression(value: Any) -> bool:
     return qualified and all(_schema_prototype_expression(arg) for arg in value.arguments)
 
 
-def _numeric_schema_prototype_aggregate(value: Any, aggregates: Any) -> bool:
+def _numeric_schema_prototype_aggregate(value: Any, aggregates: Any, *, grouped: bool) -> bool:
     """Qualify native numeric reductions without calculating replacement types."""
     from mountainash.core.types import is_narwhals_dataframe, is_pyarrow_table
     from mountainash.expressions.core.expression_nodes import FieldReferenceNode
@@ -207,6 +207,10 @@ def _numeric_schema_prototype_aggregate(value: Any, aggregates: Any) -> bool:
             return False
         name = aggregate.arguments[0].field
         if is_pyarrow_table(value):
+            if not grouped and aggregate.function_key is Aggregate.AVG:
+                # Narwhals builds an Arrow null scalar for an empty global mean,
+                # but a double scalar for a populated mean.
+                return False
             import pyarrow.types as pat
             dtype = value.schema.field(name).type
             numeric = pat.is_integer(dtype) or pat.is_floating(dtype)
@@ -593,7 +597,9 @@ class UnifiedRelationVisitor:
             if eager and op.operation_key is RKEY_SUBSTRAIT_REL.AGGREGATE:
                 measures = aggregate_values["measures"]
                 input_value = prepared_inputs.get("input")
-                if not _numeric_schema_prototype_aggregate(input_value, measures):
+                if not _numeric_schema_prototype_aggregate(
+                    input_value, measures, grouped=bool(aggregate_values["keys"]),
+                ):
                     self.require_schema_execution(
                         "Eager aggregate output typing is not established by a numeric empty prototype"
                     )
@@ -898,6 +904,12 @@ class UnifiedRelationVisitor:
             raise_on_freeze=not schema_only,
         )
         if schema_only:
+            if _eager_schema_input(native) and not all(
+                _schema_prototype_expression(expr) for expr in conform_result.exprs
+            ):
+                self.require_schema_execution(
+                    "Eager conform expressions do not establish value-independent output types"
+                )
             if owner_node is not None:
                 self._conform_plans_by_node[id(owner_node)] = conform_result.structured_field_plans
             use_open = (

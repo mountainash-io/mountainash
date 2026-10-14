@@ -120,21 +120,95 @@ def _canon(
     return SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
 
 
-def _without_stored_timezone(dtype: Any) -> Any:
-    """SQL timestamptz retains awareness, not an original zone identifier."""
-    if isinstance(dtype, TimestampDtype) and dtype.timezone_aware is True:
-        return replace(dtype, timezone=None)
-    if isinstance(dtype, (ListDtype, ArrayDtype)):
-        return replace(dtype, element=_without_stored_timezone(dtype.element))
-    if isinstance(dtype, StructDtype) and isinstance(dtype.fields, tuple):
-        return replace(dtype, fields=tuple(
-            (name, _without_stored_timezone(child)) for name, child in dtype.fields
-        ))
-    return dtype
+def _physical_sql_dtype(dtype: Any, native_type: str, dialect: str) -> Any:
+    """Retain physical temporal metadata erased by Ibis' logical types."""
+    import sqlglot.expressions as sge
+
+    def refine(value: Any, sql_type: Any) -> Any:
+        if sql_type.this is sge.DataType.Type.DECIMAL and not sql_type.expressions:
+            # PostgreSQL NUMERIC without a typmod is genuinely unbounded, not
+            # an unresolved precision/scale placeholder in an Ibis expression.
+            return NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS)
+        if sql_type.this in {sge.DataType.Type.INT128, sge.DataType.Type.UINT128}:
+            return NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS)
+        if sql_type.this is sge.DataType.Type.INTERVAL:
+            return DurationDtype(
+                unit="us", semantics="calendar",
+                native=NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS),
+            )
+        if sql_type.this in {sge.DataType.Type.TIME, sge.DataType.Type.TIMETZ, sge.DataType.Type.TIME_NS}:
+            # Both engines store TIME at microsecond resolution; DuckDB TIME_NS
+            # stores nanoseconds. PostgreSQL additionally retains explicit typmods.
+            precision = (
+                int(sql_type.expressions[0].name) if sql_type.expressions
+                else 9 if sql_type.this is sge.DataType.Type.TIME_NS else 6
+            )
+            native = (
+                NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS)
+                if sql_type.this is sge.DataType.Type.TIMETZ
+                else getattr(value, "native", None)
+            )
+            return TimeDtype(precision=precision, native=native)
+        if isinstance(value, TimestampDtype) and value.timezone_aware is True:
+            return replace(value, timezone=None)
+        if isinstance(value, (ListDtype, ArrayDtype)):
+            child = sql_type
+            depth = len(value.dimensions) if isinstance(value, ArrayDtype) else 1
+            for _ in range(depth):
+                child = child.expressions[0]
+            return replace(value, element=refine(value.element, child))
+        if isinstance(value, StructDtype) and isinstance(value.fields, tuple):
+            children = {field.name: field.kind for field in sql_type.expressions}
+            return replace(value, fields=tuple(
+                (name, refine(child, children[name])) for name, child in value.fields
+            ))
+        return value
+
+    return refine(dtype, sge.DataType.build(native_type, dialect=dialect))
+
+
+def _postgres_output_schema(connection: Any, query: str) -> tuple[Any, dict[str, str]]:
+    """Describe PostgreSQL output types and retain time modifiers omitted by Ibis."""
+    from uuid import uuid4
+
+    import sqlglot as sg
+    import sqlglot.expressions as sge
+
+    name = f"ma_schema_{uuid4().hex}"
+    create_stmt = sge.Create(
+        kind="VIEW",
+        this=sg.table(name),
+        expression=sg.parse_one(query, read=connection.dialect),
+        properties=sge.Properties(expressions=[sge.TemporaryProperty()]),
+    ).sql(connection.dialect)
+    drop_stmt = sge.Drop(kind="VIEW", this=sg.table(name), exists=True).sql(
+        connection.dialect
+    )
+    raw_connection = connection.con
+    with raw_connection.cursor() as cursor, raw_connection.transaction():
+        cursor.execute(create_stmt)
+    try:
+        schema = connection.get_schema(name)
+        catalog_query = """
+            SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod)
+            FROM pg_catalog.pg_attribute AS a
+            JOIN pg_catalog.pg_class AS c ON c.oid = a.attrelid
+            WHERE c.oid = pg_catalog.to_regclass(%s)
+              AND a.attnum > 0 AND NOT a.attisdropped
+            ORDER BY a.attnum
+        """
+        with raw_connection.cursor() as cursor, raw_connection.transaction():
+            rows = cursor.execute(catalog_query, (name,), prepare=True).fetchall()
+        return schema, dict(rows)
+    finally:
+        with raw_connection.cursor() as cursor, raw_connection.transaction():
+            cursor.execute(drop_stmt)
+
+
 
 
 def _schema_from_dataframe(
-    df: Any,
+    df: Any, *, physical: bool = False,
 ) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
     """Extract detailed dtype metadata from supported native schemas.
 
@@ -154,7 +228,7 @@ def _schema_from_dataframe(
             is_pandas_dataframe(native) or is_pyarrow_table(native)
             or hasattr(native, "collect_schema")
         ):
-            return _schema_from_dataframe(native)
+            return _schema_from_dataframe(native, physical=physical)
         return {
             name: _canon(dtype, target=TypeTarget.NARWHALS)
             for name, dtype in df.schema.items()
@@ -166,19 +240,46 @@ def _schema_from_dataframe(
     if hasattr(df, "schema") and not callable(df.schema):
         return {name: _canon(dtype) for name, dtype in dict(df.schema).items()}
     if hasattr(df, "schema") and callable(df.schema):
+        from mountainash.core.types import is_ibis_table
+
+        if is_ibis_table(df):
+            from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
+            location = LocationResolver(IdentityTokens())._read(df)
+            connection = location.connection
+            if physical and getattr(connection, "name", None) in {"sqlite", "duckdb", "postgres"}:
+                # Ibis' expression schema is logical. Ask the bound SQL backend
+                # to describe the compiled output query so promotions and SQL
+                # expression types come from the physical output, not its inputs.
+                query = connection.compile(df)
+                if connection.name == "postgres":
+                    described, native_types = _postgres_output_schema(connection, query)
+                elif connection.name == "duckdb":
+                    native_result = connection.con.sql(query)
+                    native_types = dict(zip(native_result.columns, map(str, native_result.types)))
+                    described = {
+                        name: connection.compiler.type_mapper.from_string(native_type)
+                        for name, native_type in native_types.items()
+                    }
+                else:
+                    described = connection.sql(query).schema()
+                    native_types = {}
+                result = {
+                    name: _canon(dtype, target=TypeTarget.IBIS)
+                    for name, dtype in described.items()
+                }
+                for name, native_type in native_types.items():
+                    result[name] = _physical_sql_dtype(
+                        result[name], native_type, connection.name,
+                    )
+                return result
+
         schema_obj = df.schema()
         if hasattr(schema_obj, "items"):
-            result = {
+            return {
                 name: _canon(dtype, target=TypeTarget.IBIS)
                 for name, dtype in dict(schema_obj).items()
             }
-            from mountainash.core.types import is_ibis_table
-            if is_ibis_table(df):
-                from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
-                location = LocationResolver(IdentityTokens())._read(df)
-                if getattr(location.connection, "name", None) in {"duckdb", "postgres"}:
-                    result = {name: _without_stored_timezone(dtype) for name, dtype in result.items()}
-            return result
     if hasattr(df, "dtypes"):
         return {
             name: _canon(dtype, target=TypeTarget.PANDAS)
@@ -532,6 +633,9 @@ def _schema_from_source_data(
         return schema
     if isinstance(data, list) and data and isinstance(data[0], dict):
         keys = list(data[0].keys())
+        from mountainash.pydata.ingress.pydata_ingress import schema_literal_ingress_safe
+        if not schema_literal_ingress_safe(data):
+            return {k: SchemaTypeStatus.UNKNOWN for k in keys}
         import polars as pl
         try:
             frame = pl.DataFrame(data, strict=False)
@@ -540,6 +644,9 @@ def _schema_from_source_data(
         return _schema_from_dataframe(frame)
     if isinstance(data, dict):
         keys = list(data.keys())
+        from mountainash.pydata.ingress.pydata_ingress import schema_literal_ingress_safe
+        if not schema_literal_ingress_safe(data):
+            return {k: SchemaTypeStatus.UNKNOWN for k in keys}
         import polars as pl
         try:
             frame = pl.DataFrame(data, strict=False)

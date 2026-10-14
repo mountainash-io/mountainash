@@ -23,6 +23,7 @@ __all__ = [
     "parse_resource_to_arrow",
     "dialect_is_default",
     "dialect_native_safe",
+    "polars_native_scan_supported",
     "ensure_dialect_supported",
 ]
 
@@ -165,6 +166,35 @@ def dialect_native_safe(dialect: Any) -> bool:
             continue
         if getattr(dialect, name) is not None:
             return False
+    return True
+
+
+def polars_native_scan_supported(resource: Any, fmt: str, dialect: Any) -> bool:
+    """Whether Polars/Narwhals can read this resource through their lazy scan.
+
+    This is shared by the reader and schema-phase visitor so schema inspection
+    never mistakes the eager Arrow fallback for native metadata planning.
+    """
+    if resource.data is not None or fmt not in {"csv", "parquet"} or resource.path is None:
+        return False
+
+    paths = resource.path if isinstance(resource.path, list) else [resource.path]
+    if not paths:
+        return False
+    from mountainash.core.io import is_remote
+
+    for path in paths:
+        text = str(path)
+        if (
+            is_remote(path)
+            or any(char in text for char in _GLOB_CHARS)
+            or text.lower().endswith(_COMPRESSION_SUFFIXES)
+        ):
+            return False
+
+    if fmt == "csv":
+        ensure_dialect_supported(dialect)
+        return dialect_native_safe(dialect)
     return True
 
 

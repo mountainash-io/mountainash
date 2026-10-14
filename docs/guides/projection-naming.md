@@ -182,6 +182,13 @@ permits ordinary execution only when inference is insufficient. Native inference
 errors propagate; execution permission does not turn them into retries. A metadata
 answer does not certify that runtime validation will succeed.
 
+For bound SQL plans, native description/catalog evidence refines Ibis' logical
+types. This preserves physical timestamp/TIME precision, fixed array dimensions,
+calendar intervals and native wide integers. A SQL timezone-aware timestamp does
+not imply that its original timezone name was retained. Native SQL refinements
+that cannot be reconstructed losslessly as an Ibis dtype raise the existing dtype
+mapping error rather than silently discarding their parameters.
+
 Existing wildcard and regex selectors keep their supported expansion behavior.
 This includes selector-shaped strings such as `select("*")` and `select("^n$")`;
 ordinary column-name strings still denote one field.

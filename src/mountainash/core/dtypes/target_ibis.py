@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from .canonical import (
-    DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D, NativeDtype,
+    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D, NativeDtype,
     SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
 )
 from .targets import TypeTarget
@@ -53,6 +53,8 @@ def _family(native: Any) -> D | None:
 
 
 def _is_complete(native: Any) -> bool:
+    if isinstance(native, str):
+        return True  # A retained physical SQL description, including unbounded NUMERIC.
     return _base_name(native) != "decimal" or (
         getattr(native, "precision", None) is not None
         and getattr(native, "scale", None) is not None
@@ -84,7 +86,17 @@ def from_native(native: Any) -> Any:
             native=refinement,
         )
     if name == "array":
-        return ListDtype(element=from_native(native.value_type), native=refinement)
+        element = from_native(native.value_type)
+        length = getattr(native, "length", None)
+        if length is not None:
+            dimensions = (length,)
+            if isinstance(element, ArrayDtype) and element.native is None:
+                dimensions += element.dimensions
+                element = element.element
+            return ArrayDtype(element=element, dimensions=dimensions, native=refinement)
+        return ListDtype(element=element, native=refinement)
+    if name == "string" and getattr(native, "length", None) is not None:
+        return evidence
     if name == "struct":
         return StructDtype(
             fields=tuple((key, from_native(value)) for key, value in native.fields.items()),

@@ -48,6 +48,12 @@ class DtypeRegistry:
                 raise DtypeMappingError(
                     f"Native refinement targets {native.target.value}, not {target.value}"
                 )
+            if target is TypeTarget.IBIS:
+                import ibis.expr.datatypes as dt
+                if not isinstance(native.value, dt.DataType):
+                    raise DtypeMappingError(
+                        "Physical SQL refinements cannot be represented losslessly by an Ibis dtype"
+                    )
             if target is TypeTarget.PYARROW:
                 import pyarrow as pa
                 if isinstance(native.value, pa.Field):

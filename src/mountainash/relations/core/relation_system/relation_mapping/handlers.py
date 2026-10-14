@@ -111,6 +111,14 @@ def visit_join_asof(node: Any, visitor: Any) -> Any:
         left = visitor.visit(node.left)
         right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        from mountainash.relations.core.join_layout import asof_right_name_map, native_column_names
+
+        right_names = native_column_names(right)
+        payload = asof_right_name_map(node, native_column_names(left), right_names)
+        _check_schema_join_null_promotion(
+            visitor, right, drop=set(right_names) - payload.keys(),
+        )
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,
         lambda: visitor.backend.join_asof(
@@ -154,36 +162,21 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
 
     if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
         resource = node.resource
-        paths = resource.path if isinstance(resource.path, list) else [resource.path]
-        native_scan = (
-            visitor.backend.backend_type.name in {"POLARS", "NARWHALS"}
-            and resource.data is None and bool(paths)
-            and all(path is not None and "://" not in str(path)
-                    and not any(token in str(path) for token in ("*", "?", "["))
-                    and not str(path).lower().endswith((".gz", ".zip"))
-                    for path in paths)
+        backend = visitor.backend.backend_type.name
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
         )
-        if native_scan:
-            from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
-                MountainashPolarsExtensionRelationSystem,
-            )
-            fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-            native_scan = fmt in ("csv", "parquet")
-            if native_scan and fmt == "csv":
-                from mountainash.relations.backends.relation_systems import resource_files as rf
-                native_scan = rf.dialect_native_safe(resource.to_dialect())
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
+        native_scan = (
+            backend in {"POLARS", "NARWHALS"}
+            and rf.polars_native_scan_supported(resource, fmt, resource.to_dialect())
+        )
         if not native_scan:
             visitor.require_schema_execution(
                 f"Resource {resource.name!r} has no native lazy metadata reader"
             )
-        out = visitor.backend.read_resource(resource)
-        spec = resource.to_typespec()
-        if spec is not None and node.apply_schema_conform:
-            out = visitor.apply_conform(
-                out, spec, empty_from_schema=True,
-                resource_name=resource.name, owner_node=node,
-            )
-        return out
 
     def _read_and_conform():
         out = visitor.backend.read_resource(node.resource)
@@ -200,14 +193,46 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
     return visitor._enrich_native_call(node, RKEY_MOUNTAINASH_REL.READ_RESOURCE, _read_and_conform)
 
 
+
+
 def visit_source(node: Any, visitor: Any) -> Any:
-    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+    from mountainash.pydata.ingress.pydata_ingress import (
+        PydataIngress,
+        schema_literal_ingress_safe,
+    )
 
     if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
         from mountainash.relations.core.errors import CompileRequiresExecutionError
         from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
+        from dataclasses import is_dataclass
 
-        if isinstance(node.data, (dict, list, tuple)):
+        model = node.data[0] if isinstance(node.data, list) and node.data else node.data
+        declared = is_dataclass(model) and not isinstance(model, type)
+        if declared and isinstance(node.data, list):
+            declared = all(type(item) is type(model) for item in node.data)
+
+        if declared:
+            import polars as pl
+            from mountainash.core.dtypes import DtypeMappingError, TypeTarget, dtype_is_complete, registry
+            from mountainash.relations.schema_inference import _schema_from_source_data
+
+            schema = _schema_from_source_data(node.data)
+            if not all(dtype_is_complete(dtype) for dtype in schema.values()):
+                visitor.require_schema_execution("Source declarations have unresolved dtype parameters")
+            try:
+                native_schema = {
+                    name: registry.to_native_schema(dtype, TypeTarget.POLARS)
+                    for name, dtype in schema.items()
+                }
+            except DtypeMappingError as error:
+                visitor.require_schema_execution(str(error))
+            df = pl.DataFrame(schema=native_schema).lazy()
+        elif isinstance(node.data, (dict, list, tuple)):
+            if not schema_literal_ingress_safe(node.data):
+                raise CompileRequiresExecutionError(
+                    f"Source data {type(node.data).__name__} has no schema-only ingress",
+                    node_key=visitor.execution_key,
+                )
             # Reuse the selected Python ingress strategy: indexed mappings are
             # rows, not a dataframe's column dictionary.
             df = PydataIngress.convert(node.data)

@@ -7,44 +7,86 @@ import mountainash as ma
 from mountainash.core.dtypes import MountainashDtype as D, dtype_family
 from fixtures.backend_registry import ALL_BACKENDS, REGISTRY
 
+SCHEMA_BACKENDS = [*ALL_BACKENDS, "pyarrow", "narwhals-pyarrow"]
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_numeric_aggregate_schema_uses_native_empty_prototype(backend_name):
-    source = REGISTRY[backend_name].build({"group": [0, 0, 1], "value": [2, 4, 8]}, "schema_aggregate")
-    relation = ma.relation(source).group_by().agg(
+
+def _source(backend_name, data, name):
+    if backend_name in {"pyarrow", "narwhals-pyarrow"}:
+        import pyarrow as pa
+        table = pa.table(data)
+        if backend_name == "narwhals-pyarrow":
+            import narwhals as nw
+            return nw.from_native(table)
+        return table
+    return REGISTRY[backend_name].build(data, name)
+
+
+@pytest.mark.parametrize("backend_name", SCHEMA_BACKENDS)
+@pytest.mark.parametrize("grouped", [False, True])
+def test_numeric_aggregate_schema_matches_native_output(backend_name, grouped):
+    source = _source(backend_name, {"group": [0, 0, 1], "value": [2, 4, 8]}, "schema_aggregate")
+    keys = ["group"] if grouped else []
+    relation = ma.relation(source).group_by(*keys).agg(
         ma.col("value").sum().alias("total"),
         ma.col("value").count().alias("count"),
         ma.col("value").mean().alias("mean"),
     )
 
-    schema = relation.collect_schema()
-    assert list(schema) == ["total", "count", "mean"]
-    assert dtype_family(schema["total"]) is D.I64
+    if not grouped and backend_name in {"pyarrow", "narwhals-pyarrow"}:
+        from mountainash.exceptions import IncompleteSchemaError
+        with pytest.raises(IncompleteSchemaError):
+            relation.collect_schema()
+        schema = relation.collect_schema(allow_execution=True)
+    else:
+        schema = relation.collect_schema()
+    assert list(schema) == [*keys, "total", "count", "mean"]
+    if backend_name == "ibis-duckdb":
+        from mountainash.core.dtypes import NativeDtype
+        assert isinstance(schema["total"], NativeDtype)
+        connection = source._find_backend(use_default=False)
+        assert connection.con.sqltype(schema["total"].value) == connection.con.sqltype("HUGEINT")
+    else:
+        assert dtype_family(schema["total"]) is D.I64
     count_dtype = D.U32 if backend_name in {
         "polars", "polars-lazy", "narwhals-polars", "narwhals-lazy",
     } else D.I64
     assert dtype_family(schema["count"]) is count_dtype
     assert dtype_family(schema["mean"]) is D.FP64
-    assert relation.to_dicts() == [{"total": 14, "count": 3, "mean": 14 / 3}]
+    if grouped:
+        assert relation.sort("group").to_dicts() == [
+            {"group": 0, "total": 6, "count": 2, "mean": 3.0},
+            {"group": 1, "total": 8, "count": 1, "mean": 8.0},
+        ]
+    else:
+        assert relation.to_dicts() == [{"total": 14, "count": 3, "mean": 14 / 3}]
 
 
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", SCHEMA_BACKENDS)
 def test_empty_global_extrema_remain_unqualified(backend_name):
-    source = REGISTRY[backend_name].build({"value": [2, 4]}, "schema_empty_extrema")
+    source = _source(backend_name, {"value": [2, 4]}, "schema_empty_extrema")
     relation = ma.relation(source).filter(ma.col("value") < 0).group_by().agg(
         ma.col("value").min().alias("minimum")
     )
     from mountainash.exceptions import IncompleteSchemaError
 
-    if backend_name in {"pandas", "narwhals-pandas"}:
+    from mountainash.core.dtypes import NativeDtype, TypeTarget
+    if backend_name in {"pandas", "narwhals-pandas", "pyarrow", "narwhals-pyarrow"}:
         with pytest.raises(IncompleteSchemaError):
             relation.collect_schema()
+    if backend_name in {"pandas", "narwhals-pandas"}:
         expected = D.FP64
+    elif backend_name in {"pyarrow", "narwhals-pyarrow"}:
+        import pyarrow as pa
+        expected = NativeDtype(value=pa.null(), target=TypeTarget.PYARROW)
+    elif backend_name == "ibis-sqlite":
+        import ibis.expr.datatypes as dt
+        expected = NativeDtype(value=dt.null, target=TypeTarget.IBIS)
+        assert relation.collect_schema()["minimum"] == expected
     else:
         expected = D.I64
-        assert dtype_family(relation.collect_schema()["minimum"]) is expected
+        assert relation.collect_schema()["minimum"] == expected
     schema = relation.collect_schema(allow_execution=True)
-    assert dtype_family(schema["minimum"]) is expected
+    assert schema["minimum"] == expected
     assert relation.to_dicts() == [{"minimum": None}]
 
 

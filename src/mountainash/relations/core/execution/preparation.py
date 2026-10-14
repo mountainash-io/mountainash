@@ -250,6 +250,7 @@ def prepare_execution(
     prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens,
                                  execution_context, policy)
     # Gate every reachable occurrence before phase rejection or any transfer.
+    preflight_capabilities(prepared)
     if phase not in (ExecutionPhase.EXPLAIN, ExecutionPhase.SCHEMA):
         for key, occurrence in locations.items():
             if occurrence.family is CONST_BACKEND.IBIS and occurrence.binding == "unbound":

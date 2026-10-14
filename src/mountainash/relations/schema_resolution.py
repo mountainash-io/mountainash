@@ -42,7 +42,7 @@ def _is_native(value: Any) -> bool:
 
 
 def _native_evidence(value: Any) -> _SchemaEvidence:
-    return _SchemaEvidence(_schema_from_dataframe(value), _is_native(value))
+    return _SchemaEvidence(_schema_from_dataframe(value, physical=True), _is_native(value))
 
 
 def _structural_evidence(relation: Any) -> _SchemaEvidence:
@@ -70,7 +70,9 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
 
     def preserves_types(node: Any, active: frozenset[str] = frozenset()) -> bool:
         if isinstance(node, ReadRelNode):
-            return _is_native(node.dataframe)
+            # Logical SQL source types can differ from the physical output.
+            # Keep structural consumers cheap; public inspection describes SQL.
+            return _is_native(node.dataframe) and not is_ibis_table(node.dataframe)
         if isinstance(node, RefRelNode):
             return (
                 dag is not None and node.name not in active
@@ -126,15 +128,18 @@ def _compiled_evidence(relation: Any, *, execute: bool) -> _SchemaEvidence:
         if not execute:
             return _native_evidence(result)
         from mountainash.core.limitations import enrich_materialization
-        from mountainash.relations.core.materialization import MaterializationPurpose, materialize_native
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose, MaterializationScope, materialize_native,
+        )
 
         def materialize() -> _SchemaEvidence:
             _guard_native_terminal(visitor.structured_field_plans)
-            native = materialize_native(
-                result, _compiler_identity(visitor), MaterializationPurpose.NATIVE_COLLECT,
-                execution_context=visitor.execution_context,
-            )
-            return _native_evidence(native.value)
+            with MaterializationScope() as scope:
+                native = materialize_native(
+                    result, _compiler_identity(visitor), MaterializationPurpose.LOGICAL_TERMINAL,
+                    execution_context=visitor.execution_context, scope=scope,
+                )
+                return _native_evidence(native.value)
 
         return enrich_materialization(
             visitor.backend, materialize,
