@@ -8,10 +8,18 @@ genuine API-misuse gaps (first/last require ``.over()``;
 
 from __future__ import annotations
 
+from decimal import Decimal as D, ROUND_HALF_EVEN
+from functools import reduce
+
+import polars as pl
 import pytest
 
 import mountainash as ma
 from mountainash.core.types import BackendCapabilityError
+from mountainash.expressions.core.expression_system.function_keys.enums import (
+    FKEY_MOUNTAINASH_SCALAR_VALUE,
+    FKEY_SUBSTRAIT_SCALAR_AGGREGATE,
+)
 from mountainash.relations.core.relation_api.relation import Relation
 from mountainash.relations.core.relation_nodes.substrait.reln_aggregate import (
     AggregateRelNode,
@@ -642,3 +650,176 @@ class TestAggregateAnyValue:
             ):
                 actual = _collect_agg(df, ma.col("a").any_value())
                 assert actual is None
+
+
+# ─── Declared Decimal aggregate arithmetic ─────────────────────────────────
+
+
+_DECIMAL_AGGREGATE_ORACLES = {
+    "sum": lambda values: sum(values, D("0")),
+    "min": min,
+    "max": max,
+    "mean": lambda values: sum(values, D("0")) / len(values),
+    "product": lambda values: reduce(lambda left, right: left * right, values, D("1")),
+}
+
+_DECIMAL_AGGREGATE_INPUTS = [
+    pytest.param([D("1.001"), D("1.002"), None], [D("1.001"), D("1.002")], id="fractional-null"),
+    pytest.param([D("-2.345")], [D("-2.345")], id="signed-singleton"),
+    pytest.param([D("-1.250"), D("0.000"), D("2.500")], [D("-1.250"), D("0.000"), D("2.500")], id="signed-zero"),
+    pytest.param([None, None], [], id="typed-all-null"),
+    pytest.param([], [], id="typed-empty"),
+]
+
+
+def _decimal_aggregate_expected(operation, values, backend_name):
+    if values:
+        return _DECIMAL_AGGREGATE_ORACLES[operation](values)
+    if operation == "sum":
+        return None if backend_name.startswith("ibis-") else D("0")
+    if operation == "product" and backend_name.startswith("polars"):
+        return D("1")
+    return None
+
+
+def _authored_decimal_expected(operation, values, backend_name):
+    exact = _decimal_aggregate_expected(operation, values, backend_name)
+    if exact is None:
+        return None
+    return exact.quantize(D("0.000001"), rounding=ROUND_HALF_EVEN)
+
+
+
+
+def _global_decimal_aggregate(relation, operation):
+    return relation.group_by().agg(
+        getattr(ma.col("amount"), operation)().alias("result")
+    )
+
+
+@pytest.mark.cross_backend
+class TestDeclaredDecimalAggregateArithmetic:
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    @pytest.mark.parametrize("operation", tuple(_DECIMAL_AGGREGATE_ORACLES))
+    @pytest.mark.parametrize("data,values", _DECIMAL_AGGREGATE_INPUTS)
+    def test_authored_fp64_global_aggregate_then_decimal_cast(
+        self, backend_name, operation, data, values, declared_decimal_frame, backend_factory
+    ):
+        if backend_name == "ibis-sqlite":
+            frame = backend_factory.create({"amount": [1.001, 1.002]}, backend_name)
+        else:
+            frame = declared_decimal_frame({"amount": data}, {"amount": (12, 3)})
+        working = ma.relation(frame).select(ma.col("amount").cast("fp64").alias("amount"))
+
+        # Product refusal is checked before any Decimal cast, including SQLite.
+        if operation == "product" and not backend_name.startswith("polars"):
+            with pytest.raises(BackendCapabilityError) as error:
+                _global_decimal_aggregate(working, operation).to_polars()
+            assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT
+            return
+
+        reduced = _global_decimal_aggregate(working, operation)
+        casted = reduced.select(
+            ma.col("result").cast(
+                ma.DecimalDtype(16, 6), rounding="half_to_even"
+            ).alias("result")
+        )
+        if backend_name == "ibis-sqlite":
+            with pytest.raises(BackendCapabilityError) as error:
+                casted.to_polars()
+            assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+            return
+        if backend_name in {
+            "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"
+        }:
+            with pytest.raises(BackendCapabilityError) as error:
+                casted.to_polars()
+            assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+            return
+
+        from mountainash.relations.schema_inference import SchemaTypeStatus
+        assert casted.schema["result"] in (SchemaTypeStatus.UNKNOWN, ma.DecimalDtype(16, 6))
+        output = casted.to_polars()
+        expected = _authored_decimal_expected(operation, values, backend_name)
+        assert output.schema["result"] == pl.Decimal(16, 6)
+        assert output["result"].to_list() == [expected]
+
+
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    @pytest.mark.parametrize("operation", tuple(_DECIMAL_AGGREGATE_ORACLES))
+    @pytest.mark.parametrize("data,values", _DECIMAL_AGGREGATE_INPUTS)
+    def test_direct_declared_decimal_global_aggregate(
+        self, backend_name, operation, data, values, declared_decimal_frame, backend_factory
+    ):
+        if backend_name == "ibis-sqlite":
+            # SQLite has no native Decimal input; exercise its public cast
+            # refusal as the direct-route capability disposition.
+            frame = backend_factory.create({"amount": [1.001, 1.002]}, backend_name)
+            working = ma.relation(frame).select(
+                ma.col("amount").cast("fp64").alias("amount")
+            )
+            if operation == "product":
+                with pytest.raises(BackendCapabilityError) as error:
+                    _global_decimal_aggregate(working, operation).to_polars()
+                assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT
+            else:
+                reduced = _global_decimal_aggregate(working, operation)
+                with pytest.raises(BackendCapabilityError) as error:
+                    reduced.select(
+                        ma.col("result").cast(
+                            ma.DecimalDtype(16, 6), rounding="half_to_even"
+                        ).alias("result")
+                    ).to_polars()
+                assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
+            return
+
+        frame = declared_decimal_frame({"amount": data}, {"amount": (12, 3)})
+        if operation == "product" and not backend_name.startswith("polars"):
+            with pytest.raises(BackendCapabilityError) as error:
+                _global_decimal_aggregate(ma.relation(frame), operation).to_polars()
+            assert error.value.function_key is FKEY_SUBSTRAIT_SCALAR_AGGREGATE.PRODUCT
+            return
+        reduced = _global_decimal_aggregate(ma.relation(frame), operation)
+
+        exact = (
+            _DECIMAL_AGGREGATE_ORACLES[operation](values)
+            if values
+            else _decimal_aggregate_expected(operation, values, backend_name)
+        )
+        output = reduced.to_polars()
+        if operation == "mean" and backend_name in {
+            "polars", "polars-lazy", "narwhals-polars", "narwhals-lazy"
+        }:
+            assert output.schema["result"] == pl.Float64
+            expected_values = [None] if exact is None else [float(exact)]
+            assert output["result"].to_list() == expected_values
+            return
+
+        if (
+            backend_name in {"pandas", "narwhals-pandas"}
+            and not values
+            and operation in {"min", "max", "mean"}
+        ):
+            assert output.schema["result"] == pl.Null
+        else:
+            assert output.schema["result"].is_decimal()
+        if operation == "mean":
+            if backend_name.startswith("ibis-") and values == [D("1.001"), D("1.002")]:
+                with expect_call_failure(
+                    reason="Ibis native Decimal mean extraction rounds 1.0015 to 1.002",
+                    errors=(AssertionError,),
+                ):
+                    assert output["result"].to_list() == [exact]
+                return
+            expected = exact.quantize(D("0.001"), rounding=ROUND_HALF_EVEN) if exact is not None else None
+        else:
+            expected = exact
+        if operation == "product" and values == [D("1.001"), D("1.002")]:
+            with expect_call_failure(
+                when=backend_name.startswith("polars"),
+                reason="native Polars Decimal product returns 1.003 rather than the exact 1.003002",
+                errors=(AssertionError,),
+            ):
+                assert output["result"].to_list() == [expected]
+            return
+        assert output["result"].to_list() == [expected]

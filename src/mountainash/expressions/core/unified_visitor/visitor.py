@@ -172,6 +172,7 @@ class UnifiedExpressionVisitor:
         self.raising_diagnostic = None
         self._input_data = input_data
         self.type_context = TypeContext(expression_system, self.visit)
+        self._over_window_spec = None
         # Discovery is the execution context factory's job (T06): every
         # caller now constructs an already-prepared execution_context
         # before this visitor, and _prepare_capability_context() already
@@ -759,9 +760,10 @@ class UnifiedExpressionVisitor:
             Backend expression with window context applied.
 
         Raises:
-            ValueError: If window_spec is None (i.e., .over() was not called).
+            ValueError: If neither this node nor an enclosing .over() supplies a window.
         """
-        if node.window_spec is None:
+        window_spec = node.window_spec or self._over_window_spec
+        if window_spec is None:
             raise ValueError(
                 f"Window function '{node.function_key.value}' requires .over() — "
                 f"e.g., col('x').{node.function_key.name.lower()}().over('group')"
@@ -775,7 +777,7 @@ class UnifiedExpressionVisitor:
         method_name = protocol_method.__name__
 
         options = dict(node.options) if node.options else {}
-        first_sort = node.window_spec.order_by[0] if node.window_spec.order_by else None
+        first_sort = window_spec.order_by[0] if window_spec.order_by else None
         order_node = None
         for parameter in _protocol_sig_params(protocol_method):
             if parameter.name == "descending":
@@ -802,7 +804,11 @@ class UnifiedExpressionVisitor:
         method = getattr(self.backend, method_name)
         with self.backend.operand_types(operand_types):
             result = method(*compiled_args, **options) if options else method(*compiled_args)
-        return self._apply_window_spec(result, node.window_spec)
+        # An enclosing OverNode applies its window to the composed expression.
+        # Applying it here too would create a nested native window.
+        if node.window_spec is None:
+            return result
+        return self._apply_window_spec(result, window_spec)
 
     def visit_over(self, node: OverNode) -> SupportedExpressions:
         """Compile an OverNode — wraps any expression with window context.
@@ -815,7 +821,12 @@ class UnifiedExpressionVisitor:
         Returns:
             Backend expression with window context applied.
         """
-        inner_result = self.visit(node.expression)
+        previous_spec = self._over_window_spec
+        self._over_window_spec = node.window_spec
+        try:
+            inner_result = self.visit(node.expression)
+        finally:
+            self._over_window_spec = previous_spec
         return self._apply_window_spec(inner_result, node.window_spec)
 
     def _apply_window_spec(self, expr: Any, window_spec: Any) -> SupportedExpressions:

@@ -502,6 +502,39 @@ def backend_factory():
     return BackendDataFrameFactory
 
 
+@pytest.fixture
+def declared_decimal_frame(backend_name):
+    """Build native declared Decimal inputs without exercising MA's cast."""
+    connections = []
+
+    def create(data, dtypes):
+        frame = pl.DataFrame(
+            data,
+            schema_overrides={
+                name: pl.Decimal(precision, scale)
+                for name, (precision, scale) in dtypes.items()
+            },
+        )
+        if backend_name == "polars":
+            return frame
+        if backend_name == "polars-lazy":
+            return frame.lazy()
+        if backend_name in {"narwhals-polars", "narwhals-lazy"}:
+            return nw.from_native(frame.lazy() if backend_name == "narwhals-lazy" else frame)
+        if backend_name in {"pandas", "narwhals-pandas"}:
+            arrow_frame = frame.to_arrow().to_pandas(types_mapper=pd.ArrowDtype)
+            return nw.from_native(arrow_frame) if backend_name == "narwhals-pandas" else arrow_frame
+        if backend_name in {"ibis-duckdb", "ibis-polars"}:
+            connection = getattr(ibis, backend_name.removeprefix("ibis-")).connect()
+            connections.append(connection)
+            return connection.create_table("declared_decimal", frame, overwrite=True)
+        raise ValueError("SQLite has no native fixed-precision Decimal input")
+
+    yield create
+    for connection in connections:
+        connection.disconnect()
+
+
 # =============================================================================
 # Cleanup Fixtures
 # =============================================================================

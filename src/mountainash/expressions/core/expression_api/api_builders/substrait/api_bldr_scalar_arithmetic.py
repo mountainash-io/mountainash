@@ -430,7 +430,7 @@ Negative inputs will raise an error.
         Args:
             overflow: Substrait overflow mode.
         """
-        ...
+        raise NotImplementedError("factorial() is not supported by any backend.")
 
     def sin(self, rounding: Any = None) -> BaseExpressionAPI:
         """Get the sine of a value in radians.

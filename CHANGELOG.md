@@ -2,7 +2,13 @@
 
 ## Unreleased — 2026-10-13
 
+### Added
+- Cross-backend declared-Decimal arithmetic coverage (288): direct native arithmetic is separated from explicitly authored Float64 computation and final Decimal conversion, including operand forms, reductions, rounding modes, nonfinite values and capacity boundaries. Existing Decimal cast/product refusals and native extraction defects remain visible; no automatic widening or numerical policy is introduced.
+
 ### Fixed
+- Removed a redundant tier marker from the direct-Decimal aggregate tests so CI's single-tier collection guard passes; inherited cross-backend coverage is unchanged.
+- Composed window expressions now inherit their enclosing `.over()` context, allowing `pct_change(...).over(...)` to compile its nested lag without applying a second native window. Existing backend window limitations remain.
+- `factorial()` now reports its existing unsupported status explicitly instead of returning `None` from an unfinished builder.
 - Generated datacontract checks now accept valid native Polars arrays, including empty arrays and optional nulls (backlog 290). The logical snapshot boundary unwraps array cells before validation without a JSON round-trip; required and nested constraints remain enforced.
 - Flat dataclass source declarations now survive relation schema inference, allowing conformance and structured joins without caller-side materialization (backlog 289). Single instances and homogeneous lists use metadata only, with no row scan; mixed-class schema completeness is not guaranteed.
 - ASOF schema inference and transport lineage now omit merged right-side `on`/`by` keys, so `select(*joined.columns)` and subsequent joins no longer reference phantom columns (backlog 255). Pandas-backed nearest ASOF preserves left-column order; matching, tie selection and row ordering are unchanged.
