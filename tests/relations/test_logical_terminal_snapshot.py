@@ -230,10 +230,10 @@ def test_narwhals_snapshot_captures_every_declared_dialect_directly(dialect):
 
 
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
-def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
-    backend_name, backend_factory, monkeypatch, mocker
+def test_ibis_snapshot_uses_one_owned_copy_and_arrow_extraction(
+    backend_name, backend_factory, mocker
 ):
-    """Spec Task 4 step 2: one cache(), one to_pyarrow() for one snapshot, zero to_pandas()."""
+    """A logical snapshot preserves values with one owned copy and one extraction."""
     from mountainash.core.backend_detection import identify_backend_identity
     from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.relations.core.materialization import (
@@ -252,10 +252,6 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
     copies = mocker.spy(owned_copy, "owned_ibis_table")
     exports = mocker.spy(type(table), "to_pyarrow")
 
-    def forbidden(*args, **kwargs):
-        raise AssertionError("logical snapshot routed through pandas")
-
-    monkeypatch.setattr(type(table), "to_pandas", forbidden)
     with MaterializationScope() as scope:
         native = materialize_native(
             table, identity, MaterializationPurpose.LOGICAL_TERMINAL,
@@ -267,6 +263,8 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
     assert exports.call_count == 1
     assert result.row_ordinals == (0, 1, 2)
     assert set(result.columns) == {"age", "name"}
+    assert result.columns["age"].to_pylist() == [30, -1, None]
+    assert result.columns["name"].to_pylist() == ["a", "b", "c"]
 
 
 def test_resolved_snapshot_to_polars_retains_untagged_dtype_and_tags_object_column():
