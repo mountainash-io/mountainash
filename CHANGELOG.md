@@ -5,7 +5,7 @@
 ### Changed
 - Removed the transit policy registry, call wrappers, tracing API, AST census and inventory generator (248, first deletion slice). Native operations, conversion routes, outputs, placement, ownership and real conversion errors are unchanged; the wrapper's pandas-result rejection and trace records are retired. Upstream-internal pandas, native pandas execution and requested pandas output remain supported. Conversion simplification and validation/materialization work in 248/249 remain open.
 - Simplified Polars output and operand conversion by delegating recognized pandas, Arrow and Ibis imports to the native Polars constructor. Native Polars passthrough, Narwhals conversion, lazy execution and existing conversion errors remain unchanged; pandas inputs and requested pandas outputs remain supported.
-- Retained pandas 2.2+ support. Compiler smoke tests use version-aware capability applicability for the exact native Ibis/DuckDB Python-timedelta construction failure (#386), separate from expression compilation. No pandas minimum increase, runtime gate or conversion workaround is introduced.
+- Restored the pandas 2.2 dependency minimum. Native interval-construction tests use version-aware capability applicability for the exact Ibis/DuckDB Python-timedelta construction failure (#386), separate from expression compilation. No pandas minimum increase, runtime gate or conversion workaround is introduced.
 
 ### Fixed
 - Install the existing pinned `pytest-mock` test dependency in the CI Hatch environment so migrated ownership, extraction and reuse tests can resolve their `mocker` fixture.

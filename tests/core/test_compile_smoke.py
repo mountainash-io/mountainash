@@ -2,23 +2,15 @@
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 import pytest
 
 import mountainash as ma
-from mountainash.core.capabilities.applicability import (
-    Applicability,
-    ApplicabilityResult,
-    CoordinateConstraint,
-    Region,
-    prepare_environment,
-)
-from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
@@ -40,6 +32,7 @@ from core._smoke_helpers import (  # noqa: E402
     is_non_expression_fkey,
 )
 from fixtures.call_expectations import expect_call_failure  # noqa: E402
+from fixtures.native_construction import expect_ibis_python_timedelta_construction  # noqa: E402
 ALL_BACKENDS = [
     "polars",
     "pandas",
@@ -467,17 +460,6 @@ def test_smoke_discovery_covers_every_executable_registered_fkey_and_backend() -
 # ── Test class ────────────────────────────────────────────────────────────
 
 
-# #386 is a native construction defect, not a total_* compilation restriction.
-# pandas 3 changes Python timedelta inference to microseconds; explicit ns inputs
-# still fail there. Keep this claim local to the Python-timedelta fixture below.
-_IBIS_TIMEDELTA_CONSTRUCTION = Applicability((Region((
-    CoordinateConstraint("package", "pandas", specifier=">=2.2,<3"),
-    CoordinateConstraint("package", "ibis-framework", specifier="==12.0.0"),
-    CoordinateConstraint("package", "duckdb", specifier="==1.5.6"),
-    CoordinateConstraint("package", "sqlglot", specifier="==30.17.0"),
-)),))
-
-
 class TestCompileSmoke:
     """Compile every executable FKEY on every backend with explicit witnesses."""
 
@@ -493,7 +475,7 @@ class TestCompileSmoke:
         data = _smoke_data(_resolve_fkey(fkey_str))
         constructor_errors = ()
         constructor_reason = "SQLite cannot construct this native input type; expression compilation is not reached."
-        constructor_signal = None
+        native_construction = nullcontext()
         if backend_name == "ibis-sqlite":
             if isinstance(data["a"][0], (list, dict)):
                 from ibis.common.exceptions import UnsupportedBackendType
@@ -504,28 +486,13 @@ class TestCompileSmoke:
 
                 constructor_errors = (ProgrammingError,)
         elif backend_name == "ibis-duckdb" and isinstance(data["a"][0], timedelta):
-            from duckdb import ParserException
-
-            claim = _IBIS_TIMEDELTA_CONSTRUCTION
-            environment = Environment(tuple(
-                EnvironmentCoordinate("package", name, version(name))
-                for name in ("pandas", "ibis-framework", "duckdb", "sqlglot")
-            ))
-            if claim.match(prepare_environment(environment, claim.requirements)) is ApplicabilityResult.APPLICABLE:
-                constructor_errors = (ParserException,)
-                constructor_reason = "https://github.com/mountainash-io/mountainash/issues/386: native Python-timedelta construction emits INTERVAL NANOSECOND; compilation is not reached."
-                constructor_signal = 'syntax error at or near "NANOSECOND"'
+            native_construction = expect_ibis_python_timedelta_construction()
         with expect_call_failure(
             reason=constructor_reason,
             errors=constructor_errors,
             when=bool(constructor_errors),
-        ):
-            try:
-                frame = backend_factory.create(data, backend_name)
-            except constructor_errors as exc:
-                if constructor_signal is not None:
-                    assert constructor_signal in str(exc), f"Unrelated native construction failure: {exc}"
-                raise
+        ), native_construction:
+            frame = backend_factory.create(data, backend_name)
         try:
             compile_call = _prepare_smoke_case(fkey_str, frame)
         except _SmokeNotApplicable as not_applicable:
