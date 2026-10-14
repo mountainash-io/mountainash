@@ -8,7 +8,6 @@ import polars as pl
 
 import mountainash as ma
 from fixtures.backend_registry import REGISTRY
-from mountainash.core.transit import BoundaryKey
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
 IBIS_BACKENDS = [name for name, spec in REGISTRY.items() if spec.family == "ibis"]
@@ -57,27 +56,15 @@ def test_union_polars_first_transports_pandas_direct_and_derived(distinct, expec
 
 @pytest.mark.parametrize("distinct,expected", [(False, [2, 2, 3]), (True, [2, 3])])
 def test_targeted_first_union_exports_foreign_input_only(monkeypatch, distinct, expected):
-    """One foreign derived input moves to the first join's selected connection."""
-    import mountainash.relations.core.execution.transport as transport
-
+    """Foreign inputs move to the first join's selected connection."""
     a = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "a")
     b = REGISTRY["ibis-sqlite"].build({"id": [2]}, "b")
     first = ma.relation(a).join(b, on="id", execute_on="right").select("id")
     second = ma.relation(a).filter(ma.col("id") > 1)
     third = ma.relation(b).filter(ma.col("id") < 0)
-    boundaries = []
-    real = transport.transit_call
-
-    def observed(boundary, fn, *args, **kwargs):
-        boundaries.append(boundary)
-        return real(boundary, fn, *args, **kwargs)
-
-    monkeypatch.setattr(transport, "transit_call", observed)
     out = ma.concat([first, second, third], distinct=distinct).collect()
     assert out._find_backend(use_default=False) is b._find_backend(use_default=False)
     assert sorted(ma.relation(out).to_dict()["id"]) == expected
-    assert boundaries.count(BoundaryKey.IBIS_TO_ARROW_EGRESS) == 2  # join left and union input
-    assert boundaries.count(BoundaryKey.ARROW_TO_IBIS_ADAPTER) == 2
 
 
 @pytest.mark.parametrize("named", [False, True])

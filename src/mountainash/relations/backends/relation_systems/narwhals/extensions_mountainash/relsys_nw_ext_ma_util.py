@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import narwhals as nw
 
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
@@ -60,7 +60,7 @@ class MountainashNarwhalsExtensionRelationSystem(
         frame = relation
         is_lazy = isinstance(frame, nw.LazyFrame)
         if is_lazy:
-            frame = transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, frame.collect)
+            frame = frame.collect()
         if n is not None:
             n = min(n, len(frame))
         sampled = frame.sample(n=n, fraction=fraction, seed=seed)
@@ -124,7 +124,7 @@ class MountainashNarwhalsExtensionRelationSystem(
         dialect = resource.to_dialect()
         if resource.data is not None:
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
-            return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, lf)  # stays lazy
+            return nw.from_native(lf)  # stays lazy
 
         from mountainash.core.io import is_remote
         from mountainash.relations.backends.relation_systems import resource_files as rf
@@ -153,9 +153,7 @@ class MountainashNarwhalsExtensionRelationSystem(
         # Files fallback: Arrow -> Polars lazy -> Narwhals lazy.
         import polars as pl
         table = rf.parse_resource_to_arrow(resource, dialect=dialect)
-        return transit_call(
-            BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, pl.from_arrow(table).lazy()
-        )
+        return nw.from_native(pl.from_arrow(table).lazy())
 
     def empty_frame(self, spec: Any) -> Any:
         """Typed-empty Narwhals LazyFrame (lazy)."""
@@ -164,7 +162,7 @@ class MountainashNarwhalsExtensionRelationSystem(
             MountainashPolarsExtensionRelationSystem,
         )
         lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
-        return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, lf)  # stays lazy
+        return nw.from_native(lf)  # stays lazy
 
     def fetch_from_end(self, relation: Any, count: int, /) -> Any:
         return relation.tail(count)

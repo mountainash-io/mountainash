@@ -231,7 +231,7 @@ def test_narwhals_snapshot_captures_every_declared_dialect_directly(dialect):
 
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
 def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
-    backend_name, backend_factory, monkeypatch
+    backend_name, backend_factory, monkeypatch, mocker
 ):
     """Spec Task 4 step 2: one cache(), one to_pyarrow() for one snapshot, zero to_pandas()."""
     from mountainash.core.backend_detection import identify_backend_identity
@@ -247,21 +247,24 @@ def test_ibis_snapshot_reads_cache_once_and_never_touches_pandas(
     identity = identify_backend_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
 
-    from mountainash.core.transit import BoundaryKey, capture_conversion_trace
+    from mountainash.relations.core import owned_copy
+
+    copies = mocker.spy(owned_copy, "owned_ibis_table")
+    exports = mocker.spy(type(table), "to_pyarrow")
 
     def forbidden(*args, **kwargs):
         raise AssertionError("logical snapshot routed through pandas")
 
     monkeypatch.setattr(type(table), "to_pandas", forbidden)
-    with MaterializationScope() as scope, capture_conversion_trace() as trace:
+    with MaterializationScope() as scope:
         native = materialize_native(
             table, identity, MaterializationPurpose.LOGICAL_TERMINAL,
             execution_context=context, scope=scope,
         )
         result = logical_terminal_snapshot(native)
 
-    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 1
-    assert sum(r.boundary_key is BoundaryKey.LOGICAL_SNAPSHOT_IBIS_TO_ARROW for r in trace.records) == 1
+    assert copies.call_count == 1
+    assert exports.call_count == 1
     assert result.row_ordinals == (0, 1, 2)
     assert set(result.columns) == {"age", "name"}
 

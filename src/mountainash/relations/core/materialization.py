@@ -14,7 +14,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, Any, cast
 
 from mountainash.core.errors import BackendConversionError
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.relations.core.errors import MaterializationScopeClosedError
 
 if TYPE_CHECKING:
@@ -226,11 +226,11 @@ def materialize_native(
         return NativeExecutionValue(value, compiler_identity, compiler_identity, ExecutionForm.EAGER, target=target)
 
     if is_polars_lazyframe(value):
-        polars_native = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+        polars_native = value.collect()
         return NativeExecutionValue(polars_native, compiler_identity, compiler_identity, ExecutionForm.EAGER, target=target)
 
     if is_narwhals_lazyframe(value):
-        narwhals_native = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+        narwhals_native = value.collect()
         lazy_identity = identify_backend_identity(narwhals_native)
         _assert_declared_family(compiler_identity, lazy_identity)
         return NativeExecutionValue(narwhals_native, compiler_identity, lazy_identity, ExecutionForm.EAGER, target=target)
@@ -283,20 +283,18 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
 
     value: Any = native.value
     if is_narwhals_lazyframe(value):
-        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+        value = value.collect()
     if is_polars_lazyframe(value):
-        value = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+        value = value.collect()
     if is_polars_dataframe(value):
         return DiagnosticFrameView(value, native.value_identity)
 
     if is_pandas_dataframe(value):
-        pandas_frame: pl.DataFrame = transit_call(
-            BoundaryKey.DIAGNOSTIC_VIEW_FROM_PANDAS, pl.from_pandas, value
-        )
+        pandas_frame: pl.DataFrame = pl.from_pandas(value)
         return DiagnosticFrameView(pandas_frame, native.value_identity)
 
     if is_ibis_table(value):
-        arrow_native = transit_call(BoundaryKey.DIAGNOSTIC_VIEW_FROM_ARROW, value.to_pyarrow)
+        arrow_native = value.to_pyarrow()
         arrow_frame = cast("pl.DataFrame", pl.from_arrow(arrow_native))
         return DiagnosticFrameView(arrow_frame, native.value_identity)
 
@@ -305,7 +303,7 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
         return DiagnosticFrameView(arrow_frame, native.value_identity)
 
     if is_narwhals_dataframe(value):
-        arrow_native = transit_call(BoundaryKey.DIAGNOSTIC_VIEW_FROM_ARROW, value.to_arrow)
+        arrow_native = value.to_arrow()
         arrow_frame = cast("pl.DataFrame", pl.from_arrow(arrow_native))
         return DiagnosticFrameView(arrow_frame, native.value_identity)
 
@@ -351,28 +349,28 @@ def explicit_polars_egress(native: NativeExecutionValue) -> "pl.DataFrame":
         return value
 
     if is_ibis_table(value):
-        arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
+        arrow = value.to_pyarrow()
         return cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, arrow),
+            pl.from_arrow(arrow),
         )
 
     if is_pyarrow_table(value):
         return cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, value),
+            pl.from_arrow(value),
         )
 
     if is_pandas_dataframe(value):
         return cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.PANDAS_TO_POLARS_EGRESS, pl.from_pandas, value),
+            pl.from_pandas(value),
         )
 
     if is_narwhals_dataframe(value):
         return cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.NARWHALS_TO_POLARS_EGRESS, value.to_polars),
+            value.to_polars(),
         )
 
     raise BackendConversionError(
@@ -411,17 +409,17 @@ def explicit_pandas_egress(native: NativeExecutionValue) -> Any:
 
     if is_narwhals_dataframe(value):
         if native.value_identity.dialect == "narwhals-pandas":
-            return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
-        return transit_call(BoundaryKey.NARWHALS_TO_PANDAS_EGRESS, value.to_pandas)
+            return value.to_native()
+        return value.to_pandas()
 
     if is_polars_dataframe(value):
-        return transit_call(BoundaryKey.POLARS_TO_PANDAS_EGRESS, value.to_pandas)
+        return value.to_pandas()
 
     if is_ibis_table(value):
-        return transit_call(BoundaryKey.IBIS_TO_PANDAS_EGRESS, value.to_pandas)
+        return value.to_pandas()
 
     if is_pyarrow_table(value):
-        return transit_call(BoundaryKey.ARROW_TO_PANDAS_EGRESS, value.to_pandas)
+        return value.to_pandas()
 
     raise BackendConversionError(
         "explicit_pandas_egress() has no declared conversion route for this "
@@ -465,13 +463,13 @@ def coerce_to_polars(target: Any, value: Any) -> Any:
     if is_pandas_dataframe(value):
         converted = cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.PANDAS_TO_POLARS_EGRESS, pl.from_pandas, value),
+            pl.from_pandas(value),
         )
         return converted.lazy()
     if is_pyarrow_table(value):
         converted = cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, value),
+            pl.from_arrow(value),
         )
         return converted.lazy()
     if isinstance(value, dict):
@@ -479,18 +477,18 @@ def coerce_to_polars(target: Any, value: Any) -> Any:
     if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
         return pl.DataFrame(value).lazy()
     if is_ibis_table(value):
-        arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
+        arrow = value.to_pyarrow()
         converted = cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, arrow),
+            pl.from_arrow(arrow),
         )
         return converted.lazy()
     if is_narwhals_lazyframe(value):
-        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+        value = value.collect()
     if is_narwhals_dataframe(value):
         converted = cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.NARWHALS_TO_POLARS_EGRESS, value.to_polars),
+            value.to_polars(),
         )
         return converted.lazy()
 
@@ -524,27 +522,19 @@ def coerce_to_narwhals(target: Any, value: Any) -> Any:
     target_namespace = nw.get_native_namespace(target)
     try:
         if isinstance(value, dict):
-            converted = transit_call(
-                BoundaryKey.NARWHALS_FROM_DICT_ADAPTER,
-                nw.from_dict,
-                value,
-                backend=target_namespace,
-            )
+            converted = nw.from_dict(value,
+            backend=target_namespace,)
         elif isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
-            converted = transit_call(
-                BoundaryKey.NARWHALS_FROM_DICTS_ADAPTER,
-                nw.from_dicts,
-                list(value),
-                backend=target_namespace,
-            )
+            converted = nw.from_dicts(list(value),
+            backend=target_namespace,)
         elif is_polars_lazyframe(value):
-            collected = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
-            converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, collected, eager_only=True)
+            collected = value.collect()
+            converted = nw.from_native(collected, eager_only=True)
         elif is_ibis_table(value):
-            arrow = transit_call(BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow)
-            converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, arrow, eager_only=True)
+            arrow = value.to_pyarrow()
+            converted = nw.from_native(arrow, eager_only=True)
         else:
-            converted = transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, value, eager_only=True)
+            converted = nw.from_native(value, eager_only=True)
     except BackendConversionError:
         raise
     except Exception as exc:
@@ -586,16 +576,16 @@ def coerce_to_ibis(target: Any, value: Any) -> Any:
         if isinstance(value, dict):
             import pyarrow as pa
 
-            arrow = transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, pa.table(value))
+            arrow = ibis.memtable(pa.table(value))
             return arrow
         if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
             arrow_table = rows_to_arrow(list(value))
-            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow_table)
+            return ibis.memtable(arrow_table)
         if is_narwhals_lazyframe(value):
-            eager = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
-            arrow = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, eager.to_arrow)
-            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
-        return transit_call(BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER, ibis.memtable, value)
+            eager = value.collect()
+            arrow = eager.to_arrow()
+            return ibis.memtable(arrow)
+        return ibis.memtable(value)
     except BackendConversionError:
         raise
     except Exception as exc:
@@ -619,10 +609,6 @@ def coerce_narwhals_dialect(target: Any, value: Any) -> Any:
     """Coerce *value* to match *target*'s narwhals native dialect and
     eager/lazy shape when both are narwhals frames (spec 9.1); a no-op
     otherwise, or when both already share the exact same dialect and shape.
-
-    Each destination method is a separate, literal ``transit_call()`` site
-    (never a computed ``getattr(value, method_name)``, which the closed
-    census cannot verify -- spec 13.1).
     """
     from mountainash.core.backend_detection import narwhals_dialect
     from mountainash.core.types import is_narwhals_dataframe, is_narwhals_lazyframe
@@ -673,18 +659,18 @@ def coerce_narwhals_dialect(target: Any, value: Any) -> Any:
 
     try:
         if value_is_lazy:
-            value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, cast("Any", value).collect)
+            value = cast("Any", value).collect()
             if narwhals_dialect(value) == target_dialect:
                 return value
         import narwhals as nw
 
         if target_implementation == "pandas":
-            converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_PANDAS, value.to_pandas)
+            converted = value.to_pandas()
         elif target_implementation == "polars":
-            converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_POLARS, value.to_polars)
+            converted = value.to_polars()
         else:
-            converted = transit_call(BoundaryKey.NARWHALS_DIALECT_TO_ARROW, value.to_arrow)
-        return transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, converted, eager_only=True)
+            converted = value.to_arrow()
+        return nw.from_native(converted, eager_only=True)
     except BackendConversionError:
         raise
     except Exception as exc:

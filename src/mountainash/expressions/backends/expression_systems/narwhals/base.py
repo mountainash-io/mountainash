@@ -64,7 +64,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     def field_operand_type(self, input_data: Any, field: str) -> Any:
         """Resolve direct Narwhals field metadata without evaluating a projection."""
         from mountainash.core.dtypes.metadata import OperandType
-        from mountainash.core.transit import BoundaryKey, transit_call
+        
         from mountainash.core.types import (
             BackendCapabilityError,
             is_pandas_dataframe,
@@ -75,9 +75,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         native = (
             input_data
             if is_pandas_dataframe(input_data)
-            else transit_call(
-                BoundaryKey.EXPRESSION_NARWHALS_SCHEMA_UNWRAP, input_data.to_native
-            )
+            else input_data.to_native()
         )
         if is_pandas_dataframe(native):
             try:
@@ -449,7 +447,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     def _pandas_typed_expression(expression: Any, dtype: Any) -> Any:
         """Reuse the typed elementwise adapter so Pandas keeps row metadata."""
         from mountainash.core.lazy_imports import import_pandas
-        from mountainash.core.transit import BoundaryKey, transit_call
+        
         from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
             _pandas_elementwise_batches,
         )
@@ -460,14 +458,9 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             native = series.native
             if native.dtype == dtype:
                 return series
-            output = transit_call(
-                BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
-                pandas.Series,
-                pandas.array(native, dtype=dtype),
-                index=native.index,
-                name=native.name,
-                trace_source=series,
-            )
+            output = pandas.Series(pandas.array(native, dtype=dtype),
+            index=native.index,
+            name=native.name)
             return series._with_native(output)
 
         return _pandas_elementwise_batches(expression, cast_typed, None)
@@ -476,7 +469,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     def _pandas_object_expression(expression: Any) -> Any:
         """Preserve mixed native values in the declared object carrier."""
         from mountainash.core.lazy_imports import import_pandas
-        from mountainash.core.transit import BoundaryKey, transit_call
+        
         from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
             _pandas_elementwise_batches,
         )
@@ -487,14 +480,9 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             native = series.native
             if native.dtype == object:
                 return series
-            output = transit_call(
-                BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
-                pandas.Series,
-                native.astype(object),
-                index=native.index,
-                name=native.name,
-                trace_source=series,
-            )
+            output = pandas.Series(native.astype(object),
+            index=native.index,
+            name=native.name)
             return series._with_native(output)
 
         return _pandas_elementwise_batches(expression, cast_object, None)
@@ -536,7 +524,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
     def infer_expression_operand_type(self, input_data: Any, expression: Any) -> Any:
         """Use Narwhals-Polars lazy schema inference; Pandas has no safe path."""
         from mountainash.core.dtypes.metadata import OperandType
-        from mountainash.core.transit import BoundaryKey, transit_call
+        
         from mountainash.core.types import (
             BackendCapabilityError,
             is_pandas_dataframe,
@@ -548,9 +536,7 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         native = (
             input_data
             if is_pandas_dataframe(input_data)
-            else transit_call(
-                BoundaryKey.EXPRESSION_NARWHALS_SCHEMA_UNWRAP, input_data.to_native
-            )
+            else input_data.to_native()
         )
         if is_pandas_dataframe(native) or not (
             is_polars_dataframe(native) or is_polars_lazyframe(native)

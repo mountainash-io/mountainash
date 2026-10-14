@@ -898,9 +898,7 @@ class UnifiedRelationVisitor:
         join/union operand (spec 9). A thin dispatcher: each family's actual
         conversion route lives in
         :mod:`mountainash.relations.core.materialization`
-        (``coerce_to_polars``/``coerce_to_narwhals``/``coerce_to_ibis``), so
-        the closed transit census sees exactly one owner module for every
-        declared cross-family adapter.
+        (``coerce_to_polars``/``coerce_to_narwhals``/``coerce_to_ibis``).
         """
         from mountainash.core.types import is_ibis_table, is_narwhals_dataframe, is_narwhals_lazyframe
         from mountainash.relations.core.materialization import (

@@ -16,7 +16,7 @@ from mountainash.core.constants import (
     SetType,
     SortField,
 )
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.relations.core.relation_system.relation_keys.enums import (
     RKEY_MOUNTAINASH_REL,
 )
@@ -154,19 +154,13 @@ def _unwrap_native(value: Any, *, unwrap: bool) -> Any:
 
     Shared by :meth:`Relation.collect` and :meth:`Relation.collect_with_drift`
     after :func:`materialize_native` has already forced any lazy value
-    eager. Routes through the boundary key matching the frame's
-    runtime-detected dialect -- pandas-selected or not -- so an unwrap that
-    happens to surface pandas stays a declared, traced boundary rather than
-    a bare call (spec 8.2).
+    eager. The selected native representation, including pandas, is preserved.
     """
-    from mountainash.core.backend_detection import narwhals_dialect
     from mountainash.core.types import is_narwhals_dataframe
 
     if not (unwrap and is_narwhals_dataframe(value)):
         return value
-    if narwhals_dialect(value) == "narwhals-pandas":
-        return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
-    return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
+    return value.to_native()
 
 
 def _blocking_structured_plans(plans: Any) -> Any:
@@ -885,7 +879,7 @@ class Relation(RelationBase):
             RelationDAGRequired: if the relation contains a ``RefRelNode`` and
                 is compiled standalone.
         """
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
 
         if column not in df.columns:
             raise KeyError(column)
@@ -1127,17 +1121,17 @@ class Relation(RelationBase):
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_dictionary_of_lists(df)
 
     def to_dicts(self) -> list[dict[str, Any]]:
         """Execute and return a list of row dicts."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_list_of_dictionaries(df)
 
     def to_tuples(self) -> list[tuple]:
         """Execute the plan and return rows as a list of tuples."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy()._to_list_of_tuples(df)
 
     def to_dataclasses(
@@ -1160,7 +1154,7 @@ class Relation(RelationBase):
         Returns:
             List of dataclass instances.
         """
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy()._to_list_of_dataclasses(
             df,
             cls,
@@ -1187,7 +1181,7 @@ class Relation(RelationBase):
         Returns:
             List of Pydantic model instances.
         """
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy()._to_list_of_pydantic(
             df,
             cls,
@@ -1199,60 +1193,60 @@ class Relation(RelationBase):
 
     def to_named_tuples(self) -> Sequence[tuple]:
         """Execute and return rows as a list of named tuples."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_list_of_named_tuples(df)
 
     def to_typed_named_tuples(self, *, preserve_dates: bool = False) -> Sequence[tuple]:
         """Execute and return rows as typed named tuples with __annotations__."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy()._to_list_of_typed_named_tuples(
             df, preserve_dates=preserve_dates,
         )
 
     def to_pyarrow(self) -> Any:
         """Execute and return a PyArrow Table."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
-        return transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, self._egress_strategy().to_pyarrow, df)
+        df = self.to_polars()
+        return self._egress_strategy().to_pyarrow(df)
 
     def to_narwhals(self, *, as_lazy: Optional[bool] = None) -> Any:
         """Execute and return a narwhals DataFrame or LazyFrame."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_narwhals(df, as_lazy=as_lazy)
 
     def to_ibis(self) -> Any:
         """Execute and return an Ibis memtable."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_ibis(df)
 
     def to_dict_of_series_polars(self) -> dict[str, Any]:
         """Execute and return a dict of column name -> Polars Series."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_dictionary_of_series_polars(df)
 
     def to_dict_of_series_pandas(self) -> dict[str, Any]:
         """Execute and return a dict of column name -> Pandas Series."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_dictionary_of_series_pandas(df)
 
     # --- Egress: indexed terminals ---
 
     def to_index_of_dicts(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as dicts."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_index_of_dictionaries(
             df, index_fields=index_fields,
         )
 
     def to_index_of_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as tuples."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_index_of_tuples(
             df, index_fields=index_fields,
         )
 
     def to_index_of_named_tuples(self, index_fields: Union[str, list[str]]) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as named tuples."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_index_of_named_tuples(
             df, index_fields=index_fields,
         )
@@ -1264,7 +1258,7 @@ class Relation(RelationBase):
         preserve_dates: bool = False,
     ) -> dict[Any, list]:
         """Execute and return rows grouped by index_fields as typed named tuples."""
-        df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, self.to_polars)
+        df = self.to_polars()
         return self._egress_strategy().to_index_of_typed_named_tuples(
             df, index_fields=index_fields, preserve_dates=preserve_dates,
         )
@@ -1341,7 +1335,7 @@ class Relation(RelationBase):
 
         Returns a materialised DataFrame. Polars backend only.
         """
-        collected = transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, self.collect)
+        collected = self.collect()
         if hasattr(collected, "describe"):
             return collected.describe()
         raise NotImplementedError(

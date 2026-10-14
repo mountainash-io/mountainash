@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-14
+
+### Changed
+- Removed the transit policy registry, call wrappers, tracing API, AST census and inventory generator (248, first deletion slice). Native operations, conversion routes, outputs, placement, ownership and real conversion errors are unchanged; the wrapper's pandas-result rejection and trace records are retired. Upstream-internal pandas, native pandas execution and requested pandas output remain supported. Conversion simplification and validation/materialization work in 248/249 remain open.
+
 ## Unreleased — 2026-10-13
 
 ### Added

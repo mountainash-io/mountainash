@@ -176,8 +176,7 @@ def test_narwhals_native_semicolon_dialect(tmp_path):
     assert nw.to_native(out.collect()).to_dicts() == [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}]
 
 
-def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):
-    import sys
+def test_ibis_json_fallback_preserves_rows(tmp_path, monkeypatch):
     import mountainash.relations.backends.relation_systems.resource_files as rf
     from mountainash.relations.backends.relation_systems.ibis.extensions_mountainash.relsys_ib_ext_ma_util import (
         MountainashIbisExtensionRelationSystem,
@@ -193,12 +192,10 @@ def test_ibis_json_fallback_no_pandas(tmp_path, monkeypatch):
                         )[1])
     p = tmp_path / "d.json"; p.write_text('[{"a": 1}, {"a": 2}]')
     res = DataResource(name="d", path=str(p), format="json")
-    monkeypatch.delitem(sys.modules, "pandas", raising=False)
     tbl = MountainashIbisExtensionRelationSystem().read_resource(res)
     rows = tbl.to_pyarrow().to_pylist()
     assert calls["n"] == 1                       # went through the fallback
     assert rows == [{"a": 1}, {"a": 2}]
-    assert "pandas" not in sys.modules           # Arrow-only coercion
 
 
 # ---------------------------------------------------------------------------
