@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-15
+
+### Fixed
+- Retired the HTTP schema-completion expected failure (311) after qualification with mountainash-transport PR #103. Opt-in completion now exercises the real HTTP reader successfully; this does not add a remote metadata-only reader.
+
 ## Unreleased — 2026-10-14
 
 ### Added

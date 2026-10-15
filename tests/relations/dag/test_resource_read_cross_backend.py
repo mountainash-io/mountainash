@@ -845,14 +845,6 @@ def test_eager_resource_routes_require_permission_for_schema(
     with pytest.raises(IncompleteSchemaError):
         relation.collect_schema()
     assert reads == []
-    if route == "remote_csv":
-        from mountainash_transport._core.exceptions import StorageConnectionError
-
-        request.applymarker(pytest.mark.xfail(
-            strict=True, raises=StorageConnectionError,
-            reason="transport backlog 18: anonymous HTTP has no engine; 311 delivery remains blocked",
-        ))
-
     schema = relation.collect_schema(allow_execution=True)
     from mountainash.core.dtypes import MountainashDtype as D
 
