@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 import polars as pl_mod
 
 import mountainash as ma
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.validation.errors import IdentityRequiredError
 from mountainash.validation.identity import RowIdentity, require_keyed
 
@@ -37,7 +37,7 @@ def _collect_polars(relation: Any) -> "pl.DataFrame":
     if isinstance(compiled, pl_mod.LazyFrame):
         return cast(
             "pl.DataFrame",
-            transit_call(BoundaryKey.RESULT_PROCESSOR_POLARS_MATERIALIZE, compiled.collect),
+            compiled.collect(),
         )
     if isinstance(compiled, pl_mod.DataFrame):
         return compiled

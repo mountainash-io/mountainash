@@ -26,7 +26,7 @@ from mountainash.relations import relation
 
 # narwhals < 2.27.0 returns the unchanged column for max_horizontal/min_horizontal with a literal on
 # pandas (NW-MATH-06), so greatest()/least() give wrong values there. 2.27.0 (yanked for an unrelated
-# Pointblank breakage) and 2.27.1 fixed it. The project supports narwhals>=2.20.0, so both are pinned.
+# Pointblank breakage) and 2.27.1 fixed it. The supported floor is now 2.27.1.
 _HORIZONTAL_FIXED_IN = (2, 27, 0)
 _PANDAS_HORIZONTAL_REASON = (
     "narwhals < 2.27.0: relation greatest()/least() diverge on pandas/narwhals-pandas "

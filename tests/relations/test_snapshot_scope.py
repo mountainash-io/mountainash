@@ -9,7 +9,6 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS, REGISTRY
-from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.errors import MaterializationScopeClosedError
 from mountainash.relations.backends.relation_systems.ibis._physical import adopt_connection, owned_transaction
@@ -47,17 +46,19 @@ def test_snapshot_method_obeys_current_scope_and_nested_scopes(backend_name):
 
 
 @pytest.mark.parametrize("policy,expected", [("every", 5), ("two", 2), ("never", 0)])
-def test_checkpoint_frequency_and_skipped_self_replacement(policy, expected):
-    """Polars witnesses the backend-independent stage counter."""
+def test_checkpoint_frequency_and_skipped_self_replacement(policy, expected, mocker):
+    """Checkpoint cadence is measured at the real owned-copy operation."""
+    from mountainash.relations.core.relation_api import materialization_scope
+
+    spy = mocker.spy(materialization_scope, "owned_copy")
     policy = {"every": ma.CheckpointPolicy.EVERY_STAGE, "two": ma.CheckpointPolicy.every(2),
               "never": ma.CheckpointPolicy.NEVER}[policy]
     rel = ma.relation(pl.DataFrame({"x": [0]}))
-    with capture_conversion_trace() as trace:
-        with ma.materialization_scope(checkpoint=policy) as scope:
-            for _ in range(5):
-                rel = scope.checkpoint(rel.with_columns((ma.col("x") + 1).alias("x")), replaces=rel)
-            assert rel.to_dicts() == [{"x": 5}]
-    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == expected
+    with ma.materialization_scope(checkpoint=policy) as scope:
+        for _ in range(5):
+            rel = scope.checkpoint(rel.with_columns((ma.col("x") + 1).alias("x")), replaces=rel)
+        assert rel.to_dicts() == [{"x": 5}]
+    assert spy.call_count == expected
     with ma.materialization_scope(checkpoint=ma.CheckpointPolicy.NEVER) as scope:
         same = scope.snapshot(ma.relation(pl.DataFrame({"x": [7]})))
         assert scope.checkpoint(same, replaces=same).item("x") == 7
@@ -285,15 +286,13 @@ def test_snapshot_finishes_copied_value_and_preserves_user_marker(checked_year, 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_capture_empty_single_batch_and_detached_bundle(backend_name):
     rel = ma.relation(REGISTRY[backend_name].build({"x": [7]}, "capture_source"))
-    with capture_conversion_trace() as trace:
-        with ma.materialization_scope() as scope:
-            assert scope.capture() == ()
-            single, = scope.capture(rel)
-            copies = scope.capture(rel, rel, rel, rel.head(0))
-            assert single.to_dicts() == [{"x": 7}]
-            assert copies[-1].schema == copies[0].schema
-            saved = scope.detach(ma.concat(copies))
-    assert sum(r.boundary_key is BoundaryKey.OWNED_COPY for r in trace.records) == 5
+    with ma.materialization_scope() as scope:
+        assert scope.capture() == ()
+        single, = scope.capture(rel)
+        copies = scope.capture(rel, rel, rel, rel.head(0))
+        assert single.to_dicts() == [{"x": 7}]
+        assert copies[-1].schema == copies[0].schema
+        saved = scope.detach(ma.concat(copies))
     assert saved.to_dicts() == [{"x": 7}, {"x": 7}, {"x": 7}]
 
 

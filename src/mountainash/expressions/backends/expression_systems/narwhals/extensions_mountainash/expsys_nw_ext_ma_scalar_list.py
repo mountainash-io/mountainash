@@ -30,6 +30,12 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             operands.raw_literal(1, "Narwhals list membership items must be literals"),
         ]
 
+    def list_element(self):
+        raise BackendCapabilityError(
+            "Narwhals does not support a native list-element expression.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+        )
     def parse_list(
         self,
         x,

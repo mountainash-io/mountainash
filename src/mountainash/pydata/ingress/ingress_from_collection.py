@@ -5,7 +5,7 @@ import logging
 
 # Runtime imports for actual functionality
 from mountainash.core.lazy_imports import import_polars
-from mountainash.core.transit import BoundaryKey, transit_call
+
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
@@ -170,6 +170,6 @@ class IngressFromCollection(BasePydataIngressHandler):
         # Apply column transformations if provided
         if type_spec is not None and inline_conform:
             import mountainash as ma
-            df = transit_call(BoundaryKey.RELATION_TO_POLARS_TERMINAL, ma.relation(df).conform(type_spec).to_polars)
+            df = ma.relation(df).conform(type_spec).to_polars()
 
         return df

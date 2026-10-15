@@ -6,7 +6,7 @@ from threading import Lock
 import polars as pl
 
 from mountainash.core.constants import CONST_BACKEND
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.core.types import BackendCapabilityError
 
 
@@ -68,14 +68,14 @@ def consume_native_batches(value, *, compiler_identity, batch_size, on_schema, o
             or compiler_identity.dialect != "ibis-duckdb"
             or not hasattr(value, "to_pyarrow_batches")):
         raise _unsupported(compiler_identity)
-    arrow_schema = transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, value.schema().to_pyarrow)
+    arrow_schema = value.schema().to_pyarrow()
     on_schema(pl.Schema(arrow_schema))
     reader = value.to_pyarrow_batches(chunk_size=batch_size)
     try:
         for record_batch in reader:
             if record_batch.schema != arrow_schema:
                 record_batch = record_batch.cast(arrow_schema, safe=True)
-            frame = transit_call(BoundaryKey.ARROW_TO_POLARS_EGRESS, pl.from_arrow, record_batch)
+            frame = pl.from_arrow(record_batch)
             deliver(frame)
     except BaseException as primary:
         try:

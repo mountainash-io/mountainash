@@ -4,7 +4,6 @@ from decimal import Decimal
 from types import MappingProxyType
 
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.validation import ValueRule, ValueValidatorKey, check_kind
 from mountainash.validation.value import VALUE_RULE_REGISTRY, canonical_value_key
 
@@ -39,7 +38,7 @@ def test_value_rule_registry_entries_expose_evaluate_only() -> None:
         assert not hasattr(entry, "execute")
 
 
-def test_value_rule_fallback_materialization_records_terminal_boundary() -> None:
+def test_value_rule_fallback_materialization_preserves_membership_result() -> None:
     import polars as pl
 
     import mountainash as ma
@@ -54,20 +53,18 @@ def test_value_rule_fallback_materialization_records_terminal_boundary() -> None
         options={"allowed": ["open"]},
     )
     runner = ValidationRunner()
-    with capture_conversion_trace() as trace:
-        runner._materialized_value_frame = None
-        from mountainash.core.capabilities.policy import _new_execution_context
+    runner._materialized_value_frame = None
+    from mountainash.core.capabilities.policy import _new_execution_context
 
-        summary, failures = runner._run_value_rule(
-            relation,
-            check,
-            RowIdentity("none"),
-            failure_sample=None,
-            execution_context=_new_execution_context(source),
-        )
+    summary, failures = runner._run_value_rule(
+        relation,
+        check,
+        RowIdentity("none"),
+        failure_sample=None,
+        execution_context=_new_execution_context(source),
+    )
     assert summary.status == "passed"
     assert failures.height == 0
-    assert any(record.boundary_key is BoundaryKey.RELATION_TO_POLARS_TERMINAL for record in trace.records)
 
 
 def test_canonical_keys_do_not_collapse_bool_and_integer() -> None:

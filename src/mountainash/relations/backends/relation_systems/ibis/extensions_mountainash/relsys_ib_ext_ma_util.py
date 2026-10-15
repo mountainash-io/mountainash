@@ -7,7 +7,7 @@ from typing import Any, Optional
 import ibis
 import ibis.expr.types as ir
 
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
@@ -70,7 +70,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         if fraction is not None:
             return relation.sample(fraction, method="row", seed=seed)
         if n is not None:
-            total = transit_call(BoundaryKey.IBIS_SCALAR_EXECUTE, relation.count().execute)
+            total = relation.count().execute()
             frac = min(n / total, 1.0) if total > 0 else 1.0
             return relation.sample(frac, method="row", seed=seed)
         raise ValueError("Either n or fraction must be specified for sample().")
@@ -146,8 +146,8 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             )
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
             ensure_sqlite_nat_adapter()
-            arrow = transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, lf.collect().to_arrow)
-            return transit_call(BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER, ibis.memtable, arrow)
+            arrow = lf.collect().to_arrow()
+            return ibis.memtable(arrow)
 
         fmt = self._detect_format_name(resource)
         raw_path = resource.path
@@ -178,11 +178,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
         ensure_sqlite_nat_adapter()
-        return transit_call(
-            BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER,
-            ibis.memtable,
-            rf.parse_resource_to_arrow(resource, dialect=dialect),
-        )
+        return ibis.memtable(rf.parse_resource_to_arrow(resource, dialect=dialect),)
 
     @staticmethod
     def _detect_format_name(resource: Any) -> str:
@@ -197,13 +193,13 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             MountainashPolarsExtensionRelationSystem,
         )
         lf = MountainashPolarsExtensionRelationSystem().empty_frame(spec)
-        arrow = transit_call(BoundaryKey.NON_PANDAS_ARROW_TERMINAL, lf.collect().to_arrow)
-        return transit_call(BoundaryKey.IBIS_CONSTRUCTOR_ADAPTER, ibis.memtable, arrow)
+        arrow = lf.collect().to_arrow()
+        return ibis.memtable(arrow)
 
     def fetch_from_end(self, relation: ir.Table, count: int, /) -> ir.Table:
         # Ibis does not have a native .tail() method.
         # Materialise the total row count and compute the offset.
-        n = transit_call(BoundaryKey.IBIS_SCALAR_EXECUTE, relation.count().execute)
+        n = relation.count().execute()
         offset = max(0, n - count)
         return relation.limit(count, offset=offset)
 

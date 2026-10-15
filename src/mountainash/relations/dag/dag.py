@@ -31,16 +31,7 @@ materialization to ``collect()`` (added in Task 17).
 
 
 def _force_eager(value: Any, *, unwrap: bool) -> Any:
-    """Force a lazy Polars/Narwhals value eager for residue enrichment
-    (spec section 13, Task 10). Replaces the deleted
-    ``Relation._materialize()`` -- the collection contract stays identical
-    (Polars/Narwhals lazy -> eager; ``unwrap`` additionally converts an
-    eager Narwhals frame to its native value, pandas included when the
-    source itself was pandas-selected), but every conversion now routes
-    through a literal, census-tracked ``transit_call()``.
-    """
-    from mountainash.core.backend_detection import narwhals_dialect
-    from mountainash.core.transit import BoundaryKey, transit_call
+    """Collect lazy Polars/Narwhals values and optionally unwrap Narwhals."""
     from mountainash.core.types import (
         is_narwhals_dataframe,
         is_narwhals_lazyframe,
@@ -48,13 +39,11 @@ def _force_eager(value: Any, *, unwrap: bool) -> Any:
     )
 
     if is_polars_lazyframe(value):
-        return transit_call(BoundaryKey.POLARS_LAZY_COLLECT, value.collect)
+        return value.collect()
     if is_narwhals_lazyframe(value):
-        value = transit_call(BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect)
+        value = value.collect()
     if unwrap and is_narwhals_dataframe(value):
-        if narwhals_dialect(value) == "narwhals-pandas":
-            return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_PANDAS, value.to_native)
-        return transit_call(BoundaryKey.NARWHALS_NATIVE_UNWRAP_NON_PANDAS, value.to_native)
+        return value.to_native()
     return value
 
 class RelationDAG:

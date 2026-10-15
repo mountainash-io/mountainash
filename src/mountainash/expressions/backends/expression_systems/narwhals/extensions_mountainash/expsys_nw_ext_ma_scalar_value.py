@@ -8,7 +8,7 @@ import narwhals as nw
 from narwhals._expression_parsing import ExprNode, evaluate_node
 
 from mountainash.core.lazy_imports import import_numpy, import_pandas, import_polars
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.core.value_classification import ValueKind, boolean_value, text_value, value_kind
 from mountainash.expressions.backends.expression_systems.narwhals.base import (
     NarwhalsBaseExpressionSystem,
@@ -148,14 +148,9 @@ def _pandas_object_projection(
     """Apply one object projection while preserving the original Pandas index."""
     native = series.native
     pandas = import_pandas()
-    output = transit_call(
-        BoundaryKey.EXPRESSION_NARWHALS_OBJECT_NATIVE_CALLBACK,
-        pandas.Series,
-        pandas.array([projection(value) for value in native], dtype=dtype),
-        index=native.index,
-        name=native.name,
-        trace_source=series,
-    )
+    output = pandas.Series(pandas.array([projection(value) for value in native], dtype=dtype),
+    index=native.index,
+    name=native.name)
     return series._with_native(output)
 
 
@@ -178,14 +173,9 @@ def _pandas_typed_null_projection(series: Any, *, dtype: str) -> Any:
     """Build one nullable Pandas output without examining input values."""
     native = series.native
     pandas = import_pandas()
-    output = transit_call(
-        BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
-        pandas.Series,
-        pandas.array([pandas.NA] * len(native), dtype=dtype),
-        index=native.index,
-        name=native.name,
-        trace_source=series,
-    )
+    output = pandas.Series(pandas.array([pandas.NA] * len(native), dtype=dtype),
+    index=native.index,
+    name=native.name)
     return series._with_native(output)
 
 
@@ -193,14 +183,9 @@ def _pandas_typed_binary_projection(series: Any) -> Any:
     """Project native numeric zero and one with masks into BooleanArray."""
     native = series.native
     pandas = import_pandas()
-    output = transit_call(
-        BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
-        pandas.Series,
-        pandas.array([pandas.NA] * len(native), dtype="boolean"),
-        index=native.index,
-        name=native.name,
-        trace_source=series,
-    )
+    output = pandas.Series(pandas.array([pandas.NA] * len(native), dtype="boolean"),
+    index=native.index,
+    name=native.name)
     zero = native.eq(0).fillna(False)
     one = native.eq(1).fillna(False)
     return series._with_native(output.mask(zero, False).mask(one, True))
@@ -210,14 +195,9 @@ def _pandas_typed_integer_finite_projection(series: Any) -> Any:
     """Project native integer zero/nonzero values into BooleanArray."""
     native = series.native
     pandas = import_pandas()
-    output = transit_call(
-        BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
-        pandas.Series,
-        pandas.array([pandas.NA] * len(native), dtype="boolean"),
-        index=native.index,
-        name=native.name,
-        trace_source=series,
-    )
+    output = pandas.Series(pandas.array([pandas.NA] * len(native), dtype="boolean"),
+    index=native.index,
+    name=native.name)
     zero = native.eq(0).fillna(False)
     nonzero = native.ne(0).fillna(False)
     return series._with_native(output.mask(zero, False).mask(nonzero, True))
@@ -227,14 +207,9 @@ def _pandas_typed_float_finite_projection(series: Any) -> Any:
     """Project finite native floats while retaining null and NaN distinctions."""
     native = series.native
     pandas = import_pandas()
-    output = transit_call(
-        BoundaryKey.EXPRESSION_NARWHALS_PANDAS_TYPED_CALLBACK,
-        pandas.Series,
-        pandas.array([pandas.NA] * len(native), dtype="boolean"),
-        index=native.index,
-        name=native.name,
-        trace_source=series,
-    )
+    output = pandas.Series(pandas.array([pandas.NA] * len(native), dtype="boolean"),
+    index=native.index,
+    name=native.name)
     finite = (
         native.notna()
         & native.eq(native).fillna(False)

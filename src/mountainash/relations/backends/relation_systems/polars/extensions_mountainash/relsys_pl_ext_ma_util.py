@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 import polars as pl
 
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.relations.dag.errors import (
     ResourceSchemaCastError,
     UnsupportedResourceFormat,
@@ -79,7 +79,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         seed: Optional[int] = None,
     ) -> pl.LazyFrame:
         # LazyFrame does not support .sample() directly — collect, sample, re-lazy.
-        frame = transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, relation.collect)
+        frame = relation.collect()
         if n is not None:
             n = min(n, frame.height)
         return frame.sample(n=n, fraction=fraction, seed=seed).lazy()
@@ -113,7 +113,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
     ) -> pl.LazyFrame:
         # Pivot requires eager DataFrame — collect, pivot, re-lazy.
         return (
-            transit_call(BoundaryKey.NATIVE_LAZY_COLLECT, relation.collect)
+            relation.collect()
             .pivot(
                 on=on,
                 index=index,

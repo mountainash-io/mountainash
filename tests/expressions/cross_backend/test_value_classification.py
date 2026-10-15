@@ -250,3 +250,31 @@ def test_sqlite_dynamic_storage_does_not_trust_first_row_schema(first):
     assert _project(frame, ma.col("x").text_value())[0] == [
         None, None, None, None, "text", None,
     ]
+
+
+# Duplicate pandas indices and extension dtypes are native pandas contracts.
+def test_narwhals_pandas_typed_projection_preserves_index_and_nullable_dtype():
+    native = pd.DataFrame(
+        {"x": pd.Series([0, 1, 2, None], dtype="Int64", index=[9, 2, 9, -1])}
+    )
+    frame = nw.from_native(native, eager_only=True)
+    expression = ma.col("x").boolean_value(source="binary_number").compile(frame)
+    result = frame.select(expression.alias("result")).to_native()
+    output = result["result"]
+    assert result.index.equals(native.index)
+    assert output.dtype == pd.BooleanDtype()
+    assert [None if value is pd.NA else value for value in output.tolist()] == [
+        False, True, None, None,
+    ]
+
+
+def test_narwhals_pandas_object_projection_preserves_index_and_string_dtype():
+    native = pd.DataFrame(
+        {"x": pd.Series([True, "yes", None], dtype=object, index=[4, -1, 4])}
+    )
+    frame = nw.from_native(native, eager_only=True)
+    expression = ma.col("x").value_kind().compile(frame)
+    result = frame.select(expression.alias("result")).to_native()
+    assert result.index.equals(native.index)
+    assert result["result"].dtype == pd.StringDtype()
+    assert result["result"].tolist() == ["boolean", "text", "absent"]

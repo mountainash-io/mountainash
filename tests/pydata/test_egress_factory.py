@@ -84,9 +84,3 @@ class TestEgressFactoryDispatch:
         assert hasattr(strategy, "_to_index_of_tuples")
         assert hasattr(strategy, "_to_index_of_named_tuples")
 
-    def test_pandas_dataframe_raises(self):
-        """Pandas DataFrames are not registered in the egress factory."""
-        import pandas as pd
-        df = pd.DataFrame({"name": ["Alice"], "age": [30]})
-        with pytest.raises((ValueError, TypeError)):
-            DataFrameEgressFactory.get_strategy(df)

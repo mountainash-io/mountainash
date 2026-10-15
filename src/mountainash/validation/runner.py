@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import polars as pl
 
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from mountainash.validation.checks import VERDICT_PASSING, check_kind
 from mountainash.validation.errors import IdentityInvalidError, UnknownCheckTypeError
@@ -357,10 +357,7 @@ class ValidationRunner:
         )
 
         chain = projected.group_by(_OUTCOME).agg(ma.count_records().alias("__ma_n__"))
-        counts_pl = transit_call(
-            BoundaryKey.RELATION_TO_POLARS_TERMINAL,
-            lambda: chain._to_polars(execution_context=execution_context),
-        )
+        counts_pl = chain._to_polars(execution_context=execution_context)
         counts = dict(zip(counts_pl[_OUTCOME].to_list(), counts_pl["__ma_n__"].to_list()))
         pass_count = int(counts.get("pass", 0))
         fail_count = int(counts.get("fail", 0))
@@ -525,11 +522,8 @@ class ValidationRunner:
         if value_column and value_column not in select_cols:
             select_cols.append(value_column)
 
-        fail_pl = transit_call(
-            BoundaryKey.RELATION_TO_POLARS_TERMINAL,
-            lambda: failing.select(*select_cols, _OUTCOME)._to_polars(
-                execution_context=execution_context,
-            ),
+        fail_pl = failing.select(*select_cols, _OUTCOME)._to_polars(
+            execution_context=execution_context,
         )
 
         out = fail_pl.rename({_OUTCOME: "outcome"})
@@ -582,10 +576,7 @@ class ValidationRunner:
         frame = (
             self._materialized_value_frame
             if self._materialized_value_frame is not None
-            else transit_call(
-                BoundaryKey.RELATION_TO_POLARS_TERMINAL,
-                lambda: rel._to_polars(execution_context=execution_context),
-            )
+            else rel._to_polars(execution_context=execution_context)
         )
         missing_fields = set(check.fields) - set(frame.columns)
         if missing_fields:
@@ -771,10 +762,7 @@ class ValidationRunner:
         if fail_count:
             sampled = failing.head(failure_sample) if failure_sample is not None else failing
             failures = rows_as_struct_failures(
-                transit_call(
-                    BoundaryKey.RELATION_TO_POLARS_TERMINAL,
-                    lambda: sampled._to_polars(execution_context=execution_context),
-                ),
+                sampled._to_polars(execution_context=execution_context),
                 check_id=check.id, check_kind="relation",
             )
 

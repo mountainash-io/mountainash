@@ -25,7 +25,7 @@ class CapabilityResidueInvariantError(MountainashError, RuntimeError):
 
 
 class BackendConversionError(MountainashError, TypeError):
-    """Raised when a conversion violates a declared backend transit policy."""
+    """Raised when a backend conversion cannot preserve its required contract."""
 
     def __init__(
         self,

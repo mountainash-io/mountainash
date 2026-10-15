@@ -13,6 +13,15 @@ LIST_BACKENDS = [
     "narwhals-polars",
     "ibis-duckdb",
 ]
+ELEMENT_BACKENDS = [
+    "polars",
+    "polars-lazy",
+    "ibis-duckdb",
+    pytest.param("narwhals-polars", marks=pytest.mark.xfail(
+        strict=True, raises=BackendCapabilityError,
+        reason="Narwhals has no native list-element evaluation surface",
+    )),
+]
 
 
 @pytest.mark.parametrize("backend_name", LIST_BACKENDS)
@@ -579,20 +588,18 @@ class TestListConcat:
         assert result == [[1, 2], [3, 4]]
 
 
-@pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
+@pytest.mark.parametrize("backend_name", ELEMENT_BACKENDS)
 class TestListFilter:
     def test_filter_keep_large(self, backend_name, backend_factory, collect_expr):
-        import polars as pl
         data = {"a": [[1, 2, 3, 4], [5, 6]]}
         df = backend_factory.create(data, backend_name)
-        result = collect_expr(df, ma.col("a").list.filter(pl.element() > 2))
+        result = collect_expr(df, ma.col("a").list.filter(ma.element() > 2))
         assert result == [[3, 4], [5, 6]]
 
     def test_filter_keep_even(self, backend_name, backend_factory, collect_expr):
-        import polars as pl
         data = {"a": [[1, 2, 3, 4, 5], [10, 11, 12]]}
         df = backend_factory.create(data, backend_name)
-        result = collect_expr(df, ma.col("a").list.filter(pl.element() % 2 == 0))
+        result = collect_expr(df, ma.col("a").list.filter(ma.element() % 2 == 0))
         assert result == [[2, 4], [10, 12]]
 
 
@@ -654,8 +661,106 @@ class TestListConversionOps:
         assert result == [6, 9]
 
     def test_agg_null_count(self, backend_name, backend_factory, collect_expr):
-        import polars as pl
         data = {"vals": [[1, None, 3], [None, None]]}
         df = backend_factory.create(data, backend_name)
-        result = collect_expr(df, ma.col("vals").list.agg(pl.element().null_count()))
+        result = collect_expr(df, ma.col("vals").list.agg(ma.element().null_count()))
         assert result == [1, 2]
+
+
+
+
+@pytest.mark.parametrize("backend_name", ELEMENT_BACKENDS)
+class TestListElement:
+    def test_mapping_and_filtering_containers(self, backend_name, backend_factory):
+        source = backend_factory.create({
+            "id": [0, 1, 2, 3, 4],
+            "xs": [[1, None, 3, 1], [], None, [None], [4, 8]],
+        }, backend_name)
+        query = ma.relation(source).select(
+            ma.col("id"),
+            ma.col("xs").list.agg(ma.element() * 2),
+            ma.col("xs").list.filter(ma.element() > 1).alias("filtered"),
+        )
+        assert query.columns == ["id", "xs", "filtered"]
+        result = query.to_polars().sort("id").to_dict(as_series=False)
+        assert result["xs"] == [[2, None, 6, 2], [], None, [None], [8, 16]]
+        assert result["filtered"] == [[3], [], None, [], [4, 8]]
+
+    def test_reduction_composition(self, backend_name, backend_factory):
+        source = backend_factory.create({
+            "id": [0, 1, 2, 3, 4],
+            "xs": [[1, None, 3, 1], [], None, [None], [4, 8]],
+        }, backend_name)
+        result = ma.relation(source).select(
+            ma.col("id"),
+            ma.col("xs").list.agg((ma.element() * 2).sum()).alias("sum"),
+            ma.col("xs").list.agg((ma.element() * 2).sum() + 1).alias("plus"),
+            ma.col("xs").list.agg(ma.element().min()).alias("min"),
+            ma.col("xs").list.agg(ma.element().max()).alias("max"),
+            ma.col("xs").list.agg(ma.element() - ma.element().mean()).alias("centered"),
+        ).to_polars().sort("id").to_dict(as_series=False)
+        # Native empty/all-null sums differ; do not normalize the backend result.
+        empty = None if backend_name == "ibis-duckdb" else 0
+        assert result["sum"] == [10, empty, None, empty, 24]
+        assert result["plus"] == [11, None if empty is None else 1, None,
+                                  None if empty is None else 1, 25]
+        assert result["min"] == [1, None, None, None, 4]
+        assert result["max"] == [3, None, None, None, 8]
+        assert result["centered"][0] == pytest.approx([-2 / 3, None, 4 / 3, -2 / 3])
+        assert result["centered"][1:] == [[], None, [None], [-2.0, 2.0]]
+
+    def test_nested_and_sibling_scopes(self, backend_name, backend_factory):
+        source = backend_factory.create({
+            "id": [0, 1, 2, 3],
+            "nested": [[[1, None], [], None], [], None, [[2], [9, None]]],
+            "ys": [[8], None, [], [1, 2, 3]],
+        }, backend_name)
+        result = ma.relation(source).select(
+            ma.col("id"),
+            ma.col("nested").list.agg(
+                ma.element().list.agg(ma.element() + 1),
+            ).alias("mapped"),
+            ma.col("nested").list.agg(
+                ma.element().list.agg(ma.element().sum()),
+            ).alias("sums"),
+            ma.col("ys").list.agg(ma.element() + 10).alias("sibling"),
+        ).to_polars().sort("id").to_dict(as_series=False)
+        empty = None if backend_name == "ibis-duckdb" else 0
+        assert result["mapped"] == [[[2, None], [], None], [], None, [[3], [10, None]]]
+        assert result["sums"] == [[1, empty, None], [], None, [2, 9]]
+        assert result["sibling"] == [[18], None, [], [11, 12, 13]]
+
+    def test_reduced_body_preserves_null_container(self, backend_name, backend_factory):
+        source = backend_factory.create({
+            "id": [0, 1, 2, 3],
+            "xs": [[1, None], [], None, [None]],
+        }, backend_name)
+        result = ma.relation(source).select(
+            ma.col("id"),
+            ma.col("xs").list.agg(ma.element().min().fill_null(0)).alias("inside"),
+            ma.col("xs").list.agg(ma.element().min()).fill_null(0).alias("outside"),
+        ).to_polars().sort("id").to_dict(as_series=False)
+        assert result["inside"] == [1, 0, None, 0]
+        assert result["outside"] == [1, 0, 0, 0]
+
+    def test_literal_list_reductions(self, backend_name, backend_factory):
+        source = backend_factory.create({"id": [1]}, backend_name)
+        result = ma.relation(source).select(
+            ma.lit([1, 2, 3]).list.agg(ma.element().sum()).alias("sum"),
+            ma.lit([1, 2, 3]).list.agg(ma.element().mean()).alias("mean"),
+            ma.lit([1, 2, 3]).list.agg(ma.element().min()).alias("min"),
+            ma.lit([1, 2, 3]).list.agg(ma.element().max()).alias("max"),
+        ).to_polars().to_dict(as_series=False)
+        assert result == {"sum": [6], "mean": [2.0], "min": [1], "max": [3]}
+
+
+def test_element_deferred_binding_recovers_after_failure(backend_factory):
+    from ibis.common.annotations import SignatureValidationError
+
+    numeric = backend_factory.create({"xs": [[1, None, 3, 1], []]}, "ibis-duckdb")
+    strings = backend_factory.create({"xs": [["bad"]]}, "ibis-duckdb")
+    compiled = ma.col("xs").list.agg(ma.element() + 1).compile(numeric)
+    with pytest.raises(SignatureValidationError):
+        compiled.resolve(strings)
+    result = numeric.select(compiled.resolve(numeric).name("out")).to_pyarrow()
+    assert result.column("out").to_pylist() == [[2, None, 4, 2], []]

@@ -10,7 +10,6 @@ from fixtures.backend_registry import REGISTRY
 
 import mountainash as ma
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
 from mountainash.relations.core.execution.metadata import CompilationMetadata, CompiledSubtree
@@ -21,48 +20,34 @@ from mountainash.relations.core.materialization import MaterializationScope
 IBIS_BACKENDS = [name for name, spec in REGISTRY.items() if spec.family == "ibis"]
 
 
-def test_bare_ibis_memory_payload_export_is_a_declared_arrow_boundary():
+def test_bare_ibis_memory_payload_exports_native_rows():
     import ibis
     import polars as pl
 
     memory = ibis.memtable({"id": [1], "value": ["kept"]})
-    with capture_conversion_trace() as trace:
-        rows = ma.relation(pl.DataFrame({"id": [1]})).join(memory, on="id").to_dicts()
+    rows = ma.relation(pl.DataFrame({"id": [1]})).join(memory, on="id").to_dicts()
     assert rows == [{"id": 1, "value": "kept"}]
-    assert BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW in {record.boundary_key for record in trace.records}
 
 
-def test_sqlite_storage_preflight_exports_native_frames_through_declared_arrow_boundary():
+def test_sqlite_storage_preflight_rejects_nan_native_frame():
     import ibis
     import polars as pl
 
     destination = ibis.sqlite.connect(":memory:").create_table("destination", {"id": [1]})
     source = pl.DataFrame({"id": [1], "value": [float("nan")]})
-    with capture_conversion_trace() as trace:
-        with pytest.raises(UnsupportedRelationTransportError):
-            ma.relation(source).join(destination, on="id", execute_on="right").collect()
-    assert BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW in {record.boundary_key for record in trace.records}
+    with pytest.raises(UnsupportedRelationTransportError):
+        ma.relation(source).join(destination, on="id", execute_on="right").collect()
 
 
 @pytest.mark.parametrize("source_name", IBIS_BACKENDS)
 @pytest.mark.parametrize("destination_name", IBIS_BACKENDS)
 def test_derived_sources_have_separate_cached_transfers(source_name, destination_name, monkeypatch):
-    import mountainash.relations.core.execution.transport as transport
-
     table = REGISTRY[source_name].build({"id": [1, 2]}, "same")
     target = REGISTRY[destination_name].build({"id": [1, 2]}, "same")
     tokens = IdentityTokens()
     resolver = LocationResolver(tokens)
     source_location = resolver.resolve(ma.relation(table)._node)
     destination = resolver.resolve(ma.relation(target)._node)
-    boundaries = []
-    original = transport.transit_call
-
-    def spy(key, *args, **kwargs):
-        boundaries.append(key)
-        return original(key, *args, **kwargs)
-
-    monkeypatch.setattr(transport, "transit_call", spy)
     session = TransportSession(tokens)
     try:
         for selected in (1, 2):
@@ -75,8 +60,6 @@ def test_derived_sources_have_separate_cached_transfers(source_name, destination
             joined = target.inner_join(first.value, "id").select(target.id)
             assert joined._find_backend(use_default=False) is target._find_backend(use_default=False)
             assert ma.relation(joined).to_dict() == {"id": [selected]}
-        assert boundaries.count(BoundaryKey.IBIS_TO_ARROW_EGRESS) == 2
-        assert boundaries.count(BoundaryKey.ARROW_TO_IBIS_ADAPTER) == 2
         another = REGISTRY[destination_name].build({"id": [1, 2]}, "another")
         other_destination = resolver.resolve(ma.relation(another)._node)
         other = session.transfer(source, replace(requirement, destination=other_destination))
@@ -87,8 +70,7 @@ def test_derived_sources_have_separate_cached_transfers(source_name, destination
 
 
 def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
-    import mountainash.relations.core.execution.transport as transport
-    from mountainash.relations.core.errors import UnsupportedRelationTransportError
+    import ibis
 
     source_table = REGISTRY["ibis-duckdb"].build({"id": [1]}, "src")
     target = REGISTRY["ibis-sqlite"].build({"id": [1]}, "dst")
@@ -102,14 +84,12 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
         "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
     )
     session = TransportSession(tokens)
-    original = transport.transit_call
+    original_memtable = ibis.memtable
 
-    def broken(key, *args, **kwargs):
-        if key is BoundaryKey.ARROW_TO_IBIS_ADAPTER:
-            raise ValueError("adapter failed")
-        return original(key, *args, **kwargs)
+    def broken_memtable(*args, **kwargs):
+        raise ValueError("adapter failed")
 
-    monkeypatch.setattr(transport, "transit_call", broken)
+    monkeypatch.setattr(ibis, "memtable", broken_memtable)
     with pytest.raises(UnsupportedRelationTransportError) as raised:
         session.transfer(source, requirement)
     assert isinstance(raised.value.__cause__, ValueError)
@@ -118,7 +98,7 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
     assert raised.value.destination_dialect == "ibis-sqlite"
     assert "adapter failed" not in str(raised.value)
     assert not session._cache
-    monkeypatch.setattr(transport, "transit_call", original)
+    monkeypatch.setattr(ibis, "memtable", original_memtable)
     fresh = TransportSession(tokens)
     first = fresh.transfer(source, requirement)
     second = TransportSession(tokens)
@@ -231,8 +211,6 @@ def test_arrow_route_does_not_use_python_data_pandas_or_polars(source_name, dest
 
 
 def test_failed_source_and_destination_cleanup_never_releases_caller_resources(monkeypatch):
-    import mountainash.relations.core.execution.transport as transport
-
     table = REGISTRY["ibis-duckdb"].build({"id": [1]}, "src")
     target = REGISTRY["ibis-sqlite"].build({"id": [1]}, "dst")
     tokens = IdentityTokens()
@@ -252,15 +230,12 @@ def test_failed_source_and_destination_cleanup_never_releases_caller_resources(m
         lambda *_: caller_released.append("connection"),
         raising=False,
     )
-    original = transport.transit_call
 
-    def fail_export(key, *args, **kwargs):
-        if key is BoundaryKey.IBIS_TO_ARROW_EGRESS:
-            raise ValueError("source failed")
-        return original(key, *args, **kwargs)
+    def fail_export(*args, **kwargs):
+        raise ValueError("source failed")
 
     with monkeypatch.context() as guard:
-        guard.setattr(transport, "transit_call", fail_export)
+        guard.setattr(type(table), "to_pyarrow", fail_export)
         failed = TransportSession(tokens)
         failed._scope.own(lambda: released.append("export failure"))
         with pytest.raises(ValueError, match="source failed"):
@@ -430,7 +405,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         target = backend_factory.create({"id": [1]}, "ibis-sqlite")
         spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
         rel = ma.relation(table).conform(spec)
-        with ma.capability_policy(ma.CapabilityPolicy.checked()) as policy:
+        with ma.capability_policy(ma.CapabilityPolicy.checked()):
             native, visitor = rel._compile_and_execute_with_visitor()
             tokens = IdentityTokens()
             location = LocationResolver(tokens).resolve(ma.relation(table)._node)

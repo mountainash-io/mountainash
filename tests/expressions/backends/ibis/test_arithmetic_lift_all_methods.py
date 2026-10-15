@@ -8,6 +8,8 @@ from mountainash.expressions.backends.expression_systems.ibis.substrait.expsys_i
     SubstraitIbisScalarArithmeticExpressionSystem as Sys,
 )
 
+from fixtures.native_construction import expect_ibis_python_timedelta_construction
+
 
 def _ibis_context():
     return _new_execution_context(None, family_override=CONST_BACKEND.IBIS)
@@ -54,7 +56,7 @@ def test_atan2_literal_left():
     assert out == pytest.approx(expected)
 
 
-def test_datetime_interval_methods_literal_left():
+def test_datetime_interval_methods_literal_left(request):
     """Substrait interval ops (add/subtract/multiply/add_intervals) are binary
     arithmetic too — literal-datetime/interval on the left + a Deferred column
     crashed identically before the lift (item 226b). Assert they now execute."""
@@ -64,13 +66,15 @@ def test_datetime_interval_methods_literal_left():
     )
     dt = DtSys(execution_context=_ibis_context())
     con = ibis.duckdb.connect()
-    t = con.create_table(
-        "iv",
-        {
-            "ivl": [datetime.timedelta(days=1), datetime.timedelta(days=2)],
-            "n": [2, 3],
-        },
-    )
+    request.addfinalizer(con.disconnect)
+    with expect_ibis_python_timedelta_construction():
+        t = con.create_table(
+            "iv",
+            {
+                "ivl": [datetime.timedelta(days=1), datetime.timedelta(days=2)],
+                "n": [2, 3],
+            },
+        )
 
     def _run(built):
         expr = built.resolve(t)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -30,7 +31,8 @@ from core._smoke_helpers import (  # noqa: E402
     get_smoke_expr_builder,
     is_non_expression_fkey,
 )
-from fixtures.call_expectations import expect_call_failure
+from fixtures.call_expectations import expect_call_failure  # noqa: E402
+from fixtures.native_construction import expect_ibis_python_timedelta_construction  # noqa: E402
 ALL_BACKENDS = [
     "polars",
     "pandas",
@@ -294,13 +296,13 @@ for _backend in _NARWHALS_CASES:
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST",
                     "DROP_NULLS MEDIAN STD VAR N_UNIQUE COUNT_MATCHES ITEM REVERSE HEAD TAIL "
                     "SLICE GATHER GATHER_EVERY SHIFT DIFF SET_DIFFERENCE SET_SYMMETRIC_DIFFERENCE "
-                    "FILTER TO_STRUCT TO_ARRAY ARG_MIN ARG_MAX SAMPLE AGG",
+                    "TO_STRUCT TO_ARRAY ARG_MIN ARG_MAX SAMPLE",
                     ("ibis-polars", "ibis-duckdb"), "Ibis has no compatible array operation.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST",
                     "EXPLODE JOIN ALL ANY DROP_NULLS STD VAR N_UNIQUE COUNT_MATCHES ITEM REVERSE "
                     "HEAD TAIL SLICE GATHER GATHER_EVERY SHIFT DIFF SET_UNION SET_INTERSECTION "
                     "SET_DIFFERENCE SET_SYMMETRIC_DIFFERENCE CONCAT FILTER TO_STRUCT TO_ARRAY "
-                    "ARG_MIN ARG_MAX SAMPLE AGG",
+                    "ARG_MIN ARG_MAX SAMPLE AGG ELEMENT",
                     _NARWHALS_CASES, "Narwhals has no compatible list operation.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST", "PARSE",
                     ("ibis-sqlite",), "SQLite cannot parse a string into a typed array.")
@@ -472,6 +474,8 @@ class TestCompileSmoke:
         witness = _NATIVE_SMOKE_WITNESSES.get((fkey_str, backend_name))
         data = _smoke_data(_resolve_fkey(fkey_str))
         constructor_errors = ()
+        constructor_reason = "SQLite cannot construct this native input type; expression compilation is not reached."
+        native_construction = nullcontext()
         if backend_name == "ibis-sqlite":
             if isinstance(data["a"][0], (list, dict)):
                 from ibis.common.exceptions import UnsupportedBackendType
@@ -481,11 +485,13 @@ class TestCompileSmoke:
                 from sqlite3 import ProgrammingError
 
                 constructor_errors = (ProgrammingError,)
+        elif backend_name == "ibis-duckdb" and isinstance(data["a"][0], timedelta):
+            native_construction = expect_ibis_python_timedelta_construction()
         with expect_call_failure(
-            reason="SQLite cannot construct this native input type; expression compilation is not reached.",
+            reason=constructor_reason,
             errors=constructor_errors,
             when=bool(constructor_errors),
-        ):
+        ), native_construction:
             frame = backend_factory.create(data, backend_name)
         try:
             compile_call = _prepare_smoke_case(fkey_str, frame)

@@ -1191,8 +1191,8 @@ issues:
   notes: 'Narwhals horizontal function issue. Fixed upstream in narwhals 2.27.0 (yanked for an
     unrelated Pointblank breakage) and 2.27.1: verified 2026-10-10 that greatest()/least()
     on pandas/narwhals-pandas return the correct values there and wrong ones on 2.26.0. The
-    project supports narwhals>=2.20.0, so the expected-failure is version-gated in
-    tests/relations/cross_backend/test_rel_expression_integration.py until the floor passes 2.27.'
+    project now requires narwhals>=2.27.1 (#391), so the older-version expected-failure
+    in tests/relations/cross_backend/test_rel_expression_integration.py no longer applies.'
   last_verified: '2026-10-10'
 - id: NW-MATH-07
   project: narwhals

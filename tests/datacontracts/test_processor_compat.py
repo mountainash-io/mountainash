@@ -127,6 +127,14 @@ class TestEnriched:
         out = _keyed_processor(natural_key=["id"], identity=None).enriched_failure_cases()
         assert out["column_is_natural_key"].any() is False  # no failing column is the key
 
+    def test_enriched_result_is_reused_without_collection(self, mocker):
+        processor = _keyed_processor()
+        first = processor.enriched_failure_cases()
+        collections = mocker.spy(pl.LazyFrame, "collect")
+        second = processor.enriched_failure_cases()
+        assert second.equals(first)
+        assert collections.call_count == 0
+
 
 class TestProfiledGates:
     def test_profiled_counts_unique_rows_by_key(self):
@@ -188,8 +196,17 @@ class TestKeyedOnlyGates:
         with pytest.raises(IdentityRequiredError):
             processor.pivot_key_fields()
 
-    def test_interpolate_messages_keyed(self):
-        meta = {"age__ge": {"error_message": "age {age} negative", "fields": ["age"]}}
+    @pytest.mark.parametrize("lazy_metadata", [False, True])
+    def test_interpolate_messages_keyed(self, lazy_metadata):
+        meta = (
+            pl.DataFrame({
+                "rule_id": ["age__ge"],
+                "error_message": ["age {age} negative"],
+                "fields": [["age"]],
+            }).lazy()
+            if lazy_metadata
+            else {"age__ge": {"error_message": "age {age} negative", "fields": ["age"]}}
+        )
         out = _keyed_processor().interpolate_messages(meta)
         interpolated = out.filter(pl.col("rule_id") == "age__ge")["error_message"].to_list()
         assert "age -1 negative" in interpolated

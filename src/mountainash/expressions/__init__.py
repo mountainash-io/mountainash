@@ -47,6 +47,7 @@ from .core.expression_api.entrypoints import (
     # Datetime entry points
     today,
     now,
+    element,
 )
 
 # ========================================
@@ -155,4 +156,5 @@ __all__ = [
     "iter_child_nodes",
     "walk",
     "collect_field_references",
+    "element",
 ]

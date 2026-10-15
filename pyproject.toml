@@ -27,7 +27,7 @@ classifiers = [
 dependencies = [
     # Polars 2 removes string-to-temporal casts and list.to_struct(upper_bound).
     "polars>=1.35.1,<2",
-    "narwhals>=2.20.0",
+    "narwhals>=2.27.1",
     "pydantic>=2.2,<3",
     "packaging>=26.3",
     "typing_extensions>=4.0.0",
@@ -43,7 +43,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pandas = ["pandas>=2.2.0"]
+pandas = ["pandas>=3.0.0"]
 # Ibis 12 emits invalid DROP SQL with SQLGlot 30.18.0 and 30.22.0.
 ibis = ["ibis-framework>=12.0.0", "mountainash-data>=0.1.0,<0.2", "sqlglot>=29.0.1,<30.18.0"]
 storage = ["mountainash-transport>=0.1.0,<0.2"]

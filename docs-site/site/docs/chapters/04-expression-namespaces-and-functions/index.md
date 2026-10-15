@@ -154,6 +154,38 @@ contains_urgent = ma.col("tags").list.contains("urgent")
 
 List columns arise naturally from group-by aggregations that collect values into arrays, from JSON parsing, and from data sources with repeated fields. The list namespace keeps these operations within the expression system rather than requiring Python-level iteration.
 
+Use `ma.element()` to refer to the current item inside `.list.agg()` or
+`.list.filter()`. A named `ma.col(...)` remains a column reference, not an item
+reference.
+
+```python
+doubled = ma.col("values").list.agg(ma.element() * 2)
+positive = ma.col("values").list.filter(ma.element() > 0)
+total = ma.col("values").list.agg((ma.element() * 2).sum())
+centered = ma.col("values").list.agg(ma.element() - ma.element().mean())
+nested = ma.col("groups").list.agg(
+    ma.element().list.agg(ma.element() + 1)
+)
+```
+
+The body determines the result shape: mapping returns a list, while a reduction
+returns a scalar. Mapping preserves item order, duplicates, item nulls, empty
+lists and null lists. Filtering preserves the order of retained items. Nested
+list operations bind their own current element. The result inherits the outer
+list column's name unless explicitly aliased.
+
+Native Polars (eager/lazy) and Ibis-DuckDB support these expressions, including
+scoped sum, mean, min and max reductions. Empty/all-null sums retain native
+semantics: Polars returns zero; DuckDB returns null. Other operations in the body
+remain subject to their native backend support; arbitrary aggregate parity is
+not implied.
+
+Narwhals has no native element-evaluation surface. Ibis-Polars lacks native
+`ArrayMap`/`ArrayFilter` translation, and SQLite cannot construct array inputs.
+Other Ibis dialects use the same lowering but are not qualified here. There is no
+backend transfer or Python item loop. `ma.element()` has no meaningful binding
+outside an enclosing list operation.
+
 <!-- concept:36 -->
 ## Name Namespace
 

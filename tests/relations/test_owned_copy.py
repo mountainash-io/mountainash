@@ -15,7 +15,6 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS, REGISTRY
-from mountainash.core.transit import BoundaryKey, capture_conversion_trace
 from mountainash.relations.core.owned_copy import owned_copy, UnownableSnapshotValueError
 from mountainash.relations.backends.relation_systems.ibis._physical import adopt_connection, owned_transaction
 
@@ -92,9 +91,7 @@ def test_copy_preserves_values_and_schema(backend_name, empty):
     if empty:
         rel = rel.filter(ma.col("x") < 0)
     native = rel.collect(unwrap=False)
-    with capture_conversion_trace() as trace:
-        copy = owned_copy(native)
-    assert sum(record.boundary_key is BoundaryKey.OWNED_COPY for record in trace.records) == 1
+    copy = owned_copy(native)
     try:
         assert ma.relation(copy.value).to_dicts() == ([] if empty else [{"x": 7}])
         assert ma.relation(copy.value).schema == rel.schema
@@ -117,13 +114,7 @@ def test_copy_severs_external_primitive_buffer(kind):
         source = pa.table({"x": pa.array(values)})
         if kind == "narwhals-arrow":
             source = nw.from_native(source)
-    with capture_conversion_trace() as trace:
-        copy = owned_copy(source)
-    keys = {record.boundary_key for record in trace.records}
-    if kind == "polars":
-        assert BoundaryKey.OWNED_COPY_POLARS_TO_ARROW in keys
-    elif kind == "pandas-arrow":
-        assert BoundaryKey.OWNED_COPY_PANDAS_SERIES in keys
+    copy = owned_copy(source)
     values[0] = 88
     if kind == "polars":
         # Read buffers directly: lazy optimizations may reuse pre-mutation stats.

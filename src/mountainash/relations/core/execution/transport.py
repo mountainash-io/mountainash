@@ -11,7 +11,7 @@ from mountainash.core.capabilities.policy import (
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import BackendConversionError
-from mountainash.core.transit import BoundaryKey, transit_call
+
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 from mountainash.relations.core.materialization import (
     MaterializationScope, coerce_narwhals_dialect, coerce_to_ibis,
@@ -99,8 +99,7 @@ class TransportSession:
             op = value.op()
             if not isinstance(op, import_ibis_expr_ops().InMemoryTable):
                 raise self._unsupported(source, requirement)
-            arrow = transit_call(BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW,
-                                 op.data.to_pyarrow, value.schema())
+            arrow = op.data.to_pyarrow(value.schema())
             adapter = (coerce_to_polars if requirement.destination.family is CONST_BACKEND.POLARS
                        else coerce_to_narwhals)
             return self._adapt(source, requirement, adapter,
@@ -108,9 +107,7 @@ class TransportSession:
         if route == "ibis_arrow_ibis":
             import ibis
 
-            arrow = self._source_export(source, lambda: transit_call(
-                BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow,
-            ))
+            arrow = self._source_export(source, lambda: value.to_pyarrow())
             return self._import_arrow(source, requirement, ibis, arrow)
         if route == "ibis_memory_ibis":
             import ibis
@@ -120,10 +117,7 @@ class TransportSession:
             # its underlying memory leaf.
             if not isinstance(value.op(), import_ibis_expr_ops().InMemoryTable):
                 return self._convert(source, replace(requirement, route="ibis_arrow_ibis"))
-            arrow = self._source_export(source, lambda: transit_call(
-                BoundaryKey.IBIS_MEMORY_PAYLOAD_TO_ARROW,
-                value.op().data.to_pyarrow, value.schema(),
-            ))
+            arrow = self._source_export(source, lambda: value.op().data.to_pyarrow(value.schema(),))
             return self._import_arrow(source, requirement, ibis, arrow)
         if route == "mapping_to_ibis":
             return self._adapt(source, requirement, coerce_to_ibis,
@@ -134,7 +128,7 @@ class TransportSession:
                 from mountainash.core.types import is_polars_lazyframe
 
                 if is_polars_lazyframe(exported):
-                    exported = transit_call(BoundaryKey.POLARS_LAZY_COLLECT, exported.collect)
+                    exported = exported.collect()
             return self._adapt(source, requirement, coerce_to_ibis,
                                requirement.destination.prototype, exported)
         if route == "ibis_to_polars" or route == "to_polars":
@@ -152,7 +146,7 @@ class TransportSession:
                        ibis: Any, arrow: Any) -> Any:
         self._validate_ibis_storage(source, requirement, arrow)
         try:
-            return transit_call(BoundaryKey.ARROW_TO_IBIS_ADAPTER, ibis.memtable, arrow)
+            return ibis.memtable(arrow)
         except Exception as exc:
             raise self._unsupported(source, requirement, exc) from exc
 
@@ -168,7 +162,7 @@ class TransportSession:
         from mountainash.core.types import is_polars_dataframe, is_narwhals_dataframe
 
         if is_polars_dataframe(value) or is_narwhals_dataframe(value):
-            arrow = transit_call(BoundaryKey.STORAGE_PREFLIGHT_TO_ARROW, value.to_arrow)
+            arrow = value.to_arrow()
         elif isinstance(value, pa.Table):
             arrow = value
         elif isinstance(value, dict):
@@ -200,19 +194,13 @@ class TransportSession:
     def _export_checked(self, source: CompiledSubtree) -> Any:
         value = source.value
         if source.location.family is CONST_BACKEND.IBIS:
-            return self._source_export(source, lambda: transit_call(
-                BoundaryKey.IBIS_TO_ARROW_EGRESS, value.to_pyarrow,
-            ))
+            return self._source_export(source, lambda: value.to_pyarrow())
         from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
 
         if is_polars_lazyframe(value):
-            return self._source_export(source, lambda: transit_call(
-                BoundaryKey.POLARS_LAZY_COLLECT, value.collect,
-            ))
+            return self._source_export(source, lambda: value.collect())
         if is_narwhals_lazyframe(value):
-            return self._source_export(source, lambda: transit_call(
-                BoundaryKey.NARWHALS_LAZY_COLLECT, value.collect,
-            ))
+            return self._source_export(source, lambda: value.collect())
         if source.metadata.owned_checks or source.metadata.diagnostic_records:
             return self._source_export(source, lambda: value)
         return value

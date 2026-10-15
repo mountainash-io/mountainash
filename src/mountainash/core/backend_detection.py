@@ -102,9 +102,9 @@ def identify_backend(dataframe_or_backend: Any) -> CONST_BACKEND:
     # This handles pandas, pyarrow, and other narwhals-compatible backends
     try:
         import narwhals as nw
-        from mountainash.core.transit import BoundaryKey, transit_call
+        
 
-        transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, dataframe)
+        nw.from_native(dataframe)
         # If we get here, narwhals can handle it
         return CONST_BACKEND.NARWHALS
     except (TypeError, ValueError):
@@ -176,10 +176,10 @@ def identify_backend_identity(dataframe_or_backend: Any) -> "BackendIdentity":
             # wrap fallback (pandas, pyarrow, ...) — wrap to read implementation.
             try:
                 import narwhals as nw
-                from mountainash.core.transit import BoundaryKey, transit_call
+                
 
                 dialect = narwhals_dialect(
-                    transit_call(BoundaryKey.NARWHALS_NATIVE_WRAP, nw.from_native, obj)
+                    nw.from_native(obj)
                 )
             except (TypeError, ValueError):
                 dialect = None
