@@ -29,8 +29,8 @@ class TestGuardAdaptedNotCopied:
         namespace classes the safe-eval parser constructs — Array, Enum,
         Categorical, Decimal — plus the DTypeClass instantiation mechanism
         were verified present (class defs + top-level exports) in the narwhals
-        2.20.0 wheel (the pinned floor in pyproject.toml). No floor change was
-        needed; this documents the check so a future floor raise re-runs it."""
+        2.20.0 wheel (the original floor). The current floor is 2.27.1;
+        this check also runs against the resolved supported version."""
         for name in ("Array", "Enum", "Categorical", "Decimal"):
             assert hasattr(nw, name), f"nw.{name} missing at resolved version"
 

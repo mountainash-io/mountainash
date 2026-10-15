@@ -77,8 +77,8 @@ class TestDuplicateLiteralRelation:
 
 
 # narwhals fixed min_horizontal's intermediate naming on pandas in 2.27.0 (yanked for an unrelated
-# Pointblank breakage; 2.27.1 carries the same fix). The project supports narwhals>=2.20.0, so both
-# behaviours are real and each is pinned on the versions it applies to.
+# Pointblank breakage; 2.27.1 carries the same fix). The supported floor is now 2.27.1;
+# the pre-fix witness below only applies when investigating unsupported older versions.
 _FIXED_IN = (2, 27, 0)
 
 
