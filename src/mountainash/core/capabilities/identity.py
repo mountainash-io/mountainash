@@ -3,7 +3,7 @@
 The spec's BackendFamily is realized as the existing CONST_BACKEND enum
 (no duplicate). Dialects here are the DECLARABLE vocabulary — validation
 constrains facts to these names; runtime detection may compute names
-outside it (e.g. narwhals-pyarrow), which simply never match a fact.
+outside it, which simply never match a fact.
 """
 
 from __future__ import annotations
@@ -25,7 +25,10 @@ KNOWN_DIALECTS: dict[CONST_BACKEND, frozenset[str]] = {
         "ibis-duckdb", "ibis-sqlite", "ibis-polars",
         "ibis-mysql", "ibis-singlestoredb", "ibis-exasol",
     }),
-    CONST_BACKEND.NARWHALS: frozenset({"narwhals-polars", "narwhals-pandas", "narwhals-lazy"}),
+    CONST_BACKEND.NARWHALS: frozenset({
+        "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
+        "narwhals-pyarrow", "narwhals-duckdb",
+    }),
     CONST_BACKEND.PANDAS: frozenset({"pandas"}),
     CONST_BACKEND.PYARROW: frozenset({"pyarrow"}),
 }

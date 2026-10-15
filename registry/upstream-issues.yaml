@@ -927,18 +927,19 @@ issues:
 - id: NW-STR-08
   project: narwhals
   category: string-ops
-  summary: regex_contains requires a literal pattern on Narwhals pandas
+  summary: regex_contains requires a literal pattern on Narwhals pandas and PyArrow
   root_cause: by_design
   affected_backends:
   - narwhals-pandas
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: by_design
   our_workaround: none
   notes: >-
-    Backlog 313 qualified Narwhals 2.27.1 with pandas 3.0.6. A declared
-    literal-only gate protects dynamic patterns on this stack; Python strings
-    and expression literals remain supported. Narwhals Polars and DuckDB
+    Backlog 313 qualified Narwhals 2.27.1 with pandas 3.0.6 and PyArrow 26.0.0.
+    Declared literal-only gates protect dynamic patterns on those stacks;
+    Python strings and expression literals remain supported. Narwhals Polars and DuckDB
     support dynamic patterns and are not covered by this restriction.
     Other dependency versions remain unqualified, not automatically blocked.
   last_verified: '2026-10-15'
@@ -2180,13 +2181,19 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
+  - narwhals-duckdb
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3698
   upstream_issue_filed_by: other
   status: open
   our_workaround: xfail_strict
-  notes: Blocks DECIMAL_CAST (item 241 R13); a contribution is tracked in central
-    backlog item 282. The refusal is a declared capability fact, not a raise.
-  last_verified: '2026-10-10'
+  notes: >-
+    Blocks DECIMAL_CAST (item 241 R13); a contribution is tracked in central
+    backlog item 282. Backlog 313 adds public adapter-refusal gates for
+    Narwhals 2.27.1 with PyArrow 26.0.0 or DuckDB 1.5.6. The adapter still
+    raises NotImplementedError when protection is disabled; this is not a
+    native-provider Decimal execution witness or an upstream fix.
+  last_verified: '2026-10-15'
 - id: NW-CAST-01
   project: narwhals
   category: cast-semantics
@@ -2197,13 +2204,18 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
+  - narwhals-duckdb
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3702
   upstream_issue_filed_by: other
   status: open
   our_workaround: xfail_strict
-  notes: Blocks DECIMAL_CAST null mode (item 241 R13); see also central backlog items
-    282 and 283.
-  last_verified: '2026-10-10'
+  notes: >-
+    Blocks DECIMAL_CAST null mode (item 241 R13); see central backlog items
+    282 and 283. Backlog 313's additional PyArrow/DuckDB gates describe the
+    unavailable public adapter, with exact dependency bounds; underlying
+    provider Decimal primitives are not classified as unsupported.
+  last_verified: '2026-10-15'
 - id: IB-STR-14
   project: ibis
   category: string-ops
