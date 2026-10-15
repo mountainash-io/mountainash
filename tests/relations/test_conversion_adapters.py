@@ -10,6 +10,8 @@ import polars as pl
 import pyarrow as pa
 import pytest
 
+import mountainash as ma
+
 from mountainash.relations.core.materialization import (
     coerce_narwhals_dialect,
     coerce_to_ibis,
@@ -60,12 +62,24 @@ class TestCoerceToPolarsRouteMatrix:
         result = coerce_to_polars(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
-    def test_ibis_source(self):
-        target = pl.DataFrame({"id": [1]}).lazy()
-        con = ibis.duckdb.connect()
-        value = con.create_table("t", {"id": [2, 3], "v": [None, 20]})
-        result = coerce_to_polars(target, value)
-        self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
+    @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+    @pytest.mark.parametrize("endpoint", ["public", "coercion"])
+    def test_ibis_source(self, backend_name, backend_factory, endpoint):
+        source = backend_factory.create(
+            {"id": [1, 2, 3], "value": [10, 20, None]}, backend_name,
+        )
+        connection = source._find_backend(use_default=False)
+        try:
+            query = source.filter(source.id > 1).select(source.value.cast("int64").name("value"))
+            if endpoint == "public":
+                result = ma.relation(query).to_polars()
+            else:
+                result = coerce_to_polars(pl.DataFrame({"id": [1]}).lazy(), query).collect()
+            assert result.schema == {"value": pl.Int64}
+            assert result["value"].to_list() == [20, None]
+        finally:
+            if hasattr(connection, "disconnect"):
+                connection.disconnect()
 
     def test_narwhals_pandas_source(self):
         target = pl.DataFrame({"id": [1]}).lazy()
@@ -242,3 +256,39 @@ class TestCoerceNarwhalsDialect:
     def test_non_narwhals_inputs_are_noop(self):
         value = {"id": [1]}
         assert coerce_narwhals_dialect(object(), value) is value
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+@pytest.mark.parametrize("endpoint", ["public", "coercion"])
+def test_polars_conversion_keeps_named_index_out_of_columns(wrapped, endpoint):
+    """Native and wrapped pandas must not expose index metadata as data columns."""
+    source = pd.DataFrame(
+        {"id": [2, 3], "value": [10, None]},
+        index=pd.Index([7, 9], name="row_key"),
+    )
+    if wrapped:
+        source = nw.from_native(source)
+    if endpoint == "public":
+        result = ma.relation(source).to_polars()
+    else:
+        result = coerce_to_polars(pl.DataFrame({"id": [1]}).lazy(), source).collect()
+    assert result.to_dict(as_series=False) == {"id": [2, 3], "value": [10.0, None]}
+    assert result.columns == ["id", "value"]
+    assert result.schema == {"id": pl.Int64, "value": pl.Float64}
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+@pytest.mark.parametrize("endpoint", ["public", "coercion"])
+def test_polars_conversion_preserves_native_object_identity(wrapped, endpoint):
+    """Native and wrapped Polars objects must not acquire an Arrow representation."""
+    token = object()
+    source = pl.DataFrame({"obj": pl.Series([token, None], dtype=pl.Object)})
+    if wrapped:
+        source = nw.from_native(source)
+    if endpoint == "public":
+        result = ma.relation(source).to_polars()
+    else:
+        result = coerce_to_polars(pl.DataFrame({"id": [1]}).lazy(), source).collect()
+    assert result.schema == {"obj": pl.Object}
+    assert result["obj"][0] is token
+    assert result["obj"][1] is None

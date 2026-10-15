@@ -22,8 +22,6 @@ import mountainash as ma
 
 from fixtures.backend_registry import ALL_BACKENDS
 
-IBIS_BACKENDS = [b for b in ALL_BACKENDS if b.startswith("ibis")]
-
 _DATES = [_dt.date(2024, 3, 15), _dt.date(2024, 6, 20)]
 
 
@@ -38,26 +36,3 @@ def test_date_column_survives_egress_as_date(backend_name, backend_factory) -> N
         f"{backend_name}: date column egressed as {out.schema['d']!r}, not pl.Date"
     )
     assert out.to_dict(as_series=False)["d"] == _DATES
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", IBIS_BACKENDS)
-def test_ibis_egress_prefers_arrow_over_pandas(backend_name, backend_factory) -> None:
-    """The ibis Table path takes the Arrow route, which is what preserves the type.
-
-    Guards the regression directly: ibis's own `to_pandas()` widens the column,
-    so if egress falls back to pandas for a table that can produce Arrow, the
-    dtype assertion below is what catches it.
-    """
-    df = backend_factory.create({"d": _DATES}, backend_name)
-
-    # Establish the premise: the pandas route really does widen it upstream.
-    widened = df.to_pandas()["d"].dtype
-    assert "datetime64" in str(widened), (
-        f"{backend_name}: expected ibis to_pandas() to widen date to datetime64, "
-        f"got {widened!r} -- if upstream fixed this, the Arrow preference is no "
-        f"longer load-bearing and this test should be revisited"
-    )
-
-    out = ma.relation(df).select(ma.col("d")).to_polars()
-    assert out.schema["d"] == pl.Date
