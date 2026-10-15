@@ -8,6 +8,8 @@ Covers:
 
 from __future__ import annotations
 
+from importlib.metadata import version
+
 import pytest
 
 import mountainash as ma
@@ -95,10 +97,14 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape, case_sen
     assert query.columns == ["id", "value", "pattern", "score"]
     unsupported = backend_name in {"pandas", "narwhals-pandas", "ibis-polars"}
     error_type = UnsupportedArgumentError if backend_name == "ibis-polars" else TypeError
+    if backend_name in {"pandas", "narwhals-pandas"} and (
+        version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+    ):
+        error_type = BackendCapabilityError
     with expect_call_failure(
         when=unsupported,
         errors=(error_type,),
-        reason="Native regex predicate rejects a dynamic pattern on this route",
+        reason="NW-STR-08: pandas dynamic regex is gated on the qualified stack; other native limits remain",
     ):
         result = query.to_polars().sort("id")
         expected = {
