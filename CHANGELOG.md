@@ -5,6 +5,8 @@
 ### Fixed
 - Narwhals-pandas dynamic `str.regex_contains()` patterns now receive a declared `BackendCapabilityError` under selected protection on Narwhals 2.27.1/pandas 3.0.6 (313). Python-string and expression-literal patterns remain supported; working dynamic patterns on other providers are unchanged. Other dependency versions remain unqualified rather than automatically blocked.
 - Ibis 12.0.0 now receives declared, dialect-scoped capability refusals for public Decimal conversion on MySQL, SingleStoreDB and Exasol (missing `RegexReplace`, 323), and regex matching on Exasol (missing `RegexSearch`, 330). Other operations, versions and existing policy presets are unchanged. These gates do not repair translators or deny the databases' native Decimal/regex facilities.
+- Narwhals-PyArrow dynamic regex patterns now receive a literal-only capability refusal on Narwhals 2.27.1/PyArrow 26.0.0; string and expression-literal patterns remain allowed. Public Decimal conversion now receives typed adapter-unavailability refusals for Narwhals 2.27.1 with PyArrow 26.0.0 or DuckDB 1.5.6. DuckDB dynamic regex and ordinary conversions are unchanged; other versions remain unqualified. No native-provider implementation or workaround is added (313).
+
 ## Unreleased — 2026-10-14
 
 ### Changed
