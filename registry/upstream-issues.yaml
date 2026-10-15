@@ -927,17 +927,21 @@ issues:
 - id: NW-STR-08
   project: narwhals
   category: string-ops
-  summary: regex_contains pattern must be literal string
+  summary: regex_contains requires a literal pattern on Narwhals pandas
   root_cause: by_design
   affected_backends:
   - narwhals-pandas
-  - narwhals-polars
   upstream_issue: null
   upstream_issue_filed_by: null
   status: by_design
-  our_workaround: error_enrichment
-  notes: Correct by design.
-  last_verified: '2026-05-11'
+  our_workaround: none
+  notes: >-
+    Backlog 313 qualified Narwhals 2.27.1 with pandas 3.0.6. A declared
+    literal-only gate protects dynamic patterns on this stack; Python strings
+    and expression literals remain supported. Narwhals Polars and DuckDB
+    support dynamic patterns and are not covered by this restriction.
+    Other dependency versions remain unqualified, not automatically blocked.
+  last_verified: '2026-10-15'
 - id: NW-STR-09
   project: narwhals
   category: string-ops
@@ -2200,3 +2204,42 @@ issues:
   notes: Blocks DECIMAL_CAST null mode (item 241 R13); see also central backlog items
     282 and 283.
   last_verified: '2026-10-10'
+- id: IB-STR-14
+  project: ibis
+  category: string-ops
+  summary: Ibis MySQL, SingleStoreDB and Exasol lack RegexReplace translation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-mysql
+  - ibis-singlestoredb
+  - ibis-exasol
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 323 records native Ibis 12.0.0 OperationNotDefinedError for
+    RegexReplace. Public Decimal conversion always uses this operation for
+    underscore normalization, so its canonical DECIMAL_CAST node is gated
+    for that Ibis version. Native database Decimal support is not denied.
+    MariaDB qualification used an adapted client, not the standard driver.
+    No external issue or upstream patch is claimed.
+  last_verified: '2026-10-15'
+- id: IB-STR-15
+  project: ibis
+  category: string-ops
+  summary: Ibis Exasol lacks RegexSearch translation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-exasol
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 330 records native and public literal/dynamic regex compilation
+    failures in Ibis 12.0.0. The canonical REGEX_CONTAINS node is gated for
+    that version, including the literal regex_match wrapper. This does not
+    claim the Exasol database lacks regex facilities. No external issue or
+    upstream patch is claimed.
+  last_verified: '2026-10-15'

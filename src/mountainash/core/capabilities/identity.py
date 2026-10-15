@@ -21,7 +21,10 @@ class BackendIdentity:
 
 KNOWN_DIALECTS: dict[CONST_BACKEND, frozenset[str]] = {
     CONST_BACKEND.POLARS: frozenset({"polars"}),
-    CONST_BACKEND.IBIS: frozenset({"ibis-duckdb", "ibis-sqlite", "ibis-polars"}),
+    CONST_BACKEND.IBIS: frozenset({
+        "ibis-duckdb", "ibis-sqlite", "ibis-polars",
+        "ibis-mysql", "ibis-singlestoredb", "ibis-exasol",
+    }),
     CONST_BACKEND.NARWHALS: frozenset({"narwhals-polars", "narwhals-pandas", "narwhals-lazy"}),
     CONST_BACKEND.PANDAS: frozenset({"pandas"}),
     CONST_BACKEND.PYARROW: frozenset({"pyarrow"}),
