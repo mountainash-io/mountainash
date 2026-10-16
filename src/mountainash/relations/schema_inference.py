@@ -25,9 +25,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 from mountainash.expressions.core.output_names import resolve_output_names
 from mountainash.relations.core.projection_names import require_projection_names
 from mountainash.typespec.frictionless import typespec_from_frictionless
-from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.converters import resolve_field_canonical
-from mountainash.typespec.universal_types import parse_universal
 
 
 class SchemaTypeStatus(Enum):
@@ -200,7 +198,8 @@ def _schema_from_typespec(
             result[field.name] = SchemaTypeStatus.UNKNOWN
             continue
         result[field.name] = (
-            SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
+            SchemaTypeStatus.UNKNOWN if field.backend_type
+            else SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
         )
     return result
 
@@ -323,7 +322,8 @@ def infer_schema(
             type_target = None
         actual_shapes = (
             extract_source_shapes(node.input.dataframe, target=type_target)
-            if isinstance(node.input, ReadRelNode) else None
+            if isinstance(node.input, ReadRelNode)
+            and not isinstance(node.input.dataframe, (list, tuple, dict)) else None
         )
         contract = resolve_conform_output(
             spec,

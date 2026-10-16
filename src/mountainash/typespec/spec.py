@@ -422,8 +422,7 @@ def compare_specs(
         if source_field.type != target_field.type:
             diff.type_changes[name] = (source_field.type, target_field.type)
         elif source_field.dtype != target_field.dtype:
-            # Declared exact decimals differ in p/s (or only one side declares one).
-            # Fields without a dtype on either side are compared exactly as before.
+            # Compare authored identities, not backend-dependent effective targets.
             diff.type_changes[name] = (source_field.dtype or source_field.type,
                                        target_field.dtype or target_field.type)
 

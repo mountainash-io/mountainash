@@ -665,6 +665,8 @@ class TestConvertersOverRegistry:
             FieldSpec(name="x", type=UniversalType.INTEGER, backend_type=backend_type),
         ])
         assert to_polars_schema(spec)["x"] is pl.Int64
+        from mountainash.typespec.validation import validate_match
+        assert validate_match(pl.DataFrame({"x": [1]}), spec) == (True, [])
 
     def test_semantically_invalid_backend_type_raises_typed_error_not_raw(self):
         """Regression (GLM-5.2 whole-branch review, Important finding 1): a
@@ -791,3 +793,22 @@ def test_v2_six_field_spec_resolves_on_polars_narwhals_and_ibis(target) -> None:
     for name in ("geometry", "duration", "year", "yearmonth"):
         assert resolved[name] == string_type
         assert registry.from_native(resolved[name], target) is D.STRING
+
+
+@pytest.mark.parametrize("in_array", [False, True])
+def test_validate_match_checks_nested_effective_types(in_array):
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.validation import validate_match
+    child = FieldSpec(name="id", dtype=MountainashDtype.I8)
+    field = FieldSpec(name="record", dtype=MountainashDtype.LIST if in_array else MountainashDtype.STRUCT,
+        **({"item_object_fields": [child]} if in_array else {"object_fields": [child]}))
+    source = pl.DataFrame({"record": [[{"id": 128}]] if in_array else [{"id": 128}]})
+    spec = TypeSpec(fields=[field])
+    assert not validate_match(source, spec)[0]
+    child.backend_type = "Int64"
+    with pytest.warns(UserWarning):
+        assert validate_match(source, spec) == (True, [])
+    child.dtype = None
+    child.backend_type = None
+    assert validate_match(source, spec) == (True, [])

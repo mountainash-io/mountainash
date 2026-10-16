@@ -33,6 +33,8 @@ def test_canonical_conform_retains_declared_identity(backend_name, backend_facto
     out = rel.to_polars()
     assert out["value"].to_list() == values
     assert rel.schema["value"] is dtype
+    import polars as pl
+    assert out.schema["value"] == (pl.Int8 if dtype is ma.MountainashDtype.I8 else pl.Float32)
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -53,6 +55,8 @@ def test_native_override_controls_conform_and_inference(backend_name, backend_fa
         out = rel.to_polars()
     assert out["value"].to_list() == [127, None]
     assert rel.schema["value"] is ma.MountainashDtype.I64
+    import polars as pl
+    assert out.schema["value"] == pl.Int64
 
 
 def test_explicit_native_timestamp_freeze_compares_parameters():
@@ -754,3 +758,83 @@ def test_nested_override_freeze_uses_effective_child_type():
         out = ma.relation(source).conform(spec, contract={"data_type": "freeze"}).to_polars()
     assert out.schema["record"] == pl.Struct({"id": pl.Int64})
     assert out["record"].to_list() == [{"id": 300}, None]
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("action", ["coerce", "evolve", "freeze", "discard_value", "discard_row"])
+def test_native_override_reconciliation_policy(backend_name, backend_factory, action):
+    from mountainash.conform.errors import SchemaDriftError
+    from mountainash.core.types import BackendCapabilityError
+    from ibis.common.exceptions import OperationNotDefinedError
+    from fixtures.call_expectations import expect_call_failure
+    discarding = action in {"discard_value", "discard_row"}
+    values = ["1", "300", "bad"] if discarding else ["1", "300"]
+    source = backend_factory.create({"value": values}, backend_name)
+    override = "int64" if backend_name.startswith("ibis") else "Int64"
+    spec = TypeSpec(fields=[FieldSpec(
+        name="value", dtype=ma.MountainashDtype.I8, backend_type=override,
+    )], missing_values=[])
+    rel = ma.relation(source).conform(spec, contract={"data_type": action})
+    with pytest.warns(UserWarning, match="value"):
+        if action == "freeze":
+            with pytest.raises(SchemaDriftError):
+                rel.to_polars()
+            return
+        with expect_call_failure(
+            when=discarding and backend_name in {
+                "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-sqlite",
+            },
+            errors=(OperationNotDefinedError,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
+            reason="Existing null-on-failure cast capability gap (known-divergences #19/#20)",
+        ):
+            out = rel.to_polars()
+    if action == "evolve":
+        assert out["value"].to_list() == ["1", "300"]
+        assert rel.schema["value"] is ma.MountainashDtype.STRING
+    else:
+        assert out["value"].to_list() == ([1, 300, None] if action == "discard_value" else [1, 300])
+        assert rel.schema["value"] is ma.MountainashDtype.I64
+
+
+def test_native_container_override_replaces_nested_casts():
+    # This native dtype is Polars-owned; other targets reject it.
+    import polars as pl
+    spec = TypeSpec(fields=[FieldSpec(name="record", dtype=ma.MountainashDtype.STRUCT,
+        object_fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8)],
+        backend_type=pl.Struct({"id": pl.Int64}),
+    )], missing_values=[])
+    source = pl.DataFrame({"record": [{"id": 128}, None]})
+    with pytest.warns(UserWarning):
+        out = ma.relation(source).conform(spec).to_polars()
+    assert out.schema["record"] == pl.Struct({"id": pl.Int64})
+    assert out["record"].to_list() == [{"id": 128}, None]
+
+
+@pytest.mark.parametrize("values", [[], [None, None]])
+@pytest.mark.parametrize("in_array", [False, True])
+def test_null_typed_native_container_uses_declared_children(values, in_array):
+    # Polars Null is schema evidence; pandas object is deliberately not equivalent.
+    import polars as pl
+    child = FieldSpec(name="id", dtype=ma.MountainashDtype.I8)
+    field = FieldSpec(name="record", dtype=ma.MountainashDtype.LIST if in_array else ma.MountainashDtype.STRUCT,
+        **({"item_object_fields": [child]} if in_array else {"object_fields": [child]}))
+    out = ma.relation(pl.DataFrame({"record": values})).conform(
+        TypeSpec(fields=[field], missing_values=[]),
+    ).to_polars()
+    expected = pl.List(pl.Struct({"id": pl.Int8})) if in_array else pl.Struct({"id": pl.Int8})
+    assert out.schema["record"] == expected
+    assert out["record"].to_list() == values
+
+
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+def test_null_container_fill_obeys_failure_policy(action):
+    import polars as pl
+    field = FieldSpec(name="record", dtype=ma.MountainashDtype.STRUCT,
+        object_fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8)],
+        null_fill={"id": 128})
+    out = ma.relation(pl.DataFrame({"record": [None]})).conform(
+        TypeSpec(fields=[field], missing_values=[]), contract={"data_type": action},
+    ).to_polars()
+    assert out.schema["record"] == pl.Struct({"id": pl.Int8})
+    assert out["record"].to_list() == [{"id": None}]

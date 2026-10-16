@@ -174,16 +174,13 @@ def apply_native_conversions_to_dataframe(
     if not native_conversions:
         return df
 
-    # Apply other native operations (rename, null_fill) via expressions
     import mountainash as ma
     from mountainash.typespec.spec import TypeSpec
     from mountainash.conform.expressions import _build_conform_exprs
     from mountainash.core.dtypes import TypeTarget
     from mountainash.typespec.source_shape import extract_source_shapes
 
-    # Permissive application (see the STEP 5 native path below): rename/null_fill
-    # expressions are applied via with_columns without available_columns, so the
-    # spec must use "open" (the model default is now the strict "exact").
+    # Preserve columns outside the requested native conversions.
     native_spec = TypeSpec(
         fields=[f for f in native_conversions.values()],
         fields_match="open",

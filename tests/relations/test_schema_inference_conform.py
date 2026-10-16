@@ -622,3 +622,9 @@ class TestFreezeNeverRaisesDuringInference:
 
         with pytest.raises(SchemaDriftError):
             rel.to_polars()
+
+
+def test_mapping_tuple_conform_has_no_native_shape_requirement():
+    rel = ma.relation(({"x": 1},)).conform(TypeSpec.from_simple_dict({"x": "integer"}))
+    assert rel.schema["x"] is ma.MountainashDtype.I64
+    assert rel.to_polars()["x"].to_list() == [1]

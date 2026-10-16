@@ -136,3 +136,22 @@ def test_resource_read_schema_unknown_for_malformed_or_absent_schema_evidence(fi
     assert infer_schema(ResourceReadRelNode(resource=resource)) == {
         "shape": SchemaTypeStatus.UNKNOWN
     }
+
+
+@pytest.mark.parametrize(
+    "extension,expected",
+    [
+        ({"dtype": {"kind": "canonical", "name": "i8"}}, D.I8),
+        ({"dtype": {"kind": "canonical", "name": "json"}}, D.JSON),
+        ({"dtype": {"kind": "canonical", "name": "duration"}}, D.DURATION),
+        ({"dtype": {"kind": "canonical", "name": "i8"}, "backend_type": "Int64"}, SchemaTypeStatus.UNKNOWN),
+    ],
+)
+def test_resource_descriptor_retains_precise_evidence_without_guessing_override_target(extension, expected):
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    from mountainash.typespec.datapackage import DataResource
+
+    resource = DataResource(name="data", data=[], table_schema={
+        "fields": [{"name": "value", "x-mountainash": extension}],
+    })
+    assert infer_schema(ResourceReadRelNode(resource=resource)) == {"value": expected}

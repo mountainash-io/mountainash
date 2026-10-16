@@ -99,6 +99,20 @@ class ConformResult:
     )
 
 
+def _is_null_shape(shape: SourceShape | None) -> bool:
+    from mountainash.core.dtypes import registry
+    from mountainash.typespec.converters import _native_types_equal
+
+    if shape is None or shape.canonical_type is not None or shape.native_dtype is None:
+        return False
+    native = shape.native_dtype
+    for name in ("Null", "null"):
+        null = registry.parse_type_string(name, native.target)
+        if null is not None and _native_types_equal(native.value, null, native.target):
+            return True
+    return False
+
+
 def _structured_carrier(
     field: "FieldSpec", source_shape: SourceShape | None
 ) -> StructuredCarrier | None:
@@ -115,6 +129,10 @@ def _structured_carrier(
         else MountainashDtype.STRUCT
     )
     if canonical is native:
+        return StructuredCarrier.NATIVE
+    if _is_null_shape(source_shape) and (
+        field.dtype is not None or field.backend_type or field.object_fields or field.item_object_fields
+    ):
         return StructuredCarrier.NATIVE
     if canonical in {MountainashDtype.STRING, MountainashDtype.JSON}:
         return StructuredCarrier.JSON_TEXT
@@ -781,6 +799,17 @@ def _build_field_expr(
     shape_known = source_shape is not None
     shape = source_shape or SourceShape(None)
     canonical = shape.canonical_type
+    null_container_target = None
+    if (
+        fld.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+        and (fld.dtype is not None or fld.backend_type or fld.object_fields or fld.item_object_fields)
+        and _is_null_shape(shape) and type_action != "evolve"
+    ):
+        from mountainash.typespec.converters import _resolve_field_native
+        target = shape.native_dtype.target
+        null_container_target = effective_type if isinstance(effective_type, NativeDtype) else NativeDtype(
+            value=_resolve_field_native(fld, target), target=target,
+        )
     if _structured_carrier(fld, shape) in {
         StructuredCarrier.JSON_TEXT,
         StructuredCarrier.OPAQUE,
@@ -811,6 +840,7 @@ def _build_field_expr(
     if (
         shape_known
         and canonical is None
+        and null_container_target is None
         and (
             (fld.type in typed_shapes and not unknown_lexical)
             or unknown_temporal
@@ -822,7 +852,7 @@ def _build_field_expr(
             requirement="source shape for typed operation",
         )
     incompatible_source = False
-    if shape_known:
+    if shape_known and null_container_target is None:
         allowed = {
             UniversalType.LIST: {MountainashDtype.STRING},
             UniversalType.ARRAY: {MountainashDtype.LIST},
@@ -938,7 +968,7 @@ def _build_field_expr(
         UniversalType.GEOPOINT,
         UniversalType.GEOJSON,
     }
-    lexical = (
+    lexical = null_container_target is None and (
         not shape_known
         or canonical is None
         or canonical is MountainashDtype.STRING
@@ -1043,7 +1073,9 @@ def _build_field_expr(
     residue: list[MaterializationResidueCheck] = []
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(fld.name))
-    if isinstance(effective_type, DecimalDtype):
+    if null_container_target is not None:
+        expr = expr.cast(null_container_target, failure_behavior=failure)
+    elif isinstance(effective_type, DecimalDtype):
         expr = expr.cast(effective_type, rounding=fld.rounding, failure_behavior=failure)
     elif fld.type == UniversalType.LIST and lexical:
         expr = expr.str.parse_list(
@@ -1052,6 +1084,13 @@ def _build_field_expr(
             field_name=fld.name,
             failure_behavior=failure,
         )
+    elif (
+        isinstance(effective_type, NativeDtype)
+        and fld.type in {UniversalType.ARRAY, UniversalType.OBJECT}
+        and not lexical
+    ):
+        # The native container replaces its declared child representation.
+        pass
     elif (
         fld.type == UniversalType.ARRAY
         and canonical is MountainashDtype.LIST
@@ -1146,7 +1185,7 @@ def _build_field_expr(
         target = to_canonical(fld.type)
         if target is not None:
             expr = expr.cast(target, failure_behavior=failure)
-    if (
+    if null_container_target is None and (
         isinstance(effective_type, NativeDtype)
         or (
             fld.dtype is not None and isinstance(effective_type, MountainashDtype)
