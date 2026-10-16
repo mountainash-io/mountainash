@@ -271,3 +271,54 @@ def test_missing_format_dependency_normalises_to_missing_files(monkeypatch, tmp_
 
 
 
+
+def test_inspect_schema_multiple_sources_uses_arrow_promotion(tmp_path):
+    import pyarrow.parquet as pq
+
+    first = tmp_path / "a.parquet"
+    second = tmp_path / "b.parquet"
+    pq.write_table(pa.table({"value": pa.nulls(1)}), first)
+    pq.write_table(pa.table({"value": [2]}), second)
+    resource = DataResource(
+        name="multi",
+        path=[str(first), str(second)],
+        format="parquet",
+    )
+
+    schema, complete = rf.inspect_resource_schema(
+        resource, dialect=resource.to_dialect()
+    )
+
+    assert schema.field("value").type == pa.int64()
+    assert complete is True
+
+
+def test_inspect_schema_glob_and_archive_members(tmp_path):
+    import zipfile
+
+    (tmp_path / "one.csv").write_text("a\n1\n")
+    (tmp_path / "two.csv").write_text("b\n2\n")
+    archive = tmp_path / "many.zip"
+    with zipfile.ZipFile(archive, "w") as output:
+        output.writestr("three.csv", "c\n3\n")
+        output.writestr("four.csv", "d\n4\n")
+
+    glob_resource = DataResource(
+        name="glob", path=str(tmp_path / "*.csv"), format="csv"
+    )
+    archive_resource = DataResource(
+        name="archive", path=str(archive), format="csv"
+    )
+
+    glob_schema, glob_complete = rf.inspect_resource_schema(
+        glob_resource, dialect=glob_resource.to_dialect()
+    )
+    archive_schema, archive_complete = rf.inspect_resource_schema(
+        archive_resource, dialect=archive_resource.to_dialect()
+    )
+
+    assert {field.name: field.type for field in glob_schema} == {"a": pa.int64(), "b": pa.int64()}
+    assert {field.name: field.type for field in archive_schema} == {"c": pa.int64(), "d": pa.int64()}
+    assert glob_complete is True
+    assert archive_complete is True
+

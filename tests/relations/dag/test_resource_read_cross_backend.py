@@ -796,12 +796,11 @@ def schema_resource_http_url(tmp_path):
     "route",
     ["json", "gzip_csv", "glob_csv", "escaped_csv", "remote_csv"],
 )
-def test_eager_resource_routes_require_permission_for_schema(
+def test_file_resource_schema_discovery_precedes_execution(
     tmp_path, monkeypatch, request, route,
 ):
     import gzip
 
-    from mountainash.relations.core.errors import IncompleteSchemaError
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
     import mountainash.relations.backends.relation_systems.resource_files as rf
@@ -842,14 +841,12 @@ def test_eager_resource_routes_require_permission_for_schema(
 
     monkeypatch.setattr(rf, "parse_resource_to_arrow", count_fallback)
 
-    with pytest.raises(IncompleteSchemaError):
-        relation.collect_schema()
-    assert reads == []
-    schema = relation.collect_schema(allow_execution=True)
     from mountainash.core.dtypes import MountainashDtype as D
 
-    assert schema == {"actual": D.I64}
-    assert reads
+    assert relation.schema == {"actual": D.I64}
+    assert relation.collect_schema() == {"actual": D.I64}
+    assert relation.collect_schema(allow_execution=True) == {"actual": D.I64}
+    assert reads == []
     assert relation.to_dict() == {"actual": [1]}
 
 

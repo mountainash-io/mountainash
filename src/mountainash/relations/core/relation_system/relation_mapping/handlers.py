@@ -159,8 +159,7 @@ def visit_ref(node: Any, visitor: Any) -> Any:
     return resolved
 
 def visit_resource_read(node: Any, visitor: Any) -> Any:
-
-
+    schema_input = None
     if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
         resource = node.resource
         backend = visitor.backend.backend_type.name
@@ -175,12 +174,27 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
             and rf.polars_native_scan_supported(resource, fmt, resource.to_dialect())
         )
         if not native_scan:
-            visitor.require_schema_execution(
-                f"Resource {resource.name!r} has no native lazy metadata reader"
+            if resource.data is not None or resource.path is None:
+                visitor.require_schema_execution(
+                    f"Resource {resource.name!r} has no file metadata reader"
+                )
+            schema, complete = rf.inspect_resource_schema(
+                resource, dialect=resource.to_dialect(),
             )
+            if not complete:
+                visitor.metadata_session.schema_complete = False
+            # These are type-only inputs, never sampled source rows. Use the
+            # same carrier conversion as the ordinary resource fallback.
+            import polars as pl
+
+            schema_input = pl.from_arrow(schema.empty_table()).lazy()
+            if backend == "NARWHALS":
+                import narwhals as nw
+
+                schema_input = nw.from_native(schema_input)
 
     def _read_and_conform():
-        out = visitor.backend.read_resource(node.resource)
+        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource)
         spec = node.resource.to_typespec()
         if spec is not None and node.apply_schema_conform:
             out = visitor.apply_conform(

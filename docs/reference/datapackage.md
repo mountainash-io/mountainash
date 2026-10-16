@@ -113,6 +113,19 @@ actual output. `collect_schema(allow_execution=True)` permits ordinary execution
 when metadata is insufficient, including its normal conform and validation rules.
 Constraint edges do not become execution dependencies during schema inspection.
 
+File resources that cannot use the selected backend's native metadata reader
+use `mountainash-files` schema discovery with the same paths, dialect, glob and
+archive selection as ordinary reading. Parquet discovery reads footer metadata;
+other formats may inspect every source record. Source inference can therefore
+perform substantial I/O even without permission to evaluate the relation.
+Conform and downstream expressions are still compiled by the selected backend.
+
+Full and metadata observations can establish completeness; bounded observations
+remain best-effort evidence, not a complete-schema guarantee. Unsupported
+discovery may require explicit execution permission. Missing sources, access
+errors, malformed content and missing dependencies are not silently retried by
+executing the relation. Discovery results are not cached between schema calls.
+
 The v2 conform path preserves nulls while it performs the declared conversions:
 
 - lexical `list` fields split with their declared `delimiter` and cast each item;

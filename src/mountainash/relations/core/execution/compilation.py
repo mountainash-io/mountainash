@@ -82,6 +82,7 @@ class CompilationSession:
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
         from mountainash.relations.core.execution.preparation import TransferRequirement
         from mountainash.relations.core.relation_nodes import JoinRelNode, ReadRelNode
+        from polars.exceptions import ColumnNotFoundError
 
         node = self.prepared.nodes[key]
         location = self.prepared.locations[key]
@@ -96,7 +97,12 @@ class CompilationSession:
 
         visitor = self._visitor(key)
         with self.at(visitor, key):
-            value = self.prepared.nodes[key].accept(visitor)
+            try:
+                value = self.prepared.nodes[key].accept(visitor)
+            except ColumnNotFoundError as error:
+                if self.prepared.phase is ExecutionPhase.SCHEMA:
+                    self.metadata.raise_if_bounded(error)
+                raise
         location = self.prepared.locations[key]
         if isinstance(self.prepared.nodes[key], JoinRelNode) and location.family is CONST_BACKEND.IBIS:
             try:

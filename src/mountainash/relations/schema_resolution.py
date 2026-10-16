@@ -136,7 +136,19 @@ def _compiled_evidence(relation: Any, *, execute: bool) -> _SchemaEvidence:
 
     def inspect() -> _SchemaEvidence:
         if not execute:
-            return _native_evidence(result)
+            from polars.exceptions import ColumnNotFoundError
+
+            try:
+                evidence = _native_evidence(result)
+            except ColumnNotFoundError as error:
+                visitor.metadata_session.raise_if_bounded(error)
+                raise
+            if not visitor.metadata_session.schema_complete:
+                return replace(
+                    evidence, names_complete=False, authoritative=False,
+                    reason="Resource schema discovery supplied only bounded evidence.",
+                )
+            return evidence
         from mountainash.core.limitations import enrich_materialization
         from mountainash.relations.core.materialization import (
             MaterializationPurpose, MaterializationScope, materialize_native,

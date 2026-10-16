@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 __all__ = [
     "MissingFilesDependency",
     "parse_resource_to_arrow",
+    "inspect_resource_schema",
     "dialect_is_default",
     "dialect_native_safe",
     "polars_native_scan_supported",
@@ -351,3 +352,64 @@ def parse_resource_to_arrow(resource: Any, *, dialect: Any) -> "pa.Table":
     if len(tables) == 1:
         return tables[0]
     return pa.concat_tables(tables, promote_options="default")
+
+
+def inspect_resource_schema(resource: Any, *, dialect: Any) -> tuple["pa.Schema", bool]:
+    """Discover a resource's Arrow schema without materializing its rows.
+
+    The returned flag is true only when every selected part has full or metadata
+    evidence; bounded inference is useful to callers but cannot certify completeness.
+    Selection is shared with the eager reader through ``_file_source_specs``.
+    """
+    import pyarrow as pa
+
+    try:
+        from mountainash_files import (
+            FormatError,
+            MissingDependencyError,
+            SchemaDiscoveryUnsupportedError,
+            inspect_schema,
+        )
+    except ImportError as exc:
+        raise MissingFilesDependency(
+            "reading this resource needs the file-reading extra; "
+            "install mountainash[files]"
+        ) from exc
+    from mountainash.relations.core.errors import CompileRequiresExecutionError
+
+    try:
+        results = [
+            result
+            for spec in _file_source_specs(resource, dialect)
+            for result in inspect_schema(spec)
+        ]
+    except ImportError as exc:
+        raise MissingFilesDependency(
+            f"reading resource {resource.name!r} needs the file-reading extra; "
+            "install mountainash[files]"
+        ) from exc
+    except SchemaDiscoveryUnsupportedError as exc:
+        raise CompileRequiresExecutionError(
+            f"schema discovery for resource {resource.name!r} requires execution: {exc}"
+        ) from exc
+    except MissingDependencyError as exc:
+        raise MissingFilesDependency(
+            f"reading resource {resource.name!r} needs an optional file-format "
+            f"dependency: {exc}"
+        ) from exc
+    except FormatError as exc:
+        raise UnsupportedResourceFormat(
+            f"resource {resource.name!r} (format={resource.format!r}) could not "
+            f"be inspected by the mountainash-files reader: {exc}"
+        ) from exc
+
+    if not results:
+        raise UnsupportedResourceFormat(
+            f"resource {resource.name!r} produced no tables"
+        )
+    schemas = [result.schema for result in results]
+    schema = schemas[0] if len(schemas) == 1 else pa.unify_schemas(
+        schemas, promote_options="default"
+    )
+    complete = all(result.basis != "bounded" for result in results)
+    return schema, complete

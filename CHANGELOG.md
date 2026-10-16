@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-16
+
+### Fixed
+- Resource schema inspection (311) uses mountainash-files discovery before execution fallback for remote paths, archives, globs and non-native formats/dialects. Source schema evidence feeds the existing backend compiler and conform path; complete discovery avoids result collection even with execution permission. Bounded observations remain best effort, and missing-source/access/parse errors are not execution retries.
+
 ## Unreleased — 2026-10-15
 
 ### Fixed

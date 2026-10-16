@@ -862,6 +862,13 @@ class UnifiedRelationVisitor:
             spec_contract=getattr(schema, "contract", None),
             override=contract,
         )
+        if schema_only and not self.metadata_session.schema_complete and available is not None:
+            missing = {field.source_name.split(".", 1)[0] for field in schema.fields}.difference(available)
+            if missing:
+                self.require_schema_execution(
+                    "Bounded resource discovery does not establish conform input fields: "
+                    + ", ".join(sorted(missing))
+                )
 
         # node_id captures the current report count *before* appending below
         # — deterministic since visits are depth-first sequential.
@@ -912,6 +919,8 @@ class UnifiedRelationVisitor:
                 )
             if owner_node is not None:
                 self._conform_plans_by_node[id(owner_node)] = conform_result.structured_field_plans
+            if empty_from_schema and available == [] and schema.fields:
+                return self.backend.empty_frame(schema)
             use_open = (
                 resolved_contract.extra_columns == "evolve"
                 and resolved_contract.mapping == "by_name"

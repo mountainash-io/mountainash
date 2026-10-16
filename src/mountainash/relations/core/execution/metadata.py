@@ -64,6 +64,17 @@ class MetadataSession:
     def __init__(self, tokens: IdentityTokens) -> None:
         self.tokens = tokens
         self._conform_owners: list[object] = []
+        # Shared by all visitors, including separately compiled DAG refs.
+        self.schema_complete = True
+
+    def raise_if_bounded(self, error: Exception) -> None:
+        """A missing field in a bounded prototype need not be absent in data."""
+        if not self.schema_complete:
+            from mountainash.relations.core.errors import CompileRequiresExecutionError
+
+            raise CompileRequiresExecutionError(
+                "Bounded resource schema discovery does not establish the referenced fields."
+            ) from error
 
     def conform_id(self, owner: object) -> str:
         for index, existing in enumerate(self._conform_owners):
