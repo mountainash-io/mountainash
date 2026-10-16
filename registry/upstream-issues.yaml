@@ -2255,3 +2255,23 @@ issues:
     claim the Exasol database lacks regex facilities. No external issue or
     upstream patch is claimed.
   last_verified: '2026-10-15'
+- id: IB-STR-16
+  project: ibis
+  category: string-ops
+  summary: PostgreSQL dynamic insensitive regex loses pattern concatenation grouping
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-postgres
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 321 owns the unrepaired translator defect. The canonical
+    REGEX_CONTAINS node gates dynamic case-insensitive patterns, including
+    native expressions, only for Ibis 12.0.0 with SQLGlot 29.0.1 and PostgreSQL
+    16.15. Native literals and sensitive plain-column matching remain allowed.
+    Case-sensitive concatenated patterns remain unresolved and are not gated
+    by this rule. Unknown forms and environments retain native execution,
+    not a support claim. No external issue or upstream patch is claimed.
+  last_verified: '2026-10-16'

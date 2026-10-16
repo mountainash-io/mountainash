@@ -66,3 +66,87 @@ def test_qualified_missing_translator_is_refused(dialect, kind, policy):
 def test_unqualified_or_unselected_gate_preserves_native_lowering(dialect, kind, version, policy):
     compiled = _compile(dialect, kind, version, policy)
     assert compiled.type() == (ibis.dtype("decimal(12, 2)") if kind == "decimal" else ibis.dtype("boolean"))
+
+
+def _postgres_regex(shape, policy, versions=("12.0.0", "29.0.1", "16.15"), *, sensitive=False):
+    """Supply observations explicitly; do not pretend an unbound table is a driver."""
+    from mountainash.core.capabilities import CapabilityRegistry
+    from mountainash.core.capabilities.applicability import prepare_environment
+    from mountainash.core.capabilities.capture import Environment, EnvironmentCoordinate
+    from mountainash.core.capabilities.policy import _ExecutionContext
+
+    CapabilityRegistry.ensure_loaded()
+    table = ibis.table({"value": "string", "pattern": "string"}, name="source")
+    coordinates = (("package", "ibis-framework"), ("package", "sqlglot"), ("engine", "postgres"))
+    observations = Environment(tuple(
+        EnvironmentCoordinate(kind, name, version) for (kind, name), version in zip(coordinates, versions)
+    ))
+    context = _ExecutionContext(
+        policy, _CapabilityTarget(BackendIdentity(CONST_BACKEND.IBIS, "ibis-postgres"), table),
+        observations, prepare_environment(observations, frozenset((kind, name, True) for kind, name in coordinates)),
+    )
+    system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-postgres", execution_context=context)
+    visitor = UnifiedExpressionVisitor(system, execution_context=context, input_data=table)
+    pattern = {
+        "column": ma.col("pattern"), "computed": ma.col("pattern") + ma.lit("$"),
+        "computed-constant": ma.lit("^AU") + ma.lit("$"),
+        "native-column": ma.native(table.pattern), "native-computed": ma.native(table.pattern + "$"),
+        "deferred": ma.native(ibis._["pattern"]), "literal": "^AU$",
+        "literal-expression": ma.lit("^AU$"), "native-literal": ma.native(ibis.literal("^AU$")),
+    }[shape]
+    expression = ma.col("value").str.regex_contains(pattern, case_sensitive=sensitive)
+    compiled = table.select(visitor.visit(expression.node).name("result")).result
+    return compiled, table
+
+
+@pytest.mark.parametrize("shape", [
+    "column", "computed", "computed-constant", "native-column", "native-computed", "deferred",
+])
+@pytest.mark.parametrize("policy", [ma.CapabilityPolicy.checked(), ma.CapabilityPolicy.native_debugging()])
+def test_postgres_dynamic_insensitive_regex_is_refused(shape, policy):
+    with pytest.raises(BackendCapabilityError) as error:
+        _postgres_regex(shape, policy)
+    assert error.value.function_key.name == "REGEX_CONTAINS"
+    assert error.value.backend == "ibis"
+
+
+@pytest.mark.parametrize("shape,sensitive", [
+    ("literal", False), ("literal-expression", False), ("native-literal", False),
+    ("column", True), ("native-column", True),
+])
+def test_postgres_regex_supported_neighbors_retain_native_compilation(shape, sensitive):
+    compiled, table = _postgres_regex(shape, ma.CapabilityPolicy.checked(), sensitive=sensitive)
+    pattern = table.pattern if "column" in shape else ibis.literal("(?i)^AU$")
+    native = table.select(table.value.re_search(pattern).name("result")).result
+    assert ibis.to_sql(compiled, dialect="postgres") == ibis.to_sql(native, dialect="postgres")
+
+
+@pytest.mark.parametrize("coordinate,value", [
+    (0, "12.0.1"), (1, "29.0.2"), (2, "16.16"), (0, None), (1, None), (2, None),
+])
+def test_postgres_unqualified_stack_skips_native_inspection(monkeypatch, coordinate, value):
+    versions = ["12.0.0", "29.0.1", "16.15"]
+    versions[coordinate] = value
+    _assert_postgres_bypass_without_inspection(monkeypatch, ma.CapabilityPolicy.checked(), tuple(versions))
+
+
+@pytest.mark.parametrize("mode", ["trusted", "excluded-semantics"])
+def test_postgres_unselected_policy_skips_native_inspection(monkeypatch, mode):
+    from mountainash.core.capabilities.schema import CapabilityIssueClass
+
+    policy = (ma.CapabilityPolicy.trusted() if mode == "trusted" else ma.CapabilityPolicy.checked(
+        protection=frozenset({CapabilityIssueClass.AVAILABILITY}),
+    ))
+    _assert_postgres_bypass_without_inspection(monkeypatch, policy, ("12.0.0", "29.0.1", "16.15"))
+
+
+def _assert_postgres_bypass_without_inspection(monkeypatch, policy, versions):
+    from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
+
+    def forbidden_inspection(self, value):
+        raise AssertionError("inactive protection inspected a native argument")
+
+    monkeypatch.setattr(IbisBaseExpressionSystem, "native_argument_form", forbidden_inspection)
+    compiled, table = _postgres_regex("native-column", policy, versions)
+    native = table.select(table.value.re_search(ibis.literal("(?i)") + table.pattern).name("result")).result
+    assert ibis.to_sql(compiled, dialect="postgres") == ibis.to_sql(native, dialect="postgres")

@@ -24,6 +24,7 @@ KNOWN_DIALECTS: dict[CONST_BACKEND, frozenset[str]] = {
     CONST_BACKEND.IBIS: frozenset({
         "ibis-duckdb", "ibis-sqlite", "ibis-polars",
         "ibis-mysql", "ibis-singlestoredb", "ibis-exasol",
+        "ibis-postgres",
     }),
     CONST_BACKEND.NARWHALS: frozenset({
         "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
