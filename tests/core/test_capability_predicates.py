@@ -4,6 +4,15 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.core.capabilities.predicates import (
+    BoundCall,
+    DomainRelation,
+    bind_expression_call,
+    compare_domains,
+    evaluate_clause,
+    predicate_holds,
+)
+from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 from mountainash.core.capabilities.schema import (
     Boundary,
     CapabilityFact,
@@ -162,15 +171,6 @@ def test_valid_predicate_fact_constructs():
     assert f.option_value is None and f.value_class is None
 
 
-from mountainash.core.capabilities.predicates import (
-    BoundCall,
-    DomainRelation,
-    bind_expression_call,
-    compare_domains,
-    evaluate_clause,
-    predicate_holds,
-)
-from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 
 
 class _DynamicExpr(ExpressionNode):

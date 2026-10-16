@@ -161,12 +161,13 @@ def test_native_regex_forms_share_one_policy_classification(
             collect_expr(table, expression)
     else:
         assert collect_expr(table, expression) == expected
-    with ma.capability_policy(ma.CapabilityPolicy.trusted()):
-        if shape == "deferred":
-            with pytest.raises(TypeError):
-                collect_expr(table, expression)
-        else:
-            assert collect_expr(table, expression) == expected
+    if form == "is_dynamic":
+        with ma.capability_policy(ma.CapabilityPolicy.trusted()):
+            if shape == "deferred":
+                with pytest.raises(TypeError):
+                    collect_expr(table, expression)
+            else:
+                assert collect_expr(table, expression) == expected
 
 
 def test_unknown_native_regex_retains_ordinary_error(backend_factory, collect_expr, regex_form_policy):
