@@ -63,8 +63,12 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
     dag = getattr(relation, "_dag", None)
     if dag is not None:
         from mountainash.relations.dag.introspection import structural_schema
-        ref_resolver = lambda name: structural_schema(dag, name)
-        identity_resolver = lambda name: dag.relations[name]._node
+
+        def ref_resolver(name):
+            return structural_schema(dag, name)
+
+        def identity_resolver(name):
+            return dag.relations[name]._node
     else:
         ref_resolver = identity_resolver = None
 
