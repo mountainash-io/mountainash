@@ -47,7 +47,7 @@ def import_numpy() -> Any:
 
 def import_polars() -> Any:
     """Lazy import of polars."""
-    return require_module("polars", "pip install polars>=1.35.1")
+    return require_module("polars", "pip install 'polars>=2,<3'")
 
 
 def import_pyarrow() -> Any:
@@ -118,7 +118,7 @@ def get_available_backends() -> Dict[str, bool]:
 
 INSTALL_COMMANDS = {
     "pandas": "pip install 'mountainash[pandas]'",
-    "polars": "pip install polars>=1.35.1",
+    "polars": "pip install 'polars>=2,<3'",
     "pyarrow": "pip install 'mountainash[pyarrow]'",
     "ibis": "pip install 'mountainash[ibis]'",
     "ibis.expr.types": "pip install 'mountainash[ibis]'",

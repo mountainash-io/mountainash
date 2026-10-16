@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, Union
 
 import narwhals as nw
+from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import _polars_native_transform
 
 from ..base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
@@ -65,5 +66,24 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                     f"({dtype.value!r}) and cannot compile on {self._TARGET.value}. "
                     f"Use a canonical dtype for cross-backend expressions."
                 )
-            return x.cast(dtype.value)
-        return x.cast(registry.to_native_cast(dtype, self._TARGET))
+            return self._cast_target(x, dtype.value)
+        return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
+
+    def _cast_target(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
+        if self.dialect in {"narwhals-polars", "narwhals-lazy"}:
+            from narwhals._polars.utils import narwhals_to_native_dtype
+            from narwhals._utils import Version
+            from mountainash.expressions.backends.expression_systems.polars.temporal_cast import (
+                cast_temporal_compatible,
+                contains_temporal,
+            )
+
+            native_dtype = narwhals_to_native_dtype(target, Version.MAIN)
+            if contains_temporal(native_dtype):
+                return _polars_native_transform(
+                    x,
+                    lambda native: cast_temporal_compatible(
+                        native, native_dtype, strict=True
+                    ),
+                )
+        return x.cast(target)

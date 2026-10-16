@@ -5,7 +5,7 @@ import math
 from typing import Any, Callable, Literal, cast
 
 import narwhals as nw
-from narwhals._expression_parsing import ExprNode, evaluate_node
+from narwhals._expression_parsing import ExprKind, ExprNode, evaluate_node
 
 from mountainash.core.lazy_imports import import_numpy, import_pandas, import_polars
 
@@ -19,10 +19,11 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 
 _ObjectProjection = Callable[[object], bool | str | None]
+_NativeTransform = Callable[[Any], Any]
 
 
 class _ElementwiseBatchExpr(nw.Expr):
-    """Preserve Narwhals elementwise metadata for a native batch callback."""
+    """Preserve Narwhals composition for native transforms and batch callbacks."""
 
     def __init__(
         self,
@@ -31,6 +32,7 @@ class _ElementwiseBatchExpr(nw.Expr):
         dtype: Any,
         *,
         native_polars: bool,
+        native_transform: _NativeTransform | None = None,
         tail: tuple[ExprNode, ...] = (),
         name_source: nw.Expr | None = None,
     ) -> None:
@@ -38,9 +40,10 @@ class _ElementwiseBatchExpr(nw.Expr):
         self._callback = callback
         self._dtype = dtype
         self._native_polars = native_polars
+        self._native_transform = native_transform
         self._tail = tail
         self._name_source = name_source
-        self._nodes = ()
+        self._nodes = (*source._nodes, *tail)
 
     def _append_node(self, node: ExprNode) -> _ElementwiseBatchExpr:
         return _ElementwiseBatchExpr(
@@ -48,13 +51,29 @@ class _ElementwiseBatchExpr(nw.Expr):
             self._callback,
             self._dtype,
             native_polars=self._native_polars,
+            native_transform=self._native_transform,
             tail=(*self._tail, node),
+            name_source=self._name_source,
+        )
+
+    def _with_over_node(self, node: ExprNode) -> _ElementwiseBatchExpr:
+        # This metadata-only head lets Narwhals place windows around the source
+        # and tail operands. It is unpacked below, never sent for execution.
+        head = ExprNode(ExprKind.ELEMENTWISE, "native_transform", exprs=(self._source,))
+        nodes = nw.Expr(head, *self._tail)._with_over_node(node)._nodes
+        return _ElementwiseBatchExpr(
+            nodes[0].exprs[0], self._callback, self._dtype,
+            native_polars=self._native_polars,
+            native_transform=self._native_transform,
+            tail=tuple(nodes[1:]),
             name_source=self._name_source,
         )
 
     def _to_compliant_expr(self, namespace: Any) -> Any:
         source: Any = self._source._to_compliant_expr(namespace)
-        if self._callback is None:
+        if self._native_transform is not None:
+            result = source._with_native(self._native_transform(source.native))
+        elif self._callback is None:
             result = source
         elif self._native_polars:
             result = source._with_native(
@@ -88,6 +107,12 @@ def _polars_elementwise_batches(
     x: nw.Expr, callback: Callable[[Any], Any], dtype: Any
 ) -> nw.Expr:
     return _ElementwiseBatchExpr(x, callback, dtype, native_polars=True)
+
+
+def _polars_native_transform(x: nw.Expr, transform: _NativeTransform) -> nw.Expr:
+    return _ElementwiseBatchExpr(
+        x, None, None, native_polars=True, native_transform=transform
+    )
 
 
 def _is_pandas_native_nan(value: object, kind: ValueKind) -> bool:

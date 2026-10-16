@@ -605,21 +605,38 @@ class TestListFilter:
 
 @pytest.mark.parametrize("backend_name", LIST_BACKENDS_POLARS_ONLY)
 class TestListConversionOps:
-    def test_to_struct_with_fields(self, backend_name, backend_factory, collect_expr):
-        data = {"vals": [[1, 2], [3, 4], [5, 6]]}
-        df = backend_factory.create(data, backend_name)
-        result = collect_expr(df, ma.col("vals").list.to_struct(fields=["x", "y"]))
-        assert len(result) == 3
-        assert result[0] == {"x": 1, "y": 2}
-        assert result[1] == {"x": 3, "y": 4}
-        assert result[2] == {"x": 5, "y": 6}
+    @pytest.mark.parametrize(
+        ("options", "names"),
+        [
+            ({"fields": ["x", "y"]}, ["x", "y"]),
+            ({"upper_bound": 2}, ["field_0", "field_1"]),
+            ({"fields": ["x", "y"], "upper_bound": 1}, ["x", "y"]),
+            ({"fields": [], "upper_bound": 2}, []),
+        ],
+    )
+    def test_to_struct_declared_width(self, backend_name, backend_factory, options, names):
+        df = backend_factory.create({"vals": [[1, 2, 3], [4], [], None, [None, 5]]}, backend_name)
+        result = ma.relation(df).select(
+            ma.col("vals").list.to_struct(**options).alias("out")
+        ).to_polars()
+        assert result.schema["out"] == pl.Struct({name: pl.Int64 for name in names})
+        assert result["out"].to_list() == [
+            dict(zip(names, values))
+            for values in [(1, 2), (4, None), (None, None), (None, None), (None, 5)]
+        ]
 
-    def test_to_struct_with_upper_bound(self, backend_name, backend_factory, collect_expr):
-        data = {"vals": [[10, 20], [30, 40]]}
-        df = backend_factory.create(data, backend_name)
-        result = collect_expr(df, ma.col("vals").list.to_struct(upper_bound=2))
-        assert len(result) == 2
-        assert result[0] == {"field_0": 10, "field_1": 20}
+    def test_to_struct_typed_empty(self, backend_name, backend_factory):
+        df = backend_factory.create({"vals": pl.Series([], dtype=pl.List(pl.Int64))}, backend_name)
+        result = ma.relation(df).select(
+            ma.col("vals").list.to_struct(upper_bound=2).alias("out")
+        ).to_polars()
+        assert result.schema["out"] == pl.Struct({"field_0": pl.Int64, "field_1": pl.Int64})
+        assert result["out"].to_list() == []
+
+    def test_to_struct_requires_width(self, backend_name, backend_factory, collect_expr):
+        df = backend_factory.create({"vals": [[1, 2]]}, backend_name)
+        with pytest.raises((TypeError, ValueError)):
+            collect_expr(df, ma.col("vals").list.to_struct())
 
     def test_to_array(self, backend_name, backend_factory, collect_expr):
         data = {"vals": [[1, 2, 3], [4, 5, 6]]}
