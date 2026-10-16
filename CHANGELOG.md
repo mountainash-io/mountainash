@@ -3,7 +3,7 @@
 ## Unreleased — 2026-10-16
 
 ### Added
-- Canonical `FieldSpec.dtype` declarations and tagged Frictionless descriptor round trips (333), including dtype-only declarations and recursive rejection of in-memory native dtype objects at the descriptor boundary.
+- Canonical `FieldSpec.dtype` declarations and tagged Frictionless descriptor round trips (333), including dtype-only declarations, native override precedence with mismatch/unverified warnings, and shared conform/inference/schema lowering. Native objects retain parameters in owned in-memory snapshots and are recursively rejected at the descriptor boundary. Existing temporal default-unit loss (334) and NumPy-backed pandas nullable integer casting (252) remain unresolved.
 
 ### Fixed
 - Polars 2 migration (332): replace removed String-to-temporal casts with native planning-time parsing on Polars and Narwhals-on-Polars, including nested List/Array/Struct values. Preserve target units, naive wall-clock versus zoned instant semantics, parent nulls, failure policies and window composition. Declared Date ingress and date-range validation now complete through the repaired cast path. The dependency requires `polars>=2,<3`.

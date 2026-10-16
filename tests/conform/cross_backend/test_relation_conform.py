@@ -14,6 +14,64 @@ from fixtures.call_expectations import expect_call_failure
 
 
 
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("dtype,values", [
+    (ma.MountainashDtype.I8, [-128, 127, None]),
+    (ma.MountainashDtype.FP32, [1.5, -2.25, None]),
+])
+def test_canonical_conform_retains_declared_identity(backend_name, backend_factory, dtype, values, request):
+    if dtype is ma.MountainashDtype.I8 and backend_name in {"pandas", "narwhals-pandas"}:
+        from pandas.errors import IntCastingNaNError
+        request.applymarker(pytest.mark.xfail(
+            strict=True, raises=IntCastingNaNError,
+            reason="252: native Narwhals NumPy-backed float/NaN -> integer cast loses nullable representation",
+        ))
+    source = backend_factory.create({"value": values}, backend_name)
+    rel = ma.relation(source).conform(TypeSpec(
+        fields=[FieldSpec(name="value", dtype=dtype)], missing_values=[],
+    ))
+    out = rel.to_polars()
+    assert out["value"].to_list() == values
+    assert rel.schema["value"] is dtype
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_native_override_controls_conform_and_inference(backend_name, backend_factory, request):
+    if backend_name in {"pandas", "narwhals-pandas"}:
+        from pandas.errors import IntCastingNaNError
+        request.applymarker(pytest.mark.xfail(
+            strict=True, raises=IntCastingNaNError,
+            reason="252: native Narwhals NumPy-backed float/NaN -> integer cast loses nullable representation",
+        ))
+    source = backend_factory.create({"value": [127, None]}, backend_name)
+    override = "int64" if backend_name.startswith("ibis") else "Int64"
+    rel = ma.relation(source).conform(TypeSpec(
+        fields=[FieldSpec(name="value", dtype=ma.MountainashDtype.I8, backend_type=override)],
+        missing_values=[],
+    ))
+    with pytest.warns(UserWarning, match="value"):
+        out = rel.to_polars()
+    assert out["value"].to_list() == [127, None]
+    assert rel.schema["value"] is ma.MountainashDtype.I64
+
+
+def test_explicit_native_timestamp_freeze_compares_parameters():
+    # Polars-owned parameters: other targets cannot consume this native object.
+    import polars as pl
+    from mountainash.conform.errors import SchemaDriftError
+    source = pl.DataFrame({"at": [1, 1001, None]}).with_columns(pl.col("at").cast(pl.Datetime("ns", "UTC")))
+    for unit in ("ns", "us"):
+        spec = TypeSpec(fields=[FieldSpec(
+            name="at", backend_type=pl.Datetime(unit, "UTC"),
+        )], missing_values=[])
+        rel = ma.relation(source).conform(spec, contract={"data_type": "freeze"})
+        if unit == "ns":
+            assert rel.to_polars()["at"].dt.epoch("ns").to_list() == [1, 1001, None]
+        else:
+            with pytest.raises(SchemaDriftError):
+                rel.to_polars()
+
+
 # ALL_BACKENDS = [
 #     "polars",
 #     "pandas",
@@ -684,3 +742,15 @@ class TestConformOwnsDeclarations:
         # override while execution drops them (separate defect, not ownership).
         self._check(old, expected_cols=["value"], schema_parity=False)
         self._check(new, expected_cols=["value", "support"])
+
+
+def test_nested_override_freeze_uses_effective_child_type():
+    import polars as pl
+    spec = TypeSpec(fields=[FieldSpec(name="record", dtype=ma.MountainashDtype.STRUCT,
+        object_fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type=pl.Int64)],
+    )], missing_values=[])
+    source = pl.DataFrame({"record": [{"id": 300}, None]})
+    with pytest.warns(UserWarning):
+        out = ma.relation(source).conform(spec, contract={"data_type": "freeze"}).to_polars()
+    assert out.schema["record"] == pl.Struct({"id": pl.Int64})
+    assert out["record"].to_list() == [{"id": 300}, None]

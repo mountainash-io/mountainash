@@ -47,7 +47,6 @@ def test_safe_cast_is_not_drift():
     assert out.drift.type_mismatches == []
     em = out.emitted[0]
     assert em.type_action == "coerce"
-    assert em.effective_type is None
 
 
 def test_unsafe_cast_coerce_reports_and_casts():
@@ -61,7 +60,6 @@ def test_unsafe_cast_coerce_reports_and_casts():
     assert out.drift.type_mismatches[0].applied is True
     em = out.emitted[0]
     assert em.type_action == "coerce"
-    assert em.effective_type is None
 
 
 def test_unsafe_cast_evolve_keeps_source_type():

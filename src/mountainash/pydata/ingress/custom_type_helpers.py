@@ -158,10 +158,9 @@ def apply_native_conversions_to_dataframe(
     """
     Apply native type conversions to a DataFrame using vectorized operations.
 
-    This is TIER 1 (DataFrame layer) of the hybrid strategy:
-    - Apply ONLY native conversions (string→int, float→bool)
-    - Use vectorized operations (MUCH FASTER - 12x!)
-    - Apply other native operations (rename, null_fill) via Relation.conform()
+    TIER 1 uses the shared conform expressions for native casting, rename and
+    null filling. Target resolution precedes execution so invalid overrides
+    cannot be swallowed by the existing best-effort execution policy.
 
     Args:
         df: Polars DataFrame
@@ -171,52 +170,16 @@ def apply_native_conversions_to_dataframe(
     Returns:
         DataFrame with native conversions applied
     """
-    from mountainash.core.lazy_imports import import_polars
-    from mountainash.core.dtypes import TypeTarget, registry
-    from mountainash.typespec.converters import resolve_field_canonical
-    from mountainash.typespec.universal_types import UniversalType
-
-    pl = import_polars()
-    if pl is None:
-        raise ImportError("polars is required for this operation")
 
     if not native_conversions:
         return df
-
-    # Build cast dictionary for vectorized casting
-    cast_dict = {}
-    for col_name, field_spec in native_conversions.items():
-        # Only cast if there's a non-ANY type declared and column exists
-        if field_spec.type and field_spec.type != UniversalType.ANY and col_name in df.columns:
-            canon = resolve_field_canonical(field_spec)
-            if canon is not None:
-                cast_dict[col_name] = registry.to_native_schema(canon, TypeTarget.POLARS)
-
-    # Apply vectorized cast (MUCH FASTER than element-wise!)
-    if cast_dict:
-        try:
-            df = df.cast(cast_dict)
-            logger.info(
-                f"Applied native conversions (vectorized) to {len(cast_dict)} columns"
-            )
-        except Exception as e:
-            logger.warning(
-                f"Vectorized cast failed: {e}. "
-                "Falling back to column-by-column casting."
-            )
-            for col_name, dtype in cast_dict.items():
-                try:
-                    df = df.with_columns(pl.col(col_name).cast(dtype))
-                except Exception as col_error:
-                    logger.warning(
-                        f"Cast failed for column '{col_name}': {col_error}. "
-                        "Keeping original type."
-                    )
 
     # Apply other native operations (rename, null_fill) via expressions
     import mountainash as ma
     from mountainash.typespec.spec import TypeSpec
     from mountainash.conform.expressions import _build_conform_exprs
+    from mountainash.core.dtypes import TypeTarget
+    from mountainash.typespec.source_shape import extract_source_shapes
 
     # Permissive application (see the STEP 5 native path below): rename/null_fill
     # expressions are applied via with_columns without available_columns, so the
@@ -225,9 +188,12 @@ def apply_native_conversions_to_dataframe(
         fields=[f for f in native_conversions.values()],
         fields_match="open",
     )
+    conform_result = _build_conform_exprs(
+        native_spec, available_columns=df.columns, actual_shapes=extract_source_shapes(df),
+        type_target=TypeTarget.POLARS,
+    )
     try:
-        exprs = _build_conform_exprs(native_spec)
-        df = ma.relation(df).with_columns(*exprs).to_polars()
+        df = ma.relation(df).with_columns(*conform_result.exprs).to_polars()
     except Exception as e:
         logger.warning(
             f"Error applying native operations via expressions: {e}. "
@@ -413,26 +379,7 @@ def apply_hybrid_conversion(
 
     # STEP 5: Apply NATIVE operations via expressions (TIER 1)
     if native:
-        import mountainash as ma
-        from mountainash.typespec.spec import TypeSpec
-        from mountainash.conform.expressions import _build_conform_exprs
-
-        # Native casting applies per-column expressions via with_columns and
-        # must not enforce schema shape — it runs without available_columns,
-        # so it needs the permissive "open" mode explicitly (the model default
-        # is now the strict "exact", which requires column information).
-        native_spec = TypeSpec(
-            fields=[f for f in native.values()],
-            fields_match="open",
-        )
-        try:
-            conform_result = _build_conform_exprs(native_spec)
-            df = ma.relation(df).with_columns(*conform_result.exprs).to_polars()
-        except Exception as e:
-            logger.warning(
-                f"Error applying native operations via expressions: {e}. "
-                "DataFrame may not have all operations applied."
-            )
+        df = apply_native_conversions_to_dataframe(df, native)
 
     return df
 

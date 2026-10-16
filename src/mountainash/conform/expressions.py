@@ -209,6 +209,8 @@ def _resolve_declared_type(fld: "FieldSpec", source_name: str) -> DeclaredType:
     from mountainash.typespec.converters import resolve_field_canonical
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
+    if fld.dtype is not None:
+        return resolve_field_canonical(fld) or UNDETERMINED
     if fld.type == UniversalType.LIST:
         return to_canonical(UniversalType.LIST)  # type: ignore[return-value]
     if fld.categories is not None:
@@ -254,6 +256,10 @@ def _shape_for(
 
 
 def _shape_detail(shape: SourceShape | None) -> str | None:
+    if shape is not None and shape.native_dtype is not None:
+        return str(shape.native_dtype.value)
+    if shape is not None and shape.decimal is not None:
+        return str(shape.decimal)
     if shape is None or shape.canonical_type is None:
         return None
     if shape.canonical_type.name == "LIST" and shape.item_shape is not None:
@@ -274,6 +280,14 @@ def _shape_diff(
 ) -> bool:
     if expected is None or actual is None:
         return False
+    if expected.native_dtype is not None and actual.native_dtype is not None:
+        from mountainash.typespec.converters import _native_types_equal
+        if expected.native_dtype.target is actual.native_dtype.target:
+            return not _native_types_equal(
+                expected.native_dtype.value, actual.native_dtype.value, expected.native_dtype.target,
+            )
+    if expected.decimal is not None:
+        return expected.decimal != actual.decimal
     if expected.canonical_type is None:
         return False
     if actual.canonical_type is None:
@@ -314,12 +328,24 @@ def _shape_diff(
     return False
 
 
-def _expected_shape(fld: "FieldSpec") -> SourceShape | None:
-    from mountainash.core.dtypes import MountainashDtype
-    from mountainash.typespec.converters import resolve_field_canonical
+def _expected_shape(fld: "FieldSpec", type_target: Any = None) -> SourceShape | None:
+    from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, registry
+    from mountainash.typespec.converters import resolve_field_canonical, _resolve_field_target
     from mountainash.typespec.universal_types import parse_universal, to_canonical, UniversalType
 
-    canonical = resolve_field_canonical(fld)
+    canonical = (
+        _resolve_field_target(fld, type_target, emit_warning=False)
+        if type_target is not None else resolve_field_canonical(fld)
+    )
+    if isinstance(canonical, NativeDtype):
+        resolved = registry.from_native(canonical.value, target=canonical.target)
+        return SourceShape(
+            None if isinstance(resolved, DecimalDtype) else resolved,
+            decimal=resolved if isinstance(resolved, DecimalDtype) else None,
+            native_dtype=canonical,
+        )
+    if isinstance(canonical, DecimalDtype):
+        return SourceShape(None, decimal=canonical)
     if canonical is None:
         return None
     if fld.type is UniversalType.GEOPOINT:
@@ -343,7 +369,7 @@ def _expected_shape(fld: "FieldSpec") -> SourceShape | None:
                 SourceShape(
                     MountainashDtype.STRUCT,
                     struct_fields=tuple(
-                        (inner.name, _expected_shape(inner) or SourceShape(None))
+                        (inner.name, _expected_shape(inner, type_target) or SourceShape(None))
                         for inner in fld.item_object_fields
                     ),
                 ),
@@ -353,7 +379,7 @@ def _expected_shape(fld: "FieldSpec") -> SourceShape | None:
         return SourceShape(
             canonical,
             struct_fields=tuple(
-                (inner.name, _expected_shape(inner) or SourceShape(None))
+                (inner.name, _expected_shape(inner, type_target) or SourceShape(None))
                 for inner in fld.object_fields
             ),
         )
@@ -373,12 +399,15 @@ def resolve_conform_output(
     key_resource_name: str | None = None,
     schema_of: Callable[[str], Mapping[str, Any]] | None = None,
     apply_value_transforms: bool = True,
+    type_target: Any = None,
 ) -> ConformOutputContract:
     """Resolve structure, source evidence, drift, and per-field action policy."""
     from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
     from mountainash.core.dtypes import CastSafety, DecimalDtype, MountainashDtype, classify_cast
     from mountainash.relations.schema_inference import SchemaTypeStatus
     from mountainash.typespec.universal_types import UniversalType
+    from mountainash.core.dtypes import NativeDtype
+    from mountainash.typespec.converters import _resolve_field_target, _native_types_equal
 
     fields_match = spec.fields_match
     if fields_match not in _VALID_FIELDS_MATCH:
@@ -422,15 +451,20 @@ def resolve_conform_output(
     renamed_sources: set[str] = set()
     for field in spec.fields:
         source_name = field.source_name
+        effective = (
+            _resolve_field_target(field, type_target, emit_warning=raise_on_freeze)
+            if type_target is not None
+            else None if field.backend_type else field.dtype or _declared_canonical(field)
+        )
         if available_set is not None and _source_root(source_name) not in available_set:
             if contract.missing_columns == "null_fill":
                 declared = _declared_canonical(field)
-                emitted.append(EmittedField(field, source_name, declared or UNDETERMINED, False, "null_fill", source_shape=SourceShape(None)))
+                emitted.append(EmittedField(field, source_name, declared or UNDETERMINED, False, "null_fill", effective_type=effective, source_shape=SourceShape(None)))
             continue
         renamed = "." not in source_name and source_name != field.name
         if renamed:
             renamed_sources.add(source_name)
-        emitted.append(EmittedField(field, source_name, _resolve_declared_type(field, source_name), renamed, source_shape=_shape_for(actual_shapes, source_name)))  # type: ignore[arg-type]
+        emitted.append(EmittedField(field, source_name, _resolve_declared_type(field, source_name), renamed, effective_type=effective, source_shape=_shape_for(actual_shapes, source_name)))
 
     type_mismatches: list[TypeDrift] = []
     resolved: list[EmittedField] = []
@@ -478,10 +512,23 @@ def resolve_conform_output(
         if "." in em.source_name and actual_shape is None:
             resolved.append(em)
             continue
-        declared = _declared_canonical(em.field)
+        declared = em.effective_type if isinstance(em.effective_type, MountainashDtype) else None
         actual_dtype = (actual_dtypes or {}).get(em.source_name)
         mismatch: TypeDrift | None = None
-        if em.field.dtype is not None:
+        if isinstance(em.effective_type, NativeDtype):
+            actual_native = actual_shape.native_dtype if actual_shape is not None else None
+            comparable = actual_native is not None and actual_native.target is em.effective_type.target
+            if not comparable or not _native_types_equal(
+                actual_native.value, em.effective_type.value, em.effective_type.target,
+            ):
+                mismatch = TypeDrift(
+                    em.field.name, em.effective_type, actual_dtype,
+                    "unsafe" if comparable else "unknown", None,
+                    "representation" if comparable else "unknown",
+                    str(actual_native.value) if actual_native is not None else None,
+                    str(em.effective_type.value), apply_value_transforms,
+                )
+        elif isinstance(em.effective_type, DecimalDtype):
             # Exact decimals match only equal precision/scale. All other source types
             # are mismatches resolved by the existing data_type policy below.
             if actual_shapes is not None or actual_dtypes is not None:
@@ -490,7 +537,7 @@ def resolve_conform_output(
                     else actual_dtype if isinstance(actual_dtype, DecimalDtype)
                     else None
                 )
-                if actual_decimal != em.field.dtype:
+                if actual_decimal != em.effective_type:
                     if actual_decimal is not None:
                         actual_report: Any = actual_decimal
                     elif actual_shape is not None and actual_shape.canonical_type is not None:
@@ -501,18 +548,18 @@ def resolve_conform_output(
                         actual_report = None
                     mismatch = TypeDrift(
                         em.field.name,
-                        em.field.dtype,
+                        em.effective_type,
                         actual_report,
                         "unknown" if actual_report is None else "unsafe",
                         None,
                         "unknown" if actual_report is None else "representation",
                         None if actual_report is None else str(actual_report),
-                        str(em.field.dtype),
+                        str(em.effective_type),
                         apply_value_transforms,
                     )
             declared = None  # skip the canonical comparisons below
         if declared is not None and actual_shapes is not None:
-            expected_shape = _expected_shape(em.field)
+            expected_shape = _expected_shape(em.field, type_target)
             requirement = _shape_detail(expected_shape) or str(declared)
             if actual_shape is None or actual_shape.canonical_type is None:
                 mismatch = TypeDrift(
@@ -577,7 +624,7 @@ def resolve_conform_output(
                     apply_value_transforms,
                 )
         elif declared is not None and actual_dtypes is not None:
-            requirement = _shape_detail(_expected_shape(em.field)) or str(declared)
+            requirement = _shape_detail(_expected_shape(em.field, type_target)) or str(declared)
             if actual_dtype is None or isinstance(actual_dtype, SchemaTypeStatus):
                 mismatch = TypeDrift(
                     em.field.name,
@@ -614,7 +661,7 @@ def resolve_conform_output(
         mismatch = dataclasses.replace(mismatch, action=reported_action, applied=applied)
         type_mismatches.append(mismatch)
         if (
-            em.field.dtype is not None
+            isinstance(em.effective_type, DecimalDtype)
             and em.field.rounding is None
             and apply_value_transforms
             and action in {"coerce", "discard_value", "discard_row"}
@@ -623,7 +670,7 @@ def resolve_conform_output(
             # Unknown inference evidence does not prove conversion is required.
             # Concrete mismatches and terminal resolution still require rounding.
             raise DecimalConversionRequiredError(
-                em.field.name, em.field.dtype, mismatch.actual or "an unknown type"
+                em.field.name, em.effective_type, mismatch.actual or "an unknown type"
             )
         if action == "evolve":
             em = dataclasses.replace(em, type_action="evolve", effective_type=mismatch.actual)
@@ -696,22 +743,23 @@ def _build_field_expr(
     type_action: str = "coerce",
     declared_type: Optional[DeclaredType] = None,
     source_shape: SourceShape | None = None,
+    effective_type: Any = None,
 ) -> FieldBuildResult:
     """Lower one field through the backend-neutral expression API."""
     import mountainash as ma
-    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldSpec
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     fld = field
     if type_action == "null_fill":
-        if fld.dtype is not None:
-            # Declared exact decimal: a typed null keeps the declared precision/scale.
-            return FieldBuildResult(ma.lit(None, dtype=fld.dtype).name.alias(fld.name))
         output = ma.lit(None)
-        if isinstance(declared_type, MountainashDtype):
-            output = output.cast(declared_type)
+        target = effective_type if effective_type is not None else declared_type
+        if isinstance(target, DecimalDtype):
+            output = ma.lit(None, dtype=target)
+        elif isinstance(target, (MountainashDtype, NativeDtype)):
+            output = output.cast(target)
         return FieldBuildResult(output.name.alias(fld.name))
 
     is_dotted = "." in source_name
@@ -722,9 +770,9 @@ def _build_field_expr(
     else:
         expr = ma.col(source_name)
 
-    if fld.dtype is not None and (
+    if isinstance(effective_type, DecimalDtype) and (
         source_shape is None
-        or source_shape.decimal == fld.dtype
+        or source_shape.decimal == effective_type
         or type_action == "evolve"
     ):
         # Matching decimals and metadata-free ingress keep their existing pass-through.
@@ -896,7 +944,7 @@ def _build_field_expr(
         or canonical is MountainashDtype.STRING
         or (fld.type is UniversalType.GEOJSON and canonical is MountainashDtype.JSON)
     )
-    if fld.dtype is not None and shape.decimal is not None:
+    if isinstance(effective_type, DecimalDtype) and shape.decimal is not None:
         lexical = False
     sentinels = fld.missing_values if fld.missing_values is not None else schema_missing_values
     from mountainash.typespec._categorical import categorical_values
@@ -921,7 +969,7 @@ def _build_field_expr(
     transform_input = expr
     if fld.null_fill is not None:
         fill = ma.lit(fld.null_fill)
-        if fld.dtype is not None and shape.decimal is not None:
+        if isinstance(effective_type, DecimalDtype) and shape.decimal is not None:
             # Preserve fill digits: casting to the source scale first can double-round.
             expr = expr.cast(MountainashDtype.STRING)
             fill = fill.cast(MountainashDtype.STRING)
@@ -995,8 +1043,8 @@ def _build_field_expr(
     residue: list[MaterializationResidueCheck] = []
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(fld.name))
-    if fld.dtype is not None:
-        expr = expr.cast(fld.dtype, rounding=fld.rounding, failure_behavior=failure)
+    if isinstance(effective_type, DecimalDtype):
+        expr = expr.cast(effective_type, rounding=fld.rounding, failure_behavior=failure)
     elif fld.type == UniversalType.LIST and lexical:
         expr = expr.str.parse_list(
             item_type=fld.item_type or "string",
@@ -1037,7 +1085,7 @@ def _build_field_expr(
         # Plain native containers have no child schema to apply.  The source
         # already has the required physical representation; preserve it.
         pass
-    elif fld.categories is not None:
+    elif fld.categories is not None and fld.dtype is None and not isinstance(effective_type, NativeDtype):
         from mountainash.typespec._categorical import categorical_values
         expr = expr.cat.cast(
             value_type=(fld.type.value if fld.type and fld.type is not UniversalType.ANY else "string"),
@@ -1094,10 +1142,18 @@ def _build_field_expr(
         expr = method(fld.format, field_name=fld.name, failure_behavior=failure)
     elif fld.type == UniversalType.DATETIME and fld.format == "default" and lexical:
         expr = expr.dt.parse_default(field_name=fld.name, failure_behavior=failure)
-    elif fld.type and fld.type is not UniversalType.ANY:
+    elif fld.type and fld.type is not UniversalType.ANY and fld.dtype is None and not isinstance(effective_type, NativeDtype):
         target = to_canonical(fld.type)
         if target is not None:
             expr = expr.cast(target, failure_behavior=failure)
+    if (
+        isinstance(effective_type, NativeDtype)
+        or (
+            fld.dtype is not None and isinstance(effective_type, MountainashDtype)
+            and effective_type not in {MountainashDtype.LIST, MountainashDtype.STRUCT}
+        )
+    ):
+        expr = expr.cast(effective_type, failure_behavior=failure)
 
     output = expr.name.alias(fld.name)
     discard = None
@@ -1118,6 +1174,7 @@ def _build_conform_exprs(
     key_resource_name: str | None = None,
     schema_of: Callable[[str], Mapping[str, Any]] | None = None,
     apply_value_transforms: bool = True,
+    type_target: Any = None,
 ) -> ConformResult:
     schema_missing_values = spec.missing_values or []
     resolved_contract = contract or resolve_contract(spec.fields_match)
@@ -1132,6 +1189,7 @@ def _build_conform_exprs(
         key_resource_name=key_resource_name,
         schema_of=schema_of,
         apply_value_transforms=apply_value_transforms,
+        type_target=type_target,
     )
     structured_field_plans = _build_structured_field_plans(
         output_contract.emitted,
@@ -1144,14 +1202,16 @@ def _build_conform_exprs(
     exprs: list[Any] = []
     row_filters: list[Any] = []
     residue_checks: list[MaterializationResidueCheck] = []
-    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype
     for emitted in output_contract.emitted:
         if not apply_value_transforms:
             import mountainash as ma
             if emitted.type_action == "null_fill":
-                source = ma.lit(None, dtype=emitted.field.dtype) if emitted.field.dtype is not None else ma.lit(None)
-                if emitted.field.dtype is None and isinstance(emitted.declared_type, MountainashDtype):
-                    source = source.cast(emitted.declared_type)
+                source = ma.lit(None)
+                if isinstance(emitted.effective_type, DecimalDtype):
+                    source = ma.lit(None, dtype=emitted.effective_type)
+                elif isinstance(emitted.effective_type, (MountainashDtype, NativeDtype)):
+                    source = source.cast(emitted.effective_type)
                 exprs.append(source.name.alias(emitted.field.name))
                 continue
             source = ma.col(emitted.source_name.split(".", 1)[0])
@@ -1173,6 +1233,7 @@ def _build_conform_exprs(
             type_action=emitted.type_action,
             declared_type=emitted.declared_type,
             source_shape=emitted.source_shape,
+            effective_type=emitted.effective_type,
         )
         exprs.append(built.output)
         if built.discard_row_filter is not None:

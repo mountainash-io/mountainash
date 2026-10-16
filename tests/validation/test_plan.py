@@ -64,6 +64,39 @@ def _run(plan, data):
     )
 
 
+@pytest.mark.parametrize("dtype,value", [
+    (ma.MountainashDtype.I8, 127),
+    (ma.DecimalDtype(5, 2), 12),
+])
+def test_precise_declarations_execute_through_compiled_validation(dtype, value):
+    import polars as pl
+    field = FieldSpec(name="value", dtype=dtype,
+                      rounding="half_to_even" if isinstance(dtype, ma.DecimalDtype) else None)
+    plan = build_compiled_plan(TypeSpec(fields=[field], missing_values=[]), [
+        RowRule(id="value_kept", expr=ma.col("value").eq(value)),
+    ])
+    field.dtype = ma.MountainashDtype.BOOL
+    for _ in range(2):
+        assert _run(plan, pl.DataFrame({"value": [value]})).passes
+
+
+def test_native_validation_snapshot_owns_executable_parameters():
+    # Native Polars override ownership is exercised on its owning backend.
+    import datetime
+    import polars as pl
+    native = pl.Datetime("ns")
+    field = FieldSpec(name="at", backend_type=native)
+    spec = TypeSpec(fields=[field], missing_values=[])
+    checks = [RowRule(id="instant", expr=ma.col("at").eq(datetime.datetime(1970, 1, 1, microsecond=1000)))]
+    old = build_compiled_plan(spec, checks)
+    native.time_unit = "us"
+    new = build_compiled_plan(spec, checks)
+    data = pl.DataFrame({"at": [1_000_000]})
+    assert not _run(new, data).passes
+    for _ in range(2):
+        assert _run(old, data).passes
+
+
 def _threshold():
     expr = ma.col("v").lt(ma.lit(10))
 

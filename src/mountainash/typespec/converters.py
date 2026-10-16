@@ -91,6 +91,15 @@ def _resolve_broad_field_canonical(field: "FieldSpec") -> Any:
 # ============================================================================
 # Shared resolution core
 # ============================================================================
+def _execution_type_target(family: Any) -> TypeTarget | None:
+    """Translate an execution family, not a dataframe carrier, to its dtype domain."""
+    if family is None:
+        return None
+    if family.value in ("pandas", "pyarrow", "narwhals"):
+        return TypeTarget.NARWHALS
+    return TypeTarget(family.value)
+
+
 def _native_types_equal(left: Any, right: Any, target: TypeTarget) -> bool:
     """Compare native types in their owning domain, retaining parameters."""
     if target is TypeTarget.IBIS:

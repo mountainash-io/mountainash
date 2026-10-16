@@ -197,8 +197,11 @@ def _from_narwhals_schema(native: Any) -> dict[str, SourceShape]:
     return {name: _from_narwhals_dtype(dtype) for name, dtype in native.schema.items()}
 
 
-def extract_source_shapes(native: Any) -> dict[str, SourceShape]:
+def extract_source_shapes(native: Any, *, target: TypeTarget | None = None) -> dict[str, SourceShape]:
     """Extract recursive source shapes using schema metadata only."""
+    if target is TypeTarget.NARWHALS and (is_pandas_dataframe(native) or is_pyarrow_table(native)):
+        from mountainash.core.lazy_imports import import_narwhals
+        return _from_narwhals_schema(import_narwhals().from_native(native))
     if is_polars_dataframe(native) or is_polars_lazyframe(native):
         return _from_polars_schema(native.collect_schema())
     if is_pyarrow_table(native):

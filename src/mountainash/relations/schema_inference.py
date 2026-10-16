@@ -168,30 +168,21 @@ def _schema_from_table_schema(
     table_schema: dict,
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
     """Extract field-aware canonical schema from a Frictionless table schema."""
-    fields = table_schema.get("fields", [])
-    if not fields:
-        return {}
     result: dict[str, MountainashDtype | SchemaTypeStatus] = {}
-    for raw_field in fields:
+    for raw_field in table_schema.get("fields", []):
         name = raw_field.get("name")
-        if not name or not raw_field.get("type"):
-            if name:
-                result[name] = SchemaTypeStatus.UNKNOWN
+        if not name:
             continue
         try:
-            field = FieldSpec(
-                name=name,
-                type=parse_universal(raw_field["type"]),
-                format=raw_field.get("format", "default"),
-                item_type=raw_field.get("itemType"),
-                delimiter=raw_field.get("delimiter"),
-            )
+            field = typespec_from_frictionless({"fields": [raw_field]}).fields[0]
             canonical = resolve_field_canonical(field)
         except (KeyError, TypeError, ValueError):
             result[name] = SchemaTypeStatus.UNKNOWN
             continue
         result[name] = (
-            SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
+            SchemaTypeStatus.UNKNOWN if field.backend_type
+            else SchemaTypeStatus.UNCONSTRAINED if canonical is None and raw_field.get("type")
+            else SchemaTypeStatus.UNKNOWN if canonical is None else canonical
         )
     return result
 
@@ -321,10 +312,25 @@ def infer_schema(
         )
 
         node_id = f"conform:{len(_drifts)}" if _drifts is not None else None
+        from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+        from mountainash.relations.dag.errors import RelationDAGRequired
+        from mountainash.typespec.converters import _execution_type_target
+        from mountainash.typespec.source_shape import extract_source_shapes
+        try:
+            location = LocationResolver(IdentityTokens(), identity_resolver=identity_resolver).resolve(node)
+            type_target = _execution_type_target(location.family)
+        except RelationDAGRequired:
+            type_target = None
+        actual_shapes = (
+            extract_source_shapes(node.input.dataframe, target=type_target)
+            if isinstance(node.input, ReadRelNode) else None
+        )
         contract = resolve_conform_output(
             spec,
             available_columns=list(input_schema.keys()),
             actual_dtypes=input_schema,
+            actual_shapes=actual_shapes,
+            type_target=type_target,
             contract=resolved_contract,
             node_identity=(node_id, None, getattr(spec, "name", None)),
             raise_on_freeze=False,
@@ -458,8 +464,13 @@ def _declared_dtype_for_infer(
             if em.effective_type is not None
             else SchemaTypeStatus.UNKNOWN
         )
-    if em.field.dtype is not None:
-        return em.field.dtype
+    from mountainash.core.dtypes import DecimalDtype, NativeDtype, registry
+    if isinstance(em.effective_type, NativeDtype):
+        return registry.from_native(em.effective_type.value, target=em.effective_type.target) or SchemaTypeStatus.UNKNOWN
+    if em.field.backend_type and em.effective_type is None:
+        return SchemaTypeStatus.UNKNOWN
+    if isinstance(em.effective_type, (MountainashDtype, DecimalDtype)):
+        return em.effective_type
     dt = em.declared_type
     if dt is PASSTHROUGH:
         return input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
