@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal, Union
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
+from ..temporal_cast import cast_temporal_compatible
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
     DtypeMappingError,
@@ -48,5 +49,5 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
                     f"({dtype.value!r}) and cannot compile on {self._TARGET.value}. "
                     f"Use a canonical dtype for cross-backend expressions."
                 )
-            return x.cast(dtype.value, strict=strict)
-        return x.cast(registry.to_native_cast(dtype, self._TARGET), strict=strict)
+            return cast_temporal_compatible(x, dtype.value, strict=strict)
+        return cast_temporal_compatible(x, registry.to_native_cast(dtype, self._TARGET), strict=strict)

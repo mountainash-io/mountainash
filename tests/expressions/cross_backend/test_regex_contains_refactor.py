@@ -8,6 +8,8 @@ Covers:
 
 from __future__ import annotations
 
+from importlib.metadata import version
+
 import pytest
 
 import mountainash as ma
@@ -95,10 +97,14 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape, case_sen
     assert query.columns == ["id", "value", "pattern", "score"]
     unsupported = backend_name in {"pandas", "narwhals-pandas", "ibis-polars"}
     error_type = UnsupportedArgumentError if backend_name == "ibis-polars" else TypeError
+    if backend_name in {"pandas", "narwhals-pandas"} and (
+        version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+    ):
+        error_type = BackendCapabilityError
     with expect_call_failure(
         when=unsupported,
         errors=(error_type,),
-        reason="Native regex predicate rejects a dynamic pattern on this route",
+        reason="NW-STR-08: pandas dynamic regex is gated on the qualified stack; other native limits remain",
     ):
         result = query.to_polars().sort("id")
         expected = {
@@ -150,3 +156,18 @@ def test_regex_case_sensitivity(
         assert result[6] is False or result[6] is None
     else:
         assert result[6] is None
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("pattern,sensitive", [("^AU$", False), ("(?i)^au$", True)])
+def test_native_ibis_regex_literal_preserves_values(
+    backend_name, backend_factory, collect_expr, pattern, sensitive,
+):
+    """Ibis-native literal inspection is backend-specific; generic cases stay above."""
+    import ibis
+
+    frame = backend_factory.create({"value": ["AU", "au", "NZ", "", None, "AU"]}, backend_name)
+    expression = ma.col("value").str.regex_contains(
+        ma.native(ibis.literal(pattern)), case_sensitive=sensitive,
+    )
+    assert collect_expr(frame, expression) == [True, True, False, False, None, True]

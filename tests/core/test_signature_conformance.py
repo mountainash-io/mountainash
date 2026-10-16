@@ -355,6 +355,7 @@ def _init_a2_local_builders() -> dict:
             true_values=("true",), false_values=("false",), field_name="x"
         ),
         FKEY_MOUNTAINASH_SCALAR_LIST.GET: lambda: c.list.get(0),
+        FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT: ma.element,
         FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: c.list.to_array(width=2),
         FKEY_SUBSTRAIT_SCALAR_AGGREGATE.QUANTILE: lambda: ma.quantile([0.5], 2, 1, "LINEAR"),
         SUBSTRAIT_ARITHMETIC_WINDOW.NTILE: lambda: c.ntile(4).over("b"),

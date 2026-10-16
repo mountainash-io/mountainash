@@ -325,13 +325,11 @@ def diagnostic_polars_view(native: NativeExecutionValue) -> DiagnosticFrameView:
 
 
 def explicit_polars_egress(native: NativeExecutionValue) -> "pl.DataFrame":
-    """Convert *native* to Polars via its declared route (spec 8.3).
+    """Convert a recognized native value to an eager Polars frame.
 
-    No non-pandas fallback: an Ibis table prefers Arrow (``to_pyarrow()``
-    then ``pl.from_arrow()``), a PyArrow table converts directly, a
-    pandas-selected source uses ``pl.from_pandas()``, and a Narwhals frame
-    uses its own ``to_polars()``. A source with no declared route raises
-    ``BackendConversionError`` instead of a silent ``to_pandas()`` detour.
+    Polars imports pandas, Arrow and Ibis values through its native
+    constructor. Narwhals retains its own terminal to preserve native
+    index and object semantics. Unsupported inputs raise BackendConversionError.
     """
     import polars as pl
 
@@ -348,24 +346,8 @@ def explicit_polars_egress(native: NativeExecutionValue) -> "pl.DataFrame":
     if is_polars_dataframe(value):
         return value
 
-    if is_ibis_table(value):
-        arrow = value.to_pyarrow()
-        return cast(
-            "pl.DataFrame",
-            pl.from_arrow(arrow),
-        )
-
-    if is_pyarrow_table(value):
-        return cast(
-            "pl.DataFrame",
-            pl.from_arrow(value),
-        )
-
-    if is_pandas_dataframe(value):
-        return cast(
-            "pl.DataFrame",
-            pl.from_pandas(value),
-        )
+    if is_ibis_table(value) or is_pyarrow_table(value) or is_pandas_dataframe(value):
+        return pl.DataFrame(value)
 
     if is_narwhals_dataframe(value):
         return cast(
@@ -441,8 +423,9 @@ def coerce_to_polars(target: Any, value: Any) -> Any:
     :class:`UnifiedRelationVisitor` expects mid-compile, unlike
     :func:`explicit_polars_egress`'s eager terminal result.
 
-    No pandas round-trip fallback: a Narwhals value uses its own declared
-    ``to_polars()``; an unrecognized value raises ``BackendConversionError``.
+    Polars imports recognized pandas, Arrow and Ibis values directly.
+    Narwhals keeps its native ``to_polars()`` terminal; unrecognized inputs
+    raise ``BackendConversionError``.
     """
     import polars as pl
 
@@ -460,29 +443,12 @@ def coerce_to_polars(target: Any, value: Any) -> Any:
         return value
     if is_polars_dataframe(value):
         return value.lazy()
-    if is_pandas_dataframe(value):
-        converted = cast(
-            "pl.DataFrame",
-            pl.from_pandas(value),
-        )
-        return converted.lazy()
-    if is_pyarrow_table(value):
-        converted = cast(
-            "pl.DataFrame",
-            pl.from_arrow(value),
-        )
-        return converted.lazy()
+    if is_pandas_dataframe(value) or is_pyarrow_table(value) or is_ibis_table(value):
+        return pl.DataFrame(value).lazy()
     if isinstance(value, dict):
         return pl.DataFrame(value).lazy()
     if isinstance(value, (list, tuple)) and (not value or isinstance(value[0], dict)):
         return pl.DataFrame(value).lazy()
-    if is_ibis_table(value):
-        arrow = value.to_pyarrow()
-        converted = cast(
-            "pl.DataFrame",
-            pl.from_arrow(arrow),
-        )
-        return converted.lazy()
     if is_narwhals_lazyframe(value):
         value = value.collect()
     if is_narwhals_dataframe(value):

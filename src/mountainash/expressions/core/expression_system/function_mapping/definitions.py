@@ -2686,6 +2686,17 @@ def register_all_functions() -> None:
 
     MOUNTAINASH_LIST_FUNCTIONS = [
         ExpressionFunctionDef(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+            projection_rule=ProjectionRule(
+                "requires_alias", "single",
+                reason="A list element has no source-column name outside its enclosing list",
+            ),
+            substrait_uri=MountainashExtension.LIST,
+            substrait_name="list_element",
+            is_extension=True,
+            protocol_method=MountainAshScalarListExpressionSystemProtocol.list_element,
+        ),
+        ExpressionFunctionDef(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.PARSE,
             projection_rule=PROPAGATE_FIRST,
             substrait_uri=MountainashExtension.LIST,

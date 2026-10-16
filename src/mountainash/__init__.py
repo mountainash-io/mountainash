@@ -64,6 +64,7 @@ __getattr__, _lazy_dir, _LAZY_EXPORTS = lazy_loader.attach(
             "t_col",
             "today",
             "when",
+            "element",
         ],
         "expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast": [
             "CaseFailureBehaviour",
@@ -210,6 +211,7 @@ __all__ = [
     "t_col",
     "today",
     "when",
+    "element",
     "CaseFailureBehaviour",
     "PydataIngress",
     "concat",

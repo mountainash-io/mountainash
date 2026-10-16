@@ -927,17 +927,22 @@ issues:
 - id: NW-STR-08
   project: narwhals
   category: string-ops
-  summary: regex_contains pattern must be literal string
+  summary: regex_contains requires a literal pattern on Narwhals pandas and PyArrow
   root_cause: by_design
   affected_backends:
   - narwhals-pandas
-  - narwhals-polars
+  - narwhals-pyarrow
   upstream_issue: null
   upstream_issue_filed_by: null
   status: by_design
-  our_workaround: error_enrichment
-  notes: Correct by design.
-  last_verified: '2026-05-11'
+  our_workaround: none
+  notes: >-
+    Backlog 313 qualified Narwhals 2.27.1 with pandas 3.0.6 and PyArrow 26.0.0.
+    Declared literal-only gates protect dynamic patterns on those stacks;
+    Python strings and expression literals remain supported. Narwhals Polars and DuckDB
+    support dynamic patterns and are not covered by this restriction.
+    Other dependency versions remain unqualified, not automatically blocked.
+  last_verified: '2026-10-15'
 - id: NW-STR-09
   project: narwhals
   category: string-ops
@@ -1187,8 +1192,8 @@ issues:
   notes: 'Narwhals horizontal function issue. Fixed upstream in narwhals 2.27.0 (yanked for an
     unrelated Pointblank breakage) and 2.27.1: verified 2026-10-10 that greatest()/least()
     on pandas/narwhals-pandas return the correct values there and wrong ones on 2.26.0. The
-    project supports narwhals>=2.20.0, so the expected-failure is version-gated in
-    tests/relations/cross_backend/test_rel_expression_integration.py until the floor passes 2.27.'
+    project now requires narwhals>=2.27.1 (#391), so the older-version expected-failure
+    in tests/relations/cross_backend/test_rel_expression_integration.py no longer applies.'
   last_verified: '2026-10-10'
 - id: NW-MATH-07
   project: narwhals
@@ -2176,13 +2181,19 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
+  - narwhals-duckdb
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3698
   upstream_issue_filed_by: other
   status: open
   our_workaround: xfail_strict
-  notes: Blocks DECIMAL_CAST (item 241 R13); a contribution is tracked in central
-    backlog item 282. The refusal is a declared capability fact, not a raise.
-  last_verified: '2026-10-10'
+  notes: >-
+    Blocks DECIMAL_CAST (item 241 R13); a contribution is tracked in central
+    backlog item 282. Backlog 313 adds public adapter-refusal gates for
+    Narwhals 2.27.1 with PyArrow 26.0.0 or DuckDB 1.5.6. The adapter still
+    raises NotImplementedError when protection is disabled; this is not a
+    native-provider Decimal execution witness or an upstream fix.
+  last_verified: '2026-10-15'
 - id: NW-CAST-01
   project: narwhals
   category: cast-semantics
@@ -2193,10 +2204,74 @@ issues:
   - narwhals-pandas
   - narwhals-polars
   - narwhals-lazy
+  - narwhals-pyarrow
+  - narwhals-duckdb
   upstream_issue: https://github.com/narwhals-dev/narwhals/issues/3702
   upstream_issue_filed_by: other
   status: open
   our_workaround: xfail_strict
-  notes: Blocks DECIMAL_CAST null mode (item 241 R13); see also central backlog items
-    282 and 283.
-  last_verified: '2026-10-10'
+  notes: >-
+    Blocks DECIMAL_CAST null mode (item 241 R13); see central backlog items
+    282 and 283. Backlog 313's additional PyArrow/DuckDB gates describe the
+    unavailable public adapter, with exact dependency bounds; underlying
+    provider Decimal primitives are not classified as unsupported.
+  last_verified: '2026-10-15'
+- id: IB-STR-14
+  project: ibis
+  category: string-ops
+  summary: Ibis MySQL, SingleStoreDB and Exasol lack RegexReplace translation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-mysql
+  - ibis-singlestoredb
+  - ibis-exasol
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 323 records native Ibis 12.0.0 OperationNotDefinedError for
+    RegexReplace. Public Decimal conversion always uses this operation for
+    underscore normalization, so its canonical DECIMAL_CAST node is gated
+    for that Ibis version. Native database Decimal support is not denied.
+    MariaDB qualification used an adapted client, not the standard driver.
+    No external issue or upstream patch is claimed.
+  last_verified: '2026-10-15'
+- id: IB-STR-15
+  project: ibis
+  category: string-ops
+  summary: Ibis Exasol lacks RegexSearch translation
+  root_cause: upstream_feature_gap
+  affected_backends:
+  - ibis-exasol
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 330 records native and public literal/dynamic regex compilation
+    failures in Ibis 12.0.0. The canonical REGEX_CONTAINS node is gated for
+    that version, including the literal regex_match wrapper. This does not
+    claim the Exasol database lacks regex facilities. No external issue or
+    upstream patch is claimed.
+  last_verified: '2026-10-15'
+- id: IB-STR-16
+  project: ibis
+  category: string-ops
+  summary: PostgreSQL dynamic insensitive regex loses pattern concatenation grouping
+  root_cause: upstream_bug
+  affected_backends:
+  - ibis-postgres
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Backlog 321 owns the unrepaired translator defect. The canonical
+    REGEX_CONTAINS node gates dynamic case-insensitive patterns, including
+    native expressions, only for Ibis 12.0.0 with SQLGlot 29.0.1 and PostgreSQL
+    16.15. Native literals and sensitive plain-column matching remain allowed.
+    Case-sensitive concatenated patterns remain unresolved and are not gated
+    by this rule. Unknown forms and environments retain native execution,
+    not a support claim. No external issue or upstream patch is claimed.
+  last_verified: '2026-10-16'

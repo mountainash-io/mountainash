@@ -84,6 +84,15 @@ class _CallOperandResolver:
     def __len__(self) -> int:
         return len(self._arguments)
 
+    def body_compiler(self, index: int):
+        """Visit a scoped operand afresh after the backend binds its element."""
+        argument = self._arguments[index]
+        return lambda: (
+            self._visitor.visit(argument)
+            if isinstance(argument, ExpressionNode)
+            else argument
+        )
+
     def native(self, index: int) -> Any:
         """Return the native operand, compiling at most once."""
         if index not in self._native:
@@ -369,7 +378,7 @@ class UnifiedExpressionVisitor:
     def _bound_call(self, function_key, protocol_method, arguments, options):
         from mountainash.core.capabilities.predicates import bind_expression_call
 
-        return bind_expression_call(
+        bound = bind_expression_call(
             operation_key=function_key,
             backend=self.backend.backend_type,
             dialect=getattr(self.backend, "dialect", None),
@@ -377,6 +386,17 @@ class UnifiedExpressionVisitor:
             arguments=arguments,
             options=options,
         )
+        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+            return bound
+        from mountainash.core.capabilities import CapabilityRegistry
+
+        names = CapabilityRegistry.argument_form_names(bound, execution_context=self.execution_context)
+        forms = {
+            name: self.backend.native_argument_form(argument.value)
+            for name in names
+            if isinstance(argument := bound.bindings.get(name), LiteralNode) and argument.is_native
+        }
+        return replace(bound, native_argument_forms=forms) if forms else bound
 
     def _gate_predicate_violations(self, bound, *, phase: str) -> None:
         """Collect capability blockers in the requested metadata-resolution phase."""

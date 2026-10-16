@@ -1,6 +1,8 @@
 """Argument channel tests for string operations."""
 from __future__ import annotations
 
+from importlib.metadata import version
+
 
 
 import pytest
@@ -1781,9 +1783,14 @@ if OP_SPECS:
             and backend == "narwhals-pandas"
             and input_type in {"col", "complex"}
         ):
+            error_type = (
+                BackendCapabilityError
+                if version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
+                else TypeError
+            )
             with expect_call_failure(
-                errors=(TypeError,),
-                reason="Narwhals-pandas native regex predicate rejects dynamic patterns",
+                errors=(error_type,),
+                reason="NW-STR-08: dynamic patterns are gated on the qualified pandas stack",
             ):
                 run_argument_matrix(op, backend, input_type)
             return

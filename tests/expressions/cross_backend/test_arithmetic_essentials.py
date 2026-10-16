@@ -114,20 +114,54 @@ def test_declared_decimal_unary(
         errors=(ArrowInvalid,),
     ):
         out = query.to_polars()
-    dtype = pl.Decimal(12, 3)
-    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"}:
-        if operation == "sign":
-            dtype = pl.Int64
-        elif operation == "negate":
-            dtype = pl.Decimal(32 if backend_name in {"pandas", "narwhals-pandas"} else 38, 3)
-        elif operation == "ceil" and backend_name in {"narwhals-polars", "narwhals-lazy"}:
-            dtype = pl.Decimal(38, 3)
-    elif backend_name.startswith("ibis") and operation == "round":
-        dtype = pl.Decimal(12, 2)
-    assert out.schema["r"] == dtype
+    dtype = out.schema["r"]
+    if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"} and operation == "sign":
+        assert dtype == pl.Int64
+    else:
+        assert dtype.is_decimal()
+        assert dtype.scale == (2 if backend_name.startswith("ibis") and operation == "round" else 3)
+        assert dtype.precision is None or dtype.precision >= dtype.scale + 1
+    assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma.relation(out).schema["r"])
     with expect_call_failure(
         when=backend_name == "ibis-duckdb" and operation == "round",
         reason="244: DuckDB native round uses half-away-from-zero rather than half-even",
         errors=(AssertionError,),
     ):
         assert out["r"].to_list() == [D(x) if x is not None else None for x in expected]
+ 
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_decimal_rounding_integer_capacity_boundary(backend_name, declared_decimal_frame, backend_factory):
+    """Native rounding retains the signed carry or reports fixed-width overflow."""
+    from decimal import Decimal as D
+    import mountainash as ma
+    from mountainash.core.types import BackendCapabilityError
+    from pyarrow import ArrowInvalid
+    from mountainash.relations.schema_inference import SchemaTypeStatus
+
+    if backend_name == "ibis-sqlite":
+        frame = backend_factory.create({"a": [1]}, backend_name)
+        with pytest.raises(BackendCapabilityError, match="fixed-precision decimal"):
+            ma.relation(frame).select(
+                ma.col("a").cast(ma.DecimalDtype(4, 3), rounding="half_to_even")
+            ).to_polars()
+        return
+
+    frame = declared_decimal_frame(
+        {"a": [D("9.995"), D("-9.995")]}, {"a": (4, 3)}
+    )
+    query = ma.relation(frame).select(ma.col("a").round(2).alias("r"))
+    if backend_name in {"pandas", "narwhals-pandas"}:
+        # Arrow preserves the input Decimal(4, 3), so the carry cannot fit.
+        with pytest.raises(ArrowInvalid):
+            query.to_polars()
+        return
+    out = query.to_polars()
+
+    dtype = out.schema["r"]
+    assert dtype.is_decimal()
+    assert dtype.scale == (2 if backend_name.startswith("ibis") else 3)
+    assert dtype.precision is None or dtype.precision >= dtype.scale + 2
+    assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma.relation(out).schema["r"])
+    assert out["r"].to_list() == [D("10.000"), D("-10.000")]

@@ -4,11 +4,19 @@
 
 ### Fixed
 - Resource schema inspection (311) uses mountainash-files discovery before execution fallback for remote paths, archives, globs and non-native formats/dialects. Source schema evidence feeds the existing backend compiler and conform path; complete discovery avoids result collection even with execution permission. Bounded observations remain best effort, and missing-source/access/parse errors are not execution retries.
+- Polars 2 migration (332): replace removed String-to-temporal casts with native planning-time parsing on Polars and Narwhals-on-Polars, including nested List/Array/Struct values. Preserve target units, naive wall-clock versus zoned instant semantics, parent nulls, failure policies and window composition. Declared Date ingress and date-range validation now complete through the repaired cast path. The dependency requires `polars>=2,<3`.
+- Polars 2 list-to-struct conversion (332): lower declared upper bounds to explicit field names, preserve explicit-field precedence (including zero fields), ragged padding and the existing null-list-to-null-fields result.
+- Polars 2 relation fingerprints (332): use the current seeded hash API while retaining two-lane accumulation, row-order/batch invariance and persisted profile identity. Hash compatibility remains qualified by the recorded Polars version; fingerprints from different Polars versions are not interchangeable.
+- Reconcile native Decimal qualification on Polars 2 (332): floor division, modulus and reverse forms now execute on the five Polars-kernel provider identities; power remains unsupported. Regression coverage retains exact values, native zero-divisor errors, signed rounding carry, sufficient integer capacity and resolved-schema consistency instead of pinning incidental output precision. No arithmetic emulation or authored-cast policy change is introduced.
+- PostgreSQL dynamic case-insensitive `str.regex_contains()` patterns, including native Ibis expressions, now receive a declared `BackendCapabilityError` on Ibis 12.0.0 / SQLGlot 29.0.1 / PostgreSQL 16.15 (321, IB-STR-16). Native literals and sensitive plain-column matching remain allowed. Trusted, excluded-semantic and unqualified executions retain native lowering; unknown forms are not classified as supported. No SQL rewrite is added, and case-sensitive concatenated patterns remain unresolved.
 
 ## Unreleased — 2026-10-15
 
 ### Fixed
 - Retired the HTTP schema-completion expected failure (311) after qualification with mountainash-transport PR #103. Opt-in completion now exercises the real HTTP reader successfully; this does not add a remote metadata-only reader.
+- Narwhals-pandas dynamic `str.regex_contains()` patterns now receive a declared `BackendCapabilityError` under selected protection on Narwhals 2.27.1/pandas 3.0.6 (313). Python-string and expression-literal patterns remain supported; working dynamic patterns on other providers are unchanged. Other dependency versions remain unqualified rather than automatically blocked.
+- Ibis 12.0.0 now receives declared, dialect-scoped capability refusals for public Decimal conversion on MySQL, SingleStoreDB and Exasol (missing `RegexReplace`, 323), and regex matching on Exasol (missing `RegexSearch`, 330). Other operations, versions and existing policy presets are unchanged. These gates do not repair translators or deny the databases' native Decimal/regex facilities.
+- Narwhals-PyArrow dynamic regex patterns now receive a literal-only capability refusal on Narwhals 2.27.1/PyArrow 26.0.0; string and expression-literal patterns remain allowed. Public Decimal conversion now receives typed adapter-unavailability refusals for Narwhals 2.27.1 with PyArrow 26.0.0 or DuckDB 1.5.6. DuckDB dynamic regex and ordinary conversions are unchanged; other versions remain unqualified. No native-provider implementation or workaround is added (313).
 
 ## Unreleased — 2026-10-14
 
@@ -18,12 +26,17 @@
 - Opt-in schema completion (311) evaluates unresolved ordinary plans without bypassing conform/residue checks and releases owned SQL resources on success and failure. Bound SQL inspection retains physical temporal, interval, fixed-array and wide/unbounded numeric details; eager value-dependent promotions remain unresolved until execution is permitted.
 
 ### Changed
+- Raised the Narwhals minimum to 2.27.1 so pandas-backed string casts preserve nulls instead of converting them to text (#391); no local workaround or runtime gate is added.
 - Removed the transit policy registry, call wrappers, tracing API, AST census and inventory generator (248, first deletion slice). Native operations, conversion routes, outputs, placement, ownership and real conversion errors are unchanged; the wrapper's pandas-result rejection and trace records are retired. Upstream-internal pandas, native pandas execution and requested pandas output remain supported. Conversion simplification and validation/materialization work in 248/249 remain open.
+- Simplified Polars output and operand conversion by delegating recognized pandas, Arrow and Ibis imports to the native Polars constructor. Native Polars passthrough, Narwhals conversion, lazy execution and existing conversion errors remain unchanged; pandas inputs and requested pandas outputs remain supported.
+- Raised the pandas minimum to 3.0.0 so typed-null String columns retain their string type on Arrow export (#392). Pandas 2.x is no longer supported; the Arrow minimum is unchanged. Native interval-construction tests retain version-aware applicability for #386, separate from expression compilation.
 
 ### Fixed
 - Schema inspection (311) preserves independently known column names when dtype compilation requires unsupported transport. DAG-bound data-dependent outputs no longer advertise stale input columns, and package export refuses to discard declared foreign keys when output fields are unavailable.
 - Install the existing pinned `pytest-mock` test dependency in the CI Hatch environment so migrated ownership, extraction and reuse tests can resolve their `mocker` fixture.
 - Remove the logical-snapshot test's blanket `to_pandas()` prohibition; retain owned-copy/extraction counts and assert exact snapshot values across Ibis backends.
+- Materialization residue checks now inspect Arrow scalar values rather than scalar-object truthiness, preventing false/null markers from rejecting valid results on PyArrow 16 while retaining true-marker rejection.
+- Removed the obsolete egress-factory test requiring pandas input rejection: pandas is registered, and the test depended on incidental version-specific type detection rather than a supported rejection contract.
 
 ## Unreleased — 2026-10-13
 

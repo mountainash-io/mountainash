@@ -306,6 +306,29 @@ def _engine_version(target: _CapabilityTarget, name: str) -> str | None:
 
         if isinstance(getattr(target.owner, "con", None), sqlite3.Connection):
             return sqlite3.sqlite_version
+    if (
+        name == "postgres"
+        and identity.family is CONST_BACKEND.IBIS
+        and identity.dialect == "ibis-postgres"
+    ):
+        backend_type = getattr(sys.modules.get("ibis.backends.postgres"), "Backend", None)
+        connection_type = getattr(sys.modules.get("psycopg"), "Connection", None)
+        if not isinstance(backend_type, type) or not isinstance(target.owner, backend_type):
+            return None
+        connection = getattr(target.owner, "con", None)
+        if not isinstance(connection_type, type) or not isinstance(connection, connection_type) or connection.closed:
+            return None
+        info = connection.info
+        if getattr(info, "vendor", None) != "PostgreSQL":
+            return None
+        version = info.server_version
+        if type(version) is not int or version <= 0:
+            return None
+        major, remainder = divmod(version, 10000)
+        if major >= 10:
+            return f"{major}.{remainder}"
+        minor, patch = divmod(remainder, 100)
+        return f"{major}.{minor}.{patch}"
     return None
 
 

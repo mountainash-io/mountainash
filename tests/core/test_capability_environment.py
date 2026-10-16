@@ -148,6 +148,7 @@ def test_non_native_ibis_targets_have_unknown_engines_and_fresh_owners(unbound):
     assert first.owner is not second.owner
     assert _engine_version(first, "duckdb") is None
     assert _engine_version(first, "sqlite") is None
+    assert _engine_version(first, "postgres") is None
 
 
 @pytest.mark.parametrize("selector", (None, "polars"), ids=("override-only", "bare-selector"))
@@ -376,3 +377,20 @@ def test_trusted_policy_needs_no_registry_loading_or_environment_observations():
         assert context.observations == Environment()
     finally:
         CapabilityRegistry.restore(before)
+
+
+def test_postgres_dialect_cannot_borrow_another_driver_or_unbound_table():
+    """A dialect label alone must never qualify a PostgreSQL engine gate."""
+    import ibis
+
+    from mountainash.core.capabilities.identity import BackendIdentity
+    from mountainash.core.capabilities.policy import _CapabilityTarget, _engine_version
+    from mountainash.core.constants import CONST_BACKEND
+
+    connection = ibis.duckdb.connect(":memory:")
+    try:
+        for owner in (object(), ibis.table({"value": "string"}), connection, connection.con):
+            target = _CapabilityTarget(BackendIdentity(CONST_BACKEND.IBIS, "ibis-postgres"), owner)
+            assert _engine_version(target, "postgres") is None
+    finally:
+        connection.con.close()

@@ -494,7 +494,7 @@ def _compare_policy_domains(left, right):
                 if clause.path.split(".")[0] != option_key.subject:
                     continue
                 if (
-                    clause.op is ClauseOp.IS_LITERAL
+                    clause.op in (ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC)
                     or (clause.op is ClauseOp.IS_NULL and option_key.selector.kind == "exact")
                     or (clause.op is ClauseOp.EQ and type(clause.operand) is not str)
                     or (clause.op is ClauseOp.IN and any(type(value) is not str for value in clause.operand))
@@ -917,6 +917,26 @@ class CapabilityRegistry:
                 names.update(metadata)
         return frozenset(names) if names else _EMPTY_NAMES
 
+    @classmethod
+    def argument_form_names(cls, bound_call: BoundCall, *, execution_context) -> frozenset[str]:
+        """Acquire native forms only for selected, applicable call predicates."""
+        from mountainash.core.capabilities.schema import ClauseOp
+
+        state = cls._acquire_state()
+        names = set()
+        for fact, _ in state.predicate_buckets.get((bound_call.operation_key, bound_call.backend), ()):
+            if (
+                fact.dialect == bound_call.dialect
+                and fact.consumer is PolicyConsumer.GATE
+                and _selected(state, fact, execution_context)
+            ):
+                names.update(
+                    clause.path.split(".", 1)[0]
+                    for clause in fact.predicate.clauses
+                    if clause.op in (ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC)
+                )
+        return frozenset(names) if names else _EMPTY_NAMES
+
     @staticmethod
     def _value_class_fact(
         state,
@@ -1159,6 +1179,7 @@ class CapabilityRegistry:
                 bound_call.bindings,
                 bound_call.supplied,
                 operand_types=bound_call.operand_types,
+                native_argument_forms=bound_call.native_argument_forms,
             ):
                 out.add(fact)
         return frozenset(out)

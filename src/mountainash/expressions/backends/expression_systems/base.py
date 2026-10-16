@@ -48,6 +48,10 @@ class BaseExpressionSystem(ABC):
         self.execution_context = execution_context
         self._operand_type_stack: list[Mapping[str, Any]] = []
 
+    def native_argument_form(self, value: Any) -> str | None:
+        """Return a known native argument form, or leave it unknown."""
+        return None
+
     def prepare_call_arguments(
         self, method_name: str, resolver_type: Any, visitor: Any,
         function_key: Any, arguments: Any, compiled_arguments: Any,

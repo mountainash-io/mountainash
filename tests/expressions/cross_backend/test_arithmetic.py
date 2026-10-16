@@ -491,12 +491,12 @@ def test_declared_decimal_binary(
         return
     unsupported = (
         not working
-        and operation in {"floor_divide", "modulus", "power"}
+        and operation == "power"
         and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"}
     )
     with expect_call_failure(
         when=unsupported,
-        reason="Polars 1.44.2 native Decimal floor-divide/remainder/power kernels are unsupported (288)",
+        reason="Polars Decimal power kernel remains unsupported (288)",
         errors=(nw.exceptions.InvalidOperationError,) if backend_name.startswith("narwhals") else (pl.exceptions.InvalidOperationError,),
     ):
         with expect_call_failure(
@@ -652,9 +652,9 @@ def test_decimal_operand_arrangements(
             query.to_polars()
         return
     with expect_call_failure(
-        when=not working and operation in {"rfloor_divide", "rmodulus", "rpower"}
+        when=not working and operation == "rpower"
         and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"},
-        reason="Polars 1.44.2 Decimal reverse floor-divide/remainder/power kernels unsupported (288)",
+        reason="Polars Decimal rpower kernel remains unsupported (288)",
         errors=(nw.exceptions.InvalidOperationError,) if backend_name.startswith("narwhals") else (pl.exceptions.InvalidOperationError,),
     ):
         with expect_call_failure(
@@ -693,6 +693,23 @@ def test_decimal_zero_divisor_computation_boundary(
     if backend_name == "ibis-sqlite":
         _sqlite_decimal_refusal(backend_factory)
         return
+    control_frame = declared_decimal_frame(
+        {"a": [D("1.250")], "b": [D("0.50")]}, {"a": (12, 3), "b": (10, 2)}
+    )
+    control_a, control_b = ma.col("a"), ma.col("b")
+    if working:
+        control_a, control_b = control_a.cast("fp64"), control_b.cast("fp64")
+    control = ma_top.relation(control_frame).select(
+        getattr(control_a, operation)(control_b).alias("r")
+    )
+    if backend_name in {"pandas", "narwhals-pandas"} and operation == "modulus":
+        # This provider refuses modulus itself, independently of the divisor.
+        with pytest.raises(NotImplementedError):
+            control.to_polars()
+    else:
+        expected_control = {"divide": "2.5", "floor_divide": "2", "modulus": "0.25"}[operation]
+        expected_value = float(expected_control) if working else D(expected_control)
+        assert control.to_polars()["r"].to_list() == [expected_value]
     frame = declared_decimal_frame(
         {"a": [D("1.250")], "b": [D("0.00")]}, {"a": (12, 3), "b": (10, 2)}
     )
@@ -712,7 +729,7 @@ def test_decimal_zero_divisor_computation_boundary(
         elif polars_kernel:
             error = errors.ComputeError
     elif not working and polars_kernel:
-        error = errors.InvalidOperationError
+        error = errors.ComputeError
     if operation == "floor_divide" and backend_name.startswith("ibis"):
         if backend_name == "ibis-duckdb":
             error = duckdb.ConversionException

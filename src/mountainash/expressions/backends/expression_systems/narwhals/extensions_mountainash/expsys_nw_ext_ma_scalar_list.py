@@ -30,6 +30,12 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             operands.raw_literal(1, "Narwhals list membership items must be literals"),
         ]
 
+    def list_element(self):
+        raise BackendCapabilityError(
+            "Narwhals does not support a native list-element expression.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+        )
     def parse_list(
         self,
         x,
@@ -99,7 +105,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             "number": nw.Float64,
             "date": nw.Date,
         }[item_type]
-        return values.cast(nw.List(target()))
+        return self._cast_target(values, nw.List(target()))
 
     def cast_list_items(
         self,
@@ -121,10 +127,10 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             canonical = to_canonical(parse_universal(item_type))
             from mountainash.core.dtypes import registry
             dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
-            return x.cast(nw.List(dtype))
+            return self._cast_target(x, nw.List(dtype))
         field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
         dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
-        return x.cast(dtype)
+        return self._cast_target(x, dtype)
 
     def list_sum(self, x: NarwhalsExpr, /):
         return x.list.sum()

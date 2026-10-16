@@ -4,6 +4,9 @@ from __future__ import annotations
 from typing import Any, FrozenSet, Optional
 
 import ibis
+from ibis.common.deferred import deferrable
+from ibis.expr import datashape as ds
+from ibis.expr import operations as ops
 
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
 from mountainash.core.types import BackendCapabilityError
@@ -23,6 +26,78 @@ _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
 
 class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarListExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of list operations."""
+
+    def list_element(self):
+        scope = getattr(self, "_list_element_scope", ())
+        if scope:
+            return scope[-1].to_expr()
+        raise BackendCapabilityError(
+            f"Ibis {self.dialect}: element requires an enclosing list context.",
+            backend=self.BACKEND_NAME,
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+        )
+
+    def _prepare_call_list_agg(self, operands):
+        return [operands.native(0), operands.body_compiler(1)]
+
+    def _prepare_call_list_filter(self, operands):
+        return [operands.native(0), operands.body_compiler(1)]
+
+    def _compile_list_body(self, array, compile_body, *, filtering=False):
+        """Bind the body through the visitor and lower native scoped reductions."""
+        previous = getattr(self, "_list_element_scope", ())
+        parameter = ops.Argument(
+            name=f"ma_element_{len(previous)}",
+            shape=ds.columnar,
+            dtype=array.type().value_type,
+        )
+        self._list_element_scope = (*previous, parameter)
+        try:
+            body = compile_body().op()
+        finally:
+            self._list_element_scope = previous
+
+        def uses_element(node):
+            # Inner list lambdas own their parameters; they are not free here.
+            return bool(node.find(
+                lambda value: value == parameter,
+                filter=lambda value: not (
+                    isinstance(value, (ops.ArrayMap, ops.ArrayFilter))
+                    and value.param == parameter
+                ),
+            ))
+
+        def mapped(node):
+            return ops.ArrayMap(
+                array, param=parameter, index=None, body=node.to_expr(),
+            ).to_expr()
+
+        reducers = {ops.Sum: "sums", ops.Mean: "means", ops.Min: "mins", ops.Max: "maxs"}
+        reduced = False
+
+        def lower_reduction(node, rewritten):
+            nonlocal reduced
+            if rewritten:
+                node = node.copy(**rewritten)
+            reducer = reducers.get(type(node))
+            if reducer is not None and node.where is None and uses_element(node):
+                reduced = True
+                return getattr(mapped(node.arg), reducer)().op()
+            return node
+
+        # Ibis's native rewrite API is experimental; keep its use at this boundary.
+        body = body.replace(lower_reduction)
+        if filtering:
+            return ops.ArrayFilter(
+                array, param=parameter, index=None, body=body.to_expr(),
+            ).to_expr()
+        if uses_element(body):
+            return mapped(body)
+        result = body.to_expr()
+        # A scalar body still belongs to this container. Null-filling inside
+        # the body must not replace a null list (unlike filling after agg).
+        return ibis.ifelse(array.isnull(), ibis.null(), result) if reduced else result
+
     def parse_list(
         self,
         x,
@@ -315,13 +390,9 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         return x.concat(other)
 
     def list_filter(self, x, /, mask):
-        raise BackendCapabilityError(
-            "Ibis array.filter() requires a Deferred/Callable predicate, "
-            "which is incompatible with mountainash's compiled expression model. "
-            "Use Polars backend for list.filter().",
-            backend=self.BACKEND_NAME,
-            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.FILTER,
-        )
+        return deferrable(
+            lambda array: self._compile_list_body(array, mask, filtering=True)
+        )(x)
 
     def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
         raise BackendCapabilityError(
@@ -359,8 +430,4 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         )
 
     def list_agg(self, x, /, expr):
-        raise BackendCapabilityError(
-            "Ibis does not support array.agg(). Use Polars backend.",
-            backend=self.BACKEND_NAME,
-            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.AGG,
-        )
+        return deferrable(lambda array: self._compile_list_body(array, expr))(x)

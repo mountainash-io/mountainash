@@ -180,6 +180,16 @@ class IbisBaseExpressionSystem(BaseExpressionSystem):
                 pass
         return expr
 
+    def native_argument_form(self, value: Any) -> str | None:
+        from ibis.common.deferred import Deferred
+
+        extracted = self._extract_literal_if_possible(value)
+        if isinstance(extracted, (str, int, float, bool, type(None))):
+            return "literal"
+        if isinstance(value, (ir.Value, Deferred)):
+            return "dynamic"
+        return None
+
     def _extract_column_name(self, expr: Any) -> str | None:
         """Extract the column name from an Ibis expression.
 

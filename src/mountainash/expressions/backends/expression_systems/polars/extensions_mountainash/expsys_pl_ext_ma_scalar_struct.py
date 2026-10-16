@@ -9,6 +9,7 @@ from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
+from ..temporal_cast import cast_temporal_compatible
 
 def _invalid_nested(expr, field: FieldSpec):
     if field.type is UniversalType.OBJECT and field.object_fields:
@@ -23,7 +24,7 @@ def _invalid_nested(expr, field: FieldSpec):
             item_invalid = item_invalid | _invalid_nested(element.struct.field(child.name), child)
         return expr.is_not_null() & expr.list.eval(item_invalid).list.any().fill_null(False)
     dtype = _resolve_field_native(field, TypeTarget.POLARS)
-    return expr.is_not_null() & expr.cast(dtype, strict=False).is_null()
+    return expr.is_not_null() & cast_temporal_compatible(expr, dtype, strict=False).is_null()
 
 class MountainAshPolarsScalarStructExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol[pl.Expr]):
     """Polars implementation of struct field access."""
@@ -37,7 +38,7 @@ class MountainAshPolarsScalarStructExpressionSystem(PolarsBaseExpressionSystem, 
     ):
         field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
         dtype = _resolve_field_native(field, TypeTarget.POLARS)
-        result = x.cast(dtype, strict=failure_behavior != "null")
+        result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
         if failure_behavior == "null":
             invalid = _invalid_nested(x, field)
             result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
