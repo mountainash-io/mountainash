@@ -82,9 +82,7 @@ class FingerprintAccumulator:
             if name is not None:
                 members.append(pl.col(self._aliases[name]).alias("v"))
             for seed in _SEEDS:
-                self._expressions.append(pl.struct(members).hash(
-                    seed=seed, seed_1=seed, seed_2=seed, seed_3=seed,
-                ).sum().alias(f"d{index}_{seed}"))
+                self._expressions.append(pl.struct(members).hash(seed=seed).sum().alias(f"d{index}_{seed}"))
         self._totals = [0] * len(self._expressions)
         self._count = 0
 

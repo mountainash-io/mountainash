@@ -25,8 +25,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    # Polars 2 removes string-to-temporal casts and list.to_struct(upper_bound).
-    "polars>=1.35.1,<2",
+    "polars>=2,<3",
     "narwhals>=2.27.1",
     "pydantic>=2.2,<3",
     "packaging>=26.3",

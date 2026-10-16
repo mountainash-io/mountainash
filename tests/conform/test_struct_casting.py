@@ -76,6 +76,36 @@ class TestStructCastingNested:
         assert result["addr"].to_list() == [{"street": "Main St", "geo": {"lat": 1.5, "lon": 2.5}}]
 
 
+def test_nested_date_cast_preserves_parent_nulls_and_matches_struct_fields_by_name():
+    """Temporal leaves convert recursively without collapsing null parents."""
+    from datetime import date
+
+    df = pl.DataFrame(
+        {"payload": [
+            {"label": "ok", "items": [{"day": "2026-10-12"}, None]},
+            None,
+            {"label": "empty", "items": []},
+        ]},
+        schema={"payload": pl.Struct({
+            "label": pl.String, "items": pl.List(pl.Struct({"day": pl.String}))
+        })},
+    )
+    spec = TypeSpec(fields=[
+        FieldSpec(name="payload", type=UniversalType.OBJECT, object_fields=[
+            FieldSpec(name="items", type=UniversalType.ARRAY, item_object_fields=[
+                FieldSpec(name="day", type=UniversalType.DATE),
+            ]),
+            FieldSpec(name="label", type=UniversalType.STRING),
+        ])
+    ])
+    result = ma.relation(df).conform(spec).to_polars()
+    assert result["payload"].to_list() == [
+        {"items": [{"day": date(2026, 10, 12)}, None], "label": "ok"},
+        None,
+        {"items": [], "label": "empty"},
+    ]
+
+
 class TestStructCastingErrorHandling:
     def test_incompatible_inner_type_raises(self):
         """Spec §6/§13.1: incompatible inner type raises."""
