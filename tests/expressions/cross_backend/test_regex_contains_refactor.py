@@ -156,3 +156,18 @@ def test_regex_case_sensitivity(
         assert result[6] is False or result[6] is None
     else:
         assert result[6] is None
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("pattern,sensitive", [("^AU$", False), ("(?i)^au$", True)])
+def test_native_ibis_regex_literal_preserves_values(
+    backend_name, backend_factory, collect_expr, pattern, sensitive,
+):
+    """Ibis-native literal inspection is backend-specific; generic cases stay above."""
+    import ibis
+
+    frame = backend_factory.create({"value": ["AU", "au", "NZ", "", None, "AU"]}, backend_name)
+    expression = ma.col("value").str.regex_contains(
+        ma.native(ibis.literal(pattern)), case_sensitive=sensitive,
+    )
+    assert collect_expr(frame, expression) == [True, True, False, False, None, True]

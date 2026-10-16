@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-16
+
+### Fixed
+- PostgreSQL dynamic case-insensitive `str.regex_contains()` patterns, including native Ibis expressions, now receive a declared `BackendCapabilityError` on Ibis 12.0.0 / SQLGlot 29.0.1 / PostgreSQL 16.15 (321, IB-STR-16). Native literals and sensitive plain-column matching remain allowed. Trusted, excluded-semantic and unqualified executions retain native lowering; unknown forms are not classified as supported. No SQL rewrite is added, and case-sensitive concatenated patterns remain unresolved.
+
 ## Unreleased — 2026-10-15
 
 ### Fixed
