@@ -253,12 +253,9 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         return x.list.filter(mask)
 
     def list_to_struct(self, x, /, *, n_field_strategy="first_non_null", fields=None, upper_bound=None):
-        kwargs = {}
-        if fields is not None:
-            kwargs["fields"] = fields
-        if upper_bound is not None:
-            kwargs["upper_bound"] = upper_bound
-        return x.list.to_struct(**kwargs)
+        if fields is None and upper_bound is not None:
+            fields = [f"field_{i}" for i in range(upper_bound)]
+        return x.fill_null([]).list.to_struct(fields=fields)
 
     def list_to_array(self, x, /, *, width):
         return x.list.to_array(width)
