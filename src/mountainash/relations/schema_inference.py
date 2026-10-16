@@ -312,17 +312,21 @@ def infer_schema(
 
         node_id = f"conform:{len(_drifts)}" if _drifts is not None else None
         from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+        from mountainash.relations.core.errors import UnresolvedExecutionLocationError
         from mountainash.relations.dag.errors import RelationDAGRequired
         from mountainash.typespec.converters import _execution_type_target
         from mountainash.typespec.source_shape import extract_source_shapes
         try:
             location = LocationResolver(IdentityTokens(), identity_resolver=identity_resolver).resolve(node)
             type_target = _execution_type_target(location.family)
-        except RelationDAGRequired:
+        except UnresolvedExecutionLocationError:
+            raise
+        except (RelationDAGRequired, ValueError):
             type_target = None
         actual_shapes = (
             extract_source_shapes(node.input.dataframe, target=type_target)
             if isinstance(node.input, ReadRelNode)
+            and type_target is not None
             and not isinstance(node.input.dataframe, (list, tuple, dict)) else None
         )
         contract = resolve_conform_output(

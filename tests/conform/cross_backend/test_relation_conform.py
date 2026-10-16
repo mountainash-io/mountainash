@@ -17,10 +17,11 @@ from fixtures.call_expectations import expect_call_failure
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("dtype,values", [
     (ma.MountainashDtype.I8, [-128, 127, None]),
+    (ma.MountainashDtype.U8, [0, 255, None]),
     (ma.MountainashDtype.FP32, [1.5, -2.25, None]),
 ])
 def test_canonical_conform_retains_declared_identity(backend_name, backend_factory, dtype, values, request):
-    if dtype is ma.MountainashDtype.I8 and backend_name in {"pandas", "narwhals-pandas"}:
+    if dtype in {ma.MountainashDtype.I8, ma.MountainashDtype.U8} and backend_name in {"pandas", "narwhals-pandas"}:
         from pandas.errors import IntCastingNaNError
         request.applymarker(pytest.mark.xfail(
             strict=True, raises=IntCastingNaNError,
@@ -34,7 +35,11 @@ def test_canonical_conform_retains_declared_identity(backend_name, backend_facto
     assert out["value"].to_list() == values
     assert rel.schema["value"] is dtype
     import polars as pl
-    assert out.schema["value"] == (pl.Int8 if dtype is ma.MountainashDtype.I8 else pl.Float32)
+    assert out.schema["value"] == {
+        ma.MountainashDtype.I8: pl.Int8,
+        ma.MountainashDtype.U8: pl.UInt8,
+        ma.MountainashDtype.FP32: pl.Float32,
+    }[dtype]
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

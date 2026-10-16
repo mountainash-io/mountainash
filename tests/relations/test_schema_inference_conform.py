@@ -628,3 +628,18 @@ def test_mapping_tuple_conform_has_no_native_shape_requirement():
     rel = ma.relation(({"x": 1},)).conform(TypeSpec.from_simple_dict({"x": "integer"}))
     assert rel.schema["x"] is ma.MountainashDtype.I64
     assert rel.to_polars()["x"].to_list() == [1]
+
+
+def test_narwhals_routed_native_subclass_uses_selected_dtype_domain():
+    import narwhals as nw
+
+    class Frame(pl.DataFrame):
+        pass
+
+    spec = TypeSpec(fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type=nw.Int64)])
+    rel = ma.relation(Frame({"id": [300]})).conform(spec, contract={"data_type": "freeze"})
+    assert rel.schema["id"] is ma.MountainashDtype.I64
+    with pytest.warns(UserWarning):
+        out = rel.to_polars()
+    assert out.schema["id"] == pl.Int64
+    assert out["id"].to_list() == [300]
