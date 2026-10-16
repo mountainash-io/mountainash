@@ -523,3 +523,41 @@ def test_single_answer_queries_select_the_named_consumer_without_selector_priori
         option_value="ERROR",
         consumer=PolicyConsumer.IMMEDIATE_ERROR,
     ) == enrichment.qualify(_SCOPE)
+
+
+@pytest.mark.parametrize("later_kind", ["duplicate", "broad", "nested", "eq", "in", "null"])
+def test_dynamic_policy_rejects_ambiguous_publication_and_retains_protection(isolated, later_kind):
+    dynamic = Predicate((Clause("x", ClauseOp.IS_DYNAMIC),))
+    prior = _policy("x", PolicyAction.BLOCK, dynamic)
+    CapabilityRegistry.register_segment(_segment(prior, suffix=".dynamic_initial"))
+    if later_kind == "duplicate":
+        later = replace(prior, key=replace(prior.key, variant="duplicate"))
+    else:
+        clause = {
+            "broad": Clause("x", ClauseOp.IS_SET),
+            "nested": Clause("x.value", ClauseOp.EQ, -7),
+            "eq": Clause("x", ClauseOp.EQ, -7),
+            "in": Clause("x", ClauseOp.IN, frozenset({-7})),
+            "null": Clause("x", ClauseOp.IS_NULL),
+        }[later_kind]
+        later = _policy("x", PolicyAction.PERMIT, Predicate((clause,)))
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_segment(later, suffix=".dynamic_later"))
+    assert CapabilityRegistry.violations_for(_call(x=ma.col("value").node)) == frozenset({prior.qualify(_SCOPE)})
+
+
+@pytest.mark.parametrize("partition", ["form", "option"])
+def test_dynamic_policy_accepts_proven_disjoint_partition(isolated, partition):
+    clauses = (Clause("x", ClauseOp.IS_DYNAMIC),)
+    permit_clauses = (Clause("x", ClauseOp.IS_LITERAL),)
+    if partition == "option":
+        clauses += (Clause("overflow", ClauseOp.EQ, "ERROR"),)
+        permit_clauses = (Clause("x", ClauseOp.IS_DYNAMIC), Clause("overflow", ClauseOp.EQ, "SATURATE"))
+    block = _policy("x", PolicyAction.BLOCK, Predicate(clauses))
+    permit = _policy("x", PolicyAction.PERMIT, Predicate(permit_clauses))
+    CapabilityRegistry.register_segment(_segment(block, permit, suffix=".dynamic_partition"))
+    assert CapabilityRegistry.violations_for(_call(x=ma.col("value").node, overflow="ERROR")) == frozenset({
+        block.qualify(_SCOPE),
+    })
+    allowed = ma.lit(-7).node if partition == "form" else ma.col("value").node
+    assert CapabilityRegistry.violations_for(_call(x=allowed, overflow="SATURATE")) == frozenset()

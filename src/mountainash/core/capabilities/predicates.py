@@ -34,6 +34,7 @@ class BoundCall:
     bindings: Mapping[str, Any]  # param name -> bound value or AST node
     supplied: frozenset[str]  # params the caller actually passed
     operand_types: Mapping[str, OperandType] | None = None
+    native_argument_forms: Mapping[str, str | None] | None = None
 
     def __post_init__(self) -> None:
         if OPERAND_TYPES_ROOT in self.bindings or OPERAND_TYPES_ROOT in self.supplied:
@@ -145,12 +146,18 @@ def evaluate_clause(
     supplied: frozenset[str],
     *,
     operand_types: Mapping[str, OperandType] | None = None,
+    native_argument_forms: Mapping[str, str | None] | None = None,
 ) -> bool:
     from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 
     root = clause.path.split(".")[0]
-    if clause.op is ClauseOp.IS_LITERAL:
-        return isinstance(bindings.get(root), LiteralNode)
+    if clause.op in (ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC):
+        argument = bindings.get(root)
+        literal = isinstance(argument, LiteralNode)
+        if literal and argument.is_native:
+            form = native_argument_forms.get(root) if native_argument_forms is not None else None
+            return form == ("literal" if clause.op is ClauseOp.IS_LITERAL else "dynamic")
+        return literal if clause.op is ClauseOp.IS_LITERAL else isinstance(argument, ExpressionNode) and not literal
     value = resolve_path(bindings, clause.path, operand_types=operand_types)
     if clause.op is ClauseOp.IS_NULL:
         return value is None
@@ -176,12 +183,16 @@ def predicate_holds(
     supplied: frozenset[str],
     *,
     operand_types: Mapping[str, OperandType] | None = None,
+    native_argument_forms: Mapping[str, str | None] | None = None,
 ) -> bool:
     # Validate every referenced descriptor before a false raw clause can short-circuit.
     for clause in predicate.clauses:
         if clause.path.split(".")[0] == OPERAND_TYPES_ROOT:
             resolve_path(bindings, clause.path, operand_types=operand_types)
-    return all(evaluate_clause(c, bindings, supplied, operand_types=operand_types) for c in predicate.clauses)
+    return all(
+        evaluate_clause(c, bindings, supplied, operand_types=operand_types, native_argument_forms=native_argument_forms)
+        for c in predicate.clauses
+    )
 
 
 def _metadata_path(path: str) -> tuple[str, str]:
@@ -311,22 +322,23 @@ def _path_witness(clauses: tuple[Clause, ...]) -> Any:
 def _comparison_clauses(
     left: Predicate | None,
     right: Predicate | None,
-) -> tuple[dict[str, list[Clause]], set[str], bool]:
+) -> tuple[dict[str, list[Clause]], set[str], set[str], bool]:
     paths: dict[str, list[Clause]] = {}
     literal_roots: set[str] = set()
+    dynamic_roots: set[str] = set()
     uncertain = False
     for predicate in (left, right):
         if predicate is None:
             continue
         for clause in predicate.clauses:
             root = clause.path.split(".", 1)[0]
-            if clause.op is ClauseOp.IS_LITERAL:
-                literal_roots.add(root)
+            if clause.op in (ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC):
+                (literal_roots if clause.op is ClauseOp.IS_LITERAL else dynamic_roots).add(root)
                 uncertain |= root == OPERAND_TYPES_ROOT
                 continue
             paths.setdefault(clause.path, []).append(clause)
             uncertain |= not _is_raw_path(clause.path)
-    return paths, literal_roots, uncertain
+    return paths, literal_roots, dynamic_roots, uncertain
 
 
 def compare_domains(
@@ -340,10 +352,16 @@ def compare_domains(
     `NOT_PROVEN` unless a same-path contradiction has already decided the
     comparison.
     """
-    paths, literal_roots, uncertain = _comparison_clauses(left, right)
+    paths, literal_roots, dynamic_roots, uncertain = _comparison_clauses(left, right)
+    if literal_roots & dynamic_roots:
+        return _DISJOINT
     bindings: dict[str, Any] = {}
     unknown = uncertain
     for path, clauses in paths.items():
+        if path.split(".", 1)[0] in dynamic_roots:
+            # Native forms do not authorize value or nested-object reasoning.
+            unknown |= not _is_raw_path(path) or any(c.op is not ClauseOp.IS_SET for c in clauses)
+            continue
         value = _path_witness(tuple(clauses))
         if value is _DISJOINT:
             return _DISJOINT
@@ -360,6 +378,11 @@ def compare_domains(
 
         for root in literal_roots:
             bindings[root] = LiteralNode(value=bindings.get(root))
+    if dynamic_roots:
+        from mountainash.expressions.core.expression_nodes import FieldReferenceNode
+
+        for root in dynamic_roots:
+            bindings[root] = FieldReferenceNode(field=root)
     supplied = frozenset(bindings)
     if left is not None and not predicate_holds(left, bindings, supplied):
         return _NOT_PROVEN

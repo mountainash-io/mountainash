@@ -798,7 +798,8 @@ class ClauseOp(Enum):
     IN = "in"  # resolved value is a member of a frozenset
     IS_SET = "is_set"  # resolved value is non-None
     IS_NULL = "is_null"  # resolved value is None
-    IS_LITERAL = "is_literal"  # root param's bound value is a LiteralNode
+    IS_LITERAL = "is_literal"  # literal AST argument or native value classified literal
+    IS_DYNAMIC = "is_dynamic"  # nonliteral AST argument or native value classified dynamic
     MATCHES_CLASS = "matches_class"  # value_classes.matches(operand, value)
 
 
@@ -827,7 +828,9 @@ def _validate_clause(clause: "Clause") -> None:
     if not clause.path:
         raise ValueError("Clause path must be non-empty")
     op, operand = clause.op, clause.operand
-    if op in (ClauseOp.IS_SET, ClauseOp.IS_NULL, ClauseOp.IS_LITERAL):
+    if op is ClauseOp.IS_DYNAMIC and "." in clause.path:
+        raise ValueError("Clause IS_DYNAMIC requires a root argument path")
+    if op in (ClauseOp.IS_SET, ClauseOp.IS_NULL, ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC):
         if operand is not None:
             raise ValueError(f"Clause {op.name} takes no operand, got {operand!r}")
     elif op is ClauseOp.EQ:

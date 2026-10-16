@@ -33,9 +33,25 @@ def test_clause_in_requires_frozenset_of_str_int():
 
 
 def test_clause_nullary_ops_take_no_operand():
-    for op in (ClauseOp.IS_SET, ClauseOp.IS_NULL, ClauseOp.IS_LITERAL):
+    for op in (ClauseOp.IS_SET, ClauseOp.IS_NULL, ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC):
         with pytest.raises(ValueError, match=op.name):
             Clause("unit", op, "WEEK")
+
+
+def test_dynamic_clause_requires_root_argument():
+    with pytest.raises(ValueError, match="root"):
+        Clause("pattern.value", ClauseOp.IS_DYNAMIC)
+
+
+@pytest.mark.parametrize("bindings", [{}, {"pattern": None}, {"pattern": "^AU$"}])
+def test_raw_or_missing_argument_is_not_dynamic(bindings):
+    assert not evaluate_clause(Clause("pattern", ClauseOp.IS_DYNAMIC), bindings, frozenset(bindings))
+
+
+def test_unknown_native_argument_matches_neither_form():
+    bindings = {"pattern": LiteralNode(value=object(), is_native=True)}
+    for op in (ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC):
+        assert not evaluate_clause(Clause("pattern", op), bindings, frozenset(bindings))
 
 
 def test_clause_matches_class_requires_value_class():
@@ -356,3 +372,9 @@ def test_bind_expression_call_applies_defaults_outside_supplied():
     )
     assert bc.bindings["overflow"] is None
     assert "overflow" not in bc.supplied
+
+
+def test_dynamic_overlap_has_a_satisfying_nonliteral_witness():
+    dynamic = Predicate((Clause("pattern", ClauseOp.IS_DYNAMIC),))
+    nonnull = Predicate((Clause("pattern", ClauseOp.IS_SET),))
+    _assert_witness_holds(compare_domains(dynamic, nonnull), dynamic, nonnull)
