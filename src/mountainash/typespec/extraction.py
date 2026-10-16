@@ -85,17 +85,20 @@ def _field_from_source_shape(
                 ]
 
     if shape.decimal is not None:
-        # Declared exact decimal: precision/scale are the schema identity, so the
-        # backend-specific type string is redundant (and mutually exclusive).
+        # Exact decimals retain portable precision/scale without a native spelling.
         return FieldSpec(
             name=name,
             type=UniversalType.NUMBER,
             dtype=shape.decimal,
         )
 
+    from mountainash.core.dtypes import MountainashDtype
+    if shape.canonical_type in (MountainashDtype.JSON, MountainashDtype.DURATION):
+        universal_type = UniversalType.ANY
     return FieldSpec(
         name=name,
         type=universal_type,
+        dtype=shape.canonical_type,
         object_fields=object_fields,
         item_object_fields=item_object_fields,
         backend_type=backend_type,

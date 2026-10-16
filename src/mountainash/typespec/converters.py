@@ -12,8 +12,11 @@ All converters use lazy imports and leverage the centralized type system.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict
+import warnings
 
 from mountainash.core.dtypes import (
+    DecimalDtype,
+    NativeDtype,
     InvalidBackendTypeError,
     MountainashDtype,
     TypeTarget,
@@ -21,6 +24,7 @@ from mountainash.core.dtypes import (
     registry,
 )
 from mountainash.typespec.errors import InvalidGeospatialFormatError
+from mountainash.core.dtypes.errors import DtypeMappingError
 from mountainash.typespec.universal_types import UniversalType, to_canonical
 
 if TYPE_CHECKING:
@@ -54,6 +58,12 @@ def resolve_field_canonical(field: "FieldSpec") -> Any:
     Every other UniversalType delegates to to_canonical(field.type)
     unchanged.
     """
+    broad = _resolve_broad_field_canonical(field)
+    return field.dtype if field.dtype is not None else broad
+
+
+def _resolve_broad_field_canonical(field: "FieldSpec") -> Any:
+    """Resolve authored broad semantics independently of precise refinements."""
     fmt = field.format
     if field.type is UniversalType.GEOPOINT:
         if not isinstance(fmt, str) or fmt not in _GEOPOINT_FORMAT_CANONICAL:
@@ -73,18 +83,72 @@ def resolve_field_canonical(field: "FieldSpec") -> Any:
                 sorted(_GEOJSON_FORMATS),
             )
         return MountainashDtype.JSON
+    if field.type is UniversalType.STRING and field.format == "binary":
+        return MountainashDtype.BINARY
     return to_canonical(field.type)
 
 
 # ============================================================================
 # Shared resolution core
 # ============================================================================
+def _native_types_equal(left: Any, right: Any, target: TypeTarget) -> bool:
+    """Compare native types in their owning domain, retaining parameters."""
+    if target is TypeTarget.IBIS:
+        import ibis.expr.datatypes as dt
+        return dt.dtype(left) == dt.dtype(right)
+    if target is TypeTarget.PANDAS:
+        import pandas as pd
+        return pd.api.types.pandas_dtype(left) == pd.api.types.pandas_dtype(right)
+    return left == right
+
+
+def _resolve_field_target(
+    field: "FieldSpec", target: TypeTarget, *, emit_warning: bool = True,
+) -> MountainashDtype | DecimalDtype | NativeDtype | None:
+    """Resolve a declaration once, honoring its explicit native override."""
+    declared = resolve_field_canonical(field)
+    override = field.backend_type
+    if override is None or (isinstance(override, str) and not override):
+        return declared
+    if isinstance(override, NativeDtype):
+        if override.target is not target:
+            raise DtypeMappingError(
+                f"field {field.name!r}: native override belongs to {override.target}, not {target}"
+            )
+        effective = override
+    else:
+        native = registry.parse_type_string(override, target)
+        if native is None:
+            raise InvalidBackendTypeError(field.name, override, target)
+        effective = NativeDtype(value=native, target=target)
+    if field.dtype is not None and emit_warning:
+        semantic_or_parameterized = declared in (
+            MountainashDtype.JSON, MountainashDtype.XSD_DURATION,
+            MountainashDtype.XSD_YEAR, MountainashDtype.XSD_YEARMONTH,
+            MountainashDtype.TIMESTAMP, MountainashDtype.DURATION,
+            MountainashDtype.LIST, MountainashDtype.STRUCT,
+        )
+        equivalent = False
+        if not semantic_or_parameterized:
+            expected = registry.to_native_schema(declared, target)
+            equivalent = _native_types_equal(expected, effective.value, target)
+        if not equivalent:
+            reason = "equivalence unverified" if semantic_or_parameterized else "dtype mismatch"
+            warnings.warn(
+                f"field {field.name!r} on {target.value}: {reason} between "
+                f"canonical {declared!r} and native override {effective.value!r}; native override wins",
+                UserWarning, stacklevel=3,
+            )
+    return effective
+
+
 
 def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
-    """Resolve declared decimals, categories, backend overrides, canonical types, and containers."""
-    if field.dtype is not None:
-        return registry.to_native_schema(field.dtype, target)
-    if field.categories is not None and target in (TypeTarget.POLARS, TypeTarget.PANDAS):
+    """Lower the effective target and enrich canonical container declarations."""
+    canon = _resolve_field_target(field, target)
+    if isinstance(canon, NativeDtype):
+        return canon.value
+    if field.dtype is None and field.categories is not None and target in (TypeTarget.POLARS, TypeTarget.PANDAS):
         from mountainash.typespec._categorical import categorical_values
         values = categorical_values(field.categories)
         if target is TypeTarget.POLARS:
@@ -93,12 +157,6 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
             return pl.Enum([str(v) for v in values]) if field.categories_ordered else pl.Categorical
         import pandas as pd
         return pd.CategoricalDtype(categories=values, ordered=bool(field.categories_ordered))
-    if field.backend_type:
-        parsed = registry.parse_type_string(field.backend_type, target)
-        if parsed is not None:
-            return parsed
-        raise InvalidBackendTypeError(field.name, field.backend_type, target)
-    canon = resolve_field_canonical(field)
     if canon is None:
         canon = MountainashDtype.STRING
     native = registry.to_native_schema(canon, target)

@@ -1,10 +1,11 @@
 """Schema-only structural evidence extracted from supported table carriers."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from copy import deepcopy
 from typing import Any
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 
 from mountainash.core.types import (
@@ -33,6 +34,7 @@ class SourceShape:
     item_shape: SourceShape | None = None
     struct_fields: tuple[tuple[str, SourceShape], ...] = ()
     decimal: DecimalDtype | None = None
+    native_dtype: NativeDtype | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.decimal is not None and (
@@ -66,22 +68,25 @@ def _canonical(native: Any, target: TypeTarget) -> MountainashDtype | None:
 def _leaf(native: Any, target: TypeTarget) -> SourceShape:
     """Scalar shape for a native dtype, carrying decimal precision/scale when present."""
     resolved = _resolve(native, target)
+    evidence = NativeDtype(value=deepcopy(native), target=target)
     if isinstance(resolved, DecimalDtype):
-        return SourceShape(None, decimal=resolved)
-    return SourceShape(resolved)
+        return SourceShape(None, decimal=resolved, native_dtype=evidence)
+    return SourceShape(resolved, native_dtype=evidence)
 
 
 def _from_polars_dtype(dtype: Any, pl: Any) -> SourceShape:
     canonical = _canonical(dtype, TypeTarget.POLARS)
     if canonical is MountainashDtype.LIST:
         inner = getattr(dtype, "inner", None)
-        return SourceShape(MountainashDtype.LIST, _from_polars_dtype(inner, pl))
+        return SourceShape(MountainashDtype.LIST, _from_polars_dtype(inner, pl),
+                           native_dtype=NativeDtype(value=deepcopy(dtype), target=TypeTarget.POLARS))
     if canonical is MountainashDtype.STRUCT:
         fields = tuple(
             (field.name, _from_polars_dtype(field.dtype, pl))
             for field in getattr(dtype, "fields", ())
         )
-        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
+        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields,
+                           native_dtype=NativeDtype(value=deepcopy(dtype), target=TypeTarget.POLARS))
     return _leaf(dtype, TypeTarget.POLARS)
 
 
@@ -109,10 +114,12 @@ def _is_pyarrow_list(dtype: Any, pa: Any) -> bool:
 
 def _from_pyarrow_dtype(dtype: Any, pa: Any) -> SourceShape:
     if _is_pyarrow_list(dtype, pa):
-        return SourceShape(MountainashDtype.LIST, _from_pyarrow_dtype(dtype.value_type, pa))
+        return SourceShape(MountainashDtype.LIST, _from_pyarrow_dtype(dtype.value_type, pa),
+                           native_dtype=NativeDtype(value=dtype, target=TypeTarget.PYARROW))
     if pa.types.is_struct(dtype):
         fields = tuple((field.name, _from_pyarrow_dtype(field.type, pa)) for field in dtype)
-        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
+        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields,
+                           native_dtype=NativeDtype(value=dtype, target=TypeTarget.PYARROW))
     return _leaf(dtype, TypeTarget.PYARROW)
 
 
@@ -126,12 +133,13 @@ def _from_pyarrow_schema(schema: Any) -> dict[str, SourceShape]:
 def _from_pandas_dtype(dtype: Any) -> SourceShape:
     # pandas object is intentionally opaque. Never inspect a Series to infer it.
     if str(dtype) == "object":
-        return SourceShape(None)
+        return SourceShape(None, native_dtype=NativeDtype(value=dtype, target=TypeTarget.PANDAS))
     arrow_dtype = getattr(dtype, "pyarrow_dtype", None)
     if arrow_dtype is not None:
         from mountainash.core.lazy_imports import import_pyarrow
 
-        return _from_pyarrow_dtype(arrow_dtype, import_pyarrow())
+        return replace(_from_pyarrow_dtype(arrow_dtype, import_pyarrow()),
+                       native_dtype=NativeDtype(value=deepcopy(dtype), target=TypeTarget.PANDAS))
     return _leaf(dtype, TypeTarget.PANDAS)
 
 
@@ -142,7 +150,8 @@ def _from_pandas_dtypes(dtypes: Any) -> dict[str, SourceShape]:
 def _from_ibis_dtype(dtype: Any) -> SourceShape:
     canonical = _canonical(dtype, TypeTarget.IBIS)
     if canonical is MountainashDtype.LIST:
-        return SourceShape(MountainashDtype.LIST, _from_ibis_dtype(getattr(dtype, "value_type", None)))
+        return SourceShape(MountainashDtype.LIST, _from_ibis_dtype(getattr(dtype, "value_type", None)),
+                           native_dtype=NativeDtype(value=dtype, target=TypeTarget.IBIS))
     if canonical is MountainashDtype.STRUCT:
         raw_fields = getattr(dtype, "fields", {})
         if hasattr(raw_fields, "items"):
@@ -152,7 +161,8 @@ def _from_ibis_dtype(dtype: Any) -> SourceShape:
                 (field.name, _from_ibis_dtype(field.type))
                 for field in raw_fields
             )
-        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
+        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields,
+                           native_dtype=NativeDtype(value=dtype, target=TypeTarget.IBIS))
     return _leaf(dtype, TypeTarget.IBIS)
 
 
@@ -163,20 +173,27 @@ def _from_ibis_schema(schema: Any) -> dict[str, SourceShape]:
 def _from_narwhals_dtype(dtype: Any) -> SourceShape:
     canonical = _canonical(dtype, TypeTarget.NARWHALS)
     if canonical is MountainashDtype.LIST:
-        return SourceShape(MountainashDtype.LIST, _from_narwhals_dtype(getattr(dtype, "inner", None)))
+        return SourceShape(MountainashDtype.LIST, _from_narwhals_dtype(getattr(dtype, "inner", None)),
+                           native_dtype=NativeDtype(value=deepcopy(dtype), target=TypeTarget.NARWHALS))
     if canonical is MountainashDtype.STRUCT:
         fields = tuple(
             (field.name, _from_narwhals_dtype(field.dtype))
             for field in getattr(dtype, "fields", ())
         )
-        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields)
+        return SourceShape(MountainashDtype.STRUCT, struct_fields=fields,
+                           native_dtype=NativeDtype(value=deepcopy(dtype), target=TypeTarget.NARWHALS))
     return _leaf(dtype, TypeTarget.NARWHALS)
 
 
 def _from_narwhals_schema(native: Any) -> dict[str, SourceShape]:
     underlying = native.to_native()
     if is_pandas_dataframe(underlying):
-        return _from_pandas_dtypes(underlying.dtypes)
+        from mountainash.core.lazy_imports import import_narwhals
+        schema = import_narwhals().Schema.from_pandas_like(underlying.dtypes.to_dict())
+        shapes = _from_pandas_dtypes(underlying.dtypes)
+        return {name: replace(shape, native_dtype=NativeDtype(
+            value=deepcopy(schema[name]), target=TypeTarget.NARWHALS,
+        )) for name, shape in shapes.items()}
     return {name: _from_narwhals_dtype(dtype) for name, dtype in native.schema.items()}
 
 

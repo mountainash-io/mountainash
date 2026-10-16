@@ -46,6 +46,10 @@ def validate_match(
     """
     from .extraction import extract_from_dataframe
     from .spec import compare_specs
+    from .source_shape import extract_source_shapes
+    from .converters import _resolve_field_target, _native_types_equal
+    from mountainash.core.dtypes import NativeDtype, MountainashDtype
+    from .universal_types import UniversalType
 
     errors = []
 
@@ -58,6 +62,25 @@ def validate_match(
 
     # Compare
     diff = compare_specs(actual_schema, expected_schema, check_constraints=False)
+    shapes = extract_source_shapes(df)
+    for expected in expected_schema.fields:
+        actual = actual_schema.get_field(expected.name)
+        if actual is None:
+            continue
+        if expected.backend_type is not None:
+            native = shapes[expected.name].native_dtype
+            effective = _resolve_field_target(expected, native.target)
+            if isinstance(effective, NativeDtype) and _native_types_equal(
+                native.value, effective.value, native.target,
+            ):
+                diff.type_changes.pop(expected.name, None)
+            else:
+                diff.type_changes[expected.name] = (native.value, effective.value)
+        elif expected.dtype is None and (
+            expected.type is UniversalType.ANY
+            or (actual.type is expected.type and isinstance(actual.dtype, MountainashDtype))
+        ):
+            diff.type_changes.pop(expected.name, None)
 
     if diff.missing_columns:
         errors.append(f"Missing required columns: {diff.missing_columns}")

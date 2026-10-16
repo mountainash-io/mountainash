@@ -166,8 +166,8 @@ class FieldSpec:
             if self.type is UniversalType.ANY:
                 self.type = broad
             elif self.type is UniversalType.GEOPOINT:
-                from mountainash.typespec.converters import resolve_field_canonical
-                if resolve_field_canonical(self) != self.dtype:
+                from mountainash.typespec.converters import _resolve_broad_field_canonical
+                if _resolve_broad_field_canonical(self) != self.dtype:
                     raise IncompatibleFieldPropertiesError(self.name, "dtype", self.type, (broad,))
             elif not (
                 self.type is broad
