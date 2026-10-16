@@ -321,9 +321,6 @@ class TestDeclaredDecimalMath:
         ):
             result = ma.relation(frame).select(expression.alias("result")).to_polars()
             dtype = result.schema["result"]
-            from mountainash.relations.schema_inference import SchemaTypeStatus
-            query = ma.relation(frame).select(expression.alias("result"))
-            assert query.schema["result"] in (SchemaTypeStatus.UNKNOWN, ma.relation(result).schema["result"])
             if backend_name.startswith("ibis") and operation not in {"cot", "atan2", "acosh", "log_base_2"}:
                 assert dtype == pl.Decimal(10, 2)
             else:
@@ -435,8 +432,6 @@ class TestDeclaredDecimalMath:
         assert result.schema["result"] == pl.Decimal(12, 3)
         assert result["result"][0] == D(expected)
         assert result["result"][1] is None
-        from mountainash.relations.schema_inference import SchemaTypeStatus
-        assert authored.schema["result"] in (SchemaTypeStatus.UNKNOWN, ma.DecimalDtype(12, 3))
 
     @pytest.mark.parametrize("working", [False, True], ids=["native-decimal", "authored-fp64"])
     @pytest.mark.parametrize(

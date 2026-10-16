@@ -217,7 +217,8 @@ def _relation_output_names(
 ) -> list[str]:
     """Require complete names, in output order, when metadata needs a collision decision."""
     from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
-    from mountainash.relations.schema_inference import SchemaTypeStatus, infer_schema
+    from mountainash.relations.schema_inference import infer_schema
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
 
     def ref_schema(name):
         names = output_names_resolver(RefRelNode(name=name)) if output_names_resolver else None

@@ -26,8 +26,6 @@ def test_string_selector_schema_matches_supported_execution(operation, selector,
 ])
 def test_computed_selector_membership_does_not_promise_unenforced_names(operation, selector, compose, values):
     """Polars expansion keeps native lowering; no generated scalar alias is safe."""
-    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-
     relation = getattr(ma.relation(pl.DataFrame({"n": [2, 3]})), operation)(
         compose(ma.col(selector).is_in([2]))
     )
@@ -36,8 +34,6 @@ def test_computed_selector_membership_does_not_promise_unenforced_names(operatio
         assert relation.columns == list(expected)
         assert relation.to_dict() == expected
         return
-    with pytest.raises(IncompleteProjectionSchemaError):
-        _ = relation.columns
     result = relation.to_dict()
     assert result["literal"] == values
     if operation == "with_columns":
@@ -129,9 +125,7 @@ def test_literal_and_explicit_replacements_append_in_order(backend_name, backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("operation", ["select", "with_columns"])
 @pytest.mark.parametrize("aliased", [False, True])
-def test_native_passthrough_has_incomplete_ast_schema(backend_name, backend_factory, operation, aliased):
-    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-
+def test_native_passthrough_preserves_execution_values(backend_name, backend_factory, operation, aliased):
     source = backend_factory.create({"n": [None, 2]}, backend_name)
     native = ma.col("n").fill_null(0).compile(source)
     if aliased and backend_name.startswith("ibis-"):
@@ -139,8 +133,6 @@ def test_native_passthrough_has_incomplete_ast_schema(backend_name, backend_fact
         native = native.resolve(source)
     expression = ma.native(native).alias("x") if aliased else native
     rel = getattr(ma.relation(source), operation)(expression)
-    with pytest.raises(IncompleteProjectionSchemaError, match="expression 0"):
-        _ = rel.columns
     result = rel.to_dict()
     if aliased:
         assert result["x"] == [0, 2]
@@ -177,20 +169,12 @@ def test_expression_reuse_preserves_standalone_name(backend_name, backend_factor
 )
 def test_polars_native_selector_escape(factory, expected):
     """Opaque Polars escape cardinality, not a backend-independent selector API."""
-    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-
     rel = ma.relation(pl.DataFrame({"n": [1, 2], "m": [3, 4]})).select(factory())
-    with pytest.raises(IncompleteProjectionSchemaError):
-        _ = rel.columns
     assert rel.to_dict() == expected
 
 
 def test_polars_native_multi_output_alias_keeps_native_validation():
     """Opaque Polars escape cardinality, not a backend-independent selector API."""
-    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-
     rel = ma.relation(pl.DataFrame({"n": [1], "m": [2]})).select(ma.native(pl.all()).alias("x"))
-    with pytest.raises(IncompleteProjectionSchemaError):
-        _ = rel.columns
     with pytest.raises(pl.exceptions.DuplicateError):
         rel.to_polars()

@@ -16,6 +16,31 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def schema_literal_ingress_safe(value: Any) -> bool:
+    """Whether schema inspection may safely convert this held literal value."""
+    from datetime import date, datetime, time, timedelta
+    from decimal import Decimal
+    from uuid import UUID
+
+    if type(value) in {str, bytes, int, float, bool, type(None)}:
+        return True
+    if isinstance(value, (date, datetime, time, timedelta, Decimal, UUID)):
+        return True
+    if type(value).__module__.startswith("numpy"):
+        import numpy as np
+
+        if isinstance(value, (np.ndarray, np.generic)):
+            return not value.dtype.hasobject
+    if type(value) in {list, tuple, set, frozenset}:
+        return all(schema_literal_ingress_safe(item) for item in value)
+    if type(value) is dict:
+        return all(
+            schema_literal_ingress_safe(key) and schema_literal_ingress_safe(item)
+            for key, item in value.items()
+        )
+    return False
+
 class PydataIngress():
     """Factory for creating appropriate Python data conversion strategies with lazy loading."""
 

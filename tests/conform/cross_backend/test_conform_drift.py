@@ -24,7 +24,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.conform.errors import SchemaDriftError
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import MountainashDtype, dtype_family
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
@@ -72,7 +72,7 @@ class TestDetectionParity:
         spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
 
         actual_dtypes = _schema_from_dataframe(df)
-        assert actual_dtypes.get("n") is MountainashDtype.STRING, (
+        assert dtype_family(actual_dtypes.get("n")) is MountainashDtype.STRING, (
             f"[{backend_name}] expected STRING evidence, got {actual_dtypes!r} "
             "-- _schema_from_dataframe should yield real dtypes for this backend."
         )
@@ -87,7 +87,7 @@ class TestDetectionParity:
         mismatch = output_contract.drift.type_mismatches[0]
         assert mismatch.name == "n"
         assert mismatch.declared is MountainashDtype.I64
-        assert mismatch.actual is MountainashDtype.STRING
+        assert dtype_family(mismatch.actual) is MountainashDtype.STRING
         assert mismatch.safety == "unsafe"
         assert mismatch.action == "coerce"  # default data_type policy
 

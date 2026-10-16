@@ -258,6 +258,29 @@ class TransportSession:
             self._retained.append(value)
             if requirement.destination.family is CONST_BACKEND.IBIS:
                 self._retained.append(value.op().data)
+                connection = requirement.destination.connection
+                if connection is not None:
+                    op = value.op()
+
+                    def release_import():
+                        # Ibis retains registered memtables for the connection's
+                        # lifetime. This payload is ours, not the caller's.
+                        if op not in connection._memtables:
+                            return
+                        if connection.name == "duckdb":
+                            connection.con.unregister(op.name)
+                        elif connection.name == "polars":
+                            connection.drop_table(op.name, force=True)
+                        else:
+                            from mountainash.relations.backends.relation_systems.ibis._physical import (
+                                adopt_connection, owned_transaction,
+                            )
+                            with adopt_connection(connection) as backend:
+                                with owned_transaction(backend):
+                                    backend.drop_table(op.name, force=True)
+                        connection._memtables.discard(op)
+
+                    self._scope.own(release_import, owner=op.data)
             self._cache[key] = result
             return result
         except BaseException as primary:

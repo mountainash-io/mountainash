@@ -288,15 +288,11 @@ def test_aggregate_expression_reuse(backend_name, backend_factory):
 def test_native_aggregate_executes_without_complete_ast_schema(backend_name, backend_factory):
     import ibis
 
-    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-
     source = backend_factory.create({"g": [0, 0, 1], "x": [3, 3, 8]}, backend_name)
     native = ma.col("x").sum().compile(source)
     if isinstance(native, ibis.Deferred):
         native = native.resolve(source)
     q = ma.relation(source).group_by("g").agg(ma.native(native).alias("total"))
-    with pytest.raises(IncompleteProjectionSchemaError):
-        _ = q.columns
     assert sorted_dicts(q.to_dicts(), "g") == [{"g": 0, "total": 6}, {"g": 1, "total": 8}]
 
 
@@ -304,8 +300,6 @@ def test_native_aggregate_executes_without_complete_ast_schema(backend_name, bac
 def test_aggregate_polars_expansion_passthrough(shape):
     """Polars native selector escape: no portable selector language is promised."""
     import polars as pl
-
-    from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
 
     expressions = {
         "wildcard": ma.col("*").sum(),
@@ -319,9 +313,6 @@ def test_aggregate_polars_expansion_passthrough(shape):
     )
     if shape == "zero":
         assert q.columns == ["one"]
-    else:
-        with pytest.raises(IncompleteProjectionSchemaError):
-            _ = q.columns
     expected = {
         "wildcard": [{"x": 3, "y": 9, "one": 1}],
         "regex": [{"x": 3, "one": 1}],

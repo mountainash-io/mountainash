@@ -6,35 +6,41 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.relations.dag.protocol import RelationDAGProtocol
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
+
+
+def structural_schema(
+    dag: RelationDAGProtocol, name: str
+) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    """Infer a named relation's schema without compiling its native plan."""
+    if name not in dag.relations:
+        raise KeyError(f"relation {name!r} not in DAG")
+    # Validate the dependency graph once before recursive structural inspection.
+    # Constraint edges are deliberately absent from this traversal.
+    dag.topological_order(target=name)
+    from mountainash.relations.schema_inference import infer_schema
+
+    def resolver(ref_name: str) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+        if ref_name not in dag.relations:
+            raise KeyError(f"relation {ref_name!r} not in DAG")
+        node = getattr(dag.relations[ref_name], "_node", None)
+        if node is None:
+            return {}
+        return infer_schema(
+            node, ref_resolver=resolver,
+            identity_resolver=lambda target: dag.relations[target]._node,
+        )
+
+    return resolver(name)
 
 
 def schema(
     dag: RelationDAGProtocol, name: str
 ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-    """Return the inferred output schema for a named relation.
-
-    Values are canonical ``MountainashDtype`` where inferable, or a
-    ``SchemaTypeStatus`` (UNKNOWN / UNCONSTRAINED) where not.
-    """
+    """Return the resolved schema for a registered relation."""
     if name not in dag.relations:
         raise KeyError(f"relation {name!r} not in DAG")
-    node = getattr(dag.relations[name], "_node", None)
-    if node is None:
-        return {}
-
-    from mountainash.relations.schema_inference import infer_schema
-
-    def resolver(
-        ref_name: str,
-    ) -> dict[str, MountainashDtype | SchemaTypeStatus]:
-        return schema(dag, ref_name)
-
-    return infer_schema(
-        node, ref_resolver=resolver,
-        identity_resolver=lambda name: dag.relations[name]._node,
-    )
-
+    return dag.ref(name).schema
 
 def describe(dag: RelationDAGProtocol) -> dict[str, dict[str, Any]]:
     """Return a structural summary of every registered relation."""
@@ -43,7 +49,7 @@ def describe(dag: RelationDAGProtocol) -> dict[str, dict[str, Any]]:
         deps = sorted(u for u, d in dag.dependency_edges if d == name)
         constrained = sorted(u for u, d in dag.constraint_edges if d == name)
         try:
-            col_count = len(schema(dag, name))
+            col_count = len(structural_schema(dag, name))
         except Exception:
             col_count = 0
         result[name] = {
@@ -60,7 +66,7 @@ def to_dot(dag: RelationDAGProtocol) -> str:
 
     for name in sorted(dag.relations):
         try:
-            col_count = len(schema(dag, name))
+            col_count = len(structural_schema(dag, name))
         except Exception:
             col_count = 0
         lines.append(f'    "{name}" [label="{name} ({col_count} cols)"];')

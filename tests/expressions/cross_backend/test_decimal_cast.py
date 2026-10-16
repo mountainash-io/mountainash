@@ -631,7 +631,7 @@ class TestCastContract:
 
 
 def _assert_cast_schema_not_contradictory(query, output):
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
 
     assert query.schema["r"] in (SchemaTypeStatus.UNKNOWN, ma.relation(output).schema["r"])
 

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
 
 

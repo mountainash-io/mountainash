@@ -317,10 +317,12 @@ class DAGMaterializationSession:
                 payload_root = self._canonical_node(payload_root.name)
         bare_memory = (connectionless and isinstance(payload_root, ReadRelNode)
                        and isinstance(payload_root.dataframe.op(), import_ibis_expr_ops().InMemoryTable))
-        # A bare memtable owns an eager payload, not an Ibis execution context.
-        # Only an Ibis consumer can bind it for native compilation; a foreign
-        # consumer receives the payload through the declared Arrow adapter.
-        payload_transfer = bare_memory and destination.connection is None
+        # Schema introspection compiles named dependencies; it never borrows
+        # the eager payload as a substitute for compiling the registered plan.
+        payload_transfer = (
+            self._execution_phase is not ExecutionPhase.SCHEMA
+            and bare_memory and destination.connection is None
+        )
         source_location = location if payload_transfer or not connectionless else destination
         binding_key = (name, source_location.key)
         if binding_key not in self._bound:
@@ -341,9 +343,10 @@ class DAGMaterializationSession:
                     from mountainash.relations.core.owned_copy import require_copy_idle
 
                     require_copy_idle(prepared.locations[prepared.root_key].connection)
+                from mountainash.relations.dag.introspection import structural_schema
                 key_context = KeyDriftContext(
                     resource_name=name, constraints_for=self.dag.constraints_for,
-                    schema_of=self.dag.schema,
+                    schema_of=lambda ref_name: structural_schema(self.dag, ref_name),
                 )
                 compilation = CompilationSession(
                     prepared, ref_resolver_factory=self.resolver_for,
@@ -548,10 +551,11 @@ class DAGMaterializationSession:
         # unconditionally -- including a no-leaf ref -- regardless of
         # whether it is the session's top-level requested name or a
         # transitively-required dependency (spec 10.5/item 48 PR-D).
+        from mountainash.relations.dag.introspection import structural_schema
         key_context = KeyDriftContext(
             resource_name=name,
             constraints_for=self.dag.constraints_for,
-            schema_of=self.dag.schema,
+            schema_of=lambda ref_name: structural_schema(self.dag, ref_name),
         )
 
         ref_resolver = _SessionRefResolver(self, execution_context)

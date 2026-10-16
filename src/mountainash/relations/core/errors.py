@@ -10,6 +10,22 @@ from mountainash.core.errors import MountainashError
 from mountainash.core.errors import BackendConversionError
 
 
+class IncompleteSchemaError(MountainashError, RuntimeError):
+    """The available evidence does not establish a complete output schema."""
+
+    def __init__(
+        self, *, fields: tuple[str, ...] = (), names_complete: bool = True,
+        reason: str,
+    ) -> None:
+        self.fields = fields
+        self.names_complete = names_complete
+        missing = list(fields)
+        if not names_complete:
+            missing.insert(0, "output names/order")
+        detail = f" ({', '.join(missing)})" if missing else ""
+        super().__init__(f"Incomplete schema{detail}: {reason}")
+
+
 class CompileRequiresExecutionError(MountainashError, RuntimeError):
     """A compile-only terminal would have to execute a source boundary."""
 

@@ -126,23 +126,12 @@ class MountainashNarwhalsExtensionRelationSystem(
             lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
             return nw.from_native(lf)  # stays lazy
 
-        from mountainash.core.io import is_remote
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-        # Uniform fail-closed (consistency-guarantees) -- see the Polars reader.
-        if fmt == "csv":
-            rf.ensure_dialect_supported(dialect)
         raw_path = resource.path
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
-        all_local = all(not is_remote(p) for p in paths)
-        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
-        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
-
-        # A native-unsafe CSV dialect (e.g. escape_char) routes to the fallback
-        # so it is honoured identically to the other backends.
-        native_dialect_ok = fmt != "csv" or rf.dialect_native_safe(dialect)
-        if all_local and no_glob and no_archive and fmt in ("csv", "parquet") and native_dialect_ok:
+        if rf.polars_native_scan_supported(resource, fmt, dialect):
             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
                 resource, fmt, dialect
             )

@@ -699,3 +699,175 @@ def test_json_records_payload_keeps_keys_first_seen_after_row_one(data):
     table = _part_data_to_arrow(data, "d")
     assert table.column_names == ["a", "b"]
     assert table.to_pylist() == [{"a": 1, "b": None}, {"a": 2, "b": "x"}]
+
+
+@pytest.mark.parametrize("format", ["csv", "parquet"])
+def test_schema_inspection_uses_native_resource_metadata(tmp_path, monkeypatch, format):
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    import mountainash.relations.backends.relation_systems.resource_files as rf
+    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.universal_types import UniversalType
+
+    paths = [tmp_path / f"rows-{index}.{format}" for index in (1, 2)]
+    for index, path in enumerate(paths, start=1):
+        if format == "csv":
+            path.write_text(f"actual,value\n{index},x\n")
+        else:
+            pl.DataFrame({"actual": [index], "value": ["x"]}).write_parquet(path)
+    open_spec = TypeSpec(
+        fields=[FieldSpec(name="actual", type=UniversalType.INTEGER)],
+        fields_match="open",
+    )
+    resource = DataResource(name="rows", path=[str(path) for path in paths], format=format, schema=open_spec)
+    relation = Relation(ResourceReadRelNode(resource=resource))
+    reads = []
+    real_read = rf.parse_resource_to_arrow
+
+    def count_fallback(resource, *, dialect):
+        reads.append(resource.name)
+        return real_read(resource, dialect=dialect)
+
+    monkeypatch.setattr(rf, "parse_resource_to_arrow", count_fallback)
+
+    assert list(relation.collect_schema()) == ["actual", "value"]
+    assert relation.collect_schema(allow_execution=True) == relation.collect_schema()
+    assert reads == []
+
+    closed_spec = TypeSpec(
+        fields=[FieldSpec(name="actual", type=UniversalType.INTEGER)],
+        fields_match="subset",
+    )
+    closed = Relation(ResourceReadRelNode(
+        resource=DataResource(
+            name="closed",
+            path=[str(path) for path in paths],
+            format=format,
+            schema=closed_spec,
+        ),
+    ))
+    assert list(closed.collect_schema()) == ["actual"]
+    assert reads == []
+
+
+
+def test_resource_schema_preserves_missing_and_access_errors(tmp_path, monkeypatch):
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+
+    missing = DataResource(
+        name="missing",
+        path=str(tmp_path / "missing.csv"),
+        format="csv",
+    )
+    with pytest.raises(FileNotFoundError):
+        Relation(ResourceReadRelNode(resource=missing)).collect_schema()
+
+    path = tmp_path / "protected.csv"
+    path.write_text("a\n1\n")
+    protected = DataResource(name="protected", path=str(path), format="csv")
+
+    def deny_read(*args, **kwargs):
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(pl, "scan_csv", deny_read)
+    with pytest.raises(PermissionError, match="access denied"):
+        Relation(ResourceReadRelNode(resource=protected)).collect_schema()
+
+@pytest.fixture
+def schema_resource_http_url(tmp_path):
+    from functools import partial
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    handler = partial(SimpleHTTPRequestHandler, directory=str(tmp_path))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}/rows.csv"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize(
+    "route",
+    ["json", "gzip_csv", "glob_csv", "escaped_csv", "remote_csv"],
+)
+def test_file_resource_schema_discovery_precedes_execution(
+    tmp_path, monkeypatch, request, route,
+):
+    import gzip
+
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    import mountainash.relations.backends.relation_systems.resource_files as rf
+    from mountainash.typespec.datapackage import TableDialect
+
+    dialect = None
+    if route == "json":
+        path, fmt = tmp_path / "rows.json", "json"
+        path.write_text('[{"actual": 1}]')
+    elif route == "gzip_csv":
+        path, fmt = tmp_path / "rows.csv.gz", "csv"
+        path.write_bytes(gzip.compress(b"actual\n1\n"))
+    elif route == "glob_csv":
+        path, fmt = tmp_path / "part-*.csv", "csv"
+        (tmp_path / "part-1.csv").write_text("actual\n1\n")
+    elif route == "escaped_csv":
+        path, fmt = tmp_path / "rows.csv", "csv"
+        path.write_text('actual\n1\n')
+        dialect = TableDialect(escape_char="\\")
+    else:
+        (tmp_path / "rows.csv").write_text("actual\n1\n")
+        path, fmt = request.getfixturevalue("schema_resource_http_url"), "csv"
+
+    relation = Relation(ResourceReadRelNode(
+        resource=DataResource(
+            name="rows",
+            path=str(path),
+            format=fmt,
+            dialect=dialect,
+        ),
+    ))
+    reads = []
+    real_read = rf.parse_resource_to_arrow
+
+    def count_fallback(resource, *, dialect):
+        reads.append(resource.name)
+        return real_read(resource, dialect=dialect)
+
+    monkeypatch.setattr(rf, "parse_resource_to_arrow", count_fallback)
+
+    from mountainash.core.dtypes import MountainashDtype as D
+
+    assert relation.schema == {"actual": D.I64}
+    assert relation.collect_schema() == {"actual": D.I64}
+    assert relation.collect_schema(allow_execution=True) == {"actual": D.I64}
+    assert reads == []
+    assert relation.to_dict() == {"actual": [1]}
+
+
+def test_native_semicolon_dialect_schema_inference_stays_lazy(tmp_path, monkeypatch):
+    from mountainash.relations.core.relation_api.relation import Relation
+    from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
+    import mountainash.relations.backends.relation_systems.resource_files as rf
+    from mountainash.typespec.datapackage import TableDialect
+
+    path = tmp_path / "rows.csv"
+    path.write_text("actual;value\n1;x\n")
+    relation = Relation(ResourceReadRelNode(resource=DataResource(
+        name="rows",
+        path=str(path),
+        format="csv",
+        dialect=TableDialect(delimiter=";"),
+    )))
+
+    def eager_read(*args, **kwargs):
+        raise AssertionError("native schema planning used the eager reader")
+
+    monkeypatch.setattr(rf, "parse_resource_to_arrow", eager_read)
+    assert list(relation.collect_schema()) == ["actual", "value"]
+    assert relation.collect_schema(allow_execution=True) == relation.collect_schema()

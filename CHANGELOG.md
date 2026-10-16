@@ -3,6 +3,7 @@
 ## Unreleased — 2026-10-16
 
 ### Fixed
+- Resource schema inspection (311) uses mountainash-files discovery before execution fallback for remote paths, archives, globs and non-native formats/dialects. Source schema evidence feeds the existing backend compiler and conform path; complete discovery avoids result collection even with execution permission. Bounded observations remain best effort, and missing-source/access/parse errors are not execution retries.
 - Polars 2 migration (332): replace removed String-to-temporal casts with native planning-time parsing on Polars and Narwhals-on-Polars, including nested List/Array/Struct values. Preserve target units, naive wall-clock versus zoned instant semantics, parent nulls, failure policies and window composition. Declared Date ingress and date-range validation now complete through the repaired cast path. The dependency requires `polars>=2,<3`.
 - Polars 2 list-to-struct conversion (332): lower declared upper bounds to explicit field names, preserve explicit-field precedence (including zero fields), ragged padding and the existing null-list-to-null-fields result.
 - Polars 2 relation fingerprints (332): use the current seeded hash API while retaining two-lane accumulation, row-order/batch invariance and persisted profile identity. Hash compatibility remains qualified by the recorded Polars version; fingerprints from different Polars versions are not interchangeable.
@@ -12,11 +13,17 @@
 ## Unreleased — 2026-10-15
 
 ### Fixed
+- Retired the HTTP schema-completion expected failure (311) after qualification with mountainash-transport PR #103. Opt-in completion now exercises the real HTTP reader successfully; this does not add a remote metadata-only reader.
 - Narwhals-pandas dynamic `str.regex_contains()` patterns now receive a declared `BackendCapabilityError` under selected protection on Narwhals 2.27.1/pandas 3.0.6 (313). Python-string and expression-literal patterns remain supported; working dynamic patterns on other providers are unchanged. Other dependency versions remain unqualified rather than automatically blocked.
 - Ibis 12.0.0 now receives declared, dialect-scoped capability refusals for public Decimal conversion on MySQL, SingleStoreDB and Exasol (missing `RegexReplace`, 323), and regex matching on Exasol (missing `RegexSearch`, 330). Other operations, versions and existing policy presets are unchanged. These gates do not repair translators or deny the databases' native Decimal/regex facilities.
 - Narwhals-PyArrow dynamic regex patterns now receive a literal-only capability refusal on Narwhals 2.27.1/PyArrow 26.0.0; string and expression-literal patterns remain allowed. Public Decimal conversion now receives typed adapter-unavailability refusals for Narwhals 2.27.1 with PyArrow 26.0.0 or DuckDB 1.5.6. DuckDB dynamic regex and ordinary conversions are unchanged; other versions remain unqualified. No native-provider implementation or workaround is added (313).
 
 ## Unreleased — 2026-10-14
+
+### Added
+- Detailed native schema values in `mountainash.core.dtypes` (311): timestamp precision and awareness, time precision, duration semantics, recursive lists/structs, fixed-array dimensions, and retained native refinements. Native Null and dynamic/object types remain explicit instead of becoming unknown or string. Existing TypeSpec/Frictionless exports continue to use broad type families; these metadata descriptors do not introduce new cast targets.
+- Native-first relation schema resolution (311): `.schema` uses available backend inference for computed outputs, and `.collect_schema(*, allow_execution=False)` requires complete names and detailed dtypes. Execution is opt-in and metadata remains the first choice even with permission. Standalone and DAG-bound relations share resolution; native inference errors retain their original types.
+- Opt-in schema completion (311) evaluates unresolved ordinary plans without bypassing conform/residue checks and releases owned SQL resources on success and failure. Bound SQL inspection retains physical temporal, interval, fixed-array and wide/unbounded numeric details; eager value-dependent promotions remain unresolved until execution is permitted.
 
 ### Changed
 - Raised the Narwhals minimum to 2.27.1 so pandas-backed string casts preserve nulls instead of converting them to text (#391); no local workaround or runtime gate is added.
@@ -25,6 +32,7 @@
 - Raised the pandas minimum to 3.0.0 so typed-null String columns retain their string type on Arrow export (#392). Pandas 2.x is no longer supported; the Arrow minimum is unchanged. Native interval-construction tests retain version-aware applicability for #386, separate from expression compilation.
 
 ### Fixed
+- Schema inspection (311) preserves independently known column names when dtype compilation requires unsupported transport. DAG-bound data-dependent outputs no longer advertise stale input columns, and package export refuses to discard declared foreign keys when output fields are unavailable.
 - Install the existing pinned `pytest-mock` test dependency in the CI Hatch environment so migrated ownership, extraction and reuse tests can resolve their `mocker` fixture.
 - Remove the logical-snapshot test's blanket `to_pandas()` prohibition; retain owned-copy/extraction counts and assert exact snapshot values across Ibis backends.
 - Materialization residue checks now inspect Arrow scalar values rather than scalar-object truthiness, preventing false/null markers from rejecting valid results on PyArrow 16 while retaining true-marker rejection.

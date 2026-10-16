@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import datetime
 import decimal
-from typing import Any, Optional
+from typing import Any, Optional, get_args, get_origin
 
-from .canonical import DecimalDtype, MountainashDtype as D
+from .canonical import (
+    DecimalDtype, ListDtype, MountainashDtype as D, SchemaTypeStatus,
+)
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -51,14 +53,20 @@ def to_native_decimal(dtype: DecimalDtype) -> Any:
     return decimal.Decimal
 
 
-def from_native(native: Any) -> Optional[D]:
+def from_native(native: Any) -> Any:
     if native is Any or (isinstance(native, str) and native in _UNTYPED_NAMES):
         return None
+    origin = get_origin(native)
+    if origin is list:
+        args = get_args(native)
+        element = from_native(args[0]) if args else SchemaTypeStatus.UNKNOWN
+        return ListDtype(
+            element=SchemaTypeStatus.UNCONSTRAINED if element is None else element,
+        )
     if isinstance(native, type):
         for py_type, dtype in _FROM_TYPE.items():
             if native is py_type:
                 return dtype
-    origin = getattr(native, "__origin__", None)
     if origin is not None and origin in _FROM_TYPE:
         return _FROM_TYPE[origin]
     if isinstance(native, str) and native in _FROM_NAME:

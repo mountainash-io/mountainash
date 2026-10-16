@@ -158,24 +158,36 @@ Their implicit names are not portable. An explicit Mountainash alias chooses a
 name **when the native expression actually produces one output**:
 
 ```python
+source = pl.DataFrame({"n": [None, 2, 4]})
 native = ma.relation(source).select(ma.native(pl.col("n").fill_null(0)).alias("filled"))
 assert native.to_dict() == {"filled": [0, 2, 4]}
 
-# AST-only introspection cannot prove the native expression's output count.
-try:
-    native.columns
-except ValueError as error:
-    assert "incomplete output names/cardinality" in str(error)
-else:
-    raise AssertionError("opaque native schema should remain incomplete")
+# Native inference can establish names that the AST alone cannot prove.
+assert native.columns == ["filled"]
+assert native.collect_schema() == native.schema
 ```
 
-The same limitation applies to `.schema`. A successful execution or an explicit
-alias does not turn opaque AST cardinality into proof of one output: a native
-selector can produce zero or many columns. No native-tree inspection or implicit
-compilation is performed to answer these schema requests. With Ibis,
-`expr.compile(source)` can return a `Deferred`; resolve it against `source` before
-passing it to `ma.native`, which accepts concrete Ibis expressions.
+Schema inspection first uses structural evidence, then native inference where
+needed. Native inference can probe a source or invoke a backend's synthetic-input
+callback; Mountainash does not deliberately collect result rows by default.
+Native output is authoritative, including selector expansions and computed types.
+An alias alone still cannot prove whether an opaque expression produces one output.
+With Ibis, `expr.compile(source)` can return a `Deferred`; resolve it against
+`source` before passing it to `ma.native`, which accepts concrete Ibis expressions.
+
+`.schema` remains best effort. `.collect_schema()` requires complete output names
+and recursively complete dtypes, otherwise it raises `IncompleteSchemaError`.
+`.collect_schema(allow_execution=True)` tries the same metadata path first and
+permits ordinary execution only when inference is insufficient. Native inference
+errors propagate; execution permission does not turn them into retries. A metadata
+answer does not certify that runtime validation will succeed.
+
+For bound SQL plans, native description/catalog evidence refines Ibis' logical
+types. This preserves physical timestamp/TIME precision, fixed array dimensions,
+calendar intervals and native wide integers. A SQL timezone-aware timestamp does
+not imply that its original timezone name was retained. Native SQL refinements
+that cannot be reconstructed losslessly as an Ibis dtype raise the existing dtype
+mapping error rather than silently discarding their parameters.
 
 Existing wildcard and regex selectors keep their supported expansion behavior.
 This includes selector-shaped strings such as `select("*")` and `select("^n$")`;
@@ -187,12 +199,11 @@ advertising `"*"` or a partial mapping. A selector or opaque expression in any
 output-affecting operand, predicate or result branch can make the whole output
 cardinality uncertain, even when another operand has a known name.
 
-Computed expansions remain incomplete unless unchanged lowering guarantees their
-names. For example, `ma.col("^n$").is_in([2])` retains native expansion lowering:
-on Polars its output is named `literal`, so `.columns` raises rather than claiming
-it replaces `n`. Composition does not remove this uncertainty. Use an ordinary
-field reference for portable scalar naming. Proven zero-match computations still
-have known-empty output.
+Computed expansions can be resolved by native inference even when their names
+cannot be established structurally. For example, on Polars,
+`ma.col("^n$").is_in([2])` has native output name `literal`, not `n`.
+Use an ordinary field reference for portable scalar naming. A proven zero-match
+output is an empty schema, not an unresolved schema.
 
 Structured-field metadata and owned transport residue sometimes need complete
 names to map join collisions (for example, right `x` to `x_right`). If complete
@@ -232,9 +243,11 @@ a distinct alias. On Ibis, implicit native names such as `Sum(x)` or `First(x, (
 are replaced by these AST names. To retain a historical output name, use it as an
 explicit outer alias.
 
-Key dtypes follow their source only for ordinary fields under name-only wrappers.
-Renaming `g` to `x` keeps the type of `g`, not a same-named input `x`. Computed keys
-and measures report `UNKNOWN`; explicitly typeless sources retain `UNCONSTRAINED`.
+Renaming `g` to `x` keeps the type of `g`, not a same-named input `x`.
+Native inference supplies computed key and measure types where available;
+unresolved fields remain `UNKNOWN`, while explicitly typeless declarations retain
+`UNCONSTRAINED`. Empty eager prototypes are used only when output types do not
+depend on values or row count.
 Naming does not add reducer support, change null/empty-input semantics, or alter
 key-only DISTINCT routing.
 
@@ -244,8 +257,8 @@ contributes no names; unknown cardinality is not an empty expansion. Aggregate
 selectors require complete source-name evidence. A ref resolver's dtype mapping
 or a resource's declared fields alone does not prove all input names. Scalar
 names remain available over unresolved refs; selector introspection over those
-refs is unavailable. Introspection does not fetch resources or compile native
-expressions to discover names.
+refs needs a binding. Native reader inference may perform metadata I/O or source
+probing; eager resource loading requires execution permission.
 
 Inline resource declarations prove names only when schema conform is enabled
 and its effective by-name contract rejects/discards extras and freezes/null-fills
