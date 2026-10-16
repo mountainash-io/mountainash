@@ -68,7 +68,7 @@ def test_unqualified_or_unselected_gate_preserves_native_lowering(dialect, kind,
     assert compiled.type() == (ibis.dtype("decimal(12, 2)") if kind == "decimal" else ibis.dtype("boolean"))
 
 
-def _postgres_regex(shape, policy, versions=("12.0.0", "29.0.1", "16.15"), *, sensitive=False):
+def _postgres_visitor(policy, versions=("12.0.0", "29.0.1", "16.15")):
     """Supply observations explicitly; do not pretend an unbound table is a driver."""
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.capabilities.applicability import prepare_environment
@@ -87,6 +87,11 @@ def _postgres_regex(shape, policy, versions=("12.0.0", "29.0.1", "16.15"), *, se
     )
     system = get_expression_system(CONST_BACKEND.IBIS)(dialect="ibis-postgres", execution_context=context)
     visitor = UnifiedExpressionVisitor(system, execution_context=context, input_data=table)
+    return visitor, table
+
+
+def _postgres_regex(shape, policy, versions=("12.0.0", "29.0.1", "16.15"), *, sensitive=False):
+    visitor, table = _postgres_visitor(policy, versions)
     pattern = {
         "column": ma.col("pattern"), "computed": ma.col("pattern") + ma.lit("$"),
         "computed-constant": ma.lit("^AU") + ma.lit("$"),
@@ -150,3 +155,51 @@ def _assert_postgres_bypass_without_inspection(monkeypatch, policy, versions):
     compiled, table = _postgres_regex("native-column", policy, versions)
     native = table.select(table.value.re_search(ibis.literal("(?i)") + table.pattern).name("result")).result
     assert ibis.to_sql(compiled, dialect="postgres") == ibis.to_sql(native, dialect="postgres")
+
+
+def _postgres_decimal(policy, versions=("12.0.0", "29.0.1", "16.15"), *,
+                      failure_behavior="null", rounding="half_to_even"):
+    visitor, table = _postgres_visitor(policy, versions)
+    expression = ma.col("value").cast(
+        ma.DecimalDtype(5, 2), rounding=rounding, failure_behavior=failure_behavior,
+    )
+    return table.select(visitor.visit(expression.node).name("result")).result
+
+
+@pytest.mark.parametrize("rounding", ["half_to_even", "half_away_from_zero", "to_zero"])
+@pytest.mark.parametrize("policy", [ma.CapabilityPolicy.checked(), ma.CapabilityPolicy.native_debugging()])
+def test_postgres_null_on_invalid_decimal_is_refused(rounding, policy):
+    # Prevent reaching strict native TryCast lowering when null-on-invalid was requested.
+    with pytest.raises(BackendCapabilityError) as error:
+        _postgres_decimal(policy, rounding=rounding)
+    assert error.value.function_key.name == "DECIMAL_CAST"
+    assert error.value.backend == "ibis"
+
+
+@pytest.mark.parametrize("rounding", ["half_to_even", "half_away_from_zero", "to_zero"])
+def test_postgres_strict_decimal_remains_available(rounding):
+    compiled = _postgres_decimal(
+        ma.CapabilityPolicy.checked(), failure_behavior="throw", rounding=rounding,
+    )
+    assert compiled.type() == ibis.dtype("decimal(5, 2)")
+
+
+@pytest.mark.parametrize("coordinate,value", [
+    (0, "12.0.1"), (1, "29.0.2"), (2, "16.16"), (0, None), (1, None), (2, None),
+])
+def test_postgres_decimal_unqualified_stack_retains_native_lowering(coordinate, value):
+    versions = ["12.0.0", "29.0.1", "16.15"]
+    versions[coordinate] = value
+    compiled = _postgres_decimal(ma.CapabilityPolicy.checked(), tuple(versions))
+    assert compiled.type() == ibis.dtype("decimal(5, 2)")
+
+
+@pytest.mark.parametrize("mode", ["trusted", "excluded-semantics"])
+def test_postgres_decimal_unselected_protection_retains_native_lowering(mode):
+    from mountainash.core.capabilities.schema import CapabilityIssueClass
+
+    policy = (ma.CapabilityPolicy.trusted() if mode == "trusted" else ma.CapabilityPolicy.checked(
+        protection=frozenset({CapabilityIssueClass.AVAILABILITY}),
+    ))
+    compiled = _postgres_decimal(policy)
+    assert compiled.type() == ibis.dtype("decimal(5, 2)")
