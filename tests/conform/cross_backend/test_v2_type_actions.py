@@ -306,6 +306,27 @@ def test_native_list_discard_value_emits_typed_null() -> None:
     assert result["items"].to_list() == [None, None]
 
 
+def test_invalid_temporal_child_discards_whole_list_value() -> None:
+    from datetime import date
+    import polars as pl
+    from mountainash import relation
+
+    spec = _spec(
+        FieldSpec(name="items", type=UniversalType.ARRAY, item_object_fields=[
+            FieldSpec(name="day", type=UniversalType.DATE),
+        ]),
+        fields_match="open",
+    )
+    result = relation(
+        pl.DataFrame(
+            {"items": [[{"day": "2026-10-12"}, {"day": "invalid"}], [{"day": "2026-10-13"}, None], None]},
+            schema={"items": pl.List(pl.Struct({"day": pl.String}))},
+        )
+    ).conform(spec, contract={"data_type": "discard_value"}).to_polars()
+    assert result.schema["items"] == pl.List(pl.Struct({"day": pl.Date}))
+    assert result["items"].to_list() == [None, [{"day": date(2026, 10, 13)}, None], None]
+
+
 @pytest.mark.parametrize(
     ("action", "expected"),
     [

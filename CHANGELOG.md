@@ -3,6 +3,7 @@
 ## Unreleased — 2026-10-16
 
 ### Fixed
+- Polars 2 migration (332, temporal checkpoint): replace removed String-to-temporal casts with native planning-time parsing on Polars and Narwhals-on-Polars, including nested List/Array/Struct values. Preserve target units, naive wall-clock versus zoned instant semantics, parent nulls and existing failure policies. Declared Date ingress and date-range validation now complete through the repaired cast path. The dependency requires `polars>=2,<3`; fingerprint, list-to-struct and Decimal migration qualification remains pending.
 - PostgreSQL dynamic case-insensitive `str.regex_contains()` patterns, including native Ibis expressions, now receive a declared `BackendCapabilityError` on Ibis 12.0.0 / SQLGlot 29.0.1 / PostgreSQL 16.15 (321, IB-STR-16). Native literals and sensitive plain-column matching remain allowed. Trusted, excluded-semantic and unqualified executions retain native lowering; unknown forms are not classified as supported. No SQL rewrite is added, and case-sensitive concatenated patterns remain unresolved.
 
 ## Unreleased — 2026-10-15

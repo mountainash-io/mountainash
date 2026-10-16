@@ -12,6 +12,7 @@ from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
+from ..temporal_cast import cast_temporal_compatible
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
 _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
@@ -94,7 +95,7 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
             from mountainash.typespec.universal_types import parse_universal, to_canonical
             canonical = to_canonical(parse_universal(item_type))
             dtype = registry.to_native_schema(canonical, TypeTarget.POLARS)
-            result = x.list.eval(pl.element().cast(dtype, strict=failure_behavior != "null"))
+            result = cast_temporal_compatible(x, pl.List(dtype), strict=failure_behavior != "null")
             if failure_behavior == "null":
                 original_count = x.list.eval(pl.element().is_not_null()).list.sum()
                 result_count = result.list.eval(pl.element().is_not_null()).list.sum()
@@ -107,7 +108,7 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
             item_object_fields=list(item_object_fields),
         )
         dtype = _resolve_field_native(field, TypeTarget.POLARS)
-        result = x.cast(dtype, strict=failure_behavior != "null")
+        result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
         if failure_behavior == "null":
             invalid = _invalid_nested(x, field)
             result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)

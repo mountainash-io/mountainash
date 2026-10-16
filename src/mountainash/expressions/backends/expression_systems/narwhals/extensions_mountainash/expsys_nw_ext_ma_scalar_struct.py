@@ -1,5 +1,6 @@
 """Narwhals backend for mountainash struct operations."""
 from __future__ import annotations
+
 import narwhals as nw
 
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
@@ -16,6 +17,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 
 class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol[nw.Expr]):
     """Narwhals implementation of struct field access."""
+
     def cast_struct(
         self,
         x,
@@ -39,7 +41,8 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
             )
         field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
         dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
-        return x.cast(dtype)
+        return self._cast_target(x, dtype)
 
     def struct_field(self, x, /, *, field_name: str):
         return x.struct.field(field_name)
+
