@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 from mountainash.conform.contract import validate_contract_dict
 
-from mountainash.core.dtypes import DecimalDtype
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype
 from mountainash.core.dtypes.errors import UnknownDtypeError
 
 from .errors import InvalidDtypeDeclaration, InvalidFieldMatchDeclaration, InvalidKeyShapeError
@@ -248,8 +248,8 @@ def _parse_constraints(
 # Export: TypeSpec → Frictionless dict
 # ---------------------------------------------------------------------------
 
-def _dtype_from_extension(field_name: str, raw: Any) -> Optional[DecimalDtype]:
-    """Rebuild a ``DecimalDtype`` from ``x-mountainash.dtype``; a malformed value raises.
+def _dtype_from_extension(field_name: str, raw: Any) -> Optional[MountainashDtype | DecimalDtype]:
+    """Rebuild a canonical dtype from ``x-mountainash.dtype``; malformed values raise.
 
     The extension lives in our own namespace, so an unrecognised kind or a missing/invalid
     parameter is a malformed declaration, never silently dropped.
@@ -259,9 +259,14 @@ def _dtype_from_extension(field_name: str, raw: Any) -> Optional[DecimalDtype]:
     if not isinstance(raw, Mapping):
         raise InvalidDtypeDeclaration(field_name, "x-mountainash.dtype must be an object", raw)
     kind = raw.get("kind")
+    if kind == "canonical":
+        try:
+            return MountainashDtype(raw.get("name"))
+        except (ValueError, TypeError) as exc:
+            raise InvalidDtypeDeclaration(field_name, "unknown canonical dtype", raw.get("name")) from exc
     if kind != "decimal":
         raise InvalidDtypeDeclaration(
-            field_name, "x-mountainash.dtype kind must be 'decimal'", kind
+            field_name, "x-mountainash.dtype kind must be 'canonical' or 'decimal'", kind
         )
     precision, scale = raw.get("precision"), raw.get("scale")
     try:
@@ -331,8 +336,14 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
     if fspec.constraints and fspec.constraints.enum_weights is not None:
         field_extensions["enum_weights"] = fspec.constraints.enum_weights
     if fspec.backend_type is not None:
+        if isinstance(fspec.backend_type, NativeDtype):
+            raise InvalidDtypeDeclaration(
+                fspec.name, "native dtype objects are in-memory-only; use a native string for persistence"
+            )
         field_extensions["backend_type"] = fspec.backend_type
-    if fspec.dtype is not None:
+    if isinstance(fspec.dtype, MountainashDtype):
+        field_extensions["dtype"] = {"kind": "canonical", "name": fspec.dtype.value}
+    elif isinstance(fspec.dtype, DecimalDtype):
         field_extensions["dtype"] = {
             "kind": "decimal",
             "precision": fspec.dtype.precision,

@@ -37,7 +37,6 @@ class TestFieldSpecDecimal:
         [
             ({"type": UniversalType.STRING}, IncompatibleFieldPropertiesError),
             ({"type": UniversalType.INTEGER}, IncompatibleFieldPropertiesError),
-            ({"type": UniversalType.NUMBER, "backend_type": "Float64"}, InvalidDtypeDeclaration),
             ({"type": UniversalType.NUMBER, "categories": [1.5]}, InvalidDtypeDeclaration),
         ],
     )

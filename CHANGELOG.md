@@ -2,6 +2,9 @@
 
 ## Unreleased — 2026-10-16
 
+### Added
+- Canonical `FieldSpec.dtype` declarations and tagged Frictionless descriptor round trips (333), including dtype-only declarations and recursive rejection of in-memory native dtype objects at the descriptor boundary.
+
 ### Fixed
 - Polars 2 migration (332): replace removed String-to-temporal casts with native planning-time parsing on Polars and Narwhals-on-Polars, including nested List/Array/Struct values. Preserve target units, naive wall-clock versus zoned instant semantics, parent nulls, failure policies and window composition. Declared Date ingress and date-range validation now complete through the repaired cast path. The dependency requires `polars>=2,<3`.
 - Polars 2 list-to-struct conversion (332): lower declared upper bounds to explicit field names, preserve explicit-field precedence (including zero fields), ragged padding and the existing null-list-to-null-fields result.

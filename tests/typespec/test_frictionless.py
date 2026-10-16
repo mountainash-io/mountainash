@@ -8,6 +8,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import polars as pl
+import pyarrow as pa
+
+from mountainash.core.dtypes import MountainashDtype
+from mountainash.typespec.converters import to_arrow_schema
+from mountainash.typespec.errors import InvalidDtypeDeclaration, IncompatibleFieldPropertiesError
+
 from mountainash.typespec.errors import (
     InvalidFieldMatchDeclaration,
     InvalidKeyShapeError,
@@ -29,6 +36,75 @@ from mountainash.typespec.universal_types import UniversalType
 if TYPE_CHECKING:
     from pathlib import Path
 
+
+
+@pytest.mark.parametrize("dtype", list(MountainashDtype))
+def test_canonical_descriptor_identity_survives_json(dtype):
+    descriptor = {"fields": [{"name": "value", "x-mountainash": {
+        "dtype": {"kind": "canonical", "name": dtype.value},
+    }}]}
+    spec = typespec_from_frictionless(descriptor)
+    restored = typespec_from_frictionless(json.loads(json.dumps(spec.to_frictionless())))
+    assert restored.fields[0].dtype is dtype
+    if dtype in (MountainashDtype.JSON, MountainashDtype.DURATION):
+        assert "type" not in spec.to_frictionless()["fields"][0]
+
+
+@pytest.mark.parametrize("name,broad,native", [
+    ("i8", "integer", pa.int8()), ("i16", "integer", pa.int16()),
+    ("i32", "integer", pa.int32()), ("i64", "integer", pa.int64()),
+    ("u8", "integer", pa.uint8()), ("u16", "integer", pa.uint16()),
+    ("u32", "integer", pa.uint32()), ("u64", "integer", pa.uint64()),
+    ("fp32", "number", pa.float32()), ("fp64", "number", pa.float64()),
+    ("binary", "string", pa.binary()),
+])
+@pytest.mark.parametrize("explicit", [False, True])
+def test_precise_declarations_materialize_authored_width(name, broad, native, explicit):
+    kwargs = {"type": UniversalType(broad)} if explicit else {}
+    field = FieldSpec(name="value", dtype=MountainashDtype(name), **kwargs)
+    descriptor = TypeSpec(fields=[field]).to_frictionless()
+    assert descriptor["fields"][0]["type"] == broad
+    spec = typespec_from_frictionless(json.loads(json.dumps(descriptor)))
+    assert to_arrow_schema(spec).field("value").type == native
+
+
+@pytest.mark.parametrize("container", [None, "object_fields", "item_object_fields"])
+def test_native_objects_cannot_escape_through_nested_descriptors(container):
+    child = FieldSpec(name="at", backend_type=pl.Datetime("ns", "UTC"))
+    if container:
+        broad = UniversalType.OBJECT if container == "object_fields" else UniversalType.ARRAY
+        field = FieldSpec(name="outer", type=broad, **{container: [child]})
+    else:
+        field = child
+    with pytest.raises(InvalidDtypeDeclaration, match="at"):
+        TypeSpec(fields=[field]).to_frictionless()
+    assert child.backend_type.value == pl.Datetime("ns", "UTC")
+
+
+@pytest.mark.parametrize("dtype,broad", [
+    (MountainashDtype.I8, UniversalType.STRING),
+    (MountainashDtype.FP32, UniversalType.INTEGER),
+    (MountainashDtype.DURATION, UniversalType.DURATION),
+    (MountainashDtype.STRING, UniversalType.GEOJSON),
+])
+def test_contradictory_canonical_descriptor_is_rejected(dtype, broad):
+    with pytest.raises(IncompatibleFieldPropertiesError):
+        typespec_from_frictionless({"fields": [{
+            "name": "value", "type": broad.value,
+            "x-mountainash": {"dtype": {"kind": "canonical", "name": dtype.value}},
+        }]})
+
+
+@pytest.mark.parametrize("raw", [
+    {"kind": "canonical", "name": "int8"},
+    {"kind": "canonical", "name": "unknown"},
+    {"kind": "canonical"}, {"kind": "canonical", "name": []},
+])
+def test_malformed_canonical_descriptor_is_rejected(raw):
+    with pytest.raises(InvalidDtypeDeclaration):
+        typespec_from_frictionless({"fields": [{"name": "value", "x-mountainash": {
+            "dtype": raw,
+        }}]})
 
 # ============================================================================
 # TestToFrictionless

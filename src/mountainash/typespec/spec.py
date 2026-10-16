@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 from mountainash.core.constants import DECIMAL_ROUNDING_MODES
-from mountainash.core.dtypes import DecimalDtype  # noqa: TC001 - runtime pydantic resolution via DataResource
-from mountainash.typespec.universal_types import UniversalType, parse_universal
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, parse_cast_target  # noqa: TC001
+from mountainash.typespec.universal_types import UniversalType, from_canonical, parse_universal
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
     InvalidDescriptorRelationship,
@@ -149,14 +149,43 @@ class FieldSpec:
     object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: OBJECT inner-field schema
     item_object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: ARRAY item struct schema
     delimiter: Optional[str] = None  # valid only when type is LIST (lexical)
-    backend_type: Optional[str] = None
-    dtype: Optional[DecimalDtype] = None  # x-mountainash: portable exact decimal (item 241)
+    backend_type: Any = None  # str or native dtype; native objects normalize to NativeDtype
+    dtype: MountainashDtype | DecimalDtype | None = None
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
     rounding: str | None = None  # x-mountainash: conversion instruction, not dtype identity
 
     def __post_init__(self) -> None:
+        if self.dtype is not None:
+            if not isinstance(self.dtype, (MountainashDtype, DecimalDtype)):
+                raise InvalidDtypeDeclaration(self.name, "dtype requires a canonical enum or DecimalDtype", self.dtype)
+            broad, fmt = from_canonical(self.dtype)
+            if self.dtype in (MountainashDtype.JSON, MountainashDtype.DURATION):
+                broad = UniversalType.ANY
+            if self.type is UniversalType.ANY:
+                self.type = broad
+            elif self.type is UniversalType.GEOPOINT:
+                from mountainash.typespec.converters import resolve_field_canonical
+                if resolve_field_canonical(self) != self.dtype:
+                    raise IncompatibleFieldPropertiesError(self.name, "dtype", self.type, (broad,))
+            elif not (
+                self.type is broad
+                or (self.dtype is MountainashDtype.JSON and self.type is UniversalType.GEOJSON)
+                or (self.dtype is MountainashDtype.LIST and self.type is UniversalType.LIST)
+            ):
+                raise IncompatibleFieldPropertiesError(self.name, "dtype", self.type, (broad,))
+            if fmt is not None:
+                if self.format not in ("default", fmt):
+                    raise InvalidDtypeDeclaration(self.name, "dtype contradicts field format", self.format)
+                self.format = fmt
+            if self.dtype is MountainashDtype.STRING and self.format == "binary":
+                raise InvalidDtypeDeclaration(self.name, "string dtype contradicts binary format")
+        if self.backend_type is not None and not isinstance(self.backend_type, str):
+            native = parse_cast_target(self.backend_type)
+            if not isinstance(native, NativeDtype):
+                raise InvalidDtypeDeclaration(self.name, "backend_type requires a native dtype", self.backend_type)
+            self.backend_type = native
         if self.item_type is not None and self.type is not UniversalType.LIST:
             raise IncompatibleFieldPropertiesError(
                 self.name,
@@ -179,19 +208,10 @@ class FieldSpec:
             raise IncompatibleFieldPropertiesError(
                 self.name, "object_fields", self.type, (UniversalType.OBJECT,)
             )
-        if self.dtype is not None:
-            if self.type is not UniversalType.NUMBER:
-                raise IncompatibleFieldPropertiesError(
-                    self.name, "dtype", self.type, (UniversalType.NUMBER,)
-                )
-            if self.backend_type is not None:
-                raise InvalidDtypeDeclaration(
-                    self.name, "dtype and backend_type are mutually exclusive"
-                )
-            if self.categories is not None:
-                raise InvalidDtypeDeclaration(
-                    self.name, "dtype and categories cannot be combined"
-                )
+        if isinstance(self.dtype, DecimalDtype) and self.categories is not None:
+            raise InvalidDtypeDeclaration(
+                self.name, "dtype and categories cannot be combined"
+            )
         if self.rounding is not None:
             if not isinstance(self.dtype, DecimalDtype):
                 raise InvalidDtypeDeclaration(self.name, "rounding requires a DecimalDtype")
