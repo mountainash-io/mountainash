@@ -139,7 +139,7 @@ df = df[["id", "name", "amount", "ts", "region"]]
 
 ### Cross-backend
 
-`conform()` selects the source's execution backend. Schema conversion is separate from runtime capability: Polars, pandas, Arrow and Ibis have schema converters, while Narwhals uses the existing runtime registry. Null-on-failure casts remain unsupported on Narwhals-routed identities and Ibis-SQLite; decimal limits are listed below. NumPy-backed pandas float/NaN to integer conversion still fails through Narwhals (backlog 252), so nullable-integer qualification for canonical declarations remains blocked on those identities. Ibis also requires compatible types when `null_fill` coalesces values.
+`conform()` selects the source's execution backend. Schema conversion is separate from runtime capability: Polars, pandas, Arrow and Ibis have schema converters, while Narwhals uses the existing runtime registry. Null-on-failure casts remain unsupported on Narwhals-routed identities and Ibis-SQLite; decimal limits are listed below. NumPy-backed pandas float/NaN to integer conversion still fails through Narwhals (backlog 252). This pre-existing limitation remains separately tracked and is not repaired by canonical declarations. Ibis also requires compatible types when `null_fill` coalesces values.
 
 ### Structured (`array`/`object`) fields
 
