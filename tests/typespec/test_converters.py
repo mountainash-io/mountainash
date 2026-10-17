@@ -29,6 +29,81 @@ from mountainash.typespec.universal_types import UniversalType as U
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 
 
+@pytest.mark.parametrize("target", ["polars", "pandas", "arrow", "ibis"])
+def test_native_override_wins_over_precise_declaration(target):
+    import polars as pl
+    import pyarrow as pa
+    cases = {
+        "polars": (to_polars_schema, "Int64", pl.Int64),
+        "pandas": (to_pandas_dtypes, "Int64", "Int64"),
+        "arrow": (to_arrow_schema, "int64", pa.int64()),
+        "ibis": (to_ibis_schema, "int64", "int64"),
+    }
+    converter, override, expected = cases[target]
+    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type=override)])
+    with pytest.warns(UserWarning, match="x"):
+        schema = converter(spec)
+    actual = schema.field("x").type if target == "arrow" else schema["x"]
+    assert str(actual) == str(expected)
+
+
+def test_native_parameters_and_nested_canonical_children_survive_allocation():
+    import polars as pl
+    child = FieldSpec(name="at", dtype=D.TIMESTAMP, backend_type=pl.Datetime("ns", "UTC"))
+    spec = TypeSpec(fields=[FieldSpec(name="record", dtype=D.STRUCT, object_fields=[
+        FieldSpec(name="id", dtype=D.I8), child,
+    ])])
+    with pytest.warns(UserWarning):
+        frame = pl.DataFrame(schema=to_polars_schema(spec))
+    assert frame.schema["record"] == pl.Struct({"id": pl.Int8, "at": pl.Datetime("ns", "UTC")})
+
+
+def test_lossy_reverse_mapping_cannot_certify_native_equivalence():
+    import pyarrow as pa
+    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.FP32, backend_type=pa.float16())])
+    with pytest.warns(UserWarning, match="x"):
+        assert to_arrow_schema(spec).field("x").type == pa.float16()
+
+
+def test_invalid_override_never_falls_back_to_canonical():
+    from mountainash.core.dtypes import InvalidBackendTypeError
+    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type="not-a-type")])
+    with pytest.raises(InvalidBackendTypeError):
+        to_arrow_schema(spec)
+
+
+def test_native_object_cannot_be_lowered_on_another_target():
+    import polars as pl
+    from mountainash.core.dtypes.errors import DtypeMappingError
+    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type=pl.Int8)])
+    with pytest.raises(DtypeMappingError):
+        to_arrow_schema(spec)
+
+
+def test_extracted_nested_width_is_portable_without_backend_spelling():
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.typespec.extraction import extract_from_dataframe
+    frame = pl.DataFrame(schema={"record": pl.Struct({"id": pl.Int8, "payload": pl.Binary})})
+    spec = extract_from_dataframe(frame, preserve_backend_types=False)
+    restored = TypeSpec.from_frictionless(spec.to_frictionless())
+    assert to_arrow_schema(restored).field("record").type == pa.struct([
+        pa.field("id", pa.int8()), pa.field("payload", pa.binary()),
+    ])
+
+
+def test_schema_validation_uses_effective_native_target():
+    import polars as pl
+    from mountainash.typespec.validation import validate_match
+    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type="Int64")])
+    with pytest.warns(UserWarning):
+        assert validate_match(pl.DataFrame({"x": [127]}, schema={"x": pl.Int64}), spec) == (True, [])
+    with pytest.warns(UserWarning):
+        valid, errors = validate_match(pl.DataFrame({"x": [127]}, schema={"x": pl.Int8}), spec)
+    assert not valid
+    assert "x" in errors[0]
+
+
 # ============================================================================
 # Shared fixture schema
 # ============================================================================
@@ -281,14 +356,6 @@ class TestCategoricalSchema:
         cats = [{"value": 0, "label": "Low"}, {"value": 1, "label": "High"}]
         result = to_polars_schema(self._spec(cats, ordered=True))
         assert result["cat"] == pl.Enum([str(v) for v in categorical_values(cats)])
-
-    def test_categories_win_over_invalid_backend_type(self):
-        """Precedence (spec §5): a field with BOTH categories set AND an
-        invalid backend_type takes the categorical branch and never raises —
-        the backend_type is never even parsed for such a field."""
-        import polars as pl
-        result = to_polars_schema(self._spec(["a"], ordered=False, backend_type="garbage"))
-        assert result["cat"] is pl.Categorical
 
     def test_ibis_categories_stay_string(self):
         """Ibis has no categorical primitive — categories present still
@@ -598,6 +665,8 @@ class TestConvertersOverRegistry:
             FieldSpec(name="x", type=UniversalType.INTEGER, backend_type=backend_type),
         ])
         assert to_polars_schema(spec)["x"] is pl.Int64
+        from mountainash.typespec.validation import validate_match
+        assert validate_match(pl.DataFrame({"x": [1]}), spec) == (True, [])
 
     def test_semantically_invalid_backend_type_raises_typed_error_not_raw(self):
         """Regression (GLM-5.2 whole-branch review, Important finding 1): a
@@ -724,3 +793,22 @@ def test_v2_six_field_spec_resolves_on_polars_narwhals_and_ibis(target) -> None:
     for name in ("geometry", "duration", "year", "yearmonth"):
         assert resolved[name] == string_type
         assert registry.from_native(resolved[name], target) is D.STRING
+
+
+@pytest.mark.parametrize("in_array", [False, True])
+def test_validate_match_checks_nested_effective_types(in_array):
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec.validation import validate_match
+    child = FieldSpec(name="id", dtype=MountainashDtype.I8)
+    field = FieldSpec(name="record", dtype=MountainashDtype.LIST if in_array else MountainashDtype.STRUCT,
+        **({"item_object_fields": [child]} if in_array else {"object_fields": [child]}))
+    source = pl.DataFrame({"record": [[{"id": 128}]] if in_array else [{"id": 128}]})
+    spec = TypeSpec(fields=[field])
+    assert not validate_match(source, spec)[0]
+    child.backend_type = "Int64"
+    with pytest.warns(UserWarning):
+        assert validate_match(source, spec) == (True, [])
+    child.dtype = None
+    child.backend_type = None
+    assert validate_match(source, spec) == (True, [])

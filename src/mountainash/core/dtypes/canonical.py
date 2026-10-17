@@ -357,7 +357,7 @@ def parse_cast_target(
     unchanged. Native backend dtype objects wrap in NativeDtype WITHOUT
     normalization (parameters preserved).
     """
-    if isinstance(value, DecimalDtype):
+    if isinstance(value, (DecimalDtype, NativeDtype)):
         return value
     try:
         return parse_dtype(value)

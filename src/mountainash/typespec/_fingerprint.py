@@ -7,10 +7,16 @@ from enum import Enum
 import hashlib
 from types import MappingProxyType
 from typing import Any
+from copy import deepcopy
+import pickle
+
+from mountainash.core.dtypes import NativeDtype
 
 
 def freeze_declaration(value: Any) -> Any:
     """Recursively replace mutable declaration values with immutable tagged data."""
+    if isinstance(value, NativeDtype):
+        return deepcopy(value)
     if isinstance(value, Enum):
         return ("__enum__", value.__class__.__module__, value.__class__.__qualname__, value.value)
     if is_dataclass(value) and not isinstance(value, type):
@@ -45,6 +51,12 @@ def freeze_typespec(spec: Any) -> Mapping[str, Any]:
 
 def _canonical_bytes(value: Any) -> bytes:
     """Encode the closed frozen-declaration vocabulary deterministically."""
+    if isinstance(value, NativeDtype):
+        native_class = value.value if isinstance(value.value, type) else type(value.value)
+        return b"native" + _canonical_bytes((
+            value.target.value, native_class.__module__, native_class.__qualname__,
+            pickle.dumps(value.value, protocol=5),
+        ))
     if value is None:
         return b"n"
     if type(value) is bool:  # noqa: E721 — bool has its own canonical tag

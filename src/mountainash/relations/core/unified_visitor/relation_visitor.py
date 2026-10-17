@@ -821,6 +821,8 @@ class UnifiedRelationVisitor:
         from mountainash.core.types import BackendCapabilityError
         from mountainash.typespec.source_shape import extract_source_shapes
         from mountainash.relations.schema_inference import _schema_from_dataframe
+        from mountainash.typespec.converters import _execution_type_target
+        type_target = _execution_type_target(self.execution_context.target.identity.family)
 
         # dtype-aware detection first ({} degrades honestly for an
         # unrecognized backend or a genuinely zero-column frame); falls back
@@ -842,7 +844,7 @@ class UnifiedRelationVisitor:
         # Validate before resolve_contract(): resolve_contract's
         # FIELDS_MATCH_PRESETS[fields_match] lookup deliberately raises
         try:
-            actual_shapes = extract_source_shapes(native)
+            actual_shapes = extract_source_shapes(native, target=type_target)
         except (TypeError, ImportError):
             actual_shapes = None
         # bare KeyError on an unknown preset name (pinned by
@@ -908,6 +910,7 @@ class UnifiedRelationVisitor:
             key_resource_name=key_resource_name,
             schema_of=key_schema_of,
             apply_value_transforms=apply_value_transforms,
+            type_target=type_target,
             raise_on_freeze=not schema_only,
         )
         if schema_only:

@@ -209,6 +209,7 @@ __all__ = ["CompiledValidationPlan"]
 
 def _thaw_dataclass_type(identifier: str) -> type[Any]:
     """Resolve only the closed TypeSpec declaration vocabulary."""
+    from mountainash.core.dtypes import DecimalDtype
     from mountainash.typespec.spec import (
         FieldConstraints,
         FieldSpec,
@@ -221,6 +222,7 @@ def _thaw_dataclass_type(identifier: str) -> type[Any]:
     allowed = {
         f"{cls.__module__}:{cls.__qualname__}": cls
         for cls in (
+            DecimalDtype,
             FieldConstraints,
             FieldSpec,
             ForeignKey,
@@ -238,21 +240,22 @@ def _thaw_dataclass_type(identifier: str) -> type[Any]:
 
 
 def _thaw_enum(module_name: str, class_name: str, value: Any) -> Any:
-    """Resolve only TypeSpec's closed universal-type enum."""
+    """Resolve only TypeSpec's closed declaration enum vocabulary."""
     from mountainash.typespec.universal_types import UniversalType
+    from mountainash.core.dtypes import MountainashDtype, TypeTarget
 
-    if (module_name, class_name) != (
-        UniversalType.__module__,
-        UniversalType.__qualname__,
-    ):
-        raise ValueError(
-            f"unsupported frozen enum declaration {module_name}:{class_name}"
-        )
-    return UniversalType(value)
+    for cls in (UniversalType, MountainashDtype, TypeTarget):
+        if (module_name, class_name) == (cls.__module__, cls.__qualname__):
+            return cls(value)
+    raise ValueError(f"unsupported frozen enum declaration {module_name}:{class_name}")
 
 
 def thaw_value(value: Any) -> Any:
     """Reconstruct one private mutable declaration copy from a frozen snapshot."""
+    from copy import deepcopy
+    from mountainash.core.dtypes import NativeDtype
+    if isinstance(value, NativeDtype):
+        return deepcopy(value)
     if isinstance(value, Mapping) and "__dataclass__" in value:
         cls = _thaw_dataclass_type(value["__dataclass__"])
         return cls(**{name: thaw_value(item) for name, item in value["fields"].items()})

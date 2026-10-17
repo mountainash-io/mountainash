@@ -21,6 +21,34 @@ class SchemaValidationError(MountainashError):
     pass
 
 
+def _matches_refinements(expected, shape) -> bool:
+    """Check precise nested targets without narrowing broad-only declarations."""
+    from mountainash.core.dtypes import DecimalDtype
+    from .converters import _resolve_field_target, _native_types_equal
+
+    if expected.backend_type:
+        if shape is None or shape.native_dtype is None:
+            return False
+        native = shape.native_dtype
+        effective = _resolve_field_target(expected, native.target)
+        return _native_types_equal(native.value, effective.value, native.target)
+    if expected.dtype is not None:
+        if shape is None:
+            return False
+        actual = shape.decimal if isinstance(expected.dtype, DecimalDtype) else shape.canonical_type
+        if actual != expected.dtype:
+            return False
+    children = dict(shape.struct_fields) if shape is not None else {}
+    if any(not _matches_refinements(child, children.get(child.name)) for child in expected.object_fields or ()):
+        return False
+    item = shape.item_shape if shape is not None else None
+    children = dict(item.struct_fields) if item is not None else {}
+    return all(
+        _matches_refinements(child, children.get(child.name))
+        for child in expected.item_object_fields or ()
+    )
+
+
 def validate_match(
     df: 'SupportedDataFrames',
     expected_schema: 'TypeSpec',
@@ -46,6 +74,10 @@ def validate_match(
     """
     from .extraction import extract_from_dataframe
     from .spec import compare_specs
+    from .source_shape import extract_source_shapes
+    from .converters import _resolve_field_target, _native_types_equal
+    from mountainash.core.dtypes import NativeDtype, MountainashDtype
+    from .universal_types import UniversalType
 
     errors = []
 
@@ -58,6 +90,32 @@ def validate_match(
 
     # Compare
     diff = compare_specs(actual_schema, expected_schema, check_constraints=False)
+    shapes = None
+    for expected in expected_schema.fields:
+        actual = actual_schema.get_field(expected.name)
+        if actual is None:
+            continue
+        if expected.backend_type:
+            if shapes is None:
+                shapes = extract_source_shapes(df)
+            native = shapes[expected.name].native_dtype
+            effective = _resolve_field_target(expected, native.target)
+            if isinstance(effective, NativeDtype) and _native_types_equal(
+                native.value, effective.value, native.target,
+            ):
+                diff.type_changes.pop(expected.name, None)
+            else:
+                diff.type_changes[expected.name] = (native.value, effective.value)
+        elif expected.dtype is None and (
+            expected.type is UniversalType.ANY
+            or (actual.type is expected.type and isinstance(actual.dtype, MountainashDtype))
+        ):
+            diff.type_changes.pop(expected.name, None)
+        if not expected.backend_type and (expected.object_fields or expected.item_object_fields):
+            if shapes is None:
+                shapes = extract_source_shapes(df)
+            if not _matches_refinements(expected, shapes.get(expected.name)):
+                diff.type_changes[expected.name] = (actual, expected)
 
     if diff.missing_columns:
         errors.append(f"Missing required columns: {diff.missing_columns}")

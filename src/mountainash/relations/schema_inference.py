@@ -35,9 +35,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 from mountainash.expressions.core.output_names import resolve_output_names
 from mountainash.relations.core.projection_names import require_projection_names
 from mountainash.typespec.frictionless import typespec_from_frictionless
-from mountainash.typespec.spec import FieldSpec
 from mountainash.typespec.converters import resolve_field_canonical
-from mountainash.typespec.universal_types import parse_universal
 from mountainash.core.types import (
     is_narwhals_dataframe,
     is_narwhals_lazyframe,
@@ -307,30 +305,21 @@ def _schema_from_table_schema(
     table_schema: dict,
 ) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
     """Extract field-aware canonical schema from a Frictionless table schema."""
-    fields = table_schema.get("fields", [])
-    if not fields:
-        return {}
     result: dict[str, _DetailedDtype | SchemaTypeStatus] = {}
-    for raw_field in fields:
+    for raw_field in table_schema.get("fields", []):
         name = raw_field.get("name")
-        if not name or not raw_field.get("type"):
-            if name:
-                result[name] = SchemaTypeStatus.UNKNOWN
+        if not name:
             continue
         try:
-            field = FieldSpec(
-                name=name,
-                type=parse_universal(raw_field["type"]),
-                format=raw_field.get("format", "default"),
-                item_type=raw_field.get("itemType"),
-                delimiter=raw_field.get("delimiter"),
-            )
+            field = typespec_from_frictionless({"fields": [raw_field]}).fields[0]
             canonical = resolve_field_canonical(field)
         except (KeyError, TypeError, ValueError):
             result[name] = SchemaTypeStatus.UNKNOWN
             continue
         result[name] = (
-            SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
+            SchemaTypeStatus.UNKNOWN if field.backend_type
+            else SchemaTypeStatus.UNCONSTRAINED if canonical is None and raw_field.get("type")
+            else SchemaTypeStatus.UNKNOWN if canonical is None else canonical
         )
     return result
 
@@ -348,7 +337,8 @@ def _schema_from_typespec(
             result[field.name] = SchemaTypeStatus.UNKNOWN
             continue
         result[field.name] = (
-            SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
+            SchemaTypeStatus.UNKNOWN if field.backend_type
+            else SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
         )
     return result
 
@@ -460,10 +450,30 @@ def infer_schema(
         )
 
         node_id = f"conform:{len(_drifts)}" if _drifts is not None else None
+        from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+        from mountainash.relations.core.errors import UnresolvedExecutionLocationError
+        from mountainash.relations.dag.errors import RelationDAGRequired
+        from mountainash.typespec.converters import _execution_type_target
+        from mountainash.typespec.source_shape import extract_source_shapes
+        try:
+            location = LocationResolver(IdentityTokens(), identity_resolver=identity_resolver).resolve(node)
+            type_target = _execution_type_target(location.family)
+        except UnresolvedExecutionLocationError:
+            raise
+        except (RelationDAGRequired, ValueError):
+            type_target = None
+        actual_shapes = (
+            extract_source_shapes(node.input.dataframe, target=type_target)
+            if isinstance(node.input, ReadRelNode)
+            and type_target is not None
+            and not isinstance(node.input.dataframe, (list, tuple, dict)) else None
+        )
         contract = resolve_conform_output(
             spec,
             available_columns=list(input_schema.keys()),
             actual_dtypes=input_schema,
+            actual_shapes=actual_shapes,
+            type_target=type_target,
             contract=resolved_contract,
             node_identity=(node_id, None, getattr(spec, "name", None)),
             raise_on_freeze=False,
@@ -578,12 +588,9 @@ def _declared_dtype_for_infer(
 ) -> _DetailedDtype | SchemaTypeStatus:
     """Resolve an EmittedField's declared_type against an upstream schema.
 
-    - ``type_action == "evolve"`` (item 48 Task 9, R2) → the output keeps the
-      source's actual type: ``em.effective_type`` when the data_type drift
-      loop resolved a concrete dtype, else ``UNKNOWN`` (evidence was
-      unknowable — honest non-assessment, not a guess). This check runs
-      first because "evolve" overrides whatever ``declared_type`` would
-      otherwise resolve to.
+    - ``type_action == "evolve"`` keeps detailed input-schema evidence where
+      available, then the drift resolver's effective type, else ``UNKNOWN``.
+      This takes precedence over the declared target.
     - Concrete :class:`MountainashDtype` → returned as-is.
     - ``PASSTHROUGH`` → look up ``em.source_name`` in ``input_schema`` (UNKNOWN
       if absent — e.g. dotted struct child where the root is present but the
@@ -592,13 +599,17 @@ def _declared_dtype_for_infer(
       pre-compile; e.g. ANY + null_fill, dotted ANY, non-Polars categorical).
     """
     if em.type_action == "evolve":
-        return (
-            em.effective_type
-            if em.effective_type is not None
-            else SchemaTypeStatus.UNKNOWN
+        return input_schema.get(
+            em.source_name,
+            em.effective_type if em.effective_type is not None else SchemaTypeStatus.UNKNOWN,
         )
-    if em.field.dtype is not None:
-        return em.field.dtype
+    from mountainash.core.dtypes import DecimalDtype, NativeDtype, registry
+    if isinstance(em.effective_type, NativeDtype):
+        return registry.from_native(em.effective_type.value, target=em.effective_type.target) or SchemaTypeStatus.UNKNOWN
+    if em.field.backend_type and em.effective_type is None:
+        return SchemaTypeStatus.UNKNOWN
+    if isinstance(em.effective_type, (MountainashDtype, DecimalDtype)):
+        return em.effective_type
     dt = em.declared_type
     if dt is PASSTHROUGH:
         return input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)

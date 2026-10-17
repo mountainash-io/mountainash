@@ -1,6 +1,6 @@
 # TypeSpec and conformance
 
-A schema is a contract about shape. `TypeSpec` is mountainash's serialisable representation of that contract. `conform()` is a single relation method that turns the contract into a transformation: cast types, rename columns, fill nulls, handle missing fields, on any backend.
+A schema is a contract about shape. `TypeSpec` represents that contract, and `conform()` applies its casts, renames, null handling and missing-field policies. Portable declarations serialize to Frictionless descriptors; backend-native dtype objects are supported only in memory.
 
 ## TypeSpec
 
@@ -29,6 +29,49 @@ Under the hood this is a Pydantic model with a list of `FieldSpec` entries — n
 - Custom types via `CustomTypeRegistry` for semantic types your domain cares about
 
 `TypeSpec` and `FieldSpec` are deliberately **structurally Frictionless** — flat fields matching the Frictionless layout, not nested custom submodels. If Frictionless gains a property, we add it as a peer field. If we add a property they don't have, it's clearly namespaced.
+
+### Precise dtype declarations
+
+Use a canonical dtype when a broad Frictionless type such as `integer` is insufficient:
+
+```python
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+
+short = FieldSpec(name="id", dtype=ma.MountainashDtype.I8)
+explicit = FieldSpec(name="id", type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I8)
+spec = TypeSpec(fields=[short])
+```
+
+Both forms declare an 8-bit signed integer. Broad-only declarations keep their existing behavior. An incompatible pair, such as `STRING` with `I8`, raises `InvalidDtypeDeclaration`.
+
+Canonical enums persist as a field extension:
+
+```json
+{"name": "id", "type": "integer", "x-mountainash": {
+  "dtype": {"kind": "canonical", "name": "i8"}
+}}
+```
+
+Decimal declarations retain their `kind: "decimal"` precision/scale encoding. Dtype-only `JSON` and native `DURATION` retain broad `ANY` semantics: JSON scalars and arrays do not become GeoJSON, and native durations do not become lexical XSD duration strings. Explicit semantic declarations still apply their parsing rules.
+
+### Native overrides
+
+`backend_type` takes precedence over `dtype`, including decimal declarations:
+
+```python
+import polars as pl
+
+field = FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type="Int64")
+timestamp = FieldSpec(name="at", backend_type=pl.Datetime("ns", "UTC"))
+```
+
+The first field produces Int64 on Polars and emits a `UserWarning` because its canonical declaration is I8. Overrides also warn when equivalence cannot be verified, including parameterized temporal and semantic carriers. Proven equivalent representations do not warn. Invalid strings and objects belonging to a different target raise; they do not fall back to the canonical declaration.
+
+Native strings remain serializable and are interpreted by the selected backend. Native objects retain their parameters in owned conform/validation snapshots but cannot be serialized, including when nested in an object or array-item declaration. Use a native string for a persisted override. Native fingerprints are runtime-local identities, with no stability guarantee across dependency versions.
+
+Schema inspection uses native metadata first and retains detailed dtype parameters. SQLite reports its physical integer/real affinities even when a precise declaration produces narrower typed Polars/Arrow egress. AST fallback inference uses the effective target when known; an unresolved native override reports `UNKNOWN`. `evolve` retains the source's detailed identity; `freeze` compares native parameters when source evidence is available.
+
+Bare canonical timestamp/duration casts retain the existing backend unit defaults. They do not promise nanosecond fidelity; backlog 334 tracks inherited sub-microsecond loss. Use an explicit native target with the required unit when that precision is needed.
 
 ## Sources
 
@@ -96,7 +139,7 @@ df = df[["id", "name", "amount", "ts", "region"]]
 
 ### Cross-backend
 
-`conform()` is cross-backend automatic. The only known limitation today is Ibis coalesce type strictness when `null_fill` mixes string columns with numeric literals — a tracked divergence, not a silent fault.
+`conform()` selects the source's execution backend. Schema conversion is separate from runtime capability: Polars, pandas, Arrow and Ibis have schema converters, while Narwhals uses the existing runtime registry. Null-on-failure casts remain unsupported on Narwhals-routed identities and Ibis-SQLite; decimal limits are listed below. NumPy-backed pandas float/NaN to integer conversion still fails through Narwhals (backlog 252). This pre-existing limitation remains separately tracked and is not repaired by canonical declarations. Ibis also requires compatible types when `null_fill` coalesces values.
 
 ### Structured (`array`/`object`) fields
 

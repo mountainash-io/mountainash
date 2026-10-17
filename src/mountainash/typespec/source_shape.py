@@ -1,10 +1,11 @@
 """Schema-only structural evidence extracted from supported table carriers."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from copy import deepcopy
 from typing import Any
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype, TypeTarget, registry
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, TypeTarget, registry
 from mountainash.core.dtypes.errors import UnknownDtypeError
 
 from mountainash.core.types import (
@@ -27,6 +28,7 @@ class SourceShape:
     item_shape: SourceShape | None = None
     struct_fields: tuple[tuple[str, SourceShape], ...] = ()
     decimal: DecimalDtype | None = None
+    native_dtype: NativeDtype | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.decimal is not None and (
@@ -84,9 +86,36 @@ def _shape_from_dtype(dtype: Any) -> SourceShape:
     return SourceShape(canonical)
 
 
+def _from_native_dtype(native: Any, target: TypeTarget) -> SourceShape:
+    """Project detailed metadata while retaining executable native evidence."""
+    shape = _shape_from_dtype(_resolve(native, target))
+    evidence = NativeDtype(value=deepcopy(native), target=target)
+    if target is TypeTarget.PANDAS and (arrow := getattr(native, "pyarrow_dtype", None)) is not None:
+        return replace(_from_native_dtype(arrow, TypeTarget.PYARROW), native_dtype=evidence)
+    if target is TypeTarget.PYARROW and hasattr(native, "nullable"):
+        return replace(_from_native_dtype(native.type, target),
+                       native_dtype=NativeDtype(value=native.type, target=target))
+    if shape.item_shape is not None:
+        inner = getattr(native, "inner", getattr(native, "value_type", None))
+        if inner is not None:
+            shape = replace(shape, item_shape=_from_native_dtype(inner, target))
+    if shape.struct_fields:
+        fields = getattr(native, "fields", None)
+        if fields is None:
+            pairs = ((item.name, item.type) for item in native)
+        elif hasattr(fields, "items"):
+            pairs = fields.items()
+        else:
+            pairs = ((item.name, item.type if target is TypeTarget.PYARROW else item.dtype) for item in fields)
+        shape = replace(shape, struct_fields=tuple(
+            (name, _from_native_dtype(child, target)) for name, child in pairs
+        ))
+    return replace(shape, native_dtype=evidence)
+
+
 def _from_schema(schema: Any, target: TypeTarget) -> dict[str, SourceShape]:
     return {
-        name: _shape_from_dtype(_resolve(dtype, target))
+        name: _from_native_dtype(dtype, target)
         for name, dtype in schema.items()
     }
 
@@ -113,16 +142,21 @@ def _from_ibis_schema(schema: Any) -> dict[str, SourceShape]:
 
 def _from_narwhals_schema(native: Any) -> dict[str, SourceShape]:
     underlying = native.to_native()
-    if (
-        is_pandas_dataframe(underlying) or is_pyarrow_table(underlying)
-        or is_polars_dataframe(underlying) or is_polars_lazyframe(underlying)
-    ):
-        return extract_source_shapes(underlying)
-    return _from_schema(native.schema, TypeTarget.NARWHALS)
+    if is_pandas_dataframe(underlying):
+        from mountainash.core.lazy_imports import import_narwhals
+        schema = import_narwhals().Schema.from_pandas_like(underlying.dtypes.to_dict())
+        shapes = _from_pandas_dtypes(underlying.dtypes)
+        return {name: replace(shape, native_dtype=NativeDtype(
+            value=deepcopy(schema[name]), target=TypeTarget.NARWHALS,
+        )) for name, shape in shapes.items()}
+    return _from_schema(native.collect_schema(), TypeTarget.NARWHALS)
 
 
-def extract_source_shapes(native: Any) -> dict[str, SourceShape]:
+def extract_source_shapes(native: Any, *, target: TypeTarget | None = None) -> dict[str, SourceShape]:
     """Extract recursive source shapes using schema metadata only."""
+    if target is TypeTarget.NARWHALS and not (is_narwhals_dataframe(native) or is_narwhals_lazyframe(native)):
+        from mountainash.core.lazy_imports import import_narwhals
+        return _from_narwhals_schema(import_narwhals().from_native(native))
     if is_polars_dataframe(native) or is_polars_lazyframe(native):
         return _from_polars_schema(native.collect_schema())
     if is_pyarrow_table(native):

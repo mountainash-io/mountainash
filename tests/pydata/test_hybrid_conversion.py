@@ -17,6 +17,15 @@ from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 
 
+
+def test_ingress_native_override_is_authoritative():
+    from mountainash import MountainashDtype
+    spec = TypeSpec(fields=[FieldSpec(name="id", dtype=MountainashDtype.I8, backend_type=pl.Int64)])
+    with pytest.warns(UserWarning):
+        out = apply_hybrid_conversion([{"id": 300}], spec)
+    assert out["id"].to_list() == [300]
+    assert out.schema["id"] == pl.Int64
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
