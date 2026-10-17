@@ -17,6 +17,30 @@ from mountainash.relations.core.relation_system.relation_keys.enums import (
 )
 
 
+def _check_schema_join_null_promotion(
+    visitor: Any, frame: Any, *, rename: Any = None, drop: Any = (),
+) -> None:
+    """Empty pandas inputs cannot prove value-dependent integer/bool promotion."""
+    if visitor.execution_phase is None or visitor.execution_phase.name != "SCHEMA":
+        return
+    from mountainash.core.types import is_pandas_dataframe
+
+    native = frame.to_native() if hasattr(frame, "to_native") else frame
+    if not is_pandas_dataframe(native):
+        return
+    import numpy as np
+
+    rename = rename or {}
+    if any(
+        rename.get(name, name) not in drop
+        and isinstance(dtype, np.dtype) and dtype.kind in "biu"
+        for name, dtype in native.dtypes.items()
+    ):
+        visitor.require_schema_execution(
+            "Pandas join null promotion depends on which rows match"
+        )
+
+
 def visit_join(node: Any, visitor: Any) -> Any:
     from mountainash.relations.core.join_layout import (
         keyed_layout_applies, layout_for_node, native_column_names,
@@ -44,15 +68,22 @@ def visit_join(node: Any, visitor: Any) -> Any:
     # join disjoint names keeping both keys, then merge/drop keys with ordinary
     # projections. Backends never apply their own suffixing or key merging.
     layout = layout_for_node(node, native_column_names(left), native_column_names(right))
+    if node.join_type.value in {"right", "outer"}:
+        _check_schema_join_null_promotion(visitor, left)
+    if node.join_type.value in {"left", "outer"}:
+        _check_schema_join_null_promotion(
+            visitor, right, rename=layout.right_rename, drop=layout.drop,
+        )
     if layout.right_rename:
         right = visitor.backend.project_rename(right, layout.right_rename)
-    for original, final in layout.collisions:
-        warnings.warn(
-            f"join: right column {original!r} renamed to {final!r} because "
-            f"{original + node.suffix!r} already exists",
-            UserWarning,
-            stacklevel=2,
-        )
+    if visitor.execution_phase is None or visitor.execution_phase.name != "SCHEMA":
+        for original, final in layout.collisions:
+            warnings.warn(
+                f"join: right column {original!r} renamed to {final!r} because "
+                f"{original + node.suffix!r} already exists",
+                UserWarning,
+                stacklevel=2,
+            )
     result = visitor._enrich_native_call(
         node, RKEY_SUBSTRAIT_REL.JOIN,
         lambda: visitor.backend.join(
@@ -81,6 +112,14 @@ def visit_join_asof(node: Any, visitor: Any) -> Any:
         left = visitor.visit(node.left)
         right = visitor._visit_and_coerce_right(node.right, left)
     visitor._prepare_transport_lineage(node)
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        from mountainash.relations.core.join_layout import asof_right_name_map, native_column_names
+
+        right_names = native_column_names(right)
+        payload = asof_right_name_map(node, native_column_names(left), right_names)
+        _check_schema_join_null_promotion(
+            visitor, right, drop=set(right_names) - payload.keys(),
+        )
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.JOIN_ASOF,
         lambda: visitor.backend.join_asof(
@@ -119,10 +158,43 @@ def visit_ref(node: Any, visitor: Any) -> Any:
         visitor.structured_field_plans = plans
     return resolved
 
-
 def visit_resource_read(node: Any, visitor: Any) -> Any:
+    schema_input = None
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        resource = node.resource
+        backend = visitor.backend.backend_type.name
+        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+            MountainashPolarsExtensionRelationSystem,
+        )
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
+        native_scan = (
+            backend in {"POLARS", "NARWHALS"}
+            and rf.polars_native_scan_supported(resource, fmt, resource.to_dialect())
+        )
+        if not native_scan:
+            if resource.data is not None or resource.path is None:
+                visitor.require_schema_execution(
+                    f"Resource {resource.name!r} has no file metadata reader"
+                )
+            schema, complete = rf.inspect_resource_schema(
+                resource, dialect=resource.to_dialect(),
+            )
+            if not complete:
+                visitor.metadata_session.schema_complete = False
+            # These are type-only inputs, never sampled source rows. Use the
+            # same carrier conversion as the ordinary resource fallback.
+            import polars as pl
+
+            schema_input = pl.from_arrow(schema.empty_table()).lazy()
+            if backend == "NARWHALS":
+                import narwhals as nw
+
+                schema_input = nw.from_native(schema_input)
+
     def _read_and_conform():
-        out = visitor.backend.read_resource(node.resource)
+        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource)
         spec = node.resource.to_typespec()
         if spec is not None and node.apply_schema_conform:
             out = visitor.apply_conform(
@@ -136,9 +208,60 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
     return visitor._enrich_native_call(node, RKEY_MOUNTAINASH_REL.READ_RESOURCE, _read_and_conform)
 
 
+
+
 def visit_source(node: Any, visitor: Any) -> Any:
-    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
-    df = PydataIngress.convert(node.data)
+    from mountainash.pydata.ingress.pydata_ingress import (
+        PydataIngress,
+        schema_literal_ingress_safe,
+    )
+
+    if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
+        from mountainash.relations.core.errors import CompileRequiresExecutionError
+        from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
+        from dataclasses import is_dataclass
+
+        model = node.data[0] if isinstance(node.data, list) and node.data else node.data
+        declared = is_dataclass(model) and not isinstance(model, type)
+        if declared and isinstance(node.data, list):
+            declared = all(type(item) is type(model) for item in node.data)
+
+        if declared:
+            import polars as pl
+            from mountainash.core.dtypes import DtypeMappingError, TypeTarget, dtype_is_complete, registry
+            from mountainash.relations.schema_inference import _schema_from_source_data
+
+            schema = _schema_from_source_data(node.data)
+            if not all(dtype_is_complete(dtype) for dtype in schema.values()):
+                visitor.require_schema_execution("Source declarations have unresolved dtype parameters")
+            try:
+                native_schema = {
+                    name: registry.to_native_schema(dtype, TypeTarget.POLARS)
+                    for name, dtype in schema.items()
+                }
+            except DtypeMappingError as error:
+                visitor.require_schema_execution(str(error))
+            df = pl.DataFrame(schema=native_schema).lazy()
+        elif isinstance(node.data, (dict, list, tuple)):
+            if not schema_literal_ingress_safe(node.data):
+                raise CompileRequiresExecutionError(
+                    f"Source data {type(node.data).__name__} has no schema-only ingress",
+                    node_key=visitor.execution_key,
+                )
+            # Reuse the selected Python ingress strategy: indexed mappings are
+            # rows, not a dataframe's column dictionary.
+            df = PydataIngress.convert(node.data)
+        else:
+            prototype = visitor.execution.schema_input(node.data)
+            native_lazy = is_polars_lazyframe(prototype) or is_narwhals_lazyframe(prototype)
+            if prototype is node.data and not native_lazy:
+                raise CompileRequiresExecutionError(
+                    f"Source data {type(node.data).__name__} has no schema-only ingress",
+                    node_key=visitor.execution_key,
+                )
+            df = prototype if native_lazy else PydataIngress.convert(prototype)
+    else:
+        df = PydataIngress.convert(node.data)
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.SOURCE,
         lambda: visitor.backend.read(df),

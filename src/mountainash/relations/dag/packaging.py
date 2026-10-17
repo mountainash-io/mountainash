@@ -19,7 +19,7 @@ def _frictionless_from_inferred(schema) -> Optional[dict]:
     (best-effort, principle R3: emit, never gate). None ONLY for an empty schema."""
     if not schema:
         return None
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
     from mountainash.typespec.universal_types import from_canonical
     fields = []
     for name, dt in schema.items():
@@ -65,7 +65,7 @@ def _has_unknown(schema) -> bool:
     Complete output names are required separately; unavailable cardinality is
     handled at the schema request boundary, not converted into an empty mapping.
     """
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
     return any(v is SchemaTypeStatus.UNKNOWN for v in schema.values())
 
 
@@ -117,6 +117,10 @@ def to_package(dag: RelationDAGProtocol, *, strict: bool = False) -> DataPackage
                 continue
             inferred = None
         out = None if inferred is None else _frictionless_from_inferred(inferred)
+        if declared_fks and out is None:
+            raise MissingResourceSchema(
+                f"{name!r}: cannot preserve declared foreign keys without complete output schema"
+            )
 
         # FK source is determined by resource kind: pass-through resources
         # emitted their lossless table_schema above (metadata never

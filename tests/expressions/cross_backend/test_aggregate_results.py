@@ -737,7 +737,7 @@ class TestDeclaredDecimalAggregateArithmetic:
             assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_VALUE.DECIMAL_CAST
             return
 
-        from mountainash.relations.schema_inference import SchemaTypeStatus
+        from mountainash.core.dtypes.canonical import SchemaTypeStatus
         assert casted.schema["result"] in (SchemaTypeStatus.UNKNOWN, ma.DecimalDtype(16, 6))
         output = casted.to_polars()
         expected = _authored_decimal_expected(operation, values, backend_name)

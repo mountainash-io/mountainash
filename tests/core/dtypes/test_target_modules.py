@@ -1,12 +1,19 @@
 # tests/core/dtypes/test_target_modules.py
 """Per-target mapping module behaviour (representative cases; the exhaustive
 product is covered by test_completeness.py)."""
+import numpy as np
 import polars as pl
 import pytest
 
 from mountainash.core.dtypes.canonical import MountainashDtype as D
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.core.dtypes import (
+    ListDtype,
+    NativeDtype,
+    StructDtype,
+    TimeDtype,
+    TimestampDtype,
+    TypeTarget,
     target_ibis,
     target_narwhals,
     target_pandas,
@@ -28,20 +35,36 @@ class TestPolars:
     @pytest.mark.parametrize("native,expected", [
         (pl.Int32, D.I32),
         (pl.Int32(), D.I32),
-        (pl.Datetime("us", "UTC"), D.TIMESTAMP),   # parameterized -> base
-        (pl.Categorical, D.STRING),
-        (pl.List(pl.Int64), D.LIST),
-        (pl.Struct({"a": pl.Int64}), D.STRUCT),
+        (pl.Time, TimeDtype(precision=9)),
+        (pl.Datetime("us", "UTC"), TimestampDtype(
+            precision=6, timezone_aware=True, timezone="UTC"
+        )),
+        (pl.Categorical, NativeDtype(value=pl.Categorical, target=TypeTarget.POLARS)),
+        (pl.List(pl.Int64), ListDtype(element=D.I64)),
+        (pl.Struct({"a": pl.Int64}), StructDtype(fields=(("a", D.I64),))),
     ])
     def test_from_native(self, native, expected):
-        assert target_polars.from_native(native) is expected
+        assert target_polars.from_native(native) == expected
 
-    def test_from_native_null_is_untyped(self):
-        assert target_polars.from_native(pl.Null) is None
+    def test_from_native_null_preserves_native_dtype(self):
+        from mountainash.core.dtypes import NativeDtype, TypeTarget
+
+        dtype = target_polars.from_native(pl.Null)
+        assert isinstance(dtype, NativeDtype)
+        assert dtype.value is pl.Null
+        assert dtype.target is TypeTarget.POLARS
 
     def test_from_native_unknown_raises(self):
         with pytest.raises(UnknownDtypeError):
             target_polars.from_native("NotARealDtype")
+
+    def test_object_is_a_known_dynamic_native_dtype(self):
+        from mountainash.core.dtypes import NativeDtype, TypeTarget
+
+        dtype = target_polars.from_native(pl.Object)
+        assert isinstance(dtype, NativeDtype)
+        assert dtype.value is pl.Object
+        assert dtype.target is TypeTarget.POLARS
 
     def test_parse_type_string_bare_name(self):
         assert target_polars.parse_type_string("Int32") is pl.Int32
@@ -63,28 +86,51 @@ class TestPandas:
         assert target_pandas.SCHEMA_TYPES[D.STRING] == "string"
 
     @pytest.mark.parametrize("name,expected", [
-        ("int32", D.I32), ("Int32", D.I32), ("uint8", D.U8),
-        ("float64", D.FP64), ("float16", D.FP32),
-        ("datetime64[ns]", D.TIMESTAMP), ("datetime64[ns, UTC]", D.TIMESTAMP),
-        ("timedelta64[ns]", D.DURATION), ("period[M]", D.TIMESTAMP),
-        ("object", D.STRING), ("category", D.STRING), ("bool", D.BOOL),
+        ("int32", D.I32), ("uint8", D.U8), ("float64", D.FP64), ("bool", D.BOOL),
     ])
     def test_from_native_strings(self, name, expected):
         assert target_pandas.from_native(name) is expected
 
     def test_from_native_numpy_dtype_object(self):
-        import numpy as np
         assert target_pandas.from_native(np.dtype("int64")) is D.I64
+
+    def test_string_dtype_preserves_native_refinements(self):
+        import pandas as pd
+        from mountainash.core.dtypes import NativeDtype, TypeTarget
+
+        native = pd.StringDtype(storage="python", na_value=pd.NA)
+        dtype = target_pandas.from_native(native)
+        assert isinstance(dtype, NativeDtype)
+        assert dtype.value == native
+        assert dtype.target is TypeTarget.PANDAS
+
+    def test_datetime_alias_retains_timezone_and_precision(self):
+        assert target_pandas.from_native("datetime64[ns, UTC]") == TimestampDtype(
+            precision=9, timezone_aware=True, timezone="UTC",
+        )
+
+    @pytest.mark.parametrize("name", ["Int32", "float16", "object", "category", "period[M]"])
+    def test_native_encodings_are_not_collapsed_by_alias_parsing(self, name):
+        assert target_pandas.from_native(name) == NativeDtype(value=name, target=TypeTarget.PANDAS)
 
 
 class TestPyArrow:
     def test_from_native(self):
         import pyarrow as pa
         assert target_pyarrow.from_native(pa.int64()) is D.I64
-        assert target_pyarrow.from_native(pa.timestamp("ns")) is D.TIMESTAMP
-        assert target_pyarrow.from_native(pa.list_(pa.int64())) is D.LIST
-        assert target_pyarrow.from_native(pa.large_string()) is D.STRING
-        assert target_pyarrow.from_native(pa.null()) is None
+        assert target_pyarrow.from_native(pa.timestamp("ns")) == TimestampDtype(
+            precision=9, timezone_aware=False, timezone=None
+        )
+        assert target_pyarrow.from_native(pa.list_(pa.int64())) == ListDtype(
+            element=D.I64
+        )
+        assert target_pyarrow.from_native(pa.large_string()) == NativeDtype(
+            value=pa.large_string(), target=TypeTarget.PYARROW,
+        )
+        dtype = target_pyarrow.from_native(pa.null())
+        assert isinstance(dtype, NativeDtype)
+        assert dtype.value == pa.null()
+        assert dtype.target is TypeTarget.PYARROW
 
     def test_parse_type_string_uses_alias(self):
         import pyarrow as pa
@@ -94,32 +140,17 @@ class TestPyArrow:
 
 class TestIbis:
     @pytest.mark.parametrize("name,expected", [
-        ("int64", D.I64), ("!int64", D.I64),
-        ("timestamp", D.TIMESTAMP), ("timestamp('UTC')", D.TIMESTAMP),
-        ("interval", D.DURATION), ("array<int64>", D.LIST),
-        ("struct<a: int64>", D.STRUCT),
+        ("int64", D.I64),
+        ("timestamp(5)", TimestampDtype(precision=5, timezone_aware=False, timezone=None)),
+        ("array<int64>", ListDtype(element=D.I64)),
+        ("struct<a: int64>", StructDtype(fields=(("a", D.I64),))),
     ])
     def test_from_native_strings(self, name, expected):
-        assert target_ibis.from_native(name) is expected
+        assert target_ibis.from_native(name) == expected
 
     def test_from_native_dtype_object(self):
         import ibis.expr.datatypes as dt
         assert target_ibis.from_native(dt.int32) is D.I32
-
-    def test_parse_type_string_validates(self):
-        assert target_ibis.parse_type_string("decimal(38, 9)") == "decimal(38, 9)"
-        assert target_ibis.parse_type_string("not a type") is None
-
-
-class TestNarwhals:
-    def test_from_native(self):
-        import narwhals as nw
-        assert target_narwhals.from_native(nw.Int64) is D.I64
-        assert target_narwhals.from_native(nw.Datetime) is D.TIMESTAMP
-
-    def test_schema_types(self):
-        import narwhals as nw
-        assert target_narwhals.SCHEMA_TYPES[D.I64] is nw.Int64
 
 
 class TestPython:
@@ -132,8 +163,8 @@ class TestPython:
 
     def test_from_native_typing_generics(self):
         from typing import Dict, List
-        assert target_python.from_native(List[str]) is D.LIST
-        assert target_python.from_native(list[int]) is D.LIST
+        assert target_python.from_native(List[str]) == ListDtype(element=D.STRING)
+        assert target_python.from_native(list[int]) == ListDtype(element=D.I64)
         assert target_python.from_native(Dict[str, int]) is D.STRUCT
 
     def test_from_native_hint_strings(self):

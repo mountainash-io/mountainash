@@ -6,7 +6,11 @@ from typing import Any, Optional
 
 import narwhals as nw
 
-from .canonical import DecimalDtype, MountainashDtype as D
+from .canonical import (
+    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D,
+    NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
+)
+from .targets import TypeTarget
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -21,8 +25,6 @@ SCHEMA_TYPES: dict[D, Any] = {
 }
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})
-
-_UNTYPED_NAMES = {"Unknown"}
 
 _FROM_NATIVE: dict[str, D] = {
     "Boolean": D.BOOL, "Int8": D.I8, "Int16": D.I16, "Int32": D.I32,
@@ -46,19 +48,58 @@ def to_native_decimal(dtype: DecimalDtype) -> Any:
     return nw.Decimal(dtype.precision, dtype.scale)
 
 
-def from_native(native: Any) -> Optional[D | DecimalDtype]:
+def _family(native: Any) -> D | None:
+    return _FROM_NATIVE.get(_base_name(native))
+
+
+def _is_complete(native: Any) -> bool:
+    if _base_name(native) == "Decimal":
+        return getattr(native, "precision", None) is not None
+    return _base_name(native) != "Unknown"
+
+
+def from_native(native: Any) -> Any:
     name = _base_name(native)
-    if name in _UNTYPED_NAMES:
-        return None
-    if name == "Decimal":
-        precision, scale = getattr(native, "precision", None), getattr(native, "scale", None)
-        if precision is None or scale is None:
-            raise UnknownDtypeError(
-                f"Narwhals Decimal without explicit precision/scale cannot be mapped: {native!r}"
-            )
-        return DecimalDtype(precision=precision, scale=scale)
+    if name == "Unknown":
+        return SchemaTypeStatus.UNKNOWN
+    if name == "Time":
+        return TimeDtype()  # Narwhals Time does not expose native precision.
+    if isinstance(native, type):
+        if name in {"Datetime", "Duration", "List", "Struct"}:
+            return _FROM_NATIVE[name]
+        if name == "Array":
+            return ArrayDtype()
+    elif name == "Datetime":
+        return TimestampDtype(
+            precision={"s": 0, "ms": 3, "us": 6, "ns": 9}[native.time_unit],
+            timezone_aware=native.time_zone is not None, timezone=native.time_zone,
+        )
+    elif name == "Duration":
+        return DurationDtype(unit=native.time_unit, semantics="fixed")
+    elif name == "Decimal":
+        try:
+            return DecimalDtype(native.precision, native.scale)
+        except UnknownDtypeError:
+            pass
+    elif name == "List":
+        return ListDtype(element=from_native(native.inner))
+    elif name == "Array":
+        leaf, dimensions = native, []
+        while isinstance(leaf, nw.Array):
+            dimensions.append(leaf.size)
+            leaf = leaf.inner
+        return ArrayDtype(element=from_native(leaf), dimensions=tuple(dimensions))
+    elif name == "Struct":
+        return StructDtype(fields=tuple(
+            (field.name, from_native(field.dtype)) for field in native.fields
+        ))
+    if name in {"Decimal", "Categorical", "Enum", "Object"}:
+        return NativeDtype(value=native, target=TypeTarget.NARWHALS)
     if name in _FROM_NATIVE:
         return _FROM_NATIVE[name]
+    from narwhals.dtypes import DType
+    if isinstance(native, DType) or isinstance(native, type) and issubclass(native, DType):
+        return NativeDtype(value=native, target=TypeTarget.NARWHALS)
     raise UnknownDtypeError(f"Unrecognized Narwhals dtype: {native!r}")
 
 

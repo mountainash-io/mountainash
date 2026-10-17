@@ -7,7 +7,7 @@ maps here via typespec.universal_types.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Union
 
@@ -15,6 +15,12 @@ from pydantic import BaseModel, ConfigDict
 
 from .errors import UnknownDtypeError
 from .targets import TypeTarget, detect_target
+
+class SchemaTypeStatus(Enum):
+    """Non-type states in an inferred schema."""
+
+    UNKNOWN = "unknown"
+    UNCONSTRAINED = "unconstrained"
 
 
 class MountainashDtype(str, Enum):
@@ -131,15 +137,103 @@ class NativeDtype(BaseModel):
 
 
 @dataclass(frozen=True)
+class TimestampDtype:
+    precision: int | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    timezone_aware: bool | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    timezone: str | None | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    native: NativeDtype | None = field(default=None, kw_only=True)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.precision, bool) or (
+            not isinstance(self.precision, int)
+            and self.precision is not SchemaTypeStatus.UNKNOWN
+        ):
+            raise UnknownDtypeError("Timestamp precision must be a non-negative integer or UNKNOWN")
+        if isinstance(self.precision, int) and self.precision < 0:
+            raise UnknownDtypeError("Timestamp precision must be non-negative")
+        if self.timezone_aware is False and isinstance(self.timezone, str):
+            raise UnknownDtypeError("A naive timestamp cannot have a named timezone")
+        if not (
+            self.timezone_aware is True or self.timezone_aware is False
+            or self.timezone_aware is SchemaTypeStatus.UNKNOWN
+        ):
+            raise UnknownDtypeError("Timestamp awareness must be bool or UNKNOWN")
+        if not (
+            self.timezone is None or isinstance(self.timezone, str)
+            or self.timezone is SchemaTypeStatus.UNKNOWN
+        ):
+            raise UnknownDtypeError("Timestamp timezone must be a string, None or UNKNOWN")
+
+
+@dataclass(frozen=True)
+class TimeDtype:
+    precision: int | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    native: NativeDtype | None = field(default=None, kw_only=True)
+
+    def __post_init__(self) -> None:
+        if self.precision is not SchemaTypeStatus.UNKNOWN and (
+            isinstance(self.precision, bool) or not isinstance(self.precision, int)
+            or self.precision < 0
+        ):
+            raise UnknownDtypeError("Time precision must be a non-negative integer or UNKNOWN")
+
+
+@dataclass(frozen=True)
+class DurationDtype:
+    unit: str | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    semantics: str | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    native: NativeDtype | None = field(default=None, kw_only=True)
+
+    def __post_init__(self) -> None:
+        if self.semantics not in (SchemaTypeStatus.UNKNOWN, "fixed", "calendar"):
+            raise UnknownDtypeError(f"Invalid duration semantics: {self.semantics!r}")
+        if self.unit is not SchemaTypeStatus.UNKNOWN and (
+            not isinstance(self.unit, str) or not self.unit
+        ):
+            raise UnknownDtypeError("Duration unit must be a nonempty string or UNKNOWN")
+
+
+@dataclass(frozen=True)
+class ListDtype:
+    element: Any = SchemaTypeStatus.UNKNOWN
+    native: NativeDtype | None = field(default=None, kw_only=True)
+
+
+@dataclass(frozen=True)
+class ArrayDtype:
+    element: Any = SchemaTypeStatus.UNKNOWN
+    dimensions: tuple[int, ...] | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    native: NativeDtype | None = field(default=None, kw_only=True)
+
+    def __post_init__(self) -> None:
+        if self.dimensions is not SchemaTypeStatus.UNKNOWN and (
+            not isinstance(self.dimensions, tuple) or not self.dimensions
+            or any(isinstance(size, bool) or not isinstance(size, int) or size < 0
+                   for size in self.dimensions)
+        ):
+            raise UnknownDtypeError("Array dimensions must be a nonempty tuple of non-negative integers or UNKNOWN")
+
+
+@dataclass(frozen=True)
+class StructDtype:
+    fields: tuple[tuple[str, Any], ...] | SchemaTypeStatus = SchemaTypeStatus.UNKNOWN
+    native: NativeDtype | None = field(default=None, kw_only=True)
+
+    def __post_init__(self) -> None:
+        if self.fields is not SchemaTypeStatus.UNKNOWN and (
+            not isinstance(self.fields, tuple)
+            or any(not isinstance(pair, tuple) or len(pair) != 2
+                   or not isinstance(pair[0], str) for pair in self.fields)
+        ):
+            raise UnknownDtypeError("Struct fields must be an ordered tuple of (name, dtype) pairs or UNKNOWN")
+
+
+@dataclass(frozen=True)
 class DecimalDtype:
-    """Portable exact decimal: precision = total digits, scale = fractional digits.
-
-    A dataclass, not a pydantic model, so the typed error is not wrapped in
-    ``pydantic.ValidationError``.
-    """
-
+    """Portable exact decimal: precision = total digits, scale = fractional digits."""
     precision: int
     scale: int
+    native: NativeDtype | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
         p, s = self.precision, self.scale
@@ -159,6 +253,61 @@ class DecimalDtype:
     def __str__(self) -> str:
         return f"decimal({self.precision},{self.scale})"
 
+
+def dtype_family(value: Any) -> Any:
+    """Classify a dtype without treating the result as a cast target."""
+    if isinstance(value, DecimalDtype):
+        return value
+    if isinstance(value, TimestampDtype):
+        return MountainashDtype.TIMESTAMP
+    if isinstance(value, TimeDtype):
+        return MountainashDtype.TIME
+    if isinstance(value, DurationDtype):
+        return MountainashDtype.DURATION
+    if isinstance(value, (ListDtype, ArrayDtype)):
+        return MountainashDtype.LIST
+    if isinstance(value, StructDtype):
+        return MountainashDtype.STRUCT
+    if isinstance(value, NativeDtype):
+        from .registry import registry
+        classify = getattr(registry._target(value.target), "_family", None)
+        family = classify(value.value) if classify is not None else None
+        return family if family is not None else value
+    return value
+
+
+def dtype_is_complete(value: Any) -> bool:
+    """Whether the descriptor establishes every required type parameter."""
+    if isinstance(value, SchemaTypeStatus):
+        return False
+    if isinstance(value, MountainashDtype):
+        return value not in {
+            MountainashDtype.TIMESTAMP, MountainashDtype.TIME, MountainashDtype.DURATION,
+            MountainashDtype.LIST, MountainashDtype.STRUCT,
+        }
+    if isinstance(value, NativeDtype):
+        from .registry import registry
+        check = getattr(registry._target(value.target), "_is_complete", None)
+        return check(value.value) if check is not None else True
+    if isinstance(value, DecimalDtype):
+        return True
+    if isinstance(value, TimestampDtype):
+        return all(v is not SchemaTypeStatus.UNKNOWN for v in (
+            value.precision, value.timezone_aware, value.timezone
+        ))
+    if isinstance(value, TimeDtype):
+        return value.precision is not SchemaTypeStatus.UNKNOWN
+    if isinstance(value, DurationDtype):
+        return value.unit is not SchemaTypeStatus.UNKNOWN and value.semantics is not SchemaTypeStatus.UNKNOWN
+    if isinstance(value, ListDtype):
+        return dtype_is_complete(value.element)
+    if isinstance(value, ArrayDtype):
+        return dtype_is_complete(value.element) and value.dimensions is not SchemaTypeStatus.UNKNOWN
+    if isinstance(value, StructDtype):
+        return value.fields is not SchemaTypeStatus.UNKNOWN and all(
+            dtype_is_complete(t) for _, t in value.fields
+        )
+    return False
 
 def parse_dtype(value: Any) -> MountainashDtype:
     """Normalize a canonical dtype specifier to the MountainashDtype enum.

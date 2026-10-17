@@ -24,12 +24,9 @@ import pytest
 
 import mountainash as ma
 from mountainash.conform.errors import ExactFieldsMismatchError, SchemaDriftError
-from mountainash.core.dtypes import MountainashDtype as D
+from mountainash.core.dtypes import MountainashDtype as D, SchemaTypeStatus
 from mountainash.core.dtypes import TypeTarget, registry
-from mountainash.relations.schema_inference import (
-    SchemaTypeStatus,
-    infer_schema,
-)
+from mountainash.relations.schema_inference import infer_schema
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType as U
 
@@ -60,13 +57,13 @@ def test_projected_decimal_conform_introspection_and_execution(decimal_projectio
     projected = decimal_projection_source.select(
         ma.col("value").cast(dtype, rounding="half_to_even").alias("value")
     )
-    assert projected.schema == {"value": SchemaTypeStatus.UNKNOWN}
+    assert projected.schema == {"value": dtype}
     matched = projected.conform(spec)
     assert matched.schema == {"value": dtype}
     assert matched.assess_drift()[0].type_mismatches[0].reason == "unknown"
     assert matched.to_polars()["value"].to_list() == [Decimal("10.00"), None]
-    assert projected.conform(spec, apply_value_transforms=False).schema == {"value": SchemaTypeStatus.UNKNOWN}
-    assert projected.conform(spec, contract={"data_type": "evolve"}).schema == {"value": SchemaTypeStatus.UNKNOWN}
+    assert projected.conform(spec, apply_value_transforms=False).schema == {"value": dtype}
+    assert projected.conform(spec, contract={"data_type": "evolve"}).schema == {"value": dtype}
 
 
 def test_projected_decimal_conform_still_enforces_concrete_conversion(decimal_projection_source):
@@ -80,7 +77,8 @@ def test_projected_decimal_conform_still_enforces_concrete_conversion(decimal_pr
     projected = decimal_projection_source.select(
         ma.col("value").cast(source_dtype, rounding="half_to_even").alias("value")
     ).conform(spec)
-    assert projected.schema == {"value": target}
+    with pytest.raises(DecimalConversionRequiredError):
+        _ = projected.schema
     with pytest.raises(DecimalConversionRequiredError):
         projected.to_polars()
 

@@ -51,54 +51,20 @@ def test_dag_to_package_emits_inline_relation():
     assert fields["x"] == "integer"
 
 
-def test_dag_to_package_strict_raises_on_unknown():
-    """strict=True raises for a genuinely-UNKNOWN column; default emits it.
-
-    Aggregate measure columns infer to SchemaTypeStatus.UNKNOWN (the type
-    cannot be determined pre-compile from the plan alone — only the group
-    keys are typed), whether or not the measure carries an explicit alias.
-    See test_dag_to_package_strict_catches_unaliased_measure (item 46 a) for
-    the un-aliased case specifically: since item 46 (a), un-aliased measures
-    are inferred under their source-column name as UNKNOWN too, so they are
-    no longer silently absent from strict='s view.
-    """
-    dag = RelationDAG()
-    dag.add(
-        "grouped",
-        ma.relation(pl.DataFrame({"k": [1, 1, 2], "v": [10, 20, 30]}))
-        .group_by("k")
-        .agg(ma.col("v").sum().alias("v_sum")),
-    )
-
-    # Default must NOT raise — it emits best-effort
-    pkg = dag.to_package()
-    names = {r.name for r in pkg.resources}
-    assert "grouped" in names, "default to_package() must emit the relation even with UNKNOWN columns"
-
-    # strict=True must raise naming the relation
-    with pytest.raises(MissingResourceSchema, match="grouped"):
-        dag.to_package(strict=True)
-
-
-def test_dag_to_package_strict_catches_unaliased_measure():
-    """Item 46 (a): the un-aliased measure is now present-as-UNKNOWN, so
-    strict= sees it (was: silently absent, strict passed)."""
+@pytest.mark.parametrize("aliased", [False, True])
+@pytest.mark.parametrize("strict", [False, True])
+def test_dag_to_package_exports_resolved_aggregate_types(aliased, strict):
     dag = RelationDAG()
     dag.add("src", ma.relation(pl.DataFrame({"k": ["a"], "v": [1]})))
-    dag.add("agg", dag.ref("src").group_by("k").agg(ma.col("v").sum()))
-    with pytest.raises(MissingResourceSchema, match="agg"):
-        dag.to_package(strict=True)
-
-
-def test_dag_to_package_default_emits_unaliased_measure_as_any():
-    """R3: default export still emits, with the measure typeless."""
-    dag = RelationDAG()
-    dag.add("src", ma.relation(pl.DataFrame({"k": ["a"], "v": [1]})))
-    dag.add("agg", dag.ref("src").group_by("k").agg(ma.col("v").sum()))
-    pkg = dag.to_package()
-    agg_res = next(r for r in pkg.resources if r.name == "agg")
-    fields = {f["name"]: f["type"] for f in agg_res.table_schema["fields"]}
-    assert fields["v"] == "any"
+    measure = ma.col("v").sum()
+    if aliased:
+        measure = measure.alias("total")
+    dag.add("agg", dag.ref("src").group_by("k").agg(measure))
+    resource = next(r for r in dag.to_package(strict=strict).resources if r.name == "agg")
+    assert resource.table_schema["fields"] == [
+        {"name": "k", "type": "string"},
+        {"name": "total" if aliased else "v", "type": "integer"},
+    ]
 
 
 def test_dag_to_package_ref_relation_exports_real_schema():
@@ -267,7 +233,7 @@ def test_fk_round_trip_descriptor_dag_descriptor(tmp_path):
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("operation", ["aggregate", "projection"])
-def test_incomplete_export_omits_only_optional_schema(backend_name, backend_factory, operation):
+def test_native_expression_export_preserves_resources(backend_name, backend_factory, operation):
     import ibis
 
     source = backend_factory.create({"x": [2, 4]}, backend_name)
@@ -283,19 +249,16 @@ def test_incomplete_export_omits_only_optional_schema(backend_name, backend_fact
     resources = {r.name: r for r in dag.to_package().resources}
     assert set(resources) == {"known", "opaque"}
     assert resources["known"].table_schema["fields"] == [{"name": "x", "type": "integer"}]
-    assert resources["opaque"].table_schema is None
-    with pytest.raises(MissingResourceSchema, match="opaque"):
-        dag.to_package(strict=True)
 
 
 @pytest.mark.parametrize("strict", [False, True])
 def test_incomplete_aggregate_export_cannot_discard_declared_foreign_keys(strict):
-    """Opaque native cardinality must not silently erase declared constraints."""
+    """Data-dependent output names must not silently erase declared constraints."""
     dag = RelationDAG()
     dag.add("customers", ma.relation([{"id": 1}]))
-    dag.add("orders", ma.relation([{"customer_id": 1, "amount": 2}]).group_by("customer_id").agg(
-        ma.native(object()).alias("total"),
-    ))
+    dag.add("orders", ma.relation([
+        {"customer_id": 1, "category": "a", "amount": 2},
+    ]).pivot(on="category", index="customer_id", values="amount"))
     dag.add_constraint("orders", _fk(["customer_id"], "customers", ["id"]))
     with pytest.raises(MissingResourceSchema, match="orders.*foreign keys"):
         dag.to_package(strict=strict)

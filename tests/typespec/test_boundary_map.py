@@ -89,6 +89,35 @@ class TestReverse:
     def test_untyped_renders_any(self):
         assert from_canonical(None) == (U.ANY, None)
 
+    def test_detailed_portable_dtypes_keep_their_broad_export_family(self):
+        from mountainash.core.dtypes import (
+            ArrayDtype,
+            DecimalDtype,
+            DurationDtype,
+            ListDtype,
+            StructDtype,
+            TimeDtype,
+            TimestampDtype,
+        )
+
+        assert from_canonical(TimestampDtype(precision=9)) == (U.DATETIME, None)
+        assert from_canonical(TimeDtype(precision=6)) == (U.TIME, None)
+        assert from_canonical(DurationDtype(unit="ns", semantics="fixed")) == (
+            U.DURATION,
+            None,
+        )
+        assert from_canonical(ListDtype(element=D.I64)) == (U.ARRAY, None)
+        assert from_canonical(ArrayDtype(element=D.I64, dimensions=(2,))) == (
+            U.ARRAY,
+            None,
+        )
+        assert from_canonical(StructDtype(fields=(("n", D.I64),))) == (
+            U.OBJECT,
+            None,
+        )
+        assert from_canonical(DecimalDtype(precision=8, scale=2)) == (U.NUMBER, None)
+
+
     def test_direct_types_round_trip(self):
         # DURATION/YEAR/YEARMONTH still round-trip despite the underlying
         # canonical dtype changing (physical DURATION/I32/STRING -> semantic

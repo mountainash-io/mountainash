@@ -100,6 +100,32 @@ in-memory native frame. When the resource has a table schema, the override follo
 the same conform path as a resource read. `dag.collect(name)` therefore applies the
 declared schema before returning the collected frame.
 
+Schema inspection also resolves references through the owning DAG:
+
+```python
+available = dag.schema("orders")          # Best available native output metadata
+complete = dag.ref("orders").collect_schema()  # Complete or IncompleteSchemaError
+```
+
+These calls do not deliberately collect result rows. Native reader inference may
+read metadata or probe the source; resource declarations alone do not certify the
+actual output. `collect_schema(allow_execution=True)` permits ordinary execution
+when metadata is insufficient, including its normal conform and validation rules.
+Constraint edges do not become execution dependencies during schema inspection.
+
+File resources that cannot use the selected backend's native metadata reader
+use `mountainash-files` schema discovery with the same paths, dialect, glob and
+archive selection as ordinary reading. Parquet discovery reads footer metadata;
+other formats may inspect every source record. Source inference can therefore
+perform substantial I/O even without permission to evaluate the relation.
+Conform and downstream expressions are still compiled by the selected backend.
+
+Full and metadata observations can establish completeness; bounded observations
+remain best-effort evidence, not a complete-schema guarantee. Unsupported
+discovery may require explicit execution permission. Missing sources, access
+errors, malformed content and missing dependencies are not silently retried by
+executing the relation. Discovery results are not cached between schema calls.
+
 The v2 conform path preserves nulls while it performs the declared conversions:
 
 - lexical `list` fields split with their declared `delimiter` and cast each item;

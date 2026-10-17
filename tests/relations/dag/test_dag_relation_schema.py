@@ -28,21 +28,20 @@ def test_implicit_projection_keeps_dag_terminal_routing(backend_name, backend_fa
 @pytest.mark.cross_backend
 def test_projection_schema_distinguishes_computation_through_ref(backend_name, backend_factory):
     from mountainash.core.dtypes import MountainashDtype as D
-    from mountainash.relations.schema_inference import SchemaTypeStatus
 
     dag = RelationDAG()
     dag.add("raw", ma.relation(backend_factory.create({"n": [1, 2]}, backend_name)))
-    derived = dag.ref("raw").select((ma.col("n") + 1).alias("n"), ma.col("n").alias("copy"))
+    derived = dag.ref("raw").select((ma.col("n") > 1).alias("n"), ma.col("n").alias("copy"))
     dag.add("derived", derived)
-    assert dag.schema("derived") == {"n": SchemaTypeStatus.UNKNOWN, "copy": D.I64}
-    assert derived.to_dict() == {"n": [2, 3], "copy": [1, 2]}
+    boolean_type = D.I64 if backend_name == "ibis-sqlite" else D.BOOL
+    assert dag.schema("derived") == {"n": boolean_type, "copy": D.I64}
+    assert derived.to_dict() == {"n": [False, True], "copy": [1, 2]}
 
 
 def test_schema_resolves_over_ref_tree():
     dag = _dag()
     rel = dag.ref("raw").filter(ma.col("x").gt(0))
-    # A plain Relation over a RefRelNode would infer {} here; DAGRelation must
-    # resolve via dag.schema("raw").
+    # The owning DAG resolver binds the RefRelNode to its registered relation.
     schema = rel.schema
     assert set(schema.keys()) == {"x", "y"}
     assert set(rel.columns) == {"x", "y"}
@@ -53,7 +52,7 @@ def test_schema_resolves_over_ref_tree():
 
 def test_plain_relation_still_degenerate_over_ref():
     # Contrast guard: a plain Relation wrapping the same RefRelNode still infers
-    # empty (no resolver) — proves the DAGRelation override is what fixes it.
+    # empty (no resolver) — proves DAG ownership is part of the base resolver.
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import (
         RefRelNode,
@@ -62,21 +61,24 @@ def test_plain_relation_still_degenerate_over_ref():
     assert plain.schema == {}
 
 
-def test_assess_drift_resolves_refs_via_dag():
-    # assess_drift never compiles, so Task 3's choke-point overrides don't cover
-    # it — DAGRelation must pass a dag-backed resolver so a conform node above a
-    # ref is assessed against the ref's resolved schema.
+def test_assess_drift_resolves_refs_without_compiling(monkeypatch):
+    # assess_drift remains structural even though the regular schema property
+    # compiles through the owning DAG.
     dag = _dag()
     spec = ma.typespec({"x": "integer", "y": "string"})
     rel = dag.ref("raw").conform(spec)
-    drifts = rel.assess_drift()
-    assert isinstance(drifts, list)
+
+    def fail_compile(*args, **kwargs):
+        raise AssertionError("assess_drift must not compile")
+
+    monkeypatch.setattr(rel, "_compile_and_execute_with_visitor", fail_compile)
+    assert isinstance(rel.assess_drift(), list)
 
 
 def test_assess_drift_plain_relation_over_ref_is_degenerate():
     # Contrast: a plain Relation conform over a bare ref has no resolver, so its
-    # assess_drift under-assesses (the ref infers {}). Pins that the DAGRelation
-    # override is the differentiator.
+    # assess_drift remains structural; the DAG-bound resolver is the
+    # differentiator, while a plain Relation has no resolver.
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import (
         RefRelNode,
@@ -113,3 +115,51 @@ def test_row_index_schema_resolves_dag_identity(backend_factory, backend_name):
     projected = indexed.select("ordinal")
     assert projected.schema == {"ordinal": dtype}
     assert sorted(projected.to_polars()["ordinal"].to_list()) == [0, 1]
+
+
+def test_constraint_cycle_does_not_recurse_or_collect_during_schema_inference(monkeypatch):
+    from mountainash.core.dtypes import MountainashDtype as D
+
+    dag = RelationDAG()
+    dag.add("raw", ma.relation(pl.LazyFrame({"n": [1, 2]})))
+    computed = dag.ref("raw").select(ma.col("n").add(1).alias("next"))
+    dag.add("computed", computed)
+    dag.constraint_edges.update({("raw", "computed"), ("computed", "raw")})
+
+    collections = []
+    transfers = []
+    native_collect = pl.LazyFrame.collect
+    native_to_arrow = pl.DataFrame.to_arrow
+
+    def observe_collect(frame, *args, **kwargs):
+        collections.append(True)
+        return native_collect(frame, *args, **kwargs)
+
+    def observe_transfer(frame, *args, **kwargs):
+        transfers.append(True)
+        return native_to_arrow(frame, *args, **kwargs)
+
+    monkeypatch.setattr(pl.LazyFrame, "collect", observe_collect)
+    monkeypatch.setattr(pl.DataFrame, "to_arrow", observe_transfer)
+
+    assert computed.collect_schema() == {"next": D.I64}
+    assert dag.schema("computed") == {"next": D.I64}
+    assert not collections
+    assert not transfers
+
+
+def test_dependency_cycle_retains_explicit_cycle_error_during_schema_inference():
+    dag = RelationDAG()
+    dag.add("a", dag.ref("b"))
+    dag.add("b", dag.ref("a"))
+
+    with pytest.raises(ValueError, match="[Cc]ycle detected"):
+        dag.schema("a")
+
+
+def test_missing_dag_binding_retains_explicit_error_during_schema_inference():
+    dag = RelationDAG()
+    missing = dag.ref("missing")
+
+    with pytest.raises(KeyError, match="missing"):
+        missing.collect_schema()

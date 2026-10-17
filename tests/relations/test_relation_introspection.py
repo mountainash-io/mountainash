@@ -149,13 +149,13 @@ class TestFrictionlessFromInferred:
 
     def test_unknown_status_maps_to_any(self):
         from mountainash.relations.dag.packaging import _frictionless_from_inferred
-        from mountainash.relations.schema_inference import SchemaTypeStatus
+        from mountainash.core.dtypes import SchemaTypeStatus
         result = _frictionless_from_inferred({"col": SchemaTypeStatus.UNKNOWN})
         assert result == {"fields": [{"name": "col", "type": "any"}]}
 
     def test_unconstrained_status_maps_to_any(self):
         from mountainash.relations.dag.packaging import _frictionless_from_inferred
-        from mountainash.relations.schema_inference import SchemaTypeStatus
+        from mountainash.core.dtypes import SchemaTypeStatus
         result = _frictionless_from_inferred({"col": SchemaTypeStatus.UNCONSTRAINED})
         assert result == {"fields": [{"name": "col", "type": "any"}]}
 
@@ -183,7 +183,7 @@ class TestFrictionlessFromInferred:
 
     def test_mixed_status_and_concrete(self):
         from mountainash.relations.dag.packaging import _frictionless_from_inferred
-        from mountainash.relations.schema_inference import SchemaTypeStatus
+        from mountainash.core.dtypes import SchemaTypeStatus
         from mountainash.core.dtypes import MountainashDtype
         result = _frictionless_from_inferred({
             "known": MountainashDtype.FP64,

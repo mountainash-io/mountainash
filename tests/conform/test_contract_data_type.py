@@ -17,7 +17,7 @@ from mountainash.conform.drift import TypeDrift
 from mountainash.conform.errors import SchemaDriftError
 from mountainash.conform.expressions import resolve_conform_output
 from mountainash.core.dtypes import CastSafety, MountainashDtype
-from mountainash.relations.schema_inference import SchemaTypeStatus
+from mountainash.core.dtypes.canonical import SchemaTypeStatus
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
 

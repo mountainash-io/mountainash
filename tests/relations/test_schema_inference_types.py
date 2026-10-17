@@ -5,8 +5,8 @@ import polars as pl
 import pytest
 
 import mountainash as ma
-from mountainash.core.dtypes import MountainashDtype as D
-from mountainash.relations.schema_inference import SchemaTypeStatus, infer_schema
+from mountainash.core.dtypes import MountainashDtype as D, SchemaTypeStatus
+from mountainash.relations.schema_inference import infer_schema
 
 
 @dataclass

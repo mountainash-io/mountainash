@@ -2,11 +2,10 @@
 
 `dag.ref()`/`dag.source()` return this. Chaining preserves the type (via
 `_make`); terminals compile through `dag.execute()` without registering or
-mutating the DAG. Its delta over Relation is confined to three behaviours:
-terminal ownership, type-preserving chaining, and DAG-ownership propagation
-through combining builders (added in Task 5). The AST, visitor, and
-compilation flow are untouched — a DAGRelation's tree is indistinguishable
-from any other.
+mutating the DAG. Its behavior adds terminal ownership, type-preserving
+chaining, DAG-ownership propagation through combining builders, and structural
+reference resolution for ``assess_drift``. Ordinary schema resolution is
+inherited from ``Relation`` and uses the owning DAG resolver.
 """
 from __future__ import annotations
 
@@ -67,35 +66,16 @@ class DAGRelation(Relation):
         )
         return result
 
-    @property
-    def schema(self) -> dict:
-        """Output schema, resolving ``RefRelNode`` leaves via the bound DAG.
-
-        Mirrors ``dag.schema(name)``'s resolver so the schema-family
-        properties (``columns``/``dtypes``/``width``/``output_schema``, which
-        derive from this) return real schemas over ref-bearing trees instead
-        of the degenerate ``{}`` a plain Relation infers.
-        """
-        from mountainash.relations.schema_inference import infer_schema
-
-        def resolver(ref_name: str):
-            return self._dag.schema(ref_name)
-
-        return infer_schema(
-            self._node, ref_resolver=resolver,
-            identity_resolver=lambda name: self._dag.relations[name]._node,
-        )
 
     def assess_drift(self) -> "list":
-        """Schema-only drift pre-flight, resolving ``RefRelNode`` leaves via the
-        bound DAG. The base method compiles nothing, so the choke-point
-        overrides do not cover it — it needs its own resolver."""
+        """Assess drift structurally, without compiling the relation."""
+        from mountainash.relations.dag.introspection import structural_schema
         from mountainash.relations.schema_inference import (
             assess_drift as _assess_drift,
         )
 
         def resolver(ref_name: str):
-            return self._dag.schema(ref_name)
+            return structural_schema(self._dag, ref_name)
 
         return _assess_drift(
             self._node, ref_resolver=resolver,

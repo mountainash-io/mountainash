@@ -69,7 +69,7 @@ The first field produces Int64 on Polars and emits a `UserWarning` because its c
 
 Native strings remain serializable and are interpreted by the selected backend. Native objects retain their parameters in owned conform/validation snapshots but cannot be serialized, including when nested in an object or array-item declaration. Use a native string for a persisted override. Native fingerprints are runtime-local identities, with no stability guarantee across dependency versions.
 
-Pre-execution inference reports the effective canonical output when its execution target is known. An unresolved native override reports `UNKNOWN`. `evolve` retains source identity; `freeze` compares native parameters when source evidence is available.
+Schema inspection uses native metadata first and retains detailed dtype parameters. SQLite reports its physical integer/real affinities even when a precise declaration produces narrower typed Polars/Arrow egress. AST fallback inference uses the effective target when known; an unresolved native override reports `UNKNOWN`. `evolve` retains the source's detailed identity; `freeze` compares native parameters when source evidence is available.
 
 Bare canonical timestamp/duration casts retain the existing backend unit defaults. They do not promise nanosecond fidelity; backlog 334 tracks inherited sub-microsecond loss. Use an explicit native target with the required unit when that precision is needed.
 

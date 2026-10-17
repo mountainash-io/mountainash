@@ -33,7 +33,12 @@ def test_canonical_conform_retains_declared_identity(backend_name, backend_facto
     ))
     out = rel.to_polars()
     assert out["value"].to_list() == values
-    assert rel.schema["value"] is dtype
+    # Native-first schema reports SQLite's physical affinities. The typed
+    # Polars/Arrow egress below must still retain the precise declaration.
+    native_dtype = (
+        ma.MountainashDtype.FP64 if dtype is ma.MountainashDtype.FP32 else ma.MountainashDtype.I64
+    ) if backend_name == "ibis-sqlite" else dtype
+    assert rel.schema["value"] is native_dtype
     import polars as pl
     assert out.schema["value"] == {
         ma.MountainashDtype.I8: pl.Int8,
@@ -796,7 +801,7 @@ def test_native_override_reconciliation_policy(backend_name, backend_factory, ac
             out = rel.to_polars()
     if action == "evolve":
         assert out["value"].to_list() == ["1", "300"]
-        assert rel.schema["value"] is ma.MountainashDtype.STRING
+        assert rel.schema == ma.relation(source).schema
     else:
         assert out["value"].to_list() == ([1, 300, None] if action == "discard_value" else [1, 300])
         assert rel.schema["value"] is ma.MountainashDtype.I64

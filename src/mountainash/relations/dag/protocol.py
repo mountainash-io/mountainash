@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.core.resource_ref import ResourceRef
     from mountainash.relations.core.relation_api.relation import Relation
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
     from mountainash.typespec.spec import ForeignKey
 
 

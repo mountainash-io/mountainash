@@ -422,7 +422,7 @@ def resolve_conform_output(
     """Resolve structure, source evidence, drift, and per-field action policy."""
     from mountainash.conform.drift import ColumnDrift, ConformDrift, KeyDrift, TypeDrift
     from mountainash.core.dtypes import CastSafety, DecimalDtype, MountainashDtype, classify_cast
-    from mountainash.relations.schema_inference import SchemaTypeStatus
+    from mountainash.core.dtypes.canonical import SchemaTypeStatus
     from mountainash.typespec.universal_types import UniversalType
     from mountainash.core.dtypes import NativeDtype
     from mountainash.typespec.converters import _resolve_field_target, _native_types_equal
@@ -560,7 +560,7 @@ def resolve_conform_output(
                         actual_report: Any = actual_decimal
                     elif actual_shape is not None and actual_shape.canonical_type is not None:
                         actual_report = actual_shape.canonical_type
-                    elif actual_shape is None and isinstance(actual_dtype, MountainashDtype):
+                    elif actual_shape is None and actual_dtype is not None and not isinstance(actual_dtype, SchemaTypeStatus):
                         actual_report = actual_dtype
                     else:
                         actual_report = None
@@ -1214,6 +1214,7 @@ def _build_conform_exprs(
     schema_of: Callable[[str], Mapping[str, Any]] | None = None,
     apply_value_transforms: bool = True,
     type_target: Any = None,
+    raise_on_freeze: bool = True,
 ) -> ConformResult:
     schema_missing_values = spec.missing_values or []
     resolved_contract = contract or resolve_contract(spec.fields_match)
@@ -1229,6 +1230,7 @@ def _build_conform_exprs(
         schema_of=schema_of,
         apply_value_transforms=apply_value_transforms,
         type_target=type_target,
+        raise_on_freeze=raise_on_freeze,
     )
     structured_field_plans = _build_structured_field_plans(
         output_contract.emitted,

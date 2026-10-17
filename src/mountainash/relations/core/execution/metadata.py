@@ -64,6 +64,17 @@ class MetadataSession:
     def __init__(self, tokens: IdentityTokens) -> None:
         self.tokens = tokens
         self._conform_owners: list[object] = []
+        # Shared by all visitors, including separately compiled DAG refs.
+        self.schema_complete = True
+
+    def raise_if_bounded(self, error: Exception) -> None:
+        """A missing field in a bounded prototype need not be absent in data."""
+        if not self.schema_complete:
+            from mountainash.relations.core.errors import CompileRequiresExecutionError
+
+            raise CompileRequiresExecutionError(
+                "Bounded resource schema discovery does not establish the referenced fields."
+            ) from error
 
     def conform_id(self, owner: object) -> str:
         for index, existing in enumerate(self._conform_owners):
@@ -89,12 +100,17 @@ class MetadataSession:
             if isinstance(item, _LocalResidue) else item
             for item in pending
         )
+        schema_only = getattr(getattr(visitor, "execution", None), "prepared", None)
+        schema_only = schema_only is not None and schema_only.phase.name == "SCHEMA"
         metadata = CompilationMetadata(
             diagnostic_records=records,
-            owned_checks=checks,
-            drift_reports=_unique_identity(visitor.drift_reports),
-            structured_field_plans=freeze_structured_field_plans(visitor.structured_field_plans),
-            resources=tuple(getattr(visitor, "owned_resources", ())),
+            owned_checks=() if schema_only else checks,
+            drift_reports=() if schema_only else _unique_identity(visitor.drift_reports),
+            structured_field_plans=(
+                visitor.structured_field_plans if schema_only
+                else freeze_structured_field_plans(visitor.structured_field_plans)
+            ),
+            resources=() if schema_only else tuple(getattr(visitor, "owned_resources", ())),
         )
         # The native value may be the same object for two distinct compilations.
         return CompiledSubtree(value, location, self.tokens.token(object()), metadata)

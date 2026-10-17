@@ -31,6 +31,15 @@ class CompilationSession:
             prepared.tokens, execution_context=prepared.execution_context,
             context_for=prepared.context_for,
         )
+        self._schema_prototypes: dict[int, Any] = {}
+
+    def schema_input(self, value: Any) -> Any:
+        from mountainash.relations.core.execution.location import schema_prototype
+
+        key = id(value)
+        if key not in self._schema_prototypes:
+            self._schema_prototypes[key] = schema_prototype(value)
+        return self._schema_prototypes[key]
 
     @contextmanager
     def at(self, visitor: UnifiedRelationVisitor, key: str):
@@ -51,8 +60,11 @@ class CompilationSession:
         expression_system = get_expression_system(family)(
             dialect=location.dialect, execution_context=context,
         )
+        prototype = location.prototype
+        if self.prepared.phase is ExecutionPhase.SCHEMA and prototype is not None:
+            prototype = self.schema_input(prototype)
         expression_visitor = UnifiedExpressionVisitor(
-            expression_system, input_data=location.prototype, execution_context=context,
+            expression_system, input_data=prototype, execution_context=context,
         )
         resolver = self.ref_resolver_factory(location) if self.ref_resolver_factory else None
         return relation_visitor.UnifiedRelationVisitor(
@@ -70,11 +82,12 @@ class CompilationSession:
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
         from mountainash.relations.core.execution.preparation import TransferRequirement
         from mountainash.relations.core.relation_nodes import JoinRelNode, ReadRelNode
+        from polars.exceptions import ColumnNotFoundError
 
         node = self.prepared.nodes[key]
         location = self.prepared.locations[key]
-        if isinstance(node, ReadRelNode) and location.dialect == "ibis-sqlite" \
-                and hasattr(node.dataframe, "op"):
+        if self.prepared.phase is not ExecutionPhase.SCHEMA and isinstance(node, ReadRelNode) \
+                and location.dialect == "ibis-sqlite" and hasattr(node.dataframe, "op"):
             op = node.dataframe.op()
             if isinstance(op, import_ibis_expr_ops().InMemoryTable):
                 payload = op.data.to_pyarrow(node.dataframe.schema(),)
@@ -84,7 +97,12 @@ class CompilationSession:
 
         visitor = self._visitor(key)
         with self.at(visitor, key):
-            value = self.prepared.nodes[key].accept(visitor)
+            try:
+                value = self.prepared.nodes[key].accept(visitor)
+            except ColumnNotFoundError as error:
+                if self.prepared.phase is ExecutionPhase.SCHEMA:
+                    self.metadata.raise_if_bounded(error)
+                raise
         location = self.prepared.locations[key]
         if isinstance(self.prepared.nodes[key], JoinRelNode) and location.family is CONST_BACKEND.IBIS:
             try:
@@ -147,7 +165,8 @@ class CompilationSession:
                     if self.prepared.nodes[candidate] is node), None)
         if key is None:
             raise RuntimeError(f"Unprepared child of {parent_key}")
-        if isinstance(node, ReadRelNode) and isinstance(node.dataframe, (dict, list, tuple)):
+        if (self.prepared.phase is not ExecutionPhase.SCHEMA
+                and isinstance(node, ReadRelNode) and isinstance(node.dataframe, (dict, list, tuple))):
             from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
             from mountainash.relations.core.execution.preparation import TransferRequirement
 

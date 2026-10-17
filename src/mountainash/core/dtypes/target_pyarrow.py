@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import re
+from dataclasses import is_dataclass, replace
 from typing import Any, Optional
 
 import pyarrow as pa
 
-from .canonical import DecimalDtype, MountainashDtype as D
+from .canonical import (
+    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D,
+    NativeDtype, StructDtype, TimeDtype, TimestampDtype,
+)
+from .targets import TypeTarget
 from .errors import UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
@@ -23,8 +28,6 @@ SCHEMA_TYPES: dict[D, Any] = {
 }
 
 CAST_UNSUPPORTED: frozenset[D] = frozenset({D.LIST, D.STRUCT})
-
-_UNTYPED_NAMES = {"null"}
 
 _FROM_NATIVE: dict[str, D] = {
     "string": D.STRING, "large_string": D.STRING, "utf8": D.STRING,
@@ -52,16 +55,72 @@ def to_native_decimal(dtype: DecimalDtype) -> Any:
     return pa.decimal128(dtype.precision, dtype.scale)
 
 
-def from_native(native: Any) -> Optional[D | DecimalDtype]:
-    name = _base_name(native)
-    if name in _UNTYPED_NAMES:
-        return None
+def _family(native: Any) -> D | None:
+    if isinstance(native, pa.Field):
+        native = native.type
+    return _FROM_NATIVE.get(_base_name(native))
+
+
+def from_native(native: Any) -> Any:
+    """Retain portable parameters and native storage/field refinements."""
+    if isinstance(native, pa.Field):
+        decoded = from_native(native.type)
+        if native.nullable and not native.metadata:
+            return decoded
+        evidence = NativeDtype(value=native.with_name(""), target=TypeTarget.PYARROW)
+        return replace(decoded, native=evidence) if is_dataclass(decoded) else evidence
+    if not isinstance(native, pa.DataType):
+        raise UnknownDtypeError(f"Unrecognized PyArrow dtype: {native!r}")
+    evidence = NativeDtype(value=native, target=TypeTarget.PYARROW)
+    precision = {"s": 0, "ms": 3, "us": 6, "ns": 9}
+    if pa.types.is_timestamp(native):
+        return TimestampDtype(precision[native.unit], native.tz is not None, native.tz)
+    if pa.types.is_time(native):
+        return TimeDtype(precision[native.unit])
+    if pa.types.is_duration(native):
+        return DurationDtype(native.unit, "fixed")
+    if pa.types.is_interval(native):
+        return DurationDtype(unit=str(native), semantics="calendar", native=evidence)
     if pa.types.is_decimal(native):
-        # decimal256 beyond precision 38 is outside DecimalDtype bounds -> typed error
-        return DecimalDtype(precision=native.precision, scale=native.scale)
-    if name in _FROM_NATIVE:
+        try:
+            return DecimalDtype(
+                native.precision, native.scale,
+                native=evidence if native.bit_width != 128 else None,
+            )
+        except UnknownDtypeError:
+            return evidence
+    if pa.types.is_fixed_size_list(native):
+        dimensions, leaf, qualified = [], native, False
+        while pa.types.is_fixed_size_list(leaf):
+            dimensions.append(leaf.list_size)
+            field = leaf.value_field
+            qualified |= bool(
+                field.metadata or not field.nullable or field.name not in ("item", "element")
+            )
+            leaf = leaf.value_type
+        return ArrayDtype(
+            from_native(leaf), tuple(dimensions), native=evidence if qualified else None,
+        )
+    if any(getattr(pa.types, kind, lambda _: False)(native) for kind in (
+        "is_list", "is_large_list", "is_list_view", "is_large_list_view",
+    )):
+        field = native.value_field
+        qualified = (
+            not pa.types.is_list(native) or field.metadata or not field.nullable
+            or field.name not in ("item", "element")
+        )
+        return ListDtype(from_native(field.type), native=evidence if qualified else None)
+    if pa.types.is_struct(native):
+        return StructDtype(
+            tuple((field.name, from_native(field.type)) for field in native),
+            native=evidence if any(field.metadata or not field.nullable for field in native) else None,
+        )
+    name = _base_name(native)
+    if name in _FROM_NATIVE and name not in {
+        "large_string", "large_utf8", "large_binary", "halffloat", "date64", "map",
+    }:
         return _FROM_NATIVE[name]
-    raise UnknownDtypeError(f"Unrecognized PyArrow dtype: {native!r}")
+    return evidence
 
 
 def parse_type_string(s: str) -> Optional[Any]:
