@@ -11,7 +11,7 @@ from .canonical import (
     NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
 )
 from .targets import TypeTarget
-from .errors import UnknownDtypeError
+from .errors import DtypeMappingError, UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
     D.BOOL: nw.Boolean, D.I8: nw.Int8, D.I16: nw.Int16, D.I32: nw.Int32,
@@ -46,6 +46,69 @@ def _base_name(native: Any) -> str:
 
 def to_native_decimal(dtype: DecimalDtype) -> Any:
     return nw.Decimal(dtype.precision, dtype.scale)
+
+
+def to_native_parameterized(dtype: Any) -> Any:
+    """Construct a Narwhals logical dtype; execution support is separate."""
+    from .registry import registry
+
+    unknown = SchemaTypeStatus.UNKNOWN
+    if isinstance(dtype, TimestampDtype):
+        unit = "us" if dtype.precision is unknown else {
+            3: "ms", 6: "us", 9: "ns",
+        }.get(dtype.precision)
+        if unit is None:
+            raise DtypeMappingError(
+                f"Narwhals Datetime cannot represent timestamp precision {dtype.precision}"
+            )
+        zone = dtype.timezone
+        if dtype.timezone_aware is True and zone in (None, unknown):
+            zone = "UTC"
+        elif zone is unknown:
+            zone = None
+        return nw.Datetime(time_unit=unit, time_zone=zone)
+    if isinstance(dtype, TimeDtype):
+        if dtype.precision not in (unknown, 9):
+            raise DtypeMappingError(
+                "Narwhals Time uses nanoseconds; other declared precisions are not representable"
+            )
+        return nw.Time
+    if isinstance(dtype, DurationDtype):
+        if dtype.semantics == "calendar":
+            raise DtypeMappingError(
+                "Narwhals Duration cannot represent calendar duration semantics"
+            )
+        unit = "us" if dtype.unit is unknown else dtype.unit
+        if unit not in {"ms", "us", "ns"}:
+            raise DtypeMappingError(
+                f"Narwhals Duration cannot represent unit {unit!r} exactly"
+            )
+        return nw.Duration(time_unit=unit)
+    if isinstance(dtype, ListDtype):
+        child = dtype.element
+        native = (nw.Unknown if child is unknown else
+                  registry.to_native_schema(child, TypeTarget.NARWHALS))
+        return nw.List(native)
+    if isinstance(dtype, ArrayDtype):
+        child = dtype.element
+        native = (nw.Unknown if child is unknown else
+                  registry.to_native_schema(child, TypeTarget.NARWHALS))
+        if dtype.dimensions is unknown:
+            raise DtypeMappingError(
+                "Narwhals fixed arrays require known dimensions"
+            )
+        return nw.Array(native, shape=dtype.dimensions)
+    if isinstance(dtype, StructDtype):
+        fields = {} if dtype.fields is unknown else {
+            name: nw.Unknown if child is unknown else
+            registry.to_native_schema(child, TypeTarget.NARWHALS)
+            for name, child in dtype.fields
+        }
+        return nw.Struct(fields)
+    raise TypeError(f"Unsupported parameterized Narwhals dtype: {dtype!r}")
+
+
+
 
 
 def _family(native: Any) -> D | None:

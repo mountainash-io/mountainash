@@ -21,8 +21,19 @@ class SubstraitPolarsLiteralExpressionSystem(PolarsBaseExpressionSystem, Substra
 
     def lit(self, x: Any, /, *, dtype: Any = None) -> PolarsExpr:
         """Create a literal value expression with its declared native dtype."""
-        if dtype is None:
-            return pl.lit(x)
-        from mountainash.core.dtypes import TypeTarget, registry
+        from mountainash.core.dtypes import (
+            SchemaTypeStatus, TypeTarget, dtype_is_complete, registry,
+            resolve_dtype_parameters,
+        )
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
 
+        if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
+            return pl.lit(x)
+        if isinstance(dtype, PARAMETERIZED_DTYPES) and dtype.native is None and not dtype_is_complete(dtype):
+            return pl.lit(x).pipe_with_dtype(
+                lambda expr, native: expr.cast(registry.to_native_cast(
+                    resolve_dtype_parameters(dtype, registry.from_native(native, TypeTarget.POLARS)),
+                    TypeTarget.POLARS,
+                ))
+            )
         return pl.lit(x, dtype=registry.to_native_cast(dtype, TypeTarget.POLARS))

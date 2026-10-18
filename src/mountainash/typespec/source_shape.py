@@ -29,6 +29,7 @@ class SourceShape:
     struct_fields: tuple[tuple[str, SourceShape], ...] = ()
     decimal: DecimalDtype | None = None
     native_dtype: NativeDtype | None = field(default=None, compare=False)
+    detailed_dtype: Any = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if self.decimal is not None and (
@@ -63,9 +64,9 @@ def _shape_from_dtype(dtype: Any) -> SourceShape:
     )
 
     if dtype is None:
-        return SourceShape(None)
+        return SourceShape(None, detailed_dtype=dtype)
     if isinstance(dtype, DecimalDtype):
-        return SourceShape(None, decimal=dtype)
+        return SourceShape(None, decimal=dtype, detailed_dtype=dtype)
     family = dtype_family(dtype)
     canonical = family if isinstance(family, MountainashDtype) else None
     if isinstance(dtype, (ListDtype, ArrayDtype)):
@@ -73,17 +74,18 @@ def _shape_from_dtype(dtype: Any) -> SourceShape:
         if isinstance(dtype, ArrayDtype) and isinstance(dtype.dimensions, tuple):
             for _ in dtype.dimensions[1:]:
                 child = SourceShape(MountainashDtype.LIST, child)
-        return SourceShape(canonical, child)
+        return SourceShape(canonical, child, detailed_dtype=dtype)
     if isinstance(dtype, StructDtype):
         fields = (
             ()
             if not isinstance(dtype.fields, tuple)
             else tuple((name, _shape_from_dtype(child)) for name, child in dtype.fields)
         )
-        return SourceShape(canonical, struct_fields=fields)
+        return SourceShape(canonical, struct_fields=fields, detailed_dtype=dtype)
     if isinstance(dtype, NativeDtype):
-        return SourceShape(canonical)
-    return SourceShape(canonical)
+        return SourceShape(canonical, detailed_dtype=dtype)
+    return SourceShape(canonical, detailed_dtype=dtype)
+    
 
 
 def _from_native_dtype(native: Any, target: TypeTarget) -> SourceShape:

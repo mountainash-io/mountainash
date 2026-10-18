@@ -474,3 +474,26 @@ class TestTypeSpecToContract:
         spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.INTEGER)])
         contract = spec.to_contract(name="Custom")
         assert contract.contract_name() == "Custom"
+
+
+def test_parameterized_field_derives_semantic_type_without_losing_detail():
+    from mountainash.core.dtypes import (
+        ArrayDtype, DurationDtype, ListDtype, MountainashDtype,
+        SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
+    )
+
+    cases = [
+        (TimestampDtype(6, True, "UTC"), UniversalType.DATETIME),
+        (TimeDtype(9), UniversalType.TIME),
+        (DurationDtype("us", "fixed"), UniversalType.ANY),
+        (ListDtype(MountainashDtype.I16), UniversalType.ARRAY),
+        (ArrayDtype(MountainashDtype.I16, (2, 3)), UniversalType.ARRAY),
+        (StructDtype((("at", TimestampDtype(6, True, "UTC")),)), UniversalType.OBJECT),
+    ]
+    for dtype, broad in cases:
+        field = FieldSpec("value", dtype=dtype)
+        assert field.type is broad
+        assert field.dtype == dtype
+    unknown = FieldSpec("value", UniversalType.INTEGER, dtype=SchemaTypeStatus.UNKNOWN)
+    assert unknown.type is UniversalType.INTEGER
+    assert unknown.dtype is SchemaTypeStatus.UNKNOWN

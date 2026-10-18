@@ -102,12 +102,13 @@ class TypeContext:
         if isinstance(node, FieldReferenceNode):
             return self.backend.field_operand_type(input_data, node.field)
         if isinstance(node, LiteralNode):
+            from mountainash.core.value_classification import ValueKind, value_kind
+            from mountainash.core.dtypes import SchemaTypeStatus
+            if node.dtype in (None, SchemaTypeStatus.UNKNOWN) and value_kind(node.value) is ValueKind.UNSUPPORTED:
+                return None
             return self.backend.literal_operand_type(node.value, node.dtype)
         if isinstance(node, CastNode):
-            resolved = self.resolve_declared_native(node.input)
-            if resolved is None:
-                return None
-            return self.backend.cast_operand_type(node.target_type, resolved.descriptor)
+            return self._cast_result_type(node, declared_only=True)
         if isinstance(node, IfThenNode):
             branches = [result for _, result in node.conditions] + [node.else_clause]
             resolved = [self.resolve_declared_native(branch) for branch in branches]
@@ -142,9 +143,7 @@ class TypeContext:
         if isinstance(node, LiteralNode):
             return self.backend.literal_operand_type(node.value, node.dtype)
         if isinstance(node, CastNode):
-            return self.backend.cast_operand_type(
-                node.target_type, self.resolve_native(node.input).descriptor
-            )
+            return self._cast_result_type(node)
         if isinstance(node, IfThenNode):
             return self._common_result_type(
                 [result for _, result in node.conditions] + [node.else_clause],
@@ -157,6 +156,29 @@ class TypeContext:
                 input_data, self._native_expression(node)
             )
         raise self._unresolved(node, f"no metadata-only resolver for {type(node).__name__}")
+
+    def _cast_result_type(self, node: Any, *, declared_only: bool = False) -> ResolvedOperand | None:
+        from mountainash.core.dtypes import (
+            DecimalDtype, SchemaTypeStatus, dtype_is_complete,
+            registry, resolve_dtype_parameters,
+        )
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+
+        target = node.target_type
+        source = self.cached_native(node.input)
+        if source is None and isinstance(target, (*PARAMETERIZED_DTYPES, DecimalDtype)):
+            if dtype_is_complete(target) or target.native is not None:
+                return self.backend.cast_operand_type(target, None)
+        if source is None:
+            source = (
+                self.resolve_declared_native(node.input) if declared_only
+                else self.resolve_native(node.input)
+            )
+        if source is None or target is SchemaTypeStatus.UNKNOWN:
+            return source
+        if isinstance(target, PARAMETERIZED_DTYPES) and source.native_dtype is not None:
+            target = resolve_dtype_parameters(target, registry.from_native(source.native_dtype))
+        return self.backend.cast_operand_type(target, source.descriptor)
 
     def _scalar_result_type(self, node: Any, input_data: Any) -> ResolvedOperand:
         from mountainash.expressions.core.expression_system.function_keys.enums import (

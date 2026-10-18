@@ -22,7 +22,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
 from mountainash.core.constants import DECIMAL_ROUNDING_MODES
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, parse_cast_target  # noqa: TC001
+from mountainash.core.dtypes import (
+    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype,
+    NativeDtype, PortableDtype, SchemaTypeStatus, StructDtype, TimeDtype,
+    TimestampDtype, parse_cast_target,
+)
 from mountainash.typespec.universal_types import UniversalType, from_canonical, parse_universal
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
@@ -150,17 +154,24 @@ class FieldSpec:
     item_object_fields: Optional[List["FieldSpec"]] = None  # x-mountainash: ARRAY item struct schema
     delimiter: Optional[str] = None  # valid only when type is LIST (lexical)
     backend_type: Any = None  # str or native dtype; native objects normalize to NativeDtype
-    dtype: MountainashDtype | DecimalDtype | None = None
+    dtype: PortableDtype | SchemaTypeStatus | None = None
     null_fill: Any = None
     rename_from: Optional[str] = None
     custom_cast: Optional[str] = None
     rounding: str | None = None  # x-mountainash: conversion instruction, not dtype identity
 
     def __post_init__(self) -> None:
-        if self.dtype is not None:
-            if not isinstance(self.dtype, (MountainashDtype, DecimalDtype)):
-                raise InvalidDtypeDeclaration(self.name, "dtype requires a canonical enum or DecimalDtype", self.dtype)
+        if self.dtype is not None and self.dtype is not SchemaTypeStatus.UNKNOWN:
+            if not isinstance(self.dtype, (
+                MountainashDtype, DecimalDtype, TimestampDtype, TimeDtype,
+                DurationDtype, ListDtype, ArrayDtype, StructDtype,
+            )):
+                raise InvalidDtypeDeclaration(
+                    self.name, "dtype requires a portable dtype or UNKNOWN", self.dtype
+                )
             broad, fmt = from_canonical(self.dtype)
+            if isinstance(self.dtype, DurationDtype):
+                broad = UniversalType.ANY
             if self.dtype in (MountainashDtype.JSON, MountainashDtype.DURATION):
                 broad = UniversalType.ANY
             if self.type is UniversalType.ANY:

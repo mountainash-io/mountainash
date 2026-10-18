@@ -5,7 +5,7 @@ Implements type casting operations for the Polars backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal
 
 import polars as pl
 
@@ -13,11 +13,8 @@ from ..base import PolarsBaseExpressionSystem
 from ..temporal_cast import cast_temporal_compatible
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
-    DtypeMappingError,
-    MountainashDtype,
-    NativeDtype,
-    TypeTarget,
-    registry,
+    CastTarget, SchemaTypeStatus, TypeTarget,
+    dtype_is_complete, registry, resolve_dtype_parameters,
 )
 
 if TYPE_CHECKING:
@@ -33,7 +30,7 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
         self,
         x: PolarsExpr,
         /,
-        dtype: Union[MountainashDtype, NativeDtype],
+        dtype: CastTarget,
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> PolarsExpr:
         """Cast an expression to a canonical or native-passthrough dtype.
@@ -42,12 +39,17 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
         returns null for values that cannot convert instead of raising.
         """
         strict = failure_behavior != "null"
-        if isinstance(dtype, NativeDtype):
-            if dtype.target is not self._TARGET:
-                raise DtypeMappingError(
-                    f"NativeDtype was built from a {dtype.target.value} dtype "
-                    f"({dtype.value!r}) and cannot compile on {self._TARGET.value}. "
-                    f"Use a canonical dtype for cross-backend expressions."
+        if dtype is SchemaTypeStatus.UNKNOWN:
+            return x
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+        if isinstance(dtype, PARAMETERIZED_DTYPES) and dtype.native is None and not dtype_is_complete(dtype):
+            return x.pipe_with_dtype(
+                lambda expr, native: cast_temporal_compatible(
+                    expr,
+                    registry.to_native_cast(resolve_dtype_parameters(
+                        dtype, registry.from_native(native, self._TARGET),
+                    ), self._TARGET),
+                    strict=strict,
                 )
-            return cast_temporal_compatible(x, dtype.value, strict=strict)
+            )
         return cast_temporal_compatible(x, registry.to_native_cast(dtype, self._TARGET), strict=strict)

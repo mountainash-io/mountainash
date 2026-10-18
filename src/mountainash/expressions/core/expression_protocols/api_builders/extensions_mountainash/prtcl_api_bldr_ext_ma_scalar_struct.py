@@ -34,6 +34,8 @@ class MountainAshScalarStructAPIBuilderProtocol(Protocol):
         fields: tuple["FieldSpec", ...],
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+        converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),
+        converted_validity: "BaseExpressionAPI | None" = None,
     ) -> BaseExpressionAPI:
-        """Recursively cast a native struct."""
+        """Recursively cast a native struct using optional child expressions."""
         ...

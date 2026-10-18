@@ -92,3 +92,28 @@ class TestAliases:
         expected = TypeSpec.from_simple_dict({"id": "integer"})
         df = pl.DataFrame({"id": [1, 2]})
         assert_schema_match(df, expected)  # no raise
+
+
+def test_partial_declared_timestamp_accepts_compatible_detailed_source():
+    from mountainash.core.dtypes import SchemaTypeStatus, TimestampDtype
+    from mountainash.typespec.spec import FieldSpec
+
+    expected = TypeSpec(fields=[FieldSpec(
+        name="at",
+        dtype=TimestampDtype(SchemaTypeStatus.UNKNOWN, True, "UTC"),
+    )])
+    frame = pl.DataFrame(schema={"at": pl.Datetime("ns", "UTC")})
+    valid, errors = validate_match(frame, expected)
+    assert valid
+    assert errors == []
+def test_unknown_dtype_refinement_does_not_erase_declared_broad_constraint():
+    from mountainash.core.dtypes import SchemaTypeStatus
+    from mountainash.typespec.universal_types import UniversalType
+    from mountainash.typespec.spec import FieldSpec
+
+    expected = TypeSpec(fields=[FieldSpec(
+        name="value", type=UniversalType.INTEGER, dtype=SchemaTypeStatus.UNKNOWN,
+    )])
+    valid, errors = validate_match(pl.DataFrame({"value": ["text"]}), expected)
+    assert not valid
+    assert errors

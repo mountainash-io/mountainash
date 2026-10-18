@@ -22,10 +22,15 @@ class SubstraitIbisLiteralExpressionSystem(IbisBaseExpressionSystem, SubstraitLi
 
     def lit(self, x: Any, /, *, dtype: Any = None) -> IbisScalarExpr:
         """Create a literal value expression with its declared native dtype."""
-        if dtype is None:
-            return ibis.literal(x)
-        from mountainash.core.dtypes import TypeTarget, registry
-
-        return ibis.literal(
-            x, type=registry.to_native_cast(dtype, TypeTarget.IBIS)
+        from mountainash.core.dtypes import (
+            SchemaTypeStatus, TypeTarget, dtype_is_complete, registry,
+            resolve_dtype_parameters,
         )
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+
+        if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
+            return ibis.literal(x)
+        if isinstance(dtype, PARAMETERIZED_DTYPES) and dtype.native is None and not dtype_is_complete(dtype):
+            source = registry.from_native(ibis.literal(x).type(), TypeTarget.IBIS)
+            dtype = resolve_dtype_parameters(dtype, source)
+        return ibis.literal(x, type=registry.to_native_cast(dtype, TypeTarget.IBIS))

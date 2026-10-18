@@ -170,5 +170,6 @@ def test_sql_calendar_interval_is_not_a_fixed_duration(connection):
     import pytest
     from mountainash.core.dtypes import TypeTarget, registry
     from mountainash.core.dtypes.errors import DtypeMappingError
+    # Physical mixed calendar INTERVAL is not an Ibis fixed-unit dtype.
     with pytest.raises(DtypeMappingError):
         registry.to_native_schema(dtype, TypeTarget.IBIS)

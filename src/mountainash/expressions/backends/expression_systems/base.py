@@ -101,9 +101,10 @@ class BaseExpressionSystem(ABC):
         )
     def literal_operand_type(self, value: Any, dtype: Any = None) -> Any:
         """Resolve only literals whose representation is explicit or safely known."""
+        from mountainash.core.dtypes import SchemaTypeStatus
         from mountainash.core.dtypes.metadata import OperandType
         from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
-        if dtype is not None:
+        if dtype is not None and dtype is not SchemaTypeStatus.UNKNOWN:
             return self.cast_operand_type(dtype, None)
 
         if value is None:

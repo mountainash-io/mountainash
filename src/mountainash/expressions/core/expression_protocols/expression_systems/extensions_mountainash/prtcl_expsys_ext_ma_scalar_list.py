@@ -113,7 +113,7 @@ class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        *,
+        *converted_fields: ExpressionT,
         item_object_fields: tuple[FieldSpec, ...] = (),
         item_type: str | None = None,
         failure_behavior: Literal["throw", "null"] = "throw",

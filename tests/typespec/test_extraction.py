@@ -90,6 +90,19 @@ class TestExtractFromPolars:
         id_field = schema.get_field("id")
         assert id_field.backend_type is None
 
+    def test_timestamp_extraction_retains_precision_zone_and_nested_shape(self):
+        pl = pytest.importorskip("polars")
+        from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+
+        native = pl.List(pl.Struct([
+            pl.Field("at", pl.Datetime("ns", "UTC")),
+        ]))
+        extracted = extract_from_dataframe(pl.DataFrame(schema={"events": native}))
+        dtype = extracted.get_field("events").dtype
+        assert dtype == ListDtype(StructDtype((
+            ("at", TimestampDtype(9, True, "UTC")),
+        )))
+
 
     def test_source_shapes_use_schema_without_rows(self):
         pl = pytest.importorskip("polars")

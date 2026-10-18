@@ -92,13 +92,16 @@ def _field_from_source_shape(
             dtype=shape.decimal,
         )
 
-    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.core.dtypes import MountainashDtype, NativeDtype
     if shape.canonical_type in (MountainashDtype.JSON, MountainashDtype.DURATION):
         universal_type = UniversalType.ANY
     return FieldSpec(
         name=name,
         type=universal_type,
-        dtype=shape.canonical_type,
+        dtype=(
+            shape.canonical_type if isinstance(shape.detailed_dtype, NativeDtype)
+            else shape.detailed_dtype or shape.canonical_type
+        ),
         object_fields=object_fields,
         item_object_fields=item_object_fields,
         backend_type=backend_type,

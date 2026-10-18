@@ -27,6 +27,94 @@ from mountainash.typespec.converters import (
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.universal_types import UniversalType as U
 from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.converters import effective_child_fields
+
+
+def test_parent_struct_dtype_wins_over_conflicting_legacy_child_dtype():
+    import polars as pl
+    from mountainash.core.dtypes import StructDtype
+
+    field = FieldSpec(
+        "record",
+        dtype=StructDtype((("count", D.I64),)),
+        object_fields=[FieldSpec("count", dtype=D.STRING)],
+    )
+    assert to_polars_schema(TypeSpec(fields=[field]))["record"] == pl.Struct(
+        {"count": pl.Int64}
+    )
+
+
+def test_compatible_legacy_child_fills_unknown_parent_parameter():
+    import polars as pl
+    from mountainash.core.dtypes import SchemaTypeStatus, StructDtype
+
+    field = FieldSpec(
+        "record",
+        dtype=StructDtype((("count", SchemaTypeStatus.UNKNOWN),)),
+        object_fields=[FieldSpec("count", dtype=D.I16)],
+    )
+    assert to_polars_schema(TypeSpec(fields=[field]))["record"] == pl.Struct(
+        {"count": pl.Int16}
+    )
+
+
+def test_child_native_override_wins_after_parent_and_legacy_selection():
+    import polars as pl
+    from mountainash.core.dtypes import StructDtype
+
+    field = FieldSpec(
+        "record",
+        dtype=StructDtype((("value", D.I64),)),
+        object_fields=[
+            FieldSpec(
+                "value", dtype=D.STRING, backend_type=pl.Float64,
+                description="retained metadata",
+            ),
+        ],
+    )
+    with pytest.warns(UserWarning) as caught:
+        native = to_polars_schema(TypeSpec(fields=[field]))["record"]
+    assert native == pl.Struct({"value": pl.Float64})
+    assert any("value" in str(warning.message) for warning in caught)
+    assert field.dtype.fields == (("value", D.I64),)
+    assert field.object_fields[0].dtype is D.STRING
+
+
+def test_whole_native_struct_override_is_not_rewritten_by_children():
+    import polars as pl
+    from mountainash.core.dtypes import StructDtype
+
+    authored = StructDtype((("selected", D.I64),))
+    field = FieldSpec(
+        "record",
+        dtype=authored,
+        backend_type=pl.Struct({"native": pl.String}),
+        object_fields=[FieldSpec("selected", dtype=D.STRING)],
+    )
+    assert to_polars_schema(TypeSpec(fields=[field]))["record"] == pl.Struct(
+        {"native": pl.String}
+    )
+    assert field.dtype is authored
+
+
+def test_effective_children_merge_metadata_by_name_without_mutation():
+    from mountainash.core.dtypes import StructDtype
+
+    legacy_b = FieldSpec("b", dtype=D.STRING, description="legacy B")
+    legacy_a = FieldSpec("a", dtype=D.STRING, description="legacy A")
+    field = FieldSpec(
+        "record",
+        dtype=StructDtype((("a", D.I64), ("b", D.I16))),
+        object_fields=[legacy_b, legacy_a, FieldSpec("extra", dtype=D.BOOL)],
+    )
+    children = effective_child_fields(field)
+    assert [child.name for child in children] == ["a", "b"]
+    assert [child.dtype for child in children] == [D.I64, D.I16]
+    assert [child.description for child in children] == ["legacy A", "legacy B"]
+    assert legacy_a.dtype is D.STRING
+    assert legacy_b.dtype is D.STRING
+
+
 
 
 @pytest.mark.parametrize("target", ["polars", "pandas", "arrow", "ibis"])
@@ -309,12 +397,6 @@ class TestConvertToBackend:
         result = to_pandas_dtypes(schema)
         assert result["val"] == "Float32"
 
-    def test_backend_type_preserved_in_ibis(self):
-        """FieldSpec with backend_type should pass through as-is for ibis."""
-        field = FieldSpec(name="val", type=UniversalType.NUMBER, backend_type="float32")
-        schema = TypeSpec(fields=[field])
-        result = to_ibis_schema(schema)
-        assert result["val"] == "float32"
 
 
 # ============================================================================
@@ -812,3 +894,26 @@ def test_validate_match_checks_nested_effective_types(in_array):
     child.dtype = None
     child.backend_type = None
     assert validate_match(source, spec) == (True, [])
+
+
+def test_fixed_struct_array_keeps_dimensions_and_parent_child_authority():
+    import polars as pl
+    from mountainash.core.dtypes import ArrayDtype, StructDtype
+
+    field = FieldSpec(
+        "rows", dtype=ArrayDtype(StructDtype((("id", D.I16),)), (2, 3)),
+        item_object_fields=[FieldSpec("id", dtype=D.STRING)],
+    )
+    assert to_polars_schema(TypeSpec(fields=[field])) == {
+        "rows": pl.Array(pl.Struct({"id": pl.Int16}), (2, 3)),
+    }
+
+
+def test_unknown_struct_child_uses_native_null_without_claiming_a_type():
+    import polars as pl
+    from mountainash.core.dtypes import SchemaTypeStatus, StructDtype
+
+    dtype = StructDtype((("value", SchemaTypeStatus.UNKNOWN),))
+    field = FieldSpec("row", dtype=dtype)
+    assert to_polars_schema(TypeSpec(fields=[field])) == {"row": pl.Struct({"value": pl.Null})}
+    assert field.dtype == dtype

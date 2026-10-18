@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — 2026-10-17
+
+### Added
+- Parameterized literal/cast and `FieldSpec.dtype` construction (340) through the existing shared dtype registry: timestamp, time, duration, recursive list/struct, fixed-array and Decimal declarations. Partial targets retain compatible source parameters; whole UNKNOWN targets request ordinary inference/no conversion. Recursive descriptor persistence retains authored UNKNOWN/None distinctions and legacy child metadata under canonical dtype precedence.
+
+### Qualification
+- Item 340 remains in progress, not release-qualified. Native failures and representation boundaries remain tracked under 131, 298, 314, 342–344 and 346–350. Generic scalar-only projections preserve input-row cardinality without changing aggregate behavior. DuckDB aware-nanosecond loss is explicitly accepted for now and tracked in 345; native execution remains available without a new refusal.
+- Unsupported structured conversions retain explicit capability boundaries rather than per-cell backend emulation. Logical transport uses direct Arrow casts and existing Python temporal parsing; native structured conform uses the selected backend. Opaque native logical refinements and conversion metadata requiring a separate backend execution are unsupported.
+
 ## Unreleased — 2026-10-16
 
 ### Added

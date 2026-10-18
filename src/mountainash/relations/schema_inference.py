@@ -608,7 +608,10 @@ def _declared_dtype_for_infer(
         return registry.from_native(em.effective_type.value, target=em.effective_type.target) or SchemaTypeStatus.UNKNOWN
     if em.field.backend_type and em.effective_type is None:
         return SchemaTypeStatus.UNKNOWN
-    if isinstance(em.effective_type, (MountainashDtype, DecimalDtype)):
+    if isinstance(em.effective_type, (
+        MountainashDtype, DecimalDtype, TimestampDtype, TimeDtype, DurationDtype,
+        ListDtype, ArrayDtype, StructDtype,
+    )):
         return em.effective_type
     dt = em.declared_type
     if dt is PASSTHROUGH:

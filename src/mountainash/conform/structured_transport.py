@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from enum import Enum
 import json
 import math
@@ -41,6 +43,8 @@ class StructuredFieldPlan:
     null_fill: Any | None
     declaration_fingerprint: str
     origin_node_id: str
+    target_dtype: Any = None
+    declaration: Any = None
 
     @property
     def requires_logical_terminal(self) -> bool:
@@ -112,7 +116,7 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _normalize_native(value: Any) -> Any:
-    if value is None or isinstance(value, (str, bool, int)):
+    if value is None or isinstance(value, (str, bool, int, Decimal, date, datetime, time, timedelta)):
         return value
     if isinstance(value, float):
         if not math.isfinite(value):
@@ -179,13 +183,204 @@ def decode_structured_value(
     return INVALID_STRUCTURED_VALUE
 
 
+def transport_arrow_dtype(dtype: Any) -> Any:
+    """Translate an effective execution type to its Arrow transport representation."""
+    import pyarrow as pa
+    from mountainash.core.dtypes import (
+        DecimalDtype, MountainashDtype, NativeDtype, SchemaTypeStatus, TypeTarget, registry,
+    )
+    from mountainash.core.dtypes.target_pyarrow import to_native_parameterized
+
+    if dtype is None:
+        return None
+    if dtype is SchemaTypeStatus.UNKNOWN:
+        return pa.null()
+    native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
+    if native is not None:
+        value = registry.to_native_schema(native, native.target)
+        if native.target is TypeTarget.PYARROW:
+            return value
+        if native.target is TypeTarget.POLARS:
+            import polars as pl
+            return pl.Series("", [], dtype=value).to_arrow().type
+        if native.target is TypeTarget.PANDAS:
+            import pandas as pd
+            return pa.Array.from_pandas(pd.Series([], dtype=value)).type
+        if native.target is TypeTarget.NARWHALS:
+            from narwhals._arrow.utils import narwhals_to_native_dtype
+            from narwhals._utils import Version
+            return narwhals_to_native_dtype(value, Version.MAIN)
+        if native.target is TypeTarget.IBIS:
+            from ibis.formats.pyarrow import PyArrowType
+            return PyArrowType.from_ibis(value)
+        return registry.to_native_schema(dtype, TypeTarget.PYARROW)
+    if isinstance(dtype, (MountainashDtype, DecimalDtype)):
+        return registry.to_native_schema(dtype, TypeTarget.PYARROW)
+    return to_native_parameterized(dtype, child_lowerer=transport_arrow_dtype)
+
+
+def _convert_struct_mapping(value: Mapping[str, Any], children: Any, dtypes: Any = None) -> dict[str, Any]:
+    by_name = {child.name: child for child in children}
+    names = value if dtypes is None else dtypes
+    result = {}
+    for name in names:
+        item = value.get(name)
+        child = by_name.get(name)
+        if child is None and dtypes is not None:
+            from mountainash.typespec.spec import FieldSpec
+            child = FieldSpec(name=name)
+        if child is not None:
+            if isinstance(item, str) and child.missing_values is not None:
+                from mountainash.typespec._categorical import categorical_values
+                if item in categorical_values(list(child.missing_values)):
+                    item = None
+            if item is None and child.null_fill is not None:
+                item = child.null_fill
+            item = _convert_declared_value(item, child, None if dtypes is None else dtypes[name])
+        result[name] = item
+    return result
+
+
+def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
+    """Apply retained nested FieldSpec conversion instructions to decoded cells."""
+    if value is None:
+        return None
+    from mountainash.core.dtypes import (
+        ArrayDtype, DecimalDtype, ListDtype, StructDtype, MountainashDtype,
+        NativeDtype, SchemaTypeStatus, TypeTarget, dtype_family, registry,
+    )
+    from mountainash.typespec.converters import effective_child_fields, resolve_field_canonical
+
+    if dtype is None:
+        dtype = field.dtype
+        if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
+            dtype = resolve_field_canonical(field)
+    if dtype is SchemaTypeStatus.UNKNOWN:
+        return value
+    native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
+    if native is not None:
+        decoded = registry.from_native(native.value, native.target)
+        if dtype_family(decoded) in {MountainashDtype.STRUCT, MountainashDtype.LIST}:
+            dtype = decoded
+        elif isinstance(decoded, NativeDtype):
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                f"Structured transport cannot faithfully convert opaque native dtype {native.value!s}.",
+                backend=native.target.value,
+                function_key=None,
+            )
+        else:
+            dtype = decoded
+    family = dtype_family(dtype)
+    unsupported_metadata = (
+        (family is MountainashDtype.BOOL and (field.true_values is not None or field.false_values is not None))
+        or field.decimal_char is not None
+        or field.group_char is not None
+        or field.bare_number is False
+        or field.rounding is not None
+        or field.categories is not None
+    )
+    if unsupported_metadata:
+        from mountainash.core.types import BackendCapabilityError
+
+        raise BackendCapabilityError(
+            f"Structured conversion metadata for {field.name!r} cannot be honored by direct Arrow casting.",
+            backend="pyarrow",
+            function_key=None,
+        )
+    if family is MountainashDtype.STRUCT and isinstance(value, Mapping):
+        fields = dict(dtype.fields) if isinstance(dtype, StructDtype) and dtype.fields is not SchemaTypeStatus.UNKNOWN else None
+        return _convert_struct_mapping(value, effective_child_fields(field), fields)
+    if family is MountainashDtype.LIST and isinstance(value, list):
+        element = dtype.element if isinstance(dtype, (ListDtype, ArrayDtype)) else SchemaTypeStatus.UNKNOWN
+        if isinstance(dtype, ArrayDtype) and dtype.dimensions is not SchemaTypeStatus.UNKNOWN and len(dtype.dimensions) > 1:
+            element = ArrayDtype(dtype.element, dtype.dimensions[1:])
+        if dtype_family(element) is MountainashDtype.STRUCT:
+            children = effective_child_fields(field)
+            fields = dict(element.fields) if element.fields is not SchemaTypeStatus.UNKNOWN else None
+            return [
+                None if item is None else _convert_struct_mapping(item, children, fields)
+                for item in value
+            ]
+        return [_convert_declared_value(item, field, element) for item in value]
+    if family in {MountainashDtype.TIMESTAMP, MountainashDtype.TIME, MountainashDtype.DATE}:
+        if not isinstance(value, str):
+            return value
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        native = transport_arrow_dtype(dtype)
+        if field.format not in (None, "default", "any"):
+            parsed_python = datetime.strptime(value, field.format)
+            if family is MountainashDtype.DATE:
+                parsed_python = parsed_python.date()
+            elif family is MountainashDtype.TIME:
+                parsed_python = parsed_python.time()
+            return pa.scalar(parsed_python, type=native)
+        if field.format == "any":
+            from mountainash.typespec.temporal import parse_temporal_any
+            kind = "datetime" if family is MountainashDtype.TIMESTAMP else (
+                "date" if family is MountainashDtype.DATE else "time"
+            )
+            try:
+                return pc.cast(pa.scalar(value), native)
+            except pa.ArrowInvalid:
+                return pa.scalar(parse_temporal_any(value, kind=kind), type=native)
+        try:
+            return pc.cast(pa.scalar(value), native)
+        except pa.ArrowNotImplementedError as error:
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                "Structured temporal conversion is not supported by direct Arrow casts.",
+                backend="pyarrow",
+                function_key=None,
+            ) from error
+    if isinstance(dtype, (MountainashDtype, DecimalDtype)):
+        import pyarrow as pa
+        import pyarrow.compute as pc
+
+        try:
+            return pc.cast(pa.scalar(value), transport_arrow_dtype(dtype))
+        except pa.ArrowNotImplementedError as error:
+            from mountainash.core.types import BackendCapabilityError
+
+            raise BackendCapabilityError(
+                f"Structured conversion to {dtype!s} is unsupported by direct Arrow casting.",
+                backend="pyarrow",
+                function_key=None,
+            ) from error
+    return value
+
+
+def _convert_declared_structured(value: Any, plan: StructuredFieldPlan, native_dtype: Any = None) -> Any:
+    field = plan.declaration
+    if field is None or value is None:
+        return value
+    import pyarrow as pa
+    from mountainash.core.dtypes import (
+        MountainashDtype, SchemaTypeStatus, TypeTarget, dtype_is_complete, registry, resolve_dtype_parameters,
+    )
+
+    target = plan.target_dtype
+    if target is SchemaTypeStatus.UNKNOWN or target in (MountainashDtype.LIST, MountainashDtype.STRUCT):
+        target = None
+    if target is not None and not dtype_is_complete(target):
+        source = registry.from_native(pa.scalar(value).type, TypeTarget.PYARROW)
+        target = resolve_dtype_parameters(target, source)
+    native = transport_arrow_dtype(target) if native_dtype is None else native_dtype
+    effective = target
+    converted = _convert_declared_value(value, field, effective)
+    # Range/shape failures must participate in discard policies, not surface
+    # later while constructing a terminal's output column.
+    return pa.scalar(converted, type=native) if native is not None else converted
+
 def _apply_missing_value(value: Any, plan: StructuredFieldPlan) -> tuple[Any, bool]:
     post_missing = None if _is_native_null_scalar(value) or (
         isinstance(value, str) and value in plan.missing_values
     ) else value
     return post_missing, post_missing is None
-
-
 def _decode_or_null(
     value: Any, *, plan: StructuredFieldPlan, post_missing_is_null: bool
 ) -> Any:
@@ -200,6 +395,7 @@ def resolve_structured_cell(
     *,
     plan: StructuredFieldPlan,
     consumer: StructuredActionConsumer,
+    native_dtype: Any = None,
 ) -> StructuredCellResolution:
     """Apply missing-value, fill, decoding, and consumer action semantics in order."""
     post_missing, post_missing_is_null = _apply_missing_value(value, plan)
@@ -217,6 +413,15 @@ def resolve_structured_cell(
         plan=plan,
         post_missing_is_null=post_missing_is_null,
     )
+    if (
+        decoded is not INVALID_STRUCTURED_VALUE
+        and consumer is StructuredActionConsumer.LOGICAL_EGRESS
+        and plan.requires_logical_terminal
+    ):
+        try:
+            decoded = _convert_declared_structured(decoded, plan, native_dtype)
+        except (TypeError, ValueError, OverflowError):
+            decoded = INVALID_STRUCTURED_VALUE
     action = plan.configured_action
     if (
         plan.apply_value_transforms
@@ -246,3 +451,5 @@ def resolve_structured_cell(
         post_missing_is_null=post_missing_is_null,
         keep=keep,
     )
+
+

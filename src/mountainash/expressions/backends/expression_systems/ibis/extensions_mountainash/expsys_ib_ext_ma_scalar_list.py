@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, FrozenSet, Optional
 
 import ibis
-from ibis.common.deferred import deferrable
+from ibis.common.deferred import Deferred, deferrable
 from ibis.expr import datashape as ds
 from ibis.expr import operations as ops
 
@@ -42,6 +42,12 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
 
     def _prepare_call_list_filter(self, operands):
         return [operands.native(0), operands.body_compiler(1)]
+
+    def _prepare_call_cast_list_items(self, operands):
+        return [
+            operands.native(0),
+            *(operands.body_compiler(index) for index in range(1, len(operands))),
+        ]
 
     def _compile_list_body(self, array, compile_body, *, filtering=False):
         """Bind the body through the visitor and lower native scoped reductions."""
@@ -160,11 +166,28 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         self,
         x,
         /,
-        *,
+        *converted_fields,
         item_object_fields: tuple[FieldSpec, ...] = (),
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if converted_fields:
+            def compile_item():
+                item = self.list_element()
+                if item.type().is_array():
+                    return self._compile_list_body(item, compile_item)
+                children = tuple(compile_field() for compile_field in converted_fields)
+                if any(isinstance(child, Deferred) for child in children):
+                    raise BackendCapabilityError(
+                        "Ibis nested child conversion does not support deferred outer-column references.",
+                        backend=self.BACKEND_NAME,
+                        function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+                    )
+                return self.cast_struct(
+                    item, *children,
+                    fields=item_object_fields, failure_behavior=failure_behavior,
+                )
+            return deferrable(lambda array: self._compile_list_body(array, compile_item))(x)
         if self.dialect == "ibis-sqlite" or failure_behavior == "null":
             raise BackendCapabilityError(
                 "SQLite list casting is unavailable; other Ibis engines require throw mode "

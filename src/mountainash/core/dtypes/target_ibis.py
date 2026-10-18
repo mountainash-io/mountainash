@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from .canonical import (
-    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D, NativeDtype,
-    SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
+    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D,
+    NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
 )
 from .targets import TypeTarget
-from .errors import UnknownDtypeError
+from .errors import DtypeMappingError, UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, str] = {
     D.BOOL: "boolean", D.I8: "int8", D.I16: "int16", D.I32: "int32",
@@ -46,6 +46,74 @@ def _base_name(native: Any) -> str:
 def to_native_decimal(dtype: DecimalDtype) -> Any:
     import ibis.expr.datatypes as dt
     return dt.Decimal(dtype.precision, dtype.scale)
+
+
+def to_native_parameterized(dtype: Any) -> Any:
+    """Construct an Ibis logical datatype while retaining declared parameters.
+
+    This is logical type construction only; it does not assert physical
+    fidelity for any SQL dialect.
+    """
+    import ibis.expr.datatypes as dt
+
+    unknown = SchemaTypeStatus.UNKNOWN
+    if isinstance(dtype, TimestampDtype):
+        scale = None if dtype.precision is unknown else dtype.precision
+        timezone = dtype.timezone
+        if dtype.timezone_aware is True and timezone in (None, unknown):
+            timezone = "UTC"
+        elif timezone is unknown:
+            timezone = None
+        return dt.Timestamp(scale=scale, timezone=timezone)
+    if isinstance(dtype, TimeDtype):
+        if dtype.precision is not unknown:
+            raise DtypeMappingError(
+                f"Ibis Time cannot represent requested precision {dtype.precision}: "
+                "its native Time type has no scale parameter"
+            )
+        return dt.Time()
+    if isinstance(dtype, DurationDtype):
+        unit = dtype.unit
+        if unit is unknown:
+            unit = "M" if dtype.semantics == "calendar" else "s"
+        if dtype.semantics == "calendar" and unit not in {"Y", "Q", "M"}:
+            raise DtypeMappingError(
+                f"Ibis interval unit {unit!r} cannot represent calendar semantics"
+            )
+        if dtype.semantics == "fixed" and unit in {"Y", "Q", "M"}:
+            raise DtypeMappingError(
+                f"Ibis interval unit {unit!r} cannot represent fixed-duration semantics"
+            )
+        return dt.Interval(unit=unit)
+    if isinstance(dtype, ListDtype):
+        from .registry import registry
+        child = dtype.element
+        value_type = (dt.null if child is unknown
+                      else registry.to_native_schema(child, TypeTarget.IBIS))
+        return dt.Array(value_type)
+    if isinstance(dtype, ArrayDtype):
+        from .registry import registry
+        child = dtype.element
+        value_type = (dt.null if child is unknown
+                      else registry.to_native_schema(child, TypeTarget.IBIS))
+        if dtype.dimensions is SchemaTypeStatus.UNKNOWN:
+            raise DtypeMappingError("Ibis fixed arrays require known dimensions")
+        result = value_type
+        for length in reversed(dtype.dimensions):
+            result = dt.Array(result, length=length)
+        return result
+    if isinstance(dtype, StructDtype):
+        from .registry import registry
+        fields = () if dtype.fields is SchemaTypeStatus.UNKNOWN else dtype.fields
+        return dt.Struct.from_tuples(
+            (name, dt.null if child is unknown else
+             registry.to_native_schema(child, TypeTarget.IBIS))
+            for name, child in fields
+        )
+    raise TypeError(f"Unsupported parameterized Ibis dtype: {dtype!r}")
+
+
+
 
 
 def _family(native: Any) -> D | None:
@@ -112,10 +180,9 @@ def from_native(native: Any) -> Any:
     return evidence
 
 
-def parse_type_string(s: str) -> Optional[str]:
+def parse_type_string(s: str) -> Optional[Any]:
     try:
         import ibis.expr.datatypes as dt
-        dt.dtype(s)
-        return s
+        return dt.dtype(s)
     except Exception:
         return None

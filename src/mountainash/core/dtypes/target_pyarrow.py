@@ -10,10 +10,10 @@ import pyarrow as pa
 
 from .canonical import (
     ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D,
-    NativeDtype, StructDtype, TimeDtype, TimestampDtype,
+    NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
 )
 from .targets import TypeTarget
-from .errors import UnknownDtypeError
+from .errors import DtypeMappingError, UnknownDtypeError
 
 SCHEMA_TYPES: dict[D, Any] = {
     D.BOOL: pa.bool_(), D.I8: pa.int8(), D.I16: pa.int16(),
@@ -51,8 +51,69 @@ def _base_name(native: Any) -> str:
     return str(native).split("[", 1)[0].split("<", 1)[0]
 
 
+def to_native_parameterized(dtype: Any, *, child_lowerer: Any = None) -> Any:
+    lower_child = _native_child if child_lowerer is None else child_lowerer
+    if isinstance(dtype, TimestampDtype):
+        precision = dtype.precision
+        unit = "us" if precision is SchemaTypeStatus.UNKNOWN else {
+            0: "s", 3: "ms", 6: "us", 9: "ns",
+        }.get(precision)
+        if unit is None:
+            raise DtypeMappingError(f"PyArrow timestamp cannot represent precision {precision}")
+        zone = dtype.timezone
+        aware = dtype.timezone_aware is True or isinstance(zone, str)
+        if aware and (zone is None or zone is SchemaTypeStatus.UNKNOWN):
+            zone = "UTC"
+        if not aware:
+            zone = None
+        return pa.timestamp(unit, tz=zone)
+    if isinstance(dtype, TimeDtype):
+        precision = 9 if dtype.precision is SchemaTypeStatus.UNKNOWN else dtype.precision
+        unit = {0: "s", 3: "ms", 6: "us", 9: "ns"}.get(precision)
+        if unit is None:
+            raise DtypeMappingError(f"PyArrow time cannot represent precision {precision}")
+        return pa.time32(unit) if unit in ("s", "ms") else pa.time64(unit)
+    if isinstance(dtype, DurationDtype):
+        if dtype.semantics == "calendar":
+            unit = dtype.unit
+            if unit is SchemaTypeStatus.UNKNOWN:
+                raise DtypeMappingError("PyArrow calendar interval requires a known interval unit")
+            if unit not in ("month_day_nano", "month_day_nano_interval"):
+                raise DtypeMappingError(
+                    f"PyArrow exposes only the combined month/day/nanosecond calendar interval; "
+                    f"it cannot preserve unit {unit!r}"
+                )
+            return pa.month_day_nano_interval()
+        unit = "us" if dtype.unit is SchemaTypeStatus.UNKNOWN else dtype.unit
+        if unit not in ("s", "ms", "us", "ns"):
+            raise DtypeMappingError(f"PyArrow fixed duration cannot represent unit {unit!r}")
+        return pa.duration(unit)
+    if isinstance(dtype, ListDtype):
+        return pa.list_(pa.null() if dtype.element is SchemaTypeStatus.UNKNOWN else lower_child(dtype.element))
+    if isinstance(dtype, ArrayDtype):
+        if dtype.dimensions is SchemaTypeStatus.UNKNOWN:
+            raise DtypeMappingError("PyArrow fixed-size list requires known dimensions")
+        child = pa.null() if dtype.element is SchemaTypeStatus.UNKNOWN else lower_child(dtype.element)
+        for size in reversed(dtype.dimensions):
+            child = pa.list_(child, size)
+        return child
+    if isinstance(dtype, StructDtype):
+        return pa.struct([] if dtype.fields is SchemaTypeStatus.UNKNOWN else [
+            pa.field(name, pa.null() if child is SchemaTypeStatus.UNKNOWN else lower_child(child))
+            for name, child in dtype.fields
+        ])
+    raise DtypeMappingError(f"Unsupported parameterized PyArrow dtype: {dtype!r}")
+
+
+def _native_child(dtype: Any) -> Any:
+    from .registry import registry
+    return registry.to_native_schema(dtype, TypeTarget.PYARROW)
+
+
 def to_native_decimal(dtype: DecimalDtype) -> Any:
     return pa.decimal128(dtype.precision, dtype.scale)
+
+
 
 
 def _family(native: Any) -> D | None:
