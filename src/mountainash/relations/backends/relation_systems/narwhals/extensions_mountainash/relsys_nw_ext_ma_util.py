@@ -71,6 +71,13 @@ class MountainashNarwhalsExtensionRelationSystem(
                 import polars as pl
                 from polars.io.plugins import register_io_source
 
+                if relation.implementation is nw.Implementation.DUCKDB:
+                    from spike_item351_native_schema import export_schema
+
+                    schema = export_schema(nw.to_native(relation))
+                else:
+                    schema = pl.Schema(relation.collect_schema().to_arrow())
+
                 def read_source(with_columns, predicate, n_rows, batch_size):
                     with _sample_source_lock:
                         frame = relation.collect(backend="polars").to_native()
@@ -83,7 +90,7 @@ class MountainashNarwhalsExtensionRelationSystem(
                     yield frame
 
                 source = register_io_source(
-                    read_source, schema=pl.Schema(relation.collect_schema().to_arrow()),
+                    read_source, schema=schema,
                     validate_schema=True, is_pure=False,
                 )
             sampled = MountainashPolarsExtensionRelationSystem().sample(
