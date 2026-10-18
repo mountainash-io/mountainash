@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from threading import Lock
 
 import narwhals as nw
 
@@ -12,6 +13,8 @@ from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
+
+_sample_source_lock = Lock()
 
 
 class MountainashNarwhalsExtensionRelationSystem(
@@ -62,8 +65,28 @@ class MountainashNarwhalsExtensionRelationSystem(
                 MountainashPolarsExtensionRelationSystem,
             )
 
+            if relation.implementation is nw.Implementation.POLARS:
+                source = nw.to_native(relation)
+            else:
+                from polars.io.plugins import register_io_source
+
+                def read_source(with_columns, predicate, n_rows, batch_size):
+                    with _sample_source_lock:
+                        frame = relation.collect(backend="polars").to_native()
+                    if predicate is not None:
+                        frame = frame.filter(predicate)
+                    if with_columns is not None:
+                        frame = frame.select(with_columns)
+                    if n_rows is not None:
+                        frame = frame.head(n_rows)
+                    yield frame
+
+                source = register_io_source(
+                    read_source, schema=relation.collect_schema().to_polars(),
+                    validate_schema=True, is_pure=False,
+                )
             sampled = MountainashPolarsExtensionRelationSystem().sample(
-                nw.to_native(relation), n=n, fraction=fraction, seed=seed,
+                source, n=n, fraction=fraction, seed=seed,
             )
             return nw.from_native(sampled)
         if n is not None:

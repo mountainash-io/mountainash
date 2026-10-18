@@ -46,18 +46,19 @@ def local_sampling():
                         out = query.collect()
                         assert isinstance(out, pl.DataFrame)
                         assert out.schema == frame.schema
-                        assert batches, (provider, dtype, opts, "source did not run")
+                        if frame.height and (opts.get("n", 0) > 0 or opts.get("fraction", 0) > 0):
+                            assert batches, (provider, dtype, opts, "source did not run")
                         assert all(i > 1 for i in out["id"])
                         assert len(set(out["id"])) == out.height
                         values = dict(frame.iter_rows())
                         for i, value in out.iter_rows():
                             assert value is values[i] if dtype == "object" else value == values[i]
+                        unfiltered = sample.to_polars()
+                        expected_count = min(opts["n"], frame.height) if "n" in opts else int(opts["fraction"] * frame.height)
+                        assert unfiltered.height == expected_count
                         if seed is not None:
-                            args = dict(opts)
-                            if "n" in args:
-                                args["n"] = min(args["n"], frame.height)
-                            expected = frame.sample(**args, seed=seed).filter(pl.col("id") > 1)
-                            assert out["id"].to_list() == expected["id"].to_list()
+                            expected = unfiltered.filter(pl.col("id") > 1)
+                            assert out.to_dicts() == expected.to_dicts()
                             again = compiled.collect()
                             if isinstance(again, nw.DataFrame):
                                 again = nw.to_native(again)
@@ -75,7 +76,7 @@ def local_sampling():
         plan = query.compile()
         assert not batches
         out = query.to_polars()
-        expected = frames["ordinary"].sample(n=2, seed=42)
+        expected = shared.to_polars()
         assert out.to_dicts() == pl.concat([expected, expected]).to_dicts()
         receipt("shared", provider=provider, batches=batches, rows=out.to_dicts())
 

@@ -78,17 +78,16 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         fraction: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> pl.LazyFrame:
-        def sample_frame(frame):
-            count = min(n, frame.height) if n is not None else None
-            return frame.sample(n=count, fraction=fraction, seed=seed)
-
-        return relation.map_batches(
-            sample_frame,
-            schema=relation.collect_schema(),
-            predicate_pushdown=False,
-            projection_pushdown=False,
-            slice_pushdown=False,
-            streamable=False,
+        names = relation.collect_schema().names()
+        index_name = "_ma_sample_index"
+        while index_name in names:
+            index_name = "_" + index_name
+        count = n if n is not None else (pl.len() * fraction).cast(pl.UInt64)
+        indexed = relation.with_columns(
+            pl.int_range(pl.len()).shuffle(seed=seed).alias(index_name)
+        )
+        return indexed.select(
+            pl.col(names).gather(pl.col(index_name).head(count))
         )
 
     def unpivot(
