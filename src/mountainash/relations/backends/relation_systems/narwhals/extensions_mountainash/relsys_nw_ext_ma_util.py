@@ -68,6 +68,7 @@ class MountainashNarwhalsExtensionRelationSystem(
             if relation.implementation is nw.Implementation.POLARS:
                 source = nw.to_native(relation)
             else:
+                import polars as pl
                 from polars.io.plugins import register_io_source
 
                 def read_source(with_columns, predicate, n_rows, batch_size):
@@ -82,7 +83,7 @@ class MountainashNarwhalsExtensionRelationSystem(
                     yield frame
 
                 source = register_io_source(
-                    read_source, schema=relation.collect_schema().to_polars(),
+                    read_source, schema=pl.Schema(relation.collect_schema().to_arrow()),
                     validate_schema=True, is_pure=False,
                 )
             sampled = MountainashPolarsExtensionRelationSystem().sample(
