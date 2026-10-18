@@ -127,6 +127,15 @@ def check_ast_capabilities(
     bindings = {name: getattr(node, name, None) for name in names}
     bound = BoundCall(key, family, dialect, bindings,
                       frozenset(name for name, value in bindings.items() if value is not None))
+    if op.options_field is not None:
+        bound = bind_expression_call(
+            operation_key=key, backend=family, dialect=dialect,
+            protocol_method=op.protocol_method,
+            arguments=tuple(bindings[b.field] for b in op.args),
+            options=getattr(node, op.options_field),
+        )
+        bindings = bound.bindings
+        names = tuple(bindings)
     violations = CapabilityRegistry.violations_for(
         bound, phase="raw", execution_context=execution_context,
     )

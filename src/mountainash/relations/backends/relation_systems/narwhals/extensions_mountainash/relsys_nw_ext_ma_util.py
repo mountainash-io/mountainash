@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from threading import Lock
 
 import narwhals as nw
 
@@ -12,6 +13,8 @@ from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
 )
+
+_sample_source_lock = Lock()
 
 
 class MountainashNarwhalsExtensionRelationSystem(
@@ -57,14 +60,46 @@ class MountainashNarwhalsExtensionRelationSystem(
         fraction: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> Any:
-        frame = relation
-        is_lazy = isinstance(frame, nw.LazyFrame)
-        if is_lazy:
-            frame = frame.collect()
+        if isinstance(relation, nw.LazyFrame):
+            from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+                MountainashPolarsExtensionRelationSystem,
+            )
+
+            if relation.implementation is nw.Implementation.POLARS:
+                source = nw.to_native(relation)
+            else:
+                import polars as pl
+                from polars.io.plugins import register_io_source
+
+                if relation.implementation is nw.Implementation.DUCKDB:
+                    from spike_item351_native_schema import export_schema
+
+                    schema = export_schema(nw.to_native(relation))
+                else:
+                    schema = pl.Schema(relation.collect_schema().to_arrow())
+
+                def read_source(with_columns, predicate, n_rows, batch_size):
+                    with _sample_source_lock:
+                        frame = relation.collect(backend="polars").to_native()
+                    if predicate is not None:
+                        frame = frame.filter(predicate)
+                    if with_columns is not None:
+                        frame = frame.select(with_columns)
+                    if n_rows is not None:
+                        frame = frame.head(n_rows)
+                    yield frame
+
+                source = register_io_source(
+                    read_source, schema=schema,
+                    validate_schema=True, is_pure=False,
+                )
+            sampled = MountainashPolarsExtensionRelationSystem().sample(
+                source, n=n, fraction=fraction, seed=seed,
+            )
+            return nw.from_native(sampled)
         if n is not None:
-            n = min(n, len(frame))
-        sampled = frame.sample(n=n, fraction=fraction, seed=seed)
-        return sampled.lazy() if is_lazy else sampled
+            n = min(n, len(relation))
+        return relation.sample(n=n, fraction=fraction, seed=seed)
 
     def unpivot(
         self,
