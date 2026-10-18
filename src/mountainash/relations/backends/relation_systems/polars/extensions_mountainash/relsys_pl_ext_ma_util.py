@@ -87,7 +87,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
             pl.int_range(pl.len()).shuffle(seed=seed).alias(index_name)
         )
         return indexed.select(
-            pl.col(names).gather(pl.col(index_name).head(count))
+            pl.exclude(index_name).gather(pl.col(index_name).head(count))
         )
 
     def unpivot(
