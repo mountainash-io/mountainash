@@ -18,7 +18,6 @@ import warnings
 
 from mountainash.core.dtypes import (
     ArrayDtype,
-    DecimalDtype,
     DurationDtype,
     ListDtype,
     NativeDtype,

@@ -9,9 +9,10 @@ Adjust type hints and signatures as needed for your implementation.
 from __future__ import annotations
 
 from typing import Protocol
-from mountainash.core.dtypes import ConstructionDtype
 
 from mountainash.core.types import ExpressionT
+
+from mountainash.core.dtypes import ConstructionDtype  # noqa: TC001 - runtime get_type_hints() resolution
 
 class SubstraitLiteralExpressionSystemProtocol(Protocol[ExpressionT]):
     """Protocol for rounding operations.

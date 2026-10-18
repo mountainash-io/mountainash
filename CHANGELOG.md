@@ -8,6 +8,7 @@
 ### Qualification
 - Item 340 remains in progress, not release-qualified. Native failures and representation boundaries remain tracked under 131, 298, 314, 342–344 and 346–350. Generic scalar-only projections preserve input-row cardinality without changing aggregate behavior. DuckDB aware-nanosecond loss is explicitly accepted for now and tracked in 345; native execution remains available without a new refusal.
 - Unsupported structured conversions retain explicit capability boundaries rather than per-cell backend emulation. Logical transport uses direct Arrow casts and existing Python temporal parsing; native structured conform uses the selected backend. Opaque native logical refinements and conversion metadata requiring a separate backend execution are unsupported.
+- Corrected Ruff import/style violations in the parameterized dtype implementation while preserving runtime protocol annotation resolution.
 
 ## Unreleased — 2026-10-16
 

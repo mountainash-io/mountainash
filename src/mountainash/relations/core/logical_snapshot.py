@@ -104,7 +104,6 @@ def _transported_array(values: Any, dtype: Any) -> Any:
 def _materialize_transported_polars(name: str, values: Any, dtype: Any) -> Any:
     """Preserve validated physical values across logical egress."""
     import polars as pl
-    import pyarrow as pa
 
     if dtype is None:
         return pl.Series(name, values, dtype=pl.Object)
@@ -114,7 +113,6 @@ def _materialize_transported_polars(name: str, values: Any, dtype: Any) -> Any:
 def _materialize_transported_pandas(name: str, values: Any, dtype: Any) -> Any:
     """Keep the same validated Arrow type and values at pandas egress."""
     import pandas as pd
-    import pyarrow as pa
 
     if dtype is None:
         return pd.Series(values, name=name, dtype=object)

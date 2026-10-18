@@ -247,7 +247,7 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         return None
     from mountainash.core.dtypes import (
         ArrayDtype, DecimalDtype, ListDtype, StructDtype, MountainashDtype,
-        NativeDtype, SchemaTypeStatus, TypeTarget, dtype_family, registry,
+        NativeDtype, SchemaTypeStatus, dtype_family, registry,
     )
     from mountainash.typespec.converters import effective_child_fields, resolve_field_canonical
 

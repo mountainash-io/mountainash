@@ -6,8 +6,8 @@ from dataclasses import is_dataclass, replace
 from typing import Any, Optional
 
 from .canonical import (
-    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D,
-    NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
+    DecimalDtype, DurationDtype, MountainashDtype as D,
+    NativeDtype, SchemaTypeStatus, TimestampDtype,
 )
 from .targets import TypeTarget
 from .errors import DtypeMappingError, UnknownDtypeError
