@@ -738,6 +738,18 @@ class UnifiedExpressionVisitor:
         bound = self._bound_call(function_key, protocol_method, arguments, options)
         self._gate_predicate_violations(bound, phase="raw")
         self._gate_operation(function_key)
+        # Eager Pandas exposes operand dtype metadata in the existing input scope.
+        # Lazy engines instead refine the target at their native binding hook.
+        if getattr(self.backend, "dialect", None) == "narwhals-pandas":
+            from mountainash.core.dtypes import dtype_is_complete, registry, resolve_dtype_parameters
+            from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+
+            if isinstance(node.target_type, PARAMETERIZED_DTYPES) and not dtype_is_complete(node.target_type):
+                source = self.type_context.resolve_declared_native(node.input)
+                if source is not None and source.native_dtype is not None:
+                    options["dtype"] = resolve_dtype_parameters(
+                        node.target_type, registry.from_native(source.native_dtype),
+                    )
         operand_types = self._required_operand_types(func_def, protocol_method, arguments)
         args = self._gate_and_resolve_args(
             function_key, arguments, protocol_method, method_name="cast"

@@ -846,3 +846,63 @@ def test_fields_match_rejects_non_string_values(raw) -> None:
     with pytest.raises(InvalidFieldMatchDeclaration) as exc_info:
         typespec_from_frictionless({"fields": [], "fieldsMatch": raw})
     assert exc_info.value.standard_value is raw
+
+
+def test_handwritten_parameterized_dtype_preserves_unknown_and_explicit_none():
+    from mountainash.core.dtypes import SchemaTypeStatus, TimestampDtype
+
+    raw = {"fields": [{"name": "at", "type": "datetime", "x-mountainash": {
+        "dtype": {"kind": "timestamp", "timezone_aware": True, "timezone": None}
+    }}]}
+    spec = typespec_from_frictionless(raw)
+    assert spec.fields[0].dtype == TimestampDtype(SchemaTypeStatus.UNKNOWN, True, None)
+    encoded = typespec_to_frictionless(spec)["fields"][0]["x-mountainash"]["dtype"]
+    assert encoded == {"kind": "timestamp", "timezone_aware": True, "timezone": None}
+
+
+def test_recursive_parameterized_dtype_round_trip_preserves_child_order():
+    from mountainash.core.dtypes import ListDtype, SchemaTypeStatus, StructDtype, TimestampDtype
+
+    dtype = ListDtype(StructDtype((
+        ("later", TimestampDtype(SchemaTypeStatus.UNKNOWN, True, None)),
+        ("first", MountainashDtype.I64),
+    )))
+    spec = TypeSpec(fields=[FieldSpec(name="items", dtype=dtype)])
+    raw = typespec_to_frictionless(spec)
+    restored = typespec_from_frictionless(raw)
+    assert restored.fields[0].dtype == dtype
+    assert [child["name"] for child in raw["fields"][0]["x-mountainash"]["dtype"]["element"]["fields"]] == ["later", "first"]
+
+
+@pytest.mark.parametrize("nested", [
+    {"kind": "list", "element": {"kind": "timestamp", "precision": 6, "native": "bad"}},
+    {"kind": "struct", "fields": [{"name": "x", "dtype": {"kind": "time", "native": "bad"}}]},
+])
+def test_handwritten_nested_native_refinement_is_rejected(nested):
+    with pytest.raises(InvalidDtypeDeclaration, match="native"):
+        typespec_from_frictionless({"fields": [{"name": "x", "x-mountainash": {"dtype": nested}}]})
+
+
+def test_recursive_native_refinement_cannot_be_serialized():
+    from mountainash.core.dtypes import ListDtype, NativeDtype, TimestampDtype, TypeTarget
+
+    dtype = ListDtype(TimestampDtype(native=NativeDtype(value=pl.Datetime("ns", "UTC"), target=TypeTarget.POLARS)))
+    with pytest.raises(InvalidDtypeDeclaration, match="native"):
+        typespec_to_frictionless(TypeSpec(fields=[FieldSpec(name="values", dtype=dtype)]))
+
+
+@pytest.mark.parametrize("dtype", [
+    {"kind": "timestamp", "precision": True},
+    {"kind": "time", "precision": 2.5},
+    {"kind": "array", "dimensions": [2, True]},
+    {"kind": "struct", "fields": [
+        {"name": "x", "dtype": {"kind": "unknown"}},
+        {"name": "x", "dtype": {"kind": "unknown"}},
+    ]},
+])
+def test_malformed_parameterized_dtype_uses_field_context(dtype):
+    with pytest.raises(InvalidDtypeDeclaration) as exc:
+        typespec_from_frictionless({"fields": [
+            {"name": "broken", "x-mountainash": {"dtype": dtype}},
+        ]})
+    assert exc.value.field_name == "broken"

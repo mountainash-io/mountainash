@@ -11,6 +11,7 @@ from mountainash.conform.structured_transport import (
     StructuredActionConsumer,
     StructuredFieldPlanMap,
     resolve_structured_cell,
+    transport_arrow_dtype,
 )
 from mountainash.core.constants import CONST_BACKEND
 
@@ -40,6 +41,7 @@ class ResolvedLogicalSnapshot:
     physical: LogicalTerminalSnapshot
     logical_columns: Mapping[str, Sequence[Any]]
     keep_ordinals: tuple[int, ...]
+    target_dtypes: Mapping[str, Any]
 
 
 class LogicalSnapshotAdapter(Protocol):
@@ -89,6 +91,34 @@ def _slice_native(family: CONST_BACKEND, column: Any, positions: list[int]) -> A
     return column.take(pa.array(positions, type=pa.int64()))
 
 
+def _transported_array(values: Any, dtype: Any) -> Any:
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    return pa.array([
+        pc.cast(value, dtype) if isinstance(value, pa.Scalar) and value.type != dtype else value
+        for value in values
+    ], type=dtype)
+
+
+def _materialize_transported_polars(name: str, values: Any, dtype: Any) -> Any:
+    """Preserve validated physical values across logical egress."""
+    import polars as pl
+
+    if dtype is None:
+        return pl.Series(name, values, dtype=pl.Object)
+    return pl.from_arrow(_transported_array(values, dtype)).rename(name)
+
+
+def _materialize_transported_pandas(name: str, values: Any, dtype: Any) -> Any:
+    """Keep the same validated Arrow type and values at pandas egress."""
+    import pandas as pd
+
+    if dtype is None:
+        return pd.Series(values, name=name, dtype=object)
+    return pd.Series(_transported_array(values, dtype), name=name, dtype=pd.ArrowDtype(dtype))
+
+
 class _BaseSnapshotAdapter:
     """Shared output reconstruction for one native family's captured columns."""
 
@@ -117,7 +147,9 @@ class _BaseSnapshotAdapter:
         columns: dict[str, Any] = {}
         for name in names:
             if name in transported:
-                columns[name] = pl.Series(name, transported[name], dtype=pl.Object)
+                columns[name] = _materialize_transported_polars(
+                    name, transported[name], resolved.target_dtypes.get(name)
+                )
             else:
                 columns[name] = _native_column_to_polars(self.family, untagged[name])
         return pl.DataFrame(columns)
@@ -129,8 +161,9 @@ class _BaseSnapshotAdapter:
         columns: dict[str, Any] = {}
         for name in names:
             if name in transported:
-                columns[name] = pd.Series(transported[name],
-                dtype=object,)
+                columns[name] = _materialize_transported_pandas(
+                    name, transported[name], resolved.target_dtypes.get(name)
+                )
             else:
                 columns[name] = _native_column_to_pandas(self.family, untagged[name])
         return pd.DataFrame(columns)
@@ -261,15 +294,30 @@ def resolve_logical_snapshot(
     if any(len(column) != row_count for column in snapshot.columns.values()):
         raise ValueError("logical snapshot columns must share the ordinal length")
 
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype, SchemaTypeStatus, dtype_is_complete
+
+    native_dtypes = {}
     resolved_transport: dict[str, tuple[Any, ...]] = {}
     keep = [True] * row_count
     for field_name, plan in plans.items():
         physical = snapshot.columns.get(field_name)
         if physical is None:
             continue
+        typed = (
+            consumer is StructuredActionConsumer.LOGICAL_EGRESS
+            and plan.requires_logical_terminal
+            and plan.target_dtype is not None
+            and plan.target_dtype is not SchemaTypeStatus.UNKNOWN
+            and plan.target_dtype not in (MountainashDtype.LIST, MountainashDtype.STRUCT)
+        )
+        complete = typed and dtype_is_complete(plan.target_dtype)
+        native_dtype = transport_arrow_dtype(plan.target_dtype) if complete else None
         values: list[Any] = []
         for index, value in enumerate(physical):
-            resolution = resolve_structured_cell(_python_value(value), plan=plan, consumer=consumer)
+            resolution = resolve_structured_cell(
+                _python_value(value), plan=plan, consumer=consumer, native_dtype=native_dtype,
+            )
             if (
                 resolution.logical_value is INVALID_STRUCTURED_VALUE
                 and plan.configured_action == "coerce"
@@ -282,6 +330,17 @@ def resolve_logical_snapshot(
             values.append(resolution.logical_value)
             keep[index] = keep[index] and resolution.keep
         resolved_transport[field_name] = tuple(values)
+        if complete:
+            native_dtypes[field_name] = native_dtype
+        elif typed:
+            types = {value.type for value in values if isinstance(value, pa.Scalar)}
+            if types:
+                native_dtypes[field_name] = pa.unify_schemas(
+                    [pa.schema([(field_name, dtype)]) for dtype in types],
+                    promote_options="permissive",
+                ).field(field_name).type
+            else:
+                native_dtypes[field_name] = transport_arrow_dtype(plan.target_dtype)
 
     retained_indexes = tuple(index for index, row_keep in enumerate(keep) if row_keep)
     logical_columns: dict[str, Sequence[Any]] = {
@@ -294,6 +353,7 @@ def resolve_logical_snapshot(
         physical=snapshot,
         logical_columns=MappingProxyType(logical_columns),
         keep_ordinals=tuple(snapshot.row_ordinals[index] for index in retained_indexes),
+        target_dtypes=MappingProxyType(native_dtypes),
     )
 
 
@@ -344,7 +404,7 @@ def logical_column_values(
     """
     column = resolved.logical_columns[field_name]
     if column is not resolved.physical.columns.get(field_name):
-        return tuple(column)
+        return tuple(_python_value(value) for value in column)
     family = resolved.physical.source_identity.family
     column = _slice_native(family, column, _keep_positions(resolved))
     if family is CONST_BACKEND.PANDAS:

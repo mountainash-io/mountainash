@@ -6,6 +6,7 @@ import pytest
 import mountainash as ma
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import SchemaTypeStatus
 
 from ibis.common.exceptions import UnsupportedBackendType
 
@@ -259,6 +260,150 @@ class TestRelationConformStructCastOffPolars:
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert "addr" in result.columns
+
+
+
+@pytest.mark.parametrize(
+    "backend_name",
+    ("polars", "polars-lazy", "ibis-polars", "ibis-duckdb"),
+)
+def test_native_struct_keeps_child_conversion_metadata(backend_name, backend_factory):
+    from datetime import datetime
+    from decimal import Decimal
+
+    from mountainash.core.dtypes import DecimalDtype, StructDtype, TimestampDtype, MountainashDtype as D
+
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
+    ):
+        source = backend_factory.create(
+            {"x": [
+                {"v": "20260101", "count": "1,234", "flag": "yes", "backup": 11, "price": "1.245"},
+                {"v": "20260102", "count": "2,345", "flag": "no", "backup": None, "price": "1.255"},
+            ]},
+            backend_name,
+        )
+    field = FieldSpec(
+        "x",
+        dtype=StructDtype((
+            ("v", TimestampDtype(6, False)),
+            ("count", D.I64),
+            ("flag", D.BOOL),
+            ("backup", D.I64),
+            ("price", DecimalDtype(5, 2)),
+        )),
+        object_fields=[
+            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
+            FieldSpec("count", type=UniversalType.INTEGER, group_char=","),
+            FieldSpec("flag", type=UniversalType.BOOLEAN, true_values=["yes"], false_values=["no"]),
+            FieldSpec("backup", type=UniversalType.INTEGER, null_fill=12),
+            FieldSpec("price", type=UniversalType.NUMBER, dtype=DecimalDtype(5, 2), rounding="half_to_even"),
+        ],
+    )
+    result = ma.relation(source).conform(
+        TypeSpec(fields=[field], missing_values=[]),
+    ).to_polars()
+    assert result["x"].to_list() == [
+        {
+            "v": datetime(2026, 1, 1), "count": 1234, "flag": True,
+            "backup": 11, "price": Decimal("1.24"),
+        },
+        {
+            "v": datetime(2026, 1, 2), "count": 2345, "flag": False,
+            "backup": 12, "price": Decimal("1.26"),
+        },
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-polars", "ibis-duckdb"))
+def test_native_array_of_struct_keeps_child_conversion_metadata(
+    backend_name, backend_factory,
+):
+    from datetime import datetime
+
+    from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+
+    source = backend_factory.create(
+        {"items": [[{"v": "20260101"}]]},
+        backend_name,
+    )
+    field = FieldSpec(
+        "items",
+        type=UniversalType.ARRAY,
+        dtype=ListDtype(StructDtype((("v", TimestampDtype(6, False)),))),
+        item_object_fields=[
+            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
+        ],
+    )
+    from mountainash.conform.errors import ConformTransformError
+
+    with expect_call_failure(
+        when=backend_name == "ibis-polars",
+        errors=(ConformTransformError,),
+        reason="Ibis 12 Polars compiler has no ArrayMap translation; nested child conversion is unsupported",
+    ):
+        result = ma.relation(source).conform(
+            TypeSpec(fields=[field], missing_values=[]),
+        ).to_polars()
+    assert result["items"].to_list() == [[{"v": datetime(2026, 1, 1)}]]
+
+
+@pytest.mark.parametrize(
+    "backend_name",
+    ("narwhals-polars",),
+)
+def test_native_array_child_conversion_retains_provider_capability_boundary(
+    backend_name, backend_factory,
+):
+    from mountainash.core.types import BackendCapabilityError
+    from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_SCALAR_LIST,
+    )
+
+    source = backend_factory.create(
+        {"items": [[{"v": "20260101"}]]},
+        backend_name,
+    )
+    field = FieldSpec(
+        "items",
+        type=UniversalType.ARRAY,
+        dtype=ListDtype(StructDtype((("v", TimestampDtype(6, False)),))),
+        item_object_fields=[
+            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
+        ],
+    )
+    with pytest.raises(BackendCapabilityError) as error:
+        ma.relation(source).conform(
+            TypeSpec(fields=[field], missing_values=[]),
+        ).to_polars()
+    assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT
+
+
+@pytest.mark.parametrize("backend_name", ("narwhals-polars", "narwhals-pandas"))
+def test_narwhals_struct_child_conversion_preserves_metadata(
+    backend_name, backend_factory,
+):
+    from datetime import datetime
+    from mountainash.core.dtypes import StructDtype, TimestampDtype
+
+    source = backend_factory.create(
+        {"x": [{"v": "20260101"}]},
+        backend_name,
+    )
+    field = FieldSpec(
+        "x",
+        dtype=StructDtype((("v", TimestampDtype(6, False)),)),
+        object_fields=[
+            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
+        ],
+    )
+    result = ma.relation(source).conform(
+        TypeSpec(fields=[field], missing_values=[]),
+    ).to_polars()
+    assert result["x"].to_list() == [{"v": datetime(2026, 1, 1)}]
 
 
 class TestRelationConformFullPipeline:
@@ -848,3 +993,262 @@ def test_null_container_fill_obeys_failure_policy(action):
     ).to_polars()
     assert out.schema["record"] == pl.Struct({"id": pl.Int8})
     assert out["record"].to_list() == [{"id": None}]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("all_null", [False, True])
+def test_parameterized_timestamp_conform_retains_known_type(backend_name, backend_factory, all_null, request):
+    from datetime import datetime, timezone
+    import polars as pl
+    from mountainash.core.dtypes import TimestampDtype
+
+    value = None if all_null else datetime(2026, 1, 1, microsecond=123456, tzinfo=timezone.utc)
+    if backend_name == "ibis-sqlite" and not all_null:
+        request.applymarker(pytest.mark.xfail(strict=True, raises=AssertionError,
+            reason="298: Ibis-SQLite timestamp CAST truncates fractions to milliseconds"))
+    if backend_name == "ibis-duckdb" and all_null:
+        import ibis
+        conn = ibis.duckdb.connect()
+        source = conn.create_table(
+            "parameterized_timestamp_nulls",
+            {"at": [datetime(2026, 1, 1, tzinfo=timezone.utc), None]},
+            overwrite=True,
+        ).select(at=ibis.null().cast(ibis.expr.datatypes.Timestamp(timezone="UTC", scale=6)))
+    else:
+        source = backend_factory.create({"at": [value, None]}, backend_name)
+    spec = TypeSpec(
+        fields=[FieldSpec("at", dtype=TimestampDtype(6, True, "UTC"))],
+        missing_values=[],
+    )
+    try:
+        out = ma.relation(source).conform(spec).to_polars()
+        assert out.schema["at"] == pl.Datetime("us", "UTC")
+        assert out["at"].to_list() == [value, None]
+    finally:
+        if backend_name == "ibis-duckdb" and all_null:
+            conn.disconnect()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("action", ["coerce", "evolve", "freeze", "discard_value", "discard_row"])
+@pytest.mark.parametrize("format", ["default", "any"])
+def test_parameterized_timestamp_actions_preserve_policy(backend_name, backend_factory, action, format, request):
+    from datetime import datetime
+    import polars as pl
+    from mountainash.conform.errors import SchemaDriftError
+    from mountainash.core.dtypes import TimestampDtype
+
+    from fixtures.call_expectations import expect_call_failure
+    from mountainash.core.types import BackendCapabilityError
+    from ibis.common.exceptions import OperationNotDefinedError
+
+    value = "2026-01-01T00:00:00.123456"
+    values = [value] if action == "coerce" else [value, "not-a-timestamp", None]
+    source = backend_factory.create({"at": values}, backend_name)
+    spec = TypeSpec(
+        fields=[FieldSpec(
+            "at",
+            type=UniversalType.DATETIME,
+            dtype=TimestampDtype(6, False, None),
+            format=format,
+        )],
+        missing_values=[],
+    )
+    relation = ma.relation(source).conform(spec, contract={"data_type": action})
+    if action == "freeze":
+        with pytest.raises(SchemaDriftError):
+            relation.to_polars()
+        return
+    with expect_call_failure(
+        when=backend_name not in {"polars", "polars-lazy"} and action != "evolve",
+        errors=(BackendCapabilityError, OperationNotDefinedError),
+        reason="Existing default/arbitrary datetime parser capability",
+    ):
+        out = relation.to_polars()
+    if action == "evolve":
+        assert out.schema["at"] == pl.String
+        assert out["at"].to_list() == values
+        return
+    assert out.schema["at"] == pl.Datetime("us")
+    parsed = datetime(2026, 1, 1, microsecond=123456)
+    if action == "coerce":
+        assert out["at"].to_list() == [parsed]
+    elif action == "discard_value":
+        assert out["at"].to_list() == [parsed, None, None]
+    else:
+        assert out["at"].to_list() == [parsed, None]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_missing_parameterized_timestamp_is_typed_null(backend_name, backend_factory):
+    import polars as pl
+    from mountainash.core.dtypes import TimestampDtype
+
+    source = backend_factory.create({"id": [1, 2]}, backend_name)
+    spec = TypeSpec(
+        fields_match="open",
+        fields=[FieldSpec("at", dtype=TimestampDtype(6, True, "UTC"))],
+        missing_values=[],
+    )
+    out = ma.relation(source).conform(
+        spec, contract={"missing_columns": "null_fill"},
+    ).to_polars()
+    assert out.schema["at"] == pl.Datetime("us", "UTC")
+    assert out["at"].to_list() == [None, None]
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_parameterized_nested_conform_preserves_null_shapes(backend_name, backend_factory):
+    from datetime import datetime, timezone
+    import polars as pl
+    from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+
+    import json
+
+    instant = datetime(2026, 1, 1, microsecond=123456, tzinfo=timezone.utc)
+    records = [
+        None,
+        {"at": instant, "events": [{"id": 1}, None]},
+        {"at": None, "events": None},
+        {"at": None, "events": []},
+        {"at": None, "events": [None]},
+    ]
+    physical = (
+        [json.dumps(value, default=lambda value: value.isoformat()) if value is not None else None for value in records]
+        if backend_name == "ibis-sqlite" else records
+    )
+    source = backend_factory.create({"record": physical}, backend_name)
+    target = StructDtype(fields=(
+        ("at", TimestampDtype(6, True, "UTC")),
+        ("events", ListDtype(element=StructDtype(fields=(("id", ma.MountainashDtype.I16),)))),
+    ))
+    legacy_children = [
+        FieldSpec(
+            "events",
+            type=UniversalType.ARRAY,
+            dtype=ListDtype(element=StructDtype(fields=(("id", ma.MountainashDtype.I64),))),
+            item_object_fields=[FieldSpec("id", type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I64)],
+        ),
+        FieldSpec(
+            "at",
+            type=UniversalType.DATETIME,
+            dtype=TimestampDtype(6, True, "UTC"),
+            format="any",
+            description="event time",
+        ),
+    ]
+    out = ma.relation(source).conform(TypeSpec(
+        fields=[FieldSpec("record", type=UniversalType.OBJECT, dtype=target, object_fields=legacy_children)],
+        missing_values=[],
+    )).to_polars()
+    assert out.schema["record"] == pl.Struct({
+        "at": pl.Datetime("us", "UTC"),
+        "events": pl.List(pl.Struct({"id": pl.Int16})),
+    })
+    assert out["record"].to_list() == [
+        None,
+        {"at": instant, "events": [{"id": 1}, None]},
+        {"at": None, "events": None},
+        {"at": None, "events": []},
+        {"at": None, "events": [None]},
+    ]
+@pytest.mark.parametrize("target_precision", [6, 9, SchemaTypeStatus.UNKNOWN])
+@pytest.mark.parametrize("action", ["coerce", "evolve", "freeze"])
+def test_parameterized_timestamp_action_preserves_exact_ns(action, target_precision):
+    """Polars ns storage is needed because Python datetime erases sub-us digits."""
+    import polars as pl
+    from mountainash.conform.errors import SchemaDriftError
+    from mountainash.core.dtypes import TimestampDtype
+
+    source = pl.DataFrame({"at": [1, 1001, 123456789, None]}).with_columns(
+        pl.col("at").cast(pl.Datetime("ns", "UTC"))
+    )
+    spec = TypeSpec(
+        fields=[FieldSpec("at", dtype=TimestampDtype(target_precision, True, "UTC"))],
+        missing_values=[],
+    )
+    relation = ma.relation(source).conform(spec, contract={"data_type": action})
+    if action == "freeze" and target_precision == 6:
+        with pytest.raises(SchemaDriftError):
+            relation.to_polars()
+        return
+    out = relation.to_polars()
+    if action == "evolve" or target_precision in {9, SchemaTypeStatus.UNKNOWN}:
+        assert out.schema["at"] == pl.Datetime("ns", "UTC")
+        assert out["at"].dt.epoch("ns").to_list() == [1, 1001, 123456789, None]
+    else:
+        assert out.schema["at"] == pl.Datetime("us", "UTC")
+        assert out["at"].dt.epoch("us").to_list() == [0, 1, 123456, None]
+
+@pytest.mark.parametrize("nested", [False, True], ids=["struct", "list-struct"])
+def test_partial_nested_timestamp_preserves_resolved_ns_precision(nested):
+    import polars as pl
+    from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+
+    source = pl.DataFrame({"value": [1, 1001, 123456789, None]}).with_columns(
+        pl.col("value").cast(pl.Datetime("ns", "UTC"))
+    )
+    target = StructDtype((("value", TimestampDtype(SchemaTypeStatus.UNKNOWN, True, "UTC")),))
+    field = (
+        FieldSpec("items", type=UniversalType.ARRAY, dtype=ListDtype(target),
+                  item_object_fields=[FieldSpec("value", type=UniversalType.DATETIME)])
+        if nested else
+        FieldSpec("record", type=UniversalType.OBJECT, dtype=target,
+                  object_fields=[FieldSpec("value", type=UniversalType.DATETIME)])
+    )
+    column = field.name
+    value = pl.struct("value")
+    source = source.select((pl.concat_list(value) if nested else value).alias(column))
+    out = ma.relation(source).conform(TypeSpec(fields=[field], missing_values=[])).to_polars()
+    actual = out[column].explode() if nested else out[column]
+    actual = actual.struct.field("value")
+    assert actual.dtype == pl.Datetime("ns", "UTC")
+    assert actual.dt.epoch("ns").to_list() == [1, 1001, 123456789, None]
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("action", ["coerce", "freeze"])
+def test_aware_none_target_matches_utc_source(backend_name, backend_factory, action, request):
+    from datetime import datetime, timezone
+    import polars as pl
+    from mountainash.core.dtypes import TimestampDtype
+
+    if backend_name == "ibis-sqlite":
+        request.applymarker(pytest.mark.xfail(strict=True, raises=AssertionError,
+            reason="298: Ibis-SQLite timestamp CAST truncates fractions to milliseconds"))
+    instant = datetime(2026, 1, 1, microsecond=123456, tzinfo=timezone.utc)
+    source = backend_factory.create({"at": [instant, None]}, backend_name)
+    target = TimestampDtype(6, True, None)
+    spec = TypeSpec(fields=[FieldSpec("at", dtype=target)], missing_values=[])
+    out = ma.relation(source).conform(spec, contract={"data_type": action}).to_polars()
+    assert out.schema["at"] == pl.Datetime("us", "UTC")
+    assert out["at"].to_list() == [instant, None]
+    assert target.timezone is None
+
+
+@pytest.mark.parametrize("backend_name", ["polars", "polars-lazy"])
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+def test_native_child_conversion_discards_invalid_parent_not_missing_child(
+    backend_name, backend_factory, nested, action,
+):
+    # Native atomic nested discard is a Polars capability; the other native
+    # providers' explicit capability outcomes are covered separately above.
+    from datetime import datetime
+    from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+
+    child = FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d", missing_values=["MISSING"])
+    target = StructDtype((("v", TimestampDtype(6, False)),))
+    field = (
+        FieldSpec("x", dtype=ListDtype(target), item_object_fields=[child])
+        if nested else FieldSpec("x", dtype=target, object_fields=[child])
+    )
+    values = [{"v": "20260101"}, {"v": "bad"}, {"v": "MISSING"}, None]
+    expected = [{"v": datetime(2026, 1, 1)}, None, {"v": None}, None]
+    if nested:
+        values = [[value, None] if value is not None else None for value in values]
+        expected = [[value, None] if value is not None else None for value in expected]
+    if action == "discard_row":
+        del expected[1]
+    source = backend_factory.create({"x": values}, backend_name)
+    result = ma.relation(source).conform(
+        TypeSpec(fields=[field], missing_values=[]), contract={"data_type": action},
+    ).to_polars()
+    assert result["x"].to_list() == expected

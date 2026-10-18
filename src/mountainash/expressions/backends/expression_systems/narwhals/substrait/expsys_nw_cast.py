@@ -5,7 +5,7 @@ Implements type casting operations for the Narwhals backend.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal
 
 import narwhals as nw
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import _polars_native_transform
@@ -13,11 +13,8 @@ from mountainash.expressions.backends.expression_systems.narwhals.extensions_mou
 from ..base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
-    DtypeMappingError,
-    MountainashDtype,
-    NativeDtype,
-    TypeTarget,
-    registry,
+    CastTarget, SchemaTypeStatus, TypeTarget, dtype_is_complete,
+    registry, resolve_dtype_parameters,
 )
 
 if TYPE_CHECKING:
@@ -33,7 +30,7 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
         self,
         x: NarwhalsExpr,
         /,
-        dtype: Union[MountainashDtype, NativeDtype],
+        dtype: CastTarget,
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> NarwhalsExpr:
         """Cast an expression to a canonical or native-passthrough dtype.
@@ -48,6 +45,8 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
         rather than attempting a call that would fail with a confusing
         native error. See known-divergences.md.
         """
+        if dtype is SchemaTypeStatus.UNKNOWN:
+            return x
         if failure_behavior == "null":
             from mountainash.core.types import BackendCapabilityError
             from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
@@ -59,14 +58,32 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_SUBSTRAIT_CAST.CAST,
             )
-        if isinstance(dtype, NativeDtype):
-            if dtype.target is not self._TARGET:
-                raise DtypeMappingError(
-                    f"NativeDtype was built from a {dtype.target.value} dtype "
-                    f"({dtype.value!r}) and cannot compile on {self._TARGET.value}. "
-                    f"Use a canonical dtype for cross-backend expressions."
+        from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
+        if (
+            isinstance(dtype, PARAMETERIZED_DTYPES)
+            and dtype.native is None and not dtype_is_complete(dtype)
+            and self.dialect in {"narwhals-polars", "narwhals-lazy"}
+        ):
+            from narwhals._polars.utils import native_to_narwhals_dtype, narwhals_to_native_dtype
+            from narwhals._utils import Version
+            from mountainash.expressions.backends.expression_systems.polars.temporal_cast import cast_temporal_compatible
+
+            def cast_partial(bound, native):
+                source = registry.from_native(
+                    native_to_narwhals_dtype(native, Version.MAIN), TypeTarget.NARWHALS,
                 )
-            return self._cast_target(x, dtype.value)
+                resolved = resolve_dtype_parameters(dtype, source)
+                return cast_temporal_compatible(
+                    bound,
+                    narwhals_to_native_dtype(
+                        registry.to_native_cast(resolved, TypeTarget.NARWHALS), Version.MAIN,
+                    ),
+                    strict=True,
+                )
+
+            return _polars_native_transform(
+                x, lambda expr: expr.pipe_with_dtype(cast_partial)
+            )
         return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
 
     def _cast_target(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:

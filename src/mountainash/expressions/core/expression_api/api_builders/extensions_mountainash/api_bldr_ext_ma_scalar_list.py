@@ -29,8 +29,10 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
         item_type: str | None = None,
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+        converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),
+        converted_validity: "BaseExpressionAPI | None" = None,
     ) -> BaseExpressionAPI:
-        """Cast native list items using either a scalar item type or struct schema."""
+        """Cast native list items using a scalar type or compiled struct-child expressions."""
         fields = validate_fields("cast_items", "item_object_fields", item_object_fields) if item_type is None else ()
         validate_field_name("cast_items", field_name)
         failure = validate_failure_behavior("cast_items", failure_behavior)
@@ -45,13 +47,23 @@ class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScala
             options["item_type"] = item_type
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
-            arguments=[self._node],
+            arguments=[
+                self._node, *(value._node for _, value in converted_fields),
+                *(() if converted_validity is None else (converted_validity._node,)),
+            ],
             options=options,
             diagnostic_context={
                 "field_name": field_name,
                 "logical_type": "array",
                 "format": "default",
             },
+        )
+        return self._build(node)
+    def element(self) -> BaseExpressionAPI:
+        """Refer to the current element while composing a list-item expression."""
+        node = ScalarFunctionNode(
+            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT,
+            arguments=[],
         )
         return self._build(node)
     """API builder for the .list namespace."""

@@ -22,14 +22,19 @@ class MountainAshScalarStructAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
         fields: tuple["FieldSpec", ...],
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+        converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),
+        converted_validity: "BaseExpressionAPI | None" = None,
     ) -> BaseExpressionAPI:
-        """Recursively cast a native struct value."""
+        """Recursively cast a native struct, optionally using compiled child expressions."""
         fields = validate_fields("struct.cast", "fields", fields)
         validate_field_name("struct.cast", field_name)
         failure = validate_failure_behavior("struct.cast", failure_behavior)
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
-            arguments=[self._node],
+            arguments=[
+                self._node, *(value._node for _, value in converted_fields),
+                *(() if converted_validity is None else (converted_validity._node,)),
+            ],
             options={"fields": fields, "failure_behavior": failure.value},
             diagnostic_context={
                 "field_name": field_name,

@@ -85,7 +85,7 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         self,
         x,
         /,
-        *,
+        *converted_fields,
         item_object_fields: tuple[FieldSpec, ...] = (),
         item_type: str | None = None,
         failure_behavior: str = "throw",
@@ -108,8 +108,34 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
             item_object_fields=list(item_object_fields),
         )
         dtype = _resolve_field_native(field, TypeTarget.POLARS)
-        result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
-        if failure_behavior == "null":
+        if converted_fields:
+            count = len(item_object_fields)
+            validity = converted_fields[count] if len(converted_fields) > count else None
+            element = pl.struct([
+                value.alias(child.name)
+                for child, value in zip(item_object_fields, converted_fields[:count], strict=True)
+            ])
+            element = pl.when(pl.element().is_null()).then(
+                pl.lit(None, dtype=dtype.inner),
+            ).otherwise(element.cast(dtype.inner, strict=failure_behavior != "null"))
+
+            def convert(bound, native, *, check=False):
+                nested = isinstance(native.inner, (pl.List, pl.Array))
+                body = convert(pl.element(), native.inner, check=check) if nested else (
+                    ~validity.fill_null(True) if check else element
+                )
+                mapped = bound.arr.eval(body) if isinstance(native, pl.Array) else bound.list.eval(body)
+                if check:
+                    return (mapped.arr.any() if isinstance(native, pl.Array) else mapped.list.any()).fill_null(False)
+                return mapped
+
+            result = x.pipe_with_dtype(convert)
+            if validity is not None:
+                invalid = x.pipe_with_dtype(lambda bound, native: convert(bound, native, check=True))
+                result = pl.when(invalid).then(None).otherwise(result)
+        else:
+            result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
+        if failure_behavior == "null" and not converted_fields:
             invalid = _invalid_nested(x, field)
             result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
         return result

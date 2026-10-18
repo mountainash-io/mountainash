@@ -15,7 +15,7 @@ class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, Moun
         self,
         x,
         /,
-        *,
+        *converted_fields,
         fields: tuple[FieldSpec, ...],
         failure_behavior: str = "throw",
     ):
@@ -33,7 +33,16 @@ class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, Moun
             )
         field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
         dtype = _resolve_field_native(field, TypeTarget.IBIS)
+        if converted_fields:
+            import ibis
+            count = len(fields)
+            value = ibis.struct(dict(zip(
+                (child.name for child in fields), converted_fields[:count], strict=True,
+            ))).cast(dtype)
+            valid = x.notnull()
+            if len(converted_fields) > count:
+                valid = valid & converted_fields[count]
+            return ibis.ifelse(valid, value, ibis.null().cast(dtype))
         return x.cast(dtype)
-
     def struct_field(self, x, /, *, field_name: str):
         return x[field_name]

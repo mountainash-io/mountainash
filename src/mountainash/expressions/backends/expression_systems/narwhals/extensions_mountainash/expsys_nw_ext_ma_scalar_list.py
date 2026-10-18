@@ -111,11 +111,17 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         x,
         /,
-        *,
+        *converted_fields,
         item_object_fields: tuple[FieldSpec, ...] = (),
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
+        if converted_fields:
+            raise BackendCapabilityError(
+                "Narwhals has no native list-element expression for nested child conversion.",
+                backend=self.BACKEND_NAME,
+                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+            )
         if failure_behavior == "null":
             raise BackendCapabilityError(
                 "Narwhals list casting does not implement whole-list null on an invalid item.",

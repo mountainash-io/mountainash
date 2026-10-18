@@ -85,9 +85,9 @@ def lit(value: Any, *, dtype: Any = None) -> BaseExpressionAPI:
 
     Args:
         value: Literal value (int, float, str, bool, None, etc.)
-        dtype: Optional canonical dtype for the literal: a ``MountainashDtype``
-            (or its alias/Python type) or a ``DecimalDtype(precision, scale)``.
-            Lowered natively per backend. Native backend dtypes are not accepted.
+        dtype: Optional canonical dtype, portable parameterized descriptor, or
+            UNKNOWN for ordinary inference. Aliases/Python types remain accepted.
+            Native backend dtype objects are not accepted.
 
     Returns:
         BooleanExpressionAPI for chaining operations
@@ -99,11 +99,16 @@ def lit(value: Any, *, dtype: Any = None) -> BaseExpressionAPI:
         >>> expr = col("age").gt(lit(30))
         >>> expr = col("name").eq(lit(None))  # NULL check
     """
-    from mountainash.core.dtypes import DecimalDtype, parse_dtype
+    from mountainash.core.dtypes import DecimalDtype, SchemaTypeStatus, parse_dtype
+    from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
 
     from ..expression_api import BooleanExpressionAPI
 
-    resolved = dtype if dtype is None or isinstance(dtype, DecimalDtype) else parse_dtype(dtype)
+    resolved = (
+        dtype if dtype is None or dtype is SchemaTypeStatus.UNKNOWN
+        or isinstance(dtype, (*PARAMETERIZED_DTYPES, DecimalDtype))
+        else parse_dtype(dtype)
+    )
     node = LiteralNode(value=value, dtype=resolved)
     return BooleanExpressionAPI(node)
 

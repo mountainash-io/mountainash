@@ -33,8 +33,14 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
         item_type: str | None = None,
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
+        converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),
+        converted_validity: "BaseExpressionAPI | None" = None,
     ) -> BaseExpressionAPI:
-        """Cast native list items using a scalar type or recursive struct schema."""
+        """Cast list items using a scalar type or compiled nested fields."""
+        ...
+
+    def element(self) -> BaseExpressionAPI:
+        """Refer to the current element while composing a list-item expression."""
         ...
 
     def sum(self) -> BaseExpressionAPI:

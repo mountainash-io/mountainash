@@ -32,17 +32,26 @@ class MountainAshPolarsScalarStructExpressionSystem(PolarsBaseExpressionSystem, 
         self,
         x,
         /,
-        *,
+        *converted_fields,
         fields: tuple[FieldSpec, ...],
         failure_behavior: str = "throw",
     ):
         field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
         dtype = _resolve_field_native(field, TypeTarget.POLARS)
-        result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
-        if failure_behavior == "null":
+        if converted_fields:
+            validity = converted_fields[len(fields)] if len(converted_fields) > len(fields) else None
+            result = pl.struct([
+                value.alias(child.name)
+                for child, value in zip(fields, converted_fields[:len(fields)], strict=True)
+            ]).cast(dtype, strict=failure_behavior != "null")
+            result = pl.when(x.is_null()).then(pl.lit(None, dtype=dtype)).otherwise(result)
+            if validity is not None:
+                result = pl.when(validity).then(result).otherwise(pl.lit(None, dtype=dtype))
+        else:
+            result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
+        if failure_behavior == "null" and not converted_fields:
             invalid = _invalid_nested(x, field)
             result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
         return result
-
     def struct_field(self, x, /, *, field_name: str):
         return x.struct.field(field_name)

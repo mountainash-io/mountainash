@@ -46,6 +46,21 @@ class TestPolars:
     def test_from_native(self, native, expected):
         assert target_polars.from_native(native) == expected
 
+    @pytest.mark.parametrize("precision", [3, 6])
+    def test_time_rejects_unrepresentable_precision(self, precision):
+        from mountainash.core.dtypes import registry
+        from mountainash.core.dtypes.errors import DtypeMappingError
+
+        with pytest.raises(DtypeMappingError, match="cannot represent precision"):
+            registry.to_native_schema(TimeDtype(precision), TypeTarget.POLARS)
+
+    def test_time_unknown_precision_uses_native_default(self):
+        from mountainash.core.dtypes import SchemaTypeStatus, registry
+
+        assert registry.to_native_schema(
+            TimeDtype(SchemaTypeStatus.UNKNOWN), TypeTarget.POLARS,
+        ) is pl.Time
+
     def test_from_native_null_preserves_native_dtype(self):
         from mountainash.core.dtypes import NativeDtype, TypeTarget
 

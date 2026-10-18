@@ -336,3 +336,21 @@ def test_source_typing_does_not_undo_custom_conversion(inline, vectorized):
     finally:
         if not vectorized:
             CustomTypeRegistry.unregister(name)
+
+
+def test_ingress_source_schema_overrides_preserve_nested_timestamp_parameters():
+    from datetime import datetime, timezone
+    from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    dtype = ListDtype(StructDtype((
+        ("at", TimestampDtype(9, True, "UTC")),
+    )))
+    source = TypeSpec(fields=[FieldSpec(name="events", dtype=dtype)])
+    value = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    frame = PydataIngress.convert(
+        [{"events": [{"at": value}]}], source_spec=source, inline_conform=False,
+    )
+    assert frame.schema["events"] == pl.List(
+        pl.Struct([pl.Field("at", pl.Datetime("ns", "UTC"))])
+    )

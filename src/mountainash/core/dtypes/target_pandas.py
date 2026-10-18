@@ -6,11 +6,53 @@ from dataclasses import is_dataclass, replace
 from typing import Any, Optional
 
 from .canonical import (
-    DecimalDtype, DurationDtype, MountainashDtype as D, NativeDtype,
-    SchemaTypeStatus, TimestampDtype,
+    DecimalDtype, DurationDtype, MountainashDtype as D,
+    NativeDtype, SchemaTypeStatus, TimestampDtype,
 )
 from .targets import TypeTarget
-from .errors import UnknownDtypeError
+from .errors import DtypeMappingError, UnknownDtypeError
+
+
+def to_native_parameterized(dtype: Any) -> Any:
+    import pandas as pd
+    if isinstance(dtype, TimestampDtype):
+        precision = dtype.precision
+        unit = "us" if precision is SchemaTypeStatus.UNKNOWN else {
+            0: "s", 3: "ms", 6: "us", 9: "ns",
+        }.get(precision)
+        if unit is None:
+            raise DtypeMappingError(f"pandas timestamp cannot represent precision {precision}")
+        if dtype.timezone_aware is True:
+            zone = dtype.timezone
+            if zone is None or zone is SchemaTypeStatus.UNKNOWN:
+                zone = "UTC"
+            return pd.DatetimeTZDtype(unit=unit, tz=zone)
+        if dtype.timezone_aware is False:
+            return pd.api.types.pandas_dtype(f"datetime64[{unit}]")
+        return pd.ArrowDtype(_arrow_dtype(dtype))
+    return pd.ArrowDtype(_arrow_dtype(dtype))
+
+
+def _arrow_dtype(dtype: Any) -> Any:
+    import pandas as pd
+    import pyarrow as pa
+    from .registry import registry
+    from .target_pyarrow import to_native_parameterized
+
+    if isinstance(dtype, NativeDtype) or getattr(dtype, "native", None) is not None:
+        native = pd.api.types.pandas_dtype(registry.to_native_schema(dtype, TypeTarget.PANDAS))
+        if isinstance(native, pd.ArrowDtype):
+            return native.pyarrow_dtype
+        if isinstance(native, pd.DatetimeTZDtype):
+            return pa.timestamp(native.unit, tz=str(native.tz))
+        numpy_dtype = getattr(native, "numpy_dtype", None)
+        if numpy_dtype is not None:
+            return pa.from_numpy_dtype(numpy_dtype)
+        # This is an owned empty native value, never a source-frame probe.
+        return pa.Schema.from_pandas(pd.DataFrame({"value": pd.Series([], dtype=native)})).field("value").type
+    if isinstance(dtype, (D, DecimalDtype)):
+        return registry.to_native_schema(dtype, TypeTarget.PYARROW)
+    return to_native_parameterized(dtype, child_lowerer=_arrow_dtype)
 
 SCHEMA_TYPES: dict[D, str] = {
     D.BOOL: "boolean", D.I8: "Int8", D.I16: "Int16", D.I32: "Int32",

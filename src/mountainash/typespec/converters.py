@@ -11,21 +11,30 @@ All converters use lazy imports and leverage the centralized type system.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from typing import TYPE_CHECKING, Any, Dict
 import warnings
 
 from mountainash.core.dtypes import (
-    DecimalDtype,
+    ArrayDtype,
+    DurationDtype,
+    ListDtype,
     NativeDtype,
     InvalidBackendTypeError,
     MountainashDtype,
+    SchemaTypeStatus,
+    StructDtype,
+    TimeDtype,
+    TimestampDtype,
     TypeTarget,
     UnknownDtypeError,
+    resolve_dtype_parameters,
     registry,
 )
 from mountainash.typespec.errors import InvalidGeospatialFormatError
 from mountainash.core.dtypes.errors import DtypeMappingError
-from mountainash.typespec.universal_types import UniversalType, to_canonical
+from mountainash.typespec.universal_types import UniversalType, from_canonical, to_canonical
 
 if TYPE_CHECKING:
     from .spec import FieldSpec, TypeSpec
@@ -111,14 +120,40 @@ def _native_types_equal(left: Any, right: Any, target: TypeTarget) -> bool:
     return left == right
 
 
+def _field_dtype_native(field: "FieldSpec") -> NativeDtype | None:
+    native = getattr(field.dtype, "native", None)
+    return native if isinstance(native, NativeDtype) else None
+
+
 def _resolve_field_target(
     field: "FieldSpec", target: TypeTarget, *, emit_warning: bool = True,
-) -> MountainashDtype | DecimalDtype | NativeDtype | None:
-    """Resolve a declaration once, honoring its explicit native override."""
+    source: Any = SchemaTypeStatus.UNKNOWN,
+) -> Any:
+    """Resolve one declaration, honoring whole-field native refinements."""
     declared = resolve_field_canonical(field)
+    if declared is SchemaTypeStatus.UNKNOWN:
+        declared = _resolve_broad_field_canonical(field)
+    dtype_native = _field_dtype_native(field)
+    if dtype_native is not None and not field.backend_type:
+        if dtype_native.target is not target:
+            raise DtypeMappingError(
+                f"field {field.name!r}: native override belongs to {dtype_native.target}, not {target}"
+            )
+        return dtype_native
     override = field.backend_type
     if override is None or (isinstance(override, str) and not override):
-        return declared
+        children = effective_child_fields(field)
+        if isinstance(declared, StructDtype) and children:
+            declared = replace(declared, fields=tuple(
+                (child.name, _resolve_field_target(child, target, emit_warning=emit_warning) or SchemaTypeStatus.UNKNOWN)
+                for child in children
+            ))
+        elif isinstance(declared, (ListDtype, ArrayDtype)) and children:
+            declared = replace(declared, element=StructDtype(fields=tuple(
+                (child.name, _resolve_field_target(child, target, emit_warning=emit_warning) or SchemaTypeStatus.UNKNOWN)
+                for child in children
+            )))
+        return resolve_dtype_parameters(declared, source)
     if isinstance(override, NativeDtype):
         if override.target is not target:
             raise DtypeMappingError(
@@ -131,24 +166,103 @@ def _resolve_field_target(
             raise InvalidBackendTypeError(field.name, override, target)
         effective = NativeDtype(value=native, target=target)
     if field.dtype is not None and emit_warning:
-        semantic_or_parameterized = declared in (
+        unverified = declared in (
             MountainashDtype.JSON, MountainashDtype.XSD_DURATION,
             MountainashDtype.XSD_YEAR, MountainashDtype.XSD_YEARMONTH,
             MountainashDtype.TIMESTAMP, MountainashDtype.DURATION,
             MountainashDtype.LIST, MountainashDtype.STRUCT,
-        )
+        ) or isinstance(declared, (TimestampDtype, TimeDtype, DurationDtype,
+                                   ListDtype, ArrayDtype, StructDtype))
         equivalent = False
-        if not semantic_or_parameterized:
-            expected = registry.to_native_schema(declared, target)
-            equivalent = _native_types_equal(expected, effective.value, target)
+        try:
+            if not unverified:
+                expected = registry.to_native_schema(declared, target)
+                equivalent = _native_types_equal(expected, effective.value, target)
+        except DtypeMappingError:
+            unverified = True
         if not equivalent:
-            reason = "equivalence unverified" if semantic_or_parameterized else "dtype mismatch"
+            reason = "equivalence unverified" if unverified else "dtype mismatch"
             warnings.warn(
                 f"field {field.name!r} on {target.value}: {reason} between "
                 f"canonical {declared!r} and native override {effective.value!r}; native override wins",
                 UserWarning, stacklevel=3,
             )
     return effective
+
+
+def _portable_child_fields(field: "FieldSpec") -> tuple[tuple[str, Any], ...] | None:
+    dtype = field.dtype
+    if isinstance(dtype, StructDtype):
+        if dtype.native is not None:
+            return None
+        return dtype.fields if isinstance(dtype.fields, tuple) else None
+    element = dtype.element if isinstance(dtype, (ListDtype, ArrayDtype)) else None
+    if isinstance(element, StructDtype):
+        if element.native is not None:
+            return None
+        return element.fields if isinstance(element.fields, tuple) else None
+    return None
+
+
+def effective_child_fields(field: "FieldSpec") -> tuple["FieldSpec", ...]:
+    """Return fresh child views in the effective portable parent order.
+
+    Matching legacy fields contribute metadata and compatible UNKNOWN details
+    by name. Complete parent shapes exclude unmatched legacy children.
+    """
+    if field.backend_type or _field_dtype_native(field) is not None:
+        return ()
+    selected = _portable_child_fields(field)
+    legacy_fields = field.object_fields if field.type is UniversalType.OBJECT else field.item_object_fields
+    legacy_fields = legacy_fields or ()
+    if selected is None:
+        element = field.dtype.element if isinstance(field.dtype, (ListDtype, ArrayDtype)) else None
+        if (
+            not isinstance(field.dtype, (StructDtype, ListDtype, ArrayDtype))
+            or isinstance(field.dtype, StructDtype) and field.dtype.fields is SchemaTypeStatus.UNKNOWN
+            or element is SchemaTypeStatus.UNKNOWN
+            or isinstance(element, StructDtype) and element.fields is SchemaTypeStatus.UNKNOWN
+        ):
+            return tuple(replace(child) for child in legacy_fields)
+        return ()
+    legacy_by_name = {child.name: child for child in legacy_fields}
+    from .spec import FieldSpec
+
+    result: list[FieldSpec] = []
+    for name, parent_dtype in selected:
+        legacy = legacy_by_name.get(name)
+        child_dtype = parent_dtype
+        if isinstance(child_dtype, NativeDtype):
+            result.append(
+                FieldSpec(name=name, backend_type=child_dtype)
+                if legacy is None else replace(legacy, name=name, dtype=None, backend_type=child_dtype)
+            )
+            continue
+        if legacy is not None:
+            legacy_dtype = resolve_field_canonical(legacy)
+            if child_dtype is SchemaTypeStatus.UNKNOWN:
+                child_dtype = (
+                    legacy_dtype
+                    if legacy_dtype is not None and not isinstance(legacy_dtype, SchemaTypeStatus)
+                    else SchemaTypeStatus.UNKNOWN
+                )
+            elif isinstance(child_dtype, (TimestampDtype, TimeDtype, DurationDtype,
+                                          ListDtype, ArrayDtype, StructDtype)):
+                child_dtype = resolve_dtype_parameters(child_dtype, legacy_dtype)
+        if legacy is None:
+            result.append(FieldSpec(name=name, dtype=child_dtype))
+        elif child_dtype is SchemaTypeStatus.UNKNOWN:
+            result.append(replace(legacy, name=name, dtype=child_dtype))
+        else:
+            broad, _ = from_canonical(child_dtype)
+            result.append(replace(
+                legacy, name=name, type=broad, dtype=child_dtype,
+                object_fields=legacy.object_fields if broad is UniversalType.OBJECT else None,
+                item_object_fields=legacy.item_object_fields if broad is UniversalType.ARRAY else None,
+                item_type=legacy.item_type if broad is UniversalType.LIST else None,
+                delimiter=legacy.delimiter if broad is UniversalType.LIST else None,
+            ))
+    return tuple(result)
 
 
 

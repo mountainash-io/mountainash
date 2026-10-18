@@ -19,7 +19,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, Optional, Tuple
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, dtype_family
+from mountainash.core.dtypes import DecimalDtype, DurationDtype, MountainashDtype, NativeDtype, dtype_family
 from mountainash.core.dtypes.errors import UnknownDtypeError
 from mountainash.typespec.errors import AmbiguousGeospatialTypeError
 
@@ -147,10 +147,14 @@ def from_canonical(
     """Map canonical or detailed dtype evidence to its intentionally broad export.
 
     A ``DecimalDtype`` is a NUMBER refinement: its precision/scale are carried
-    by ``FieldSpec.dtype``, not by the universal type. Other detailed portable
-    descriptors retain their broad family at this lossy export boundary.
+    by ``FieldSpec.dtype``. A ``DurationDtype`` is a native duration family,
+    not Frictionless's lexical XSD duration, so its broad export is ANY.
+    Other detailed portable descriptors retain their broad family at this
+    lossy export boundary.
     """
     if dtype is None:
+        return (UniversalType.ANY, None)
+    if isinstance(dtype, DurationDtype):
         return (UniversalType.ANY, None)
     family = dtype_family(dtype)
     if family is None or isinstance(family, NativeDtype):

@@ -641,3 +641,25 @@ def test_narwhals_routed_native_subclass_uses_selected_dtype_domain():
         out = rel.to_polars()
     assert out.schema["id"] == pl.Int64
     assert out["id"].to_list() == [300]
+
+
+def test_conform_inference_retains_parameterized_target_without_native_defaults():
+    from mountainash.core.dtypes import TimestampDtype
+
+    exact = TimestampDtype(6, True, "UTC")
+    source = pl.DataFrame({"at": pl.Series([None], dtype=pl.Datetime("ns", "UTC"))})
+    declared = ma.relation(source).conform(TypeSpec(
+        fields=[FieldSpec("at", dtype=exact)], missing_values=[],
+    ))
+    assert infer_schema(declared._node) == {"at": exact}
+
+    partial = TimestampDtype(timezone_aware=True, timezone=None)
+    resolved = ma.relation(source).conform(TypeSpec(
+        fields=[FieldSpec("at", dtype=partial)], missing_values=[],
+    ))
+    assert infer_schema(resolved._node) == {"at": TimestampDtype(9, True, None)}
+    unresolved = ma.relation({"at": [None]}).conform(TypeSpec(
+        fields=[FieldSpec("at", dtype=partial)], missing_values=[],
+    ))
+    assert infer_schema(unresolved._node) == {"at": partial}
+    assert partial.precision is SchemaTypeStatus.UNKNOWN

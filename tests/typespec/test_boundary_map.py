@@ -103,7 +103,7 @@ class TestReverse:
         assert from_canonical(TimestampDtype(precision=9)) == (U.DATETIME, None)
         assert from_canonical(TimeDtype(precision=6)) == (U.TIME, None)
         assert from_canonical(DurationDtype(unit="ns", semantics="fixed")) == (
-            U.DURATION,
+            U.ANY,
             None,
         )
         assert from_canonical(ListDtype(element=D.I64)) == (U.ARRAY, None)

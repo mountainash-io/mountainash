@@ -178,3 +178,78 @@ def test_polars_native_multi_output_alias_keeps_native_validation():
     rel = ma.relation(pl.DataFrame({"n": [1], "m": [2]})).select(ma.native(pl.all()).alias("x"))
     with pytest.raises(pl.exceptions.DuplicateError):
         rel.to_polars()
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("rows", [0, 3])
+def test_scalar_only_projection_preserves_source_cardinality(backend_name, backend_factory, rows):
+    from mountainash.core.dtypes import TimestampDtype
+
+    source = backend_factory.create({"n": [1, 2, 3]}, backend_name)
+    result = ma.relation(source).head(rows).select(
+        ma.lit(7).alias("n"),
+        (ma.lit(2) + ma.lit(3)).alias("computed"),
+        ma.lit("4").cast("int16").alias("cast"),
+        ma.lit(None, dtype=TimestampDtype(6, True, "UTC")).alias("at"),
+    ).to_polars()
+    assert result.to_dict(as_series=False) == {
+        "n": [7] * rows, "computed": [5] * rows,
+        "cast": [4] * rows, "at": [None] * rows,
+    }
+    assert result.schema["at"] == pl.Datetime("us", "UTC")
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_scalar_alignment_does_not_change_aggregate_projection(backend_name, backend_factory, request):
+    if backend_name == "ibis-polars":
+        from ibis.common.exceptions import OperationNotDefinedError
+        request.applymarker(pytest.mark.xfail(
+            strict=True, raises=OperationNotDefinedError,
+            reason="IB-WIN-01: existing Ibis-Polars aggregate projection needs WindowFunction",
+        ))
+    source = backend_factory.create({"n": [1, 2, 3]}, backend_name)
+    result = ma.relation(source).select(
+        ma.lit(7).alias("constant"), ma.col("n").sum().alias("total"),
+    ).to_polars()
+    # Ibis projects a windowed aggregate; Polars/Narwhals select a reduction.
+    rows = 3 if backend_name.startswith("ibis-") else 1
+    assert result.to_dict(as_series=False) == {"constant": [7] * rows, "total": [6] * rows}
+
+
+@pytest.mark.parametrize("rows", [0, 3])
+def test_native_scalar_expansion_preserves_cardinality_and_names(rows):
+    """Polars-native multi-output escape retains every expanded scalar field."""
+    source = pl.DataFrame({"n": range(rows)})
+    result = ma.relation(source).select(
+        ma.native(pl.lit({"a": 3, "b": 4}).struct.unnest()),
+    ).to_polars()
+    assert result.to_dict(as_series=False) == {"a": [3] * rows, "b": [4] * rows}
+
+
+def test_scalar_projection_of_zero_column_native_frame_has_zero_rows():
+    """Polars cannot retain height when a native frame has no columns."""
+    source = pl.DataFrame().clear(3).lazy()
+    result = ma.relation(source).select(ma.lit(7).alias("value")).to_polars()
+    assert result["value"].to_list() == []
+
+def test_zero_argument_native_aggregate_is_not_broadcast():
+    source = pl.DataFrame({"n": [1, 2, 3]})
+    result = ma.relation(source).select(ma.native(pl.len()).alias("count")).to_polars()
+    assert result.to_dict(as_series=False) == {"count": [3]}
+
+def test_native_aggregate_arithmetic_and_expansion_are_not_broadcast():
+    source = pl.DataFrame({"n": [1, 2, 3]})
+    result = ma.relation(source).select(
+        ma.native((pl.len() + 1).alias("count")),
+        ma.native(
+            pl.struct(
+                pl.lit(7).alias("constant"),
+                (pl.len() + 1).alias("expanded_count"),
+            ).struct.unnest()
+        ),
+    ).to_polars()
+    assert result.to_dict(as_series=False) == {
+        "count": [4], "constant": [7], "expanded_count": [4],
+    }

@@ -122,6 +122,16 @@ def test_pyarrow_list_families_keep_child() -> None:
         assert view_shapes["large_view"].item_shape == SourceShape(MountainashDtype.I32)
 
 
+
+def test_polars_timestamp_shape_retains_parameters_for_extraction():
+    pl = pytest.importorskip("polars")
+    from mountainash.core.dtypes import TimestampDtype
+
+    shape = extract_source_shapes(
+        pl.DataFrame(schema={"at": pl.Datetime("ns", "UTC")})
+    )["at"]
+    assert shape.detailed_dtype == TimestampDtype(9, True, "UTC")
+
 def test_pyarrow_struct_shape_is_recursive() -> None:
     pa = pytest.importorskip("pyarrow")
     dtype = pa.struct(

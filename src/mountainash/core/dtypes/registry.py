@@ -10,7 +10,10 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Any, Optional
 
-from .canonical import DecimalDtype, MountainashDtype
+from .canonical import (
+    PARAMETERIZED_DTYPES, CastTarget, DecimalDtype, MountainashDtype,
+    NativeDtype, resolve_dtype_parameters,
+)
 from .errors import DtypeMappingError, UnknownDtypeError
 from .targets import TypeTarget, detect_target
 
@@ -40,7 +43,7 @@ class DtypeRegistry:
 
     def to_native_schema(self, dtype: Any, target: TypeTarget) -> Any:
         """Convert schema types without silently discarding descriptor parameters."""
-        native = getattr(dtype, "native", None)
+        native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
         if native is not None:
             if native.target is not target:
                 raise DtypeMappingError(
@@ -61,6 +64,8 @@ class DtypeRegistry:
             return native.value
         if isinstance(dtype, DecimalDtype):
             return self._target(target).to_native_decimal(dtype)
+        if isinstance(dtype, PARAMETERIZED_DTYPES):
+            return self._target(target).to_native_parameterized(resolve_dtype_parameters(dtype))
         if not isinstance(dtype, MountainashDtype):
             raise DtypeMappingError(
                 f"No lossless {target.value} schema mapping for parameterized dtype {dtype!r}"
@@ -75,10 +80,10 @@ class DtypeRegistry:
             ) from None
 
     def to_native_cast(
-        self, dtype: MountainashDtype | DecimalDtype, target: TypeTarget
+        self, dtype: CastTarget, target: TypeTarget
     ) -> Any:
         """Native type for expression cast use. Bare containers raise."""
-        if isinstance(dtype, DecimalDtype):
+        if not isinstance(dtype, MountainashDtype):
             return self.to_native_schema(dtype, target)
         mod = self._target(target)
         if dtype in mod.CAST_UNSUPPORTED:

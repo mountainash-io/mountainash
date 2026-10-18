@@ -18,7 +18,10 @@ from typing import Any, Dict, List, Optional
 
 from mountainash.conform.contract import validate_contract_dict
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype
+from mountainash.core.dtypes import (
+    ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype,
+    NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
+)
 from mountainash.core.dtypes.errors import UnknownDtypeError
 
 from .errors import InvalidDtypeDeclaration, InvalidFieldMatchDeclaration, InvalidKeyShapeError
@@ -248,31 +251,123 @@ def _parse_constraints(
 # Export: TypeSpec → Frictionless dict
 # ---------------------------------------------------------------------------
 
-def _dtype_from_extension(field_name: str, raw: Any) -> Optional[MountainashDtype | DecimalDtype]:
-    """Rebuild a canonical dtype from ``x-mountainash.dtype``; malformed values raise.
+def _dtype_to_extension(dtype: Any) -> dict[str, Any] | None:
+    if dtype is None:
+        return None
+    if isinstance(dtype, NativeDtype) or getattr(dtype, "native", None) is not None:
+        raise ValueError("native dtype refinements are in-memory-only")
+    def known(value: Any) -> bool:
+        return value is not SchemaTypeStatus.UNKNOWN
+    if isinstance(dtype, MountainashDtype):
+        return {"kind": "canonical", "name": dtype.value}
+    if isinstance(dtype, DecimalDtype):
+        return {"kind": "decimal", "precision": dtype.precision, "scale": dtype.scale}
+    if dtype is SchemaTypeStatus.UNKNOWN:
+        return {"kind": "unknown"}
+    if isinstance(dtype, TimestampDtype):
+        result = {"kind": "timestamp"}
+        if known(dtype.precision):
+            result["precision"] = dtype.precision
+        if known(dtype.timezone_aware):
+            result["timezone_aware"] = dtype.timezone_aware
+        if known(dtype.timezone) or (dtype.timezone_aware is True and dtype.timezone is None):
+            result["timezone"] = dtype.timezone
+        return result
+    if isinstance(dtype, TimeDtype):
+        result = {"kind": "time"}
+        if known(dtype.precision):
+            result["precision"] = dtype.precision
+        return result
+    if isinstance(dtype, DurationDtype):
+        result = {"kind": "duration"}
+        if known(dtype.unit):
+            result["unit"] = dtype.unit
+        if known(dtype.semantics):
+            result["semantics"] = dtype.semantics
+        return result
+    if isinstance(dtype, (ListDtype, ArrayDtype)):
+        result = {"kind": "array" if isinstance(dtype, ArrayDtype) else "list"}
+        child = _dtype_to_extension(dtype.element)
+        if child is not None:
+            result["element"] = child
+        if isinstance(dtype, ArrayDtype) and known(dtype.dimensions):
+            result["dimensions"] = list(dtype.dimensions)
+        return result
+    if isinstance(dtype, StructDtype):
+        result = {"kind": "struct"}
+        if known(dtype.fields):
+            result["fields"] = [{"name": name, "dtype": _dtype_to_extension(child)}
+                                for name, child in dtype.fields]
+        return result
+    raise ValueError(f"unsupported dtype {type(dtype).__name__}")
 
-    The extension lives in our own namespace, so an unrecognised kind or a missing/invalid
-    parameter is a malformed declaration, never silently dropped.
-    """
+
+def _dtype_from_extension(field_name: str, raw: Any) -> Any:
     if raw is None:
         return None
+    def fail(reason: str, value: Any = raw):
+        raise InvalidDtypeDeclaration(field_name, reason, value)
     if not isinstance(raw, Mapping):
-        raise InvalidDtypeDeclaration(field_name, "x-mountainash.dtype must be an object", raw)
-    kind = raw.get("kind")
-    if kind == "canonical":
+        fail("x-mountainash.dtype must be an object")
+    def decode(value: Any) -> Any:
+        if not isinstance(value, Mapping):
+            fail("dtype descriptor must be an object", value)
+        if "native" in value:
+            fail("native dtype refinements are in-memory-only", value)
+        kind = value.get("kind")
         try:
-            return MountainashDtype(raw.get("name"))
-        except (ValueError, TypeError) as exc:
-            raise InvalidDtypeDeclaration(field_name, "unknown canonical dtype", raw.get("name")) from exc
-    if kind != "decimal":
-        raise InvalidDtypeDeclaration(
-            field_name, "x-mountainash.dtype kind must be 'canonical' or 'decimal'", kind
-        )
-    precision, scale = raw.get("precision"), raw.get("scale")
-    try:
-        return DecimalDtype(precision=precision, scale=scale)
-    except UnknownDtypeError as exc:
-        raise InvalidDtypeDeclaration(field_name, str(exc)) from exc
+            if kind == "unknown":
+                return SchemaTypeStatus.UNKNOWN
+            if kind == "canonical":
+                return MountainashDtype(value["name"])
+            if kind == "decimal":
+                return DecimalDtype(value["precision"], value["scale"])
+            if kind == "timestamp":
+                precision = value.get("precision", SchemaTypeStatus.UNKNOWN)
+                if precision is not SchemaTypeStatus.UNKNOWN and type(precision) is not int:
+                    fail("timestamp precision must be an integer", value)
+                aware = value.get("timezone_aware", SchemaTypeStatus.UNKNOWN)
+                if aware is not SchemaTypeStatus.UNKNOWN and type(aware) is not bool:
+                    fail("timezone_aware must be a boolean", value)
+                return TimestampDtype(precision, aware, value.get("timezone", SchemaTypeStatus.UNKNOWN))
+            if kind == "time":
+                precision = value.get("precision", SchemaTypeStatus.UNKNOWN)
+                if precision is not SchemaTypeStatus.UNKNOWN and type(precision) is not int:
+                    fail("time precision must be an integer", value)
+                return TimeDtype(precision)
+            if kind == "duration":
+                return DurationDtype(value.get("unit", SchemaTypeStatus.UNKNOWN), value.get("semantics", SchemaTypeStatus.UNKNOWN))
+            if kind in {"list", "array"}:
+                child = decode(value.get("element", {"kind": "unknown"}))
+                if kind == "list":
+                    return ListDtype(child)
+                dimensions = value.get("dimensions", SchemaTypeStatus.UNKNOWN)
+                if dimensions is not SchemaTypeStatus.UNKNOWN:
+                    if not isinstance(dimensions, list) or not dimensions or any(type(d) is not int or d < 0 for d in dimensions):
+                        fail("array dimensions must be non-negative integers", value)
+                    dimensions = tuple(dimensions)
+                return ArrayDtype(child, dimensions)
+            if kind == "struct":
+                children = value.get("fields", SchemaTypeStatus.UNKNOWN)
+                if children is SchemaTypeStatus.UNKNOWN:
+                    return StructDtype(children)
+                if not isinstance(children, list):
+                    fail("struct fields must be a list", value)
+                names, result = set(), []
+                for child in children:
+                    if not isinstance(child, Mapping) or not isinstance(child.get("name"), str):
+                        fail("struct child requires a name", child)
+                    if child["name"] in names:
+                        fail("duplicate struct child", child)
+                    names.add(child["name"])
+                    result.append((child["name"], decode(child.get("dtype", {"kind": "unknown"}))))
+                return StructDtype(tuple(result))
+        except InvalidDtypeDeclaration:
+            raise
+        except (KeyError, TypeError, ValueError, UnknownDtypeError) as exc:
+            raise InvalidDtypeDeclaration(field_name, str(exc), value) from exc
+        fail(f"unknown dtype kind {kind!r}", value)
+    return decode(raw)
 
 
 def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
@@ -341,14 +436,11 @@ def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
                 fspec.name, "native dtype objects are in-memory-only; use a native string for persistence"
             )
         field_extensions["backend_type"] = fspec.backend_type
-    if isinstance(fspec.dtype, MountainashDtype):
-        field_extensions["dtype"] = {"kind": "canonical", "name": fspec.dtype.value}
-    elif isinstance(fspec.dtype, DecimalDtype):
-        field_extensions["dtype"] = {
-            "kind": "decimal",
-            "precision": fspec.dtype.precision,
-            "scale": fspec.dtype.scale,
-        }
+    if fspec.dtype is not None:
+        try:
+            field_extensions["dtype"] = _dtype_to_extension(fspec.dtype)
+        except (TypeError, ValueError) as exc:
+            raise InvalidDtypeDeclaration(fspec.name, str(exc)) from exc
     if fspec.rounding is not None:
         field_extensions["rounding"] = fspec.rounding
     if fspec.object_fields is not None:

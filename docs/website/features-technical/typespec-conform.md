@@ -54,6 +54,67 @@ Canonical enums persist as a field extension:
 
 Decimal declarations retain their `kind: "decimal"` precision/scale encoding. Dtype-only `JSON` and native `DURATION` retain broad `ANY` semantics: JSON scalars and arrays do not become GeoJSON, and native durations do not become lexical XSD duration strings. Explicit semantic declarations still apply their parsing rules.
 
+### Parameterized targets
+
+The existing descriptors in `mountainash.core.dtypes` can be used in `ma.lit`,
+both cast builders, and `FieldSpec.dtype`: `TimestampDtype`, `TimeDtype`,
+`DurationDtype`, `ListDtype`, `ArrayDtype`, `StructDtype`, and `DecimalDtype`.
+Nested fields retain their order, child types and fixed-array dimensions.
+
+```python
+from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+
+at = TimestampDtype(precision=6, timezone_aware=True, timezone=None)
+record = StructDtype((
+    ("at", at),
+    ("values", ListDtype(ma.MountainashDtype.I16)),
+))
+spec = TypeSpec(fields=[FieldSpec("record", dtype=record)])
+padding = ma.lit(None, dtype=at)
+converted = ma.col("at").cast(at)
+```
+
+An aware target with `timezone=None` uses UTC where the backend requires a name.
+Explicit timezone names remain authoritative. `None` and `SchemaTypeStatus.UNKNOWN`
+are not interchangeable:
+
+- In source metadata, UNKNOWN means missing knowledge.
+- In a target, UNKNOWN leaves that parameter unspecified. Compatible source
+  parameters are retained where available; native construction supplies defaults
+  only when needed. Those defaults do not change the authored descriptor.
+- A whole UNKNOWN cast target leaves the operand unchanged; a whole UNKNOWN
+  literal target uses ordinary inference. UNCONSTRAINED remains a schema status,
+  not a native construction target.
+
+Portable descriptors persist recursively under `x-mountainash.dtype`. Unknown
+parameters are omitted; meaningful `None` values are retained. Native refinements
+remain in-memory only. During the legacy-authoring transition, known parent dtype
+parameters take precedence over conflicting `object_fields`/`item_object_fields`
+types; compatible legacy information can fill UNKNOWN parameters. Child metadata
+is matched by name, and explicit native overrides remain authoritative.
+
+Native type construction does not prove execution support. Item 340 is still in
+qualification; the following boundaries are not a blanket backend support claim.
+
+| Route or operation | Exercised behavior / remaining boundary |
+|---|---|
+| Scalar-only projection | Typed and untyped scalar expressions preserve input cardinality, including empty input. Aggregate projections retain their existing behavior. Public Polars, pandas and DuckDB smoke exercised zero and three input rows. |
+| Logical typed containers | Declared Array width is enforced at logical egress; native Polars and pandas output retain the fixed width and child dtype. Structured conversion failures participate in discard-value/discard-row policies. Bare ARRAY/OBJECT declarations retain their existing object-carrier behavior. |
+| DuckDB aware timestamps | TIMESTAMPTZ stores microseconds even when Ibis advertises ns. Sub-microsecond loss is explicitly accepted for now (345); native execution remains available without a new refusal. Naive TIMESTAMP_NS is a distinct, working representation. |
+| Time precision | Polars and Narwhals Time represent ns only; UNKNOWN uses native behavior. Ibis Time has no precision parameter, so an explicitly requested precision is not representable through that logical dtype. Python carriers likewise cannot certify parameters absent from their type representation. |
+| Existing native failures | SQLite Time export (131), SQLite fractional timestamp casts (298), DuckDB interval export (314), pandas nested-null literal broadcast (342), DuckDB fixed-array CASE (343), and Ibis-Polars null fixed-array export (344) remain separately attributed. The last case is isolated from the test process because it can crash native Arrow export. |
+| Empty nested literals | Narwhals Arrow List/Array broadcast fails on empty input (346); Narwhals pandas non-null List/Array/Struct construction has a separate empty-index failure (348). Nonempty controls work. |
+| Additional Narwhals providers | Arrow and DuckDB public terminals exercised partial Time (including nested Time), List, fixed Array, Struct and Decimal with null/non-null and empty/populated inputs. Arrow empty non-null List/Array remains item346. Arrow fixed-duration literals work; DuckDB exports calendar intervals that Polars cannot import (349), with a native panic on empty import. No interval-as-Struct fallback is enabled. |
+| Permissive temporal parsing | Native ISO parsing retains ns in typed logical output. Non-ISO `format="any"` fallback uses the existing dateutil/Python datetime policy, which loses sub-microsecond digits and fractional-minute precision (350). Exact expected values remain unqualified; no precision-reconstruction workaround or waiver is provided. |
+| Native structured child conversions | Narwhals Struct conversion uses its native `nw.struct` constructor; native list-element conversion remains unsupported. Ibis-DuckDB supports element-bound List-of-Struct conversion, but deferred outer-column references are explicitly unsupported. Ibis-Polars lacks native `ArrayMap` translation. These boundaries do not trigger emulation or backend switching. |
+| Logical structured conversion | Decoded cells use direct Arrow casts and existing Python temporal parsing. Opaque native refinements and conversion metadata requiring per-cell backend execution are explicitly unsupported. No one-row Polars/Pandas execution or alternate Polars parser is used to emulate support. Native structured conform retains the selected backend's supported conversions. |
+| Additional SQL dialects | Literal and both-cast rendering was exercised through MySQL, SingleStoreDB, Exasol and Postgres compilers, with explicit native container limitations. Physical execution remains unverified without configured services. Exasol timestamp literals visibly lose fractional digits in native compiler output (347). |
+
+No backend-switching workaround or silent widening is provided. In particular,
+an advertised timestamp unit is not evidence that its fractional value survived
+native storage, parsing or export.
+
+
 ### Native overrides
 
 `backend_type` takes precedence over `dtype`, including decimal declarations:

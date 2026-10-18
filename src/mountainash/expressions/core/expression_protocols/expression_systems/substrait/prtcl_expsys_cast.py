@@ -14,7 +14,7 @@ from typing import Literal, Protocol
 # resolves this protocol's annotations via typing.get_type_hints(), which needs
 # these names in the module's runtime namespace. Moving them into a
 # type-checking block would break that introspection.
-from mountainash.core.dtypes import MountainashDtype, NativeDtype  # noqa: TC001
+from mountainash.core.dtypes import CastTarget  # noqa: TC001
 from mountainash.core.types import ExpressionT
 
 
@@ -28,7 +28,7 @@ class SubstraitCastExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        dtype: MountainashDtype | NativeDtype,
+        dtype: CastTarget,
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> ExpressionT:
         """Cast expression to a target data type.

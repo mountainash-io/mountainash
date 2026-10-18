@@ -120,10 +120,14 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
         return ResolvedOperand(OperandType(logical, "native", None), dtype)
 
     def literal_operand_type(self, value: Any, dtype: Any = None) -> Any:
-        """Keep declared Pandas null literals in storage that can represent null."""
+        """Describe literals using the same resolved dtype as literal lowering."""
         from mountainash.core.dtypes.metadata import OperandType
         from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
 
+        if dtype is not None and self.dialect == "narwhals-pandas":
+            from .substrait.expsys_nw_literal import SubstraitNarwhalsLiteralExpressionSystem
+
+            dtype = SubstraitNarwhalsLiteralExpressionSystem._effective_literal_dtype(self, value, dtype)
         resolved = super().literal_operand_type(value, dtype)
         if (
             self.dialect == "narwhals-pandas"

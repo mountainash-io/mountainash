@@ -22,7 +22,7 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
         self,
         x,
         /,
-        *,
+        *converted_fields,
         fields: tuple[FieldSpec, ...],
         failure_behavior: str = "throw",
     ):
@@ -41,6 +41,19 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
             )
         field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
         dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        if converted_fields:
+            count = len(fields)
+            validity = converted_fields[count] if len(converted_fields) > count else None
+            result = nw.struct(
+                **{
+                    child.name: value
+                    for child, value in zip(fields, converted_fields[:count], strict=True)
+                }
+            ).cast(dtype)
+            result = nw.when(x.is_null()).then(nw.lit(None, dtype=dtype)).otherwise(result)
+            if validity is not None:
+                result = nw.when(validity).then(result).otherwise(nw.lit(None, dtype=dtype))
+            return result
         return self._cast_target(x, dtype)
 
     def struct_field(self, x, /, *, field_name: str):

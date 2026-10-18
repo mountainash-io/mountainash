@@ -15,7 +15,7 @@ class MountainAshScalarStructExpressionSystemProtocol(Protocol[ExpressionT]):
         self,
         x: ExpressionT,
         /,
-        *,
+        *converted_fields: ExpressionT,
         fields: tuple[FieldSpec, ...],
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> ExpressionT: ...

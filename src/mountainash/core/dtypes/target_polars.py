@@ -10,8 +10,72 @@ from .canonical import (
     ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype as D,
     NativeDtype, SchemaTypeStatus, StructDtype, TimeDtype, TimestampDtype,
 )
+from .errors import DtypeMappingError, UnknownDtypeError
 from .targets import TypeTarget
-from .errors import UnknownDtypeError
+
+_TIME_UNITS = {3: "ms", 6: "us", 9: "ns"}
+
+
+def _unit(precision: Any, family: str) -> str:
+    if precision is SchemaTypeStatus.UNKNOWN:
+        return "us"
+    try:
+        return _TIME_UNITS[precision]
+    except KeyError:
+        raise DtypeMappingError(
+            f"Polars {family} cannot represent precision {precision}; "
+            "supported precisions are 3, 6 and 9"
+        ) from None
+
+
+def to_native_parameterized(dtype: Any) -> Any:
+    if isinstance(dtype, TimestampDtype):
+        unit = _unit(dtype.precision, "timestamp")
+        zone = dtype.timezone
+        aware = dtype.timezone_aware is True or isinstance(zone, str)
+        if aware and (zone is None or zone is SchemaTypeStatus.UNKNOWN):
+            zone = "UTC"
+        if not aware:
+            zone = None
+        return pl.Datetime(unit, zone)
+    if isinstance(dtype, TimeDtype):
+        if dtype.precision not in (SchemaTypeStatus.UNKNOWN, 9):
+            raise DtypeMappingError(
+                f"Polars Time cannot represent precision {dtype.precision}; "
+                "supported precisions are UNKNOWN and 9"
+            )
+        return pl.Time
+    if isinstance(dtype, DurationDtype):
+        if dtype.semantics == "calendar":
+            raise DtypeMappingError("Polars Duration represents fixed elapsed time, not calendar intervals")
+        unit = dtype.unit
+        if unit is SchemaTypeStatus.UNKNOWN:
+            unit = "us"
+        if unit not in ("ns", "us", "ms"):
+            raise DtypeMappingError(f"Polars fixed Duration cannot represent unit {unit!r}")
+        return pl.Duration(unit)
+    if isinstance(dtype, ListDtype):
+        inner = dtype.element
+        return pl.List(pl.Null if inner is SchemaTypeStatus.UNKNOWN else _native_child(inner))
+    if isinstance(dtype, ArrayDtype):
+        if dtype.dimensions is SchemaTypeStatus.UNKNOWN:
+            raise DtypeMappingError("Polars fixed Array requires known dimensions; it cannot be represented as a variable List")
+        child = pl.Null if dtype.element is SchemaTypeStatus.UNKNOWN else _native_child(dtype.element)
+        for size in reversed(dtype.dimensions):
+            child = pl.Array(child, size)
+        return child
+    if isinstance(dtype, StructDtype):
+        fields = [] if dtype.fields is SchemaTypeStatus.UNKNOWN else [
+            pl.Field(name, pl.Null if child is SchemaTypeStatus.UNKNOWN else _native_child(child))
+            for name, child in dtype.fields
+        ]
+        return pl.Struct(fields)
+    raise DtypeMappingError(f"Unsupported parameterized Polars dtype: {dtype!r}")
+
+
+def _native_child(dtype: Any) -> Any:
+    from .registry import registry
+    return registry.to_native_schema(dtype, TypeTarget.POLARS)
 
 SCHEMA_TYPES: dict[D, Any] = {
     D.BOOL: pl.Boolean, D.I8: pl.Int8, D.I16: pl.Int16, D.I32: pl.Int32,

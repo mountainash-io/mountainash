@@ -7,9 +7,9 @@ maps here via typespec.universal_types.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -17,7 +17,12 @@ from .errors import UnknownDtypeError
 from .targets import TypeTarget, detect_target
 
 class SchemaTypeStatus(Enum):
-    """Non-type states in an inferred schema."""
+    """Unknown evidence or an unconstrained schema, neither a physical dtype.
+
+    UNKNOWN in an authored target leaves that parameter unspecified. In an
+    inferred source it means evidence is unavailable, not that types match.
+    UNCONSTRAINED records absence of a schema constraint, not missing knowledge.
+    """
 
     UNKNOWN = "unknown"
     UNCONSTRAINED = "unconstrained"
@@ -254,6 +259,99 @@ class DecimalDtype:
         return f"decimal({self.precision},{self.scale})"
 
 
+PARAMETERIZED_DTYPES = (
+    TimestampDtype, TimeDtype, DurationDtype, ListDtype, ArrayDtype, StructDtype,
+)
+PortableDtype = (
+    MountainashDtype | DecimalDtype | TimestampDtype | TimeDtype
+    | DurationDtype | ListDtype | ArrayDtype | StructDtype
+)
+ConstructionDtype = PortableDtype | Literal[SchemaTypeStatus.UNKNOWN]
+CastTarget = ConstructionDtype | NativeDtype
+
+
+def _source_dtype(source: Any) -> Any:
+    """Inherit portable evidence without adopting its native override."""
+    if source is None or isinstance(source, SchemaTypeStatus):
+        return SchemaTypeStatus.UNKNOWN
+    if isinstance(source, (ListDtype, ArrayDtype)):
+        return replace(source, element=_source_dtype(source.element), native=None)
+    if isinstance(source, StructDtype):
+        children = source.fields
+        if children is not SchemaTypeStatus.UNKNOWN:
+            children = tuple((name, _source_dtype(child)) for name, child in children)
+        return replace(source, fields=children, native=None)
+    if isinstance(source, (*PARAMETERIZED_DTYPES, DecimalDtype)):
+        return replace(source, native=None)
+    return source
+
+
+def resolve_dtype_parameters(
+    dtype: CastTarget, source: object = SchemaTypeStatus.UNKNOWN,
+) -> CastTarget:
+    """Fill compatible unknown parameters, retaining authored intent unchanged.
+
+    This is portable evidence resolution, not native construction: defaults are
+    applied by the target adapter. Entire-target UNKNOWN still means no cast.
+    """
+    unknown = SchemaTypeStatus.UNKNOWN
+    if getattr(dtype, "native", None) is not None:
+        return dtype
+    if isinstance(dtype, TimestampDtype):
+        precision, aware, zone = dtype.precision, dtype.timezone_aware, dtype.timezone
+        if isinstance(zone, str):
+            aware = True
+        if isinstance(source, TimestampDtype):
+            if precision is unknown:
+                precision = source.precision
+            if aware is unknown:
+                aware = source.timezone_aware
+            if zone is unknown and (
+                aware is unknown or source.timezone_aware is aware
+            ):
+                zone = source.timezone
+        if aware is False:
+            zone = None
+        return replace(dtype, precision=precision, timezone_aware=aware, timezone=zone)
+    if isinstance(dtype, TimeDtype) and isinstance(source, TimeDtype):
+        return replace(dtype, precision=source.precision if dtype.precision is unknown else dtype.precision)
+    if isinstance(dtype, DurationDtype) and isinstance(source, DurationDtype):
+        unit, semantics = dtype.unit, dtype.semantics
+        fixed_units = {"W", "D", "h", "m", "s", "ms", "us", "ns"}
+        compatible = semantics is unknown or semantics == source.semantics
+        if semantics is unknown and (
+            unit is unknown or unit == source.unit
+            or (unit in fixed_units and source.unit in fixed_units)
+        ):
+            semantics = source.semantics
+        if unit is unknown and compatible:
+            unit = source.unit
+        return replace(dtype, unit=unit, semantics=semantics)
+    if isinstance(dtype, (ListDtype, ArrayDtype)):
+        source_element = source.element if isinstance(source, (ListDtype, ArrayDtype)) else unknown
+        element = (
+            _source_dtype(source_element) if dtype.element is unknown
+            else resolve_dtype_parameters(dtype.element, source_element)
+        )
+        if isinstance(dtype, ArrayDtype):
+            dimensions = dtype.dimensions
+            if dimensions is unknown and isinstance(source, ArrayDtype):
+                dimensions = source.dimensions
+            return replace(dtype, element=element, dimensions=dimensions)
+        return replace(dtype, element=element)
+    if isinstance(dtype, StructDtype):
+        source_fields = source.fields if isinstance(source, StructDtype) else unknown
+        if dtype.fields is unknown:
+            return replace(dtype, fields=_source_dtype(source).fields) if isinstance(source, StructDtype) else dtype
+        evidence = dict(source_fields) if source_fields is not unknown else {}
+        return replace(dtype, fields=tuple(
+            (name, _source_dtype(evidence.get(name, unknown)) if child is unknown
+             else resolve_dtype_parameters(child, evidence.get(name, unknown)))
+            for name, child in dtype.fields
+        ))
+    return dtype
+
+
 def dtype_family(value: Any) -> Any:
     """Classify a dtype without treating the result as a cast target."""
     if isinstance(value, DecimalDtype):
@@ -350,14 +448,14 @@ def parse_dtype(value: Any) -> MountainashDtype:
 
 def parse_cast_target(
     value: Any,
-) -> Union[MountainashDtype, DecimalDtype, NativeDtype]:
+) -> CastTarget:
     """Resolve a user-facing cast target.
 
-    Canonical inputs normalize via parse_dtype. ``DecimalDtype`` passes through
-    unchanged. Native backend dtype objects wrap in NativeDtype WITHOUT
-    normalization (parameters preserved).
+    Canonical inputs normalize via parse_dtype. Portable descriptors and UNKNOWN
+    retain authored intent. Native backend dtype objects wrap in NativeDtype
+    without normalization (parameters preserved).
     """
-    if isinstance(value, (DecimalDtype, NativeDtype)):
+    if value is SchemaTypeStatus.UNKNOWN or isinstance(value, (*PARAMETERIZED_DTYPES, DecimalDtype, NativeDtype)):
         return value
     try:
         return parse_dtype(value)
