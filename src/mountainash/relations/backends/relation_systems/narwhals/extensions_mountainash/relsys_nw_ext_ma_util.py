@@ -57,14 +57,18 @@ class MountainashNarwhalsExtensionRelationSystem(
         fraction: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> Any:
-        frame = relation
-        is_lazy = isinstance(frame, nw.LazyFrame)
-        if is_lazy:
-            frame = frame.collect()
+        if isinstance(relation, nw.LazyFrame):
+            from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+                MountainashPolarsExtensionRelationSystem,
+            )
+
+            sampled = MountainashPolarsExtensionRelationSystem().sample(
+                nw.to_native(relation), n=n, fraction=fraction, seed=seed,
+            )
+            return nw.from_native(sampled)
         if n is not None:
-            n = min(n, len(frame))
-        sampled = frame.sample(n=n, fraction=fraction, seed=seed)
-        return sampled.lazy() if is_lazy else sampled
+            n = min(n, len(relation))
+        return relation.sample(n=n, fraction=fraction, seed=seed)
 
     def unpivot(
         self,

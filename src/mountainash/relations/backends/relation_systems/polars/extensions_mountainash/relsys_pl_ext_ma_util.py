@@ -78,11 +78,18 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         fraction: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> pl.LazyFrame:
-        # LazyFrame does not support .sample() directly — collect, sample, re-lazy.
-        frame = relation.collect()
-        if n is not None:
-            n = min(n, frame.height)
-        return frame.sample(n=n, fraction=fraction, seed=seed).lazy()
+        def sample_frame(frame):
+            count = min(n, frame.height) if n is not None else None
+            return frame.sample(n=count, fraction=fraction, seed=seed)
+
+        return relation.map_batches(
+            sample_frame,
+            schema=relation.collect_schema(),
+            predicate_pushdown=False,
+            projection_pushdown=False,
+            slice_pushdown=False,
+            streamable=False,
+        )
 
     def unpivot(
         self,
