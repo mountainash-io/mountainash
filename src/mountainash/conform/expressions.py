@@ -987,8 +987,8 @@ def _build_field_expr(
         UniversalType.GEOPOINT,
         UniversalType.GEOJSON,
     }
-    from mountainash.typespec.converters import declared_element
-    element = declared_element(fld)
+    from mountainash.typespec.converters import _collection_item
+    element = _collection_item(fld, child_shape_type)
     unknown_lexical = (
         (fld.type == UniversalType.LIST and element is None)
         or (fld.type == UniversalType.GEOPOINT and fld.format == "default")

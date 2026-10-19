@@ -474,14 +474,14 @@ def _nested_field_valid(
     if value is not None and field.type.value in {"array", "object"}:
         value = parse_logical_value(value, type_name=field.type.value)
         if value is INVALID_VALUE:
-            return severity_group is None or severity_group == effective_severity
+            return severity_group is not None and severity_group != effective_severity
     constraints = field.constraints
     if value is None:
         if severity_group is not None and severity_group != effective_severity:
             return True
         return not (constraints and constraints.required)
     if not _type_format_execute(value, {"type": field.type.value, "format": field.format}):
-        return severity_group is None or severity_group == effective_severity
+        return severity_group is not None and severity_group != effective_severity
     check_own = severity_group is None or severity_group == effective_severity
     if check_own and constraints:
         for name, bound in {
@@ -539,11 +539,11 @@ def _nested_field_valid(
             return False
     if field.fields is not None:
         if not isinstance(value, Mapping):
-            return check_own
+            return not check_own
         return _nested_object_valid(value, field.fields, severity_group=severity_group)
     if field.element is not None:
         if not isinstance(value, (list, tuple)):
-            return check_own
+            return not check_own
         dimensions = getattr(field, "dimensions", None)
         if isinstance(dimensions, tuple) and dimensions:
             return _nested_dimensional_collection_valid(
