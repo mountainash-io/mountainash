@@ -451,3 +451,17 @@ def test_relabelled_struct_still_feeds_dotted_source(declaration_order):
     assert row["renamed"] == {"x": "2"}
     assert row["value"] == 2
     assert row["tail"] == "ok"
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["declared-order", "reversed-order"])
+def test_dotted_source_reads_original_struct_when_its_name_is_reassigned(reverse):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    declarations = [
+        ("renamed", FieldSpec(rename_from="record")),
+        ("record", FieldSpec(rename_from="other")),
+        ("value", FieldSpec(type=UniversalType.INTEGER, rename_from="record.x")),
+    ]
+    spec = TypeSpec(fields=dict(declarations[::-1] if reverse else declarations), fields_match="open")
+    row = PydataIngress.convert([{"record": {"x": "2"}, "other": {"x": "9"}}], type_spec=spec).to_dicts()[0]
+    assert (row["renamed"], row["record"], row["value"]) == ({"x": "2"}, {"x": "9"}, 2)

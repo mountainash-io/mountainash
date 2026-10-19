@@ -7,6 +7,7 @@ Implements the hybrid strategy for optimal performance:
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import logging
 
@@ -86,41 +87,66 @@ def apply_custom_converters_to_dict(
         42.5
     """
     return {
-        target: _converted(data_dict[source], custom_conversions.get(target), source)
+        target: _converted(_read(data_dict, source), custom_conversions.get(target), source)
         for target, source in _relabel_plan(data_dict, custom_conversions)
+        if _readable(data_dict, source)
     }
 
 
 def _relabel_plan(
     columns: Any, fields: Dict[str, "FieldSpec"],
 ) -> List[Tuple[str, str]]:
-    """Ordered ``(target, source)`` pairs: renames are relabelling of present columns.
+    """Ordered ``(target, source)`` pairs: renames are relabelling of the unchanged input.
 
     Each declared target takes its source's position (several targets may share
-    one source); undeclared columns pass through unless a declaration targets
-    their name. Sources that are not present columns (for example dotted struct
-    paths) are left to conform, and their root column stays available.
+    one source). A dotted source (``record.x``) is read from the original root
+    column in the same step, so reassigning the root's name cannot change it.
+    Undeclared columns pass through unless a declaration targets their name.
     """
     present = list(columns)
     available = set(present)
-    targets_by_source: Dict[str, List[str]] = {}
-    nested_roots: set = set()
+    targets_by_root: Dict[str, List[Tuple[str, str]]] = {}
     for target, field in fields.items():
         source = field.rename_from or target
-        if source in available:
-            targets_by_source.setdefault(source, []).append(target)
-        elif "." in source and source.split(".", 1)[0] in available:
-            nested_roots.add(source.split(".", 1)[0])
-    relabelled = {target for targets in targets_by_source.values() for target in targets}
+        root = source if source in available else source.split(".", 1)[0]
+        if root in available:
+            targets_by_root.setdefault(root, []).append((target, source))
+    relabelled = {target for pairs in targets_by_root.values() for target, _ in pairs}
     plan: List[Tuple[str, str]] = []
     for name in present:
-        if name in targets_by_source:
-            plan.extend((target, name) for target in targets_by_source[name])
-        # A struct read through a dotted path stays available under its own name
-        # for conform, even when another declaration relabels it.
-        if (name not in targets_by_source or name in nested_roots) and name not in relabelled:
+        pairs = targets_by_root.get(name, [])
+        plan.extend(pairs)
+        if not any(source == name for _, source in pairs) and name not in relabelled:
             plan.append((name, name))
     return plan
+
+
+def _readable(row: Mapping[str, Any], source: str) -> bool:
+    return source in row or source.split(".", 1)[0] in row
+
+
+def _read(row: Mapping[str, Any], source: str) -> Any:
+    if source in row:
+        return row[source]
+    root, *path = source.split(".")
+    value = row[root]
+    for part in path:
+        value = value.get(part) if isinstance(value, Mapping) else None
+    return value
+
+
+def _source_expr(pl: Any, schema: Mapping[str, Any], source: str) -> Any:
+    """Polars expression for a source, or None when a dotted path is not in the schema."""
+    if source in schema:
+        return pl.col(source)
+    root, *path = source.split(".")
+    expr, dtype = pl.col(root), schema.get(root)
+    for part in path:
+        fields = dict(dtype.to_schema()) if isinstance(dtype, pl.Struct) else {}
+        if part not in fields:
+            return None
+        expr, dtype = expr.struct.field(part), fields[part]
+    return expr
 
 
 def _converted(value: Any, field_spec: Optional["FieldSpec"], source_name: str) -> Any:
@@ -373,8 +399,8 @@ def apply_hybrid_conversion(
     if python_only:
         data_dicts = [
             {
-                target: _converted(row[source], python_only.get(target), source)
-                for target, source in plan if source in row
+                target: _converted(_read(row, source), python_only.get(target), source)
+                for target, source in plan if _readable(row, source)
             }
             for row in data_dicts
         ]
@@ -389,7 +415,12 @@ def apply_hybrid_conversion(
     # STEP 3: Create DataFrame (relabelling in one vectorized projection when no Python pass ran)
     df = pl.DataFrame(data_dicts, strict=False, schema_overrides=schema_overrides)
     if relabelled and not python_only:
-        df = df.select(pl.col(source).alias(target) for target, source in plan)
+        resolved = [
+            (target, expr) for target, source in plan
+            if (expr := _source_expr(pl, df.schema, source)) is not None
+        ]
+        relabelled = {target for target, _ in resolved} & relabelled
+        df = df.select(expr.alias(target) for target, expr in resolved)
 
     def placed(fields: Dict[str, "FieldSpec"]) -> Dict[str, "FieldSpec"]:
         return {
