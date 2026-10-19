@@ -67,6 +67,19 @@ def test_whole_native_struct_override_is_not_rewritten_by_children():
     assert field.dtype == authored
 
 
+@pytest.mark.parametrize("override", ["String", "Int64"])
+def test_collection_element_native_override_wins(override):
+    import polars as pl
+
+    item = FieldSpec(fields={"a": FieldSpec(type=U.INTEGER)}, backend_type=override)
+    with pytest.warns(UserWarning):
+        standalone = to_polars_schema(TypeSpec(fields={"x": item}))["x"]
+    with pytest.warns(UserWarning):
+        collection = to_polars_schema(TypeSpec(fields={"xs": FieldSpec(element=item)}))["xs"]
+    assert collection == pl.List(standalone)
+    assert standalone != pl.Struct({"a": pl.Int64})
+
+
 def test_composed_struct_with_unknown_child_uses_native_null():
     import polars as pl
     from mountainash.core.dtypes import SchemaTypeStatus

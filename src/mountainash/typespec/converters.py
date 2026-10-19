@@ -294,24 +294,23 @@ def _resolve_field_native(
         element = declared_element(field)
         if element is not None:
             element_dtype = resolve_field_canonical(element, field_name=f"{field_name or '<unnamed>'}[]")
-            if isinstance(element_dtype, StructDtype) and (
+            if element.backend_type is not None or (isinstance(element_dtype, StructDtype) and (
                 element.fields is not None or isinstance(element_dtype.fields, tuple)
-            ):
-                struct_native = _resolve_struct_inner(
-                    declared_fields(element), target,
-                    registry.to_native_schema(MountainashDtype.STRUCT, target),
+            )):
+                element_native = _resolve_field_native(
+                    element, target, field_name=f"{field_name or '<unnamed>'}[]",
                 )
                 if target is TypeTarget.POLARS:
                     from mountainash.core.lazy_imports import import_polars
-                    return import_polars().List(struct_native)
+                    return import_polars().List(element_native)
                 if target is TypeTarget.NARWHALS:
                     from mountainash.core.lazy_imports import import_narwhals
-                    return import_narwhals().List(struct_native)
+                    return import_narwhals().List(element_native)
                 if target is TypeTarget.PYARROW:
                     from mountainash.core.lazy_imports import import_pyarrow
-                    return import_pyarrow().list_(struct_native)
+                    return import_pyarrow().list_(element_native)
                 if target is TypeTarget.IBIS:
-                    return f"array<{struct_native}>"
+                    return f"array<{element_native}>"
     native = registry.to_native_schema(canon, target)
     if canon is MountainashDtype.LIST and field.item_type:
         return _resolve_list_inner(field_name or "<unnamed>", field.item_type, target, native)
