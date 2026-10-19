@@ -100,7 +100,66 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 return series.cast(registry.to_native_cast(target, self._TARGET))
 
             return _pandas_elementwise_batches(x, cast_bound, None)
+        if needs_source and self.dialect in {"narwhals-duckdb", "narwhals-dask"}:
+            from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
+                _ElementwiseBatchExpr,
+            )
+
+            return _ElementwiseBatchExpr(
+                x, None, None, native_polars=False,
+                compliant_transform=lambda source: self._bind_lazy_cast(source, dtype),
+            )
         return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
+
+    def _bind_lazy_cast(self, expression, dtype):
+        """Resolve lazy operands from bound metadata, never sampled rows."""
+        if self.dialect == "narwhals-dask":
+            from narwhals._dask.utils import narwhals_to_native_dtype
+
+            def cast_series(series):
+                source = registry.from_native(series.dtype, TypeTarget.PANDAS)
+                resolved = resolve_dtype_parameters(dtype, source)
+                if resolved == dtype:
+                    # No source refinement: retain Dask's original defaults and
+                    # numeric-to-temporal interpretation.
+                    target = narwhals_to_native_dtype(
+                        registry.to_native_cast(dtype, self._TARGET), expression._version,
+                    )
+                else:
+                    target = registry.to_native_cast(resolved, TypeTarget.PANDAS)
+                return series.astype(target)
+
+            return expression._with_callable(cast_series)
+
+        from narwhals._duckdb.utils import (
+            DeferredTimeZone, native_to_narwhals_dtype, narwhals_to_native_dtype,
+        )
+
+        def cast_expressions(frame, operands):
+            # DuckDB binds a projected relation's types without executing its rows.
+            native_types = frame.native.select(*operands).types
+            timezone = DeferredTimeZone(frame.native)
+            result = []
+            for operand, native in zip(operands, native_types, strict=True):
+                source = registry.from_native(
+                    native_to_narwhals_dtype(native, expression._version, timezone),
+                    self._TARGET,
+                )
+                target = registry.to_native_cast(
+                    resolve_dtype_parameters(dtype, source), self._TARGET,
+                )
+                result.append(operand.cast(
+                    narwhals_to_native_dtype(target, expression._version, timezone),
+                ))
+            return result
+
+        return expression.__class__(
+            lambda frame: cast_expressions(frame, expression(frame)),
+            lambda frame, inputs: cast_expressions(frame, expression.window_function(frame, inputs)),
+            evaluate_output_names=expression._evaluate_output_names,
+            alias_output_names=expression._alias_output_names,
+            version=expression._version,
+        )
 
     def _cast_target(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
         if self.dialect in {"narwhals-polars", "narwhals-lazy"}:

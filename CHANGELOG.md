@@ -3,7 +3,7 @@
 ## Unreleased — 2026-10-19
 
 ### Fixed
-- Bare timestamp/duration expression casts and source-bearing conform preserve compatible source units and timezone rather than resetting to backend defaults (334). Computed/native operands bind from dtype metadata without a second evaluation on the exercised Polars, Ibis and eager Narwhals paths. Temporal null fills retain fractional source values. Explicit targets and source-free defaults remain unchanged; additional-provider qualification is in progress.
+- Bare timestamp/duration expression casts and source-bearing conform preserve compatible source units and timezone rather than resetting to backend defaults (334). Native/computed casts bind from operand metadata on Polars, Ibis and Narwhals providers, including lazy DuckDB/Dask, without evaluating source rows to discover types. Temporal null fills retain fractional source values. Explicit targets and source-free defaults remain unchanged. Destination-imposed precision loss has exact passing conversion checks rather than a common reduced precision.
 - Shared relation recipes reuse qualified lowering and transfers within one root compilation (352). Distinct recipes and physical destinations remain separate; later terminals observe fresh source data. Opaque native deferred plans retain occurrence-specific materialization where repeatability is not established.
 - Compilation failures preserve the original error when owned-resource cleanup also fails; compiler and transport references are cleared on exceptional exit (352).
 

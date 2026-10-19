@@ -33,6 +33,7 @@ class _ElementwiseBatchExpr(nw.Expr):
         *,
         native_polars: bool,
         native_transform: _NativeTransform | None = None,
+        compliant_transform: _NativeTransform | None = None,
         tail: tuple[ExprNode, ...] = (),
         name_source: nw.Expr | None = None,
     ) -> None:
@@ -41,6 +42,7 @@ class _ElementwiseBatchExpr(nw.Expr):
         self._dtype = dtype
         self._native_polars = native_polars
         self._native_transform = native_transform
+        self._compliant_transform = compliant_transform
         self._tail = tail
         self._name_source = name_source
         self._nodes = (*source._nodes, *tail)
@@ -52,6 +54,7 @@ class _ElementwiseBatchExpr(nw.Expr):
             self._dtype,
             native_polars=self._native_polars,
             native_transform=self._native_transform,
+            compliant_transform=self._compliant_transform,
             tail=(*self._tail, node),
             name_source=self._name_source,
         )
@@ -65,13 +68,16 @@ class _ElementwiseBatchExpr(nw.Expr):
             nodes[0].exprs[0], self._callback, self._dtype,
             native_polars=self._native_polars,
             native_transform=self._native_transform,
+            compliant_transform=self._compliant_transform,
             tail=tuple(nodes[1:]),
             name_source=self._name_source,
         )
 
     def _to_compliant_expr(self, namespace: Any) -> Any:
         source: Any = self._source._to_compliant_expr(namespace)
-        if self._native_transform is not None:
+        if self._compliant_transform is not None:
+            result = self._compliant_transform(source)
+        elif self._native_transform is not None:
             result = source._with_native(self._native_transform(source.native))
         elif self._callback is None:
             result = source
