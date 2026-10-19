@@ -8,6 +8,7 @@
 - Compilation failures preserve the original error when owned-resource cleanup also fails; compiler and transport references are cleared on exceptional exit (352).
 
 ### Changed
+- Account for the native Narwhals-pandas NumPy float/NaN-to-integer limitation (252) with a version-qualified descriptive catalogue note and strict cross-backend projection regressions for all integer widths. Casting behavior is unchanged: no source normalization or blanket refusal.
 - Removed Ibis-Polars from pytest backend fixtures, execution matrices, and explicit backend cases (361). Direct Polars and Ibis SQL coverage remain; production runtime support is unchanged. The Ibis-Polars tail failure prompted this testing-policy change, not an upstream compiler repair.
 
 ## Unreleased — 2026-10-18

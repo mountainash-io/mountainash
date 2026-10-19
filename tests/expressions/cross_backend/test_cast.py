@@ -125,6 +125,29 @@ class TestCastToBoolean:
 class TestCastWithNulls:
     """Test casting with null values."""
 
+    @pytest.mark.parametrize("dtype", ["i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"])
+    @pytest.mark.parametrize("operation", ["select", "with_columns"])
+    def test_integer_projection_preserves_nulls(
+        self, backend_name, backend_factory, dtype, operation, request,
+    ):
+        import mountainash as mountainash
+
+        data = {"n": [None, 2, 4], "m": [7, 3, 1], "g": ["a", "a", "b"]}
+        source = backend_factory.create(data, backend_name)
+        expression = ma.col("n").cast(dtype).alias("n")
+        if backend_name in {"pandas", "narwhals-pandas"}:
+            from pandas.errors import IntCastingNaNError
+
+            request.applymarker(pytest.mark.xfail(
+                strict=True,
+                raises=IntCastingNaNError,
+                reason="252: native Narwhals NumPy-backed float/NaN -> integer cast cannot preserve nulls",
+            ))
+        result = getattr(mountainash.relation(source), operation)(expression).to_polars()
+        expected = data if operation == "with_columns" else {"n": data["n"]}
+        assert result.to_dict(as_series=False) == expected
+        assert result.schema["n"].is_integer()
+
     def test_cast_with_null_int_to_float(self, backend_name, backend_factory, collect_expr):
         data = {"value": [1, None, 3, None, 5]}
         df = backend_factory.create(data, backend_name)
