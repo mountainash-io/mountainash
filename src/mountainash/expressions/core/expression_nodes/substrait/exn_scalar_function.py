@@ -4,8 +4,10 @@ Corresponds to Substrait's ScalarFunction message.
 """
 
 from __future__ import annotations
+import dataclasses
+from collections.abc import Mapping
 from typing import Any, Dict, List
-from pydantic import Field
+from pydantic import Field, SerializationInfo, SerializerFunctionWrapHandler, field_serializer
 
 from .exn_base import ExpressionNode
 from ...expression_system.function_keys.enums import (
@@ -21,6 +23,17 @@ class _ImmutableDiagnosticContext(dict[str, str]):
 
     __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = _immutable
     __ior__ = _immutable
+
+
+def _json_option_value(value: Any) -> Any:
+    """Plain JSON shape for owned declaration values (mapping proxies, frozen dataclasses)."""
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return {f.name: _json_option_value(getattr(value, f.name)) for f in dataclasses.fields(value)}
+    if isinstance(value, Mapping):
+        return {key: _json_option_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_option_value(item) for item in value]
+    return value
 
 
 
@@ -65,6 +78,13 @@ class ScalarFunctionNode(ExpressionNode):
             "diagnostic_context",
             _ImmutableDiagnosticContext(self.diagnostic_context),
         )
+
+    @field_serializer("options", mode="wrap")
+    def _serialize_options(
+        self, value: Dict[str, Any], handler: SerializerFunctionWrapHandler, info: SerializationInfo,
+    ) -> Any:
+        return handler(_json_option_value(value) if info.mode_is_json() else value)
+
 
     def accept(self, visitor: Any) -> Any:
         """Accept a visitor for double-dispatch."""

@@ -39,6 +39,12 @@ class TestCategoricalValues:
     def test_simple_form(self):
         assert categorical_values(["a", "b"]) == ["a", "b"]
 
+    def test_returns_new_list(self):
+        cats = ["a", "b"]
+        result = categorical_values(cats)
+        assert result == ["a", "b"]
+        assert result is not cats  # never aliases the input
+
     def test_object_form(self):
         assert categorical_values(
             [{"value": 0, "label": "Low"}, {"value": 1, "label": "High"}]

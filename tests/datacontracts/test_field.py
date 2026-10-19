@@ -71,6 +71,60 @@ def test_constraints_reverse_conversion_retains_extended_vocabulary():
     assert all(check.severity == "warning" for check in checks)
 
 
+def _summary(result, check_id):
+    row = result.check_summaries.filter(pl.col("check_id") == check_id).row(0, named=True)
+    return row["status"], row["pass_count"], row["fail_count"]
+
+
+def test_range_is_guarded_for_optional_values():
+    checks = FieldSpec(type=UniversalType.INTEGER, minimum=0, maximum=100).to_checks("age")
+    assert _ids(checks) == ["age_type_format", "age_range"]
+    assert checks[1].fields == ("age",)
+    result = ValidationRunner().validate_relation(ma.relation(pl.DataFrame({"age": [50, None]})), checks)
+    assert result.passes
+
+
+def test_required_value_reports_null_as_violation():
+    checks = FieldSpec(type=UniversalType.INTEGER, required=True, minimum=0).to_checks("age")
+    assert _ids(checks) == ["age_type_format", "age__not_null", "age_range"]
+    result = ValidationRunner().validate_relation(ma.relation(pl.DataFrame({"age": [1, None]})), checks)
+    assert _summary(result, "age__not_null") == ("failed", 1, 1)
+    assert not result.passes
+
+
+def test_enum_membership_counts_guarded_nulls_as_passing():
+    checks = FieldSpec(type=UniversalType.STRING, enum=["open", "closed"]).to_checks("status")
+    assert _ids(checks) == ["status_type_format", "status_enum_membership"]
+    result = ValidationRunner().validate_relation(
+        ma.relation(pl.DataFrame({"status": ["open", "bogus", None]})), checks
+    )
+    assert _summary(result, "status_enum_membership") == ("failed", 2, 1)
+
+
+def test_unique_flags_every_duplicate_row():
+    checks = FieldSpec(type=UniversalType.INTEGER, unique=True).to_checks("id")
+    result = ValidationRunner().validate_relation(ma.relation(pl.DataFrame({"id": [1, 2, 2]})), checks)
+    assert _summary(result, "id_unique") == ("failed", 1, 2)
+
+
+def test_length_and_pattern_report_independent_outcomes():
+    checks = FieldSpec(type=UniversalType.STRING, pattern=r".+@.+", min_length=3, max_length=50).to_checks("email")
+    assert _ids(checks) == ["email_type_format", "email_length", "email_pattern"]
+    result = ValidationRunner().validate_relation(
+        ma.relation(pl.DataFrame({"email": ["a@b.c", "ab", "abcdef"]})), checks
+    )
+    assert _summary(result, "email_length") == ("failed", 2, 1)
+    assert _summary(result, "email_pattern") == ("failed", 1, 2)
+
+
+def test_warning_severity_failure_does_not_block():
+    checks = FieldSpec(type=UniversalType.INTEGER, required=True, minimum=0, severity="warning").to_checks("age")
+    assert all(check.severity == "warning" for check in checks)
+    result = ValidationRunner().validate_relation(ma.relation(pl.DataFrame({"age": [-1, 5]})), checks)
+    assert _summary(result, "age_range") == ("failed", 1, 1)
+    assert result.passes
+
+
 class TestPrimaryKeyUnique:
     """TypeSpec.primary_key produces a composite uniqueness rule."""
 

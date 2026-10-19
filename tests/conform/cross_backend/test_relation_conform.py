@@ -708,6 +708,31 @@ class TestConformOwnsDeclarations:
         self._check(old, expected=["NA"])
         self._check(new, expected=[None])
 
+    def test_owns_raw_mapping_schema(self, backend_name, backend_factory):
+        data = backend_factory.create({"value": ["7"]}, backend_name)
+        spec = {"fields": [{"name": "value", "type": "integer"}]}
+        old = ma.relation(data).conform(spec)
+        spec["fields"][0]["type"] = "string"
+        new = ma.relation(data).conform(spec)
+        self._check(old, expected=[7])
+        self._check(new, expected=["7"])
+
+    @pytest.mark.parametrize("as_proxy", [False, True])
+    def test_owns_contract_override(self, backend_name, backend_factory, as_proxy):
+        from types import MappingProxyType
+
+        data = backend_factory.create({"value": [1], "support": [2]}, backend_name)
+        spec = TypeSpec(fields_match="open", fields={"value": FieldSpec(type=UniversalType.INTEGER)})
+        override = {"extra_columns": "discard"}
+        arg = MappingProxyType(override) if as_proxy else override
+        old = ma.relation(data).conform(spec, contract=arg)
+        override["extra_columns"] = "evolve"
+        new = ma.relation(data).conform(spec, contract=arg)
+        # schema inference keeps unmapped columns under an extra_columns=discard
+        # override while execution drops them (separate defect, not ownership).
+        self._check(old, expected_cols=["value"], schema_parity=False)
+        self._check(new, expected_cols=["value", "support"])
+
 
 
 def test_nested_override_freeze_uses_effective_child_type():

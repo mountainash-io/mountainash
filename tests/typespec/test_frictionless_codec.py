@@ -217,6 +217,26 @@ def test_package_and_resource_sources_are_observable() -> None:
     assert second.effective_sources == raw["resources"][1]["sources"]
 
 
+def test_decode_does_not_mutate_input() -> None:
+    raw = minimal_descriptor()
+    expected = deepcopy(raw)
+    DataPackage.from_descriptor(raw)
+    assert raw == expected
+
+
+def test_decoder_owns_descriptor_metadata() -> None:
+    payload = [{"id": 1}]
+    schema = {"fields": [{"name": "id"}]}
+    dialect = {"delimiter": ";"}
+    raw = {"resources": [{"name": "orders", "data": payload, "schema": schema, "dialect": dialect}]}
+    resource = DataPackage.from_descriptor(raw).resources[0]
+    assert resource.data == payload
+    assert resource.table_schema == schema
+    assert resource.table_schema is not schema
+    assert resource.dialect == dialect
+    assert resource.dialect is not dialect
+
+
 _V1_URIS = [
     *(f"{scheme}://datapackage.org/profiles/1.0/{name}.json" for scheme in ("http", "https") for name in ("datapackage", "dataresource", "tabledialect", "tableschema")),
     *(f"{scheme}://{www}specs.frictionlessdata.io/schemas/{name}.json" for scheme in ("http", "https") for www in ("", "www.") for name in ("data-package", "data-resource", "tabular-data-resource", "tabular-data-package", "fiscal-data-package", "table-schema", "csv-dialect")),
