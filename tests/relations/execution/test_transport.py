@@ -52,7 +52,10 @@ def test_derived_sources_have_separate_cached_transfers(source_name, destination
     try:
         for selected in (1, 2):
             value = table.filter(table.id == selected)
-            source = CompiledSubtree(value, source_location, tokens.token(value), CompilationMetadata())
+            source = CompiledSubtree(
+                value, source_location, tokens.token(value), CompilationMetadata(),
+                reusable_lowering=True, repeatable_result=True,
+            )
             requirement = TransferRequirement(str(selected), destination, "ibis_arrow_ibis", True)
             first = session.transfer(source, requirement)
             assert session.transfer(source, requirement) is first

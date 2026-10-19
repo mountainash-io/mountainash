@@ -14,7 +14,10 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional
+
+if TYPE_CHECKING:
+    from mountainash.core.lowering_reuse import LoweringDescriptor
 
 
 class ArgKind(Enum):
@@ -51,6 +54,7 @@ class RelationOperationDef:
     handler: Optional[Callable] = None     # custom compile override: (node, visitor) -> Any
     gate_params: tuple[str, ...] = ()      # extra node fields that gate capability facts
     wraps_native_call: bool = False        # handler op wraps its native call in _enrich_native_call
+    lowering: LoweringDescriptor | None = None
 
     def get_signature(self) -> Optional[inspect.Signature]:
         if self.protocol_method is None:

@@ -266,6 +266,9 @@ class MountainashNarwhalsExtensionRelationSystem(
         """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
         local plain CSV/Parquet; Arrow-coerced (lazy-wrapped) fallback for JSON,
         glob, archive, remote."""
+        from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
+
+        self._resource_lowering = OCCURRENCE
         import narwhals as nw
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
             MountainashPolarsExtensionRelationSystem,
@@ -273,7 +276,9 @@ class MountainashNarwhalsExtensionRelationSystem(
 
         dialect = resource.to_dialect()
         if resource.data is not None:
-            lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
+            reader = MountainashPolarsExtensionRelationSystem()
+            lf = reader._read_inline(resource)
+            self._resource_lowering = reader._resource_lowering
             return nw.from_native(lf)  # stays lazy
 
         from mountainash.relations.backends.relation_systems import resource_files as rf
@@ -282,6 +287,7 @@ class MountainashNarwhalsExtensionRelationSystem(
         raw_path = resource.path
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
         if rf.polars_native_scan_supported(resource, fmt, dialect):
+            self._resource_lowering = DEFERRED_ONLY
             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
                 resource, fmt, dialect
             )

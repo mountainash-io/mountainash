@@ -51,14 +51,15 @@ def test_native_result_survives_gc_with_foreign_and_canonical_dependencies(backe
         else:
             rel = ma.relation(left).join(right, on="id", execute_on="right")
             scope = weakref.ref(rel)
-        return rel.collect(), scope
+        branch = rel.select("id", "value")
+        return ma.concat([branch] * 3).collect(), scope
 
     native, scope = build()
     gc.collect()
     assert sessions and all(reference() is None for reference in sessions)
     assert scope() is None
     assert native._find_backend(use_default=False) is destination_connection
-    assert ma.relation(native).to_dicts() == [{"id": 2, "value": 20}]
+    assert ma.relation(native).to_dicts() == [{"id": 2, "value": 20}] * 3
 
 
 @pytest.mark.parametrize("backend_name", IBIS)

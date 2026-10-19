@@ -329,6 +329,7 @@ class DAGMaterializationSession:
             if payload_transfer:
                 envelope = CompiledSubtree(
                     payload_root.dataframe, location, tokens.token(payload_root), CompilationMetadata(),
+                    reusable_lowering=True, repeatable_result=True,
                 )
                 visitor = None
             else:
@@ -353,9 +354,12 @@ class DAGMaterializationSession:
                     key_context=key_context, transport=self._execution_transport,
                     metadata=self._execution_metadata,
                 )
-                envelope, visitor = compilation.compile(prepared.root_key)
+                envelope, visitor = compilation.compile_root()
                 if self._execution_phase is ExecutionPhase.EXECUTE and not connectionless:
                     envelope = self.cache_root(name, envelope, visitor)
+            # Named bindings reuse the lowered plan. Only an actual capture
+            # grants reusable rows; an opaque deferred plan remains deferred.
+            envelope = replace(envelope, reusable_lowering=True)
             self._bound[binding_key] = (envelope, visitor)
             if visitor is not None:
                 self._visitors[name] = visitor
@@ -367,7 +371,11 @@ class DAGMaterializationSession:
         if requirement is None:
             self._resolved[(name, destination.key)] = envelope
             return envelope.value
-        transferred = self._execution_transport.transfer(envelope, requirement)
+        # The named owner explicitly shares this destination's materialization.
+        # Do not grant that permission to same-location consumers of its plan.
+        transferred = self._execution_transport.transfer(
+            replace(envelope, repeatable_result=True), requirement,
+        )
         self._resolved[(name, destination.key)] = transferred
         from mountainash.core.capabilities.policy import _CapabilityTarget
 
@@ -405,6 +413,7 @@ class DAGMaterializationSession:
             envelope = replace(
                 envelope, value=native.value,
                 source_token=self._execution_tokens.token(native.value),
+                reusable_lowering=True, repeatable_result=True,
             )
         else:
             native = NativeExecutionValue(
@@ -821,7 +830,9 @@ class DAGMaterializationSession:
         if self._closed:
             return
         self._closed = True
-        if self._execution_transport is not None:
-            self._execution_transport.close(release_owned=release_owned)
-        if release_owned:
-            self._scope.close()
+        try:
+            if self._execution_transport is not None:
+                self._execution_transport.close(release_owned=release_owned)
+        finally:
+            if release_owned:
+                self._scope.close()

@@ -26,6 +26,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 
 if TYPE_CHECKING:
     from enum import Enum
+    from mountainash.core.lowering_reuse import LoweringDescriptor
 
 
 # class SubstraitExtension(str, Enum):
@@ -90,6 +91,7 @@ class ExpressionFunctionDef:
     result_type: FixedResultType | PreserveResultType | None = None
     type_arguments: tuple[str, ...] = field(default_factory=tuple)
     projection_rule: ProjectionRule | None = None
+    lowering: LoweringDescriptor | None = None
 
     def __post_init__(self) -> None:
         if self.projection_rule is not None and not isinstance(

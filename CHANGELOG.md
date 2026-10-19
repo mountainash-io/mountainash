@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — 2026-10-19
+
+### Fixed
+- Shared relation recipes reuse qualified lowering and transfers within one root compilation (352). Distinct recipes and physical destinations remain separate; later terminals observe fresh source data. Opaque native deferred plans retain occurrence-specific materialization where repeatability is not established.
+- Compilation failures preserve the original error when owned-resource cleanup also fails; compiler and transport references are cleared on exceptional exit (352).
+
 ## Unreleased — 2026-10-18
 
 ### Fixed

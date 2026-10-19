@@ -72,9 +72,12 @@ class RelationBase:
         assert_prepared_owned_open(prepared)
         session = CompilationSession(prepared)
         try:
-            envelope, visitor = session.compile(prepared.root_key)
-        except BaseException:
-            session.close(release_owned=True)
+            envelope, visitor = session.compile_root()
+        except BaseException as primary:
+            try:
+                session.close(release_owned=True)
+            except BaseException as cleanup:
+                primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
             raise
         # The native graph retains its own Arrow-backed operands; keep its
         # provenance/visitor alive for subsequent terminal materialization.

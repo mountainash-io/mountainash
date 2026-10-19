@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from mountainash.core.types import PolarsFrame
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
+from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
 
 logger = logging.getLogger(__name__)
 
@@ -62,3 +63,4 @@ class DataframeFromPylist(BasePydataIngressHandler):
         )
 
         return df
+declare_lowering(DataframeFromPylist.convert.__func__, REPEATABLE)

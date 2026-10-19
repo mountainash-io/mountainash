@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
     from mountainash.core.types import PolarsFrame
 
+from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
 from .base_pydata_ingress_handler import BasePydataIngressHandler
 
 logger = logging.getLogger(__name__)
@@ -173,3 +174,4 @@ class IngressFromCollection(BasePydataIngressHandler):
             df = ma.relation(df).conform(type_spec).to_polars()
 
         return df
+declare_lowering(IngressFromCollection.convert.__func__, REPEATABLE)

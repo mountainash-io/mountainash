@@ -57,6 +57,9 @@ from .extensions_mountainash.expsys_ib_ext_ma_scalar_geospatial import MountainA
 
 
 
+from mountainash.expressions.core.expression_system.function_mapping.lowering import (
+    declare_builtin_expression_system,
+)
 @register_expression_system(CONST_BACKEND.IBIS)
 class IbisExpressionSystem(
     # Foundation protocols
@@ -107,6 +110,8 @@ class IbisExpressionSystem(
     """
 
     pass
+
+declare_builtin_expression_system(IbisExpressionSystem, "ibis")
 
 
 __all__ = [

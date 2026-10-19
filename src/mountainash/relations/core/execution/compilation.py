@@ -32,6 +32,7 @@ class CompilationSession:
             context_for=prepared.context_for,
         )
         self._schema_prototypes: dict[int, Any] = {}
+        self._compiled = {}
 
     def schema_input(self, value: Any) -> Any:
         from mountainash.relations.core.execution.location import schema_prototype
@@ -75,6 +76,21 @@ class CompilationSession:
         )
 
     def compile(self, key: str):
+        identity = (id(self.prepared.nodes[key]), self.prepared.locations[key].key)
+        if identity not in self._compiled:
+            result = self._compile_once(key)
+            if not result[0].reusable_lowering:
+                return result
+            self._compiled[identity] = result
+        return self._compiled[identity]
+
+    def compile_root(self):
+        try:
+            return self.compile(self.prepared.root_key)
+        finally:
+            self._compiled.clear()
+
+    def _compile_once(self, key: str):
         from mountainash.core.constants import CONST_BACKEND
         from mountainash.core.lazy_imports import import_ibis_expr_ops
         
@@ -119,6 +135,13 @@ class CompilationSession:
         envelope = self.metadata.capture(
             visitor, owner_key=key, location=self.prepared.locations[key], value=value,
         )
+        from dataclasses import replace
+
+        envelope = replace(
+            envelope,
+            reusable_lowering=visitor.reusable_lowering and visitor.expr_visitor.reusable_lowering,
+            repeatable_result=visitor.repeatable_result and visitor.expr_visitor.repeatable_result,
+        )
         from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
 
         if isinstance(node, RefRelNode) and self.ref_resolver_factory is not None:
@@ -126,7 +149,12 @@ class CompilationSession:
 
             # A ref is an alias of its named source, not a new materialization.
             # Keep the captured metadata but reuse the source's transport identity.
-            envelope = replace(envelope, source_token=visitor.ref_resolver.envelope(node.name).source_token)
+            captured = visitor.ref_resolver.envelope(node.name)
+            envelope = replace(
+                envelope, source_token=captured.source_token,
+                reusable_lowering=envelope.reusable_lowering and captured.reusable_lowering,
+                repeatable_result=envelope.repeatable_result and captured.repeatable_result,
+            )
         return envelope, visitor
 
     def _discharge_before_loss(self, parent: UnifiedRelationVisitor, child_key: str, envelope):
@@ -154,9 +182,6 @@ class CompilationSession:
 
     def child(self, visitor: UnifiedRelationVisitor, node: Any):
         from mountainash.relations.core.relation_nodes import ReadRelNode, SetRelNode
-        from mountainash.relations.core.materialization import (
-            coerce_to_ibis, coerce_to_narwhals, coerce_to_polars,
-        )
         from mountainash.core.constants import CONST_BACKEND
 
         parent_key = visitor.execution_key
@@ -173,19 +198,30 @@ class CompilationSession:
             raw = node.dataframe
             if not isinstance(raw, dict) and raw and not isinstance(raw[0], dict):
                 raise TypeError("Expected a mapping or a sequence of mappings")
+            from mountainash.pydata.ingress.pydata_ingress import repeatable_ingress_value
+
             destination = self.prepared.locations[parent_key]
-            if destination.family is CONST_BACKEND.IBIS:
-                source = CompiledSubtree(raw, self.prepared.locations[key],
-                                         self.prepared.tokens.token(node), CompilationMetadata())
-                requirement = TransferRequirement(key, destination, "mapping_to_ibis", False)
-                value = self.transport._adapt(source, requirement, coerce_to_ibis,
-                                              destination.prototype, raw)
-            elif destination.family is CONST_BACKEND.NARWHALS:
-                value = coerce_to_narwhals(destination.prototype, raw)
-            else:
-                value = coerce_to_polars(destination.prototype, raw)
-                value = visitor.backend.read(value)
-            return value
+            repeatable = repeatable_ingress_value(raw)
+            source = CompiledSubtree(
+                raw, self.prepared.locations[key], self.prepared.tokens.token(node),
+                CompilationMetadata(), reusable_lowering=repeatable, repeatable_result=repeatable,
+            )
+            route = {
+                CONST_BACKEND.IBIS: "raw_to_ibis",
+                CONST_BACKEND.NARWHALS: "raw_to_narwhals",
+                CONST_BACKEND.POLARS: "raw_to_polars",
+            }[destination.family]
+            envelope = self.transport.transfer(
+                source, TransferRequirement(key, destination, route, False),
+            )
+            visitor.reusable_lowering &= envelope.reusable_lowering
+            visitor.repeatable_result &= envelope.repeatable_result
+            if destination.family is CONST_BACKEND.POLARS:
+                from mountainash.core.lowering_reuse import REPEATABLE
+
+                visitor.record_lowering(visitor.backend.read, REPEATABLE)
+                return visitor.backend.read(envelope.value)
+            return envelope.value
         envelope, _ = self.compile(key)
         requirement = self.prepared.transfers.get(key)
         if requirement is not None:
@@ -202,6 +238,8 @@ class CompilationSession:
             # discharge() uses the source enrichment path, which removes
             # checked markers from the returned native snapshot itself.
             envelope = self.transport.discharge(envelope)
+        visitor.reusable_lowering &= envelope.reusable_lowering
+        visitor.repeatable_result &= envelope.repeatable_result
         self.metadata.adopt(visitor, node, envelope)
         return envelope.value
 
@@ -210,4 +248,7 @@ class CompilationSession:
                      for key in self.prepared.inputs[owner_key])
 
     def close(self, *, release_owned: bool) -> None:
-        self.transport.close(release_owned=release_owned)
+        try:
+            self.transport.close(release_owned=release_owned)
+        finally:
+            self._compiled.clear()

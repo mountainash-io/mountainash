@@ -10,6 +10,7 @@ Each function maps:
 Functions are organized by category for clarity.
 """
 from __future__ import annotations
+from functools import lru_cache
 
 from .registry import ExpressionFunctionRegistry as FunctionRegistry, ExpressionFunctionDef
 from .output_rules import LITERAL_SINGLE, PROPAGATE_FIRST, ProjectionRule
@@ -95,8 +96,9 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 )
 
 
-def register_all_functions() -> None:
-    """Register all function definitions with the registry."""
+@lru_cache(maxsize=1)
+def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
+    """Build the explicit audited builtin definition groups once."""
 
     # ========================================
     # Core Functions
@@ -3012,37 +3014,46 @@ def register_all_functions() -> None:
     # Register All Functions
     # ========================================
 
-    all_functions = (
-        SCALAR_COMPARISON_FUNCTIONS
-        + SCALAR_BOOLEAN_FUNCTIONS
-        + SCALAR_ARITHMETIC_FUNCTIONS
-        + SCALAR_STRING_FUNCTIONS
-        + SCALAR_DATETIME_FUNCTIONS
-        + SCALAR_SET_FUNCTIONS
-        + SCALAR_ROUNDING_FUNCTIONS
-        + SCALAR_LOGARITHMIC_FUNCTIONS
-        + SCALAR_AGGREGATE_FUNCTIONS
-        + WINDOW_ARITHMETIC_FUNCTIONS  # Substrait window functions
-        + MOUNTAINASH_WINDOW_FUNCTIONS  # Mountainash extension window functions
-        + CAST_FUNCTIONS
-        + CONDITIONAL_FUNCTIONS
-        # + NULL_FUNCTIONS
-        # + NAME_FUNCTIONS
-        # + TYPE_FUNCTIONS
-        # + CONSTANT_FUNCTIONS
-        + TERNARY_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_ARITHMETIC_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_VALUE_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_DATETIME_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_NULL_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_NAME_FUNCTIONS  # Mountainash extension
-        + MOUNTAINASH_CATEGORICAL_FUNCTIONS
-        + MOUNTAINASH_GEOSPATIAL_FUNCTIONS
-        + MOUNTAINASH_STRUCT_FUNCTIONS
-        + MOUNTAINASH_LIST_FUNCTIONS
-        + MOUNTAINASH_AGGREGATE_FUNCTIONS
-        + MOUNTAINASH_COMPARISON_FUNCTIONS  # Mountainash comparison extensions
+    # These named builtin groups have been audited as expression builders.
+    # Future or custom registry entries are not included by this declaration.
+    audited_groups = (
+        SCALAR_COMPARISON_FUNCTIONS,
+        SCALAR_BOOLEAN_FUNCTIONS,
+        SCALAR_ARITHMETIC_FUNCTIONS,
+        SCALAR_STRING_FUNCTIONS,
+        SCALAR_DATETIME_FUNCTIONS,
+        SCALAR_SET_FUNCTIONS,
+        SCALAR_ROUNDING_FUNCTIONS,
+        SCALAR_LOGARITHMIC_FUNCTIONS,
+        SCALAR_AGGREGATE_FUNCTIONS,
+        WINDOW_ARITHMETIC_FUNCTIONS,
+        MOUNTAINASH_WINDOW_FUNCTIONS,
+        CAST_FUNCTIONS,
+        CONDITIONAL_FUNCTIONS,
+        TERNARY_FUNCTIONS,
+        MOUNTAINASH_ARITHMETIC_FUNCTIONS,
+        MOUNTAINASH_VALUE_FUNCTIONS,
+        MOUNTAINASH_DATETIME_FUNCTIONS,
+        MOUNTAINASH_NULL_FUNCTIONS,
+        MOUNTAINASH_NAME_FUNCTIONS,
+        MOUNTAINASH_CATEGORICAL_FUNCTIONS,
+        MOUNTAINASH_GEOSPATIAL_FUNCTIONS,
+        MOUNTAINASH_STRUCT_FUNCTIONS,
+        MOUNTAINASH_LIST_FUNCTIONS,
+        MOUNTAINASH_AGGREGATE_FUNCTIONS,
+        MOUNTAINASH_COMPARISON_FUNCTIONS,
+    )
+    from dataclasses import replace
+    from mountainash.core.lowering_reuse import REPEATABLE
+
+    return tuple(
+        replace(function, lowering=REPEATABLE)
+        for group in audited_groups
+        for function in group
     )
 
-    for func in all_functions:
-        FunctionRegistry.register(func)
+
+def register_all_functions() -> None:
+    """Register the existing audited builtin definition groups."""
+    for function in _builtin_function_definitions():
+        FunctionRegistry.register(function)

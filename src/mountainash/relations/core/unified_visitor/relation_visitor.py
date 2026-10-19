@@ -269,6 +269,8 @@ class UnifiedRelationVisitor:
         self.execution = execution
         self.execution_key = execution_key
         self._visiting_root = False
+        self.reusable_lowering = True
+        self.repeatable_result = True
         self.diagnostic_traces: dict[tuple[Any, Any], Any] = {}
         self.residue_checks: list[Any] = []
         self.residue_check_nodes: dict[str, str] = {}
@@ -296,6 +298,17 @@ class UnifiedRelationVisitor:
             return None
         return self.execution.prepared.phase
 
+
+    def record_lowering(self, method, definition=None, *, value=None):
+        from mountainash.core.lowering_reuse import deferred_value, fold_lowering, selected_lowering
+
+        if self.expr_visitor is not None:
+            self.reusable_lowering &= self.expr_visitor.reusable_lowering
+            self.repeatable_result &= self.expr_visitor.repeatable_result
+        fold_lowering(
+            self, selected_lowering(method, definition),
+            deferred=value is None or deferred_value(value),
+        )
     def require_schema_execution(self, reason: str) -> None:
         """Fail closed before a schema-phase handler would evaluate rows."""
         from mountainash.relations.core.execution.preparation import ExecutionPhase
@@ -328,6 +341,7 @@ class UnifiedRelationVisitor:
                 f"Third-party visitor handler {handler.__qualname__} has no schema-phase contract"
             )
         if handler is not None:
+            self.record_lowering(handler)
             try:
                 return handler(node, self)
             except Exception as e:
@@ -570,6 +584,7 @@ class UnifiedRelationVisitor:
             # still pass through this phase boundary and may explicitly reject
             # work that would evaluate or transfer rows.
             result = op.handler(node, self)
+            self.record_lowering(op.handler, op.lowering, value=result)
             self._complete_transport_lineage(node, op)
             return result
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
@@ -640,6 +655,7 @@ class UnifiedRelationVisitor:
             dialect=dialect,
             execution_context=self.execution_context,
         )
+        self.record_lowering(method, op.lowering, value=result)
         self._complete_transport_lineage(node, op)
         return result
 
@@ -653,18 +669,30 @@ class UnifiedRelationVisitor:
         op = RelationOperationRegistry.get(operation_key)
         d = self._authoritative_dialect(node, op)   # item 95: _UNRESOLVED | str | None
         dialect = getattr(self.backend, "dialect", None) if d is _UNRESOLVED else d
-        return enrich_materialization(
+        result = enrich_materialization(
             self.backend, fn,
             prefer_operation_keys=frozenset({operation_key}),
             dialect=dialect,
             execution_context=self.execution_context,
         )
+        if op.protocol_method is not None:
+            self.record_lowering(
+                getattr(self.backend, op.protocol_method.__name__), op.lowering, value=result,
+            )
+        return result
 
     def _bind(self, node: RelationNode, binding: Any) -> Any:
         from mountainash.relations.core.relation_system.relation_mapping.registry import (
             ArgKind,
         )
         value = getattr(node, binding.field)
+        if isinstance(node, ReadRelNode) and binding.field == "dataframe":
+            from mountainash.core.lowering_reuse import deferred_value
+
+            # Native plans remain opaque: pass-through lowering is reusable,
+            # but evaluating their output has no repeatability declaration.
+            if deferred_value(value):
+                self.repeatable_result = False
         if isinstance(node, ReadRelNode) and binding.field == "dataframe" \
                 and self.execution_phase is not None and self.execution_phase.name == "SCHEMA":
             prototype = self.execution.schema_input(value)
@@ -811,6 +839,7 @@ class UnifiedRelationVisitor:
                 conform is being applied as part of a resource read. ``None``
                 for a bare ``Relation.conform()`` call (no resource context).
         """
+        from mountainash.core.lowering_reuse import REPEATABLE
         if isinstance(schema, dict):
             from mountainash.typespec.frictionless import typespec_from_frictionless
             schema = typespec_from_frictionless(schema)
@@ -923,6 +952,7 @@ class UnifiedRelationVisitor:
             if owner_node is not None:
                 self._conform_plans_by_node[id(owner_node)] = conform_result.structured_field_plans
             if empty_from_schema and available == [] and schema.fields:
+                self.record_lowering(self.backend.empty_frame, REPEATABLE)
                 return self.backend.empty_frame(schema)
             use_open = (
                 resolved_contract.extra_columns == "evolve"
@@ -932,12 +962,16 @@ class UnifiedRelationVisitor:
                 compiled_exprs = [
                     self.compile_expression(expr) for expr in conform_result.exprs
                 ]
+            self.record_lowering(self.backend.read, REPEATABLE, value=native)
             rel = self.backend.read(native)
             if use_open:
+                self.record_lowering(self.backend.project_with_columns, REPEATABLE, value=rel)
                 rel = self.backend.project_with_columns(rel, compiled_exprs)
                 if conform_result.renamed_sources:
+                    self.record_lowering(self.backend.project_drop, REPEATABLE, value=rel)
                     rel = self.backend.project_drop(rel, list(conform_result.renamed_sources))
             else:
+                self.record_lowering(self.backend.project_select, REPEATABLE, value=rel)
                 rel = self.backend.project_select(rel, compiled_exprs)
             return rel
         if owner_node is not None:
@@ -949,6 +983,7 @@ class UnifiedRelationVisitor:
 
         # Zero-column reconstruction (resource-read path only).
         if empty_from_schema and available == [] and schema.fields:
+            self.record_lowering(self.backend.empty_frame, REPEATABLE)
             return self.backend.empty_frame(schema)
 
         use_open = (
@@ -1044,19 +1079,24 @@ class UnifiedRelationVisitor:
             self.expr_visitor.conform_node_id = previous_node_id
 
         try:
+            self.record_lowering(self.backend.read, REPEATABLE, value=native)
             rel = self.backend.read(native)
             for predicate in compiled_filters:
+                self.record_lowering(self.backend.filter, REPEATABLE, value=rel)
                 rel = self.backend.filter(rel, predicate)
 
             if use_open:
+                self.record_lowering(self.backend.project_with_columns, REPEATABLE, value=rel)
                 rel = self.backend.project_with_columns(
                     rel, compiled_exprs + marker_exprs
                 )
                 if conform_result.renamed_sources:
+                    self.record_lowering(self.backend.project_drop, REPEATABLE, value=rel)
                     rel = self.backend.project_drop(
                         rel, list(conform_result.renamed_sources)
                     )
             else:
+                self.record_lowering(self.backend.project_select, REPEATABLE, value=rel)
                 rel = self.backend.project_select(
                     rel, compiled_exprs + marker_exprs
                 )
@@ -1166,4 +1206,8 @@ class UnifiedRelationVisitor:
             return self.expr_visitor.visit(expr)
         if isinstance(expr, BaseExpressionAPI):
             return self.expr_visitor.visit(expr._node)
+        if self.expr_visitor._is_backend_expression(expr):
+            from mountainash.core.lowering_reuse import DEFERRED_ONLY, fold_lowering
+
+            fold_lowering(self, DEFERRED_ONLY)
         return expr
