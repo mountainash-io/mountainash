@@ -299,8 +299,8 @@ class TestSeededSlice:
             return -reads[-1]
 
         contract = TypeSpec(
-            fields=[FieldSpec(name="a", type=parse_universal("integer"),
-                              constraints=FieldConstraints(minimum=0))],
+            fields={"a": FieldSpec(type=parse_universal("integer"),
+                                   constraints=FieldConstraints(minimum=0))},
             primary_key=["a"],
         ).to_contract(name="sample_source")
         con = ibis.duckdb.connect()

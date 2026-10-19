@@ -170,6 +170,41 @@ def test_nested_default_severity_does_not_inherit_warning_container() -> None:
     assert nested["fail_count"] == 1
     assert not result.passes
 
+
+def test_severity_variant_changes_only_its_own_requirement() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    age = FieldSpec(type=UniversalType.INTEGER, minimum=0)
+    plan = compile_datacontract(TypeSpec(fields={
+        "payload": FieldSpec(
+            type=UniversalType.OBJECT,
+            severity="warning",
+            required=True,
+            fields={"age": age, "age_soft": age.variant(severity="warning")},
+        ),
+    }))
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"age": -1, "age_soft": 1}, {"age": 1, "age_soft": -1}, None]}),
+        plan=plan,
+    )
+    rows = {
+        row["check_id"]: row
+        for row in result.check_summaries.iter_rows(named=True)
+    }
+    outcome = lambda check_id: (  # noqa: E731
+        rows[check_id]["severity"], rows[check_id]["status"],
+        rows[check_id]["pass_count"], rows[check_id]["fail_count"],
+    )
+    assert outcome("payload__not_null") == ("warning", "failed", 2, 1)
+    assert outcome("payload_nested") == ("blocking", "failed", 2, 1)
+    assert outcome("payload_nested__warning") == ("warning", "failed", 2, 1)
+    assert age.severity is None
+    assert not result.passes
+
 def test_duration_parser_preserves_calendar_months_and_decimal_seconds() -> None:
     """Duration values retain months rather than collapsing to timedeltas."""
     assert parse_duration_value("P1Y2M3DT4H5M6.50S") == DurationValue(
