@@ -1091,41 +1091,72 @@ def test_native_child_conversion_discards_invalid_parent_not_missing_child(
     assert result["x"].to_list() == expected
 
 
-_SCALAR_ELEMENT_CASES = [
-    pytest.param(
-        [["2", None]], FieldSpec(type=UniversalType.INTEGER, null_fill=7), [[2, 7]], id="null-fill",
-    ),
-    pytest.param(
-        [["NA", "3"]], FieldSpec(type=UniversalType.INTEGER, missing_values=["NA"]), [[None, 3]],
-        id="missing-values",
-    ),
-    pytest.param(
-        [["20240102"]], FieldSpec(type=UniversalType.DATE, format="%Y%m%d"),
-        [[__import__("datetime").date(2024, 1, 2)]], id="format",
-    ),
-]
+def _element_conversion_cases():
+    from datetime import date
+
+    import polars as pl
+
+    leaves = {
+        "null-fill": (FieldSpec(type=UniversalType.INTEGER, null_fill=7), ["2", None], [2, 7]),
+        "missing-values": (FieldSpec(type=UniversalType.INTEGER, missing_values=["NA"]), ["NA", "3"], [None, 3]),
+        "format": (
+            FieldSpec(type=UniversalType.DATE, format="%Y%m%d"), ["20240102", "20240103"],
+            [date(2024, 1, 2), date(2024, 1, 3)],
+        ),
+    }
+    for leaf_id, (leaf, raw, expected) in leaves.items():
+        kinds = {
+            "list": (FieldSpec(element=leaf), [raw], [expected], pl.List(pl.String)),
+            "list-of-list": (
+                FieldSpec(element=FieldSpec(element=leaf)), [[raw]], [[expected]], pl.List(pl.List(pl.String)),
+            ),
+            "array-2": (FieldSpec(element=leaf, dimensions=(2,)), [raw], [expected], pl.Array(pl.String, 2)),
+            "array-2x2": (
+                FieldSpec(element=leaf, dimensions=(2, 2)), [[raw, raw]], [[expected, expected]],
+                pl.Array(pl.String, (2, 2)),
+            ),
+            "list-of-object": (
+                FieldSpec(element=FieldSpec(fields={"v": leaf})), [[{"v": value} for value in raw]],
+                [[{"v": value} for value in expected]], pl.List(pl.Struct({"v": pl.String})),
+            ),
+        }
+        for kind_id, case in kinds.items():
+            yield pytest.param(*case, id=f"{kind_id}-{leaf_id}")
 
 
-@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-duckdb"))
-@pytest.mark.parametrize("values,element,expected", _SCALAR_ELEMENT_CASES)
-def test_scalar_element_conversion_applies_to_each_item(
-    backend_name, backend_factory, values, element, expected,
-):
-    source = backend_factory.create({"items": values}, backend_name)
-    result = ma.relation(source).conform(
-        TypeSpec(fields={"items": FieldSpec(element=element)}, missing_values=[]),
-    ).to_polars()
-    assert result["items"].to_list() == expected
+def _typed_source(backend_name, values, dtype):
+    """Typed nested sources (fixed arrays need explicit dtypes the shared factory cannot build)."""
+    import ibis
+    import narwhals as nw
+    import polars as pl
+
+    frame = pl.DataFrame({"items": values}, schema={"items": dtype})
+    return {
+        "polars": lambda: frame,
+        "polars-lazy": frame.lazy,
+        "narwhals-polars": lambda: nw.from_native(frame),
+        "ibis-duckdb": lambda: ibis.duckdb.connect().create_table("t", frame.to_arrow(), overwrite=True),
+    }[backend_name]()
 
 
-@pytest.mark.parametrize("backend_name", ("narwhals-polars",))
-def test_scalar_element_conversion_retains_provider_capability_boundary(backend_name, backend_factory):
+@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-duckdb", "narwhals-polars"))
+@pytest.mark.parametrize("action", ["coerce", "discard_value", "discard_row"])
+@pytest.mark.parametrize("field,values,expected,dtype", _element_conversion_cases())
+def test_element_conversion_applies_at_each_declared_level(backend_name, action, field, values, expected, dtype):
     from mountainash.core.types import BackendCapabilityError
 
-    source = backend_factory.create({"items": [["2", None]]}, backend_name)
-    field = FieldSpec(element=FieldSpec(type=UniversalType.INTEGER, null_fill=7))
-    with pytest.raises(BackendCapabilityError):
-        ma.relation(source).conform(TypeSpec(fields={"items": field}, missing_values=[])).to_polars()
+    source = _typed_source(backend_name, values, dtype)
+    with expect_call_failure(
+        when=backend_name == "narwhals-polars" or (backend_name == "ibis-duckdb" and action != "coerce"),
+        errors=(BackendCapabilityError,),
+        reason="Narwhals has no list-element expression for element conversion; Ibis-DuckDB LIST.CAST_ITEMS "
+               "is unsupported for failure_behavior='null' (discard actions)",
+    ):
+        result = ma.relation(source).conform(
+            TypeSpec(fields={"items": field}, missing_values=[]), contract={"data_type": action},
+        ).to_polars()
+        actual = [value.tolist() if hasattr(value, "tolist") else value for value in result["items"].to_list()]
+        assert actual == expected
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

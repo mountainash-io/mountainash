@@ -6,7 +6,7 @@ Examples are render-only illustrations, not executable tests, runtime rules, or 
 Catalogue descriptions retain their native/public layers and authored scope. Related policies are listed, not evaluated.
 Neither these examples nor upstream issue status establishes a verified version range.
 
-Illustrative examples: **434**
+Illustrative examples: **435**
 
 ## ibis/family — cum_prod() raises on all Ibis backends
 
@@ -5226,6 +5226,26 @@ No retained executable policy is authored for this target and concrete scope.
 ### Explicit issue references
 
 - `NW-DT-06` — needs_investigation; no upstream URL
+
+## narwhals/family — list element conversion (scalar or object elements with conversion instructions) raises on all narwhals backends
+
+Target: `FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT`
+
+### Illustration
+
+    Input data: {"items": [["2", null]]}
+    Declaration: {"items": FieldSpec(element=FieldSpec(type=INTEGER, null_fill=7))}
+    Reference result: {"polars, ibis-duckdb": [[2, 7]]}
+    Contrasting result: {"narwhals": "BackendCapabilityError: Narwhals does not support a native list-element expression"}
+
+### Catalogue descriptions
+
+No matching catalogue description is authored; support and verification remain unknown.
+
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
 
 ## narwhals/family — ma.corr() raises on all backends except ibis-polars
 

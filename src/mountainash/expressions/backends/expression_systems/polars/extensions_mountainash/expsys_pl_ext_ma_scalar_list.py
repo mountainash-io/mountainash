@@ -7,7 +7,7 @@ import polars as pl
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
-from mountainash.typespec.converters import _resolve_field_native, declared_fields
+from mountainash.typespec.converters import _resolve_field_native, declared_element, declared_fields
 from mountainash.typespec.spec import FieldSpec
 from mountainash.core.dtypes import TypeTarget
 from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
@@ -106,6 +106,10 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         if converted_fields:
             children = declared_fields(element)
             strict = failure_behavior != "null"
+            # A declared collection element lowers its own inner levels, so its
+            # converted item applies at the first level; anything else applies at
+            # the leaf, below every fixed-array axis.
+            one_level = declared_element(element) is not None
             if children:
                 names = tuple(children)
                 count = len(names)
@@ -117,14 +121,16 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
                     pl.lit(None, dtype=dtype.inner),
                 ).otherwise(item_element.cast(dtype.inner, strict=strict))
             else:
-                # A scalar element's converted expression already applies its own
-                # missing values, format and null fill to each item.
+                # The converted item already applies its own missing values, format and fill.
                 count = 1
-                item_element = converted_fields[0].cast(dtype.inner, strict=strict)
+                leaf = dtype.inner
+                while not one_level and isinstance(leaf, (pl.List, pl.Array)):
+                    leaf = leaf.inner
+                item_element = converted_fields[0].cast(leaf, strict=strict)
             validity = converted_fields[count] if len(converted_fields) > count else None
 
             def convert(bound, native, *, check=False):
-                nested = isinstance(native.inner, (pl.List, pl.Array))
+                nested = not one_level and isinstance(native.inner, (pl.List, pl.Array))
                 body = convert(pl.element(), native.inner, check=check) if nested else (
                     ~validity.fill_null(True) if check else item_element
                 )

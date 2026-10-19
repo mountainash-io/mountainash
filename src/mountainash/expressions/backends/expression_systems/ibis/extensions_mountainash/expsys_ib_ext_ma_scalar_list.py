@@ -13,7 +13,7 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import _resolve_field_native, declared_fields
+from mountainash.typespec.converters import _resolve_field_native, declared_element, declared_fields
 from mountainash.typespec.spec import FieldSpec
 from mountainash.core.dtypes import TypeTarget
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
@@ -172,10 +172,13 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
     ):
         if converted_fields:
             children_fields = declared_fields(element)
+            # Same rule as Polars: a declared collection element lowers its own
+            # inner levels, so its converted item applies at the first level.
+            one_level = declared_element(element) is not None
 
             def compile_item():
                 item = self.list_element()
-                if item.type().is_array():
+                if not one_level and item.type().is_array():
                     return self._compile_list_body(item, compile_item)
                 children = tuple(compile_field() for compile_field in converted_fields)
                 if any(isinstance(child, Deferred) for child in children):

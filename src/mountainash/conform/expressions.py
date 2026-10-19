@@ -1347,13 +1347,22 @@ def _build_field_expr(
                 converted_fields, converted_validity = _converted_child_fields(
                     element.fields, expr, shape, list_element=True,
                 )
-        elif declared_element(element) is None and _needs_child_conversion(element, shape.item_shape):
+        elif _needs_child_conversion(element, shape.item_shape):
             from mountainash.typespec.converters import resolve_field_canonical
+            item_shape = shape.item_shape
+            if declared_element(element) is None:
+                # A scalar leaf sits below every fixed-array axis; a declared
+                # collection element lowers its own inner levels recursively.
+                while (
+                    item_shape is not None and item_shape.canonical_type is MountainashDtype.LIST
+                    and item_shape.item_shape is not None
+                ):
+                    item_shape = item_shape.item_shape
             item_name = f"{local_name}[]"
             item = _build_field_expr(
                 element, item_name, schema_missing_values, local_name=item_name,
                 type_action="discard_row" if type_action in {"discard_value", "discard_row"} else type_action,
-                declared_type=element.dtype, source_shape=shape.item_shape,
+                declared_type=element.dtype, source_shape=item_shape,
                 effective_type=resolve_field_canonical(element, field_name=item_name),
                 source_expr=expr.list.element(),
             )

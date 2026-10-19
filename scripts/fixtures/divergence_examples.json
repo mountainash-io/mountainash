@@ -3292,5 +3292,12 @@
     "title": "Zero-width-capable regexp split differs from ibis-duckdb on polars.",
     "text": "Arguments: {\"input\": {\"column\": \"text\", \"expression\": \"field\"}, \"pattern\": \"a*\"}\nOptions: {\"case_sensitivity\": \"CASE_SENSITIVE\"}\nInput schema: {\"columns\": {\"text\": {\"nullable\": false, \"type\": \"text\"}}}\nInput data: {\"fixture\": {\"text\": [\"ab\"]}}\nReference result: {\"claim_status\": \"historical_source_claim\", \"declaration\": \"MA-STR-03\", \"statement\": \"ibis-duckdb oracle result\"}\nContrasting result: {\"claim_status\": \"historical_source_claim\", \"declaration\": \"MA-STR-03\", \"statement\": \"Polars consolidates zero-width matches differently from ibis-duckdb\"}",
     "issue": "MA-STR-03"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT",
+    "title": "list element conversion (scalar or object elements with conversion instructions) raises on all narwhals backends",
+    "text": "Input data: {\"items\": [[\"2\", null]]}\nDeclaration: {\"items\": FieldSpec(element=FieldSpec(type=INTEGER, null_fill=7))}\nReference result: {\"polars, ibis-duckdb\": [[2, 7]]}\nContrasting result: {\"narwhals\": \"BackendCapabilityError: Narwhals does not support a native list-element expression\"}"
   }
 ]
