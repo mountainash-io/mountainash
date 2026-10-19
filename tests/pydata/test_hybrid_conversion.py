@@ -433,3 +433,21 @@ def test_vectorized_conversion_reads_unchanged_source_values(key_order):
     }, fields_match="open")
     result = PydataIngress.convert([{key: source_row[key] for key in key_order}], type_spec=spec)
     assert result.select("converted", "original").to_dicts() == [{"converted": 1.5, "original": "y"}]
+
+
+@pytest.mark.parametrize("declaration_order", ["relabel-first", "dotted-first"])
+def test_relabelled_struct_still_feeds_dotted_source(declaration_order):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    declarations = [
+        ("renamed", FieldSpec(rename_from="record")),
+        ("value", FieldSpec(type=UniversalType.INTEGER, rename_from="record.x")),
+    ]
+    if declaration_order == "dotted-first":
+        declarations.reverse()
+    spec = TypeSpec(fields=dict(declarations), fields_match="open")
+    result = PydataIngress.convert([{"record": {"x": "2"}, "tail": "ok"}], type_spec=spec)
+    row = result.to_dicts()[0]
+    assert row["renamed"] == {"x": "2"}
+    assert row["value"] == 2
+    assert row["tail"] == "ok"

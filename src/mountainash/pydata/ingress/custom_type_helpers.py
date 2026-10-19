@@ -99,21 +99,26 @@ def _relabel_plan(
     Each declared target takes its source's position (several targets may share
     one source); undeclared columns pass through unless a declaration targets
     their name. Sources that are not present columns (for example dotted struct
-    paths) are left to conform.
+    paths) are left to conform, and their root column stays available.
     """
     present = list(columns)
     available = set(present)
     targets_by_source: Dict[str, List[str]] = {}
+    nested_roots: set = set()
     for target, field in fields.items():
         source = field.rename_from or target
         if source in available:
             targets_by_source.setdefault(source, []).append(target)
+        elif "." in source and source.split(".", 1)[0] in available:
+            nested_roots.add(source.split(".", 1)[0])
     relabelled = {target for targets in targets_by_source.values() for target in targets}
     plan: List[Tuple[str, str]] = []
     for name in present:
         if name in targets_by_source:
             plan.extend((target, name) for target in targets_by_source[name])
-        elif name not in relabelled:
+        # A struct read through a dotted path stays available under its own name
+        # for conform, even when another declaration relabels it.
+        if (name not in targets_by_source or name in nested_roots) and name not in relabelled:
             plan.append((name, name))
     return plan
 
