@@ -302,8 +302,9 @@ class UnifiedRelationVisitor:
     def record_lowering(self, method, definition=None, *, value=None):
         from mountainash.core.lowering_reuse import deferred_value, fold_lowering, selected_lowering
 
-        self.reusable_lowering &= self.expr_visitor.reusable_lowering
-        self.repeatable_result &= self.expr_visitor.repeatable_result
+        if self.expr_visitor is not None:
+            self.reusable_lowering &= self.expr_visitor.reusable_lowering
+            self.repeatable_result &= self.expr_visitor.repeatable_result
         fold_lowering(
             self, selected_lowering(method, definition),
             deferred=value is None or deferred_value(value),
