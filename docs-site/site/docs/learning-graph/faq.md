@@ -201,7 +201,7 @@ Namespaces are implemented via `NamespaceDescriptor`, a Python descriptor that r
 
 ### What is TypeSpec and how does it relate to Frictionless Table Schema?
 
-`TypeSpec` is mountainash's universal type metadata container. It describes a table's schema as a list of `FieldSpec` objects, each specifying a column's name, `UniversalType` (an enum of logical types like STRING, INTEGER, DATE), and optional `FieldConstraints` (nullable, unique, enum values, min/max).
+`TypeSpec` is mountainash's universal type metadata container. It describes a table's schema as an ordered mapping from column name to `FieldSpec`. A `FieldSpec` is an unnamed, immutable declaration of a `UniversalType` (an enum of logical types like STRING, INTEGER, DATE), optional `FieldConstraints` (required, unique, enum values, min/max) and conversion instructions; the same declaration can be reused under several names, and nested through `fields=` (struct members) and `element=` (collection items).
 
 TypeSpec is aligned with the Frictionless Table Schema standard, meaning you can convert between TypeSpec and Frictionless schemas without loss. This alignment enables interoperability with the broader Frictionless data ecosystem, including DataPackage descriptors used by the RelationDAG.
 

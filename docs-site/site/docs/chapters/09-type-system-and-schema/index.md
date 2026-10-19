@@ -54,30 +54,32 @@ Unlike `MountainashDtype` (which uses Substrait-aligned names like `i64` and `fp
 <!-- concept:148 -->
 ## FieldSpec
 
-A `FieldSpec` describes a single field (column) in a schema. It extends the Frictionless Table Schema field definition with mountainash-specific features like `rename_from` for column aliasing and `null_fill` for default null replacement.
+A `FieldSpec` describes a single field (column). It extends the Frictionless Table Schema field definition with mountainash-specific features like `rename_from` for column aliasing and `null_fill` for default null replacement.
+
+A `FieldSpec` has no name. It is an immutable declaration; the name comes from the mapping key where it is attached, so one declaration can be reused under several names, as a struct member or as a collection element.
 
 ```python
-@dataclass
-class FieldSpec:
-    name: str
-    type: UniversalType = UniversalType.STRING
-    format: str = "default"
-    title: Optional[str] = None
-    description: Optional[str] = None
-    constraints: Optional[FieldConstraints] = None
-    missing_values: Optional[list[str]] = None
-    null_fill: Any = None
-    rename_from: Optional[str] = None
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+
+quantity = FieldSpec(type=UniversalType.INTEGER, minimum=0, null_fill=0)
+
+spec = TypeSpec(fields={
+    "ordered": quantity,
+    "shipped": quantity.variant(rename_from="qty_shipped"),
+    "line": FieldSpec(fields={"sku": FieldSpec(type=UniversalType.STRING), "quantity": quantity}),
+    "counts": FieldSpec(element=quantity),
+})
 ```
 
-The `source_name` property returns `rename_from` if set, otherwise falls back to `name`. This enables the `conform` operation to map columns from source names to target names transparently.
-
-- **name**: The desired output column name
-- **type**: The universal type for this field
-- **constraints**: Validation rules (required, unique, min/max, etc.)
-- **missing_values**: String representations that should be treated as null
+- **type**: The universal type for this field (`dtype` is an optional native override)
+- **constraints** (or keywords such as `minimum=`): Validation rules (required, unique, min/max, etc.)
+- **missing_values**: Source values that should be treated as null
 - **null_fill**: Default value to substitute for nulls
-- **rename_from**: Source column name if different from target name
+- **rename_from**: Source column (or dotted struct path) if different from the mapping key
+- **fields**: Ordered name-to-`FieldSpec` mapping for struct members
+- **element** / **dimensions**: The declaration of collection items, and fixed array dimensions
+
+`variant(**properties)` returns a new declaration with the given properties changed; the original is unchanged.
 
 <!-- concept:149 -->
 ## FieldConstraints
@@ -103,7 +105,7 @@ Constraints are checked during schema validation (described later in this chapte
 <!-- concept:147 -->
 ## TypeSpec
 
-`TypeSpec` is the top-level schema object that describes an entire table's structure. It contains a list of `FieldSpec` instances, optional primary key and foreign key declarations, and metadata about the overall schema.
+`TypeSpec` is the top-level schema object that describes an entire table's structure. Its `fields` is an ordered mapping from column name to `FieldSpec`; it also carries optional primary key and foreign key declarations, and metadata about the overall schema.
 
 ```python
 # Creating a TypeSpec from a simple dictionary
