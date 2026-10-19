@@ -83,12 +83,16 @@ def test_bare_temporal_conform_preserves_source_metadata(backend, action, kind, 
 
 @pytest.mark.parametrize("backend", ["polars", "polars-lazy", "pandas", "pyarrow"])
 @pytest.mark.parametrize("kind", ["timestamp", "duration"])
-def test_temporal_null_fill_preserves_fractional_source(backend, kind):
+@pytest.mark.parametrize("action", ["coerce", "evolve"])
+def test_temporal_null_fill_preserves_fractional_source(backend, kind, action):
     from datetime import datetime, timedelta, timezone
+    from mountainash.core.dtypes import DurationDtype, TimestampDtype
 
     timestamp = kind == "timestamp"
     native = pl.Datetime("ns", "UTC") if timestamp else pl.Duration("ns")
     canonical = ma.MountainashDtype.TIMESTAMP if timestamp else ma.MountainashDtype.DURATION
+    if action == "evolve":
+        canonical = TimestampDtype(6, True, "UTC") if timestamp else DurationDtype("us", "fixed")
     fill = datetime(1970, 1, 1, tzinfo=timezone.utc) if timestamp else timedelta(0)
     source = pl.DataFrame({"value": pl.Series([1, -1001, None], dtype=pl.Int64).cast(native)})
     if backend == "polars-lazy":
@@ -98,7 +102,7 @@ def test_temporal_null_fill_preserves_fractional_source(backend, kind):
     elif backend == "pyarrow":
         source = source.to_arrow()
     spec = TypeSpec(fields=[FieldSpec("value", dtype=canonical, null_fill=fill)], missing_values=[])
-    result = ma.relation(source).conform(spec).to_polars()
+    result = ma.relation(source).conform(spec, contract={"data_type": action}).to_polars()
     assert result.schema["value"] == native
     assert result["value"].cast(pl.Int64).to_list() == [1, -1001, 0]
 
@@ -129,3 +133,40 @@ def test_nested_bare_temporal_conform_preserves_null_shape_and_ticks(backend, co
     result = ma.relation(frame).conform(spec).to_polars()
     assert result.schema == expected.schema
     assert result.equals(expected)
+
+
+@pytest.mark.parametrize("backend", ["polars", "pandas", "pyarrow"])
+@pytest.mark.parametrize("target", ["string", "discard_value"])
+def test_temporal_source_fill_respects_destination_and_discard(backend, target):
+    from mountainash.core.dtypes import TimestampDtype
+
+    source = pl.DataFrame({"value": pl.Series([None], dtype=pl.Datetime("ns"))})
+    if backend == "pandas":
+        source = source.to_pandas()
+    elif backend == "pyarrow":
+        source = source.to_arrow()
+    field = (
+        FieldSpec("value", type=UniversalType.STRING, null_fill="unknown")
+        if target == "string" else
+        FieldSpec("value", dtype=TimestampDtype(6, False, None), null_fill="bad")
+    )
+    query = ma.relation(source).conform(
+        TypeSpec(fields=[field], missing_values=[]),
+        contract={"data_type": "coerce" if target == "string" else "discard_value"},
+    )
+    if target == "discard_value" and backend != "polars":
+        from mountainash.core.types import BackendCapabilityError
+
+        with pytest.raises(BackendCapabilityError, match="null-on-failure"):
+            query.to_polars()
+        return
+    if target == "string" and backend == "pyarrow":
+        import pyarrow as pa
+
+        # Native Arrow cannot coalesce timestamp and string, even before a cast.
+        with pytest.raises(pa.ArrowNotImplementedError, match="coalesce.*no kernel"):
+            query.to_polars()
+        return
+    result = query.to_polars()
+    assert result.schema["value"] == (pl.String if target == "string" else pl.Datetime("us"))
+    assert result["value"].to_list() == (["unknown"] if target == "string" else [None])

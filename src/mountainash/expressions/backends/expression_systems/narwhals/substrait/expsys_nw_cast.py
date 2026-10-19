@@ -90,7 +90,7 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
             )
         if needs_source and self.dialect in {"narwhals-pandas", "narwhals-pyarrow"}:
             from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
-                _pandas_elementwise_batches,
+                _ElementwiseBatchExpr,
             )
 
             def cast_bound(series):
@@ -99,7 +99,17 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 target = resolve_dtype_parameters(dtype, source)
                 return series.cast(registry.to_native_cast(target, self._TARGET))
 
-            return _pandas_elementwise_batches(x, cast_bound, None)
+            def bind_eager(source):
+                return source._from_callable(
+                    lambda frame: [cast_bound(series) for series in source(frame)],
+                    evaluate_output_names=source._evaluate_output_names,
+                    alias_output_names=source._alias_output_names,
+                    context=source,
+                )
+
+            return _ElementwiseBatchExpr(
+                x, None, None, native_polars=False, compliant_transform=bind_eager,
+            )
         if needs_source and self.dialect in {"narwhals-duckdb", "narwhals-dask"}:
             from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
                 _ElementwiseBatchExpr,

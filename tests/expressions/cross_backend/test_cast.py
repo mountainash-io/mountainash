@@ -678,3 +678,35 @@ def test_dask_source_free_cast_retains_native_integer_unit(kind):
     expected_type = pa.timestamp("us") if kind == "timestamp" else pa.duration("ns")
     assert result.schema.field("value").type == expected_type
     assert result["value"].cast(pa.int64()).to_pylist() == [1, -1001]
+
+
+@pytest.mark.parametrize("provider", ["pyarrow", "pandas"])
+@pytest.mark.parametrize("kind", ["timestamp", "duration"])
+def test_bare_cast_preserves_second_resolution(provider, kind):
+    import narwhals as nw
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype
+
+    native = pa.timestamp("s") if kind == "timestamp" else pa.duration("s")
+    source = pa.table({"value": pa.array([1, -1001, None], type=native)})
+    frame = nw.from_native(source if provider == "pyarrow" else source.to_pandas())
+    target = MountainashDtype.TIMESTAMP if kind == "timestamp" else MountainashDtype.DURATION
+    result = _select_temporal(frame, ma.col("value").cast(target))
+    assert result.schema.field("value").type == native
+    assert result["value"].cast(pa.int64()).to_pylist() == [1, -1001, None]
+
+
+@pytest.mark.parametrize("temporal_cast_provider", ["narwhals-pandas", "narwhals-pyarrow"], indirect=True)
+def test_temporal_cast_preserves_filtered_operand_cardinality(temporal_cast_provider):
+    import narwhals as nw
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype
+
+    _, wrap = temporal_cast_provider
+    source = pl.DataFrame({"value": pl.Series([1001, None], dtype=pl.Int64).cast(pl.Datetime("ns"))})
+    result = _select_temporal(
+        wrap(source), ma.native(nw.col("value").drop_nulls()).cast(MountainashDtype.TIMESTAMP),
+    )
+    assert result.schema.field("value").type == pa.timestamp("ns")
+    assert result["value"].cast(pa.int64()).to_pylist() == [1001]

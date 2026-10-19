@@ -156,7 +156,7 @@ def test_timestamp_precision_is_not_silently_changed(target, precision):
     import pyarrow as pa
 
     dtype = TimestampDtype(precision, True, None)
-    if precision == 0 and target in {TypeTarget.POLARS, TypeTarget.NARWHALS}:
+    if precision == 0 and target is TypeTarget.POLARS:
         with pytest.raises(DtypeMappingError):
             registry.to_native_schema(dtype, target)
         return

@@ -55,7 +55,7 @@ def to_native_parameterized(dtype: Any) -> Any:
     unknown = SchemaTypeStatus.UNKNOWN
     if isinstance(dtype, TimestampDtype):
         unit = "us" if dtype.precision is unknown else {
-            3: "ms", 6: "us", 9: "ns",
+            0: "s", 3: "ms", 6: "us", 9: "ns",
         }.get(dtype.precision)
         if unit is None:
             raise DtypeMappingError(
@@ -79,7 +79,7 @@ def to_native_parameterized(dtype: Any) -> Any:
                 "Narwhals Duration cannot represent calendar duration semantics"
             )
         unit = "us" if dtype.unit is unknown else dtype.unit
-        if unit not in {"ms", "us", "ns"}:
+        if unit not in {"s", "ms", "us", "ns"}:
             raise DtypeMappingError(
                 f"Narwhals Duration cannot represent unit {unit!r} exactly"
             )
