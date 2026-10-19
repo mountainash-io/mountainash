@@ -1179,3 +1179,30 @@ def test_lexical_list_refined_by_element_parses_like_the_lexical_list(backend_na
         baseline = conform(FieldSpec(**lexical))
         refined = conform(FieldSpec(**lexical, element=FieldSpec(type=UniversalType.INTEGER, minimum=0)))
         assert refined == baseline == [[1, 2], [3]]
+
+
+@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-duckdb"))
+@pytest.mark.parametrize("width", ["Int64", "Int32", "Int16"])
+@pytest.mark.parametrize("kind", ["list", "list-of-list", "array-2x2"])
+def test_element_fill_on_native_integer_items(backend_name, width, kind, request):
+    import polars as pl
+    from polars.exceptions import PanicException
+
+    dtype = getattr(pl, width)
+    leaf = FieldSpec(type=UniversalType.INTEGER, null_fill=7)
+    field, values, expected, source_dtype = {
+        "list": (FieldSpec(element=leaf), [[2, None]], [[2, 7]], pl.List(dtype)),
+        "list-of-list": (FieldSpec(element=FieldSpec(element=leaf)), [[[2, None]]], [[[2, 7]]], pl.List(pl.List(dtype))),
+        "array-2x2": (
+            FieldSpec(element=leaf, dimensions=(2, 2)), [[[2, None], [3, 4]]], [[[2, 7], [3, 4]]],
+            pl.Array(dtype, (2, 2)),
+        ),
+    }[kind]
+    if backend_name.startswith("polars") and kind != "list" and width != "Int32":
+        request.applymarker(pytest.mark.xfail(strict=True, raises=PanicException, reason=(
+            "backlog 360: Polars panics ('cannot get ref <width> from Int32') on an element null_fill "
+            "over native non-Int32 integer items at nesting depth >= 2"
+        )))
+    source = _typed_source(backend_name, values, source_dtype)
+    result = ma.relation(source).conform(TypeSpec(fields={"items": field}, missing_values=[])).to_polars()
+    assert [value.tolist() if hasattr(value, "tolist") else value for value in result["items"].to_list()] == expected
