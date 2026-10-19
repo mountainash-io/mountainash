@@ -1011,6 +1011,7 @@ def test_partial_nested_timestamp_preserves_resolved_ns_precision(nested):
     actual = actual.struct.field("value")
     assert actual.dtype == pl.Datetime("ns", "UTC")
     assert actual.dt.epoch("ns").to_list() == [1, 1001, 123456789, None]
+    assert timestamp.dtype.precision is SchemaTypeStatus.UNKNOWN
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("action", ["coerce", "freeze"])

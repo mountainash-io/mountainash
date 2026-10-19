@@ -6,7 +6,7 @@ Examples are render-only illustrations, not executable tests, runtime rules, or 
 Catalogue descriptions retain their native/public layers and authored scope. Related policies are listed, not evaluated.
 Neither these examples nor upstream issue status establishes a verified version range.
 
-Illustrative examples: **436**
+Illustrative examples: **434**
 
 ## ibis/family — cum_prod() raises on all Ibis backends
 
@@ -1365,26 +1365,6 @@ No retained executable policy is authored for this target and concrete scope.
 ### Explicit issue references
 
 - `IB-TYPE-02` — by_design; no upstream URL
-
-## ibis/ibis-duckdb — a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it
-
-Target: `RKEY_MOUNTAINASH_REL.CONFORM`
-
-### Illustration
-
-    Input schema: {"extra": "integer", "raw_label": "string", "raw_score": "string"}
-    Input data: {"fixture": {"extra": [10, 20, 30], "raw_label": ["foo", "bar", null], "raw_score": ["1.5", null, "3.5"]}}
-    Reference result: {"claim": "source_reported_expected", "fresh_native_result": false, "status": "historical_source_claim", "value": ["score == [1.5,0.0,3.5]; label == ['foo','bar','n/a']; extra retained"]}
-    Contrasting result: {"claim": "source_reported_observed", "fresh_native_result": false, "status": "historical_source_claim", "value": "conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform)"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
 
 ## ibis/ibis-duckdb — Relation.join_asof(by=...) on ibis-duckdb/ibis-sqlite returns rows grouped by `by` value rather than in left input order when groups interleave; matched values are always correct, only row position differs
 
@@ -2936,7 +2916,7 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `IB-STR-11` — needs_filing; no upstream URL
 
-## ibis/ibis-polars — a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it
+## ibis/ibis-polars — a full conform multi-transform pipeline raises on ibis-polars (excluded dialect; not re-verified); other backends run it
 
 Target: `RKEY_MOUNTAINASH_REL.CONFORM`
 
@@ -4554,26 +4534,6 @@ No retained executable policy is authored for this target and concrete scope.
 ### Explicit issue references
 
 - `IB-TYPE-02` — by_design; no upstream URL
-
-## ibis/ibis-sqlite — a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it
-
-Target: `RKEY_MOUNTAINASH_REL.CONFORM`
-
-### Illustration
-
-    Input schema: {"extra": "integer", "raw_label": "string", "raw_score": "string"}
-    Input data: {"fixture": {"extra": [10, 20, 30], "raw_label": ["foo", "bar", null], "raw_score": ["1.5", null, "3.5"]}}
-    Reference result: {"claim": "source_reported_expected", "fresh_native_result": false, "status": "historical_source_claim", "value": ["score == [1.5,0.0,3.5]; label == ['foo','bar','n/a']; extra retained"]}
-    Contrasting result: {"claim": "source_reported_observed", "fresh_native_result": false, "status": "historical_source_claim", "value": "conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform)"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
 
 ## ibis/ibis-sqlite — conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them
 

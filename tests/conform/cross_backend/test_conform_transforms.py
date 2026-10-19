@@ -127,9 +127,9 @@ class TestConformMultiTransform:
         )
         spec = TypeSpec(fields_match="open", fields={"score": FieldSpec(type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0), "label": FieldSpec(type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a")}, )
         with expect_call_failure(
-            when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
+            when=backend_name == "ibis-polars",
             errors=(IbisTypeError,),
-            reason="a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it",
+            reason="a full conform multi-transform pipeline raises on ibis-polars (excluded dialect; not re-verified); other backends run it",
         ):
             result = ma.relation(df).conform(spec).to_polars()
             assert result["score"].to_list() == [1.5, 0.0, 3.5]

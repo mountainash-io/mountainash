@@ -83,7 +83,7 @@ def test_nested_constraints_apply_to_fixed_array_leaves() -> None:
     summary = result.check_summaries.filter(
         pl.col("check_id") == "matrix_nested"
     ).row(0, named=True)
-    assert (summary["pass_count"], summary["fail_count"]) == (1, 1)
+    assert (summary["status"], summary["pass_count"], summary["fail_count"]) == ("failed", 1, 1)
 
 
 def test_nested_child_severity_is_reported_without_blocking() -> None:
@@ -116,7 +116,14 @@ def test_nested_child_severity_is_reported_without_blocking() -> None:
     assert result.passes
 
 
-def test_nested_array_constraints_measure_decoded_json_values() -> None:
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(['{"values":[1]}', '{"values":[1,2]}'], id="json-text-object"),
+        pytest.param([{"values": [1]}, {"values": [1, 2]}], id="native-struct"),
+    ],
+)
+def test_nested_array_constraints_measure_decoded_values(payload) -> None:
     import polars as pl
 
     from mountainash.datacontracts.compiler import compile_datacontract
@@ -136,12 +143,12 @@ def test_nested_array_constraints_measure_decoded_json_values() -> None:
         ),
     }))
     result = ValidationRunner().validate_relation(
-        pl.DataFrame({"payload": [{"values": "[1]"}]}), plan=plan
+        pl.DataFrame({"payload": payload}), plan=plan
     )
     nested = result.check_summaries.filter(
         pl.col("check_id") == "payload_nested"
     ).row(0, named=True)
-    assert nested["fail_count"] == 1
+    assert (nested["status"], nested["pass_count"], nested["fail_count"]) == ("failed", 1, 1)
 
 
 def test_nested_default_severity_does_not_inherit_warning_container() -> None:

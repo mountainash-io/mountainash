@@ -427,13 +427,6 @@
   {
     "backend": "ibis",
     "dialect": "ibis-duckdb",
-    "target": "RKEY_MOUNTAINASH_REL.CONFORM",
-    "title": "a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it",
-    "text": "Input schema: {\"extra\": \"integer\", \"raw_label\": \"string\", \"raw_score\": \"string\"}\nInput data: {\"fixture\": {\"extra\": [10, 20, 30], \"raw_label\": [\"foo\", \"bar\", null], \"raw_score\": [\"1.5\", null, \"3.5\"]}}\nReference result: {\"claim\": \"source_reported_expected\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": [\"score == [1.5,0.0,3.5]; label == ['foo','bar','n/a']; extra retained\"]}\nContrasting result: {\"claim\": \"source_reported_observed\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": \"conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform)\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
     "target": "RKEY_MOUNTAINASH_REL.JOIN_ASOF",
     "title": "Relation.join_asof(by=...) on ibis-duckdb/ibis-sqlite returns rows grouped by `by` value rather than in left input order when groups interleave; matched values are always correct, only row position differs",
     "text": "Arguments: {\"by\": [\"g\"], \"on\": \"t\", \"right\": {\"relation_ref\": \"right\"}, \"strategy\": \"backward\"}\nInput data: {\"left_right_fixture\": {\"left\": {\"g\": [\"a\", \"b\", \"a\", \"b\"], \"t\": [1, 2, 3, 4], \"val\": [\"a1\", \"b2\", \"a3\", \"b4\"]}, \"right\": {\"g\": [\"a\", \"b\", \"a\", \"b\"], \"score\": [10, 20, 30, 50], \"t\": [1, 2, 3, 5]}}}\nReference result: {\"claim\": \"source_reported_expected\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": [\"result == Polars oracle (source explicitly says matched values remain correct)\"]}\nContrasting result: {\"claim\": \"source_reported_observed\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": \"Ibis's SQL-backend asof paths (native duckdb backward, and the emulation used for forward/nearest and all sqlite strategies) order output by [by, on] for determinism, which groups rows contiguously by `by` value; Polars (and narwhals/pandas natively, and ibis-polars natively) instead preserve the left input's own row order, which differs whenever `by` groups are interleaved in that input\"}"
@@ -928,7 +921,7 @@
     "backend": "ibis",
     "dialect": "ibis-polars",
     "target": "RKEY_MOUNTAINASH_REL.CONFORM",
-    "title": "a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it",
+    "title": "a full conform multi-transform pipeline raises on ibis-polars (excluded dialect; not re-verified); other backends run it",
     "text": "Input schema: {\"extra\": \"integer\", \"raw_label\": \"string\", \"raw_score\": \"string\"}\nInput data: {\"fixture\": {\"extra\": [10, 20, 30], \"raw_label\": [\"foo\", \"bar\", null], \"raw_score\": [\"1.5\", null, \"3.5\"]}}\nReference result: {\"claim\": \"source_reported_expected\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": [\"score == [1.5,0.0,3.5]; label == ['foo','bar','n/a']; extra retained\"]}\nContrasting result: {\"claim\": \"source_reported_observed\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": \"conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform)\"}"
   },
   {
@@ -1426,13 +1419,6 @@
     "title": "is_nan/fill_nan/NaN comparisons diverge on SQL engines.",
     "text": "Arguments: {\"x\": {\"field\": \"val\"}}\nInput data: {\"fixture\": {\"val\": [1.0, \"nan\", 3.0, \"nan\"]}}\nReference result: {\"outcome\": {\"count\": 2}, \"status\": \"historical-source-assertion\"}\nContrasting result: {\"outcome\": \"SQL engines treat NaN as NULL; NaN == NaN yields NULL rather than False.\", \"status\": \"historical-declaration\"}",
     "issue": "IB-TYPE-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "RKEY_MOUNTAINASH_REL.CONFORM",
-    "title": "a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it",
-    "text": "Input schema: {\"extra\": \"integer\", \"raw_label\": \"string\", \"raw_score\": \"string\"}\nInput data: {\"fixture\": {\"extra\": [10, 20, 30], \"raw_label\": [\"foo\", \"bar\", null], \"raw_score\": [\"1.5\", null, \"3.5\"]}}\nReference result: {\"claim\": \"source_reported_expected\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": [\"score == [1.5,0.0,3.5]; label == ['foo','bar','n/a']; extra retained\"]}\nContrasting result: {\"claim\": \"source_reported_observed\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": \"conform multi-transform full pipeline raises IbisTypeError on all ibis backends (deferred type resolution rejects the chained transform)\"}"
   },
   {
     "backend": "ibis",
