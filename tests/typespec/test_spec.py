@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pytest
 
+from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
     InvalidDescriptorStructure,
@@ -357,3 +358,20 @@ def test_native_override_exposure_cannot_mutate_shared_definition(use_dtype):
     exposed.fields.append(pl.Field("exposed_mutation", pl.String))
     retained = definition.dtype.native.value if use_dtype else definition.backend_type.value
     assert [field.name for field in retained.fields] == ["quantity"]
+
+
+@pytest.mark.parametrize("element", [
+    FieldSpec(type=UniversalType.INTEGER, minimum=0),
+    FieldSpec(dtype=MountainashDtype.I32),
+    FieldSpec(type=UniversalType.ANY, description="item"),
+], ids=["broad", "precise", "any"])
+def test_lexical_list_accepts_compatible_element(element):
+    field = FieldSpec(type=UniversalType.LIST, item_type="integer", delimiter=";", element=element)
+    assert field.element is element
+
+
+@pytest.mark.parametrize("element_type", [UniversalType.DATE, UniversalType.STRING])
+def test_lexical_list_rejects_incompatible_element(element_type):
+    with pytest.raises(IncompatibleFieldPropertiesError):
+        FieldSpec(type=UniversalType.LIST, item_type="integer", delimiter=";",
+                  element=FieldSpec(type=element_type))

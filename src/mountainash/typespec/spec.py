@@ -333,6 +333,10 @@ class FieldSpec(_ImmutableDeclaration):
         for name in ("item_type", "delimiter"):
             if getattr(self, name) is not None and self.type is not UniversalType.LIST:
                 raise IncompatibleFieldPropertiesError(None, name, self.type, (UniversalType.LIST,))
+        if self.type is UniversalType.LIST and self.item_type and self.element is not None:
+            item = parse_universal(self.item_type)
+            if self.element.type not in (UniversalType.ANY, item):
+                raise IncompatibleFieldPropertiesError(None, "element", self.element.type, (item,))
         if isinstance(dtype, DecimalDtype) and self.categories is not None:
             raise InvalidDtypeDeclaration(None, "dtype and categories cannot be combined")
         if self.rounding is not None:
