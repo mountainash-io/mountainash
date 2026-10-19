@@ -110,6 +110,36 @@ def test_malformed_canonical_descriptor_is_rejected(raw):
             "dtype": raw,
         }}]})
 
+@pytest.mark.parametrize("descriptor,path", [
+    pytest.param({}, "$", id="missing-table-fields"),
+    pytest.param({"fields": [{"name": "n", "type": "integer", "constraints": {"minimum": [1]}}]},
+                 "$.fields[0].constraints.minimum", id="minimum-array"),
+    pytest.param({"fields": [{"name": "n", "type": "integer", "constraints": {"exclusiveMaximum": {"v": 1}}}]},
+                 "$.fields[0].constraints.exclusiveMaximum", id="exclusive-maximum-object"),
+    pytest.param({"fields": [{"name": "p", "type": "object", "x-mountainash": {"fields": [
+        {"name": "n", "type": "integer", "x-mountainash": {"constraints": {"eq": {"x": 1}}}},
+    ]}}]}, "$.fields[0].x-mountainash.fields[0].x-mountainash.constraints.eq", id="nested-eq-object"),
+    pytest.param({"fields": [{"name": "n", "type": "integer", "x-mountainash": {"constraints": {"ne": [1]}}}]},
+                 "$.fields[0].x-mountainash.constraints.ne", id="ne-array"),
+])
+def test_malformed_supported_property_is_rejected_with_path(descriptor, path):
+    from mountainash.typespec.errors import InvalidDescriptorStructure
+
+    with pytest.raises(InvalidDescriptorStructure) as exc:
+        typespec_from_frictionless(descriptor)
+    assert exc.value.descriptor_path == path
+
+
+def test_scalar_bounds_and_equality_values_remain_accepted():
+    descriptor = {"fields": [
+        {"name": "n", "type": "integer", "constraints": {"minimum": 0, "exclusiveMaximum": 9},
+         "x-mountainash": {"constraints": {"eq": 3, "ne": 4}}},
+        {"name": "d", "type": "date", "constraints": {"minimum": "2024-01-01"}},
+        {"name": "s", "type": "string", "x-mountainash": {"constraints": {"eq": "a", "ne": "b"}}},
+        {"name": "b", "type": "boolean", "x-mountainash": {"constraints": {"eq": True}}},
+    ]}
+    assert typespec_to_frictionless(typespec_from_frictionless(json.loads(json.dumps(descriptor)))) == descriptor
+
 # ============================================================================
 # TestToFrictionless
 # ============================================================================

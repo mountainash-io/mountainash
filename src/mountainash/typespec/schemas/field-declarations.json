@@ -1,11 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
+  "required": ["fields"],
   "properties": {
     "fields": {"type": "array", "items": {"$ref": "#/definitions/namedField"}},
     "x-mountainash": {"type": "object"}
   },
   "definitions": {
+    "scalarValue": {"type": ["number", "string", "boolean"]},
+    "boundValue": {"type": ["number", "string"]},
     "namedField": {
       "allOf": [
         {"$ref": "#/definitions/body"},
@@ -43,6 +46,10 @@
         "required": {"type": "boolean"},
         "unique": {"type": "boolean"},
         "minLength": {"type": "integer", "minimum": 0},
+        "minimum": {"$ref": "#/definitions/boundValue"},
+        "maximum": {"$ref": "#/definitions/boundValue"},
+        "exclusiveMinimum": {"$ref": "#/definitions/boundValue"},
+        "exclusiveMaximum": {"$ref": "#/definitions/boundValue"},
         "maxLength": {"type": "integer", "minimum": 0},
         "pattern": {"type": "string"},
         "enum": {"type": "array"},
@@ -70,6 +77,8 @@
         "constraints": {
           "type": "object",
           "properties": {
+            "eq": {"$ref": "#/definitions/scalarValue"},
+            "ne": {"$ref": "#/definitions/scalarValue"},
             "notin": {"type": "array"},
             "str_contains": {"type": "string"},
             "str_startswith": {"type": "string"},

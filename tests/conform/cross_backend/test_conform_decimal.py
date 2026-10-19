@@ -1,6 +1,7 @@
 """Declared decimal conform: explicit native rounding and unchanged policy boundaries."""
 from __future__ import annotations
 
+import json
 import sqlite3
 from decimal import Decimal as D
 
@@ -198,8 +199,10 @@ def test_declared_rounding_controls_conform(backend_name, backend_factory):
 @pytest.mark.parametrize("fill,expected", [
     (None, [D("12.34"), None]),
     ("1.2349", [D("12.34"), D("1.23")]),
+    (D("1.2349"), [D("12.34"), D("1.23")]),
 ])
-def test_decimal_source_preparation(backend_name, fill, expected):
+@pytest.mark.parametrize("via_json", [False, True], ids=["direct", "json-text"])
+def test_decimal_source_preparation(backend_name, fill, expected, via_json):
     if backend_name == "ibis-sqlite":
         with pytest.raises(sqlite3.ProgrammingError):
             _decimal_frame(backend_name, 6, 3, [D("12.345"), None])
@@ -207,6 +210,8 @@ def test_decimal_source_preparation(backend_name, fill, expected):
     frame = _decimal_frame(backend_name, 6, 3, [D("12.345"), None])
     spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=5, scale=2),
     rounding="half_to_even", null_fill=fill,)})
+    if via_json:
+        spec = typespec_from_frictionless(json.loads(json.dumps(typespec_to_frictionless(spec))))
     out = ma.relation(frame).conform(spec).to_polars()
     assert out["x"].to_list() == expected
     assert out.schema["x"] == pl.Decimal(5, 2)

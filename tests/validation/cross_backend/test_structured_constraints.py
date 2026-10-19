@@ -466,3 +466,46 @@ class TestCoerceFalseStructuredValidation:
         assert summary["status"] == "failed", backend_name
         failure = result.failure_cases.row(0, named=True)
         assert failure["instance_path"] == "/id", backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_migrated_legacy_descriptor_conforms_and_validates(backend_name, backend_factory, request):
+    """Old mixed descriptor -> explicit migration -> JSON text -> typed -> conform -> validation."""
+    if backend_name in {"pandas", "narwhals-pandas"}:
+        request.applymarker(pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+            "pandas object cells are an OPAQUE carrier; StructuredActionConsumer.VALIDATION checks the "
+            "decoded source value without declared child conversion or null_fill (same as JSON text)"
+        )))
+    import json
+    from copy import deepcopy
+
+    import polars as pl
+
+    from mountainash.typespec.frictionless import migrate_nested_field_declarations, typespec_from_frictionless
+
+    legacy = {"fields": [{"name": "record", "type": "object", "x-mountainash": {
+        "dtype": {"kind": "struct", "fields": [
+            {"name": "quantity", "dtype": {"kind": "canonical", "name": "i64"}},
+        ]},
+        "object_fields": [{
+            "name": "quantity", "type": "string", "constraints": {"minimum": 0},
+            "x-mountainash": {"null_fill": 7},
+        }],
+    }}]}
+    original = deepcopy(legacy)
+    spec = typespec_from_frictionless(json.loads(json.dumps(migrate_nested_field_declarations(legacy))))
+    assert legacy == original
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite cannot construct the native Struct input",
+    ):
+        source = backend_factory.create(
+            {"record": [{"quantity": "2"}, {"quantity": None}, {"quantity": "-3"}]}, backend_name,
+        )
+    conformed = ma.relation(source).conform(spec)
+    assert conformed.to_polars()["record"].to_list() == [{"quantity": 2}, {"quantity": 7}, {"quantity": -3}]
+    result = ValidationRunner().validate_relation(conformed, plan=compile_datacontract(spec))
+    nested = result.check_summaries.filter(pl.col("check_id") == "record_nested").row(0, named=True)
+    assert (nested["status"], nested["pass_count"], nested["fail_count"]) == ("failed", 2, 1), backend_name

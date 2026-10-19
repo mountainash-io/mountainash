@@ -412,3 +412,54 @@ def test_legacy_list_migration_preserves_portable_metadata_with_native_override(
     members = migrated["fields"][0]["x-mountainash"]["element"]["x-mountainash"]["fields"]
     assert members[0]["x-vendor"] == {"meaning": "identifier"}
     assert migrate_nested_field_declarations(migrated) == migrated
+
+
+def test_legacy_migration_recurses_and_keeps_container_and_element_scope():
+    import json
+    from copy import deepcopy
+    from mountainash.typespec.frictionless import migrate_nested_field_declarations
+
+    descriptor = {"fields": [{"name": "rows", "type": "array", "constraints": {"minLength": 1}, "x-mountainash": {
+        "dtype": {"kind": "list", "element": {"kind": "struct", "fields": [
+            {"name": "inner", "dtype": {"kind": "struct", "fields": [{"name": "v", "dtype": {"kind": "unknown"}}]}},
+        ]}},
+        "item_object_fields": [{"name": "inner", "type": "object", "description": "In", "x-mountainash": {
+            "object_fields": [{"name": "v", "type": "integer", "constraints": {"maximum": 5}}],
+        }}],
+    }}]}
+    original = deepcopy(descriptor)
+    migrated = migrate_nested_field_declarations(descriptor)
+    assert descriptor == original
+    assert migrate_nested_field_declarations(migrated) == migrated
+    rows = typespec_from_frictionless(json.loads(json.dumps(migrated))).fields["rows"]
+    assert rows.constraints.min_length == 1
+    assert rows.element.constraints is None
+    inner = rows.element.fields["inner"]
+    assert inner.description == "In"
+    assert inner.fields["v"].dtype is MountainashDtype.I64
+    assert inner.fields["v"].constraints.maximum == 5
+
+
+@pytest.mark.parametrize("descriptor", [
+    pytest.param({"fields": [{"name": "r", "type": "object", "x-mountainash": {
+        "fields": [{"name": "q", "type": "integer"}]}}]}, id="already-new"),
+    pytest.param({"custom": 1, "fields": [{"name": "a", "type": "string", "x-vendor": {"k": 1}}]}, id="nonlegacy"),
+])
+def test_legacy_migration_leaves_current_descriptors_unchanged(descriptor):
+    from mountainash.typespec.frictionless import migrate_nested_field_declarations
+
+    migrated = migrate_nested_field_declarations(descriptor)
+    assert migrated == descriptor
+    assert migrated is not descriptor
+
+
+def test_legacy_migration_lets_known_canonical_child_type_win_without_rejection():
+    from mountainash.typespec.frictionless import migrate_nested_field_declarations
+
+    migrated = migrate_nested_field_declarations({"fields": [{"name": "r", "type": "object", "x-mountainash": {
+        "dtype": {"kind": "struct", "fields": [{"name": "q", "dtype": {"kind": "canonical", "name": "i32"}}]},
+        "object_fields": [{"name": "q", "type": "date", "description": "Quantity"}],
+    }}]})
+    child = typespec_from_frictionless(migrated).fields["r"].fields["q"]
+    assert child.dtype is MountainashDtype.I32
+    assert child.description == "Quantity"
