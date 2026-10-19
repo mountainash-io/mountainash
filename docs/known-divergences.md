@@ -6707,8 +6707,8 @@ Target: `FKEY_SUBSTRAIT_CAST.CAST`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 252: integer casts (i8/i16/i32/i64/u8/u16/u32/u64) cannot preserve NaN-backed missing values in NumPy float64 pandas columns: native Narwhals selects non-nullable NumPy integers and raises IntCastingNaNError. Nullable Float64 and Arrow-backed float64 columns preserve ordinary nulls; finite integral and empty NumPy float64 inputs also work. Fractional, infinite and out-of-range values have separate native casting semantics. No automatic source normalization or runtime refusal is applied.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.cast:information[0]`
 
 ### Related executable policies
 
@@ -6727,8 +6727,8 @@ Target: `FKEY_SUBSTRAIT_CAST.CAST`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 252: integer casts (i8/i16/i32/i64/u8/u16/u32/u64) cannot preserve NaN-backed missing values in NumPy float64 pandas columns: native Narwhals selects non-nullable NumPy integers and raises IntCastingNaNError. Nullable Float64 and Arrow-backed float64 columns preserve ordinary nulls; finite integral and empty NumPy float64 inputs also work. Fractional, infinite and out-of-range values have separate native casting semantics. No automatic source normalization or runtime refusal is applied.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.cast:information[0]`
 
 ### Related executable policies
 
@@ -6751,8 +6751,8 @@ Target: `FKEY_SUBSTRAIT_CAST.CAST`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 252: integer casts (i8/i16/i32/i64/u8/u16/u32/u64) cannot preserve NaN-backed missing values in NumPy float64 pandas columns: native Narwhals selects non-nullable NumPy integers and raises IntCastingNaNError. Nullable Float64 and Arrow-backed float64 columns preserve ordinary nulls; finite integral and empty NumPy float64 inputs also work. Fractional, infinite and out-of-range values have separate native casting semantics. No automatic source normalization or runtime refusal is applied.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.cast:information[0]`
 
 ### Related executable policies
 
