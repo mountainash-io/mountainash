@@ -64,3 +64,30 @@ def test_real_descriptor_round_trips(name):
         print(f"\nKeys only in raw: {raw_keys - result_keys}")
         print(f"Keys only in result: {result_keys - raw_keys}")
     assert result == raw
+
+
+def test_raw_storage_preserves_nested_declarations_and_custom_properties(tmp_path):
+    from copy import deepcopy
+
+    from mountainash.typespec import UniversalType
+
+    resource = {
+        "name": "orders", "path": "orders.csv", "type": "table", "x-vendor": {"tier": 1},
+        "schema": {"x-vendor": {"note": "keep"}, "fields": [
+            {"name": "line", "type": "object", "x-vendor": {"pii": False}, "x-mountainash": {"fields": [
+                {"name": "qty", "type": "integer", "constraints": {"minimum": 0}, "x-mountainash": {"null_fill": 7}},
+            ]}},
+            {"name": "tags", "type": "array", "x-mountainash": {"element": {"type": "integer"}}},
+        ]},
+    }
+    raw = {"name": "shop", "x-vendor": {"owner": "team"}, "resources": [resource]}
+    original = deepcopy(raw)
+    package = DataPackage.from_descriptor(raw)
+    path = tmp_path / "datapackage.json"
+    package.write(path)
+    assert json.loads(path.read_text()) == original
+    assert package.to_relation_dag().to_package().to_descriptor()["resources"][0] == original["resources"][0]
+    line = package.resources[0].to_typespec().fields["line"]
+    assert line.fields["qty"].type is UniversalType.INTEGER
+    assert line.fields["qty"].null_fill == 7
+    assert raw == original
