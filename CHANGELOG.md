@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — 2026-10-18
+
+### Fixed
+- Native Polars and Narwhals-over-Polars sampling now use deferred whole-row index selection rather than collecting during compilation (351).
+- Ibis exact-count sampling uses deferred random ordering and a limit, preserving oversized Python count requests without overflowing SQL limits. Ibis tail keeps its count/offset inside the deferred query (351).
+- Dask sampling defers one global sample through native partition execution and preserves pandas object-backed Decimal/list values (351).
+- DuckDB, Spark/Connect and SQLFrame sampling now retain native deferred plans and Arrow terminals, including post-sample positional operations. Explain's fallback renders the prepared plan instead of evaluating a native object's representation (351).
+- SQLFrame schema inspection no longer mistakes dynamic column attributes for callable schema methods (351).
+
+### Changed
+- Ibis exact-count sampling with a seed now has a concrete-dialect capability refusal for DuckDB, SQLite, PostgreSQL, MySQL, SingleStoreDB and Exasol. Fractional sampling and existing explicit policy bypasses are unchanged (351).
+- Positive-offset Narwhals/Dask fetch is declared unsupported because native offset construction can evaluate source rows. Zero-offset/head and tail remain supported; explicit gate bypass is not a laziness guarantee (351, NW-REL-01).
+
+### Qualification
+- Narwhals-DuckDB literal wildcard/dotted/quoted projection failures (NW-REL-02) are deferred to item 355 by owner decision, not a delivery gate for 351. Physical export checks pass on Arrow 26 and 16; native Spark/Connect and SQLFrame-DuckDB smokes pass. Databricks qualification is SQL rendering only, not live execution; no full Narwhals-backend support or release qualification is claimed.
+
 ## Unreleased — 2026-10-17
 
 ### Added

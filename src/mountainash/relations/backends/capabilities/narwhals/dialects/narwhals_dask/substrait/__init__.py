@@ -1,0 +1,1 @@
+"""Substrait capability declarations."""

@@ -105,3 +105,80 @@ def test_unselected_provider_gate_preserves_native_failure(provider_frame, kind,
         with pytest.raises(TypeError if kind == "regex" else NotImplementedError) as error:
             ma.relation(frame).select(expression.alias("result")).to_polars()
     assert not isinstance(error.value, BackendCapabilityError)
+
+
+@pytest.mark.parametrize("offset,count", [(1, 0), (4, 1), (2**100, None)])
+def test_dask_positive_offset_refuses_before_source_evaluation(offset, count):
+    import dask.dataframe as dd
+    import pandas as pd
+    from dask import delayed
+
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
+
+    reads = []
+
+    @delayed
+    def load():
+        reads.append(3)
+        return pd.DataFrame({"id": [0, 1, 2]})
+
+    source = dd.from_delayed(
+        [load()], meta=pd.DataFrame({"id": pd.Series(dtype="int64")})
+    )
+    source = dd.concat([source, source]).sort_values("id")
+    query = ma.relation(nw.from_native(source)).select(ma.col("id")).slice(offset, count)
+
+    with pytest.raises(BackendCapabilityError) as error:
+        query.compile()
+
+    assert error.value.function_key is RKEY_SUBSTRAIT_REL.FETCH
+    assert error.value.limitation.param == "offset"
+    assert reads == []
+
+
+def test_dask_fetch_supported_neighbors():
+    import dask.dataframe as dd
+    import pandas as pd
+
+    source = dd.from_pandas(pd.DataFrame({"id": list(range(8))}), npartitions=4)
+    frame = nw.from_native(source)
+    assert ma.relation(frame).slice(0, 2).collect()["id"].tolist() == [0, 1]
+    assert ma.relation(frame).head(5).collect()["id"].tolist() == [0, 1, 2, 3, 4]
+    assert ma.relation(frame).tail(2).collect()["id"].tolist() == [6, 7]
+    assert ma.relation(pl.DataFrame({"id": list(range(8))})).slice(1, 2).collect()["id"].to_list() == [1, 2]
+
+
+def test_dask_offset_upstream_repair_probe():
+    import dask.dataframe as dd
+    import pandas as pd
+    from dask import delayed
+
+    from fixtures.call_expectations import expect_call_failure
+    from mountainash.core.capabilities.policy import CapabilityPolicy
+    from mountainash.core.capabilities.predicates import BoundCall
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL
+
+    reads = []
+
+    @delayed
+    def load():
+        reads.append(3)
+        return pd.DataFrame({"id": [0, 1, 2]})
+
+    source = dd.from_delayed([load()], meta=pd.DataFrame({"id": pd.Series(dtype="int64")}))
+    frame = nw.from_native(dd.concat([source, source]).sort_values("id"))
+    bound = BoundCall(
+        RKEY_SUBSTRAIT_REL.FETCH, CONST_BACKEND.NARWHALS, "narwhals-dask",
+        {"offset": 4, "has_offset": True}, frozenset({"offset", "has_offset"}),
+    )
+    declarations = CapabilityRegistry.violations_for(bound)
+    assert reads == []
+    with ma.capability_policy(CapabilityPolicy.trusted()):
+        ma.relation(frame).slice(4, 2).compile()
+    with expect_call_failure(
+        reason="; ".join(fact.message for fact in declarations),
+        errors=(AssertionError,), when=bool(declarations),
+    ):
+        assert reads == []

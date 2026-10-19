@@ -123,10 +123,28 @@ def check_ast_capabilities(
     if fact is not None and fact.predicate is None and fact.enforcement is Enforcement.GATE \
             and fact.level is CapabilityLevel.UNSUPPORTED:
         _raise(fact, key, family)
-    names = tuple(b.field for b in op.args) + tuple(op.options) + op.gate_params
-    bindings = {name: getattr(node, name, None) for name in names}
-    bound = BoundCall(key, family, dialect, bindings,
-                      frozenset(name for name, value in bindings.items() if value is not None))
+    if op.options_field is not None:
+        bound = bind_expression_call(
+            operation_key=key,
+            backend=family,
+            dialect=dialect,
+            protocol_method=op.protocol_method,
+            arguments=tuple(getattr(node, binding.field, None) for binding in op.args),
+            options=getattr(node, op.options_field),
+        )
+        bindings = dict(bound.bindings)
+        supplied = set(bound.supplied)
+        for name in op.gate_params:
+            bindings[name] = getattr(node, name, None)
+            if bindings[name] is not None:
+                supplied.add(name)
+        bound = BoundCall(key, family, dialect, bindings, frozenset(supplied))
+        names = tuple(bindings)
+    else:
+        names = tuple(b.field for b in op.args) + tuple(op.options) + op.gate_params
+        bindings = {name: getattr(node, name, None) for name in names}
+        bound = BoundCall(key, family, dialect, bindings,
+                          frozenset(name for name, value in bindings.items() if value is not None))
     violations = CapabilityRegistry.violations_for(
         bound, phase="raw", execution_context=execution_context,
     )

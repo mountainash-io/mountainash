@@ -14,6 +14,129 @@ from mountainash.relations.core.relation_protocols.relation_systems.extensions_m
 )
 
 
+
+def _temporary_name(occupied: set[str]) -> str:
+    """Use case-invariant identifiers across native Unicode name resolvers."""
+    index = 0
+    while (name := f"__{index}") in occupied:
+        index += 1
+    occupied.add(name)
+    return name
+
+
+def _quote_identifier(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _as_duckdb(relation: Any) -> Any:
+    if relation.implementation is nw.Implementation.DUCKDB:
+        return relation.to_native()
+    if relation.implementation is nw.Implementation.SQLFRAME:
+        native = relation.to_native()
+        if native.session._is_duckdb:
+            return native.session._conn.sql(native.sql(dialect="duckdb", optimize=False))
+    return None
+
+
+def _sample_seed(seed: Optional[int]) -> Optional[int]:
+    if seed is not None:
+        from operator import index
+
+        seed = index(seed)
+        if seed < 0:
+            raise ValueError("expected non-negative integer")
+    return seed
+
+
+def _duckdb_sample(native: Any, *, n: Optional[int], fraction: Optional[float], seed: Optional[int]) -> Any:
+    seed = _sample_seed(seed)
+    columns = native.columns
+    occupied = set(columns)
+    indexed = native
+    order = "random()"
+    if seed is not None:
+        from duckdb import ConstantExpression
+
+        index = _quote_identifier(_temporary_name(occupied))
+        indexed = native.project(f"*, row_number() OVER () - 1 AS {index}")
+        literal = str(ConstantExpression(str(seed)))
+        order = f"md5({index}::VARCHAR || ':' || {literal}), {index}"
+    if n is not None:
+        chosen = indexed.order(order).limit(min(n, 2**63 - 1))
+    else:
+        rank = _quote_identifier(_temporary_name(occupied))
+        total = _quote_identifier(_temporary_name(occupied))
+        chosen = indexed.project(
+            f"*, row_number() OVER (ORDER BY {order}) AS {rank}, count(*) OVER () AS {total}"
+        ).filter(
+            f"{rank} <= floor({total} * CAST({fraction!r} AS DOUBLE))"
+        ).order(rank)
+    return chosen.project(", ".join(_quote_identifier(name) for name in columns))
+
+
+def _spark_sample(relation: Any, *, n: Optional[int], fraction: Optional[float], seed: Optional[int]) -> Any:
+    native = relation.to_native()
+    F = relation._compliant_frame._F
+    Window = relation._compliant_frame._Window
+    seed = _sample_seed(seed)
+    normalized_seed = None if seed is None else (seed + 2**63) % 2**64 - 2**63
+    occupied = set(native.columns)
+    key = _temporary_name(occupied)
+    keyed = native.withColumn(key, F.rand(normalized_seed))
+    if n is not None and n <= 2**31 - 1:
+        return keyed.orderBy(F.col(key)).limit(n).drop(key)
+    rank = _temporary_name(occupied)
+    ranked = keyed.withColumn(
+        rank, F.count(F.lit(1)).over(
+            Window.orderBy(F.col(key)).rowsBetween(Window.unboundedPreceding, Window.currentRow)
+        )
+    )
+    helpers = [key, rank]
+    if n is not None:
+        threshold = F.lit(min(n, 2**63 - 1))
+    else:
+        total = _temporary_name(occupied)
+        ranked = ranked.withColumn(
+            total, F.count(F.lit(1)).over(
+                Window.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+            )
+        )
+        threshold = F.floor(F.col(total).cast("double") * F.lit(fraction).cast("double"))
+        helpers.append(total)
+    return ranked.filter(F.col(rank) <= threshold).orderBy(F.col(rank)).drop(*helpers)
+
+
+def _spark_position(
+    relation: Any, *, offset: int = 0, count: Optional[int], from_end: bool = False,
+) -> Any:
+    native = relation.to_native()
+    F = relation._compliant_frame._F
+    Window = relation._compliant_frame._Window
+    occupied = set(native.columns)
+    position = _temporary_name(occupied)
+    rank = _temporary_name(occupied)
+    ranked = native.withColumn(position, F.monotonically_increasing_id()).withColumn(
+        rank, F.count(F.lit(1)).over(
+            Window.orderBy(F.col(position)).rowsBetween(Window.unboundedPreceding, Window.currentRow)
+        )
+    )
+    helpers = [position, rank]
+    if from_end:
+        total = _temporary_name(occupied)
+        ranked = ranked.withColumn(
+            total, F.count(F.lit(1)).over(
+                Window.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+            )
+        )
+        threshold = F.greatest(F.col(total) - F.lit(min(count, 2**63 - 1)), F.lit(0))
+        condition = F.col(rank) > threshold
+        helpers.append(total)
+    else:
+        end = 2**63 - 1 if count is None else min(offset + count, 2**63 - 1)
+        condition = (F.col(rank) > min(offset, 2**63 - 1)) & (F.col(rank) <= end)
+    return ranked.filter(condition).orderBy(F.col(rank)).drop(*helpers)
+
+
 class MountainashNarwhalsExtensionRelationSystem(
     MountainashExtensionRelationSystemProtocol[nw.DataFrame | nw.LazyFrame]
 ):
@@ -57,14 +180,41 @@ class MountainashNarwhalsExtensionRelationSystem(
         fraction: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> Any:
-        frame = relation
-        is_lazy = isinstance(frame, nw.LazyFrame)
+        is_lazy = isinstance(relation, nw.LazyFrame)
+        if is_lazy and relation.implementation.is_polars():
+            from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
+                MountainashPolarsExtensionRelationSystem,
+            )
+
+            sampled = MountainashPolarsExtensionRelationSystem().sample(
+                relation.to_native(), n=n, fraction=fraction, seed=seed
+            )
+            return nw.from_native(sampled)
         if is_lazy:
-            frame = frame.collect()
+            native = relation.to_native()
+            duckdb_relation = _as_duckdb(relation)
+            if duckdb_relation is not None:
+                return nw.from_native(_duckdb_sample(duckdb_relation, n=n, fraction=fraction, seed=seed))
+            implementation = relation.implementation
+            if implementation in {
+                nw.Implementation.PYSPARK, nw.Implementation.PYSPARK_CONNECT, nw.Implementation.SQLFRAME,
+            }:
+                return nw.from_native(_spark_sample(relation, n=n, fraction=fraction, seed=seed))
+            if implementation is nw.Implementation.DASK:
+                def sample_partition(frame):
+                    count = min(n, len(frame)) if n is not None else None
+                    return nw.from_native(frame).sample(n=count, fraction=fraction, seed=seed).to_native()
+                sampled = native.repartition(npartitions=1).map_partitions(
+                    sample_partition, meta=native, clear_divisions=True,
+                )
+                return nw.from_native(sampled)
+            # Some eager providers expose a LazyFrame API wrapper, not a lazy engine.
+            frame = nw.from_native(native, eager_only=True)
+        else:
+            frame = relation
         if n is not None:
             n = min(n, len(frame))
-        sampled = frame.sample(n=n, fraction=fraction, seed=seed)
-        return sampled.lazy() if is_lazy else sampled
+        return frame.sample(n=n, fraction=fraction, seed=seed)
 
     def unpivot(
         self,
@@ -154,6 +304,25 @@ class MountainashNarwhalsExtensionRelationSystem(
         return nw.from_native(lf)  # stays lazy
 
     def fetch_from_end(self, relation: Any, count: int, /) -> Any:
+        if not isinstance(relation, nw.LazyFrame):
+            return relation.tail(count)
+        native = _as_duckdb(relation)
+        if native is not None:
+            columns = native.columns
+            occupied = set(columns)
+            index = _quote_identifier(_temporary_name(occupied))
+            total = _quote_identifier(_temporary_name(occupied))
+            return nw.from_native(native.project(
+                f"*, row_number() OVER () AS {index}, count(*) OVER () AS {total}"
+            ).filter(
+                f"{index} > greatest({total} - {min(count, 2**63 - 1)}, 0)"
+            ).order(index).project(", ".join(_quote_identifier(name) for name in columns)))
+        if relation.implementation is nw.Implementation.DASK:
+            return nw.from_native(relation.to_native().repartition(npartitions=1).tail(count, compute=False))
+        if relation.implementation in {
+            nw.Implementation.PYSPARK, nw.Implementation.PYSPARK_CONNECT, nw.Implementation.SQLFRAME,
+        }:
+            return nw.from_native(_spark_position(relation, count=count, from_end=True))
         return relation.tail(count)
 
     def join_asof(
