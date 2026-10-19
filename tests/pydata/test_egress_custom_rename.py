@@ -80,6 +80,20 @@ class TestCustomCastRename:
         assert result == [{"first": "x!", "second": "x!"}]
         assert definition.custom_cast == "_test_suffix"
 
+    def test_renamed_composed_definition_with_converter(self):
+        definition = FieldSpec(
+            fields={"a": FieldSpec(type=UniversalType.INTEGER)},
+            rename_from="raw",
+            custom_cast="_test_suffix",
+        )
+        result = apply_hybrid_egress_conversion(
+            pl.DataFrame({"raw": [{"a": 1}]}),
+            TypeSpec(fields={"record": definition}),
+            extract_func=lambda frame: frame.to_dicts(),
+            data_format="dict",
+        )
+        assert result == [{"record": "{'a': 1}!"}]
+
     def test_mixed_native_and_custom_with_renames(self):
         """Native fields go through conform; custom fields get rename-only projections."""
         df = pl.DataFrame({

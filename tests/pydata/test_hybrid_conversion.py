@@ -356,3 +356,36 @@ def test_ingress_source_schema_overrides_preserve_nested_timestamp_parameters():
     assert frame.schema["events"] == pl.List(
         pl.Struct([pl.Field("at", pl.Datetime("ns", "UTC"))])
     )
+
+
+@pytest.mark.parametrize("key_order", [("raw", "converted"), ("converted", "raw")])
+def test_custom_conversion_reads_unchanged_source_values(key_order):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    name = "_review_c5_suffix"
+    CustomTypeRegistry.register(
+        name=name, target_universal_type="string",
+        python_converter=lambda value, **kwargs: None if value is None else f"{value}!",
+    )
+    source_row = {"raw": "x", "converted": "y"}
+    spec = TypeSpec(fields={
+        "converted": FieldSpec(type=UniversalType.STRING, rename_from="raw", custom_cast=name),
+        "original": FieldSpec(type=UniversalType.STRING, rename_from="converted"),
+    }, fields_match="open")
+    try:
+        result = PydataIngress.convert([{key: source_row[key] for key in key_order}], type_spec=spec)
+        assert result.select("converted", "original").to_dicts() == [{"converted": "x!", "original": "y"}]
+    finally:
+        CustomTypeRegistry.unregister(name)
+
+
+def test_composed_source_declarations_type_nested_columns():
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    source = TypeSpec(fields={
+        "record": FieldSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER)}),
+        "values": FieldSpec(element=FieldSpec(type=UniversalType.INTEGER)),
+    })
+    result = PydataIngress.convert([{"record": {"a": 1}, "values": [1, 2]}], source_spec=source)
+    assert result.schema == {"record": pl.Struct({"a": pl.Int64}), "values": pl.List(pl.Int64)}
+    assert result.to_dicts() == [{"record": {"a": 1}, "values": [1, 2]}]

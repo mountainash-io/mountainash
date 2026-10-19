@@ -84,9 +84,8 @@ def apply_native_conversions_for_egress(
         for name, field in spec.fields.items()
         if name not in python_only_custom
     }
-    from dataclasses import replace as _dc_replace
     rename_only_fields = {
-        name: _dc_replace(field, custom_cast=None)
+        name: field.variant(custom_cast=None)
         for name, field in spec.fields.items()
         if name in python_only_custom and field.rename_from is not None
     }

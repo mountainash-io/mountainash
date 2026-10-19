@@ -7,7 +7,6 @@ Implements the hybrid strategy for optimal performance:
 """
 from __future__ import annotations
 
-from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import logging
 
@@ -18,6 +17,9 @@ if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec, FieldSpec
 
 logger = logging.getLogger(__name__)
+
+# Private column-name prefix for custom results awaiting placement (see apply_hybrid_conversion).
+_STAGE_PREFIX = "__mountainash_custom__:"
 
 
 def separate_conversions(
@@ -60,6 +62,8 @@ def separate_conversions(
 def apply_custom_converters_to_dict(
     data_dict: Dict[str, Any],
     custom_conversions: Dict[str, "FieldSpec"],
+    *,
+    keep_sources: bool = False,
 ) -> Dict[str, Any]:
     """
     Apply custom type converters to a single dictionary.
@@ -68,10 +72,15 @@ def apply_custom_converters_to_dict(
     - Apply ONLY custom converters (safe_float, xml_string, etc.)
     - Leave native conversions for DataFrame layer (FAST!)
 
+    Every declaration reads its source (``rename_from`` or its target name) from
+    the unchanged input row, so the result does not depend on key order. Source
+    keys consumed under another name are dropped unless ``keep_sources`` is set.
+
     Args:
         data_dict: Dictionary of source field name -> value
         custom_conversions: Mapping of contextual target names to FieldSpec,
                            returned by separate_conversions().
+        keep_sources: Keep consumed source keys alongside the converted targets.
 
     Returns:
         Dictionary with custom conversions applied and aliases renamed
@@ -84,37 +93,35 @@ def apply_custom_converters_to_dict(
     """
     from mountainash.typespec.custom_types import CustomTypeRegistry
 
-    converted_dict = {}
+    converted: Dict[str, Any] = {}
+    for target_name, field_spec in custom_conversions.items():
+        source_name = field_spec.rename_from or target_name
+        if source_name not in data_dict:
+            continue
+        value = data_dict[source_name]
+        cast_type = field_spec.custom_cast
+        if cast_type is not None:
+            try:
+                value = CustomTypeRegistry.convert(
+                    value,
+                    cast_type,
+                    field_name=source_name,
+                    raise_on_error=False,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Custom conversion failed for field '{source_name}' "
+                    f"with type '{cast_type}': {e}. Using original value."
+                )
+        converted[target_name] = value
 
-    for field_name, value in data_dict.items():
-        target_name, field_spec = next(
-            (
-                (target, field)
-                for target, field in custom_conversions.items()
-                if (field.rename_from or target) == field_name
-            ),
-            (field_name, None),
-        )
-
-        if field_spec is not None:
-            cast_type = field_spec.custom_cast
-            if cast_type is not None:
-                try:
-                    value = CustomTypeRegistry.convert(
-                        value,
-                        cast_type,
-                        field_name=field_name,
-                        raise_on_error=False,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Custom conversion failed for field '{field_name}' "
-                        f"with type '{cast_type}': {e}. Using original value."
-                    )
-
-        converted_dict[target_name] = value
-
-    return converted_dict
+    consumed = set() if keep_sources else {
+        field.rename_from for field in custom_conversions.values()
+        if field.rename_from is not None
+    } - custom_conversions.keys()
+    result = {name: value for name, value in data_dict.items() if name not in consumed}
+    result.update(converted)
+    return result
 
 
 def apply_custom_converters_to_dicts(
@@ -198,6 +205,9 @@ def _apply_narwhals_custom_converters(
     2. Apply Narwhals expressions (vectorized!)
     3. Convert back to native format
 
+    All converters read the unchanged input columns and are applied together,
+    so a target named like another declaration's source cannot affect it.
+
     Args:
         df: DataFrame to transform
         narwhals_custom: Mapping of contextual target names to FieldSpec
@@ -217,6 +227,7 @@ def _apply_narwhals_custom_converters(
     was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
     nw_df = nw.from_native(df) if was_native else df
 
+    exprs = []
     for target_name, field_spec in narwhals_custom.items():
         cast_type = field_spec.custom_cast
 
@@ -229,15 +240,13 @@ def _apply_narwhals_custom_converters(
             continue
 
         source_name = field_spec.rename_from or target_name
-        expr_builder = narwhals_converter(source_name)
-        col_expr = expr_builder(nw_df)
-        nw_df = nw_df.with_columns(col_expr.alias(target_name))
-
+        exprs.append(narwhals_converter(source_name)(nw_df).alias(target_name))
         logger.debug(
             f"Applied Narwhals custom converter '{cast_type}' to column '{source_name}' "
             f"→ '{target_name}' (vectorized)"
         )
-
+    if exprs:
+        nw_df = nw_df.with_columns(*exprs)
 
     result = nw_df.to_native() if was_native else nw_df
     return result
@@ -281,7 +290,7 @@ def _source_schema_overrides(
     if not fields:
         return {}
     source_fields = {
-        name: replace(field, rename_from=None)
+        name: field.variant(rename_from=None)
         for name, field in fields.items()
     }
     return to_polars_schema(TypeSpec(fields=source_fields))
@@ -338,19 +347,24 @@ def apply_hybrid_conversion(
         f"{len(native)} native conversions"
     )
 
+    # Custom conversions are staged under private names and moved into place
+    # only after every tier has read its sources, so a converted target named
+    # like another declaration's source cannot overwrite that source.
+    staged_python = {
+        _STAGE_PREFIX + name: field.variant(rename_from=field.rename_from or name)
+        for name, field in python_only.items()
+    }
+    staged_narwhals = {
+        _STAGE_PREFIX + name: field.variant(rename_from=field.rename_from or name)
+        for name, field in narwhals_custom.items()
+    }
+
     # STEP 2: Apply PYTHON-ONLY custom converters at edges (TIER 3)
     if python_only:
-        data_dicts = apply_custom_converters_to_dicts(data_dicts, python_only)
-        # Edge converters may change the carrier or return the original on failure.
-        # Neither the old source dtype nor converter metadata proves the output dtype.
-        if schema_overrides:
-            converted_sources = {
-                field.rename_from or name for name, field in python_only.items()
-            }
-            schema_overrides = {
-                name: dtype for name, dtype in schema_overrides.items()
-                if name not in converted_sources
-            }
+        data_dicts = [
+            apply_custom_converters_to_dict(row, staged_python, keep_sources=True)
+            for row in data_dicts
+        ]
         logger.debug(f"Applied Python-only custom converters to {len(data_dicts)} records")
 
     # STEP 3: Create DataFrame
@@ -358,12 +372,27 @@ def apply_hybrid_conversion(
 
     # STEP 4: Apply NARWHALS CUSTOM converters (TIER 2 — vectorized expressions)
     if narwhals_custom:
-        df = _apply_narwhals_custom_converters(df, narwhals_custom)
+        df = _apply_narwhals_custom_converters(df, staged_narwhals)
         logger.debug(f"Applied {len(narwhals_custom)} Narwhals custom converters (vectorized)")
 
     # STEP 5: Apply NATIVE operations via expressions (TIER 1)
     if native:
         df = apply_native_conversions_to_dataframe(df, native)
+
+    # STEP 6: Move staged custom results to their targets; drop sources that
+    # only Python-layer renames consumed (they were renamed, not copied).
+    staged = [name for name in (*staged_python, *staged_narwhals) if name in df.columns]
+    if staged:
+        df = df.with_columns(
+            pl.col(name).alias(name.removeprefix(_STAGE_PREFIX)) for name in staged
+        ).drop(staged)
+        renamed_away = {
+            field.rename_from for field in python_only.values() if field.rename_from is not None
+        } - spec.fields.keys() - {
+            field.rename_from or name
+            for name, field in {**narwhals_custom, **native}.items()
+        }
+        df = df.drop([name for name in renamed_away if name in df.columns])
 
     return df
 
