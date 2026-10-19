@@ -63,6 +63,60 @@ The minimal AST is deliberate — most operations are parameter values on these 
 
 `.group_by()` returns a `GroupedRelation` that exposes only `.agg()` — by design, so you can't accidentally chain a filter onto a partial group.
 
+### Deferred sampling and positional operations
+
+Sampling lazy inputs stays deferred through construction, schema inspection,
+explanation and compilation. Native metadata/catalog inspection is allowed;
+evaluating results for schema completion still requires explicit
+`collect_schema(allow_execution=True)`.
+
+Native Polars, DuckDB, Spark/Connect and supported SQLFrame plans preserve
+whole rows. Dask uses deferred execution over one global partition. Native
+collection retains the provider's result format: Arrow for DuckDB and
+Spark-like providers, pandas for Dask. Explicit `.to_polars()` remains a conversion.
+These implementations use sorting/windows or global partitioning; they do not
+promise bounded-memory streaming.
+
+Fixed seeds repeat on stable ordered inputs, but seed-to-row mappings need not
+match the former eager sampler. Spark retains its native random-plan and
+query-stage reuse behavior; collecting an unseeded plan repeatedly does not
+promise a new draw.
+
+Positive-offset slicing on Narwhals/Dask is declared unsupported because the
+upstream offset implementation can read source rows during construction.
+Checked execution raises `BackendCapabilityError` before source evaluation.
+Zero-offset slices, head and tail remain supported. Explicitly disabling the
+capability gate does not make positive offsets lazy.
+
+Deferred backlog item 355 tracks an upstream Narwhals-DuckDB projection defect:
+`drop`, `rename` and `with_columns` mishandle retained literal `"*"` columns,
+dotted names and names containing double quotes. Native-provider sampling
+exposes these failures in subsequent projections; no workaround or additional
+unsupported declaration is applied. The owner has excluded this follow-up from
+item 351's delivery gates; this is not a claim of full Narwhals-backend support.
+
+### Sampling on Ibis SQL
+
+`.sample(n=k)` selects exactly `min(k, row_count)` rows without replacement.
+Its random ordering and limit remain deferred; compilation does not execute a
+count query. Oversized Python integer requests still return all available rows.
+Sorted `.tail(k)` likewise keeps its count and offset inside the deferred query.
+
+Exact-count sampling with `seed` specified is rejected by capability policy for
+Ibis DuckDB, SQLite, PostgreSQL, MySQL, SingleStoreDB and Exasol. This includes
+`seed=0`. Fractional sampling retains the selected backend's native behavior,
+including seeded support where available; it does not promise an exact row count.
+Disabling the gate does not make seeded exact-count sampling supported.
+
+Data-contract validation follows the same sampling support:
+`contract.validate_datacontract(table, sample=k)` and its `_quick` counterpart
+leave an omitted `random_seed` unset. Validation is an explicit terminal: it
+holds one native sample snapshot for the run, and failure reporting uses the
+validated rows rather than evaluating the sample again. Explicit `random_seed`
+values remain unsupported for the Ibis SQL dialects listed above. The old
+empty-sample `limit(k)` fallback is no longer needed with exact-count sampling.
+
+
 ### Timestamp concatenation
 
 ```python

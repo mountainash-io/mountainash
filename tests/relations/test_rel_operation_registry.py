@@ -167,3 +167,33 @@ class TestClassifyRelationDef:
 
     def test_invalid_extension_without_uri(self):
         assert classify_relation_def(_def(is_extension=True)) is None
+
+def test_gate_params_accept_read_only_properties_but_reject_methods():
+    from mountainash.relations.core.relation_nodes.substrait.reln_fetch import FetchRelNode
+    from mountainash.relations.core.relation_protocols.relation_systems.substrait import (
+        SubstraitFetchRelationSystemProtocol,
+    )
+    from mountainash.relations.core.relation_system.relation_mapping.registry import _validate_def
+
+    def definition(node_type, gate_param):
+        return RelationOperationDef(
+            operation_key=RKEY_SUBSTRAIT_REL.FETCH,
+            node_type=node_type,
+            substrait_rel="FetchRel",
+            protocol_method=SubstraitFetchRelationSystemProtocol.fetch,
+            args=(
+                ArgBinding("input", ArgKind.INPUT),
+                ArgBinding("offset", ArgKind.LITERAL),
+                ArgBinding("count", ArgKind.LITERAL),
+            ),
+            gate_params=(gate_param,),
+        )
+
+    _validate_def(definition(FetchRelNode, "has_offset"))
+
+    class WithMethod(FetchRelNode):
+        def callable_gate(self):
+            return True
+
+    with pytest.raises(ValueError, match="gate_param"):
+        _validate_def(definition(WithMethod, "callable_gate"))

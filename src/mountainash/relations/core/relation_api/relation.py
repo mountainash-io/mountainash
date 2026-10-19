@@ -760,7 +760,7 @@ class Relation(RelationBase):
                 return ibis.to_sql(result)
             except (ImportError, Exception):
                 pass
-        return repr(result)
+        return render_execution(prepared)
 
     def collect(self, *, unwrap: bool = True, backend: Optional[str] = None) -> Any:
         """Execute the plan and return a fully materialized native result.

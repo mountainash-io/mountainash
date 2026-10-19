@@ -28,7 +28,7 @@ KNOWN_DIALECTS: dict[CONST_BACKEND, frozenset[str]] = {
     }),
     CONST_BACKEND.NARWHALS: frozenset({
         "narwhals-polars", "narwhals-pandas", "narwhals-lazy",
-        "narwhals-pyarrow", "narwhals-duckdb",
+        "narwhals-pyarrow", "narwhals-duckdb", "narwhals-dask",
     }),
     CONST_BACKEND.PANDAS: frozenset({"pandas"}),
     CONST_BACKEND.PYARROW: frozenset({"pyarrow"}),
