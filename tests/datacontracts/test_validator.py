@@ -260,43 +260,11 @@ class TestSeededSlice:
         ])
         return spec.to_contract(name="seeded_slice")
 
-    def test_empty_sample_slice_falls_back_and_records_diagnostics(self, monkeypatch):
-        from mountainash.relations import Relation
-
-        def empty_sample(self, *, n=None, fraction=None, seed=None):
-            return self.head(0)
-
-        monkeypatch.setattr(Relation, "sample", empty_sample)
-        df = pl.DataFrame({"a": list(range(20))})
-        result = self._contract().validate_datacontract(df, sample=5, random_seed=1)
-        assert "sample_fallback" in result.diagnostics
-        assert result.diagnostics["sample_fallback"]["requested_sample"] == 5
-        totals = [
-            summary["total_rows"]
-            for summary in result.check_summaries.to_dicts()
-            if summary["total_rows"] is not None
-        ]
-        assert totals and all(total == 5 for total in totals)
-
-    def test_implicit_fallback_records_effective_seed(self, monkeypatch):
-        from mountainash.datacontracts import validator as validator_module
-        from mountainash.relations import Relation
-
-        monkeypatch.setattr(validator_module.random, "randrange", lambda _: 12345)
-        monkeypatch.setattr(Relation, "sample", lambda self, **_: self.head(0))
-        result = self._contract().validate_datacontract(
-            pl.DataFrame({"a": list(range(20))}), sample=5
-        )
-        assert result.diagnostics["sample_fallback"]["random_seed"] == 12345
-
-    @pytest.mark.parametrize("backend", ["polars", "pandas", "ibis-duckdb"])
+    @pytest.mark.parametrize("backend", ["polars", "pandas"])
     def test_seeded_validate_is_deterministic(self, backend):
         df = pl.DataFrame({"a": [i - 10 for i in range(100)]})
         if backend == "pandas":
             data = df.to_pandas()
-        elif backend == "ibis-duckdb":
-            ibis = pytest.importorskip("ibis")
-            data = ibis.duckdb.connect().create_table("t", df.to_arrow())
         else:
             data = df
         contract = self._contract()
@@ -306,19 +274,58 @@ class TestSeededSlice:
         assert first.check_summaries.drop("elapsed").to_dicts() == second.check_summaries.drop("elapsed").to_dicts()
         assert first.failure_cases.to_dicts() == second.failure_cases.to_dicts()
 
-    def test_never_validates_empty_slice_silently_on_ibis(self):
-        ibis = pytest.importorskip("ibis")
+    @pytest.mark.parametrize("method", ["validate_datacontract", "validate_datacontract_quick"])
+    @pytest.mark.parametrize("backend_name", ["polars", "pandas", "ibis-duckdb", "ibis-sqlite"])
+    def test_unseeded_sample_validates_exact_nonempty_slice(self, method, backend_name, backend_factory):
+        data = backend_factory.create({"a": list(range(-30, 0))}, backend_name)
+        result = getattr(self._contract(), method)(data, sample=1)
+        assert result.passes is False
+        assert {
+            summary["total_rows"]
+            for summary in result.check_summaries.to_dicts()
+            if summary["total_rows"] is not None
+        } == {1}
+        assert result.failure_cases.height == 1
+
+    @pytest.mark.parametrize("method", ["validate_datacontract", "validate_datacontract_quick"])
+    @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
+    def test_explicit_ibis_sample_seed_is_refused(self, method, backend_name, backend_factory):
+        from mountainash.exceptions import BackendCapabilityError
+
+        data = backend_factory.create({"a": [1, 2, 3]}, backend_name)
+        with pytest.raises(BackendCapabilityError):
+            getattr(self._contract(), method)(data, sample=1, random_seed=7)
+
+    @pytest.mark.parametrize("method", ["validate_datacontract", "validate_datacontract_quick"])
+    def test_unseeded_sample_and_processor_share_one_source_read(self, method):
+        import ibis
+        from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+        from mountainash.typespec.universal_types import parse_universal
+
+        reads = []
+
+        def next_a():
+            reads.append(len(reads) + 1)
+            return -reads[-1]
+
+        contract = TypeSpec(
+            fields=[FieldSpec(name="a", type=parse_universal("integer"),
+                              constraints=FieldConstraints(minimum=0))],
+            primary_key=["a"],
+        ).to_contract(name="sample_source")
         con = ibis.duckdb.connect()
-        table = con.create_table("t", pl.DataFrame({"a": list(range(30))}).to_arrow())
-        contract = self._contract()
-        for seed in range(8):
-            result = contract.validate_datacontract(table, sample=1, random_seed=seed)
-            totals = [
-                summary["total_rows"]
-                for summary in result.check_summaries.to_dicts()
-                if summary["total_rows"] is not None
-            ]
-            assert any(total > 0 for total in totals) or "sample_fallback" in result.diagnostics
+        try:
+            con.con.create_function("next_a", next_a, [], "BIGINT", side_effects=True)
+            source = con.sql("SELECT next_a() AS a FROM range(3)")
+            before = con.list_tables()
+            result = getattr(contract, method)(source, sample=3)
+            assert result.passes is False
+            assert reads == [1, 2, 3]
+            assert result.failure_cases["a"].sort().to_list() == [-3, -2, -1]
+            assert result.processor.pivot_all_fields()["a"].sort().to_list() == [-3, -2, -1]
+            assert con.list_tables() == before
+        finally:
+            con.disconnect()
 
 
 # --- Declaration ownership (item 137) ---------------------------------------

@@ -128,6 +128,7 @@ SUBSTRAIT_OPERATIONS = [
         substrait_rel="FetchRel",
         protocol_method=SubstraitFetchRelationSystemProtocol.fetch,
         args=(_IN, ArgBinding("offset", ArgKind.LITERAL), ArgBinding("count", ArgKind.LITERAL)),
+        gate_params=("has_offset",),
     ),
     RelationOperationDef(
         operation_key=RS.JOIN,

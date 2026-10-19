@@ -224,14 +224,14 @@ def _schema_from_dataframe(
         native = df.to_native()
         if (
             is_pandas_dataframe(native) or is_pyarrow_table(native)
-            or hasattr(native, "collect_schema")
+            or callable(getattr(type(native), "collect_schema", None))
         ):
             return _schema_from_dataframe(native, physical=physical)
         return {
             name: _canon(dtype, target=TypeTarget.NARWHALS)
             for name, dtype in df.schema.items()
         }
-    if hasattr(df, "collect_schema"):
+    if callable(getattr(type(df), "collect_schema", None)):
         polars_schema = df.collect_schema()
         pairs = zip(polars_schema.names(), polars_schema.dtypes())
         return {name: _canon(dtype) for name, dtype in pairs}

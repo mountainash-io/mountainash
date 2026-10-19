@@ -2297,3 +2297,44 @@ issues:
     issue or upstream patch is claimed. Exasol's separate native TryCast witness
     is not this gate's scope; its public Decimal path is already gated by IB-STR-14.
   last_verified: '2026-10-16'
+- id: NW-REL-01
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals/Dask positive-offset FETCH may evaluate partitions during construction
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-dask
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: accepted_divergence
+  notes: >-
+    Backlog item 351 records Narwhals 2.27.1 with Dask 2026.8.0 evaluating source
+    rows during native positive-offset FETCH construction. Mountainash declares
+    positive-offset FETCH unsupported; zero-offset/head and tail remain supported.
+    No partition-slicing bypass or external issue is claimed. Re-test the strict
+    GATE-off source-read probe when upstream repairs the native behavior.
+  last_verified: '2026-10-18'
+- id: NW-REL-02
+  project: narwhals
+  category: relation-ops
+  summary: Narwhals DuckDB projections parse literal column names as expressions
+  root_cause: upstream_bug
+  affected_backends:
+  - narwhals-duckdb
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: >-
+    Reproduced without Mountainash on Narwhals 2.27.1 and DuckDB 1.5.6:
+    drop, rename and with_columns mishandle retained literal identifiers.
+    '*' expands a wildcard and produces duplicate fields, 'a.b' is interpreted
+    as a qualified reference, and an embedded double quote causes a parser error.
+    The adapter passes raw names to DuckDB ColumnExpression rather than quoting
+    them as literal identifiers. Regex-like '^id$' is a passing neighbor.
+    Owner deferred this issue to backlog item 355 on 2026-10-19, explicitly
+    removing it as an item 351 delivery gate. No named consumer was identified;
+    broader Narwhals-backend qualification is not required by this finding.
+    No workaround, unsupported declaration, or external issue is claimed.
+  last_verified: '2026-10-19'

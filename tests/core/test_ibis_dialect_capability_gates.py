@@ -203,3 +203,42 @@ def test_postgres_decimal_unselected_protection_retains_native_lowering(mode):
     ))
     compiled = _postgres_decimal(policy)
     assert compiled.type() == ibis.dtype("decimal(5, 2)")
+
+
+_SAMPLE_DIALECTS = (
+    "ibis-duckdb",
+    "ibis-sqlite",
+    "ibis-postgres",
+    "ibis-mysql",
+    "ibis-singlestoredb",
+    "ibis-exasol",
+)
+
+
+def _sample_relation(dialect, *, n, seed):
+    from mountainash.core.capabilities.policy import _prepare_capability_context
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+
+    table = ibis.table({"id": "int64"}, name="source")
+    relation = ma.relation(table).sample(n=n, seed=seed)
+    context = _prepare_capability_context(
+        ma.CapabilityPolicy.checked(),
+        _CapabilityTarget(BackendIdentity(CONST_BACKEND.IBIS, dialect), table),
+        package_versions={},
+    )
+    location = ExecutionLocation(CONST_BACKEND.IBIS, dialect, ExecutionForm.DEFERRED, "bound")
+    return relation._node, location, context
+
+
+@pytest.mark.parametrize("dialect", _SAMPLE_DIALECTS)
+@pytest.mark.parametrize("n,seed", [(0, 0), (2, 42)])
+def test_concrete_sql_scopes_refuse_seeded_exact_count_sampling(dialect, n, seed):
+    from mountainash.relations.core.execution.capabilities import check_ast_capabilities
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
+    node, location, context = _sample_relation(dialect, n=n, seed=seed)
+    with pytest.raises(BackendCapabilityError) as error:
+        check_ast_capabilities(node, location, execution_context=context)
+    assert error.value.function_key is RKEY_MOUNTAINASH_REL.SAMPLE
+    assert error.value.limitation is not None

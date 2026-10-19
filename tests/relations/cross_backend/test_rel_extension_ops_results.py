@@ -324,10 +324,19 @@ class TestTopK:
 # ---------------------------------------------------------------------------
 
 
+SAMPLE_BACKENDS = [name for name in ALL_BACKENDS if name != "ibis-polars"]
+SEEDED_COUNT_BACKENDS = [
+    name for name in SAMPLE_BACKENDS if name not in {"ibis-duckdb", "ibis-sqlite"}
+]
+SEEDED_FRACTION_BACKENDS = [
+    name for name in SAMPLE_BACKENDS if name != "ibis-sqlite"
+]
+
+
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("backend_name", SAMPLE_BACKENDS)
 class TestSample:
-    """Seeded sampling is deterministic within each backend."""
+    """Sampling result contracts across eager and supported SQL backends."""
 
     def _frame(self, backend_factory, backend_name):
         return backend_factory.create(
@@ -335,51 +344,74 @@ class TestSample:
             backend_name,
         )
 
-    def _mark_seed_support(self, request, backend_name):
-        reasons = {
-            "ibis-polars": "ibis-polars: Table.sample with a random seed is unsupported",
-            "ibis-sqlite": "ibis-sqlite: Table.sample with a random seed is unsupported",
-        }
-        if backend_name in reasons:
-            request.node.add_marker(pytest.mark.xfail(strict=True, reason=reasons[backend_name]))
-
-    def test_sample_n_row_count(self, backend_name, backend_factory, request):
-        self._mark_seed_support(request, backend_name)
+    def test_unseeded_count_returns_exact_count(self, backend_name, backend_factory):
         df = self._frame(backend_factory, backend_name)
-        result = ma.relation(df).sample(n=5, seed=7).to_dicts()
-        if backend_name.startswith("ibis-"):
-            assert 0 <= len(result) <= 20
-        else:
-            assert len(result) == 5
+        assert len(ma.relation(df).sample(n=5).to_dicts()) == 5
 
-    def test_same_seed_same_rows(self, backend_name, backend_factory, request):
-        self._mark_seed_support(request, backend_name)
+    def test_oversized_unseeded_count_returns_all_rows(self, backend_name, backend_factory):
         df = self._frame(backend_factory, backend_name)
-        first = ma.relation(df).sample(n=5, seed=42).to_dicts()
-        second = ma.relation(df).sample(n=5, seed=42).to_dicts()
-        assert sorted_dicts(first, "a") == sorted_dicts(second, "a")
-
-    def test_same_seed_same_rows_fraction(self, backend_name, backend_factory, request):
-        self._mark_seed_support(request, backend_name)
-        df = self._frame(backend_factory, backend_name)
-        first = ma.relation(df).sample(fraction=0.4, seed=3).to_dicts()
-        second = ma.relation(df).sample(fraction=0.4, seed=3).to_dicts()
-        assert sorted_dicts(first, "a") == sorted_dicts(second, "a")
-
-    def test_oversize_n_returns_all_rows(self, backend_name, backend_factory, request):
-        df = self._frame(backend_factory, backend_name)
-        result = ma.relation(df).sample(n=100, seed=1).to_dicts()
+        result = ma.relation(df).sample(n=100).to_dicts()
         assert sorted_dicts(result, "a") == sorted_dicts(ma.relation(df).to_dicts(), "a")
 
-    def test_fraction_zero_returns_no_rows(self, backend_name, backend_factory, request):
+    def test_fraction_zero_remains_empty(self, backend_name, backend_factory):
         df = self._frame(backend_factory, backend_name)
-        assert ma.relation(df).sample(fraction=0.0, seed=1).to_dicts() == []
+        assert ma.relation(df).sample(fraction=0).to_dicts() == []
 
-    def test_fraction_one_returns_all_rows(self, backend_name, backend_factory, request):
+    def test_fraction_one_returns_every_row(self, backend_name, backend_factory):
         df = self._frame(backend_factory, backend_name)
-        result = ma.relation(df).sample(fraction=1.0, seed=1).to_dicts()
+        result = ma.relation(df).sample(fraction=1).to_dicts()
         assert sorted_dicts(result, "a") == sorted_dicts(ma.relation(df).to_dicts(), "a")
 
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", SEEDED_COUNT_BACKENDS)
+def test_seeded_exact_count_is_reproducible_where_supported(backend_name, backend_factory):
+    df = backend_factory.create(
+        {"a": list(range(20)), "b": [i * 10 for i in range(20)]},
+        backend_name,
+    )
+    first = ma.relation(df).sample(n=5, seed=42).to_dicts()
+    second = ma.relation(df).sample(n=5, seed=42).to_dicts()
+    assert sorted_dicts(first, "a") == sorted_dicts(second, "a")
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        *SEEDED_FRACTION_BACKENDS,
+        pytest.param(
+            "ibis-sqlite",
+            marks=pytest.mark.xfail(
+                strict=True,
+                reason="ibis-sqlite Table.sample with a random seed is unsupported",
+            ),
+        ),
+    ],
+)
+def test_seeded_fraction_remains_reproducible(backend_name, backend_factory):
+    df = backend_factory.create(
+        {"a": list(range(20)), "b": [i * 10 for i in range(20)]},
+        backend_name,
+    )
+    first = ma.relation(df).sample(fraction=0.4, seed=3).to_dicts()
+    second = ma.relation(df).sample(fraction=0.4, seed=3).to_dicts()
+    assert sorted_dicts(first, "a") == sorted_dicts(second, "a")
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
+def test_seeded_exact_count_sampling_refuses_with_typed_limitation(
+    backend_name, backend_factory,
+):
+    df = backend_factory.create(
+        {"a": list(range(20)), "b": [i * 10 for i in range(20)]},
+        backend_name,
+    )
+    with pytest.raises(BackendCapabilityError) as error:
+        ma.relation(df).sample(n=5, seed=7).to_dicts()
+    assert error.value.function_key is RKEY_MOUNTAINASH_REL.SAMPLE
+    assert error.value.limitation is not None
 
 @pytest.mark.cross_backend
 class TestJoinAsofStrategyRefusal:

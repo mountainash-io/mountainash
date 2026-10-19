@@ -78,11 +78,19 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         fraction: Optional[float] = None,
         seed: Optional[int] = None,
     ) -> pl.LazyFrame:
-        # LazyFrame does not support .sample() directly — collect, sample, re-lazy.
-        frame = relation.collect()
-        if n is not None:
-            n = min(n, frame.height)
-        return frame.sample(n=n, fraction=fraction, seed=seed).lazy()
+        names = relation.collect_schema().names()
+        index_name = "_ma_sample_index"
+        while index_name in names:
+            index_name = "_" + index_name
+        count = min(n, 2**63 - 1) if n is not None else (pl.len() * fraction).cast(pl.UInt64)
+        # Gather every column with the same native random indices, including
+        # Object columns which cannot be placed inside a struct expression.
+        indexed = relation.with_columns(
+            pl.int_range(pl.len()).shuffle(seed=seed).alias(index_name)
+        )
+        return indexed.select(
+            pl.exclude(index_name).gather(pl.col(index_name).head(count))
+        )
 
     def unpivot(
         self,

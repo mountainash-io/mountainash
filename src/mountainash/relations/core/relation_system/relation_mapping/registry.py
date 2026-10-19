@@ -113,11 +113,15 @@ def _validate_def(d: RelationOperationDef) -> None:
             f"exist on {d.node_type.__name__}"
         )
     for gate_param in d.gate_params:
-        if gate_param not in model_fields:
-            raise ValueError(
-                f"{d.operation_key}: gate_param {gate_param!r} does not exist "
-                f"on {d.node_type.__name__}"
-            )
+        if gate_param in model_fields:
+            continue
+        descriptor = inspect.getattr_static(d.node_type, gate_param, None)
+        if isinstance(descriptor, property) and descriptor.fset is None:
+            continue
+        raise ValueError(
+            f"{d.operation_key}: gate_param {gate_param!r} does not exist "
+            f"as a model field or read-only property on {d.node_type.__name__}"
+        )
     if d.handler is not None:
         return  # handler owns the calling convention
     sig = d.get_signature()

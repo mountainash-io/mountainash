@@ -32,6 +32,13 @@ class FetchRelNode(RelationNode):
     count: Optional[int] = None
     from_end: bool = False
 
+
+
+    @property
+    def has_offset(self) -> bool:
+        """Whether this fetch skips one or more rows."""
+        return self.offset > 0
+
     @property
     def operation_key(self):
         if self.from_end:
