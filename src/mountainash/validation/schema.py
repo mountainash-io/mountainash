@@ -94,6 +94,14 @@ def _implementation_kind(
         )
     if constraint == "enum_weights":
         return ValidationImplementationKind.METADATA_ONLY
+    if constraint in {"eq", "ne", "notin"}:
+        return ValidationImplementationKind.VALUE_CHECK
+    if constraint in {"str_contains", "str_startswith", "str_endswith"}:
+        return (
+            ValidationImplementationKind.VALUE_CHECK
+            if field_type is UniversalType.STRING
+            else ValidationImplementationKind.UNSUPPORTED
+        )
     return ValidationImplementationKind.UNSUPPORTED
 
 
@@ -194,8 +202,8 @@ def _validate_constraints(
                 _constraint_issue(issues, f"{path}/constraints/pattern", str(error))
 
     if constraints.enum is not None:
-        if not isinstance(constraints.enum, list) or not constraints.enum:
-            _constraint_issue(issues, f"{path}/constraints/enum", "enum must be a non-empty list")
+        if not isinstance(constraints.enum, (list, tuple)) or not constraints.enum:
+            _constraint_issue(issues, f"{path}/constraints/enum", "enum must be a non-empty sequence")
 
     if constraints.json_schema is not None:
         try:
@@ -229,8 +237,8 @@ def _validate_constraints(
 def _validate_missing_values(values: Any, path: str, issues: list[TypeSpecIssue]) -> None:
     if values is None:
         return
-    if not isinstance(values, list):
-        _constraint_issue(issues, path, "missing_values must be a list")
+    if not isinstance(values, (list, tuple)):
+        _constraint_issue(issues, path, "missing_values must be a sequence")
         return
     seen_values: set[str] = set()
     seen_labels: set[str] = set()
@@ -348,7 +356,7 @@ def _validate_field_properties(
         if values is None:
             continue
         property_path = f"{path}/{property_name}"
-        if not isinstance(values, list) or not values or any(
+        if not isinstance(values, (list, tuple)) or not values or any(
             not isinstance(value, str) or not value for value in values
         ):
             _constraint_issue(
@@ -379,8 +387,8 @@ def _validate_field_properties(
                 f"{path}/categories",
                 "categories are valid only for string and integer fields",
             )
-        elif not isinstance(field.categories, list):
-            _constraint_issue(issues, f"{path}/categories", "categories must be a list")
+        elif not isinstance(field.categories, (list, tuple)):
+            _constraint_issue(issues, f"{path}/categories", "categories must be a sequence")
         else:
             seen_categories: set[tuple[type[Any], Any]] = set()
             labels: set[str] = set()
@@ -422,63 +430,44 @@ def _validate_field_properties(
             )
 
 
-def _validate_field_list(
-    fields: Any,
-    *,
-    path: str,
-    issues: list[TypeSpecIssue],
+def _validate_field(
+    name: str | None, field: FieldSpec, *, path: str, issues: list[TypeSpecIssue]
+) -> None:
+    if name is not None and (not isinstance(name, str) or not name):
+        _issue(issues, path=f"{path}/name", code="typespec.invalid_field_identifier",
+            cause=InvalidFieldIdentifier(path, "name", name))
+        return
+    if field.severity is not None and field.severity not in ("blocking", "warning"):
+        _constraint_issue(issues, f"{path}/severity", "severity must be 'blocking' or 'warning'")
+    if field.rename_from is not None and (
+        not isinstance(field.rename_from, str) or not field.rename_from
+    ):
+        _issue(issues, path=f"{path}/rename_from", code="typespec.invalid_field_identifier",
+            cause=InvalidFieldIdentifier(path, "rename_from", field.rename_from))
+    _validate_constraints(field, path, issues)
+    _validate_field_properties(field, path, issues)
+    if field.fields is not None:
+        _validate_field_mapping(field.fields, path=f"{path}/fields", issues=issues)
+    if field.element is not None:
+        _validate_field(None, field.element, path=f"{path}/element", issues=issues)
+
+
+def _validate_field_mapping(
+    declarations: Any, *, path: str, issues: list[TypeSpecIssue]
 ) -> set[str]:
-    if not isinstance(fields, list) or not fields:
-        _constraint_issue(issues, path, "fields must be a non-empty list of FieldSpec")
+    if not isinstance(declarations, Mapping):
+        _constraint_issue(issues, path, "fields must be a name-to-FieldSpec mapping")
         return set()
-
     names: set[str] = set()
-    for index, field in enumerate(fields):
-        field_path = f"{path}/{index}"
-        if not isinstance(field, FieldSpec):
-            _constraint_issue(issues, field_path, "field must be FieldSpec")
+    for name, definition in declarations.items():
+        if name in names:
+            _issue(issues, path=f"{path}/{name}", code="typespec.ambiguous_field_name",
+                cause=AmbiguousFieldName(f"duplicate field name {name!r}"))
+        names.add(name)
+        if not isinstance(definition, FieldSpec):
+            _constraint_issue(issues, f"{path}/{name}", "field must be FieldSpec")
             continue
-        if not isinstance(field.name, str) or not field.name:
-            _issue(
-                issues,
-                path=f"{field_path}/name",
-                code="typespec.invalid_field_identifier",
-                cause=InvalidFieldIdentifier(field_path, "name", field.name),
-            )
-        elif field.name in names:
-            _issue(
-                issues,
-                path=f"{field_path}/name",
-                code="typespec.ambiguous_field_name",
-                cause=AmbiguousFieldName(f"duplicate field name {field.name!r}"),
-            )
-        else:
-            names.add(field.name)
-
-        if field.rename_from is not None and (
-            not isinstance(field.rename_from, str) or not field.rename_from
-        ):
-            _issue(
-                issues,
-                path=f"{field_path}/rename_from",
-                code="typespec.invalid_field_identifier",
-                cause=InvalidFieldIdentifier(field_path, "rename_from", field.rename_from),
-            )
-
-        _validate_constraints(field, field_path, issues)
-        _validate_field_properties(field, field_path, issues)
-        if field.object_fields is not None:
-            _validate_field_list(
-                field.object_fields,
-                path=f"{field_path}/object_fields",
-                issues=issues,
-            )
-        if field.item_object_fields is not None:
-            _validate_field_list(
-                field.item_object_fields,
-                path=f"{field_path}/item_object_fields",
-                issues=issues,
-            )
+        _validate_field(name, definition, path=f"{path}/{name}", issues=issues)
     return names
 
 
@@ -533,7 +522,7 @@ def _validate_relationships(
             else None
         )
         if target_spec is not None:
-            target_names = {field.name for field in target_spec.fields if isinstance(field.name, str)}
+            target_names = set(target_spec.fields)
             _validate_key(reference.fields, path=f"{path}/reference/fields", known_names=target_names, issues=issues)
 
 
@@ -546,7 +535,7 @@ def validate_typespec_semantics(
 ) -> tuple[TypeSpecIssue, ...]:
     """Return all semantic declaration issues in deterministic pointer order."""
     issues: list[TypeSpecIssue] = []
-    known_names = _validate_field_list(spec.fields, path="/fields", issues=issues)
+    known_names = _validate_field_mapping(spec.fields, path="/fields", issues=issues)
     _validate_missing_values(spec.missing_values, "/missing_values", issues)
 
     if spec.fields_match not in {"exact", "equal", "subset", "superset", "partial", "open"}:

@@ -19,19 +19,17 @@ from mountainash.typespec.universal_types import UniversalType
 
 # The three dtype families item 54 upgrades: parameterized backend_type
 # (gap 1), categorical (gap 3), nested list (gap 2).
-UPGRADED_SPEC = TypeSpec(fields=[
-    FieldSpec(
-        name="ts", type=UniversalType.ANY,
+UPGRADED_SPEC = TypeSpec(fields={
+    "ts": FieldSpec(
+        type=UniversalType.ANY,
         backend_type="Datetime(time_unit='us', time_zone='UTC')",
     ),
-    FieldSpec(
-        name="cat", type=UniversalType.STRING,
+    "cat": FieldSpec(
+        type=UniversalType.STRING,
         categories=["a", "b"], categories_ordered=True,
     ),
-    FieldSpec(
-        name="lst", type=UniversalType.LIST, item_type="integer",
-    ),
-])
+    "lst": FieldSpec(type=UniversalType.LIST, item_type="integer"),
+})
 
 # Same shape as a Frictionless descriptor (inline-read schema dict).
 UPGRADED_SCHEMA_DICT = {"fields": [
@@ -145,9 +143,9 @@ class TestNoRaisePartnerRegression:
 
     @pytest.mark.parametrize("backend_type", [None, ""])
     def test_empty_frame_no_raise(self, backend_type):
-        spec = TypeSpec(fields=[
-            FieldSpec(name="i", type=UniversalType.INTEGER, backend_type=backend_type),
-        ])
+        spec = TypeSpec(fields={
+            "i": FieldSpec(type=UniversalType.INTEGER, backend_type=backend_type),
+        })
         df = _polars_ext().empty_frame(spec).collect()
         assert df.schema["i"] == pl.Int64
 
@@ -166,14 +164,14 @@ class TestNoRaisePartnerRegression:
 # Task 6: six-field shared-resolver parity across all relation backends
 # ============================================================================
 
-V2_FIDELITY_SPEC = TypeSpec(fields=[
-    FieldSpec("list", UniversalType.LIST, item_type="integer"),
-    FieldSpec("point", UniversalType.GEOPOINT, format="array"),
-    FieldSpec("geometry", UniversalType.GEOJSON),
-    FieldSpec("duration", UniversalType.DURATION),
-    FieldSpec("year", UniversalType.YEAR),
-    FieldSpec("yearmonth", UniversalType.YEARMONTH),
-])
+V2_FIDELITY_SPEC = TypeSpec(fields={
+    "list": FieldSpec(type=UniversalType.LIST, item_type="integer"),
+    "point": FieldSpec(type=UniversalType.GEOPOINT, format="array"),
+    "geometry": FieldSpec(type=UniversalType.GEOJSON),
+    "duration": FieldSpec(type=UniversalType.DURATION),
+    "year": FieldSpec(type=UniversalType.YEAR),
+    "yearmonth": FieldSpec(type=UniversalType.YEARMONTH),
+})
 
 class TestV2SharedResolverParity:
     @pytest.mark.parametrize("backend", ["polars", "narwhals", "ibis"])

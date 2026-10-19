@@ -311,8 +311,9 @@ def _schema_from_table_schema(
         if not name:
             continue
         try:
-            field = typespec_from_frictionless({"fields": [raw_field]}).fields[0]
-            canonical = resolve_field_canonical(field)
+            schema = typespec_from_frictionless({"fields": [raw_field]})
+            field = schema.fields[name]
+            canonical = resolve_field_canonical(field, field_name=name)
         except (KeyError, TypeError, ValueError):
             result[name] = SchemaTypeStatus.UNKNOWN
             continue
@@ -328,15 +329,15 @@ def _schema_from_typespec(
     spec: Any,
 ) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
     """Extract field-aware canonical schema from a resolved TypeSpec."""
-    fields = getattr(spec, "fields", ())
+    fields = getattr(spec, "fields", {})
     result: dict[str, _DetailedDtype | SchemaTypeStatus] = {}
-    for field in fields:
+    for name, field in fields.items():
         try:
-            canonical = resolve_field_canonical(field)
+            canonical = resolve_field_canonical(field, field_name=name)
         except (KeyError, TypeError, ValueError):
-            result[field.name] = SchemaTypeStatus.UNKNOWN
+            result[name] = SchemaTypeStatus.UNKNOWN
             continue
-        result[field.name] = (
+        result[name] = (
             SchemaTypeStatus.UNKNOWN if field.backend_type
             else SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
         )
@@ -483,14 +484,14 @@ def infer_schema(
             _drifts.append(contract.drift)
         if not node.apply_value_transforms:
             emitted = {
-                em.field.name: input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
+                em.local_name: input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
                 if em.type_action != "null_fill"
                 else _declared_dtype_for_infer(em, input_schema)
                 for em in contract.emitted
             }
         else:
             emitted = {
-                em.field.name: _declared_dtype_for_infer(em, input_schema)
+                em.local_name: _declared_dtype_for_infer(em, input_schema)
                 for em in contract.emitted
             }
         if contract.keeps_unmapped:
@@ -650,9 +651,9 @@ def _schema_from_source_data(
             U.STRING, U.INTEGER, U.NUMBER, U.BOOLEAN, U.DATE, U.DATETIME,
             U.TIME, U.DURATION, U.YEAR, U.YEARMONTH, U.ANY,
         }
-        for field in spec.fields:
-            if field.name in schema and field.type in scalar_types:
-                schema[field.name] = declared[field.name]
+        for name, field in spec.fields.items():
+            if name in schema and field.type in scalar_types:
+                schema[name] = declared[name]
         return schema
     if isinstance(data, list) and data and isinstance(data[0], dict):
         keys = list(data[0].keys())
@@ -765,7 +766,7 @@ def _aggregate_resource_names(node: Any) -> tuple[str, ...] | None:
         return None
     # Every declared field must exist or be null-filled; extras cannot survive.
     # The conform projection emits fields in declaration order on every backend.
-    return tuple(field.name for field in spec.fields)
+    return tuple(spec.fields)
 
 
 def _aggregate_input_names(node: Any) -> tuple[str, ...] | None:

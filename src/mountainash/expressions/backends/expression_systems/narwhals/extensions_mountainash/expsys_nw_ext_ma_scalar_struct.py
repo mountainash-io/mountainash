@@ -1,13 +1,13 @@
 """Narwhals backend for mountainash struct operations."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 import narwhals as nw
 
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarStructExpressionSystemProtocol
 from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
@@ -23,7 +23,7 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
         x,
         /,
         *converted_fields,
-        fields: tuple[FieldSpec, ...],
+        fields: Mapping[str, FieldSpec],
         failure_behavior: str = "throw",
     ):
         if failure_behavior == "null":
@@ -39,15 +39,15 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
             )
-        field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
-        dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        field = FieldSpec(fields=fields)
+        dtype = _resolve_field_native(field, TypeTarget.NARWHALS, field_name="struct")
         if converted_fields:
-            count = len(fields)
-            validity = converted_fields[count] if len(converted_fields) > count else None
+            names = tuple(fields)
+            validity = converted_fields[len(names)] if len(converted_fields) > len(names) else None
             result = nw.struct(
                 **{
-                    child.name: value
-                    for child, value in zip(fields, converted_fields[:count], strict=True)
+                    name: value
+                    for name, value in zip(names, converted_fields[:len(names)], strict=True)
                 }
             ).cast(dtype)
             result = nw.when(x.is_null()).then(nw.lit(None, dtype=dtype)).otherwise(result)

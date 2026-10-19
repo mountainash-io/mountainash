@@ -865,7 +865,10 @@ class UnifiedRelationVisitor:
             override=contract,
         )
         if schema_only and not self.metadata_session.schema_complete and available is not None:
-            missing = {field.source_name.split(".", 1)[0] for field in schema.fields}.difference(available)
+            missing = {
+                (field.rename_from if field.rename_from is not None else name).split(".", 1)[0]
+                for name, field in schema.fields.items()
+            }.difference(available)
             if missing:
                 self.require_schema_execution(
                     "Bounded resource discovery does not establish conform input fields: "
@@ -958,11 +961,11 @@ class UnifiedRelationVisitor:
         if owner_node is not None:
             available_set = set(available) if available is not None else None
             overwritten = frozenset(
-                field.name
-                for field in schema.fields
+                name
+                for name, field in schema.fields.items()
                 if (
                     available_set is None
-                    or field.source_name.split(".", 1)[0] in available_set
+                    or (field.rename_from if field.rename_from is not None else name).split(".", 1)[0] in available_set
                     or resolved_contract.missing_columns == "null_fill"
                 )
             )
@@ -987,7 +990,7 @@ class UnifiedRelationVisitor:
                     self.compile_expression(keep) for keep in conform_result.row_filters
                 ]
                 occupied = set(available or ())
-                occupied.update(getattr(field, "name", "") for field in schema.fields)
+                occupied.update(schema.fields)
                 marker_exprs = []
                 residue_checks = []
                 result_protection_enabled = self.execution_context.policy.has_demand(

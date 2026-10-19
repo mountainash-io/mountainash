@@ -21,7 +21,7 @@ def test_compiled_plan_copies_mutable_check_declarations():
     )
 
     plan = build_compiled_plan(
-        TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]),
+        TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)}),
         [check],
     )
     fields.append("later")
@@ -35,6 +35,21 @@ def test_compiled_plan_copies_mutable_check_declarations():
         compiled_check.metadata["new"] = "value"
 
 
+
+
+def test_thaw_restores_named_field_order_at_every_declaration_level():
+    spec = TypeSpec(fields={
+        "outer": FieldSpec(fields={
+            "second": FieldSpec(type=UniversalType.INTEGER),
+            "first": FieldSpec(type=UniversalType.STRING),
+        }),
+        "tail": FieldSpec(type=UniversalType.BOOLEAN),
+    })
+    plan = build_compiled_plan(spec, [])
+    spec.fields = {"tail": spec.fields["tail"], "outer": spec.fields["outer"]}
+    thawed = thaw_value(plan.declaration)
+    assert list(thawed.fields) == ["outer", "tail"]
+    assert list(thawed.fields["outer"].fields) == ["second", "first"]
 def test_thaw_rejects_unregistered_dataclass_identifiers():
     with pytest.raises(ValueError, match="unsupported frozen dataclass"):
         thaw_value(
@@ -50,13 +65,10 @@ from mountainash.validation.checks import RelationRule, ScalarRule  # noqa: E402
 from mountainash.validation.identity import RowIdentity  # noqa: E402
 from mountainash.validation.runner import ValidationRunner  # noqa: E402
 
-_SPEC = TypeSpec(
-    fields=[
-        FieldSpec(name="v", type=UniversalType.INTEGER),
-        FieldSpec(name="g", type=UniversalType.INTEGER),
-    ]
-)
-
+_SPEC = TypeSpec(fields={
+    "v": FieldSpec(type=UniversalType.INTEGER),
+    "g": FieldSpec(type=UniversalType.INTEGER),
+})
 
 def _run(plan, data):
     return ValidationRunner().validate_relation(
@@ -70,12 +82,13 @@ def _run(plan, data):
 ])
 def test_precise_declarations_execute_through_compiled_validation(dtype, value):
     import polars as pl
-    field = FieldSpec(name="value", dtype=dtype,
+    field = FieldSpec(dtype=dtype,
                       rounding="half_to_even" if isinstance(dtype, ma.DecimalDtype) else None)
-    plan = build_compiled_plan(TypeSpec(fields=[field], missing_values=[]), [
+    spec = TypeSpec(fields={"value": field}, missing_values=[])
+    plan = build_compiled_plan(spec, [
         RowRule(id="value_kept", expr=ma.col("value").eq(value)),
     ])
-    field.dtype = ma.MountainashDtype.BOOL
+    spec.fields["value"] = FieldSpec(dtype=ma.MountainashDtype.BOOL)
     for _ in range(2):
         assert _run(plan, pl.DataFrame({"value": [value]})).passes
 
@@ -85,12 +98,13 @@ def test_native_validation_snapshot_owns_executable_parameters():
     import datetime
     import polars as pl
     native = pl.Datetime("ns")
-    field = FieldSpec(name="at", backend_type=native)
-    spec = TypeSpec(fields=[field], missing_values=[])
+    field = FieldSpec(backend_type=native)
+    spec = TypeSpec(fields={"at": field}, missing_values=[])
     checks = [RowRule(id="instant", expr=ma.col("at").eq(datetime.datetime(1970, 1, 1, microsecond=1000)))]
     old = build_compiled_plan(spec, checks)
     native.time_unit = "us"
-    new = build_compiled_plan(spec, checks)
+    new_spec = TypeSpec(fields={"at": FieldSpec(backend_type=native)}, missing_values=[])
+    new = build_compiled_plan(new_spec, checks)
     data = pl.DataFrame({"at": [1_000_000]})
     assert not _run(new, data).passes
     for _ in range(2):

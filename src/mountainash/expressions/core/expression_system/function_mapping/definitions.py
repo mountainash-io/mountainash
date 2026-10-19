@@ -2711,7 +2711,7 @@ def register_all_functions() -> None:
             substrait_uri=MountainashExtension.LIST,
             substrait_name="cast_list_items",
             is_extension=True,
-            options=("item_object_fields", "item_type", "failure_behavior"),
+            options=("element", "item_type", "failure_behavior"),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.cast_list_items,
         ),
         ExpressionFunctionDef(

@@ -134,8 +134,10 @@ def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(bac
     from mountainash.relations.core.relation_api.relation import Relation
 
     source = REGISTRY[backend_name].build({"id": [1], "payload": [[1, 2]]}, "structured_snapshot")
-    rel = ma.relation(source).conform(TypeSpec(fields_match="open", fields=[
-        FieldSpec(name="payload", type=UniversalType.ARRAY)]))
+    rel = ma.relation(source).conform(TypeSpec(
+        fields_match="open",
+        fields={"payload": FieldSpec(type=UniversalType.ARRAY)},
+    ))
     refs = [weakref.ref(rel._node)]
     original = Relation._compile_and_execute_with_visitor
 

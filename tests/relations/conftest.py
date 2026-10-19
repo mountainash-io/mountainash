@@ -58,7 +58,7 @@ def checked_year():
             ),)),
         ))
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
-            yield TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+            yield TypeSpec(fields_match="open", fields={"year": FieldSpec(type=UniversalType.YEAR)})
     finally:
         CapabilityRegistry.restore(prior)
 

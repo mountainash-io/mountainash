@@ -92,10 +92,7 @@ def _run(
             natural_key = None
         elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
             spec_for_identity = spec.to_typespec()
-            plan = compile_datacontract(
-                spec_for_identity,
-                extensions=spec._contract_fields,
-            )
+            plan = compile_datacontract(spec_for_identity)
             checks = []
             plans_by_resource[name] = plan
             natural_key = getattr(spec.Config, "natural_key", None)

@@ -63,7 +63,7 @@ OP_SPECS: list[OpSpec] = [
         function_key=FK_LIST.CAST_ITEMS,
         op_name="cast_list_item_children",
         build=lambda col, arg: col.list.cast_items(
-            item_object_fields=(FieldSpec("v", dtype=D.I16),), field_name="a",
+            element=FieldSpec(fields={"v": FieldSpec(dtype=D.I16)}), field_name="a",
             converted_fields=(("v", arg if isinstance(arg, BaseExpressionAPI) else ma.lit(arg)),),
         ),
         raw_arg=7, arg_col_name="replacement", param_name="converted_fields",

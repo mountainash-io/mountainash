@@ -217,7 +217,7 @@ def test_authored_typespec_foreign_keys_are_routed_to_dag():
                 path="parent.csv",
                 type="table",
                 table_schema=TypeSpec(
-                    fields=[FieldSpec(name="id", type="integer")]
+                    fields={"id": FieldSpec(type="integer")}
                 ),
             ),
             DataResource(
@@ -225,9 +225,7 @@ def test_authored_typespec_foreign_keys_are_routed_to_dag():
                 path="child.csv",
                 type="table",
                 table_schema=TypeSpec(
-                    fields=[
-                        FieldSpec(name="parent_id", type="integer"),
-                    ],
+                    fields={"parent_id": FieldSpec(type="integer")},
                     foreign_keys=[
                         _fk(["parent_id"], "parent", ["id"]),
                     ],

@@ -1,6 +1,7 @@
 """Validation shared by the Unit C structural operation builders."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from mountainash.core.errors import InvalidOptionValueError
@@ -9,6 +10,26 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait.pr
 
 
 LIST_ITEM_TYPES = frozenset({"string", "integer", "boolean", "number", "datetime", "date", "time"})
+
+
+def validate_fields(method: str, option: str, fields: Any) -> Mapping[str, FieldSpec]:
+    if not isinstance(fields, Mapping):
+        invalid(method, option, "must be a name-to-FieldSpec mapping")
+    owned_fields = dict(fields)
+    for name, field in owned_fields.items():
+        if not isinstance(name, str) or not name:
+            invalid(method, option, "field names must be non-empty strings")
+        if not isinstance(field, FieldSpec):
+            invalid(method, f"{option}[{name!r}]", "must be FieldSpec")
+    return owned_fields
+
+
+def validate_element(method: str, element: Any) -> FieldSpec:
+    if not isinstance(element, FieldSpec):
+        invalid(method, "element", "must be FieldSpec")
+    return element
+
+
 
 
 def invalid(method: str, option: str, reason: str) -> None:
@@ -27,13 +48,6 @@ def validate_failure_behavior(method: str, value: Any) -> CaseFailureBehaviour:
     return value
 
 
-def validate_fields(method: str, option: str, fields: Any) -> tuple[FieldSpec, ...]:
-    if not isinstance(fields, tuple) or not fields:
-        invalid(method, option, "must be a non-empty tuple of FieldSpec")
-    for index, field in enumerate(fields):
-        if not isinstance(field, FieldSpec):
-            invalid(method, f"{option}[{index}]", "must be FieldSpec")
-    return fields
 
 
 def validate_item_type(method: str, item_type: Any) -> str:

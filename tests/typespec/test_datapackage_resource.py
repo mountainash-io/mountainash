@@ -99,7 +99,7 @@ def test_resource_model_copy_deep_copies_metadata() -> None:
 
 
 def test_resource_model_copy_deep_copies_typed_declarations() -> None:
-    schema = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    schema = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
     dialect = TableDialect(delimiter=";")
     resource = DataResource(name="r", data=[], schema=schema, dialect=dialect)
     copied = resource.model_copy()
@@ -376,7 +376,7 @@ def test_to_typespec_none_when_no_schema():
 
 
 def test_to_typespec_passthrough_when_already_typespec():
-    spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
     r = DataResource(name="t", path="t.csv", schema=spec)
     assert r.to_typespec() is spec
 
@@ -418,7 +418,7 @@ def test_inline_wrong_schema_kind_stays_structural_error() -> None:
         ),
         (
             {"fields": [{"name": "x", "type": "string", "itemType": "integer"}]},
-            IncompatibleFieldPropertiesError,
+            InvalidDescriptorStructure,
         ),
         (
             {"fields": [], "primaryKey": {"id"}},

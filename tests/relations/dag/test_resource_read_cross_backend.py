@@ -457,7 +457,7 @@ class TestReaderTimingAndSchema:
         from mountainash.typespec.datapackage import DataResource
         from mountainash.typespec.spec import FieldSpec, TypeSpec
         from mountainash.typespec.universal_types import UniversalType
-        schema = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        schema = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
         (tmp_path / "c.csv").write_text("n\n1\n2\n")
         (tmp_path / "j.json").write_text('[{"n": "1"}, {"n": "2"}]')
         csv_res = DataResource(name="c", path=str(tmp_path / "c.csv"), format="csv", schema=schema)
@@ -473,7 +473,7 @@ class TestReaderTimingAndSchema:
         factories = {"polars": _get_polars_ext, "narwhals": _get_narwhals_ext,
                      "ibis": _get_ibis_ext}
         ext = factories[backend]()
-        spec = TypeSpec(fields=[FieldSpec(name="k", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"k": FieldSpec(type=UniversalType.INTEGER)})
         empty = ext.empty_frame(spec)
         assert _to_dict_list(empty) == []        # zero rows
         assert _column_names(empty) == ["k"]     # typed schema present, not just empty
@@ -716,7 +716,7 @@ def test_schema_inspection_uses_native_resource_metadata(tmp_path, monkeypatch, 
         else:
             pl.DataFrame({"actual": [index], "value": ["x"]}).write_parquet(path)
     open_spec = TypeSpec(
-        fields=[FieldSpec(name="actual", type=UniversalType.INTEGER)],
+        fields={"actual": FieldSpec(type=UniversalType.INTEGER)},
         fields_match="open",
     )
     resource = DataResource(name="rows", path=[str(path) for path in paths], format=format, schema=open_spec)
@@ -735,7 +735,7 @@ def test_schema_inspection_uses_native_resource_metadata(tmp_path, monkeypatch, 
     assert reads == []
 
     closed_spec = TypeSpec(
-        fields=[FieldSpec(name="actual", type=UniversalType.INTEGER)],
+        fields={"actual": FieldSpec(type=UniversalType.INTEGER)},
         fields_match="subset",
     )
     closed = Relation(ResourceReadRelNode(

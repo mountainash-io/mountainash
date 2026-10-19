@@ -103,8 +103,10 @@ def test_late_source_residue_never_returns_a_partial_fingerprint(checked_year):
 def test_physical_structured_encoding_is_not_hashed_as_logical_data():
     from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
     source = pl.DataFrame({"k": [1], "payload": ['[1,2]'], "v": [7]})
-    rel = ma.relation(source).conform(TypeSpec(fields_match="open", fields=[
-        FieldSpec(name="payload", type=UniversalType.ARRAY)]))
+    rel = ma.relation(source).conform(TypeSpec(
+        fields_match="open",
+        fields={"payload": FieldSpec(type=UniversalType.ARRAY)},
+    ))
     with pytest.raises(LogicalTerminalRequired):
         rel.fingerprint(keys=["k"], columns=["payload"])
     assert rel.fingerprint(keys=["k"], columns=["v"])["row_count"].to_list() == [1, 1]

@@ -20,7 +20,7 @@ from mountainash.typespec.universal_types import UniversalType
 
 def test_ingress_native_override_is_authoritative():
     from mountainash import MountainashDtype
-    spec = TypeSpec(fields=[FieldSpec(name="id", dtype=MountainashDtype.I8, backend_type=pl.Int64)])
+    spec = TypeSpec(fields={"id": FieldSpec(dtype=MountainashDtype.I8, backend_type=pl.Int64)})
     with pytest.warns(UserWarning):
         out = apply_hybrid_conversion([{"id": 300}], spec)
     assert out["id"].to_list() == [300]
@@ -47,7 +47,7 @@ class TestSeparateConversions:
 
     def test_native_integer(self):
         """A field with type=INTEGER and no custom_cast goes to native tier."""
-        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
         python_only, narwhals, native = separate_conversions(spec)
         assert "id" in native
         assert "id" not in python_only
@@ -55,7 +55,7 @@ class TestSeparateConversions:
 
     def test_custom_safe_float_is_narwhals(self):
         """safe_float has a Narwhals converter → goes to narwhals tier."""
-        spec = TypeSpec(fields=[FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")])
+        spec = TypeSpec(fields={"amount": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")})
         python_only, narwhals, native = separate_conversions(spec)
         assert "amount" in narwhals
         assert "amount" not in python_only
@@ -63,7 +63,7 @@ class TestSeparateConversions:
 
     def test_no_cast_is_native(self):
         """Field with no cast type goes to native (nothing to do but pass through)."""
-        spec = TypeSpec(fields=[FieldSpec(name="label", type=UniversalType.ANY)])
+        spec = TypeSpec(fields={"label": FieldSpec(type=UniversalType.ANY)})
         python_only, narwhals, native = separate_conversions(spec)
         assert "label" in native
         assert "label" not in python_only
@@ -72,17 +72,17 @@ class TestSeparateConversions:
     def test_mixed_routing(self):
         """Mixed spec routes each field to the correct tier."""
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),   # → narwhals
-                FieldSpec(name="id", type=UniversalType.INTEGER),      # → native
-                FieldSpec(name="tag", type=UniversalType.ANY, rename_from="label"),            # → native
-            ]
+            fields={
+                "amount": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float"),
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                "tag": FieldSpec(type=UniversalType.ANY, rename_from="label"),
+            }
         )
         python_only, narwhals, native = separate_conversions(spec)
 
         assert "amount" in narwhals
-        # tag is stored under source_name "label"
-        assert "label" in native
+        # Conversion tiers retain contextual target keys.
+        assert "tag" in native
         assert "id" in native
         assert len(python_only) == 0
 
@@ -102,7 +102,7 @@ class TestSeparateConversions:
             )
 
         try:
-            spec = TypeSpec(fields=[FieldSpec(name="col", type=UniversalType.ANY, custom_cast=name)])
+            spec = TypeSpec(fields={"col": FieldSpec(type=UniversalType.ANY, custom_cast=name)})
             python_only, narwhals, native = separate_conversions(spec)
             assert "col" in python_only
             assert "col" not in narwhals
@@ -121,7 +121,7 @@ class TestTier3PythonEdge:
 
     def test_single_dict_safe_float(self):
         """safe_float converter on 'amount' field converts string to float."""
-        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         custom_conversions = {"amount": field}
         data = {"amount": "42.5", "id": "123", "name": "Alice"}
         result = apply_custom_converters_to_dict(data, custom_conversions)
@@ -133,7 +133,7 @@ class TestTier3PythonEdge:
 
     def test_list_of_dicts(self):
         """safe_float converter applied to multiple rows."""
-        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         custom_conversions = {"amount": field}
         data = [
             {"amount": "10.0", "label": "a"},
@@ -161,7 +161,7 @@ class TestTier3PythonEdge:
 
     def test_none_value_safe_float(self):
         """safe_float handles None value without error."""
-        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         custom_conversions = {"amount": field}
         data = {"amount": None, "id": "1"}
         result = apply_custom_converters_to_dict(data, custom_conversions)
@@ -180,7 +180,7 @@ class TestTier1NativeDataFrame:
     def test_integer_cast(self):
         """String column cast to integer via native conversions."""
         df = pl.DataFrame({"id": ["1", "2", "3"], "name": ["a", "b", "c"]})
-        field = FieldSpec(name="id", type=UniversalType.INTEGER)
+        field = FieldSpec(type=UniversalType.INTEGER)
         native_conversions = {"id": field}
         result = apply_native_conversions_to_dataframe(df, native_conversions)
         assert result["id"].dtype == pl.Int64
@@ -193,7 +193,7 @@ class TestTier1NativeDataFrame:
 
     def test_geopoint_native_conversion_uses_field_format(self):
         df = pl.DataFrame({"point": [[1.0, 2.0]]})
-        field = FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array")
+        field = FieldSpec(type=UniversalType.GEOPOINT, format="array")
         result = apply_native_conversions_to_dataframe(df, {"point": field})
         assert result["point"].to_list() == [[1.0, 2.0]]
         assert result.shape == df.shape
@@ -210,7 +210,7 @@ class TestTier2NarwhalsVectorized:
     def test_safe_float_vectorized(self):
         """safe_float via Narwhals converts string column to Float64."""
         df = pl.DataFrame({"amount": ["1.5", "2.7", "10.0"]})
-        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         narwhals_custom = {"amount": field}
         result = _apply_narwhals_custom_converters(df, narwhals_custom)
         assert result["amount"].dtype == pl.Float64
@@ -219,7 +219,7 @@ class TestTier2NarwhalsVectorized:
     def test_safe_float_vectorized_with_none(self):
         """safe_float via Narwhals converts NaN values to None."""
         df = pl.DataFrame({"amount": ["1.5", None, "3.0"]})
-        field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         narwhals_custom = {"amount": field}
         result = _apply_narwhals_custom_converters(df, narwhals_custom)
         assert result["amount"].dtype == pl.Float64
@@ -240,10 +240,10 @@ class TestHybridEndToEnd:
     def test_native_only(self):
         """TypeSpec with integer cast produces correct dtype."""
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+            fields={
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
         )
         data = [{"id": "1", "name": "Alice"}, {"id": "2", "name": "Bob"}]
         df = apply_hybrid_conversion(data, spec)
@@ -262,10 +262,10 @@ class TestHybridEndToEnd:
     def test_safe_float_end_to_end(self):
         """apply_hybrid_conversion with safe_float produces Float64 column."""
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="price", type=UniversalType.ANY, custom_cast="safe_float"),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+            fields={
+                "price": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float"),
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
         )
         data = [{"price": "9.99", "name": "Widget"}, {"price": "4.50", "name": "Gizmo"}]
         df = apply_hybrid_conversion(data, spec)
@@ -275,11 +275,11 @@ class TestHybridEndToEnd:
     def test_tier_assignment(self):
         """separate_conversions routes safe_float to narwhals, integer to native."""
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="tag", type=UniversalType.ANY, rename_from="label"),
-            ],
+            fields={
+                "amount": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float"),
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                "tag": FieldSpec(type=UniversalType.ANY, rename_from="label"),
+            },
         )
         python_only, narwhals_custom, native = separate_conversions(spec)
 
@@ -289,8 +289,8 @@ class TestHybridEndToEnd:
         # integer → native tier
         assert "id" in native
 
-        # rename (source_name is "label") → native tier
-        assert "label" in native
+        # Conversion tiers use contextual target names.
+        assert "tag" in native
 
         # safe_float must NOT be in python_only
         assert "amount" not in python_only
@@ -301,10 +301,12 @@ def test_decimal_rename_survives_evidence_free_lowering():
     from decimal import Decimal
     from mountainash.core.dtypes import DecimalDtype
 
-    spec = TypeSpec(fields=[FieldSpec(
-        name="amount", rename_from="raw", type=UniversalType.NUMBER,
-        dtype=DecimalDtype(precision=38, scale=2),
-    )], fields_match="open")
+    spec = TypeSpec(fields={
+        "amount": FieldSpec(
+            rename_from="raw", type=UniversalType.NUMBER,
+            dtype=DecimalDtype(precision=38, scale=2),
+        )
+    }, fields_match="open")
     result = apply_hybrid_conversion([{"raw": Decimal("1.25")}], spec)
     assert result["amount"].to_list() == [Decimal("1.25")]
 
@@ -320,8 +322,8 @@ def test_source_typing_does_not_undo_custom_conversion(inline, vectorized):
             name=name, target_universal_type="integer",
             python_converter=lambda value, **kwargs: None if value is None else int(value),
         )
-    source = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
-    target = TypeSpec(fields=[FieldSpec(name="x", custom_cast=name)])
+    source = TypeSpec(fields={"x": FieldSpec(type=UniversalType.STRING)})
+    target = TypeSpec(fields={"x": FieldSpec(custom_cast=name)})
     try:
         result = PydataIngress.convert(
             [{"x": "00123"}, {"x": None}, {"x": "00456"}],
@@ -346,7 +348,7 @@ def test_ingress_source_schema_overrides_preserve_nested_timestamp_parameters():
     dtype = ListDtype(StructDtype((
         ("at", TimestampDtype(9, True, "UTC")),
     )))
-    source = TypeSpec(fields=[FieldSpec(name="events", dtype=dtype)])
+    source = TypeSpec(fields={"events": FieldSpec(dtype=dtype)})
     value = datetime(2026, 1, 1, tzinfo=timezone.utc)
     frame = PydataIngress.convert(
         [{"events": [{"at": value}]}], source_spec=source, inline_conform=False,

@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import inspect
 import typing
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, get_type_hints
 
 from mountainash.core.dtypes import ConstructionDtype, NativeDtype
+from mountainash.typespec import FieldSpec
 from mountainash.expressions.core.expression_protocols.expression_systems import (
     extensions_mountainash as _ext_mod,
 )
@@ -79,7 +81,7 @@ def _iter_protocol_classes():
 _CONCRETE_TYPES = (int, str, bool, float, bytes, object)
 # Canonical dtype specifiers are universally-literal cast targets, never visited
 # expressions, so they classify as options (arguments-vs-options principle).
-_OPTION_TYPES = (*_CONCRETE_TYPES, *typing.get_args(ConstructionDtype), NativeDtype)
+_OPTION_TYPES = (*_CONCRETE_TYPES, *typing.get_args(ConstructionDtype), NativeDtype, FieldSpec)
 _UNION_ORIGINS = {typing.Union, type(int | None)}  # typing.Union + types.UnionType
 
 
@@ -93,6 +95,8 @@ def _classify_annotation(ann: Any) -> Kind:
     # parameter as a column reference or computed expression, so these
     # classify as options (arguments-vs-options.md).
     if origin is typing.Literal:
+        return "option"
+    if origin in (dict, Mapping) and all(arg in _OPTION_TYPES for arg in typing.get_args(ann)):
         return "option"
     if origin in _UNION_ORIGINS:
         args = typing.get_args(ann)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 import math
 import re
@@ -434,91 +434,196 @@ def _json_schema_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return not compile_json_schema(options["schema"]).validate(value)
 
 
-def _nested_fields(snapshot: Any) -> Sequence[Any]:
-    """Thaw the plan-owned field snapshot only for one logical evaluation."""
-    if not snapshot:
-        return ()
-    from mountainash.validation.plan import thaw_value
+def _nested_contextual_value(value: Any, candidate: Any) -> Any:
+    """Parse lexical nested bounds against the already-typed field value."""
+    from datetime import date, datetime, time
 
-    fields = thaw_value(snapshot)
-    return fields if isinstance(fields, list) else ()
+    if candidate is None:
+        return value
+    if isinstance(candidate, datetime) and isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if isinstance(candidate, date) and not isinstance(candidate, datetime) and isinstance(value, str):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            return value
+    if isinstance(candidate, time) and isinstance(value, str):
+        try:
+            return time.fromisoformat(value)
+        except ValueError:
+            return value
+    if isinstance(candidate, Decimal) and isinstance(value, (str, int, float)):
+        try:
+            return Decimal(str(value))
+        except InvalidOperation:
+            return value
+    return value
 
 
-def _nested_field_valid(value: Any, field: Any) -> bool:
-    """Apply the supported field vocabulary recursively to one logical value."""
+def _nested_field_valid(
+    value: Any,
+    field: Any,
+    *,
+    severity_group: str | None = None,
+) -> bool:
+    """Evaluate a field's declarations in its own severity scope."""
+    effective_severity = field.severity or "blocking"
+    if value is not None and field.type.value in {"array", "object"}:
+        value = parse_logical_value(value, type_name=field.type.value)
+        if value is INVALID_VALUE:
+            return severity_group is None or severity_group == effective_severity
     constraints = field.constraints
     if value is None:
+        if severity_group is not None and severity_group != effective_severity:
+            return True
         return not (constraints and constraints.required)
-    if not _type_format_execute(
-        value, {"type": field.type.value, "format": field.format}
-    ):
-        return False
-    if constraints:
-        if any(
-            not _range_execute(value, {name: bound})
-            for name, bound in {
-                "minimum": constraints.minimum,
-                "maximum": constraints.maximum,
-                "exclusive_minimum": constraints.exclusive_minimum,
-                "exclusive_maximum": constraints.exclusive_maximum,
-            }.items()
-            if bound is not None
-        ):
-            return False
-        if any(
-            not _length_execute(value, {name: bound})
-            for name, bound in {
-                "min_length": constraints.min_length,
-                "max_length": constraints.max_length,
-            }.items()
-            if bound is not None
-        ):
-            return False
-        if constraints.pattern is not None and not _pattern_execute(
-            value, {"pattern": constraints.pattern}
-        ):
+    if not _type_format_execute(value, {"type": field.type.value, "format": field.format}):
+        return severity_group is None or severity_group == effective_severity
+    check_own = severity_group is None or severity_group == effective_severity
+    if check_own and constraints:
+        for name, bound in {
+            "minimum": constraints.minimum, "maximum": constraints.maximum,
+            "exclusive_minimum": constraints.exclusive_minimum,
+            "exclusive_maximum": constraints.exclusive_maximum,
+        }.items():
+            if bound is not None and not _range_execute(
+                value, {name: _nested_contextual_value(bound, value)}
+            ):
+                return False
+        for name, bound in {
+            "min_length": constraints.min_length, "max_length": constraints.max_length,
+        }.items():
+            if bound is not None and not _length_execute(value, {name: bound}):
+                return False
+        if constraints.pattern is not None and not _pattern_execute(value, {"pattern": constraints.pattern}):
             return False
         if constraints.enum is not None and not _membership_execute(
-            value, {"allowed": constraints.enum}
+            value,
+            {"allowed": tuple(_nested_contextual_value(item, value) for item in constraints.enum)},
         ):
             return False
-        if constraints.json_schema is not None and not _json_schema_execute(
-            value, {"schema": constraints.json_schema}
+        if constraints.json_schema is not None and not _json_schema_execute(value, {"schema": constraints.json_schema}):
+            return False
+        if constraints.eq is not None and canonical_value_key(value) != canonical_value_key(
+            _nested_contextual_value(constraints.eq, value)
         ):
             return False
-    if field.object_fields and not _nested_object_valid(value, field.object_fields):
-        return False
-    if field.item_object_fields and not _nested_items_valid(
-        value, field.item_object_fields
-    ):
-        return False
+        if constraints.ne is not None and canonical_value_key(value) == canonical_value_key(
+            _nested_contextual_value(constraints.ne, value)
+        ):
+            return False
+        if constraints.notin is not None and any(
+            canonical_value_key(value)
+            == canonical_value_key(_nested_contextual_value(item, value))
+            for item in constraints.notin
+        ):
+            return False
+        if constraints.str_contains is not None and constraints.str_contains not in value:
+            return False
+        if constraints.str_startswith is not None and not value.startswith(constraints.str_startswith):
+            return False
+        if constraints.str_endswith is not None and not value.endswith(constraints.str_endswith):
+            return False
+    if check_own and field.categories is not None:
+        from mountainash.typespec._categorical import categorical_values
+        if not _membership_execute(
+            value,
+            {"allowed": tuple(
+                _nested_contextual_value(item, value)
+                for item in categorical_values(field.categories)
+            )},
+        ):
+            return False
+    if field.fields is not None:
+        if not isinstance(value, Mapping):
+            return check_own
+        return _nested_object_valid(value, field.fields, severity_group=severity_group)
+    if field.element is not None:
+        if not isinstance(value, (list, tuple)):
+            return check_own
+        dimensions = getattr(field, "dimensions", None)
+        if isinstance(dimensions, tuple) and dimensions:
+            return _nested_dimensional_collection_valid(
+                value, field.element, len(dimensions),
+                severity_group=severity_group,
+            )
+        return _nested_collection_valid(
+            value, field.element, severity_group=severity_group
+        )
     return True
 
 
-def _nested_object_valid(value: Any, fields: Sequence[Any]) -> bool:
-    return isinstance(value, Mapping) and all(
-        _nested_field_valid(value.get(field.name), field) for field in fields
+def _nested_dimensional_collection_valid(
+    value: Any,
+    element: Any,
+    remaining_dimensions: int,
+    *,
+    severity_group: str | None = None,
+) -> bool:
+    """Apply element declarations only at the declared fixed-array leaves."""
+    if value is None or not isinstance(value, (list, tuple)):
+        return True
+    if remaining_dimensions == 1:
+        return all(
+            _nested_field_valid(item, element, severity_group=severity_group)
+            for item in value
+        )
+    return all(
+        _nested_dimensional_collection_valid(
+            item, element, remaining_dimensions - 1,
+            severity_group=severity_group,
+        )
+        for item in value
     )
 
 
-def _nested_items_valid(value: Any, fields: Sequence[Any]) -> bool:
-    return isinstance(value, (list, tuple)) and all(
-        item is None or _nested_object_valid(item, fields) for item in value
+def _nested_object_valid(
+    value: Any,
+    fields: Mapping[str, Any],
+    *,
+    severity_group: str | None = None,
+) -> bool:
+    if not isinstance(value, Mapping):
+        return True
+    return all(
+        _nested_field_valid(
+            value.get(name), definition, severity_group=severity_group
+        )
+        for name, definition in fields.items()
+    )
+
+
+def _nested_collection_valid(
+    value: Any,
+    element: Any,
+    *,
+    severity_group: str | None = None,
+) -> bool:
+    if value is None or not isinstance(value, (list, tuple)):
+        return True
+    return all(
+        _nested_field_valid(item, element, severity_group=severity_group)
+        for item in value
     )
 
 
 def _nested_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
-    """Apply child field declarations recursively to object and array values."""
     if value is INVALID_VALUE:
         return None
     if value is None:
         return True
-    object_fields = _nested_fields(options.get("object_fields"))
-    item_object_fields = _nested_fields(options.get("item_object_fields"))
-    if object_fields:
-        return _nested_object_valid(value, object_fields)
-    if item_object_fields:
-        return _nested_items_valid(value, item_object_fields)
+    from mountainash.validation.plan import thaw_value
+
+    fields = thaw_value(options["fields"]) if options.get("fields") is not None else None
+    element = thaw_value(options["element"]) if options.get("element") is not None else None
+    severity_group = options.get("severity_group")
+    if fields is not None:
+        return _nested_object_valid(value, fields, severity_group=severity_group)
+    if element is not None:
+        return _nested_collection_valid(value, element, severity_group=severity_group)
     return True
 
 

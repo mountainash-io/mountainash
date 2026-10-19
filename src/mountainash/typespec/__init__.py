@@ -48,6 +48,8 @@ from mountainash.typespec.converters import (
     to_ibis_schema,
     convert_to_backend,
     resolve_field_canonical,
+    declared_fields,
+    declared_element,
 )
 from mountainash.typespec.custom_types import (
     TypeConverter,
@@ -134,6 +136,8 @@ __all__ = [
     "to_ibis_schema",
     "convert_to_backend",
     "resolve_field_canonical",
+    "declared_fields",
+    "declared_element",
 
     # Custom types
     "TypeConverter",

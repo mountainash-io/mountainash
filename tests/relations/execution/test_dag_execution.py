@@ -465,9 +465,9 @@ def test_ref_child_adopts_source_conform_diagnostics():
     dag = ma.RelationDAG()
     spec = TypeSpec(
         fields_match="open",
-        fields=[
-            FieldSpec(name="payload", type=UniversalType.OBJECT),
-        ],
+        fields={
+            "payload": FieldSpec(type=UniversalType.OBJECT),
+        },
     )
     source = ma.relation(
         pl.DataFrame(

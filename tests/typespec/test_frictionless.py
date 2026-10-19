@@ -45,7 +45,7 @@ def test_canonical_descriptor_identity_survives_json(dtype):
     }}]}
     spec = typespec_from_frictionless(descriptor)
     restored = typespec_from_frictionless(json.loads(json.dumps(spec.to_frictionless())))
-    assert restored.fields[0].dtype is dtype
+    assert restored.fields["value"].dtype is dtype
     if dtype in (MountainashDtype.JSON, MountainashDtype.DURATION):
         assert "type" not in spec.to_frictionless()["fields"][0]
 
@@ -61,24 +61,27 @@ def test_canonical_descriptor_identity_survives_json(dtype):
 @pytest.mark.parametrize("explicit", [False, True])
 def test_precise_declarations_materialize_authored_width(name, broad, native, explicit):
     kwargs = {"type": UniversalType(broad)} if explicit else {}
-    field = FieldSpec(name="value", dtype=MountainashDtype(name), **kwargs)
-    descriptor = TypeSpec(fields=[field]).to_frictionless()
+    field = FieldSpec(dtype=MountainashDtype(name), **kwargs)
+    descriptor = TypeSpec(fields={"value": field}).to_frictionless()
     assert descriptor["fields"][0]["type"] == broad
     spec = typespec_from_frictionless(json.loads(json.dumps(descriptor)))
     assert to_arrow_schema(spec).field("value").type == native
 
 
-@pytest.mark.parametrize("container", [None, "object_fields", "item_object_fields"])
+@pytest.mark.parametrize("container", [None, "fields", "element"])
 def test_native_objects_cannot_escape_through_nested_descriptors(container):
-    child = FieldSpec(name="at", backend_type=pl.Datetime("ns", "UTC"))
-    if container:
-        broad = UniversalType.OBJECT if container == "object_fields" else UniversalType.ARRAY
-        field = FieldSpec(name="outer", type=broad, **{container: [child]})
+    child = FieldSpec(backend_type=pl.Datetime("ns", "UTC"))
+    if container == "fields":
+        field = FieldSpec(type=UniversalType.OBJECT, fields={"at": child})
+    elif container == "element":
+        field = FieldSpec(type=UniversalType.ARRAY, element=child)
     else:
         field = child
-    with pytest.raises(InvalidDtypeDeclaration, match="at"):
-        TypeSpec(fields=[field]).to_frictionless()
+    with pytest.raises(InvalidDtypeDeclaration):
+        TypeSpec(fields={"outer": field}).to_frictionless()
     assert child.backend_type.value == pl.Datetime("ns", "UTC")
+
+
 
 
 @pytest.mark.parametrize("dtype,broad", [
@@ -88,12 +91,13 @@ def test_native_objects_cannot_escape_through_nested_descriptors(container):
     (MountainashDtype.STRING, UniversalType.GEOJSON),
 ])
 def test_contradictory_canonical_descriptor_is_rejected(dtype, broad):
-    with pytest.raises(IncompatibleFieldPropertiesError):
+    from mountainash.typespec.errors import InvalidDescriptorStructure
+
+    with pytest.raises(InvalidDescriptorStructure):
         typespec_from_frictionless({"fields": [{
             "name": "value", "type": broad.value,
             "x-mountainash": {"dtype": {"kind": "canonical", "name": dtype.value}},
         }]})
-
 
 @pytest.mark.parametrize("raw", [
     {"kind": "canonical", "name": "int8"},
@@ -123,7 +127,7 @@ class TestToFrictionless:
 
     def test_spec_with_title_description(self):
         spec = TypeSpec(
-            fields=[FieldSpec(name="col", type=UniversalType.STRING)],
+            fields={"col": FieldSpec(type=UniversalType.STRING)},
             title="My Schema",
             description="A test schema",
         )
@@ -133,7 +137,7 @@ class TestToFrictionless:
 
     def test_primary_key_exported(self):
         spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+            fields={"id": FieldSpec(type=UniversalType.INTEGER)},
             primary_key=["id"],
         )
         result = typespec_to_frictionless(spec)
@@ -142,7 +146,7 @@ class TestToFrictionless:
     def test_constraints_exported(self):
         constraints = FieldConstraints(required=True, minimum=0, maximum=100)
         spec = TypeSpec(
-            fields=[FieldSpec(name="score", type=UniversalType.INTEGER, constraints=constraints)],
+            fields={"score": FieldSpec(type=UniversalType.INTEGER, constraints=constraints)},
         )
         result = typespec_to_frictionless(spec)
         field_result = result["fields"][0]
@@ -153,7 +157,7 @@ class TestToFrictionless:
 
     def test_rename_from_in_x_mountainash(self):
         spec = TypeSpec(
-            fields=[FieldSpec(name="age", type=UniversalType.INTEGER, rename_from="AGE_COLUMN")],
+            fields={"age": FieldSpec(type=UniversalType.INTEGER, rename_from="AGE_COLUMN")},
         )
         result = typespec_to_frictionless(spec)
         field_result = result["fields"][0]
@@ -162,7 +166,7 @@ class TestToFrictionless:
 
     def test_null_fill_in_x_mountainash(self):
         spec = TypeSpec(
-            fields=[FieldSpec(name="score", type=UniversalType.NUMBER, null_fill=0.0)],
+            fields={"score": FieldSpec(type=UniversalType.NUMBER, null_fill=0.0)},
         )
         result = typespec_to_frictionless(spec)
         field_result = result["fields"][0]
@@ -184,7 +188,7 @@ class TestToFrictionless:
             reference=ForeignKeyReference(resource="customers", fields=["id"]),
         )
         spec = TypeSpec(
-            fields=[FieldSpec(name="customer_id", type=UniversalType.INTEGER)],
+            fields={"customer_id": FieldSpec(type=UniversalType.INTEGER)},
             foreign_keys=[fk],
         )
         result = typespec_to_frictionless(spec)
@@ -195,72 +199,70 @@ class TestToFrictionless:
         assert result["foreignKeys"][0]["reference"]["fields"] == ["id"]
 
     def test_no_foreign_keys_omitted(self):
-        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
         result = typespec_to_frictionless(spec)
         assert "foreignKeys" not in result
 
     def test_enum_weights_exported_in_extensions(self):
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="status",
+            fields={
+                "status": FieldSpec(
                     type=UniversalType.STRING,
                     constraints=FieldConstraints(
                         enum=["A", "B"],
                         enum_weights={"A": 0.7, "B": 0.3},
                     ),
                 )
-            ]
+            }
         )
         result = typespec_to_frictionless(spec)
         field_dict = result["fields"][0]
         assert field_dict["constraints"]["enum"] == ["A", "B"]
         assert field_dict["x-mountainash"]["enum_weights"] == {"A": 0.7, "B": 0.3}
-    def test_object_fields_exported_under_x_mountainash(self):
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="street", type=UniversalType.STRING),
-                FieldSpec(name="zip", type=UniversalType.STRING),
-            ]),
-        ])
-        result = typespec_to_frictionless(spec)
-        field_result = result["fields"][0]
-        assert field_result["x-mountainash"]["object_fields"] == [
+
+    def test_composed_fields_exported_under_x_mountainash(self):
+        spec = TypeSpec(fields={
+            "addr": FieldSpec(type=UniversalType.OBJECT, fields={
+                "street": FieldSpec(type=UniversalType.STRING),
+                "zip": FieldSpec(type=UniversalType.STRING),
+            }),
+        })
+        field_result = typespec_to_frictionless(spec)["fields"][0]
+        assert field_result["x-mountainash"]["fields"] == [
             {"name": "street", "type": "string"},
             {"name": "zip", "type": "string"},
         ]
 
-    def test_object_fields_two_levels_deep_exported(self):
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
-                    FieldSpec(name="lat", type=UniversalType.NUMBER),
-                    FieldSpec(name="lon", type=UniversalType.NUMBER),
-                ]),
-            ]),
-        ])
+    def test_composed_fields_two_levels_deep_exported(self):
+        spec = TypeSpec(fields={
+            "addr": FieldSpec(type=UniversalType.OBJECT, fields={
+                "geo": FieldSpec(type=UniversalType.OBJECT, fields={
+                    "lat": FieldSpec(type=UniversalType.NUMBER),
+                    "lon": FieldSpec(type=UniversalType.NUMBER),
+                }),
+            }),
+        })
         result = typespec_to_frictionless(spec)
-        geo = result["fields"][0]["x-mountainash"]["object_fields"][0]
+        geo = result["fields"][0]["x-mountainash"]["fields"][0]
         assert geo["name"] == "geo"
         assert geo["type"] == "object"
-        assert geo["x-mountainash"]["object_fields"] == [
+        assert geo["x-mountainash"]["fields"] == [
             {"name": "lat", "type": "number"},
             {"name": "lon", "type": "number"},
         ]
 
     def test_nested_field_carries_its_own_categories(self):
-        """Nested object_fields entries are complete field descriptors."""
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="kind", type=UniversalType.STRING,
-                          categories=["home", "work"], categories_ordered=False),
-            ]),
-        ])
+        spec = TypeSpec(fields={
+            "addr": FieldSpec(type=UniversalType.OBJECT, fields={
+                "kind": FieldSpec(
+                    type=UniversalType.STRING,
+                    categories=["home", "work"], categories_ordered=False,
+                ),
+            }),
+        })
         result = typespec_to_frictionless(spec)
-        inner = result["fields"][0]["x-mountainash"]["object_fields"][0]
+        inner = result["fields"][0]["x-mountainash"]["fields"][0]
         assert inner["categories"] == ["home", "work"]
-
-
 # ============================================================================
 # TestFromFrictionless
 # ============================================================================
@@ -274,11 +276,9 @@ class TestFromFrictionless:
             ]
         }
         spec = typespec_from_frictionless(descriptor)
-        assert len(spec.fields) == 2
-        assert spec.fields[0].name == "id"
-        assert spec.fields[0].type == UniversalType.INTEGER
-        assert spec.fields[1].name == "label"
-        assert spec.fields[1].type == UniversalType.STRING
+        assert list(spec.fields) == ["id", "label"]
+        assert spec.fields["id"].type == UniversalType.INTEGER
+        assert spec.fields["label"].type == UniversalType.STRING
 
 
     def test_mapping_only_rejects_json_text_and_paths(self, tmp_path: Path):
@@ -324,7 +324,7 @@ class TestFromFrictionless:
             ]
         }
         spec = typespec_from_frictionless(descriptor)
-        field = spec.fields[0]
+        field = spec.fields["score"]
         assert field.constraints is not None
         assert field.constraints.required is True
         assert field.constraints.minimum == 0
@@ -341,7 +341,7 @@ class TestFromFrictionless:
             ]
         }
         spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].rename_from == "AGE_COLUMN"
+        assert spec.fields["age"].rename_from == "AGE_COLUMN"
 
     def test_x_mountainash_null_fill_imported(self):
         descriptor = {
@@ -354,14 +354,14 @@ class TestFromFrictionless:
             ]
         }
         spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].null_fill == 0.0
+        assert spec.fields["score"].null_fill == 0.0
 
     def test_missing_type_defaults_to_any(self):
         descriptor = {
             "fields": [{"name": "mystery_col"}]
         }
         spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].type is UniversalType.ANY
+        assert spec.fields["mystery_col"].type is UniversalType.ANY
 
     def test_unknown_extensions_ignored(self):
         descriptor = {
@@ -376,8 +376,7 @@ class TestFromFrictionless:
         }
         # Should not raise; unknown x- keys are silently ignored
         spec = typespec_from_frictionless(descriptor)
-        assert len(spec.fields) == 1
-        assert spec.fields[0].name == "col"
+        assert list(spec.fields) == ["col"]
 
     def test_foreign_keys_imported(self):
         descriptor = {
@@ -412,40 +411,31 @@ class TestFromFrictionless:
             ]
         }
         spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].constraints.enum_weights == {"A": 0.7, "B": 0.3}
-    def test_object_fields_imported_recursively(self):
+        assert spec.fields["status"].constraints.enum_weights == {"A": 0.7, "B": 0.3}
+    def test_composed_fields_imported_recursively(self):
         descriptor = {
-            "fields": [
-                {
-                    "name": "addr", "type": "object",
-                    "x-mountainash": {
-                        "object_fields": [
-                            {"name": "street", "type": "string"},
-                            {
-                                "name": "geo", "type": "object",
-                                "x-mountainash": {
-                                    "object_fields": [
-                                        {"name": "lat", "type": "number"},
-                                    ]
-                                },
-                            },
-                        ]
+            "fields": [{
+                "name": "addr", "type": "object",
+                "x-mountainash": {"fields": [
+                    {"name": "street", "type": "string"},
+                    {
+                        "name": "geo", "type": "object",
+                        "x-mountainash": {"fields": [{"name": "lat", "type": "number"}]},
                     },
-                }
-            ]
+                ]},
+            }]
         }
         spec = typespec_from_frictionless(descriptor)
-        addr = spec.get_field("addr")
-        assert addr is not None
-        assert [f.name for f in addr.object_fields] == ["street", "geo"]
-        geo = addr.object_fields[1]
-        assert geo.object_fields[0].name == "lat"
-        assert geo.object_fields[0].type == UniversalType.NUMBER
+        addr = spec.fields["addr"]
+        assert list(addr.fields) == ["street", "geo"]
+        geo = addr.fields["geo"]
+        assert list(geo.fields) == ["lat"]
+        assert geo.fields["lat"].type == UniversalType.NUMBER
 
-    def test_no_object_fields_key_leaves_none(self):
+    def test_no_composed_fields_key_leaves_none(self):
         descriptor = {"fields": [{"name": "x", "type": "string"}]}
         spec = typespec_from_frictionless(descriptor)
-        assert spec.get_field("x").object_fields is None
+        assert spec.fields["x"].fields is None
 
     def test_foreign_keys_round_trip(self):
         fk = ForeignKey(
@@ -453,12 +443,12 @@ class TestFromFrictionless:
             reference=ForeignKeyReference(resource="departments", fields=["id"]),
         )
         original = TypeSpec(
-            fields=[FieldSpec(name="dept_id", type=UniversalType.INTEGER)],
+            fields={"dept_id": FieldSpec(type=UniversalType.INTEGER)},
             primary_key=["dept_id"],
             foreign_keys=[fk],
         )
         descriptor = typespec_to_frictionless(original)
-        restored = typespec_from_frictionless(descriptor)
+        restored = typespec_from_frictionless(json.loads(json.dumps(descriptor)))
         assert restored.foreign_keys is not None
         assert len(restored.foreign_keys) == 1
         assert restored.foreign_keys[0].fields == ["dept_id"]
@@ -473,9 +463,8 @@ class TestFromFrictionless:
 class TestRoundTrip:
     def test_full_round_trip(self):
         original = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="id",
+            fields={
+                "id": FieldSpec(
                     type=UniversalType.INTEGER,
                     title="Identifier",
                     description="Primary key field",
@@ -483,23 +472,16 @@ class TestRoundTrip:
                     rename_from="ID_COL",
                     null_fill=0,
                 ),
-                FieldSpec(
-                    name="score",
-                    type=UniversalType.NUMBER,
-                    null_fill=0.0,
-                ),
-                FieldSpec(
-                    name="label",
-                    type=UniversalType.STRING,
-                ),
-            ],
+                "score": FieldSpec(type=UniversalType.NUMBER, null_fill=0.0),
+                "label": FieldSpec(type=UniversalType.STRING),
+            },
             title="Test Schema",
             description="Round-trip test",
             primary_key=["id"],
         )
 
-        exported = typespec_to_frictionless(original)
-        reimported = typespec_from_frictionless(exported)
+        encoded = json.dumps(typespec_to_frictionless(original))
+        reimported = typespec_from_frictionless(json.loads(encoded))
 
         assert reimported.title == original.title
         assert reimported.description == original.description
@@ -520,34 +502,33 @@ class TestRoundTrip:
         score_field = reimported.get_field("score")
         assert score_field is not None
         assert score_field.null_fill == 0.0
-    def test_object_fields_round_trip_two_levels_deep(self):
-        original = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="street", type=UniversalType.STRING),
-                FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
-                    FieldSpec(name="lat", type=UniversalType.NUMBER),
-                    FieldSpec(name="lon", type=UniversalType.NUMBER),
-                ]),
-            ]),
-        ])
+    def test_composed_fields_round_trip_two_levels_deep(self):
+        original = TypeSpec(fields={
+            "addr": FieldSpec(type=UniversalType.OBJECT, fields={
+                "street": FieldSpec(type=UniversalType.STRING),
+                "geo": FieldSpec(type=UniversalType.OBJECT, fields={
+                    "lat": FieldSpec(type=UniversalType.NUMBER),
+                    "lon": FieldSpec(type=UniversalType.NUMBER),
+                }),
+            }),
+        })
         descriptor = typespec_to_frictionless(original)
-        restored = typespec_from_frictionless(descriptor)
+        restored = typespec_from_frictionless(json.loads(json.dumps(descriptor)))
         redescriptor = typespec_to_frictionless(restored)
         assert redescriptor == descriptor
-        assert restored.get_field("addr").object_fields[1].object_fields[0].name == "lat"
+        assert list(restored.fields["addr"].fields["geo"].fields) == ["lat", "lon"]
 
     def test_json_serializable(self):
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="id",
+            fields={
+                "id": FieldSpec(
                     type=UniversalType.INTEGER,
                     constraints=FieldConstraints(required=True),
                     rename_from="ID",
                     null_fill=0,
                 ),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
             title="JSON Test",
             primary_key=["id"],
         )
@@ -574,7 +555,7 @@ class TestRoundTrip:
 
 def test_omitted_defaults_are_operational_defaults() -> None:
     restored = typespec_from_frictionless({"fields": [{"name": "value"}]})
-    assert restored.fields[0].type is UniversalType.ANY
+    assert restored.fields["value"].type is UniversalType.ANY
     assert restored.fields_match == "exact"
     assert restored.missing_values == [""]
     assert typespec_to_frictionless(restored)["fields"] == [{"name": "value"}]
@@ -607,9 +588,9 @@ def test_labeled_categories_and_missing_values_round_trip() -> None:
         ]
     }
     restored = typespec_from_frictionless(descriptor)
-    field = restored.fields[0]
-    assert field.categories == [LabeledValue("a", "Active"), "raw"]
-    assert field.missing_values == [LabeledValue("-", "Dash"), ""]
+    field = restored.fields["status"]
+    assert tuple(field.categories) == (LabeledValue("a", "Active"), "raw")
+    assert tuple(field.missing_values) == (LabeledValue("-", "Dash"), "")
     assert typespec_to_frictionless(restored)["fields"][0]["categories"] == [
         {"value": "a", "label": "Active"},
         "raw",
@@ -631,7 +612,7 @@ def test_v2_constraints_round_trip() -> None:
         ]
     }
     restored = typespec_from_frictionless(descriptor)
-    c = restored.fields[0].constraints
+    c = restored.fields["n"].constraints
     assert c.exclusive_minimum == 0
     assert c.exclusive_maximum == 10
     assert c.json_schema == {"type": "integer"}
@@ -639,39 +620,41 @@ def test_v2_constraints_round_trip() -> None:
     assert out == {"exclusiveMinimum": 0, "exclusiveMaximum": 10, "jsonSchema": {"type": "integer"}}
 
 
-def test_item_object_fields_round_trip_under_x_mountainash() -> None:
+def test_element_object_fields_round_trip_under_x_mountainash() -> None:
     descriptor = {
-        "fields": [
-            {
-                "name": "rows",
-                "type": "array",
-                "x-mountainash": {
-                    "item_object_fields": [
-                        {"name": "a", "type": "string"},
-                        {"name": "b", "type": "integer"},
-                    ]
-                },
-            }
-        ]
+        "fields": [{
+            "name": "rows",
+            "type": "array",
+            "x-mountainash": {
+                "element": {
+                    "type": "object",
+                    "x-mountainash": {
+                        "fields": [
+                            {"name": "a", "type": "string"},
+                            {"name": "b", "type": "integer"},
+                        ]
+                    },
+                }
+            },
+        }]
     }
     restored = typespec_from_frictionless(descriptor)
-    iof = restored.fields[0].item_object_fields
-    assert [f.name for f in iof] == ["a", "b"]
+    assert list(restored.fields["rows"].element.fields) == ["a", "b"]
     assert typespec_to_frictionless(restored) == descriptor
 
 
 def test_fmt_prefix_normalized_off_on_read_and_write() -> None:
     descriptor = {"fields": [{"name": "d", "type": "date", "format": "fmt:%Y-%m-%d"}]}
     restored = typespec_from_frictionless(descriptor)
-    assert restored.fields[0].format == "%Y-%m-%d"
+    assert restored.fields["d"].format == "%Y-%m-%d"
     assert typespec_to_frictionless(restored)["fields"][0]["format"] == "%Y-%m-%d"
 
 
 def test_any_type_omitted_on_write_and_read() -> None:
-    spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.ANY)])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.ANY)})
     descriptor = typespec_to_frictionless(spec)
     assert descriptor["fields"] == [{"name": "x"}]
-    assert typespec_from_frictionless(descriptor).fields[0].type is UniversalType.ANY
+    assert typespec_from_frictionless(descriptor).fields["x"].type is UniversalType.ANY
 
 
 def test_canonical_self_reference_round_trip() -> None:
@@ -682,7 +665,7 @@ def test_canonical_self_reference_round_trip() -> None:
         reference=ForeignKeyReference(resource=None, fields=["id"]),
     )
     spec = TypeSpec(
-        fields=[FieldSpec(name="parent_id", type=UniversalType.INTEGER)],
+        fields={"parent_id": FieldSpec(type=UniversalType.INTEGER)},
         foreign_keys=[fk],
     )
     descriptor = typespec_to_frictionless(spec)
@@ -721,7 +704,7 @@ def test_foreign_key_fields_bare_string_normalized() -> None:
 
 @pytest.mark.parametrize("mode", ["equal", "subset", "superset", "partial"])
 def test_standard_fields_match_round_trip(mode) -> None:
-    spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)], fields_match=mode)
+    spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.STRING)}, fields_match=mode)
     descriptor = typespec_to_frictionless(spec)
     assert descriptor["fieldsMatch"] == mode
     assert "x-mountainash" not in descriptor
@@ -729,12 +712,12 @@ def test_standard_fields_match_round_trip(mode) -> None:
 
 
 def test_exact_fields_match_omitted_on_write() -> None:
-    spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)], fields_match="exact")
+    spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.STRING)}, fields_match="exact")
     assert "fieldsMatch" not in typespec_to_frictionless(spec)
 
 
 def test_open_fields_match_only_at_extension() -> None:
-    spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.STRING)], fields_match="open")
+    spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.STRING)}, fields_match="open")
     descriptor = typespec_to_frictionless(spec)
     assert "fieldsMatch" not in descriptor
     assert descriptor["x-mountainash"] == {"fields_match": "open"}
@@ -855,7 +838,7 @@ def test_handwritten_parameterized_dtype_preserves_unknown_and_explicit_none():
         "dtype": {"kind": "timestamp", "timezone_aware": True, "timezone": None}
     }}]}
     spec = typespec_from_frictionless(raw)
-    assert spec.fields[0].dtype == TimestampDtype(SchemaTypeStatus.UNKNOWN, True, None)
+    assert spec.fields["at"].dtype == TimestampDtype(SchemaTypeStatus.UNKNOWN, True, None)
     encoded = typespec_to_frictionless(spec)["fields"][0]["x-mountainash"]["dtype"]
     assert encoded == {"kind": "timestamp", "timezone_aware": True, "timezone": None}
 
@@ -867,11 +850,14 @@ def test_recursive_parameterized_dtype_round_trip_preserves_child_order():
         ("later", TimestampDtype(SchemaTypeStatus.UNKNOWN, True, None)),
         ("first", MountainashDtype.I64),
     )))
-    spec = TypeSpec(fields=[FieldSpec(name="items", dtype=dtype)])
+    spec = TypeSpec(fields={"items": FieldSpec(dtype=dtype)})
     raw = typespec_to_frictionless(spec)
-    restored = typespec_from_frictionless(raw)
-    assert restored.fields[0].dtype == dtype
-    assert [child["name"] for child in raw["fields"][0]["x-mountainash"]["dtype"]["element"]["fields"]] == ["later", "first"]
+    restored = typespec_from_frictionless(json.loads(json.dumps(raw)))
+    assert restored.fields["items"].dtype == dtype
+    assert [
+        child["name"]
+        for child in raw["fields"][0]["x-mountainash"]["element"]["x-mountainash"]["fields"]
+    ] == ["later", "first"]
 
 
 @pytest.mark.parametrize("nested", [
@@ -888,7 +874,7 @@ def test_recursive_native_refinement_cannot_be_serialized():
 
     dtype = ListDtype(TimestampDtype(native=NativeDtype(value=pl.Datetime("ns", "UTC"), target=TypeTarget.POLARS)))
     with pytest.raises(InvalidDtypeDeclaration, match="native"):
-        typespec_to_frictionless(TypeSpec(fields=[FieldSpec(name="values", dtype=dtype)]))
+        typespec_to_frictionless(TypeSpec(fields={"values": FieldSpec(dtype=dtype)}))
 
 
 @pytest.mark.parametrize("dtype", [
@@ -905,4 +891,4 @@ def test_malformed_parameterized_dtype_uses_field_context(dtype):
         typespec_from_frictionless({"fields": [
             {"name": "broken", "x-mountainash": {"dtype": dtype}},
         ]})
-    assert exc.value.field_name == "broken"
+    assert exc.value.field_name == "$.fields[0]"

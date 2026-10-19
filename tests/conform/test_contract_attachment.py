@@ -20,10 +20,7 @@ from mountainash.typespec.universal_types import UniversalType
 
 
 def _spec(**kwargs):
-    return TypeSpec(
-        fields=[FieldSpec(name="a", type=UniversalType.STRING)],
-        **kwargs,
-    )
+    return TypeSpec(fields={'a': FieldSpec(type=UniversalType.STRING)}, **kwargs)
 
 
 # --- ConformRelNode: new optional field --------------------------------

@@ -126,6 +126,24 @@ spec = ma.typespec({"name": "string", "age": "integer"})
 result = ma.relation({"name": ["Ada"], "age": ["37"]}).conform(spec).collect()
 ```
 
+Reusable declarations can be named in a local library and used in multiple schemas without embedding field names in the definitions:
+
+```python
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+
+Quantity = FieldSpec(type=UniversalType.INTEGER, minimum=0)
+BulkQuantity = Quantity.variant(minimum=10)
+orders = TypeSpec(fields={"quantity": Quantity})
+shipments = TypeSpec(fields={"shipped_quantity": Quantity})
+order = FieldSpec(fields={"quantity": Quantity})
+orders_of_orders = FieldSpec(element=order)
+quantities = FieldSpec(element=Quantity, dimensions=(3,))
+```
+
+`FieldSpec` is unnamed, immutable and reusable. `TypeSpec.fields` is an ordered name-to-definition mapping; mapping keys supply local names. Object `fields=` uses the same named mapping, while `element=` supplies an unnamed scalar, object or collection declaration. `dimensions` makes an element declaration a fixed array; without it, the collection is variable-length. Use `.variant(...)` for an independent specialized definition. A bare structured dtype remains available when only the type shape is needed.
+
+Persisted legacy nested declarations are not migrated by ordinary typed reads. Convert a schema mapping explicitly with `mountainash.typespec.frictionless.migrate_nested_field_declarations(schema_descriptor)` before passing it to the typed reader. The converter returns a fresh mapping and does not mutate input. Raw DataPackage storage preserves raw descriptors and does not automatically migrate them. This declaration migration does not change cross-field-rule behavior.
+
 Python ingress resolves source dtypes per column: explicit `source_spec`, then
 dataclass/Pydantic scalar annotations, then native inference. Unrefined `ANY`
 leaves the next source of evidence in control. Declared nullable columns retain

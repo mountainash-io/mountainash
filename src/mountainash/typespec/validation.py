@@ -25,7 +25,9 @@ def _matches_refinements(expected, shape) -> bool:
     """Check precise nested targets without narrowing broad-only declarations."""
     from mountainash.core.dtypes import SchemaTypeStatus, registry
     from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
-    from .converters import _resolve_field_target, _native_types_equal, effective_child_fields
+    from .converters import (
+        _resolve_field_target, _native_types_equal, declared_fields, declared_element,
+    )
 
     if expected.backend_type or getattr(expected.dtype, "native", None) is not None:
         if shape is None or shape.native_dtype is None:
@@ -50,13 +52,16 @@ def _matches_refinements(expected, shape) -> bool:
         else:
             actual = shape.decimal if shape.decimal is not None else shape.canonical_type
             broad_valid = actual == expected.dtype
-    children = effective_child_fields(expected)
-    source = shape.item_shape if shape is not None and expected.item_object_fields else shape
+    element = declared_element(expected)
+    children = declared_fields(element) if element is not None else declared_fields(expected)
+    source = shape.item_shape if shape is not None and element is not None else shape
     actual_children = dict(source.struct_fields) if source is not None else {}
     refinements_valid = all(
-        _matches_refinements(child, actual_children.get(child.name))
-        for child in children
+        _matches_refinements(child, actual_children.get(name))
+        for name, child in children.items()
     )
+    if element is not None:
+        refinements_valid = refinements_valid and _matches_refinements(element, source)
     return broad_valid and refinements_valid
 
 def validate_match(
@@ -100,28 +105,30 @@ def validate_match(
     # Compare
     diff = compare_specs(actual_schema, expected_schema, check_constraints=False)
     shapes = None
-    for expected in expected_schema.fields:
-        actual = actual_schema.get_field(expected.name)
+    for field_name, expected in expected_schema.fields.items():
+        actual = actual_schema.get_field(field_name)
         if actual is None:
             continue
         if expected.type is UniversalType.ANY or actual.type is expected.type:
-            diff.type_changes.pop(expected.name, None)
+            diff.type_changes.pop(field_name, None)
         if (
-            expected.backend_type or expected.dtype is not None
-            or expected.object_fields or expected.item_object_fields
+            expected.backend_type
+            or expected.dtype is not None
+            or expected.fields is not None
+            or expected.element is not None
         ):
             if shapes is None:
                 shapes = extract_source_shapes(df)
-            if _matches_refinements(expected, shapes.get(expected.name)):
+            if _matches_refinements(expected, shapes.get(field_name)):
                 if (
                     expected.dtype is not SchemaTypeStatus.UNKNOWN
                     or expected.backend_type
                     or expected.type is UniversalType.ANY
                     or actual.type is expected.type
                 ):
-                    diff.type_changes.pop(expected.name, None)
+                    diff.type_changes.pop(field_name, None)
             else:
-                diff.type_changes[expected.name] = (actual, expected)
+                diff.type_changes[field_name] = (actual, expected)
 
     if diff.missing_columns:
         errors.append(f"Missing required columns: {diff.missing_columns}")

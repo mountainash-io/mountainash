@@ -30,19 +30,14 @@ def separate_conversions(
     operates on TypeSpec/FieldSpec instead of raw dicts.
 
     Returns:
-        (python_only, narwhals, native) — three dicts keyed by source_name:
-
-        - python_only: Fields with a custom_cast that has no Narwhals implementation
-          (row-by-row Python conversion required)
-        - narwhals: Fields with a custom_cast that has a vectorized Narwhals implementation
-        - native: All other fields (no custom cast — handled by Relation.conform())
+        (python_only, narwhals, native) — three dictionaries keyed by contextual
+        target field name.
 
     Example:
-        >>> spec = TypeSpec(fields=[
-        ...     # custom_cast takes routing precedence over type (here ANY):
-        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),  # → narwhals
-        ...     FieldSpec(name="id", type=UniversalType.INTEGER),    # → native
-        ... ])
+        >>> spec = TypeSpec(fields={
+        ...     "amount": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float"),
+        ...     "id": FieldSpec(type=UniversalType.INTEGER),
+        ... })
         >>> python_only, narwhals, native = separate_conversions(spec)
     """
     from mountainash.typespec.custom_types import CustomTypeRegistry
@@ -51,23 +46,14 @@ def separate_conversions(
     narwhals: Dict[str, "FieldSpec"] = {}
     native: Dict[str, "FieldSpec"] = {}
 
-    for field in spec.fields:
+    for field_name, field in spec.fields.items():
         cast_type = field.custom_cast
-
-        if cast_type is None:
-            # No custom cast — route to native (Relation.conform() handles type + rename)
-            native[field.source_name] = field
-            continue
-
-        if CustomTypeRegistry.has_converter(cast_type):
-            if CustomTypeRegistry.is_vectorized(cast_type):
-                narwhals[field.source_name] = field
-            else:
-                python_only[field.source_name] = field
+        if cast_type is None or not CustomTypeRegistry.has_converter(cast_type):
+            native[field_name] = field
+        elif CustomTypeRegistry.is_vectorized(cast_type):
+            narwhals[field_name] = field
         else:
-            # Unknown custom_cast — treat as native and let Relation.conform() handle it
-            native[field.source_name] = field
-
+            python_only[field_name] = field
     return python_only, narwhals, native
 
 
@@ -83,16 +69,15 @@ def apply_custom_converters_to_dict(
     - Leave native conversions for DataFrame layer (FAST!)
 
     Args:
-        data_dict: Dictionary of field_name -> value
-        custom_conversions: Dict of columns (keyed by source_name) with FieldSpec
-                           containing custom_cast. Returned by separate_conversions().
+        data_dict: Dictionary of source field name -> value
+        custom_conversions: Mapping of contextual target names to FieldSpec,
+                           returned by separate_conversions().
 
     Returns:
-        Dictionary with custom conversions applied
+        Dictionary with custom conversions applied and aliases renamed
 
     Example:
-        >>> # custom_cast takes routing precedence over type (here ANY):
-        >>> field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        >>> field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         >>> result = apply_custom_converters_to_dict({"amount": "42.5"}, {"amount": field})
         >>> result["amount"]
         42.5
@@ -102,10 +87,17 @@ def apply_custom_converters_to_dict(
     converted_dict = {}
 
     for field_name, value in data_dict.items():
-        if field_name in custom_conversions:
-            field_spec = custom_conversions[field_name]
-            cast_type = field_spec.custom_cast
+        target_name, field_spec = next(
+            (
+                (target, field)
+                for target, field in custom_conversions.items()
+                if (field.rename_from or target) == field_name
+            ),
+            (field_name, None),
+        )
 
+        if field_spec is not None:
+            cast_type = field_spec.custom_cast
             if cast_type is not None:
                 try:
                     value = CustomTypeRegistry.convert(
@@ -120,7 +112,7 @@ def apply_custom_converters_to_dict(
                         f"with type '{cast_type}': {e}. Using original value."
                     )
 
-        converted_dict[field_name] = value
+        converted_dict[target_name] = value
 
     return converted_dict
 
@@ -136,9 +128,7 @@ def apply_custom_converters_to_dicts(
 
     Args:
         data_dicts: List of dictionaries
-        custom_conversions: Dict of columns (keyed by source_name) with FieldSpec
-                           containing custom_cast.
-
+        custom_conversions: Mapping of contextual target names to FieldSpec.
     Returns:
         List of dictionaries with custom conversions applied
     """
@@ -164,8 +154,8 @@ def apply_native_conversions_to_dataframe(
 
     Args:
         df: Polars DataFrame
-        native_conversions: Dict of columns (keyed by source_name) with FieldSpec.
-                           Returned by separate_conversions().
+        native_conversions: Mapping of contextual target names to FieldSpec,
+                            returned by separate_conversions().
 
     Returns:
         DataFrame with native conversions applied
@@ -180,11 +170,7 @@ def apply_native_conversions_to_dataframe(
     from mountainash.core.dtypes import TypeTarget
     from mountainash.typespec.source_shape import extract_source_shapes
 
-    # Preserve columns outside the requested native conversions.
-    native_spec = TypeSpec(
-        fields=[f for f in native_conversions.values()],
-        fields_match="open",
-    )
+    native_spec = TypeSpec(fields=native_conversions, fields_match="open")
     conform_result = _build_conform_exprs(
         native_spec, available_columns=df.columns, actual_shapes=extract_source_shapes(df),
         type_target=TypeTarget.POLARS,
@@ -214,7 +200,7 @@ def _apply_narwhals_custom_converters(
 
     Args:
         df: DataFrame to transform
-        narwhals_custom: Dict of column specs (keyed by source_name) with FieldSpec
+        narwhals_custom: Mapping of contextual target names to FieldSpec
                         containing custom_cast.
 
     Returns:
@@ -231,29 +217,27 @@ def _apply_narwhals_custom_converters(
     was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
     nw_df = nw.from_native(df) if was_native else df
 
-    for col_name, field_spec in narwhals_custom.items():
+    for target_name, field_spec in narwhals_custom.items():
         cast_type = field_spec.custom_cast
 
         narwhals_converter = CustomTypeRegistry.get_narwhals_converter(cast_type)
         if narwhals_converter is None:
             logger.warning(
-                f"Column '{col_name}' marked as Narwhals custom type '{cast_type}' "
+                f"Column '{target_name}' marked as Narwhals custom type '{cast_type}' "
                 "but no Narwhals converter found - skipping"
             )
             continue
 
-        expr_builder = narwhals_converter(col_name)
+        source_name = field_spec.rename_from or target_name
+        expr_builder = narwhals_converter(source_name)
         col_expr = expr_builder(nw_df)
-
-        # Use field.name as target (handles rename_from aliasing)
-        target_name = field_spec.name
-
         nw_df = nw_df.with_columns(col_expr.alias(target_name))
 
         logger.debug(
-            f"Applied Narwhals custom converter '{cast_type}' to column '{col_name}' "
+            f"Applied Narwhals custom converter '{cast_type}' to column '{source_name}' "
             f"→ '{target_name}' (vectorized)"
         )
+
 
     result = nw_df.to_native() if was_native else nw_df
     return result
@@ -280,26 +264,26 @@ def _source_schema_overrides(
         UniversalType.YEARMONTH,
     }
     fields = {
-        field.source_name: field
-        for field in model_spec.fields
+        field.rename_from or name: field
+        for name, field in model_spec.fields.items()
         if field.type in scalar_types
     } if model_spec is not None else {}
     if source_spec is not None:
-        for field in source_spec.fields:
+        for name, field in source_spec.fields.items():
             if (
                 field.type != UniversalType.ANY
                 or field.dtype is not None
                 or field.backend_type
                 or field.categories is not None
             ):
-                fields[field.source_name] = field
+                source_name = field.rename_from or name
+                fields[source_name] = field
     if not fields:
         return {}
-    # Resolve in the source namespace: a target alias can name another source field.
-    source_fields = [
-        field if field.name == name else replace(field, name=name)
+    source_fields = {
+        name: replace(field, rename_from=None)
         for name, field in fields.items()
-    ]
+    }
     return to_polars_schema(TypeSpec(fields=source_fields))
 
 
@@ -360,9 +344,12 @@ def apply_hybrid_conversion(
         # Edge converters may change the carrier or return the original on failure.
         # Neither the old source dtype nor converter metadata proves the output dtype.
         if schema_overrides:
+            converted_sources = {
+                field.rename_from or name for name, field in python_only.items()
+            }
             schema_overrides = {
                 name: dtype for name, dtype in schema_overrides.items()
-                if name not in python_only
+                if name not in converted_sources
             }
         logger.debug(f"Applied Python-only custom converters to {len(data_dicts)} records")
 

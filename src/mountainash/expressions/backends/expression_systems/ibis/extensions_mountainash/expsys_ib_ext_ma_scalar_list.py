@@ -13,9 +13,8 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.converters import _resolve_field_native, declared_fields
 from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
 
@@ -167,11 +166,13 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         x,
         /,
         *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
+        element: FieldSpec | None = None,
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
         if converted_fields:
+            children_fields = declared_fields(element)
+
             def compile_item():
                 item = self.list_element()
                 if item.type().is_array():
@@ -185,7 +186,7 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
                     )
                 return self.cast_struct(
                     item, *children,
-                    fields=item_object_fields, failure_behavior=failure_behavior,
+                    fields=children_fields, failure_behavior=failure_behavior,
                 )
             return deferrable(lambda array: self._compile_list_body(array, compile_item))(x)
         if self.dialect == "ibis-sqlite" or failure_behavior == "null":
@@ -201,8 +202,8 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
             canonical = to_canonical(parse_universal(item_type))
             dtype = registry.to_native_schema(canonical, TypeTarget.IBIS)
             return x.cast(f"array<{dtype}>")
-        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
-        dtype = _resolve_field_native(field, TypeTarget.IBIS)
+        field = FieldSpec(element=element)
+        dtype = _resolve_field_native(field, TypeTarget.IBIS, field_name="items")
         return x.cast(dtype)
 
     def list_sum(self, x, /):

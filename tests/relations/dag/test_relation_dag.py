@@ -110,7 +110,7 @@ def _json_dag(
     from mountainash.typespec.universal_types import UniversalType
 
     df = backend_factory.create({"payload": ["[1,2]", "[3]"]}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TypeSpec(fields_match="open", fields={"payload": FieldSpec(type=UniversalType.ARRAY)})
     rel = ma.relation(df).conform(
         spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms
     )

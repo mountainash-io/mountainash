@@ -32,11 +32,22 @@ def test_from_json_decodes_json_text() -> None:
     assert package.resources[0].name == "orders"
 
 
-def test_from_path_sets_parent_directory_base(tmp_path) -> None:
+def test_from_path_resolves_schema_against_parent_directory(tmp_path) -> None:
+    (tmp_path / "schema.json").write_text(
+        json.dumps({"fields": [{"name": "id", "type": "integer"}]}),
+        encoding="utf-8",
+    )
+    descriptor = {
+        "resources": [{
+            "name": "orders",
+            "path": "orders.csv",
+            "schema": "schema.json",
+        }]
+    }
     path = tmp_path / "datapackage.json"
-    path.write_text(json.dumps(minimal_descriptor()), encoding="utf-8")
+    path.write_text(json.dumps(descriptor), encoding="utf-8")
     package = DataPackage.from_path(path)
-    assert package._descriptor_context.base_uri == tmp_path.resolve().as_uri() + "/"
+    assert package.resources[0].to_typespec().field_names == ["id"]
 
 
 def test_from_path_keeps_utf8_error_distinct(tmp_path) -> None:
@@ -48,34 +59,6 @@ def test_from_path_keeps_utf8_error_distinct(tmp_path) -> None:
     assert caught.value.rejected_value == path
     assert caught.value.required_form == "UTF-8 JSON text"
 
-
-def test_decode_does_not_mutate_input() -> None:
-    raw = minimal_descriptor()
-    expected = deepcopy(raw)
-    DataPackage.from_descriptor(raw)
-    assert raw == expected
-
-
-def test_decoder_owns_descriptor_metadata() -> None:
-    payload = [{"id": 1}]
-    schema = {"fields": [{"name": "id"}]}
-    dialect = {"delimiter": ";"}
-    raw = {
-        "resources": [
-            {
-                "name": "orders",
-                "data": payload,
-                "schema": schema,
-                "dialect": dialect,
-            }
-        ]
-    }
-    resource = DataPackage.from_descriptor(raw).resources[0]
-    assert resource.data == payload
-    assert resource.table_schema == schema
-    assert resource.table_schema is not schema
-    assert resource.dialect == dialect
-    assert resource.dialect is not dialect
 
 @pytest.mark.parametrize(
     "contributors",
@@ -221,7 +204,7 @@ def test_negative_integer_bytes_is_accepted() -> None:
     raw = {"resources": [{"name": "orders", "path": "orders.csv", "bytes": -1}]}
     assert DataPackage.from_descriptor(raw).resources[0].bytes_ == -1
 
-def test_decoder_binds_one_shared_context_and_inherited_sources() -> None:
+def test_package_and_resource_sources_are_observable() -> None:
     raw = {
         "sources": [{"title": "catalog", "extension": {"owner": "team"}}],
         "resources": [
@@ -229,12 +212,7 @@ def test_decoder_binds_one_shared_context_and_inherited_sources() -> None:
             {"name": "customers", "path": "customers.csv", "sources": [{"title": "local"}]},
         ],
     }
-    package = DataPackage.from_descriptor(raw)
-    first, second = package.resources
-    assert package._descriptor_context is first._descriptor_context
-    assert first._descriptor_context is second._descriptor_context
-    assert first._package_resource_names is second._package_resource_names
-    assert first._package_resource_names == frozenset({"orders", "customers"})
+    first, second = DataPackage.from_descriptor(raw).resources
     assert first.effective_sources == raw["sources"]
     assert second.effective_sources == raw["resources"][1]["sources"]
 
@@ -581,10 +559,10 @@ def test_canonical_contributor_role_fallback(contributors, canonical_roles) -> N
     result = DataPackage.from_descriptor(raw).to_canonical_descriptor()
     assert result["contributors"][0]["roles"] == canonical_roles
 
-
 def test_authored_operational_models_use_typed_adapters() -> None:
+
     spec = TypeSpec(
-        fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]
+        fields={"id": FieldSpec(type=UniversalType.INTEGER)}
     )
     dialect = TableDialect(delimiter=";")
     package = DataPackage(

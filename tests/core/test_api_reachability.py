@@ -66,10 +66,14 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         ML.ELEMENT: ma.element,
         ML.GET: lambda: c.list.get(0),
         ML.TO_ARRAY: lambda: c.list.to_array(width=2),
-        ML.CAST_ITEMS: lambda: c.list.cast_items(item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        ML.CAST_ITEMS: lambda: c.list.cast_items(
+            element=FieldSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)}), field_name="x"
+        ),
         ML.PARSE: lambda: c.str.parse_list(field_name="x"),
         MS.FIELD: lambda: c.struct.field("x"),
-        MS.CAST: lambda: c.struct.cast(fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        MS.CAST: lambda: c.struct.cast(
+            fields={"id": FieldSpec(type=UniversalType.INTEGER)}, field_name="x"
+        ),
         MG.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(format="default", source_representation="lexical", field_name="x"),
         MG.PARSE_GEOJSON: lambda: c.geo.parse_geojson(format="default", field_name="x"),
         MG.SERIALIZE_GEOJSON: lambda: c.geo.serialize_geojson(format="default", field_name="x"),

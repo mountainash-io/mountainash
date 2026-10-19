@@ -195,7 +195,7 @@ class TestStructuredFailurePolicyMechanics:
 
         df = pl.DataFrame({"payload": ['{"a": 1}', "{broken"]})
         spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)]
+            fields_match="open", fields={"payload": FieldSpec(type=UniversalType.OBJECT)}
         )
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = ValidationRunner().validate_relation(

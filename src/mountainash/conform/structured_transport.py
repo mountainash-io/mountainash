@@ -219,16 +219,15 @@ def transport_arrow_dtype(dtype: Any) -> Any:
     return to_native_parameterized(dtype, child_lowerer=transport_arrow_dtype)
 
 
-def _convert_struct_mapping(value: Mapping[str, Any], children: Any, dtypes: Any = None) -> dict[str, Any]:
-    by_name = {child.name: child for child in children}
+def _convert_struct_mapping(value: Mapping[str, Any], children: Mapping[str, Any], dtypes: Any = None) -> dict[str, Any]:
     names = value if dtypes is None else dtypes
     result = {}
+    from mountainash.typespec.spec import FieldSpec
     for name in names:
         item = value.get(name)
-        child = by_name.get(name)
+        child = children.get(name)
         if child is None and dtypes is not None:
-            from mountainash.typespec.spec import FieldSpec
-            child = FieldSpec(name=name)
+            child = FieldSpec()
         if child is not None:
             if isinstance(item, str) and child.missing_values is not None:
                 from mountainash.typespec._categorical import categorical_values
@@ -236,12 +235,14 @@ def _convert_struct_mapping(value: Mapping[str, Any], children: Any, dtypes: Any
                     item = None
             if item is None and child.null_fill is not None:
                 item = child.null_fill
-            item = _convert_declared_value(item, child, None if dtypes is None else dtypes[name])
+            item = _convert_declared_value(
+                item, child, None if dtypes is None else dtypes[name], field_name=name,
+            )
         result[name] = item
     return result
 
 
-def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
+def _convert_declared_value(value: Any, field: Any, dtype: Any = None, *, field_name: str = "<unnamed>") -> Any:
     """Apply retained nested FieldSpec conversion instructions to decoded cells."""
     if value is None:
         return None
@@ -249,12 +250,12 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         ArrayDtype, DecimalDtype, ListDtype, StructDtype, MountainashDtype,
         NativeDtype, SchemaTypeStatus, dtype_family, registry,
     )
-    from mountainash.typespec.converters import effective_child_fields, resolve_field_canonical
+    from mountainash.typespec.converters import declared_fields, _collection_item, resolve_field_canonical
 
     if dtype is None:
         dtype = field.dtype
         if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
-            dtype = resolve_field_canonical(field)
+            dtype = resolve_field_canonical(field, field_name=field_name)
     if dtype is SchemaTypeStatus.UNKNOWN:
         return value
     native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
@@ -285,25 +286,31 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         from mountainash.core.types import BackendCapabilityError
 
         raise BackendCapabilityError(
-            f"Structured conversion metadata for {field.name!r} cannot be honored by direct Arrow casting.",
+            f"Structured conversion metadata for {field_name!r} cannot be honored by direct Arrow casting.",
             backend="pyarrow",
             function_key=None,
         )
     if family is MountainashDtype.STRUCT and isinstance(value, Mapping):
         fields = dict(dtype.fields) if isinstance(dtype, StructDtype) and dtype.fields is not SchemaTypeStatus.UNKNOWN else None
-        return _convert_struct_mapping(value, effective_child_fields(field), fields)
+        return _convert_struct_mapping(value, declared_fields(field), fields)
     if family is MountainashDtype.LIST and isinstance(value, list):
         element = dtype.element if isinstance(dtype, (ListDtype, ArrayDtype)) else SchemaTypeStatus.UNKNOWN
         if isinstance(dtype, ArrayDtype) and dtype.dimensions is not SchemaTypeStatus.UNKNOWN and len(dtype.dimensions) > 1:
             element = ArrayDtype(dtype.element, dtype.dimensions[1:])
+        element_field = _collection_item(field, dtype)
+        if element_field is None:
+            from mountainash.typespec.spec import FieldSpec
+            element_field = FieldSpec(dtype=element)
         if dtype_family(element) is MountainashDtype.STRUCT:
-            children = effective_child_fields(field)
             fields = dict(element.fields) if element.fields is not SchemaTypeStatus.UNKNOWN else None
             return [
-                None if item is None else _convert_struct_mapping(item, children, fields)
+                None if item is None else _convert_struct_mapping(item, declared_fields(element_field), fields)
                 for item in value
             ]
-        return [_convert_declared_value(item, field, element) for item in value]
+        return [
+            _convert_declared_value(item, element_field, element, field_name=f"{field_name}[]")
+            for item in value
+        ]
     if family in {MountainashDtype.TIMESTAMP, MountainashDtype.TIME, MountainashDtype.DATE}:
         if not isinstance(value, str):
             return value

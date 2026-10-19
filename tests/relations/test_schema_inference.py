@@ -878,7 +878,8 @@ def test_aggregate_resource_names_require_closed_effective_contract(fields_match
     from mountainash.typespec.frictionless import typespec_to_frictionless
     from mountainash.typespec.spec import FieldSpec, TypeSpec
 
-    spec = TypeSpec(fields=[FieldSpec(name="x", type="integer")], fields_match=fields_match, contract=contract)
+    from mountainash.typespec.universal_types import UniversalType
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.INTEGER)}, fields_match=fields_match, contract=contract)
     resource = ma.DataResource(name="source", data=[{"x": 1}], schema=typespec_to_frictionless(spec))
     base = Relation(ResourceReadRelNode(resource=resource, apply_schema_conform=apply_conform))
     q = base.group_by(ma.col("*")).agg(ma.lit(1).alias("one"))

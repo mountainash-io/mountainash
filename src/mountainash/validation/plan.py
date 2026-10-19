@@ -12,12 +12,10 @@ from mountainash.typespec._fingerprint import (
 )
 
 
+
 if TYPE_CHECKING:
-    from mountainash.datacontracts.field import Field
     from mountainash.typespec.universal_types import UniversalType
     from mountainash.typespec.spec import TypeSpec
-
-
 @dataclass(frozen=True)
 class ValidationField:
     name: str
@@ -40,37 +38,6 @@ class FrozenForeignKey:
     declaration_path: str
 
 
-@dataclass(frozen=True)
-class FieldValidationExtension:
-    severity: str
-    eq: Any = None
-    ne: Any = None
-    gt: Any = None
-    lt: Any = None
-    notin: tuple[Any, ...] | None = None
-    str_contains: str | None = None
-    str_startswith: str | None = None
-    str_endswith: str | None = None
-
-
-
-def freeze_field_extension(field: "Field") -> FieldValidationExtension:
-    """Freeze native-contract-only rules at the compiler boundary."""
-    return FieldValidationExtension(
-        severity=field.severity,
-        eq=freeze_value(field.eq),
-        ne=freeze_value(field.ne),
-        gt=freeze_value(field.gt),
-        lt=freeze_value(field.lt),
-        notin=(
-            tuple(freeze_value(value) for value in field.notin)
-            if field.notin is not None
-            else None
-        ),
-        str_contains=field.str_contains,
-        str_startswith=field.str_startswith,
-        str_endswith=field.str_endswith,
-    )
 
 @dataclass(frozen=True)
 class CompiledValidationPlan:
@@ -173,8 +140,8 @@ def _freeze_check(check: Any) -> Any:
 def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValidationPlan:
     declaration = freeze_typespec(spec)
     fields_snapshot = tuple(
-        ValidationField(name=field.name, type=field.type, format=field.format)
-        for field in spec.fields
+        ValidationField(name=name, type=definition.type, format=definition.format)
+        for name, definition in spec.fields.items()
     )
     field_plan = ValidationFieldPlan(
         fields=fields_snapshot,
@@ -256,6 +223,11 @@ def thaw_value(value: Any) -> Any:
     from mountainash.core.dtypes import NativeDtype
     if isinstance(value, NativeDtype):
         return deepcopy(value)
+    if isinstance(value, Mapping) and "__named_fields__" in value:
+        return {
+            name: thaw_value(definition)
+            for name, definition in value["__named_fields__"]
+        }
     if isinstance(value, Mapping) and "__dataclass__" in value:
         cls = _thaw_dataclass_type(value["__dataclass__"])
         return cls(**{name: thaw_value(item) for name, item in value["fields"].items()})

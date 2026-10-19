@@ -27,57 +27,29 @@ from mountainash.typespec.converters import (
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.universal_types import UniversalType as U
 from mountainash.typespec.spec import FieldSpec, TypeSpec
-from mountainash.typespec.converters import effective_child_fields
 
 
-def test_parent_struct_dtype_wins_over_conflicting_legacy_child_dtype():
+def test_composed_struct_children_supply_ordered_canonical_types():
     import polars as pl
-    from mountainash.core.dtypes import StructDtype
 
-    field = FieldSpec(
-        "record",
-        dtype=StructDtype((("count", D.I64),)),
-        object_fields=[FieldSpec("count", dtype=D.STRING)],
-    )
-    assert to_polars_schema(TypeSpec(fields=[field]))["record"] == pl.Struct(
-        {"count": pl.Int64}
+    record = FieldSpec(fields={
+        "count": FieldSpec(dtype=D.I64),
+        "label": FieldSpec(dtype=D.STRING),
+    })
+    assert to_polars_schema(TypeSpec(fields={"record": record}))["record"] == pl.Struct(
+        {"count": pl.Int64, "label": pl.String}
     )
 
 
-def test_compatible_legacy_child_fills_unknown_parent_parameter():
+def test_composed_child_native_override_is_preserved():
     import polars as pl
-    from mountainash.core.dtypes import SchemaTypeStatus, StructDtype
 
-    field = FieldSpec(
-        "record",
-        dtype=StructDtype((("count", SchemaTypeStatus.UNKNOWN),)),
-        object_fields=[FieldSpec("count", dtype=D.I16)],
-    )
-    assert to_polars_schema(TypeSpec(fields=[field]))["record"] == pl.Struct(
-        {"count": pl.Int16}
-    )
-
-
-def test_child_native_override_wins_after_parent_and_legacy_selection():
-    import polars as pl
-    from mountainash.core.dtypes import StructDtype
-
-    field = FieldSpec(
-        "record",
-        dtype=StructDtype((("value", D.I64),)),
-        object_fields=[
-            FieldSpec(
-                "value", dtype=D.STRING, backend_type=pl.Float64,
-                description="retained metadata",
-            ),
-        ],
-    )
-    with pytest.warns(UserWarning) as caught:
-        native = to_polars_schema(TypeSpec(fields=[field]))["record"]
+    record = FieldSpec(fields={
+        "value": FieldSpec(dtype=D.I64, backend_type=pl.Float64),
+    })
+    with pytest.warns(UserWarning, match="value"):
+        native = to_polars_schema(TypeSpec(fields={"record": record}))["record"]
     assert native == pl.Struct({"value": pl.Float64})
-    assert any("value" in str(warning.message) for warning in caught)
-    assert field.dtype.fields == (("value", D.I64),)
-    assert field.object_fields[0].dtype is D.STRING
 
 
 def test_whole_native_struct_override_is_not_rewritten_by_children():
@@ -86,33 +58,44 @@ def test_whole_native_struct_override_is_not_rewritten_by_children():
 
     authored = StructDtype((("selected", D.I64),))
     field = FieldSpec(
-        "record",
-        dtype=authored,
         backend_type=pl.Struct({"native": pl.String}),
-        object_fields=[FieldSpec("selected", dtype=D.STRING)],
+        fields={"selected": FieldSpec(dtype=D.I64)},
     )
-    assert to_polars_schema(TypeSpec(fields=[field]))["record"] == pl.Struct(
+    assert to_polars_schema(TypeSpec(fields={"record": field}))["record"] == pl.Struct(
         {"native": pl.String}
     )
-    assert field.dtype is authored
+    assert field.dtype == authored
 
 
-def test_effective_children_merge_metadata_by_name_without_mutation():
-    from mountainash.core.dtypes import StructDtype
+def test_composed_struct_with_unknown_child_uses_native_null():
+    import polars as pl
+    from mountainash.core.dtypes import SchemaTypeStatus
 
-    legacy_b = FieldSpec("b", dtype=D.STRING, description="legacy B")
-    legacy_a = FieldSpec("a", dtype=D.STRING, description="legacy A")
-    field = FieldSpec(
-        "record",
-        dtype=StructDtype((("a", D.I64), ("b", D.I16))),
-        object_fields=[legacy_b, legacy_a, FieldSpec("extra", dtype=D.BOOL)],
-    )
-    children = effective_child_fields(field)
-    assert [child.name for child in children] == ["a", "b"]
-    assert [child.dtype for child in children] == [D.I64, D.I16]
-    assert [child.description for child in children] == ["legacy A", "legacy B"]
-    assert legacy_a.dtype is D.STRING
-    assert legacy_b.dtype is D.STRING
+    field = FieldSpec(fields={"value": FieldSpec(dtype=SchemaTypeStatus.UNKNOWN)})
+    assert to_polars_schema(TypeSpec(fields={"row": field})) == {
+        "row": pl.Struct({"value": pl.Null})
+    }
+
+
+def test_composed_field_resolution_preserves_order_and_contextual_name():
+    from mountainash.typespec.converters import declared_fields
+
+    definition = FieldSpec(fields={
+        "second": FieldSpec(type=UniversalType.INTEGER),
+        "first": FieldSpec(type=UniversalType.STRING),
+    })
+    assert tuple(declared_fields(definition)) == ("second", "first")
+    assert resolve_field_canonical(definition, field_name="record_alias") == definition.dtype
+
+
+def test_collection_element_declaration_is_not_collapsed_to_dtype():
+    from mountainash.typespec.converters import declared_element
+
+    element = FieldSpec(type=UniversalType.INTEGER, minimum=0, null_fill=7)
+    collection = FieldSpec(element=element)
+    assert declared_element(collection) is element
+    assert declared_element(FieldSpec(dtype=collection.dtype)) is not element
+
 
 
 
@@ -128,7 +111,7 @@ def test_native_override_wins_over_precise_declaration(target):
         "ibis": (to_ibis_schema, "int64", "int64"),
     }
     converter, override, expected = cases[target]
-    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type=override)])
+    spec = TypeSpec(fields={"x": FieldSpec(dtype=D.I8, backend_type=override)})
     with pytest.warns(UserWarning, match="x"):
         schema = converter(spec)
     actual = schema.field("x").type if target == "arrow" else schema["x"]
@@ -137,10 +120,11 @@ def test_native_override_wins_over_precise_declaration(target):
 
 def test_native_parameters_and_nested_canonical_children_survive_allocation():
     import polars as pl
-    child = FieldSpec(name="at", dtype=D.TIMESTAMP, backend_type=pl.Datetime("ns", "UTC"))
-    spec = TypeSpec(fields=[FieldSpec(name="record", dtype=D.STRUCT, object_fields=[
-        FieldSpec(name="id", dtype=D.I8), child,
-    ])])
+    child = FieldSpec(dtype=D.TIMESTAMP, backend_type=pl.Datetime("ns", "UTC"))
+    spec = TypeSpec(fields={"record": FieldSpec(fields={
+        "id": FieldSpec(dtype=D.I8),
+        "at": child,
+    })})
     with pytest.warns(UserWarning):
         frame = pl.DataFrame(schema=to_polars_schema(spec))
     assert frame.schema["record"] == pl.Struct({"id": pl.Int8, "at": pl.Datetime("ns", "UTC")})
@@ -148,14 +132,14 @@ def test_native_parameters_and_nested_canonical_children_survive_allocation():
 
 def test_lossy_reverse_mapping_cannot_certify_native_equivalence():
     import pyarrow as pa
-    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.FP32, backend_type=pa.float16())])
+    spec = TypeSpec(fields={"x": FieldSpec(dtype=D.FP32, backend_type=pa.float16())})
     with pytest.warns(UserWarning, match="x"):
         assert to_arrow_schema(spec).field("x").type == pa.float16()
 
 
 def test_invalid_override_never_falls_back_to_canonical():
     from mountainash.core.dtypes import InvalidBackendTypeError
-    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type="not-a-type")])
+    spec = TypeSpec(fields={"x": FieldSpec(dtype=D.I8, backend_type="not-a-type")})
     with pytest.raises(InvalidBackendTypeError):
         to_arrow_schema(spec)
 
@@ -163,7 +147,7 @@ def test_invalid_override_never_falls_back_to_canonical():
 def test_native_object_cannot_be_lowered_on_another_target():
     import polars as pl
     from mountainash.core.dtypes.errors import DtypeMappingError
-    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type=pl.Int8)])
+    spec = TypeSpec(fields={"x": FieldSpec(dtype=D.I8, backend_type=pl.Int8)})
     with pytest.raises(DtypeMappingError):
         to_arrow_schema(spec)
 
@@ -183,7 +167,7 @@ def test_extracted_nested_width_is_portable_without_backend_spelling():
 def test_schema_validation_uses_effective_native_target():
     import polars as pl
     from mountainash.typespec.validation import validate_match
-    spec = TypeSpec(fields=[FieldSpec(name="x", dtype=D.I8, backend_type="Int64")])
+    spec = TypeSpec(fields={"x": FieldSpec(dtype=D.I8, backend_type="Int64")})
     with pytest.warns(UserWarning):
         assert validate_match(pl.DataFrame({"x": [127]}, schema={"x": pl.Int64}), spec) == (True, [])
     with pytest.warns(UserWarning):
@@ -225,8 +209,9 @@ class TestToPolarsSchema:
     def test_all_universal_types_produce_a_result(self):
         """Every UniversalType value should map to a Polars dtype without raising."""
 
-        fields = [FieldSpec(name=f"col_{ut.value}", type=ut) for ut in UniversalType]
-        schema = TypeSpec(fields=fields)
+        schema = TypeSpec(fields={
+            f"col_{ut.value}": FieldSpec(type=ut) for ut in UniversalType
+        })
         result = to_polars_schema(schema)
         assert len(result) == len(list(UniversalType))
         for col, dtype in result.items():
@@ -253,8 +238,9 @@ class TestToPandasDtypes:
         assert result["active"] == "boolean"
 
     def test_all_universal_types_produce_a_result(self):
-        fields = [FieldSpec(name=f"col_{ut.value}", type=ut) for ut in UniversalType]
-        schema = TypeSpec(fields=fields)
+        schema = TypeSpec(fields={
+            f"col_{ut.value}": FieldSpec(type=ut) for ut in UniversalType
+        })
         result = to_pandas_dtypes(schema)
         assert len(result) == len(list(UniversalType))
 
@@ -262,10 +248,9 @@ class TestToPandasDtypes:
         """Non-categorical fields are plain strings; a categorical field is
         the deliberate exception (a real pd.CategoricalDtype instance)."""
         import pandas as pd
-        categorical = TypeSpec(fields=[
-            FieldSpec(name="cat", type=UniversalType.STRING,
-                      categories=["a", "b"], categories_ordered=True),
-        ])
+        categorical = TypeSpec(fields={"cat": FieldSpec(
+            type=UniversalType.STRING, categories=["a", "b"], categories_ordered=True,
+        )})
         result = to_pandas_dtypes(basic_schema)
         assert isinstance(result, dict)
         for v in result.values():
@@ -278,10 +263,9 @@ class TestToPandasDtypes:
         """§4.3: to_pandas_dtypes returns a real pd.CategoricalDtype instance
         for a categorical field — pandas accepts it directly as astype input."""
         import pandas as pd
-        spec = TypeSpec(fields=[
-            FieldSpec(name="col", type=UniversalType.STRING,
-                      categories=["a", "b"], categories_ordered=True),
-        ])
+        spec = TypeSpec(fields={"col": FieldSpec(
+            type=UniversalType.STRING, categories=["a", "b"], categories_ordered=True,
+        )})
         result = to_pandas_dtypes(spec)
         assert isinstance(result["col"], pd.CategoricalDtype)
         assert list(result["col"].categories) == ["a", "b"]
@@ -289,10 +273,9 @@ class TestToPandasDtypes:
 
     def test_unordered_categorical_field_ordered_false(self):
         import pandas as pd
-        spec = TypeSpec(fields=[
-            FieldSpec(name="col", type=UniversalType.STRING,
-                      categories=["a", "b"], categories_ordered=False),
-        ])
+        spec = TypeSpec(fields={"col": FieldSpec(
+            type=UniversalType.STRING, categories=["a", "b"], categories_ordered=False,
+        )})
         result = to_pandas_dtypes(spec)
         assert isinstance(result["col"], pd.CategoricalDtype)
         assert result["col"].ordered is False
@@ -340,8 +323,9 @@ class TestToIbisSchema:
         assert result["active"] == "boolean"
 
     def test_all_universal_types_produce_a_result(self):
-        fields = [FieldSpec(name=f"col_{ut.value}", type=ut) for ut in UniversalType]
-        schema = TypeSpec(fields=fields)
+        schema = TypeSpec(fields={
+            f"col_{ut.value}": FieldSpec(type=ut) for ut in UniversalType
+        })
         result = to_ibis_schema(schema)
         assert len(result) == len(list(UniversalType))
 
@@ -385,15 +369,15 @@ class TestConvertToBackend:
         """FieldSpec with backend_type should use that type in polars output."""
         import polars as pl
 
-        field = FieldSpec(name="val", type=UniversalType.NUMBER, backend_type="Float32")
-        schema = TypeSpec(fields=[field])
+        field = FieldSpec(type=UniversalType.NUMBER, backend_type="Float32")
+        schema = TypeSpec(fields={"val": field})
         result = to_polars_schema(schema)
         assert result["val"] == pl.Float32
 
     def test_backend_type_preserved_in_pandas(self):
         """FieldSpec with backend_type should pass through as-is for pandas."""
-        field = FieldSpec(name="val", type=UniversalType.NUMBER, backend_type="Float32")
-        schema = TypeSpec(fields=[field])
+        field = FieldSpec(type=UniversalType.NUMBER, backend_type="Float32")
+        schema = TypeSpec(fields={"val": field})
         result = to_pandas_dtypes(schema)
         assert result["val"] == "Float32"
 
@@ -410,15 +394,12 @@ class TestCategoricalSchema:
     conform stage 5's mutually-exclusive branch ordering exactly."""
 
     def _spec(self, categories, ordered=None, backend_type=None):
-        return TypeSpec(fields=[
-            FieldSpec(
-                name="cat",
-                type=UniversalType.STRING,
-                categories=categories,
-                categories_ordered=ordered,
-                backend_type=backend_type,
-            ),
-        ])
+        return TypeSpec(fields={"cat": FieldSpec(
+            type=UniversalType.STRING,
+            categories=categories,
+            categories_ordered=ordered,
+            backend_type=backend_type,
+        )})
 
     def test_unordered_categories_is_pl_categorical(self):
         import polars as pl
@@ -459,9 +440,9 @@ class TestNestedListItemType:
     string element)."""
 
     def _spec(self, item_type=None):
-        return TypeSpec(fields=[
-            FieldSpec(name="lst", type=UniversalType.LIST, item_type=item_type),
-        ])
+        return TypeSpec(fields={"lst": FieldSpec(
+            type=UniversalType.LIST, item_type=item_type,
+        )})
 
     def test_polars_item_type_resolves_inner(self):
         import polars as pl
@@ -475,7 +456,7 @@ class TestNestedListItemType:
         # consumers (empty_frame / inline-read); assert the narwhals-native
         # form of the same inner type is reachable via the registry.
         from mountainash.typespec.converters import _resolve_field_native
-        native = _resolve_field_native(self._spec("integer").fields[0], TypeTarget.NARWHALS)
+        native = _resolve_field_native(self._spec("integer").fields["lst"], TypeTarget.NARWHALS)
         assert native == nw.List(nw.Int64)
         assert native is not nw.List  # real parameterized instance, not bare class
 
@@ -536,9 +517,9 @@ class TestNestedListItemType:
 
 class TestGeospatialItemType:
     def _spec(self, item_type):
-        return TypeSpec(fields=[
-            FieldSpec(name="lst", type=UniversalType.LIST, item_type=item_type),
-        ])
+        return TypeSpec(fields={"lst": FieldSpec(
+            type=UniversalType.LIST, item_type=item_type,
+        )})
 
     def test_item_type_geopoint_raises_ambiguous(self):
         from mountainash.typespec.errors import AmbiguousGeospatialTypeError
@@ -556,27 +537,29 @@ class TestGeospatialItemType:
 # ============================================================================
 
 class TestNestedStructObjectFields:
-    """object_fields: nested STRUCT inner-field schema via FieldSpec."""
+    """Composed ordered fields resolve recursively for every schema target."""
 
-    def _spec(self, object_fields=None):
-        return TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=object_fields),
-        ])
+    def _spec(self, fields=None):
+        record = (
+            FieldSpec(type=UniversalType.OBJECT)
+            if fields is None else FieldSpec(fields=fields)
+        )
+        return TypeSpec(fields={"addr": record})
 
     def _flat_fields(self):
-        return [
-            FieldSpec(name="street", type=UniversalType.STRING),
-            FieldSpec(name="zip", type=UniversalType.STRING),
-        ]
+        return {
+            "street": FieldSpec(type=UniversalType.STRING),
+            "zip": FieldSpec(type=UniversalType.STRING),
+        }
 
     def _nested_fields(self):
-        return [
-            FieldSpec(name="street", type=UniversalType.STRING),
-            FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="lat", type=UniversalType.NUMBER),
-                FieldSpec(name="lon", type=UniversalType.NUMBER),
-            ]),
-        ]
+        return {
+            "street": FieldSpec(type=UniversalType.STRING),
+            "geo": FieldSpec(fields={
+                "lat": FieldSpec(type=UniversalType.NUMBER),
+                "lon": FieldSpec(type=UniversalType.NUMBER),
+            }),
+        }
 
     def test_polars_flat_struct_resolves_inner_fields(self):
         import polars as pl
@@ -605,7 +588,11 @@ class TestNestedStructObjectFields:
         import narwhals as nw
         from mountainash.core.dtypes import TypeTarget
         from mountainash.typespec.converters import _resolve_field_native
-        native = _resolve_field_native(self._spec(self._flat_fields()).fields[0], TypeTarget.NARWHALS)
+        native = _resolve_field_native(
+            self._spec(self._flat_fields()).fields["addr"],
+            TypeTarget.NARWHALS,
+            field_name="addr",
+        )
         assert native == nw.Struct({"street": nw.String, "zip": nw.String})
 
     def test_ibis_flat_struct_resolves_inner_fields_as_schema_string(self):
@@ -616,45 +603,36 @@ class TestNestedStructObjectFields:
         result = to_ibis_schema(self._spec(self._nested_fields()))
         assert result["addr"] == "struct<street: string, geo: struct<lat: float64, lon: float64>>"
 
-    def test_pandas_stays_object_regardless_of_object_fields(self):
+    def test_pandas_stays_object_regardless_of_composed_fields(self):
         result = to_pandas_dtypes(self._spec(self._flat_fields()))
         assert result["addr"] == "object"
 
-    def test_no_object_fields_keeps_bare_container(self):
+    def test_no_composed_fields_keeps_bare_container(self):
         import polars as pl
         result = to_polars_schema(self._spec(None))
         assert result["addr"] is pl.Struct
 
-    def test_empty_object_fields_list_keeps_bare_container(self):
+    def test_empty_composed_fields_keep_empty_struct(self):
         import polars as pl
-        result = to_polars_schema(self._spec([]))
-        assert result["addr"] is pl.Struct
+        result = to_polars_schema(self._spec({}))
+        assert result["addr"] == pl.Struct({})
 
-    def test_empty_array_item_object_fields_preserves_struct_hierarchy(self):
+    def test_empty_array_element_preserves_struct_hierarchy(self):
         import polars as pl
-        field = FieldSpec(
-            name="rows",
-            type=UniversalType.ARRAY,
-            item_object_fields=(),
-        )
-        result = to_polars_schema(TypeSpec(fields=[field]))
+        field = FieldSpec(element=FieldSpec(fields={}))
+        result = to_polars_schema(TypeSpec(fields={"rows": field}))
         assert result["rows"] == pl.List(pl.Struct({}))
 
     def test_inner_field_categories_resolve_correctly(self):
         import polars as pl
-        fields = [FieldSpec(name="kind", type=UniversalType.STRING,
-                            categories=["home", "work"], categories_ordered=True)]
+        fields = {"kind": FieldSpec(
+            type=UniversalType.STRING,
+            categories=["home", "work"],
+            categories_ordered=True,
+        )}
         result = to_polars_schema(self._spec(fields))
         assert result["addr"] == pl.Struct({"kind": pl.Enum(["home", "work"])})
 
-    def test_recursion_error_on_pathologically_deep_chain(self):
-        from mountainash.core.dtypes import TypeTarget
-        from mountainash.typespec.converters import _resolve_struct_inner
-        deep = FieldSpec(name="leaf", type=UniversalType.INTEGER)
-        for i in range(10000):
-            deep = FieldSpec(name=f"level_{i}", type=UniversalType.OBJECT, object_fields=[deep])
-        with pytest.raises(RecursionError):
-            _resolve_struct_inner("addr", [deep], TypeTarget.POLARS, None)
 
 
 # ============================================================================
@@ -666,16 +644,14 @@ class TestCategoricalRefactorRegression:
         import polars as pl
         from mountainash.core.dtypes import TypeTarget
         from mountainash.typespec.converters import _resolve_field_native
-        field = FieldSpec(name="cat", type=UniversalType.STRING,
-                          categories=["a", "b"], categories_ordered=False)
+        field = FieldSpec(type=UniversalType.STRING, categories=["a", "b"], categories_ordered=False)
         assert _resolve_field_native(field, TypeTarget.POLARS) is pl.Categorical
 
     def test_resolve_field_native_pandas_categorical(self):
         import pandas as pd
         from mountainash.core.dtypes import TypeTarget
         from mountainash.typespec.converters import _resolve_field_native
-        field = FieldSpec(name="cat", type=UniversalType.STRING,
-                          categories=["a", "b"], categories_ordered=True)
+        field = FieldSpec(type=UniversalType.STRING, categories=["a", "b"], categories_ordered=True)
         result = _resolve_field_native(field, TypeTarget.PANDAS)
         assert isinstance(result, pd.CategoricalDtype)
         assert list(result.categories) == ["a", "b"]
@@ -697,7 +673,7 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema, to_pandas_dtypes
-        spec = TypeSpec(fields=[FieldSpec(name="y", type=UniversalType.YEAR)])
+        spec = TypeSpec(fields={"y": FieldSpec(type=UniversalType.YEAR)})
         assert to_polars_schema(spec)["y"] is pl.String
         assert to_pandas_dtypes(spec)["y"] == "string"
 
@@ -705,7 +681,7 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_pandas_dtypes
-        spec = TypeSpec(fields=[FieldSpec(name="ym", type=UniversalType.YEARMONTH)])
+        spec = TypeSpec(fields={"ym": FieldSpec(type=UniversalType.YEARMONTH)})
         assert to_pandas_dtypes(spec)["ym"] == "string"  # spec: known change (was period[M])
 
     def test_any_materializes_as_string(self):
@@ -713,7 +689,7 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema
-        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.ANY)])
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.ANY)})
         assert to_polars_schema(spec)["a"] is pl.String
 
     def test_invalid_backend_type_raises_on_every_fixed_target(self):
@@ -725,10 +701,10 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import _resolve_field_native
-        field = FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="garbage")
+        field = FieldSpec(type=UniversalType.INTEGER, backend_type="garbage")
         for target in (TypeTarget.POLARS, TypeTarget.NARWHALS, TypeTarget.PYARROW):
             with pytest.raises(InvalidBackendTypeError) as exc_info:
-                _resolve_field_native(field, target)
+                _resolve_field_native(field, target, field_name="x")
             msg = str(exc_info.value)
             assert "x" in msg          # names the field
             assert "garbage" in msg    # names the string
@@ -743,9 +719,9 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema
-        spec = TypeSpec(fields=[
-            FieldSpec(name="x", type=UniversalType.INTEGER, backend_type=backend_type),
-        ])
+        spec = TypeSpec(fields={"x": FieldSpec(
+            type=UniversalType.INTEGER, backend_type=backend_type,
+        )})
         assert to_polars_schema(spec)["x"] is pl.Int64
         from mountainash.typespec.validation import validate_match
         assert validate_match(pl.DataFrame({"x": [1]}), spec) == (True, [])
@@ -759,10 +735,9 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_arrow_schema
-        spec = TypeSpec(fields=[
-            FieldSpec(name="x", type=UniversalType.INTEGER,
-                      backend_type="timestamp[badunit]"),
-        ])
+        spec = TypeSpec(fields={"x": FieldSpec(
+            type=UniversalType.INTEGER, backend_type="timestamp[badunit]",
+        )})
         with pytest.raises(InvalidBackendTypeError, match="timestamp\[badunit\]"):
             to_arrow_schema(spec)
 
@@ -771,9 +746,9 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema
-        spec = TypeSpec(fields=[
-            FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="Int32"),
-        ])
+        spec = TypeSpec(fields={"x": FieldSpec(
+            type=UniversalType.INTEGER, backend_type="Int32",
+        )})
         assert to_polars_schema(spec)["x"] is pl.Int32
 
     def test_unparseable_backend_type_raises(self):
@@ -784,9 +759,9 @@ class TestConvertersOverRegistry:
         from mountainash.typespec import TypeSpec, FieldSpec
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.typespec.converters import to_polars_schema
-        spec = TypeSpec(fields=[
-            FieldSpec(name="x", type=UniversalType.INTEGER, backend_type="garbage"),
-        ])
+        spec = TypeSpec(fields={"x": FieldSpec(
+            type=UniversalType.INTEGER, backend_type="garbage",
+        )})
         with pytest.raises(InvalidBackendTypeError, match="garbage"):
             to_polars_schema(spec)
 
@@ -805,16 +780,16 @@ class TestConvertersOverRegistry:
 @pytest.mark.parametrize(
     "field,canonical",
     [
-        (FieldSpec("list", U.LIST), D.LIST),
-        (FieldSpec("array", U.ARRAY), D.LIST),
-        (FieldSpec("point_text", U.GEOPOINT), D.STRING),
-        (FieldSpec("point_array", U.GEOPOINT, format="array"), D.LIST),
-        (FieldSpec("point_object", U.GEOPOINT, format="object"), D.STRUCT),
-        (FieldSpec("geojson", U.GEOJSON), D.JSON),
-        (FieldSpec("topojson", U.GEOJSON, format="topojson"), D.JSON),
-        (FieldSpec("duration", U.DURATION), D.XSD_DURATION),
-        (FieldSpec("year", U.YEAR), D.XSD_YEAR),
-        (FieldSpec("yearmonth", U.YEARMONTH), D.XSD_YEARMONTH),
+(FieldSpec(type=U.LIST), D.LIST),
+(FieldSpec(type=U.ARRAY), D.LIST),
+(FieldSpec(type=U.GEOPOINT), D.STRING),
+(FieldSpec(type=U.GEOPOINT, format="array"), D.LIST),
+(FieldSpec(type=U.GEOPOINT, format="object"), D.STRUCT),
+(FieldSpec(type=U.GEOJSON), D.JSON),
+(FieldSpec(type=U.GEOJSON, format="topojson"), D.JSON),
+(FieldSpec(type=U.DURATION), D.XSD_DURATION),
+(FieldSpec(type=U.YEAR), D.XSD_YEAR),
+(FieldSpec(type=U.YEARMONTH), D.XSD_YEARMONTH),
     ],
 )
 def test_v2_fields_resolve_on_every_target(target, field, canonical) -> None:
@@ -837,22 +812,22 @@ class TestResolveFieldCanonicalPublicSurface:
 # ============================================================================
 
 V2_INTEGRATION_SPEC = TypeSpec(
-    fields=[
-        FieldSpec("list", U.LIST, item_type="integer"),
-        FieldSpec("point", U.GEOPOINT, format="array"),
-        FieldSpec("geometry", U.GEOJSON),
-        FieldSpec("duration", U.DURATION),
-        FieldSpec("year", U.YEAR),
-        FieldSpec("yearmonth", U.YEARMONTH),
-    ]
+    fields={
+        "list": FieldSpec(type=U.LIST, item_type="integer"),
+        "point": FieldSpec(type=U.GEOPOINT, format="array"),
+        "geometry": FieldSpec(type=U.GEOJSON),
+        "duration": FieldSpec(type=U.DURATION),
+        "year": FieldSpec(type=U.YEAR),
+        "yearmonth": FieldSpec(type=U.YEARMONTH),
+    }
 )
 
 
 @pytest.mark.parametrize("target", [TypeTarget.POLARS, TypeTarget.NARWHALS, TypeTarget.IBIS])
 def test_v2_six_field_spec_resolves_on_polars_narwhals_and_ibis(target) -> None:
     resolved = {
-        field.name: _resolve_field_native(field, target)
-        for field in V2_INTEGRATION_SPEC.fields
+        name: _resolve_field_native(field, target, field_name=name)
+        for name, field in V2_INTEGRATION_SPEC.fields.items()
     }
     assert set(resolved) == {
         "list", "point", "geometry", "duration", "year", "yearmonth",
@@ -882,29 +857,38 @@ def test_validate_match_checks_nested_effective_types(in_array):
     import polars as pl
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.typespec.validation import validate_match
-    child = FieldSpec(name="id", dtype=MountainashDtype.I8)
-    field = FieldSpec(name="record", dtype=MountainashDtype.LIST if in_array else MountainashDtype.STRUCT,
-        **({"item_object_fields": [child]} if in_array else {"object_fields": [child]}))
+    child = FieldSpec(dtype=MountainashDtype.I8)
+    spec = TypeSpec(fields={"record": (
+        FieldSpec(element=FieldSpec(fields={"id": child}))
+        if in_array else FieldSpec(fields={"id": child})
+    )})
     source = pl.DataFrame({"record": [[{"id": 128}]] if in_array else [{"id": 128}]})
-    spec = TypeSpec(fields=[field])
     assert not validate_match(source, spec)[0]
-    child.backend_type = "Int64"
+    spec.fields["record"] = (
+        FieldSpec(element=FieldSpec(fields={
+            "id": FieldSpec(dtype=MountainashDtype.I8, backend_type="Int64"),
+        }))
+        if in_array else FieldSpec(fields={
+            "id": FieldSpec(dtype=MountainashDtype.I8, backend_type="Int64"),
+        })
+    )
     with pytest.warns(UserWarning):
         assert validate_match(source, spec) == (True, [])
-    child.dtype = None
-    child.backend_type = None
+    spec.fields["record"] = (
+        FieldSpec(element=FieldSpec(fields={"id": FieldSpec()}))
+        if in_array else FieldSpec(fields={"id": FieldSpec()})
+    )
     assert validate_match(source, spec) == (True, [])
 
 
-def test_fixed_struct_array_keeps_dimensions_and_parent_child_authority():
+def test_fixed_struct_array_keeps_composed_dimensions():
     import polars as pl
-    from mountainash.core.dtypes import ArrayDtype, StructDtype
 
     field = FieldSpec(
-        "rows", dtype=ArrayDtype(StructDtype((("id", D.I16),)), (2, 3)),
-        item_object_fields=[FieldSpec("id", dtype=D.STRING)],
+        element=FieldSpec(fields={"id": FieldSpec(dtype=D.I16)}),
+        dimensions=(2, 3),
     )
-    assert to_polars_schema(TypeSpec(fields=[field])) == {
+    assert to_polars_schema(TypeSpec(fields={"rows": field})) == {
         "rows": pl.Array(pl.Struct({"id": pl.Int16}), (2, 3)),
     }
 
@@ -914,6 +898,9 @@ def test_unknown_struct_child_uses_native_null_without_claiming_a_type():
     from mountainash.core.dtypes import SchemaTypeStatus, StructDtype
 
     dtype = StructDtype((("value", SchemaTypeStatus.UNKNOWN),))
-    field = FieldSpec("row", dtype=dtype)
-    assert to_polars_schema(TypeSpec(fields=[field])) == {"row": pl.Struct({"value": pl.Null})}
+    field = FieldSpec(fields={"value": FieldSpec(dtype=SchemaTypeStatus.UNKNOWN)})
+    assert to_polars_schema(TypeSpec(fields={"row": field})) == {
+        "row": pl.Struct({"value": pl.Null})
+    }
     assert field.dtype == dtype
+

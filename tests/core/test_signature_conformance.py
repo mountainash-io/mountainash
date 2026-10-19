@@ -371,7 +371,7 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by(offset="1d"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: c.struct.field("x"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: c.struct.cast(
-            fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
+            fields={"id": FieldSpec(type=UniversalType.INTEGER)}, field_name="x"
         ),
         FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(
             format="default", source_representation="lexical", field_name="x"
@@ -384,7 +384,7 @@ def _init_a2_local_builders() -> dict:
         ),
         FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: lambda: s.str.parse_list(field_name="x"),
         FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: c.list.cast_items(
-            item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"
+            element=FieldSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)}), field_name="x"
         ),
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
             value_type="integer", categories=(1, 2), ordered=True, field_name="x"

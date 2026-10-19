@@ -8,6 +8,7 @@ import from here so they can never diverge.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 
@@ -20,7 +21,7 @@ def categorical_values(categories: list[Any]) -> list[Any]:
     return [
         c.value
         if isinstance(c, LabeledValue)
-        else (c["value"] if isinstance(c, dict) else c)
+        else (c["value"] if isinstance(c, Mapping) else c)
         for c in categories
     ]
 

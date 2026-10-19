@@ -21,31 +21,7 @@ class TestFullPipeline:
             "raw_date": ["26/01/2024", "NA", "15/06/2023"],
             "extra_col": [1, 2, 3],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="price",
-                    type=UniversalType.NUMBER,
-                    rename_from="raw_price",
-                    group_char=".",
-                    decimal_char=",",
-                ),
-                FieldSpec(
-                    name="active",
-                    type=UniversalType.BOOLEAN,
-                    rename_from="raw_active",
-                    true_values=["yes"],
-                    false_values=["no"],
-                ),
-                FieldSpec(
-                    name="event_date",
-                    type=UniversalType.DATE,
-                    rename_from="raw_date",
-                    format="%d/%m/%Y",
-                ),
-            ],
-            missing_values=["NA"],
-        )
+        spec = TypeSpec(fields_match='open', fields={'price': FieldSpec(type=UniversalType.NUMBER, rename_from='raw_price', group_char='.', decimal_char=','), 'active': FieldSpec(type=UniversalType.BOOLEAN, rename_from='raw_active', true_values=['yes'], false_values=['no']), 'event_date': FieldSpec(type=UniversalType.DATE, rename_from='raw_date', format='%d/%m/%Y')}, missing_values=['NA'])
         result = ma.relation(df).conform(spec).to_polars()
 
         # Price: "1.234,56" -> remove "." -> replace "," with "." -> "1234.56" -> cast float
@@ -70,17 +46,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "amount": ["$1,234.56", "N/A", "€789.00"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="amount",
-                    type=UniversalType.NUMBER,
-                    bare_number=False,
-                    group_char=",",
-                ),
-            ],
-            missing_values=["N/A"],
-        )
+        spec = TypeSpec(fields_match='open', fields={'amount': FieldSpec(type=UniversalType.NUMBER, bare_number=False, group_char=',')}, missing_values=['N/A'])
         result = ma.relation(df).conform(spec).to_polars()
 
         # "$1,234.56" -> strip "$" (bareNumber) -> remove "," (groupChar) -> "1234.56" -> cast
@@ -93,15 +59,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "score": [1.5, None, 3.5],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="score",
-                    type=UniversalType.NUMBER,
-                    null_fill=0.0,
-                ),
-            ],
-        )
+        spec = TypeSpec(fields_match='open', fields={'score': FieldSpec(type=UniversalType.NUMBER, null_fill=0.0)})
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == [1.5, 0.0, 3.5]
 
@@ -110,17 +68,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "flag": ["Y", "N", "UNKNOWN", "Y"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="flag",
-                    type=UniversalType.BOOLEAN,
-                    true_values=["Y"],
-                    false_values=["N"],
-                ),
-            ],
-            missing_values=["UNKNOWN"],
-        )
+        spec = TypeSpec(fields_match='open', fields={'flag': FieldSpec(type=UniversalType.BOOLEAN, true_values=['Y'], false_values=['N'])}, missing_values=['UNKNOWN'])
         result = ma.relation(df).conform(spec).to_polars()
         # "UNKNOWN" -> null via missingValues, then boolean cast sees null -> null
         assert result["flag"].to_list() == [True, False, None, True]
@@ -130,16 +78,7 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "dt": ["2024-01-15 10:30:00", "-", "2023-06-20 14:00:00"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="dt",
-                    type=UniversalType.DATETIME,
-                    format="%Y-%m-%d %H:%M:%S",
-                ),
-            ],
-            missing_values=["-"],
-        )
+        spec = TypeSpec(fields_match='open', fields={'dt': FieldSpec(type=UniversalType.DATETIME, format='%Y-%m-%d %H:%M:%S')}, missing_values=['-'])
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"][0] is not None
         assert result["dt"][1] is None
@@ -151,13 +90,7 @@ class TestFullPipeline:
             "name": ["Alice", "", "Charlie"],
             "age": [30, 25, 35],
         })
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
-            fields_match="open",
-            missing_values=[""],
-        )
+        spec = TypeSpec(fields={'name': FieldSpec(type=UniversalType.STRING)}, fields_match='open', missing_values=[''])
         result = ma.relation(df).conform(spec).to_polars()
         assert result["name"].to_list() == ["Alice", None, "Charlie"]
         assert "age" in result.columns  # open mode keeps unmapped
@@ -168,12 +101,7 @@ class TestFullPipeline:
             "old_a": ["x", "y"],
             "old_b": [1, 2],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="new_a", type=UniversalType.STRING, rename_from="old_a"),
-                FieldSpec(name="new_b", type=UniversalType.INTEGER, rename_from="old_b"),
-            ],
-        )
+        spec = TypeSpec(fields_match='open', fields={'new_a': FieldSpec(type=UniversalType.STRING, rename_from='old_a'), 'new_b': FieldSpec(type=UniversalType.INTEGER, rename_from='old_b')})
         result = ma.relation(df).conform(spec).to_polars()
         assert set(result.columns) == {"new_a", "new_b"}
         assert result["new_a"].to_list() == ["x", "y"]
@@ -185,17 +113,7 @@ class TestFullPipeline:
             "a": ["NA", "ok"],
             "b": ["BLANK", "ok"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="a", type=UniversalType.STRING),
-                FieldSpec(
-                    name="b",
-                    type=UniversalType.STRING,
-                    missing_values=["BLANK"],
-                ),
-            ],
-            missing_values=["NA"],
-        )
+        spec = TypeSpec(fields_match='open', fields={'a': FieldSpec(type=UniversalType.STRING), 'b': FieldSpec(type=UniversalType.STRING, missing_values=['BLANK'])}, missing_values=['NA'])
         result = ma.relation(df).conform(spec).to_polars()
         # "a" uses schema-level: "NA" -> null
         assert result["a"].to_list() == [None, "ok"]

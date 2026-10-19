@@ -32,10 +32,10 @@ def _build_dag(tables: dict[str, pl.DataFrame]) -> RelationDAG:
 class TestPerTableValidation:
     def test_valid_data_passes(self):
         dag = _build_dag({"users": pl.DataFrame({"name": ["alice"], "age": [30]})})
-        spec = TypeSpec(fields=[
-            FieldSpec(name="name", type=UniversalType.STRING),
-            FieldSpec(name="age", type=UniversalType.INTEGER, constraints=FieldConstraints(minimum=0)),
-        ])
+        spec = TypeSpec(fields={
+            "name": FieldSpec(type=UniversalType.STRING),
+            "age": FieldSpec(type=UniversalType.INTEGER, constraints=FieldConstraints(minimum=0)),
+        })
         result = dag.validate(specs={"users": spec})
         assert isinstance(result, DAGValidationResult)
         assert result.passes is True
@@ -44,16 +44,16 @@ class TestPerTableValidation:
 
     def test_invalid_data_fails(self):
         dag = _build_dag({"users": pl.DataFrame({"age": [-1, 5]})})
-        spec = TypeSpec(fields=[
-            FieldSpec(name="age", type=UniversalType.INTEGER, constraints=FieldConstraints(minimum=0)),
-        ])
+        spec = TypeSpec(fields={
+            "age": FieldSpec(type=UniversalType.INTEGER, constraints=FieldConstraints(minimum=0)),
+        })
         result = dag.validate(specs={"users": spec})
         assert result.passes is False
         assert result.results["users"].passes is False
 
     def test_accepts_base_data_contract(self):
         class UserContract(BaseDataContract):
-            name: str
+            name = FieldSpec(type=UniversalType.STRING)
 
         dag = _build_dag({"users": pl.DataFrame({"name": ["alice"]})})
         result = dag.validate(specs={"users": UserContract})
@@ -61,7 +61,7 @@ class TestPerTableValidation:
 
     def test_missing_relation_raises(self):
         dag = _build_dag({})
-        spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
+        spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.STRING)})
         with pytest.raises(KeyError, match="not_here"):
             dag.validate(specs={"not_here": spec})
 
@@ -75,14 +75,13 @@ class TestDerivedRelationValidation:
         )
         dag.add("adults", dag.ref("raw").filter(ma.col("age").ge(18)))
 
-        spec = TypeSpec(fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(
-                name="age",
+        spec = TypeSpec(fields={
+            "id": FieldSpec(type=UniversalType.INTEGER),
+            "age": FieldSpec(
                 type=UniversalType.INTEGER,
                 constraints=FieldConstraints(minimum=18),
             ),
-        ])
+        })
 
         result = dag.validate(specs={"adults": spec})
 
@@ -97,14 +96,13 @@ class TestDerivedRelationValidation:
         )
         dag.add("adults", dag.ref("raw").filter(ma.col("age").ge(18)))
 
-        spec = TypeSpec(fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(
-                name="age",
+        spec = TypeSpec(fields={
+            "id": FieldSpec(type=UniversalType.INTEGER),
+            "age": FieldSpec(
                 type=UniversalType.INTEGER,
                 constraints=FieldConstraints(minimum=18),
             ),
-        ])
+        })
 
         result = dag.validate_quick(specs={"adults": spec})
 
@@ -116,9 +114,9 @@ class TestDerivedRelationValidation:
         dag.add("parents", ma.relation(pl.DataFrame({"id": [1]})))
         dag.add("children", dag.ref("parents").select(ma.col("id").alias("parent_id")))
 
-        child_spec = TypeSpec(fields=[
-            FieldSpec(name="parent_id", type=UniversalType.INTEGER),
-        ])
+        child_spec = TypeSpec(fields={
+            "parent_id": FieldSpec(type=UniversalType.INTEGER),
+        })
 
         result = dag.validate(specs={"children": child_spec})
 
@@ -132,15 +130,10 @@ class TestDerivedRelationValidation:
         dag.add("children", ma.relation(pl.DataFrame({"parent_id": [99]})))
         dag.constraint_edges.add(("parents", "children"))
 
-        parent_spec = TypeSpec(fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-        ])
-        child_spec = TypeSpec(fields=[
-            FieldSpec(name="parent_id", type=UniversalType.INTEGER),
-        ])
+        parent_spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
+        child_spec = TypeSpec(fields={"parent_id": FieldSpec(type=UniversalType.INTEGER)})
 
         result = dag.validate(specs={"parents": parent_spec, "children": child_spec})
-
         assert result.passes is True
         assert result.fk_result.passes is True
         assert result.fk_result.check_summaries.height == 0
@@ -161,15 +154,15 @@ class TestFKValidation:
         return dag
 
     def _make_specs(self):
-        customer_spec = TypeSpec(fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="name", type=UniversalType.STRING),
-        ])
+        customer_spec = TypeSpec(fields={
+            "id": FieldSpec(type=UniversalType.INTEGER),
+            "name": FieldSpec(type=UniversalType.STRING),
+        })
         order_spec = TypeSpec(
-            fields=[
-                FieldSpec(name="order_id", type=UniversalType.INTEGER),
-                FieldSpec(name="customer_id", type=UniversalType.INTEGER),
-            ],
+            fields={
+                "order_id": FieldSpec(type=UniversalType.INTEGER),
+                "customer_id": FieldSpec(type=UniversalType.INTEGER),
+            },
             foreign_keys=[
                 ForeignKey(
                     fields=["customer_id"],
@@ -197,23 +190,16 @@ class TestFKValidation:
             }
         )
         dag.constraint_edges.add(("customers", "orders"))
-        customer_spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="id",
-                    type=UniversalType.INTEGER,
-                    rename_from="customer_key",
-                )
-            ]
-        )
+        customer_spec = TypeSpec(fields={
+            "id": FieldSpec(type=UniversalType.INTEGER, rename_from="customer_key"),
+        })
         order_spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="customer_id",
+            fields={
+                "customer_id": FieldSpec(
                     type=UniversalType.INTEGER,
                     rename_from="order_customer_key",
-                )
-            ],
+                ),
+            },
             foreign_keys=[
                 ForeignKey(
                     fields=["customer_id"],
@@ -255,11 +241,9 @@ class TestFKValidation:
         dag = _build_dag({"parents": parents, "children": children})
         dag.constraint_edges.add(("parents", "children"))
 
-        parent_spec = TypeSpec(fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-        ])
+        parent_spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
         child_spec = TypeSpec(
-            fields=[FieldSpec(name="parent_id", type=UniversalType.INTEGER)],
+            fields={"parent_id": FieldSpec(type=UniversalType.INTEGER)},
             foreign_keys=[
                 ForeignKey(
                     fields=["parent_id"],
@@ -287,7 +271,7 @@ class TestFKValidation:
         dag.constraint_edges.add(("parents", "children"))
 
         child_spec = TypeSpec(
-            fields=[FieldSpec(name="parent_id", type=UniversalType.INTEGER)],
+            fields={"parent_id": FieldSpec(type=UniversalType.INTEGER)},
             foreign_keys=[
                 ForeignKey(
                     fields=["parent_id"],
@@ -310,10 +294,10 @@ class TestFastMode:
             "good": pl.DataFrame({"x": [1]}),
             "bad": pl.DataFrame({"y": [-1]}),
         })
-        good_spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.INTEGER)])
-        bad_spec = TypeSpec(fields=[
-            FieldSpec(name="y", type=UniversalType.INTEGER, constraints=FieldConstraints(minimum=0)),
-        ])
+        good_spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.INTEGER)})
+        bad_spec = TypeSpec(fields={
+            "y": FieldSpec(type=UniversalType.INTEGER, constraints=FieldConstraints(minimum=0)),
+        })
         result = dag.validate_quick(specs={"good": good_spec, "bad": bad_spec})
         assert result.passes is False
         assert result.fk_result.passes is True
@@ -325,9 +309,9 @@ class TestFastMode:
         dag = _build_dag({"p": parents, "c": children})
         dag.constraint_edges.add(("p", "c"))
 
-        p_spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+        p_spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
         c_spec = TypeSpec(
-            fields=[FieldSpec(name="pid", type=UniversalType.INTEGER)],
+            fields={"pid": FieldSpec(type=UniversalType.INTEGER)},
             foreign_keys=[
                 ForeignKey(fields=["pid"], reference=ForeignKeyReference(resource="p", fields=["id"])),
             ],
@@ -349,21 +333,23 @@ class TestIdentityIsolation:
         dag = self._dup_pk_dag()
         if spec_kind == "typespec":
             spec = TypeSpec(
-                fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
-                        FieldSpec(name="age", type=UniversalType.INTEGER)],
+                fields={
+                    "id": FieldSpec(type=UniversalType.INTEGER),
+                    "age": FieldSpec(type=UniversalType.INTEGER),
+                },
                 primary_key=["id"],
             )
         elif spec_kind == "primary_key_contract":
             class C(BaseDataContract):
-                id: int
-                age: int
+                id = FieldSpec(type=UniversalType.INTEGER)
+                age = FieldSpec(type=UniversalType.INTEGER)
                 class Config:
                     primary_key = ["id"]
             spec = C
         else:
             class C(BaseDataContract):
-                id: int
-                age: int
+                id = FieldSpec(type=UniversalType.INTEGER)
+                age = FieldSpec(type=UniversalType.INTEGER)
                 class Config:
                     natural_key = ["id"]
             spec = C
@@ -381,11 +367,13 @@ class TestIdentityIsolation:
         dag = self._dup_pk_dag()
         dag.add("other", ma.relation(pl.DataFrame({"name": ["ok"]})))
         spec_users = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
-                    FieldSpec(name="age", type=UniversalType.INTEGER)],
+            fields={
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                "age": FieldSpec(type=UniversalType.INTEGER),
+            },
             primary_key=["id"],
         )
-        spec_other = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+        spec_other = TypeSpec(fields={"name": FieldSpec(type=UniversalType.STRING)})
 
         result = dag.validate(specs={"users": spec_users, "other": spec_other})  # no allow_imperfect_key
 
@@ -400,11 +388,13 @@ class TestIdentityIsolation:
         dag = self._dup_pk_dag()
         dag.add("other", ma.relation(pl.DataFrame({"name": ["ok"]})))
         spec_users = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
-                    FieldSpec(name="age", type=UniversalType.INTEGER)],
+            fields={
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                "age": FieldSpec(type=UniversalType.INTEGER),
+            },
             primary_key=["id"],
         )
-        spec_other = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+        spec_other = TypeSpec(fields={"name": FieldSpec(type=UniversalType.STRING)})
         specs = {order[0]: (spec_users if order[0] == "users" else spec_other),
                  order[1]: (spec_users if order[1] == "users" else spec_other)}
 
@@ -420,8 +410,10 @@ class TestIdentityIsolation:
     def test_single_resource_dict_does_not_raise(self):
         dag = self._dup_pk_dag()
         spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER),
-                    FieldSpec(name="age", type=UniversalType.INTEGER)],
+            fields={
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                "age": FieldSpec(type=UniversalType.INTEGER),
+            },
             primary_key=["id"],
         )
         result = dag.validate(specs={"users": spec})  # must not raise
@@ -431,7 +423,7 @@ class TestIdentityIsolation:
         """A key naming no TypeSpec field is a declaration error, not bad data."""
         dag = _build_dag({"users": pl.DataFrame({"age": [30, 40]})})
         spec = TypeSpec(
-            fields=[FieldSpec(name="age", type=UniversalType.INTEGER)],
+            fields={"age": FieldSpec(type=UniversalType.INTEGER)},
             primary_key=["id"],
         )
         with pytest.raises(InvalidTypeSpecSemantics) as caught:
@@ -460,10 +452,10 @@ class TestSharedMaterializationSession:
         dag.add("orders", dag.ref("raw_orders").select("order_id", "customer_id"))
         dag.add("customers", ma.relation(pl.DataFrame({"id": [10]})))
         orders_spec = TypeSpec(
-            fields=[
-                FieldSpec(name="order_id", type=UniversalType.INTEGER),
-                FieldSpec(name="customer_id", type=UniversalType.INTEGER),
-            ],
+            fields={
+                "order_id": FieldSpec(type=UniversalType.INTEGER),
+                "customer_id": FieldSpec(type=UniversalType.INTEGER),
+            },
             foreign_keys=[
                 ForeignKey(
                     fields=["customer_id"],
@@ -471,9 +463,7 @@ class TestSharedMaterializationSession:
                 )
             ],
         )
-        customers_spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]
-        )
+        customers_spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER)})
         compile_calls: Counter = Counter()
         original_compile = DAGMaterializationSession._compile_named
         original_resolve = DAGMaterializationSession.resolve
@@ -514,15 +504,12 @@ class TestSharedMaterializationSession:
         # unchanged here -- ValidationRunner.validate_relation()'s own
         # error-isolation branch has the identical "zero checks -> zero
         # error summaries -> vacuous pass" shape).
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="age",
-                    type=UniversalType.INTEGER,
-                    constraints=FieldConstraints(minimum=0),
-                )
-            ]
-        )
+        spec = TypeSpec(fields={
+            "age": FieldSpec(
+                type=UniversalType.INTEGER,
+                constraints=FieldConstraints(minimum=0),
+            ),
+        })
         dag = RelationDAG()
         dag.add("bad", dag.ref("does_not_exist").select("age"))
         dag.add("good", ma.relation(pl.DataFrame({"age": [10]})))
@@ -546,15 +533,12 @@ class TestSharedMaterializationSession:
         dag = RelationDAG()
         dag.add("bad", ma.relation(pl.DataFrame({"age": [-1]})))
         dag.add("good", ma.relation(pl.DataFrame({"age": [10]})))
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="age",
-                    type=UniversalType.INTEGER,
-                    constraints=FieldConstraints(minimum=0),
-                )
-            ]
-        )
+        spec = TypeSpec(fields={
+            "age": FieldSpec(
+                type=UniversalType.INTEGER,
+                constraints=FieldConstraints(minimum=0),
+            ),
+        })
 
         result = dag.validate_quick({"bad": spec, "good": spec})
 

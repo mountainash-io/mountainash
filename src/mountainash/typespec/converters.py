@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Mapping
 import warnings
 
 from mountainash.core.dtypes import (
@@ -53,43 +53,111 @@ _GEOPOINT_FORMAT_CANONICAL: dict[str, MountainashDtype] = {
 _GEOJSON_FORMATS: frozenset[str] = frozenset({"default", "topojson"})
 
 
-def resolve_field_canonical(field: "FieldSpec") -> Any:
-    """Resolve a FieldSpec's canonical dtype, with field-context (format)
-    handling for the geospatial types that to_canonical() cannot resolve
-    on its own.
-
-    GEOPOINT's canonical shape depends on field.format: "default" is a
-    lexical string, "array" is a two-element list, "object" is a struct.
-    GEOJSON always maps to canonical JSON (itself a native string on every
-    dtype target) regardless of format ("default" or "topojson" — both are
-    JSON objects per the Frictionless spec).
-
-    Every other UniversalType delegates to to_canonical(field.type)
-    unchanged.
-    """
-    broad = _resolve_broad_field_canonical(field)
+def resolve_field_canonical(
+    field: "FieldSpec", *, field_name: str | None = None,
+) -> Any:
+    """Resolve declared canonical type with optional local diagnostic context."""
+    broad = _resolve_broad_field_canonical(field, field_name=field_name)
     return field.dtype if field.dtype is not None else broad
 
 
-def _resolve_broad_field_canonical(field: "FieldSpec") -> Any:
+def declared_fields(field: "FieldSpec") -> Mapping[str, "FieldSpec"]:
+    """Return authored ordered object members, or project type-only members."""
+    from .spec import FieldSpec
+
+    if field.fields is not None:
+        return field.fields
+    dtype = resolve_field_canonical(field)
+    if isinstance(dtype, StructDtype) and isinstance(dtype.fields, tuple):
+        return {
+            name: (
+                FieldSpec(backend_type=child)
+                if isinstance(child, NativeDtype)
+                else FieldSpec(dtype=child)
+            )
+            for name, child in dtype.fields
+        }
+    return {}
+
+
+def declared_element(field: "FieldSpec") -> "FieldSpec | None":
+    """Return authored collection element, or a type-only projected element."""
+    from .spec import FieldSpec
+
+    if field.element is not None:
+        return field.element
+    dtype = resolve_field_canonical(field)
+    if isinstance(dtype, (ListDtype, ArrayDtype)):
+        child = dtype.element
+        return (
+            FieldSpec(backend_type=child)
+            if isinstance(child, NativeDtype)
+            else FieldSpec(dtype=child)
+        )
+    return None
+
+
+def _collection_item(field: "FieldSpec", dtype: Any = None) -> "FieldSpec | None":
+    """Project one runtime axis; fixed-array element metadata describes leaves."""
+    from .spec import FieldSpec
+
+    element = declared_element(field)
+    dtype = resolve_field_canonical(field) if dtype is None else dtype
+    if (
+        element is not None and isinstance(dtype, ArrayDtype)
+        and isinstance(dtype.dimensions, tuple) and len(dtype.dimensions) > 1
+    ):
+        return FieldSpec(element=element, dimensions=dtype.dimensions[1:])
+    return element
+
+
+def _with_effective_dtype(field: "FieldSpec", dtype: Any) -> "FieldSpec":
+    """Attach resolved execution types without losing reusable child metadata."""
+    from mountainash.core.dtypes import dtype_family
+    from .spec import FieldSpec
+
+    if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
+        return field
+    if isinstance(dtype, NativeDtype):
+        return field.variant(backend_type=dtype)
+    properties = field._constructor_properties()
+    declared = resolve_field_canonical(field)
+    if declared is None or declared is SchemaTypeStatus.UNKNOWN or dtype_family(declared) != dtype_family(dtype):
+        properties["type"] = UniversalType.ANY
+    properties["backend_type"] = getattr(dtype, "native", None)
+    properties.pop("dtype", None)
+    if isinstance(dtype, StructDtype) and isinstance(dtype.fields, tuple):
+        children = declared_fields(field)
+        properties["fields"] = {
+            name: _with_effective_dtype(children.get(name, FieldSpec()), child)
+            for name, child in dtype.fields
+        }
+    elif isinstance(dtype, (ListDtype, ArrayDtype)):
+        properties["element"] = _with_effective_dtype(
+            declared_element(field) or FieldSpec(), dtype.element,
+        )
+        properties["dimensions"] = dtype.dimensions if isinstance(dtype, ArrayDtype) else None
+    else:
+        properties["dtype"] = dtype
+    return FieldSpec(**properties)
+
+
+def _resolve_broad_field_canonical(
+    field: "FieldSpec", *, field_name: str | None = None,
+) -> Any:
     """Resolve authored broad semantics independently of precise refinements."""
+    context = field_name if field_name is not None else "<unnamed>"
     fmt = field.format
     if field.type is UniversalType.GEOPOINT:
         if not isinstance(fmt, str) or fmt not in _GEOPOINT_FORMAT_CANONICAL:
             raise InvalidGeospatialFormatError(
-                field.name,
-                UniversalType.GEOPOINT,
-                fmt,
-                sorted(_GEOPOINT_FORMAT_CANONICAL),
+                context, UniversalType.GEOPOINT, fmt, sorted(_GEOPOINT_FORMAT_CANONICAL)
             )
         return _GEOPOINT_FORMAT_CANONICAL[fmt]
     if field.type is UniversalType.GEOJSON:
         if not isinstance(fmt, str) or fmt not in _GEOJSON_FORMATS:
             raise InvalidGeospatialFormatError(
-                field.name,
-                UniversalType.GEOJSON,
-                fmt,
-                sorted(_GEOJSON_FORMATS),
+                context, UniversalType.GEOJSON, fmt, sorted(_GEOJSON_FORMATS)
             )
         return MountainashDtype.JSON
     if field.type is UniversalType.STRING and field.format == "binary":
@@ -127,43 +195,49 @@ def _field_dtype_native(field: "FieldSpec") -> NativeDtype | None:
 
 def _resolve_field_target(
     field: "FieldSpec", target: TypeTarget, *, emit_warning: bool = True,
-    source: Any = SchemaTypeStatus.UNKNOWN,
+    source: Any = SchemaTypeStatus.UNKNOWN, field_name: str | None = None,
 ) -> Any:
     """Resolve one declaration, honoring whole-field native refinements."""
-    declared = resolve_field_canonical(field)
+    context = field_name if field_name is not None else "<unnamed>"
+    declared = resolve_field_canonical(field, field_name=field_name)
     if declared is SchemaTypeStatus.UNKNOWN:
-        declared = _resolve_broad_field_canonical(field)
+        declared = _resolve_broad_field_canonical(field, field_name=field_name)
     dtype_native = _field_dtype_native(field)
     if dtype_native is not None and not field.backend_type:
         if dtype_native.target is not target:
             raise DtypeMappingError(
-                f"field {field.name!r}: native override belongs to {dtype_native.target}, not {target}"
+                f"field {context!r}: native override belongs to {dtype_native.target}, not {target}"
             )
         return dtype_native
     override = field.backend_type
     if override is None or (isinstance(override, str) and not override):
-        children = effective_child_fields(field)
-        if isinstance(declared, StructDtype) and children:
-            declared = replace(declared, fields=tuple(
-                (child.name, _resolve_field_target(child, target, emit_warning=emit_warning) or SchemaTypeStatus.UNKNOWN)
-                for child in children
-            ))
-        elif isinstance(declared, (ListDtype, ArrayDtype)) and children:
-            declared = replace(declared, element=StructDtype(fields=tuple(
-                (child.name, _resolve_field_target(child, target, emit_warning=emit_warning) or SchemaTypeStatus.UNKNOWN)
-                for child in children
-            )))
+        if isinstance(declared, StructDtype):
+            children = declared_fields(field)
+            if children:
+                declared = replace(declared, fields=tuple(
+                    (name, _resolve_field_target(
+                        child, target, emit_warning=emit_warning, field_name=name,
+                    ) or SchemaTypeStatus.UNKNOWN)
+                    for name, child in children.items()
+                ))
+        elif isinstance(declared, (ListDtype, ArrayDtype)):
+            element = declared_element(field)
+            if element is not None:
+                child = _resolve_field_target(
+                    element, target, emit_warning=emit_warning, field_name=f"{context}[]",
+                ) or SchemaTypeStatus.UNKNOWN
+                declared = replace(declared, element=child)
         return resolve_dtype_parameters(declared, source)
     if isinstance(override, NativeDtype):
         if override.target is not target:
             raise DtypeMappingError(
-                f"field {field.name!r}: native override belongs to {override.target}, not {target}"
+                f"field {context!r}: native override belongs to {override.target}, not {target}"
             )
         effective = override
     else:
         native = registry.parse_type_string(override, target)
         if native is None:
-            raise InvalidBackendTypeError(field.name, override, target)
+            raise InvalidBackendTypeError(context, override, target)
         effective = NativeDtype(value=native, target=target)
     if field.dtype is not None and emit_warning:
         unverified = declared in (
@@ -183,92 +257,20 @@ def _resolve_field_target(
         if not equivalent:
             reason = "equivalence unverified" if unverified else "dtype mismatch"
             warnings.warn(
-                f"field {field.name!r} on {target.value}: {reason} between "
+                f"field {context!r} on {target.value}: {reason} between "
                 f"canonical {declared!r} and native override {effective.value!r}; native override wins",
                 UserWarning, stacklevel=3,
             )
     return effective
 
 
-def _portable_child_fields(field: "FieldSpec") -> tuple[tuple[str, Any], ...] | None:
-    dtype = field.dtype
-    if isinstance(dtype, StructDtype):
-        if dtype.native is not None:
-            return None
-        return dtype.fields if isinstance(dtype.fields, tuple) else None
-    element = dtype.element if isinstance(dtype, (ListDtype, ArrayDtype)) else None
-    if isinstance(element, StructDtype):
-        if element.native is not None:
-            return None
-        return element.fields if isinstance(element.fields, tuple) else None
-    return None
-
-
-def effective_child_fields(field: "FieldSpec") -> tuple["FieldSpec", ...]:
-    """Return fresh child views in the effective portable parent order.
-
-    Matching legacy fields contribute metadata and compatible UNKNOWN details
-    by name. Complete parent shapes exclude unmatched legacy children.
-    """
-    if field.backend_type or _field_dtype_native(field) is not None:
-        return ()
-    selected = _portable_child_fields(field)
-    legacy_fields = field.object_fields if field.type is UniversalType.OBJECT else field.item_object_fields
-    legacy_fields = legacy_fields or ()
-    if selected is None:
-        element = field.dtype.element if isinstance(field.dtype, (ListDtype, ArrayDtype)) else None
-        if (
-            not isinstance(field.dtype, (StructDtype, ListDtype, ArrayDtype))
-            or isinstance(field.dtype, StructDtype) and field.dtype.fields is SchemaTypeStatus.UNKNOWN
-            or element is SchemaTypeStatus.UNKNOWN
-            or isinstance(element, StructDtype) and element.fields is SchemaTypeStatus.UNKNOWN
-        ):
-            return tuple(replace(child) for child in legacy_fields)
-        return ()
-    legacy_by_name = {child.name: child for child in legacy_fields}
-    from .spec import FieldSpec
-
-    result: list[FieldSpec] = []
-    for name, parent_dtype in selected:
-        legacy = legacy_by_name.get(name)
-        child_dtype = parent_dtype
-        if isinstance(child_dtype, NativeDtype):
-            result.append(
-                FieldSpec(name=name, backend_type=child_dtype)
-                if legacy is None else replace(legacy, name=name, dtype=None, backend_type=child_dtype)
-            )
-            continue
-        if legacy is not None:
-            legacy_dtype = resolve_field_canonical(legacy)
-            if child_dtype is SchemaTypeStatus.UNKNOWN:
-                child_dtype = (
-                    legacy_dtype
-                    if legacy_dtype is not None and not isinstance(legacy_dtype, SchemaTypeStatus)
-                    else SchemaTypeStatus.UNKNOWN
-                )
-            elif isinstance(child_dtype, (TimestampDtype, TimeDtype, DurationDtype,
-                                          ListDtype, ArrayDtype, StructDtype)):
-                child_dtype = resolve_dtype_parameters(child_dtype, legacy_dtype)
-        if legacy is None:
-            result.append(FieldSpec(name=name, dtype=child_dtype))
-        elif child_dtype is SchemaTypeStatus.UNKNOWN:
-            result.append(replace(legacy, name=name, dtype=child_dtype))
-        else:
-            broad, _ = from_canonical(child_dtype)
-            result.append(replace(
-                legacy, name=name, type=broad, dtype=child_dtype,
-                object_fields=legacy.object_fields if broad is UniversalType.OBJECT else None,
-                item_object_fields=legacy.item_object_fields if broad is UniversalType.ARRAY else None,
-                item_type=legacy.item_type if broad is UniversalType.LIST else None,
-                delimiter=legacy.delimiter if broad is UniversalType.LIST else None,
-            ))
-    return tuple(result)
 
 
 
-def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
-    """Lower the effective target and enrich canonical container declarations."""
-    canon = _resolve_field_target(field, target)
+def _resolve_field_native(
+    field: "FieldSpec", target: TypeTarget, *, field_name: str | None = None,
+) -> Any:
+    canon = _resolve_field_target(field, target, field_name=field_name)
     if isinstance(canon, NativeDtype):
         return canon.value
     if field.dtype is None and field.categories is not None and target in (TypeTarget.POLARS, TypeTarget.PANDAS):
@@ -282,65 +284,69 @@ def _resolve_field_native(field: "FieldSpec", target: TypeTarget) -> Any:
         return pd.CategoricalDtype(categories=values, ordered=bool(field.categories_ordered))
     if canon is None:
         canon = MountainashDtype.STRING
+    if isinstance(canon, StructDtype):
+        children = declared_fields(field)
+        if field.fields is not None or isinstance(canon.fields, tuple):
+            return _resolve_struct_inner(
+                children, target, registry.to_native_schema(MountainashDtype.STRUCT, target),
+            )
+    if isinstance(canon, ListDtype):
+        element = declared_element(field)
+        if element is not None:
+            element_dtype = resolve_field_canonical(element, field_name=f"{field_name or '<unnamed>'}[]")
+            if isinstance(element_dtype, StructDtype) and (
+                element.fields is not None or isinstance(element_dtype.fields, tuple)
+            ):
+                struct_native = _resolve_struct_inner(
+                    declared_fields(element), target,
+                    registry.to_native_schema(MountainashDtype.STRUCT, target),
+                )
+                if target is TypeTarget.POLARS:
+                    from mountainash.core.lazy_imports import import_polars
+                    return import_polars().List(struct_native)
+                if target is TypeTarget.NARWHALS:
+                    from mountainash.core.lazy_imports import import_narwhals
+                    return import_narwhals().List(struct_native)
+                if target is TypeTarget.PYARROW:
+                    from mountainash.core.lazy_imports import import_pyarrow
+                    return import_pyarrow().list_(struct_native)
+                if target is TypeTarget.IBIS:
+                    return f"array<{struct_native}>"
     native = registry.to_native_schema(canon, target)
-    if canon is MountainashDtype.LIST and field.item_object_fields is not None:
-        native = _resolve_list_object_inner(field.name, field.item_object_fields, target, native)
-    elif canon is MountainashDtype.LIST and field.item_type:
-        native = _resolve_list_inner(field.name, field.item_type, target, native)
-    elif canon is MountainashDtype.STRUCT and field.object_fields:
-        native = _resolve_struct_inner(field.name, field.object_fields, target, native)
+    if canon is MountainashDtype.LIST and field.item_type:
+        return _resolve_list_inner(field_name or "<unnamed>", field.item_type, target, native)
     return native
 
 
 def _resolve_struct_inner(
-    field_name: str, object_fields: list["FieldSpec"], target: TypeTarget, bare_native: Any,
+    fields: Mapping[str, "FieldSpec"], target: TypeTarget, bare_native: Any,
 ) -> Any:
-    """Build a fully parameterized native struct dtype from nested FieldSpecs."""
     if target is TypeTarget.PANDAS:
         return bare_native
-    inner_pairs = [(f.name, _resolve_field_native(f, target)) for f in object_fields]
+    inner_pairs = [
+        (name, SchemaTypeStatus.UNKNOWN if resolve_field_canonical(child) is SchemaTypeStatus.UNKNOWN
+         and child.backend_type is None else _resolve_field_native(child, target, field_name=name))
+        for name, child in fields.items()
+    ]
     if target is TypeTarget.POLARS:
         from mountainash.core.lazy_imports import import_polars
         pl = import_polars()
-        return pl.Struct({name: native for name, native in inner_pairs})
+        return pl.Struct({name: pl.Null if dtype is SchemaTypeStatus.UNKNOWN else dtype
+                          for name, dtype in inner_pairs})
     if target is TypeTarget.NARWHALS:
         from mountainash.core.lazy_imports import import_narwhals
         nw = import_narwhals()
-        return nw.Struct({name: native for name, native in inner_pairs})
+        return nw.Struct({name: nw.Unknown if dtype is SchemaTypeStatus.UNKNOWN else dtype
+                          for name, dtype in inner_pairs})
     if target is TypeTarget.PYARROW:
         from mountainash.core.lazy_imports import import_pyarrow
         pa = import_pyarrow()
-        return pa.struct([pa.field(name, native) for name, native in inner_pairs])
+        return pa.struct([pa.field(name, pa.null() if dtype is SchemaTypeStatus.UNKNOWN else dtype)
+                          for name, dtype in inner_pairs])
     if target is TypeTarget.IBIS:
-        inner_str = ", ".join(f"{name}: {native}" for name, native in inner_pairs)
-        return f"struct<{inner_str}>"
-    return bare_native
-def _resolve_list_object_inner(
-    field_name: str,
-    item_object_fields: list["FieldSpec"],
-    target: TypeTarget,
-    bare_native: Any,
-) -> Any:
-    """Parameterize a native list with its schema-proven struct item shape."""
-    if target is TypeTarget.PANDAS:
-        return bare_native
-    struct_native = _resolve_struct_inner(
-        field_name,
-        item_object_fields,
-        target,
-        registry.to_native_schema(MountainashDtype.STRUCT, target),
-    )
-    if target is TypeTarget.POLARS:
-        from mountainash.core.lazy_imports import import_polars
-        return import_polars().List(struct_native)
-    if target is TypeTarget.NARWHALS:
-        from mountainash.core.lazy_imports import import_narwhals
-        return import_narwhals().List(struct_native)
-    if target is TypeTarget.PYARROW:
-        from mountainash.core.lazy_imports import import_pyarrow
-        return import_pyarrow().list_(struct_native)
-    if target is TypeTarget.IBIS:
-        return f"array<{struct_native}>"
+        return "struct<" + ", ".join(
+            f"{name}: {'null' if dtype is SchemaTypeStatus.UNKNOWN else dtype}" for name, dtype in inner_pairs
+        ) + ">"
     return bare_native
 
 
@@ -410,15 +416,12 @@ def to_polars_schema(schema: TypeSpec) -> Dict[str, Any]:
         {'id': Int64, 'name': Utf8}
     """
     from mountainash.core.lazy_imports import import_polars
-    pl = import_polars()
-    if pl is None:
+    if import_polars() is None:
         raise ImportError("polars is required for to_polars_schema()")
     result = {}
-    for f in schema.fields:
-        result[f.name] = _resolve_field_native(f, TypeTarget.POLARS)
+    for name, field in schema.fields.items():
+        result[name] = _resolve_field_native(field, TypeTarget.POLARS, field_name=name)
     return result
-
-
 # ============================================================================
 # Pandas Converters
 # ============================================================================
@@ -445,10 +448,9 @@ def to_pandas_dtypes(schema: TypeSpec) -> Dict[str, Any]:
         {'id': 'Int64', 'name': 'string'}
     """
     result: Dict[str, Any] = {}
-    for f in schema.fields:
-        result[f.name] = _resolve_field_native(f, TypeTarget.PANDAS)
+    for name, field in schema.fields.items():
+        result[name] = _resolve_field_native(field, TypeTarget.PANDAS, field_name=name)
     return result
-
 
 # ============================================================================
 # PyArrow Converters
@@ -478,10 +480,10 @@ def to_arrow_schema(schema: TypeSpec) -> 'pa.Schema':
     pa = import_pyarrow()
     if pa is None:
         raise ImportError("pyarrow is required for to_arrow_schema()")
-    return pa.schema(
-        [pa.field(f.name, _resolve_field_native(f, TypeTarget.PYARROW)) for f in schema.fields]
-    )
-
+    return pa.schema([
+        pa.field(name, _resolve_field_native(field, TypeTarget.PYARROW, field_name=name))
+        for name, field in schema.fields.items()
+    ])
 
 # ============================================================================
 # Ibis Converters
@@ -505,7 +507,10 @@ def to_ibis_schema(schema: TypeSpec) -> Dict[str, str]:
         >>> ibis_schema
         {'id': 'int64', 'name': 'string'}
     """
-    return {f.name: _resolve_field_native(f, TypeTarget.IBIS) for f in schema.fields}
+    return {
+        name: _resolve_field_native(field, TypeTarget.IBIS, field_name=name)
+        for name, field in schema.fields.items()
+    }
 
 
 # ============================================================================
@@ -559,4 +564,8 @@ __all__ = [
 
     # Field-aware resolution
     "resolve_field_canonical",
+    "declared_fields",
+    "declared_element",
+    "_resolve_field_native",
+    "_resolve_field_target",
 ]

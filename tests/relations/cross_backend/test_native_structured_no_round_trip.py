@@ -70,7 +70,7 @@ class TestSchemaBearingNativeContainersNeverParseJSON:
             reason="SQLite cannot construct the native Array source; this is not a conform execution",
         ):
             df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 
@@ -90,7 +90,7 @@ class TestSchemaBearingNativeContainersNeverParseJSON:
             reason="SQLite cannot construct the native Struct source; this is not a conform execution",
         ):
             df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.OBJECT)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 
@@ -110,7 +110,7 @@ class TestOpaquePandasContainersStayOnLogicalConversion:
         json_calls = _patch_json_loads(monkeypatch)
 
         df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 
@@ -121,7 +121,7 @@ class TestOpaquePandasContainersStayOnLogicalConversion:
         json_calls = _patch_json_loads(monkeypatch)
 
         df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.OBJECT)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
 

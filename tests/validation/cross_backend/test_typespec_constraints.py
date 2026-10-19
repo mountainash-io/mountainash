@@ -1,5 +1,7 @@
 """Compiled Frictionless constraints execute against logical values on every backend."""
 
+from datetime import date
+from decimal import Decimal
 import pytest
 
 import mountainash as ma
@@ -43,9 +45,9 @@ def test_empty_type_format_passes(backend_name, type_name, backend_factory):
         "any": "x",
     }
     source = backend_factory.create({"value": [seeds[type_name.value]]}, backend_name)
-    plan = compile_datacontract(TypeSpec(fields=[
-        FieldSpec(name="value", type=type_name),
-    ]))
+    plan = compile_datacontract(TypeSpec(fields={
+        "value": FieldSpec(type=type_name),
+    }))
     result = ValidationRunner().validate_relation(
         ma.relation(source).head(0), plan=plan, conform_contract={"data_type": "coerce"},
     )
@@ -88,25 +90,17 @@ def test_empty_type_format_passes(backend_name, type_name, backend_factory):
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_compiled_scalar_constraints_use_logical_values(backend_name, backend_factory):
     """Range, XML Schema pattern, enum, and categories agree cross-backend."""
-    plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="amount",
-                    type=UniversalType.INTEGER,
-                    constraints=FieldConstraints(minimum=1, exclusive_maximum=3),
-                ),
-                FieldSpec(
-                    name="code",
-                    type=UniversalType.STRING,
-                    categories=["AB12"],
-                    constraints=FieldConstraints(
-                        pattern="[A-Z]{2}[0-9]{2}", enum=["AB12"]
-                    ),
-                ),
-            ]
-        )
-    )
+    plan = compile_datacontract(TypeSpec(fields={
+        "amount": FieldSpec(
+            type=UniversalType.INTEGER,
+            constraints=FieldConstraints(minimum=1, exclusive_maximum=3),
+        ),
+        "code": FieldSpec(
+            type=UniversalType.STRING,
+            categories=["AB12"],
+            constraints=FieldConstraints(pattern="[A-Z]{2}[0-9]{2}", enum=["AB12"]),
+        ),
+    }))
 
     result = ValidationRunner().validate_relation(
         ma.relation(
@@ -129,17 +123,12 @@ def test_compiled_required_and_unique_constraints_share_null_semantics(
     backend_name, backend_factory
 ):
     """Null fails required but does not enter a field-uniqueness comparison."""
-    plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="id",
-                    type=UniversalType.STRING,
-                    constraints=FieldConstraints(required=True, unique=True),
-                )
-            ]
-        )
-    )
+    plan = compile_datacontract(TypeSpec(fields={
+        "id": FieldSpec(
+            type=UniversalType.STRING,
+            constraints=FieldConstraints(required=True, unique=True),
+        ),
+    }))
 
     result = ValidationRunner().validate_relation(
         ma.relation(backend_factory.create({"id": ["1", "1", None]}, backend_name)),
@@ -156,17 +145,12 @@ def test_compiled_date_ranges_compare_conformed_logical_values(
     backend_name, backend_factory
 ):
     """ISO date text becomes logical dates before the range validator runs."""
-    plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="day",
-                    type=UniversalType.DATE,
-                    constraints=FieldConstraints(minimum="2024-01-01"),
-                )
-            ]
-        )
-    )
+    plan = compile_datacontract(TypeSpec(fields={
+        "day": FieldSpec(
+            type=UniversalType.DATE,
+            constraints=FieldConstraints(minimum="2024-01-01"),
+        ),
+    }))
 
     result = ValidationRunner().validate_relation(
         ma.relation(
@@ -178,3 +162,28 @@ def test_compiled_date_ranges_compare_conformed_logical_values(
     )
 
     assert _status(result, "day_range") == "failed", backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_native_date_and_decimal_bounds_keep_per_value_verdicts(
+    backend_name, backend_factory
+):
+    """Native bound values survive logical conversion with exact pass/fail counts."""
+    plan = compile_datacontract(TypeSpec(fields={
+        "day": FieldSpec(type=UniversalType.DATE, minimum=date(2024, 1, 1)),
+        "amount": FieldSpec(type=UniversalType.NUMBER, minimum=Decimal("0.10")),
+    }))
+    data = backend_factory.create({
+        "day": ["2023-12-31", "2024-01-01", "2024-01-02"],
+        "amount": ["0.09", "0.10", "0.11"],
+    }, backend_name)
+    result = ValidationRunner().validate_relation(ma.relation(data), plan=plan)
+    for check_id in ("day_range", "amount_range"):
+        row = result.check_summaries.filter(
+            result.check_summaries["check_id"] == check_id
+        ).row(0, named=True)
+        assert (row["total_rows"], row["pass_count"], row["fail_count"],
+                row["unknown_count"], row["status"]) == (3, 2, 1, 0, "failed"), (
+                    backend_name, check_id, row
+                )

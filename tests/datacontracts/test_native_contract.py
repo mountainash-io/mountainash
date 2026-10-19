@@ -1,20 +1,18 @@
-"""Native BaseDataContract: declaration collection, TypeSpec round trip, validate."""
+"""Native BaseDataContract: FieldSpec members, TypeSpec conversion and validation."""
 import polars as pl
 import pytest
 
 from mountainash.datacontracts.compiler import contract_from_typespec
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
-from mountainash.typespec.spec import FieldSpec, TypeSpec
-from mountainash.typespec.universal_types import UniversalType
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
 from mountainash.validation.errors import IdentityInvalidError
 
 
 class UserContract(BaseDataContract):
-    id: int = Field(nullable=False, unique=True)
-    email: str = Field(nullable=False, str_matches=r".+@.+")
-    age: int = Field(ge=0)
-    note: str  # type-only column
+    id = FieldSpec(type=UniversalType.INTEGER, required=True, unique=True)
+    email = FieldSpec(type=UniversalType.STRING, required=True, pattern=r".+@.+")
+    age = FieldSpec(type=UniversalType.INTEGER, minimum=0)
+    note = FieldSpec(type=UniversalType.STRING)
 
     class Config:
         name = "users"
@@ -22,22 +20,20 @@ class UserContract(BaseDataContract):
 
 
 class TestDeclarationCollection:
-    def test_fields_and_annotations_collected(self):
-        assert set(UserContract._contract_fields) == {"id", "email", "age"}
-        assert set(UserContract._contract_annotations) == {"id", "email", "age", "note"}
+    def test_field_members_collected_in_order(self):
+        assert list(UserContract._contract_fields) == ["id", "email", "age", "note"]
 
-    def test_declaration_syntax_preserved(self):
-        assert isinstance(UserContract._contract_fields["age"], Field)
-        assert UserContract._contract_fields["age"].ge == 0
-
+    def test_declaration_shared_directly(self):
+        assert UserContract._contract_fields["age"] is UserContract.age
+        assert UserContract._contract_fields["age"].constraints.minimum == 0
 
 class TestToTypespec:
     def test_types_and_constraints(self):
         spec = UserContract.to_typespec()
-        by_name = {f.name: f for f in spec.fields}
-        assert by_name["id"].type == UniversalType.INTEGER
-        assert by_name["email"].constraints.pattern == r".+@.+"
-        assert by_name["note"].constraints is None
+        assert list(spec.fields) == ["id", "email", "age", "note"]
+        assert spec.fields["id"].type == UniversalType.INTEGER
+        assert spec.fields["email"].constraints.pattern == r".+@.+"
+        assert spec.fields["note"] is UserContract.note
 
     def test_natural_key_survives_as_primary_key(self):
         # Config.natural_key must survive the TypeSpec round-trip as
@@ -54,11 +50,11 @@ class TestToTypespec:
 
     def test_to_checks_includes_primary_key_unique(self):
         ids = [c.id for c in UserContract.to_checks()]
-        assert "primary_key_unique" in ids  # UserContract: Config.natural_key = ["id"]
+        assert "primary_key_unique" in ids
 
     def test_to_checks_includes_primary_key_unique_for_primary_key_config(self):
         class OrderContract(BaseDataContract):
-            order_id: int = Field(nullable=False)
+            order_id = FieldSpec(type=UniversalType.INTEGER, required=True)
 
             class Config:
                 name = "orders"
@@ -103,7 +99,7 @@ class TestValidate:
         assert {"email_pattern", "age_range"} <= failing
     def test_missing_coerce_config_preserves_default_coercion(self):
         class DefaultCoercionContract(BaseDataContract):
-            value: int
+            value = FieldSpec(type=UniversalType.INTEGER)
 
             class Config:
                 name = "default-coercion"
@@ -163,7 +159,7 @@ class TestValidate:
 
 
 class NoKeyContract(BaseDataContract):
-    id: int = Field(unique=True)
+    id = FieldSpec(type=UniversalType.INTEGER, unique=True)
 
     class Config:
         coerce = False
@@ -185,7 +181,7 @@ class TestSemanticStringNativeContract:
     )
     def test_semantic_string_fields_compile_to_str(self, universal) -> None:
         contract = contract_from_typespec(
-            TypeSpec(fields=[FieldSpec("value", universal)])
+            TypeSpec(fields={"value": FieldSpec(type=universal)})
         )
         assert contract.__annotations__["value"] is str
 

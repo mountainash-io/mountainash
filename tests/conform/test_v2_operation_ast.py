@@ -59,12 +59,12 @@ def test_temporal_nodes_keep_diagnostics_separate_from_real_options() -> None:
 
 def test_structural_nodes_keep_arguments_options_and_diagnostics_separate() -> None:
     expr = ma.col("source")
-    field = FieldSpec(name="id", type=UniversalType.INTEGER)
+    field = FieldSpec(type=UniversalType.INTEGER)
     nodes = (
         expr.str.parse_list(item_type="integer", delimiter="|", field_name="values", failure_behavior=CaseFailureBehaviour.THROW),
-        expr.list.cast_items(item_object_fields=(field,), field_name="items"),
+        expr.list.cast_items(element=field, field_name="items"),
         expr.cat.cast(value_type="integer", categories=(1, 2), ordered=True, field_name="status"),
-        expr.struct.cast(fields=(field,), field_name="payload"),
+        expr.struct.cast(fields={"id": field}, field_name="payload"),
     )
     for built in nodes:
         node = built._node
@@ -79,7 +79,6 @@ def test_structural_nodes_keep_arguments_options_and_diagnostics_separate() -> N
     [
         (lambda e: e.str.parse_list(field_name="x", item_type=[]), {}),
         (lambda e: e.str.parse_list(field_name="x", delimiter=""), {}),
-        (lambda e: e.list.cast_items(field_name="x", item_object_fields=()), {}),
         (lambda e: e.cat.cast(field_name="x", value_type="bad", categories=(), ordered=False), {}),
         (lambda e: e.struct.cast(field_name="x", fields=()), {}),
         (lambda e: e.cat.cast(field_name="x", value_type="integer", categories=(True,), ordered=False), {}),
@@ -95,10 +94,10 @@ def test_invalid_options_fail_before_node_creation(builder, kwargs) -> None:
     [
         lambda e: e.str.parse_list(field_name="", failure_behavior=CaseFailureBehaviour.THROW),
         lambda e: e.str.parse_list(field_name="x", failure_behavior="throw"),
-        lambda e: e.list.cast_items(item_object_fields=(object(),), field_name="x"),
+        lambda e: e.list.cast_items(element=object(), field_name="x"),
         lambda e: e.cat.cast(value_type="string", categories=(1,), ordered=False, field_name="x"),
         lambda e: e.cat.cast(value_type="string", categories=("x",), ordered=1, field_name="x"),
-        lambda e: e.struct.cast(fields=(object(),), field_name="x"),
+        lambda e: e.struct.cast(fields={"id": object()}, field_name="x"),
     ],
 )
 def test_every_new_builder_rejects_invalid_literal_options(builder) -> None:
@@ -106,19 +105,9 @@ def test_every_new_builder_rejects_invalid_literal_options(builder) -> None:
         builder(ma.col("source"))
 
 
-def test_recursive_fields_remain_raw_serializable_options() -> None:
-    nested = FieldSpec(
-        name="payload",
-        type=UniversalType.OBJECT,
-        object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
-    )
-    node = ma.col("source").struct.cast(fields=(nested,), field_name="payload")._node
-    dumped = node.model_dump(mode="json")
-    assert dumped["options"]["fields"][0]["object_fields"][0]["name"] == "id"
-    assert not any(type(value).__name__ == "NativeNode" for value in node.options.values())
 def test_structural_builders_reject_every_invalid_literal_shape() -> None:
     source = ma.col("source")
-    field = FieldSpec(name="id", type=UniversalType.INTEGER)
+    field = FieldSpec(type=UniversalType.INTEGER)
     invalid_builders = (
         lambda: source.str.parse_list(field_name=None),
         lambda: source.str.parse_list(field_name="x", item_type=None),
@@ -126,9 +115,8 @@ def test_structural_builders_reject_every_invalid_literal_shape() -> None:
         lambda: source.str.parse_list(field_name="x", delimiter=None),
         lambda: source.str.parse_list(field_name="x", delimiter=1),
         lambda: source.str.parse_list(field_name="x", failure_behavior="throw"),
-        lambda: source.list.cast_items(field_name="x", item_object_fields=None),
-        lambda: source.list.cast_items(field_name="x", item_object_fields=[field]),
-        lambda: source.list.cast_items(field_name="x", item_object_fields=(object(),)),
+        lambda: source.list.cast_items(field_name="x", element=None),
+        lambda: source.list.cast_items(field_name="x", element=object()),
         lambda: source.cat.cast(field_name="x", value_type=None, categories=(), ordered=False),
         lambda: source.cat.cast(field_name="x", value_type="float", categories=(), ordered=False),
         lambda: source.cat.cast(field_name="x", value_type="string", categories=["x"], ordered=False),
@@ -137,51 +125,13 @@ def test_structural_builders_reject_every_invalid_literal_shape() -> None:
         lambda: source.cat.cast(field_name="x", value_type="integer", categories=(1,), ordered=1),
         lambda: source.struct.cast(field_name="x", fields=None),
         lambda: source.struct.cast(field_name="x", fields=[field]),
-        lambda: source.struct.cast(field_name="x", fields=(object(),)),
+        lambda: source.struct.cast(field_name="x", fields={"id": object()}),
     )
     for build in invalid_builders:
         with pytest.raises(InvalidOptionValueError):
             build()
 
 
-def test_recursive_list_and_struct_options_are_backend_agnostic() -> None:
-    nested = FieldSpec(
-        name="items",
-        type=UniversalType.ARRAY,
-        item_object_fields=[
-            FieldSpec(
-                name="payload",
-                type=UniversalType.OBJECT,
-                object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
-            )
-        ],
-    )
-    nodes = (
-        ma.col("source").list.cast_items(item_object_fields=(nested,), field_name="items"),
-        ma.col("source").struct.cast(fields=(nested,), field_name="payload"),
-    )
-    forbidden = ("NativeNode", "Expr", "DataType", "DType")
-    for built in nodes:
-        dumped = built._node.model_dump(mode="json")
-        assert dumped["options"]
-        key = "item_object_fields" if "item_object_fields" in dumped["options"] else "fields"
-        assert dumped["options"][key][0]["name"] == "items"
-        nested_key = "item_object_fields" if "item_object_fields" in dumped["options"][key][0] else "object_fields"
-        assert dumped["options"][key][0][nested_key][0]["name"] == "payload"
-        def walk(value):
-            if isinstance(value, dict):
-                for child in value.values():
-                    yield from walk(child)
-            elif isinstance(value, (list, tuple)):
-                for child in value:
-                    yield from walk(child)
-            else:
-                yield value
-        assert not any(type(value).__name__ in forbidden for value in walk(built._node.options))
-        assert not any(
-            type(value).__module__.startswith(("polars", "narwhals", "ibis"))
-            for value in walk(built._node.options)
-        )
 
 
 def test_geospatial_keys_have_one_exact_mapping() -> None:

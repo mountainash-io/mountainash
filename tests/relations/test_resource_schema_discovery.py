@@ -152,9 +152,12 @@ def test_plugin_evidence_requires_permission_without_losing_known_fields(tmp_pat
 
     declared = None
     if projection.startswith("resource_"):
-        fields = [FieldSpec(name="late", type=UniversalType.STRING)]
+        fields = {"late": FieldSpec(type=UniversalType.STRING)}
         if projection == "resource_exact":
-            fields.insert(0, FieldSpec(name="id", type=UniversalType.INTEGER))
+            fields = {
+                "id": FieldSpec(type=UniversalType.INTEGER),
+                **fields,
+            }
         declared = TypeSpec(fields=fields, fields_match=projection.removeprefix("resource_"))
     dag = ma.RelationDAG()
     dag.add("source", resource_relation(path, format=ObservedSpec.FORMAT, schema=declared))
@@ -165,7 +168,7 @@ def test_plugin_evidence_requires_permission_without_losing_known_fields(tmp_pat
         query = query.select("late")
         if projection == "late_conform":
             query = query.conform(TypeSpec(
-                fields=[FieldSpec(name="late", type=UniversalType.STRING)],
+                fields={"late": FieldSpec(type=UniversalType.STRING)},
                 fields_match="open",
             ))
     with pytest.raises(IncompleteSchemaError):
@@ -184,7 +187,7 @@ def test_empty_file_resource_schema_matches_declared_reconstruction(tmp_path):
     path = tmp_path / "empty.json"
     path.write_text("[]")
     relation = resource_relation(path, format="json", schema=TypeSpec(
-        fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+        fields={"id": FieldSpec(type=UniversalType.INTEGER)},
         fields_match="open",
     ))
     assert relation.collect_schema() == {"id": D.I64}

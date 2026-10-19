@@ -253,7 +253,8 @@ def structured_rel():
 
     df = pl.DataFrame({"tags": ["[1,2]", "[3]"], "name": ["a", "b"]})
     spec = TypeSpec(
-        fields_match="open", fields=[FieldSpec(name="tags", type=UniversalType.ARRAY)]
+        fields_match="open",
+        fields={"tags": FieldSpec(type=UniversalType.ARRAY)},
     )
     return ma.relation(df).conform(spec, contract={"data_type": "coerce"})
 

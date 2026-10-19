@@ -288,7 +288,7 @@ class TestDeclaredIngress:
     def test_explicit_source_precedence_is_per_column(self):
         rows = [AnnotatedSource(None, None, 7)] * 100
         rows.append(AnnotatedSource("00123", "N/A", 8))
-        source = TypeSpec(fields=[FieldSpec(name="code", type=UniversalType.STRING)])
+        source = TypeSpec(fields={"code": FieldSpec(type=UniversalType.STRING)})
         result = PydataIngress.convert(rows, source_spec=source)
         assert result.schema == {"code": pl.String, "label": pl.String, "inferred": pl.Int64}
         assert result.to_dicts() == [
@@ -296,10 +296,10 @@ class TestDeclaredIngress:
         ] * 100 + [{"code": "00123", "label": "N/A", "inferred": 8}]
 
     def test_any_source_falls_through_to_model_and_value_evidence(self):
-        source = TypeSpec(fields=[
-            FieldSpec(name="code", type=UniversalType.ANY),
-            FieldSpec(name="inferred", type=UniversalType.ANY),
-        ])
+        source = TypeSpec(fields={
+            "code": FieldSpec(type=UniversalType.ANY),
+            "inferred": FieldSpec(type=UniversalType.ANY),
+        })
         result = PydataIngress.convert([AnnotatedSource(42, None, 7)], source_spec=source)
         assert result.schema == {"code": pl.Int64, "label": pl.String, "inferred": pl.Int64}
         assert result.to_dicts() == [{"code": 42, "label": None, "inferred": 7}]
@@ -314,10 +314,10 @@ class TestDeclaredIngress:
     def test_source_text_and_target_date_are_separate(self, columnar, inline):
         values = [None] * 100 + ["2026-10-12"]
         data = {"raw": values} if columnar else [{"raw": value} for value in values]
-        source = TypeSpec(fields=[FieldSpec(name="raw", type=UniversalType.STRING)])
-        target = TypeSpec(fields=[
-            FieldSpec(name="day", rename_from="raw", type=UniversalType.DATE)
-        ])
+        source = TypeSpec(fields={"raw": FieldSpec(type=UniversalType.STRING)})
+        target = TypeSpec(fields={
+            "day": FieldSpec(rename_from="raw", type=UniversalType.DATE)
+        })
         result = PydataIngress.convert(
             data, type_spec=target, source_spec=source, inline_conform=inline,
         )
@@ -329,33 +329,33 @@ class TestDeclaredIngress:
             assert result.to_dicts() == [{"raw": value} for value in values]
 
     def test_target_does_not_supply_source_evidence(self):
-        target = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.DATE)])
+        target = TypeSpec(fields={"x": FieldSpec(type=UniversalType.DATE)})
         rows = [{"x": None}] * 101
         result = PydataIngress.convert(rows, type_spec=target, inline_conform=False)
         assert result.schema == {"x": pl.Null}
         assert result.to_dicts() == rows
 
     def test_source_names_do_not_apply_target_transforms_or_drop_columns(self):
-        source = TypeSpec(fields=[
-            FieldSpec(name="renamed", rename_from="raw", type=UniversalType.STRING, null_fill="filled")
-        ])
+        source = TypeSpec(fields={
+            "renamed": FieldSpec(rename_from="raw", type=UniversalType.STRING, null_fill="filled")
+        })
         result = PydataIngress.convert([{"other": 7, "raw": None}], source_spec=source)
         assert result.schema == {"other": pl.Int64, "raw": pl.String}
         assert result.to_dicts() == [{"other": 7, "raw": None}]
 
     def test_source_alias_cannot_replace_another_model_column_dtype(self):
-        source = TypeSpec(fields=[
-            FieldSpec(name="code", rename_from="label", type=UniversalType.STRING)
-        ])
+        source = TypeSpec(fields={
+            "code": FieldSpec(rename_from="label", type=UniversalType.STRING)
+        })
         result = PydataIngress.convert([AnnotatedSource(42, "00123", 7)], source_spec=source)
         assert result.schema == {"code": pl.Int64, "label": pl.String, "inferred": pl.Int64}
         assert result.to_dicts() == [{"code": 42, "label": "00123", "inferred": 7}]
 
     @pytest.mark.parametrize("series_type", [pl.Series, pd.Series])
     def test_explicit_native_refinement_overrides_series_type(self, series_type):
-        source = TypeSpec(fields=[
-            FieldSpec(name="x", type=UniversalType.ANY, backend_type="Int8")
-        ])
+        source = TypeSpec(fields={
+            "x": FieldSpec(type=UniversalType.ANY, backend_type="Int8")
+        })
         result = PydataIngress.convert({"x": series_type([1, 2])}, source_spec=source)
         assert result.schema == {"x": pl.Int8}
         assert result.to_dicts() == [{"x": 1}, {"x": 2}]

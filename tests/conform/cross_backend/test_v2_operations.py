@@ -174,20 +174,19 @@ def test_ibis_boolean_list_parser_rejects_mixed_case_tokens() -> None:
     with pytest.raises(Exception):
         BackendResultHelper.select_and_extract(frame, compiled, "values", "ibis-duckdb")
 def test_polars_recursive_array_struct_cast() -> None:
-    field = FieldSpec(name="id", type=UniversalType.INTEGER)
-    expr = ma.col("items").list.cast_items(item_object_fields=(field,), field_name="items")
+    field = FieldSpec(type=UniversalType.INTEGER)
+    expr = ma.col("items").list.cast_items(element=field, field_name="items")
     result = pl.DataFrame({"items": [[{"id": "1"}, {"id": "2"}]]}).select(_compile(expr))
     assert result.to_series().to_list() == [[{"id": 1}, {"id": 2}]]
 
 
 def test_polars_nested_null_mode_cast_is_atomic() -> None:
     nested = FieldSpec(
-        name="payload",
         type=UniversalType.OBJECT,
-        object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+        fields={"id": FieldSpec(type=UniversalType.INTEGER)},
     )
     expr = ma.col("items").list.cast_items(
-        item_object_fields=(nested,),
+        element=FieldSpec(fields={"payload": nested}),
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="items",
     )
@@ -197,8 +196,8 @@ def test_polars_nested_null_mode_cast_is_atomic() -> None:
 
 
 def test_polars_struct_and_categorical_preserve_base_values() -> None:
-    field = FieldSpec(name="id", type=UniversalType.INTEGER)
-    struct = ma.col("payload").struct.cast(fields=(field,), field_name="payload")
+    field = FieldSpec(type=UniversalType.INTEGER)
+    struct = ma.col("payload").struct.cast(fields={"id": field}, field_name="payload")
     cat = ma.col("status").cat.cast(value_type="integer", categories=(1, 2), ordered=True, field_name="status")
     frame = pl.DataFrame({"payload": [{"id": "1"}], "status": ["2"]})
     out = frame.select([_compile(struct).alias("payload"), _compile(cat).alias("status")])
@@ -421,21 +420,24 @@ def test_list_parse_invalid_item_is_complete_value_failure(
 def _recursive_item_fields() -> tuple[FieldSpec, ...]:
     return (
         FieldSpec(
-            name="payload",
             type=UniversalType.OBJECT,
-            object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+            fields={
+                "payload": FieldSpec(
+                    type=UniversalType.OBJECT,
+                    fields={"id": FieldSpec(type=UniversalType.INTEGER)},
+                ),
+            },
         ),
     )
 
 
-def _recursive_struct_fields() -> tuple[FieldSpec, ...]:
-    return (
-        FieldSpec(
-            name="nested",
+def _recursive_struct_fields() -> dict[str, FieldSpec]:
+    return {
+        "nested": FieldSpec(
             type=UniversalType.OBJECT,
-            object_fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+            fields={"id": FieldSpec(type=UniversalType.INTEGER)},
         ),
-    )
+    }
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -447,7 +449,7 @@ def test_list_cast_items_recursive_matrix(
     backend_name: str, failure_behavior: CaseFailureBehaviour,
 ) -> None:
     expr = ma.col("items").list.cast_items(
-        item_object_fields=_recursive_item_fields(),
+        element=_recursive_item_fields()[0],
         failure_behavior=failure_behavior,
         field_name="items",
     )
@@ -477,7 +479,7 @@ def test_list_cast_items_null_mode_invalidates_complete_recursive_value(
     backend_name: str,
 ) -> None:
     expr = ma.col("items").list.cast_items(
-        item_object_fields=_recursive_item_fields(),
+        element=_recursive_item_fields()[0],
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="items",
     )

@@ -49,11 +49,10 @@ def apply_native_conversions_for_egress(
         dict[str, FieldSpec] of fields that need Python-layer conversion.
 
     Example:
-        >>> spec = TypeSpec(fields=[
-        ...     FieldSpec(name="id", type=UniversalType.INTEGER),   # Native
-        ...     # custom_cast takes routing precedence over type (here ANY):
-        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),
-        ... ])
+        >>> spec = TypeSpec(fields={
+        ...     "id": FieldSpec(type=UniversalType.INTEGER),
+        ...     "amount": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float"),
+        ... })
         >>> df, python_only = apply_native_conversions_for_egress(df, spec)
         >>> # Only 'id' cast applied in DataFrame, 'amount' left for post-extraction
     """
@@ -80,14 +79,18 @@ def apply_native_conversions_for_egress(
     # Build conform spec for all non-python-only fields.
     # Custom-cast fields that need renaming are included as rename-only entries
     # (custom_cast stripped) so conform's projection keeps them in the output.
-    native_fields = [f for f in spec.fields if f.source_name not in python_only_custom]
+    native_fields = {
+        name: field
+        for name, field in spec.fields.items()
+        if name not in python_only_custom
+    }
     from dataclasses import replace as _dc_replace
-    rename_only_fields = [
-        _dc_replace(f, custom_cast=None)
-        for f in spec.fields
-        if f.source_name in python_only_custom and f.source_name != f.name
-    ]
-    conform_fields = native_fields + rename_only_fields
+    rename_only_fields = {
+        name: _dc_replace(field, custom_cast=None)
+        for name, field in spec.fields.items()
+        if name in python_only_custom and field.rename_from is not None
+    }
+    conform_fields = {**native_fields, **rename_only_fields}
 
     if conform_fields:
         # Egress conform casts/renames the native fields and keeps any unmapped
@@ -100,8 +103,7 @@ def apply_native_conversions_for_egress(
         import mountainash as ma
         df = ma.relation(df).to_polars()
     else:
-        # No conform needed; but custom fields with source_name == name are already
-        # correctly named — nothing to do.
+        # Custom fields without a rename already have the correct target name.
         pass
 
     return df, python_only_custom
@@ -118,21 +120,19 @@ def apply_custom_converters_to_python_data(
     This applies custom type converters after data has been extracted from
     the DataFrame. Works with both dictionaries and named tuples.
 
-    IMPORTANT: After native conversions (which includes renames), the extracted
-    data uses TARGET column names. We need to map custom conversions from
-    source names to target names to match the data.
+    IMPORTANT: Extracted data uses target column names. Custom conversion
+    declarations are keyed by those same contextual target names.
 
     Args:
         data: List of dicts or named tuples extracted from DataFrame
-        python_only_custom: Dict of FieldSpec keyed by source_name (already separated)
+        python_only_custom: Mapping of contextual target name to FieldSpec
         data_format: Format of data - "dict" or "namedtuple"
 
     Returns:
         List with custom conversions applied
 
     Example:
-        >>> # custom_cast takes routing precedence over type (here ANY):
-        >>> field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
+        >>> field = FieldSpec(type=UniversalType.ANY, custom_cast="safe_float")
         >>> data = [{"amount": "42.5"}, {"amount": "99.9"}]
         >>> result = apply_custom_converters_to_python_data(data, {"amount": field}, "dict")
         >>> result
@@ -152,8 +152,7 @@ def apply_custom_converters_to_python_data(
     # Map custom conversions from source names to target names
     # (DataFrame columns have been renamed by native conversions)
     target_custom_convs: Dict[str, 'FieldSpec'] = {}
-    for source_name, field_spec in python_only_custom.items():
-        target_name = field_spec.name  # FieldSpec.name is the target column name
+    for target_name, field_spec in python_only_custom.items():
         target_custom_convs[target_name] = field_spec
 
     # Apply conversions based on data format
@@ -317,11 +316,10 @@ def apply_hybrid_egress_conversion(
         List of Python data structures with all conversions applied
 
     Example:
-        >>> spec = TypeSpec(fields=[
-        ...     FieldSpec(name="id", type=UniversalType.INTEGER),   # Native
-        ...     # custom_cast takes routing precedence over type (here ANY):
-        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),
-        ... ])
+        >>> spec = TypeSpec(fields={
+        ...     "id": FieldSpec(type=UniversalType.INTEGER),
+        ...     "amount": FieldSpec(type=UniversalType.ANY, custom_cast="safe_float"),
+        ... })
         >>> result = apply_hybrid_egress_conversion(
         ...     df, spec, extract_func=lambda d: d.to_dicts(), data_format="dict"
         ... )

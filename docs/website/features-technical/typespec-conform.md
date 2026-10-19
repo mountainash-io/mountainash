@@ -17,29 +17,43 @@ spec = ma.typespec({
 })
 ```
 
-Under the hood this is a Pydantic model with a list of `FieldSpec` entries — name, type, format, constraints, foreign keys, custom metadata. The structure matches Frictionless Table Schema, which means you can load and emit `datapackage.json` and `schema.json` files byte-equivalent.
+`TypeSpec` owns an insertion-ordered mapping from local field names to immutable, unnamed `FieldSpec` definitions. The mapping supplies names and order; the definitions are reusable across schemas, contracts and collection elements. Constructor input is copied, so later edits to caller-owned mappings do not mutate field declarations. `TypeSpec.from_simple_dict` remains a concise adapter for simple schemas.
 
-### What's in a `FieldSpec`
+### Reusable fields and composition
 
-- `name` and `type` (Frictionless type names: `string`, `integer`, `number`, `boolean`, `date`, `time`, `datetime`, `array`, `object`, `geojson`, …)
-- `format`, `description`, `title`, `example`
-- `constraints`: required, unique, min, max, pattern, enum
-- `foreign_key`: cross-table reference (drives the DAG's constraint edges)
-- `enum_weights`: for weighted enums (used by synthetic-data generators)
-- Custom types via `CustomTypeRegistry` for semantic types your domain cares about
+```python
+from mountainash.datacontracts import BaseDataContract
+from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
 
-`TypeSpec` and `FieldSpec` are deliberately **structurally Frictionless** — flat fields matching the Frictionless layout, not nested custom submodels. If Frictionless gains a property, we add it as a peer field. If we add a property they don't have, it's clearly namespaced.
+Quantity = FieldSpec(type=UniversalType.INTEGER, minimum=0, description="Unit count")
+BulkQuantity = Quantity.variant(minimum=10)  # independent declaration; Quantity unchanged
+
+orders = TypeSpec(fields={"quantity": Quantity, "bulk": BulkQuantity})
+shipments = TypeSpec(fields={"shipped_quantity": Quantity})  # same definition, new local name
+
+Order = FieldSpec(fields={"quantity": Quantity, "reference": FieldSpec(type=UniversalType.STRING)})
+Orders = FieldSpec(element=Order)
+Quantities = FieldSpec(element=Quantity)
+ThreeQuantities = FieldSpec(element=Quantity, dimensions=(3,))
+
+class OrderContract(BaseDataContract):
+    quantity = Quantity.variant(severity="blocking")
+```
+
+`FieldSpec` has no name. Names come from TypeSpec mapping keys, contract member names, or the source's local context; they are not copied into shared definitions. `fields` is an ordered mapping of named child declarations. `element` is one complete unnamed declaration, including for scalar elements. Container constraints belong to the container; element constraints belong to each element. Omitted dimensions means variable-length list; `dimensions` selects a fixed array. Composed object/list/array dtypes are projections of declarations, not a separately maintained nested dtype tree. Bare structured dtype values remain available when only a type is needed.
+
+Definitions and their nested metadata are immutable and owned. Reuse a library definition directly, or derive a distinct use with `.variant(...)`; variants retain unspecified properties, can relax requirements, and never mutate their source. Concise constraints (`minimum`, `maximum`, `exclusive_minimum`, `enum`, `pattern`, and supported contract checks such as `eq` or `str_contains`) use the shared `FieldConstraints` representation. An existing immutable constraints object can be shared with `constraints=`.
+
+`rename_from` is a use's source binding: the field's local mapping/member name remains the output name. Without it, local name is the source name. Contract severity is specialized on the shared declaration via `.variant(severity=...)`; conform and casts do not interpret severity. Direct contract field checks remain available on the definition (`definition.to_checks(local_name)`).
 
 ### Precise dtype declarations
 
 Use a canonical dtype when a broad Frictionless type such as `integer` is insufficient:
 
 ```python
-from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
-
-short = FieldSpec(name="id", dtype=ma.MountainashDtype.I8)
-explicit = FieldSpec(name="id", type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I8)
-spec = TypeSpec(fields=[short])
+short = FieldSpec(dtype=ma.MountainashDtype.I8)
+explicit = FieldSpec(type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I8)
+spec = TypeSpec(fields={"id": short})
 ```
 
 Both forms declare an 8-bit signed integer. Broad-only declarations keep their existing behavior. An incompatible pair, such as `STRING` with `I8`, raises `InvalidDtypeDeclaration`.
@@ -59,17 +73,14 @@ Decimal declarations retain their `kind: "decimal"` precision/scale encoding. Dt
 The existing descriptors in `mountainash.core.dtypes` can be used in `ma.lit`,
 both cast builders, and `FieldSpec.dtype`: `TimestampDtype`, `TimeDtype`,
 `DurationDtype`, `ListDtype`, `ArrayDtype`, `StructDtype`, and `DecimalDtype`.
-Nested fields retain their order, child types and fixed-array dimensions.
+Use `fields=`/`element=` when complete child declarations are needed; use a bare
+structured dtype when only type shape is required.
 
 ```python
-from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
+from mountainash.core.dtypes import TimestampDtype
 
 at = TimestampDtype(precision=6, timezone_aware=True, timezone=None)
-record = StructDtype((
-    ("at", at),
-    ("values", ListDtype(ma.MountainashDtype.I16)),
-))
-spec = TypeSpec(fields=[FieldSpec("record", dtype=record)])
+schema = TypeSpec(fields={"at": FieldSpec(dtype=at)})
 padding = ma.lit(None, dtype=at)
 converted = ma.col("at").cast(at)
 ```
@@ -86,12 +97,33 @@ are not interchangeable:
   literal target uses ordinary inference. UNCONSTRAINED remains a schema status,
   not a native construction target.
 
-Portable descriptors persist recursively under `x-mountainash.dtype`. Unknown
-parameters are omitted; meaningful `None` values are retained. Native refinements
-remain in-memory only. During the legacy-authoring transition, known parent dtype
-parameters take precedence over conflicting `object_fields`/`item_object_fields`
-types; compatible legacy information can fill UNKNOWN parameters. Child metadata
-is matched by name, and explicit native overrides remain authoritative.
+Portable descriptor structure persists under `x-mountainash.fields`,
+`x-mountainash.element`, and (for fixed arrays) `x-mountainash.dimensions`;
+exact leaf dtypes retain `x-mountainash.dtype`. Native refinements remain
+in-memory only. Standard lexical type, `itemType`, and `delimiter` remain
+distinct from JSON arrays and element declarations.
+
+### Explicit persisted-descriptor migration
+
+The ordinary typed reader does not interpret retired `object_fields` or
+`item_object_fields`; it reports a typed descriptor error naming the migration
+function. Migrate persisted schema mappings explicitly before typed access:
+
+```python
+from mountainash.typespec.frictionless import migrate_nested_field_declarations
+
+migrated_schema = migrate_nested_field_declarations(old_schema_mapping)
+spec = TypeSpec.from_frictionless(migrated_schema)
+```
+
+The function is a pure mapping-to-mapping conversion: it returns a fresh mapping,
+does not mutate input, read/write files, follow references, resolve packages or
+run backends. Call it at the existing storage boundary, then pass the migrated
+mapping through the ordinary typed reader. Raw `DataPackage` storage and
+preserve/canonical descriptor writing do not automatically migrate or normalize
+raw documents. Existing dtype-only descriptors remain readable without this
+migration. This cutover does not change cross-field rules or make descriptor
+decoding evidence that dataset constraints were validated.
 
 Native type construction does not prove execution support. Item 340 is still in
 qualification; the following boundaries are not a blanket backend support claim.
@@ -114,7 +146,6 @@ No backend-switching workaround or silent widening is provided. In particular,
 an advertised timestamp unit is not evidence that its fractional value survived
 native storage, parsing or export.
 
-
 ### Native overrides
 
 `backend_type` takes precedence over `dtype`, including decimal declarations:
@@ -122,8 +153,9 @@ native storage, parsing or export.
 ```python
 import polars as pl
 
-field = FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type="Int64")
-timestamp = FieldSpec(name="at", backend_type=pl.Datetime("ns", "UTC"))
+integer = FieldSpec(dtype=ma.MountainashDtype.I8, backend_type="Int64")
+timestamp = FieldSpec(backend_type=pl.Datetime("ns", "UTC"))
+schema = TypeSpec(fields={"id": integer, "at": timestamp})
 ```
 
 The first field produces Int64 on Polars and emits a `UserWarning` because its canonical declaration is I8. Overrides also warn when equivalence cannot be verified, including parameterized temporal and semantic carriers. Proven equivalent representations do not warn. Invalid strings and objects belonging to a different target raise; they do not fall back to the canonical declaration.
@@ -133,6 +165,11 @@ Native strings remain serializable and are interpreted by the selected backend. 
 Schema inspection uses native metadata first and retains detailed dtype parameters. SQLite reports its physical integer/real affinities even when a precise declaration produces narrower typed Polars/Arrow egress. AST fallback inference uses the effective target when known; an unresolved native override reports `UNKNOWN`. `evolve` retains the source's detailed identity; `freeze` compares native parameters when source evidence is available.
 
 Bare canonical timestamp/duration casts retain the existing backend unit defaults. They do not promise nanosecond fidelity; backlog 334 tracks inherited sub-microsecond loss. Use an explicit native target with the required unit when that precision is needed.
+
+### Downstream Structuremap adoption
+
+Structuremap is a downstream consumer of the named-field and nested-type APIs. Its table-layout, preparation, cast/projection, codec, and reconstruction paths must migrate together to ordered name-to-definition mappings and recursive `fields`/`element` declarations; mutable renaming must instead construct a new immutable definition or use contextual names. This dependency remains part of the cutover: core documentation here does not imply a released Structuremap version or completed downstream qualification.
+
 
 ## Sources
 
@@ -242,7 +279,7 @@ from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
 d = ma.DecimalDtype(precision=10, scale=3)
 
 # Declare it (persisted under `x-mountainash.dtype`; the Frictionless type stays `number`)
-spec = TypeSpec(fields=[FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=d)])
+spec = TypeSpec(fields={"amount": FieldSpec(type=UniversalType.NUMBER, dtype=d)})
 
 # Convert into it: `rounding=` is required for a decimal target and rejected for any other
 ma.col("amount_text").cast(d, rounding="half_to_even")
@@ -397,12 +434,11 @@ The conversion is one vectorised native expression with no per-row checks, so so
 Declare `FieldSpec.rounding` to let `conform()` convert a **top-level** field to its exact decimal type:
 
 ```python
-spec = TypeSpec(fields=[FieldSpec(
-    name="amount",
+spec = TypeSpec(fields={"amount": FieldSpec(
     type=UniversalType.NUMBER,
     dtype=ma.DecimalDtype(precision=5, scale=2),
     rounding="half_to_even",
-)])
+)})
 result = ma.relation({"amount": ["12.345", "bad", None]}).conform(
     spec, contract={"data_type": "discard_row"},
 ).to_polars()

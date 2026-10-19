@@ -1,6 +1,7 @@
 """Ibis backend for mountainash struct operations."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from mountainash.core.dtypes import TypeTarget
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
@@ -8,7 +9,6 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT
 from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
 class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of struct field access."""
     def cast_struct(
@@ -16,7 +16,7 @@ class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, Moun
         x,
         /,
         *converted_fields,
-        fields: tuple[FieldSpec, ...],
+        fields: Mapping[str, FieldSpec],
         failure_behavior: str = "throw",
     ):
         if self.dialect == "ibis-sqlite":
@@ -31,17 +31,17 @@ class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, Moun
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
             )
-        field = FieldSpec(name="_struct", type=UniversalType.OBJECT, object_fields=list(fields))
-        dtype = _resolve_field_native(field, TypeTarget.IBIS)
+        field = FieldSpec(fields=fields)
+        dtype = _resolve_field_native(field, TypeTarget.IBIS, field_name="struct")
         if converted_fields:
             import ibis
-            count = len(fields)
+            names = tuple(fields)
             value = ibis.struct(dict(zip(
-                (child.name for child in fields), converted_fields[:count], strict=True,
+                names, converted_fields[:len(names)], strict=True,
             ))).cast(dtype)
             valid = x.notnull()
-            if len(converted_fields) > count:
-                valid = valid & converted_fields[count]
+            if len(converted_fields) > len(names):
+                valid = valid & converted_fields[len(names)]
             return ibis.ifelse(valid, value, ibis.null().cast(dtype))
         return x.cast(dtype)
     def struct_field(self, x, /, *, field_name: str):

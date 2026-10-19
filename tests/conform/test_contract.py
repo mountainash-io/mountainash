@@ -294,10 +294,7 @@ from mountainash.typespec.universal_types import UniversalType
 
 
 def _spec(fields_match, field_names):
-    return TypeSpec(
-        fields=[FieldSpec(name=n, type=UniversalType.STRING) for n in field_names],
-        fields_match=fields_match,
-    )
+    return TypeSpec(fields={n: FieldSpec(type=UniversalType.STRING) for n in field_names}, fields_match=fields_match)
 
 
 def test_resolve_conform_output_default_contract_derived_from_fields_match():

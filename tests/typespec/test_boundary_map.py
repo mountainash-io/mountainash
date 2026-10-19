@@ -17,8 +17,7 @@ from mountainash.typespec.universal_types import (
 class TestForward:
     def test_all_universal_members_are_mapped_or_context_dependent(self):
         # GEOPOINT is deliberately absent from UNIVERSAL_TO_CANONICAL — its
-        # canonical shape depends on FieldSpec.format, which to_canonical()
-        # has no access to (see resolve_field_canonical in converters.py).
+        # canonical shape depends on format, which to_canonical() cannot access.
         assert set(UNIVERSAL_TO_CANONICAL) | set(_FORMAT_DEPENDENT_MEMBERS) == set(U)
 
     @pytest.mark.parametrize("u,expected", [

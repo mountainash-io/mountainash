@@ -19,38 +19,156 @@ def test_nested_object_fields_apply_child_constraints() -> None:
     import polars as pl
 
     from mountainash.datacontracts.compiler import compile_datacontract
-    from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
-    from mountainash.typespec.universal_types import UniversalType
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
     from mountainash.validation import ValidationRunner
 
-    plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="payload",
-                    type=UniversalType.OBJECT,
-                    object_fields=[
-                        FieldSpec(
-                            name="age",
-                            type=UniversalType.INTEGER,
-                            constraints=FieldConstraints(required=True, minimum=0),
-                        )
-                    ],
-                )
-            ]
-        )
-    )
-
+    plan = compile_datacontract(TypeSpec(fields={
+        "payload": FieldSpec(fields={
+            "age": FieldSpec(type=UniversalType.INTEGER, required=True, minimum=0),
+        }),
+    }))
     result = ValidationRunner().validate_relation(
-        pl.DataFrame({"payload": [{"age": -1}]}),
-        plan=plan,
+        pl.DataFrame({"payload": [{"age": -1}, {"age": None}, {}]}), plan=plan
     )
-
     nested_summary = result.check_summaries.filter(
         pl.col("check_id") == "payload_nested"
     ).row(0, named=True)
-    assert nested_summary["status"] == "failed"
+    assert nested_summary["fail_count"] == 3
 
+
+def test_nested_container_and_element_constraints_keep_separate_scopes() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(TypeSpec(fields={
+        "values": FieldSpec(
+            min_length=2,
+            element=FieldSpec(type=UniversalType.INTEGER, minimum=0),
+        ),
+    }))
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"values": [[1, -1], [2], [3, 4]]}), plan=plan
+    )
+    summary = result.check_summaries.filter(
+        pl.col("check_id") == "values_nested"
+    ).row(0, named=True)
+    assert (summary["pass_count"], summary["fail_count"]) == (2, 1)
+    length_summary = result.check_summaries.filter(
+        pl.col("check_id") == "values_length"
+    ).row(0, named=True)
+    assert (length_summary["pass_count"], length_summary["fail_count"]) == (2, 1)
+
+
+def test_nested_constraints_apply_to_fixed_array_leaves() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(TypeSpec(fields={
+        "matrix": FieldSpec(
+            type=UniversalType.ARRAY,
+            dimensions=(2, 2),
+            element=FieldSpec(type=UniversalType.INTEGER, minimum=0),
+        ),
+    }))
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"matrix": [[[1, -1], [2, 3]], [[4, 5], [6, 7]]]}),
+        plan=plan,
+    )
+    summary = result.check_summaries.filter(
+        pl.col("check_id") == "matrix_nested"
+    ).row(0, named=True)
+    assert (summary["pass_count"], summary["fail_count"]) == (1, 1)
+
+
+def test_nested_child_severity_is_reported_without_blocking() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(TypeSpec(fields={
+        "payload": FieldSpec(
+            type=UniversalType.OBJECT,
+            fields={
+                "age": FieldSpec(
+                    type=UniversalType.INTEGER,
+                    minimum=0,
+                    severity="warning",
+                ),
+            },
+        ),
+    }))
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"age": -1}, None]}), plan=plan
+    )
+    warning = result.check_summaries.filter(
+        pl.col("check_id") == "payload_nested__warning"
+    ).row(0, named=True)
+    assert warning["severity"] == "warning"
+    assert (warning["pass_count"], warning["fail_count"]) == (1, 1)
+    assert result.passes
+
+
+def test_nested_array_constraints_measure_decoded_json_values() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(TypeSpec(fields={
+        "payload": FieldSpec(
+            type=UniversalType.OBJECT,
+            fields={
+                "values": FieldSpec(
+                    type=UniversalType.ARRAY,
+                    min_length=2,
+                    element=FieldSpec(type=UniversalType.INTEGER),
+                ),
+            },
+        ),
+    }))
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"values": "[1]"}]}), plan=plan
+    )
+    nested = result.check_summaries.filter(
+        pl.col("check_id") == "payload_nested"
+    ).row(0, named=True)
+    assert nested["fail_count"] == 1
+
+
+def test_nested_default_severity_does_not_inherit_warning_container() -> None:
+    import polars as pl
+
+    from mountainash.datacontracts.compiler import compile_datacontract
+    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.validation import ValidationRunner
+
+    plan = compile_datacontract(TypeSpec(fields={
+        "payload": FieldSpec(
+            type=UniversalType.OBJECT,
+            severity="warning",
+            fields={
+                "age": FieldSpec(type=UniversalType.INTEGER, minimum=0),
+            },
+        ),
+    }))
+    result = ValidationRunner().validate_relation(
+        pl.DataFrame({"payload": [{"age": -1}]}), plan=plan
+    )
+    nested = result.check_summaries.filter(
+        pl.col("check_id") == "payload_nested"
+    ).row(0, named=True)
+    assert nested["severity"] == "blocking"
+    assert nested["fail_count"] == 1
+    assert not result.passes
 
 def test_duration_parser_preserves_calendar_months_and_decimal_seconds() -> None:
     """Duration values retain months rather than collapsing to timedeltas."""

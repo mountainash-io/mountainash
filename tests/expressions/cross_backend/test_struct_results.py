@@ -111,3 +111,34 @@ class TestStructFieldSingleElement:
         df = backend_factory.create(data, backend_name)
         actual = collect_expr(df, ma.col("s").struct.field("b"))
         assert [int(v) for v in actual] == [2, 5]
+
+
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    "polars-lazy",
+    "narwhals-polars",
+    "ibis-duckdb",
+])
+@pytest.mark.cross_backend
+def test_struct_cast_uses_ordered_named_declarations(backend_name, backend_factory):
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec import FieldSpec
+
+    source = backend_factory.create(
+        {"payload": [{"count": "2", "label": "ok"}, {"count": None, "label": "empty"}]},
+        backend_name,
+    )
+    result = ma.relation(source).select(
+        ma.col("payload").struct.cast(
+            fields={
+                "count": FieldSpec(dtype=MountainashDtype.I32),
+                "label": FieldSpec(dtype=MountainashDtype.STRING),
+            },
+            field_name="payload",
+        ).alias("payload"),
+    ).to_polars()
+    assert result["payload"].to_list() == [
+        {"count": 2, "label": "ok"},
+        {"count": None, "label": "empty"},
+    ]
+    assert tuple(result["payload"].to_list()[0]) == ("count", "label")

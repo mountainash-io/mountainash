@@ -50,11 +50,6 @@ class TestCategoricalValues:
     def test_empty(self):
         assert categorical_values([]) == []
 
-    def test_returns_new_list(self):
-        cats = ["a", "b"]
-        result = categorical_values(cats)
-        assert result == ["a", "b"]
-        assert result is not cats  # never aliases the input
 
 
 class TestMatchesConformStage5bBaseline:

@@ -8,14 +8,14 @@ from mountainash.typespec import DataPackage, DataResource, FieldConstraints, Fi
 def test_frictionless_v2_validation_smoke() -> None:
     """An invalid foreign key survives package construction and DAG validation."""
     customers = TypeSpec(
-        fields=[FieldSpec(name="id", type=UniversalType.INTEGER, constraints=FieldConstraints(required=True))],
+        fields={"id": FieldSpec(type=UniversalType.INTEGER, constraints=FieldConstraints(required=True))},
         primary_key=["id"],
     )
     orders = TypeSpec(
-        fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="customer_id", type=UniversalType.INTEGER),
-        ],
+        fields={
+            "id": FieldSpec(type=UniversalType.INTEGER),
+            "customer_id": FieldSpec(type=UniversalType.INTEGER),
+        },
         primary_key=["id"],
         foreign_keys=[
             ForeignKey(

@@ -24,16 +24,16 @@ def _structured_dag(
 ):
     dag = RelationDAG()
 
-    def _fields(rows: dict) -> list[FieldSpec]:
-        fields = []
+    def _fields(rows: dict) -> dict[str, FieldSpec]:
+        fields = {}
         for name, values in rows.items():
             sample = next((v for v in values if v is not None), None)
             if isinstance(sample, str) and name.startswith("meta"):
-                fields.append(FieldSpec(name=name, type=UniversalType.OBJECT))
+                fields[name] = FieldSpec(type=UniversalType.OBJECT)
             elif isinstance(sample, str) and name.startswith("tags"):
-                fields.append(FieldSpec(name=name, type=UniversalType.ARRAY))
+                fields[name] = FieldSpec(type=UniversalType.ARRAY)
             else:
-                fields.append(FieldSpec(name=name, type=UniversalType.INTEGER))
+                fields[name] = FieldSpec(type=UniversalType.INTEGER)
         return fields
 
     parent_spec = TypeSpec(fields_match="open", fields=_fields(parent_rows))

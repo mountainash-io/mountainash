@@ -310,10 +310,10 @@ def test_relationship_construction_matrix_has_constraint_edge_without_dependency
         ]
     }
     authored = TypeSpec(
-        fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="parent_id", type=UniversalType.INTEGER),
-        ],
+        fields={
+            "id": FieldSpec(type=UniversalType.INTEGER),
+            "parent_id": FieldSpec(type=UniversalType.INTEGER),
+        },
         foreign_keys=[
             ForeignKey(
                 fields=["parent_id"],

@@ -30,11 +30,7 @@ class TestVisitorApplyConform:
         expr_visitor = UnifiedExpressionVisitor(expr_sys, input_data=lf, execution_context=context)
         visitor = UnifiedRelationVisitor(rel_sys, expr_visitor, execution_context=context)
 
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id"),
-            ],
-        )
+        spec = TypeSpec(fields_match='open', fields={'user_id': FieldSpec(type=UniversalType.INTEGER, rename_from='raw_id')})
 
         result = visitor.apply_conform(lf, spec)
         assert hasattr(result, "collect")
@@ -112,7 +108,7 @@ class TestVisitorDriftReports:
         each with a deterministic node_id derived from the running count."""
         lf1 = pl.DataFrame({"n": ["1", "2"]}).lazy()
         visitor = _make_visitor(lf1)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=UniversalType.INTEGER)})
 
         visitor.apply_conform(lf1, spec).collect()
         assert len(visitor.drift_reports) == 1
@@ -126,7 +122,7 @@ class TestVisitorDriftReports:
     def test_drift_report_carries_resource_name_when_supplied(self):
         lf = pl.DataFrame({"n": ["1", "2"]}).lazy()
         visitor = _make_visitor(lf)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=UniversalType.INTEGER)})
 
         visitor.apply_conform(lf, spec, resource_name="orders").collect()
 
@@ -138,7 +134,7 @@ class TestVisitorDriftReports:
         resource_name None -- matches apply_conform's default param."""
         lf = pl.DataFrame({"n": ["1", "2"]}).lazy()
         visitor = _make_visitor(lf)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=UniversalType.INTEGER)})
 
         visitor.apply_conform(lf, spec).collect()
 

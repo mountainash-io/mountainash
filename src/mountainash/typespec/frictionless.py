@@ -14,6 +14,13 @@ Reference: https://specs.frictionlessdata.io/table-schema/
 from __future__ import annotations
 
 from collections.abc import Mapping
+from copy import deepcopy
+from functools import cache
+from importlib.resources import files
+import json
+
+from jsonschema import Draft7Validator
+from jsonschema.validators import extend
 from typing import Any, Dict, List, Optional
 
 from mountainash.conform.contract import validate_contract_dict
@@ -24,7 +31,13 @@ from mountainash.core.dtypes import (
 )
 from mountainash.core.dtypes.errors import UnknownDtypeError
 
-from .errors import InvalidDtypeDeclaration, InvalidFieldMatchDeclaration, InvalidKeyShapeError
+from .errors import (
+    InvalidDescriptorStructure, InvalidDtypeDeclaration, InvalidFieldMatchDeclaration,
+    InvalidKeyShapeError, TypeSpecError,
+)
+from ._field_values import (
+    _SEQUENCE_CONSTRAINTS, _VALUE_CONSTRAINTS, field_value_to_json, json_value,
+)
 from .frictionless_invariants import (
     InvariantLocation,
     parse_foreign_keys_at,
@@ -194,57 +207,63 @@ def foreign_key_to_dict(fk: ForeignKey) -> Dict[str, Any]:
 # Constraints helpers
 # ---------------------------------------------------------------------------
 
-def _constraints_to_dict(constraints: FieldConstraints) -> dict:
-    """Serialize FieldConstraints → Frictionless-compatible dict (camelCase keys)."""
-    result: Dict[str, Any] = {}
-    if constraints.required:
-        result["required"] = constraints.required
-    if constraints.unique:
-        result["unique"] = constraints.unique
-    if constraints.minimum is not None:
-        result["minimum"] = constraints.minimum
-    if constraints.maximum is not None:
-        result["maximum"] = constraints.maximum
-    if constraints.exclusive_minimum is not None:
-        result["exclusiveMinimum"] = constraints.exclusive_minimum
-    if constraints.exclusive_maximum is not None:
-        result["exclusiveMaximum"] = constraints.exclusive_maximum
-    if constraints.min_length is not None:
-        result["minLength"] = constraints.min_length
-    if constraints.max_length is not None:
-        result["maxLength"] = constraints.max_length
-    if constraints.pattern is not None:
-        result["pattern"] = constraints.pattern
-    if constraints.enum is not None:
-        result["enum"] = constraints.enum
-    if constraints.json_schema is not None:
-        result["jsonSchema"] = constraints.json_schema
+_STANDARD_CONSTRAINT_KEYS = {
+    "required": "required", "unique": "unique", "minimum": "minimum",
+    "maximum": "maximum", "exclusive_minimum": "exclusiveMinimum",
+    "exclusive_maximum": "exclusiveMaximum", "min_length": "minLength",
+    "max_length": "maxLength", "pattern": "pattern", "enum": "enum",
+    "json_schema": "jsonSchema",
+}
+_EXTENDED_CONSTRAINT_KEYS = (
+    "eq", "ne", "notin", "str_contains", "str_startswith", "str_endswith",
+)
+_FIELD_PROPERTY_KEYS = {
+    "title": "title", "description": "description", "true_values": "trueValues",
+    "false_values": "falseValues", "categories_ordered": "categoriesOrdered",
+    "example": "example", "rdf_type": "rdfType", "decimal_char": "decimalChar",
+    "group_char": "groupChar", "bare_number": "bareNumber", "item_type": "itemType",
+    "delimiter": "delimiter",
+}
+_FIELD_EXTENSION_KEYS = ("rename_from", "custom_cast", "rounding", "severity")
+
+
+def _constraint_value(field: FieldSpec | None, name: str, value: Any) -> Any:
+    if field is not None:
+        if name in _VALUE_CONSTRAINTS:
+            return field_value_to_json(field, value)
+        if name in _SEQUENCE_CONSTRAINTS:
+            return [field_value_to_json(field, item) for item in value]
+    return json_value(value)
+
+
+def _constraints_to_dict(
+    constraints: FieldConstraints, *, field: FieldSpec | None = None,
+) -> dict:
+    result = {}
+    for name, key in _STANDARD_CONSTRAINT_KEYS.items():
+        value = getattr(constraints, name)
+        if value is None or (name in ("required", "unique") and value is False):
+            continue
+        result[key] = _constraint_value(field, name, value)
     return result
 
 
 def _parse_constraints(
-    data: Optional[Dict[str, Any]],
-    enum_weights: Optional[Dict[str, float]] = None,
-) -> Optional[FieldConstraints]:
-    """Deserialize a Frictionless constraints dict → FieldConstraints (or None)."""
-    if not data and not enum_weights:
+    data: Mapping[str, Any] | None,
+    enum_weights: Mapping[str, float] | None = None,
+    extended: Mapping[str, Any] | None = None,
+) -> FieldConstraints | None:
+    if data is None and enum_weights is None and extended is None:
         return None
-    if not data:
-        data = {}
-    return FieldConstraints(
-        required=data.get("required", False),
-        unique=data.get("unique", False),
-        minimum=data.get("minimum"),
-        maximum=data.get("maximum"),
-        exclusive_minimum=data.get("exclusiveMinimum"),
-        exclusive_maximum=data.get("exclusiveMaximum"),
-        min_length=data.get("minLength"),
-        max_length=data.get("maxLength"),
-        pattern=data.get("pattern"),
-        enum=data.get("enum"),
-        enum_weights=enum_weights,
-        json_schema=data.get("jsonSchema"),
-    )
+    properties = {
+        name: data[key] for name, key in _STANDARD_CONSTRAINT_KEYS.items()
+        if data is not None and key in data
+    }
+    properties.update({
+        name: extended[name] for name in _EXTENDED_CONSTRAINT_KEYS
+        if extended is not None and name in extended
+    })
+    return FieldConstraints(**properties, enum_weights=enum_weights)
 
 
 # ---------------------------------------------------------------------------
@@ -370,91 +389,85 @@ def _dtype_from_extension(field_name: str, raw: Any) -> Any:
     return decode(raw)
 
 
-def _field_to_frictionless_dict(fspec: "FieldSpec") -> Dict[str, Any]:
-    """Export one FieldSpec to a Frictionless field descriptor dict.
+def _field_to_frictionless_dict(
+    fspec: FieldSpec, *, name: str | None = None, path: str = "$",
+) -> dict[str, Any]:
+    """Encode the shared body, adding a contextual name only for named uses."""
+    from .converters import declared_element, declared_fields
 
-    Recurses into ``object_fields`` and ``item_object_fields`` (item 102) so
-    nested fields retain the complete field descriptor shape of top-level
-    fields. The ``type`` key is omitted exactly when the type is ``ANY``
-    (spec-faithful — the absence of a ``type`` property means type "any").
-    """
-    field_dict: Dict[str, Any] = {"name": fspec.name}
+    result = {} if name is None else {"name": name}
     if fspec.type is not UniversalType.ANY:
-        field_dict["type"] = (
-            fspec.type.value if isinstance(fspec.type, UniversalType) else str(fspec.type)
-        )
-
+        result["type"] = fspec.type.value
     if fspec.format != "default":
-        field_dict["format"] = fspec.format
-    if fspec.title:
-        field_dict["title"] = fspec.title
-    if fspec.description:
-        field_dict["description"] = fspec.description
-    if fspec.constraints is not None:
-        constraints_dict = _constraints_to_dict(fspec.constraints)
-        if constraints_dict:
-            field_dict["constraints"] = constraints_dict
-    if fspec.missing_values is not None:
-        field_dict["missingValues"] = [
-            _missing_value_to_json(mv) for mv in fspec.missing_values
-        ]
-    if fspec.categories is not None:
-        field_dict["categories"] = [_category_to_json(c) for c in fspec.categories]
-    if fspec.true_values is not None:
-        field_dict["trueValues"] = fspec.true_values
-    if fspec.false_values is not None:
-        field_dict["falseValues"] = fspec.false_values
-    if fspec.categories_ordered is not None:
-        field_dict["categoriesOrdered"] = fspec.categories_ordered
-    if fspec.example is not None:
-        field_dict["example"] = fspec.example
-    if fspec.rdf_type is not None:
-        field_dict["rdfType"] = fspec.rdf_type
-    if fspec.decimal_char is not None:
-        field_dict["decimalChar"] = fspec.decimal_char
-    if fspec.group_char is not None:
-        field_dict["groupChar"] = fspec.group_char
-    if fspec.bare_number is not None:
-        field_dict["bareNumber"] = fspec.bare_number
-    if fspec.item_type is not None:
-        field_dict["itemType"] = fspec.item_type
-    if fspec.delimiter is not None:
-        field_dict["delimiter"] = fspec.delimiter
-
-    field_extensions: Dict[str, Any] = {}
-    if fspec.rename_from is not None:
-        field_extensions["rename_from"] = fspec.rename_from
-    if fspec.null_fill is not None:
-        field_extensions["null_fill"] = fspec.null_fill
-    if fspec.custom_cast is not None:
-        field_extensions["custom_cast"] = fspec.custom_cast
-    if fspec.constraints and fspec.constraints.enum_weights is not None:
-        field_extensions["enum_weights"] = fspec.constraints.enum_weights
+        result["format"] = fspec.format
+    extension = {}
+    try:
+        for property_name, wire_name in _FIELD_PROPERTY_KEYS.items():
+            value = getattr(fspec, property_name)
+            if value is not None:
+                result[wire_name] = json_value(value)
+        if fspec.missing_values is not None:
+            result["missingValues"] = json_value([
+                _missing_value_to_json(value) for value in fspec.missing_values
+            ])
+        if fspec.categories is not None:
+            result["categories"] = json_value([_category_to_json(value) for value in fspec.categories])
+        if fspec.constraints is not None:
+            constraints = _constraints_to_dict(fspec.constraints, field=fspec)
+            if constraints:
+                result["constraints"] = constraints
+            extended = {
+                key: _constraint_value(fspec, key, getattr(fspec.constraints, key))
+                for key in _EXTENDED_CONSTRAINT_KEYS
+                if getattr(fspec.constraints, key) is not None
+            }
+            if extended:
+                extension["constraints"] = extended
+            if fspec.constraints.enum_weights is not None:
+                extension["enum_weights"] = json_value(fspec.constraints.enum_weights)
+        for key in _FIELD_EXTENSION_KEYS:
+            value = getattr(fspec, key)
+            if value is not None:
+                extension[key] = json_value(value)
+        if fspec.null_fill is not None:
+            extension["null_fill"] = field_value_to_json(fspec, fspec.null_fill)
+    except (TypeError, ValueError) as exc:
+        raise InvalidDescriptorStructure(
+            f"{path}: {exc}", descriptor_kind="schema", descriptor_path=path,
+        ) from exc
     if fspec.backend_type is not None:
         if isinstance(fspec.backend_type, NativeDtype):
             raise InvalidDtypeDeclaration(
-                fspec.name, "native dtype objects are in-memory-only; use a native string for persistence"
+                path, "native dtype objects are in-memory-only; use a native string for persistence",
             )
-        field_extensions["backend_type"] = fspec.backend_type
-    if fspec.dtype is not None:
+        extension["backend_type"] = fspec.backend_type
+    dtype = fspec.dtype
+    if isinstance(dtype, NativeDtype) or getattr(dtype, "native", None) is not None:
+        raise InvalidDtypeDeclaration(path, "native dtype refinements are in-memory-only")
+    if fspec.fields is not None or (
+        isinstance(dtype, StructDtype) and dtype.fields is not SchemaTypeStatus.UNKNOWN
+    ):
+        extension["fields"] = [
+            _field_to_frictionless_dict(child, name=child_name, path=f"{path}.x-mountainash.fields[{index}]")
+            for index, (child_name, child) in enumerate(declared_fields(fspec).items())
+        ]
+    elif fspec.element is not None or isinstance(dtype, (ListDtype, ArrayDtype)):
+        extension["element"] = _field_to_frictionless_dict(
+            declared_element(fspec), path=f"{path}.x-mountainash.element",
+        )
+        dimensions = fspec.dimensions if fspec.element is not None else getattr(dtype, "dimensions", None)
+        if dimensions is not None:
+            extension["dimensions"] = (
+                {"kind": "unknown"} if dimensions is SchemaTypeStatus.UNKNOWN else list(dimensions)
+            )
+    elif dtype is not None:
         try:
-            field_extensions["dtype"] = _dtype_to_extension(fspec.dtype)
+            extension["dtype"] = _dtype_to_extension(dtype)
         except (TypeError, ValueError) as exc:
-            raise InvalidDtypeDeclaration(fspec.name, str(exc)) from exc
-    if fspec.rounding is not None:
-        field_extensions["rounding"] = fspec.rounding
-    if fspec.object_fields is not None:
-        field_extensions["object_fields"] = [
-            _field_to_frictionless_dict(inner) for inner in fspec.object_fields
-        ]
-    if fspec.item_object_fields is not None:
-        field_extensions["item_object_fields"] = [
-            _field_to_frictionless_dict(inner) for inner in fspec.item_object_fields
-        ]
-    if field_extensions:
-        field_dict["x-mountainash"] = field_extensions
-
-    return field_dict
+            raise InvalidDtypeDeclaration(path, str(exc)) from exc
+    if extension:
+        result["x-mountainash"] = extension
+    return result
 
 
 def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
@@ -519,99 +532,106 @@ def typespec_to_frictionless(spec: TypeSpec) -> Dict[str, Any]:
         descriptor["x-mountainash"] = spec_ext
 
     # Fields
-    fields_list: List[Dict[str, Any]] = [
-        _field_to_frictionless_dict(fspec) for fspec in spec.fields
+    fields_list = [
+        _field_to_frictionless_dict(fspec, name=name, path=f"$.fields[{index}]")
+        for index, (name, fspec) in enumerate(spec.fields.items())
     ]
 
     descriptor["fields"] = fields_list
-    return descriptor
+    return json_value(descriptor)
 
 
 # Import: resolved Frictionless schema mapping → TypeSpec
 # ---------------------------------------------------------------------------
 
-def _field_from_frictionless_dict(raw_field: Mapping[str, Any]) -> "FieldSpec":
-    """Import one Frictionless field descriptor into a FieldSpec.
-
-    Recurses into ``x-mountainash.object_fields`` / ``item_object_fields``
-    (item 102) so nested descriptors mirror the export helper exactly. An
-    absent ``type`` defaults to ``any``; a leading ``fmt:`` prefix on the
-    temporal format is normalized off at this boundary.
-    """
-    name: str = raw_field["name"]
-    type_str: str = raw_field.get("type", "any")
-    universal_type = parse_universal(type_str)
-
-    raw_format: str = raw_field.get("format", "default")
-    format_: str = raw_format.removeprefix("fmt:")
-    field_title: Optional[str] = raw_field.get("title")
-    field_description: Optional[str] = raw_field.get("description")
-    field_missing_values: Optional[List[MissingValue]] = (
-        [_missing_value_from_json(mv) for mv in raw_field["missingValues"]]
-        if "missingValues" in raw_field else None
+@cache
+def _declaration_validator():
+    schema = json.loads(files("mountainash.typespec").joinpath("schemas/field-declarations.json").read_text())
+    object_types = Draft7Validator.TYPE_CHECKER.redefine(
+        "object", lambda checker, instance: isinstance(instance, Mapping),
     )
-    categories: Optional[List[Any]] = (
-        [_category_from_json(c) for c in raw_field["categories"]]
-        if "categories" in raw_field else None
-    )
-    true_values: Optional[List[str]] = raw_field.get("trueValues")
-    false_values: Optional[List[str]] = raw_field.get("falseValues")
-    categories_ordered: Optional[bool] = raw_field.get("categoriesOrdered")
-    example: Optional[Any] = raw_field.get("example")
-    rdf_type: Optional[str] = raw_field.get("rdfType")
-    decimal_char: Optional[str] = raw_field.get("decimalChar")
-    group_char: Optional[str] = raw_field.get("groupChar")
-    bare_number: Optional[bool] = raw_field.get("bareNumber")
-    item_type: Optional[str] = raw_field.get("itemType")
-    delimiter: Optional[str] = raw_field.get("delimiter")
+    return extend(Draft7Validator, type_checker=object_types)(schema)
 
-    field_ext: Dict[str, Any] = raw_field.get("x-mountainash", {}) or {}
-    rename_from: Optional[str] = field_ext.get("rename_from")
-    null_fill: Any = field_ext.get("null_fill")
-    custom_cast: Optional[str] = field_ext.get("custom_cast")
-    enum_weights: Optional[Dict[str, float]] = field_ext.get("enum_weights")
-    backend_type: Optional[str] = field_ext.get("backend_type")
-    raw_object_fields: Optional[List[Dict[str, Any]]] = field_ext.get("object_fields")
-    object_fields: Optional[List[FieldSpec]] = (
-        [_field_from_frictionless_dict(rf) for rf in raw_object_fields]
-        if raw_object_fields is not None else None
-    )
-    raw_item_object_fields: Optional[List[Dict[str, Any]]] = field_ext.get("item_object_fields")
-    item_object_fields: Optional[List[FieldSpec]] = (
-        [_field_from_frictionless_dict(rf) for rf in raw_item_object_fields]
-        if raw_item_object_fields is not None else None
-    )
 
-    constraints = _parse_constraints(raw_field.get("constraints"), enum_weights=enum_weights)
+def _validate_declaration_descriptor(descriptor: Mapping[str, Any]) -> None:
+    error = next(_declaration_validator().iter_errors(descriptor), None)
+    if error is not None:
+        path = "$" + "".join(
+            f"[{part}]" if isinstance(part, int) else f".{part}"
+            for part in error.absolute_path
+        )
+        raise InvalidDescriptorStructure(
+            f"{path}: {error.message}", descriptor_kind="schema",
+            descriptor_path=path, rejected_value=error.instance,
+        )
 
-    return FieldSpec(
-        name=name,
-        type=universal_type,
-        format=format_,
-        title=field_title,
-        description=field_description,
-        constraints=constraints,
-        missing_values=field_missing_values,
-        categories=categories,
-        categories_ordered=categories_ordered,
-        example=example,
-        rdf_type=rdf_type,
-        decimal_char=decimal_char,
-        group_char=group_char,
-        bare_number=bare_number,
-        item_type=item_type,
-        delimiter=delimiter,
-        true_values=true_values,
-        false_values=false_values,
-        backend_type=backend_type,
-        dtype=_dtype_from_extension(name, field_ext.get("dtype")),
-        rounding=field_ext.get("rounding"),
-        rename_from=rename_from,
-        null_fill=null_fill,
-        custom_cast=custom_cast,
-        object_fields=object_fields,
-        item_object_fields=item_object_fields,
+
+def _fields_from_frictionless(raw_fields: list, path: str) -> dict[str, FieldSpec]:
+    result = {}
+    for index, raw_field in enumerate(raw_fields):
+        name = raw_field["name"]
+        field_path = f"{path}[{index}]"
+        if name in result:
+            raise InvalidDescriptorStructure(
+                f"{field_path}.name: duplicate field name {name!r}",
+                descriptor_kind="schema", descriptor_path=f"{field_path}.name",
+                rejected_value=name,
+            )
+        result[name] = _field_from_frictionless_dict(raw_field, path=field_path)
+    return result
+
+
+def _field_from_frictionless_dict(
+    raw_field: Mapping[str, Any], *, path: str = "$",
+) -> FieldSpec:
+    """Decode one body; names belong to its containing mapping, never its definition."""
+    extension = raw_field.get("x-mountainash", {})
+    for key in ("object_fields", "item_object_fields"):
+        if key in extension:
+            location = f"{path}.x-mountainash.{key}"
+            raise InvalidDescriptorStructure(
+                f"{location}: retired property; call migrate_nested_field_declarations() explicitly",
+                descriptor_kind="schema", descriptor_path=location,
+            )
+    properties = {
+        name: raw_field[key] for name, key in _FIELD_PROPERTY_KEYS.items() if key in raw_field
+    }
+    properties.update({
+        key: extension[key] for key in (*_FIELD_EXTENSION_KEYS, "backend_type", "null_fill")
+        if key in extension
+    })
+    properties["type"] = parse_universal(raw_field.get("type", "any"))
+    properties["format"] = raw_field.get("format", "default").removeprefix("fmt:")
+    properties["constraints"] = _parse_constraints(
+        raw_field.get("constraints"), extension.get("enum_weights"), extension.get("constraints"),
     )
+    if "missingValues" in raw_field:
+        properties["missing_values"] = [_missing_value_from_json(value) for value in raw_field["missingValues"]]
+    if "categories" in raw_field:
+        properties["categories"] = [_category_from_json(value) for value in raw_field["categories"]]
+    if "fields" in extension:
+        properties["fields"] = _fields_from_frictionless(
+            extension["fields"], f"{path}.x-mountainash.fields",
+        )
+    if "element" in extension:
+        properties["element"] = _field_from_frictionless_dict(
+            extension["element"], path=f"{path}.x-mountainash.element",
+        )
+    if "dimensions" in extension:
+        raw_dimensions = extension["dimensions"]
+        properties["dimensions"] = (
+            SchemaTypeStatus.UNKNOWN if raw_dimensions == {"kind": "unknown"} else tuple(raw_dimensions)
+        )
+    if "dtype" in extension:
+        properties["dtype"] = _dtype_from_extension(path, extension["dtype"])
+    try:
+        return FieldSpec(**properties)
+    except InvalidDtypeDeclaration as exc:
+        raise InvalidDtypeDeclaration(path, exc.reason, exc.rejected_value) from exc
+    except (TypeSpecError, ValueError, TypeError) as exc:
+        raise InvalidDescriptorStructure(
+            f"{path}: {exc}", descriptor_kind="schema", descriptor_path=path,
+        ) from exc
 
 
 def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
@@ -636,6 +656,7 @@ def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
         raise TypeError("typespec_from_frictionless() requires a resolved schema mapping")
 
     descriptor = data
+    _validate_declaration_descriptor(descriptor)
     # -- Spec-level fields --
     title: Optional[str] = descriptor.get("title")
     description: Optional[str] = descriptor.get("description")
@@ -682,10 +703,7 @@ def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
     )
 
     # -- Fields --
-    fields: List[FieldSpec] = [
-        _field_from_frictionless_dict(raw_field)
-        for raw_field in descriptor.get("fields", [])
-    ]
+    fields = _fields_from_frictionless(descriptor.get("fields", []), "$.fields")
 
     return TypeSpec(
         fields=fields,
@@ -701,9 +719,151 @@ def typespec_from_frictionless(data: Mapping[str, Any]) -> TypeSpec:
     )
 
 
+def _migration_members(raw: Any, path: str) -> dict[str, dict]:
+    if not isinstance(raw, list):
+        raise InvalidDescriptorStructure(
+            f"{path}: fields must be a list", descriptor_path=path, rejected_value=raw,
+        )
+    members = {}
+    for index, child in enumerate(raw):
+        location = f"{path}[{index}]"
+        if not isinstance(child, Mapping) or not isinstance(child.get("name"), str):
+            raise InvalidDescriptorStructure(
+                f"{location}: named field required", descriptor_path=location, rejected_value=child,
+            )
+        name = child["name"]
+        if name in members:
+            raise InvalidDescriptorStructure(
+                f"{location}.name: duplicate field name {name!r}", descriptor_path=f"{location}.name",
+            )
+        members[name] = _migrate_field_body(child, location)
+    return members
+
+
+def _migration_dtype(raw: Mapping[str, Any], path: str) -> Any:
+    """Read only portable type intent; native overrides and metadata stay separate."""
+    from .converters import resolve_field_canonical
+
+    extension = raw.get("x-mountainash", {})
+    if "dtype" in extension:
+        return _dtype_from_extension(path, extension["dtype"])
+    if "fields" in extension:
+        return StructDtype(tuple(
+            (child["name"], _migration_dtype(child, path) or SchemaTypeStatus.UNKNOWN)
+            for child in extension["fields"]
+        ))
+    if "element" in extension:
+        element = _migration_dtype(extension["element"], path) or SchemaTypeStatus.UNKNOWN
+        dimensions = extension.get("dimensions")
+        if dimensions is None:
+            return ListDtype(element)
+        return ArrayDtype(
+            element, SchemaTypeStatus.UNKNOWN if dimensions == {"kind": "unknown"} else tuple(dimensions),
+        )
+    return resolve_field_canonical(FieldSpec(
+        type=parse_universal(raw.get("type", "any")),
+        format=raw.get("format", "default").removeprefix("fmt:"),
+    ))
+
+
+def _migrate_field_body(
+    raw: Mapping[str, Any], path: str, *, parent_dtype: Any = None,
+) -> dict[str, Any]:
+    from mountainash.core.dtypes import resolve_dtype_parameters
+
+    result = deepcopy(dict(raw))
+    extension = result.get("x-mountainash", {})
+    has_legacy = "object_fields" in extension or "item_object_fields" in extension
+    members = None
+    if "fields" in extension:
+        members = _migration_members(extension["fields"], f"{path}.x-mountainash.fields")
+        extension["fields"] = list(members.values())
+    if "element" in extension:
+        extension["element"] = _migrate_field_body(extension["element"], f"{path}.x-mountainash.element")
+    if not has_legacy and parent_dtype is None:
+        return result
+    declared = _migration_dtype(result, path)
+    selected = declared
+    if parent_dtype is not None:
+        selected = (
+            declared if parent_dtype is SchemaTypeStatus.UNKNOWN and declared is not None
+            else resolve_dtype_parameters(parent_dtype, declared)
+        )
+    old_fields = extension.pop("object_fields", None)
+    old_items = extension.pop("item_object_fields", None)
+    if old_fields is not None:
+        members = _migration_members(old_fields, f"{path}.x-mountainash.object_fields")
+        evidence = StructDtype(tuple(
+            (name, _migration_dtype(child, path) or SchemaTypeStatus.UNKNOWN)
+            for name, child in members.items()
+        ))
+        if selected is None or selected is SchemaTypeStatus.UNKNOWN or selected is MountainashDtype.STRUCT:
+            selected = evidence
+        elif isinstance(selected, StructDtype):
+            selected = resolve_dtype_parameters(selected, evidence)
+    element_body = extension.get("element")
+    if old_items is not None:
+        item_members = _migration_members(old_items, f"{path}.x-mountainash.item_object_fields")
+        element_body = {"type": "object", "x-mountainash": {"fields": list(item_members.values())}}
+        evidence = ListDtype(_migration_dtype(element_body, path))
+        if selected is None or selected is SchemaTypeStatus.UNKNOWN or selected is MountainashDtype.LIST:
+            selected = evidence
+        elif isinstance(selected, (ListDtype, ArrayDtype)):
+            selected = resolve_dtype_parameters(selected, evidence)
+    # Canonical type/order wins, while metadata and unrelated custom properties
+    # remain on their original named declaration. Never roundtrip the whole body
+    # through the typed codec: its supported-property inventory is intentionally narrower.
+    lexical = raw.get("type") == "list" and isinstance(selected, ListDtype)
+    portable = _field_to_frictionless_dict(
+        FieldSpec(dtype=selected, type=UniversalType.LIST if lexical else UniversalType.ANY),
+        path=path,
+    )
+    for key in ("type", "format"):
+        if key in portable:
+            result[key] = portable[key]
+    for key in ("dtype", "fields", "element", "dimensions"):
+        extension.pop(key, None)
+    canonical = portable.get("x-mountainash", {})
+    extension.update(canonical)
+    if isinstance(selected, StructDtype) and selected.fields is not SchemaTypeStatus.UNKNOWN:
+        candidates = members or {}
+        extension["fields"] = [
+            _migrate_field_body(
+                candidates.get(name, {"name": name}), f"{path}.x-mountainash.fields[{index}]",
+                parent_dtype=dtype,
+            )
+            for index, (name, dtype) in enumerate(selected.fields)
+        ]
+    elif isinstance(selected, (ListDtype, ArrayDtype)):
+        extension["element"] = _migrate_field_body(
+            element_body or {}, f"{path}.x-mountainash.element", parent_dtype=selected.element,
+        )
+    if extension:
+        result["x-mountainash"] = extension
+    else:
+        result.pop("x-mountainash", None)
+    return result
+
+
+def migrate_nested_field_declarations(schema_descriptor: Mapping[str, Any]) -> dict:
+    """Return an owned descriptor with retired nested declarations explicitly migrated.
+
+    Native string overrides remain authoritative. Portable parent shape/order and
+    known child types win; compatible child declarations supply missing parameters.
+    No files, references, packages or backend execution are involved.
+    """
+    if not isinstance(schema_descriptor, Mapping):
+        raise TypeError("migrate_nested_field_declarations() requires a schema mapping")
+    migrated = deepcopy(dict(schema_descriptor))
+    if "fields" in migrated:
+        migrated["fields"] = list(_migration_members(migrated["fields"], "$.fields").values())
+    return migrated
+
+
 __all__ = [
     "typespec_to_frictionless",
     "typespec_from_frictionless",
+    "migrate_nested_field_declarations",
     "foreign_key_from_dict",
     "foreign_key_to_dict",
     "_constraints_to_dict",

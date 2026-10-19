@@ -161,7 +161,7 @@ def build_fk_checks(
     # Spec-declared field names are first-class evidence for declaration
     # validation (they don't depend on DAG schema inference succeeding).
     spec_fields: "dict[str, set[str]]" = {
-        name: {f.name for f in spec.fields}
+        name: set(spec.fields)
         for name, spec in specs.items()
         if getattr(spec, "fields", None)
     }

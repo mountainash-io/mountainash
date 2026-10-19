@@ -1,6 +1,7 @@
 """Protocol for mountainash struct field operations."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol, Literal
 
 from mountainash.core.types import ExpressionT
@@ -16,6 +17,6 @@ class MountainAshScalarStructExpressionSystemProtocol(Protocol[ExpressionT]):
         x: ExpressionT,
         /,
         *converted_fields: ExpressionT,
-        fields: tuple[FieldSpec, ...],
+        fields: Mapping[str, FieldSpec],
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> ExpressionT: ...

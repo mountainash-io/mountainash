@@ -14,7 +14,7 @@ from mountainash.datacontracts.contract import BaseDataContract
 
 class TestDatacontractFromTypeSpec:
     def test_typespec_compiles(self):
-        spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
+        spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.STRING)})
         Contract = ma.datacontract(spec)
         assert issubclass(Contract, BaseDataContract)
         df = pl.DataFrame({"x": ["a"]})
@@ -76,7 +76,7 @@ class TestDatacontractFromPydantic:
 class TestDatacontractFromDataFrameModel:
     def test_existing_base_data_contract_returned_as_is(self):
         class MyContract(BaseDataContract):
-            name: str
+            name = FieldSpec(type=UniversalType.STRING)
 
         result = ma.datacontract(MyContract)
         assert result is MyContract
@@ -88,12 +88,12 @@ class TestDatacontractFromDataFrameModel:
         # only understand TypeSpec-shaped sources). The equivalent native
         # guarantee is that a TypeSpec source compiles to a working contract
         # whose declared field survives the TypeSpec round-trip.
-        spec = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+        spec = TypeSpec(fields={"name": FieldSpec(type=UniversalType.STRING)})
         Contract = ma.datacontract(spec)
         assert issubclass(Contract, BaseDataContract)
         assert hasattr(Contract, "validate_datacontract")
         round_tripped = Contract.to_typespec()
-        assert [f.name for f in round_tripped.fields] == ["name"]
+        assert list(round_tripped.fields) == ["name"]
         df = pl.DataFrame({"name": ["a"]})
         result = Contract.validate_datacontract(df)
         assert result.passes is True

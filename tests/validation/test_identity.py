@@ -20,16 +20,16 @@ from mountainash.validation.identity import (
 
 class TestResolution:
     def test_explicit_natural_key_wins(self):
-        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.ANY)], primary_key=["id"])
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.ANY)}, primary_key=["id"])
         identity = resolve_identity(natural_key=["code"], spec=spec)
         assert identity == RowIdentity(kind="keyed", key_fields=("code",))
 
     def test_primary_key_from_spec(self):
-        spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.ANY)], primary_key=["id"])
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.ANY)}, primary_key=["id"])
         assert resolve_identity(spec=spec) == RowIdentity(kind="keyed", key_fields=("id",))
 
     def test_composite_primary_key(self):
-        spec = TypeSpec(fields=[], primary_key=["a", "b"])
+        spec = TypeSpec(fields={}, primary_key=["a", "b"])
         assert resolve_identity(spec=spec).key_fields == ("a", "b")
 
     def test_row_number_opt_in(self):
@@ -61,10 +61,10 @@ def test_composite_unique_excludes_any_null_row():
     frame = pl.DataFrame({"a": [1, 1, 1], "b": [None, None, 2]})
     plan = compile_datacontract(
         TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
+            fields={
+                "a": FieldSpec(type=UniversalType.INTEGER),
+                "b": FieldSpec(type=UniversalType.INTEGER),
+            },
             unique_keys=[["a", "b"]],
         )
     )

@@ -7,9 +7,8 @@ import polars as pl
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
-from mountainash.typespec.converters import _resolve_field_native
+from mountainash.typespec.converters import _resolve_field_native, declared_fields
 from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
 from ..temporal_cast import cast_temporal_compatible
@@ -86,7 +85,7 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         x,
         /,
         *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
+        element: FieldSpec | None = None,
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
@@ -102,27 +101,25 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
                 invalid = result_count < original_count
                 return pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
             return result
-        field = FieldSpec(
-            name="_items",
-            type=UniversalType.ARRAY,
-            item_object_fields=list(item_object_fields),
-        )
-        dtype = _resolve_field_native(field, TypeTarget.POLARS)
+        field = FieldSpec(element=element)
+        dtype = _resolve_field_native(field, TypeTarget.POLARS, field_name="items")
         if converted_fields:
-            count = len(item_object_fields)
+            children = declared_fields(element)
+            names = tuple(children)
+            count = len(names)
             validity = converted_fields[count] if len(converted_fields) > count else None
-            element = pl.struct([
-                value.alias(child.name)
-                for child, value in zip(item_object_fields, converted_fields[:count], strict=True)
+            struct_element = pl.struct([
+                value.alias(name)
+                for name, value in zip(names, converted_fields[:count], strict=True)
             ])
-            element = pl.when(pl.element().is_null()).then(
+            struct_element = pl.when(pl.element().is_null()).then(
                 pl.lit(None, dtype=dtype.inner),
-            ).otherwise(element.cast(dtype.inner, strict=failure_behavior != "null"))
+            ).otherwise(struct_element.cast(dtype.inner, strict=failure_behavior != "null"))
 
             def convert(bound, native, *, check=False):
                 nested = isinstance(native.inner, (pl.List, pl.Array))
                 body = convert(pl.element(), native.inner, check=check) if nested else (
-                    ~validity.fill_null(True) if check else element
+                    ~validity.fill_null(True) if check else struct_element
                 )
                 mapped = bound.arr.eval(body) if isinstance(native, pl.Array) else bound.list.eval(body)
                 if check:
@@ -136,7 +133,7 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         else:
             result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
         if failure_behavior == "null" and not converted_fields:
-            invalid = _invalid_nested(x, field)
+            invalid = _invalid_nested(x, field, field_name="items")
             result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
         return result
 

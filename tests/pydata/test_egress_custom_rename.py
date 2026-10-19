@@ -4,7 +4,7 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from mountainash.pydata.egress.egress_helpers import apply_native_conversions_for_egress
+from mountainash.pydata.egress.egress_helpers import apply_hybrid_egress_conversion, apply_native_conversions_for_egress
 from mountainash.typespec.custom_types import CustomTypeRegistry
 from mountainash.typespec.spec import FieldSpec, TypeSpec
 from mountainash.typespec.universal_types import UniversalType
@@ -12,33 +12,37 @@ from mountainash.typespec.universal_types import UniversalType
 
 @pytest.fixture(autouse=True)
 def register_test_converter():
-    """Register a simple non-vectorized (Python-only) converter for tests."""
-    name = "_test_upper"
-    if not CustomTypeRegistry.has_converter(name):
-        CustomTypeRegistry.register(
-            name=name,
-            target_universal_type="string",
-            python_converter=lambda v, **_: str(v).upper() if v is not None else v,
-            narwhals_converter=None,
-            description="Test converter: upper-case string",
-        )
+    """Register non-vectorized converters used by egress tests."""
+    converters = {
+        "_test_upper": lambda v, **_: str(v).upper() if v is not None else v,
+        "_test_suffix": lambda v, **_: f"{v}!" if v is not None else v,
+    }
+    for name, converter in converters.items():
+        if not CustomTypeRegistry.has_converter(name):
+            CustomTypeRegistry.register(
+                name=name,
+                target_universal_type="string",
+                python_converter=converter,
+                narwhals_converter=None,
+                description=f"Test converter: {name}",
+            )
     yield
-    CustomTypeRegistry.unregister(name)
+    for name in converters:
+        CustomTypeRegistry.unregister(name)
 
 
 class TestCustomCastRename:
     def test_custom_field_with_rename_gets_renamed(self):
-        """A custom-cast field (python-only) with source_name != name should be renamed."""
+        """A custom-cast field with a source alias should be renamed."""
         df = pl.DataFrame({"raw_val": ["hello", "world"]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="val",
+            fields={
+                "val": FieldSpec(
                     type=UniversalType.STRING,
                     rename_from="raw_val",
                     custom_cast="_test_upper",
                 ),
-            ],
+            },
         )
         result_df, python_only = apply_native_conversions_for_egress(df, spec)
         assert "val" in result_df.columns, (
@@ -47,19 +51,34 @@ class TestCustomCastRename:
         )
 
     def test_custom_field_without_rename_unchanged(self):
-        """A custom-cast field where name == source_name needs no rename."""
+        """A custom-cast field without a source alias keeps its contextual name."""
         df = pl.DataFrame({"val": ["hello", "world"]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="val",
+            fields={
+                "val": FieldSpec(
                     type=UniversalType.STRING,
                     custom_cast="_test_upper",
                 ),
-            ],
+            },
         )
         result_df, python_only = apply_native_conversions_for_egress(df, spec)
         assert "val" in result_df.columns
+
+    def test_shared_definition_rename_and_converter_apply_once(self):
+        definition = FieldSpec(
+            type=UniversalType.STRING,
+            rename_from="raw",
+            custom_cast="_test_suffix",
+        )
+        schema = TypeSpec(fields={"first": definition, "second": definition})
+        result = apply_hybrid_egress_conversion(
+            pl.DataFrame({"raw": ["x"]}),
+            schema,
+            extract_func=lambda frame: frame.to_dicts(),
+            data_format="dict",
+        )
+        assert result == [{"first": "x!", "second": "x!"}]
+        assert definition.custom_cast == "_test_suffix"
 
     def test_mixed_native_and_custom_with_renames(self):
         """Native fields go through conform; custom fields get rename-only projections."""
@@ -68,15 +87,14 @@ class TestCustomCastRename:
             "raw_label": ["hello", "world"],
         })
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id"),
-                FieldSpec(
-                    name="label",
+            fields={
+                "id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id"),
+                "label": FieldSpec(
                     type=UniversalType.STRING,
                     rename_from="raw_label",
                     custom_cast="_test_upper",
                 ),
-            ],
+            },
         )
         result_df, python_only = apply_native_conversions_for_egress(df, spec)
         assert "id" in result_df.columns

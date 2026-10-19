@@ -2,6 +2,9 @@
 
 ## Unreleased — 2026-10-17
 
+### Changed
+- **Unreleased migration:** `FieldSpec` is now an immutable unnamed declaration; `TypeSpec.fields` is an ordered name-to-definition mapping. Use `fields=` for object members and `element=` (plus optional `dimensions`) for collection declarations. Reuse definitions directly or specialize with `.variant(...)`. Existing persisted nested descriptors using `object_fields`/`item_object_fields` require an explicit call to `migrate_nested_field_declarations()` before typed reading; raw DataPackage storage is unchanged. The cutover and downstream Structuremap adoption remain unqualified; no release is claimed.
+
 ### Added
 - Parameterized literal/cast and `FieldSpec.dtype` construction (340) through the existing shared dtype registry: timestamp, time, duration, recursive list/struct, fixed-array and Decimal declarations. Partial targets retain compatible source parameters; whole UNKNOWN targets request ordinary inference/no conversion. Recursive descriptor persistence retains authored UNKNOWN/None distinctions and legacy child metadata under canonical dtype precedence.
 

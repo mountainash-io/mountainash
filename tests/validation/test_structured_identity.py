@@ -68,14 +68,14 @@ class TestCanonicalValueKeyStructuredEquality:
 
 def _structured_relation(rows: dict, *, action: str = "coerce"):
     df = pl.DataFrame(rows)
-    fields = []
+    fields = {}
     if "tags" in rows:
-        fields.append(FieldSpec(name="tags", type=UniversalType.ARRAY))
+        fields["tags"] = FieldSpec(type=UniversalType.ARRAY)
     if "meta" in rows:
-        fields.append(FieldSpec(name="meta", type=UniversalType.OBJECT))
+        fields["meta"] = FieldSpec(type=UniversalType.OBJECT)
     for name in rows:
         if name not in {"tags", "meta"}:
-            fields.append(FieldSpec(name=name, type=UniversalType.INTEGER))
+            fields[name] = FieldSpec(type=UniversalType.INTEGER)
     spec = TypeSpec(fields_match="open", fields=fields)
     return ma.relation(df).conform(spec, contract={"data_type": action})
 

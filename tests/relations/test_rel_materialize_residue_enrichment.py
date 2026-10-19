@@ -127,10 +127,10 @@ def test_native_collect_protects_xsd_results_without_exposing_markers(backend_na
         )
         spec = TypeSpec(
             fields_match="open",
-            fields=[
-                FieldSpec(name="duration", type=UniversalType.DURATION),
-                FieldSpec(name="year", type=UniversalType.YEAR),
-            ],
+            fields={
+                "duration": FieldSpec(type=UniversalType.DURATION),
+                "year": FieldSpec(type=UniversalType.YEAR),
+            },
         )
         values = {"duration": ["P1D", None], "year": ["2024", None]}
         native = ma.relation(backend_factory.create(values, backend_name)).conform(spec).collect()

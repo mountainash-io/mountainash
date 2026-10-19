@@ -59,10 +59,7 @@ def test_strptime_date_honors_format_or_reports_default_pandas_storage(
     backend_name, values, format, backend_factory
 ):
     df = backend_factory.create({"dt": values}, backend_name)
-    spec = TypeSpec(
-        fields_match="open",
-        fields=[FieldSpec(name="dt", type=UniversalType.DATE, format=format)],
-    )
+    spec = TypeSpec(fields_match="open", fields={"dt": FieldSpec(type=UniversalType.DATE, format=format)}, )
     if backend_name in _DATE_REFUSED:
         with pytest.raises(BackendCapabilityError) as raised:
             ma.relation(df).conform(spec).to_polars()
@@ -101,10 +98,7 @@ def test_strptime_date_honors_format_with_arrow_backed_pandas_strings(
     )
     if backend_name == "narwhals-pandas":
         dataframe = nw.from_native(dataframe, eager_only=True)
-    spec = TypeSpec(
-        fields_match="open",
-        fields=[FieldSpec(name="dt", type=UniversalType.DATE, format=format)],
-    )
+    spec = TypeSpec(fields_match="open", fields={"dt": FieldSpec(type=UniversalType.DATE, format=format)}, )
     result = ma.relation(dataframe).conform(spec).to_polars()
     assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
     assert result["unmapped"].to_list() == ["retained", None, "unchanged"]
@@ -122,15 +116,8 @@ class TestDatetimeFormatParsing:
         df = backend_factory.create(
             {"ts": ["26/01/2024 09:15:00", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="ts",
-                    type=UniversalType.DATETIME,
-                    format="%d/%m/%Y %H:%M:%S",
-                ),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"ts": FieldSpec(type=UniversalType.DATETIME,
+        format="%d/%m/%Y %H:%M:%S",)}, )
         if backend_name in _DATETIME_GATED:
             with pytest.raises(BackendCapabilityError) as raised:
                 ma.relation(df).conform(spec).to_polars()
@@ -158,11 +145,7 @@ class TestTimeFormatParsing:
         df = backend_factory.create(
             {"t": ["09-15-30", "14-30-00", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="t", type=UniversalType.TIME, format="%H-%M-%S"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"t": FieldSpec(type=UniversalType.TIME, format="%H-%M-%S")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["t"].to_list() == [time(9, 15, 30), time(14, 30), None]
 
@@ -180,11 +163,7 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="dt", type=UniversalType.DATE, format="default"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"dt": FieldSpec(type=UniversalType.DATE, format="default")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
 
@@ -192,21 +171,14 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="dt", type=UniversalType.DATE),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"dt": FieldSpec(type=UniversalType.DATE)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
     def test_any_format_uses_temporal_parser_or_gate(self, backend_name, backend_factory):
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15", None]}, backend_name
         )
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="dt", type=UniversalType.DATE, format="any")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"dt": FieldSpec(type=UniversalType.DATE, format="any")}, )
         if backend_name not in _TEMPORAL_ANY_SUPPORTED:
             with pytest.raises(BackendCapabilityError) as raised:
                 ma.relation(df).conform(spec).to_polars()

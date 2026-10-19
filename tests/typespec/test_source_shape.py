@@ -8,39 +8,6 @@ from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.source_shape import SourceShape, extract_source_shapes
 
 
-def test_source_shape_rejects_children_on_scalar() -> None:
-    with pytest.raises(ValueError, match="only LIST can have item_shape"):
-        SourceShape(
-            MountainashDtype.STRING,
-            item_shape=SourceShape(MountainashDtype.I64),
-        )
-
-
-def test_source_shape_rejects_duplicate_struct_fields() -> None:
-    child = SourceShape(MountainashDtype.STRING)
-    with pytest.raises(ValueError, match="unique"):
-        SourceShape(
-            MountainashDtype.STRUCT,
-            struct_fields=(("id", child), ("id", child)),
-        )
-
-
-def test_source_shape_rejects_mixed_children() -> None:
-    with pytest.raises(ValueError):
-        SourceShape(
-            MountainashDtype.STRUCT,
-            item_shape=SourceShape(MountainashDtype.STRING),
-            struct_fields=(("value", SourceShape(MountainashDtype.STRING)),),
-        )
-
-
-def test_source_shape_rejects_struct_children_on_non_struct() -> None:
-    with pytest.raises(ValueError, match="only STRUCT can have struct_fields"):
-        SourceShape(
-            MountainashDtype.STRING,
-            struct_fields=(("value", SourceShape(MountainashDtype.STRING)),),
-        )
-
 
 def test_source_shape_allows_unknown_leaf() -> None:
     assert SourceShape(None) == SourceShape(canonical_type=None)

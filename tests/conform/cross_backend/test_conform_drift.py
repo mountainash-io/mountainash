@@ -69,7 +69,7 @@ class TestDetectionParity:
         from mountainash.relations.schema_inference import _schema_from_dataframe
 
         df = backend_factory.create({"n": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
 
         actual_dtypes = _schema_from_dataframe(df)
         assert dtype_family(actual_dtypes.get("n")) is MountainashDtype.STRING, (
@@ -102,7 +102,7 @@ class TestDetectionParity:
 class TestEvolvePolicy:
     def test_evolve_keeps_source_dtype_and_values(self, backend_name, backend_factory):
         df = backend_factory.create({"n": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
 
         result = ma.relation(df).conform(spec, contract={"data_type": "evolve"}).to_polars()
 
@@ -122,7 +122,7 @@ class TestEvolvePolicy:
 class TestDiscardValuePolicy:
     def test_discard_value_nulls_unparseable(self, backend_name, backend_factory):
         df = backend_factory.create({"n": ["1", "bad", "3"]}, backend_name)
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
 
         with expect_call_failure(
             when=backend_name in (
@@ -156,10 +156,7 @@ class TestDiscardRowPolicy:
         # id=3 -> None (legitimately null -> KEPT, n stays null);
         # id=4 -> "3" (parses).
         df = backend_factory.create({"id": [1, 2, 3, 4], "n": ["1", "bad", None, "3"]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="n", type=UniversalType.INTEGER)],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)}, fields_match="open",)
 
         with expect_call_failure(
             when=backend_name in (
@@ -192,7 +189,7 @@ class TestDiscardRowPolicy:
 class TestFreezePolicy:
     def test_freeze_raises_with_drift_attached(self, backend_name, backend_factory):
         df = backend_factory.create({"n": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
 
         with pytest.raises(SchemaDriftError) as exc_info:
             ma.relation(df).conform(spec, contract={"data_type": "freeze"}).to_polars()

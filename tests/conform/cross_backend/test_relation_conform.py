@@ -29,9 +29,7 @@ def test_canonical_conform_retains_declared_identity(backend_name, backend_facto
             reason="252: native Narwhals NumPy-backed float/NaN -> integer cast loses nullable representation",
         ))
     source = backend_factory.create({"value": values}, backend_name)
-    rel = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec(name="value", dtype=dtype)], missing_values=[],
-    ))
+    rel = ma.relation(source).conform(TypeSpec(fields={"value": FieldSpec(dtype=dtype)}, missing_values=[],))
     out = rel.to_polars()
     assert out["value"].to_list() == values
     # Native-first schema reports SQLite's physical affinities. The typed
@@ -58,10 +56,7 @@ def test_native_override_controls_conform_and_inference(backend_name, backend_fa
         ))
     source = backend_factory.create({"value": [127, None]}, backend_name)
     override = "int64" if backend_name.startswith("ibis") else "Int64"
-    rel = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec(name="value", dtype=ma.MountainashDtype.I8, backend_type=override)],
-        missing_values=[],
-    ))
+    rel = ma.relation(source).conform(TypeSpec(fields={"value": FieldSpec(dtype=ma.MountainashDtype.I8, backend_type=override)}, missing_values=[],))
     with pytest.warns(UserWarning, match="value"):
         out = rel.to_polars()
     assert out["value"].to_list() == [127, None]
@@ -76,9 +71,7 @@ def test_explicit_native_timestamp_freeze_compares_parameters():
     from mountainash.conform.errors import SchemaDriftError
     source = pl.DataFrame({"at": [1, 1001, None]}).with_columns(pl.col("at").cast(pl.Datetime("ns", "UTC")))
     for unit in ("ns", "us"):
-        spec = TypeSpec(fields=[FieldSpec(
-            name="at", backend_type=pl.Datetime(unit, "UTC"),
-        )], missing_values=[])
+        spec = TypeSpec(fields={"at": FieldSpec(backend_type=pl.Datetime(unit, "UTC"),)}, missing_values=[])
         rel = ma.relation(source).conform(spec, contract={"data_type": "freeze"})
         if unit == "ns":
             assert rel.to_polars()["at"].dt.epoch("ns").to_list() == [1, 1001, None]
@@ -101,30 +94,21 @@ def test_explicit_native_timestamp_freeze_compares_parameters():
 class TestRelationConformBasic:
     def test_rename_and_cast(self, backend_name, backend_factory):
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"user_id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2, 3]
         assert list(result.columns) == ["user_id"]
 
     def test_null_fill_and_cast(self, backend_name, backend_factory):
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.INTEGER, null_fill=-1)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
 
     def test_default_keeps_unmapped(self, backend_name, backend_factory):
         """fields_match="open" keeps unmapped columns."""
         df = backend_factory.create({"keep": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"keep": FieldSpec(type=UniversalType.STRING)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
         assert "extra" in result.columns
@@ -134,25 +118,19 @@ class TestRelationConformBasic:
 class TestRelationConformComposition:
     def test_conform_then_filter(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.INTEGER)}, )
         result = ma.relation(df).conform(spec).filter(ma.col("val").gt(1)).to_polars()
         assert result["val"].to_list() == [2, 3]
 
     def test_conform_then_sort(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["3", "1", "2"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.INTEGER)}, )
         result = ma.relation(df).conform(spec).sort("val").to_polars()
         assert result["val"].to_list() == [1, 2, 3]
 
 
 class TestRelationConformStructAccess:
-    def test_dotted_source_name(self):
+    def test_dotted_source_path(self):
         import polars as pl
 
         df = pl.DataFrame(
@@ -161,13 +139,7 @@ class TestRelationConformStructAccess:
                 {"id": 2, "score": {"strain": 8.2, "kilojoule": 350.0}},
             ]
         )
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"id": FieldSpec(type=UniversalType.INTEGER), "strain": FieldSpec(type=UniversalType.NUMBER, rename_from="score.strain")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["strain"].to_list() == [10.5, 8.2]
         assert "id" in result.columns
@@ -187,10 +159,7 @@ class TestRelationConformStructStrictModes:
             reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
         ):
             df = backend_factory.create({"payload": [{"id": 1}, {"id": 2}]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
-            fields_match="equal",
-        )
+        spec = TypeSpec(fields={"pid": FieldSpec(type=UniversalType.INTEGER, rename_from="payload.id")}, fields_match="equal",)
         with expect_call_failure(
             when=backend_name in ("narwhals-pandas", "pandas"),
             errors=(TypeError,),
@@ -206,10 +175,7 @@ class TestRelationConformStructStrictModes:
             reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
         ):
             df = backend_factory.create({"payload": [{"id": 1}, {"id": 2}], "other": ["x", "y"]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="pid", type=UniversalType.INTEGER, rename_from="payload.id")],
-            fields_match="subset",
-        )
+        spec = TypeSpec(fields={"pid": FieldSpec(type=UniversalType.INTEGER, rename_from="payload.id")}, fields_match="subset",)
         with expect_call_failure(
             when=backend_name in ("narwhals-pandas", "pandas"),
             errors=(TypeError,),
@@ -245,19 +211,12 @@ class TestRelationConformStructCastOffPolars:
             reason="SQLite does not support native Struct-column construction; this is native input construction, not conform() execution",
         ):
             df = backend_factory.create({"addr": [{"street": "Main St", "zip": "12345"}]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(
-                    name="addr",
-                    type=UniversalType.OBJECT,
-                    object_fields=[
-                        FieldSpec(name="street", type=UniversalType.STRING),
-                        FieldSpec(name="zip", type=UniversalType.STRING),
-                    ],
-                )
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={
+            "addr": FieldSpec(fields={
+                "street": FieldSpec(type=UniversalType.STRING),
+                "zip": FieldSpec(type=UniversalType.STRING),
+            }),
+        })
         result = ma.relation(df).conform(spec).to_polars()
         assert "addr" in result.columns
 
@@ -285,25 +244,22 @@ def test_native_struct_keeps_child_conversion_metadata(backend_name, backend_fac
             ]},
             backend_name,
         )
-    field = FieldSpec(
-        "x",
-        dtype=StructDtype((
-            ("v", TimestampDtype(6, False)),
-            ("count", D.I64),
-            ("flag", D.BOOL),
-            ("backup", D.I64),
-            ("price", DecimalDtype(5, 2)),
-        )),
-        object_fields=[
-            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
-            FieldSpec("count", type=UniversalType.INTEGER, group_char=","),
-            FieldSpec("flag", type=UniversalType.BOOLEAN, true_values=["yes"], false_values=["no"]),
-            FieldSpec("backup", type=UniversalType.INTEGER, null_fill=12),
-            FieldSpec("price", type=UniversalType.NUMBER, dtype=DecimalDtype(5, 2), rounding="half_to_even"),
-        ],
-    )
+    field = FieldSpec(fields={
+        "v": FieldSpec(
+            type=UniversalType.DATETIME, dtype=TimestampDtype(6, False), format="%Y%m%d",
+        ),
+        "count": FieldSpec(type=UniversalType.INTEGER, dtype=D.I64, group_char=","),
+        "flag": FieldSpec(
+            type=UniversalType.BOOLEAN, dtype=D.BOOL,
+            true_values=["yes"], false_values=["no"],
+        ),
+        "backup": FieldSpec(type=UniversalType.INTEGER, dtype=D.I64, null_fill=12),
+        "price": FieldSpec(
+            type=UniversalType.NUMBER, dtype=DecimalDtype(5, 2), rounding="half_to_even",
+        ),
+    })
     result = ma.relation(source).conform(
-        TypeSpec(fields=[field], missing_values=[]),
+        TypeSpec(fields={"x": field}, missing_values=[]),
     ).to_polars()
     assert result["x"].to_list() == [
         {
@@ -329,14 +285,11 @@ def test_native_array_of_struct_keeps_child_conversion_metadata(
         {"items": [[{"v": "20260101"}]]},
         backend_name,
     )
-    field = FieldSpec(
-        "items",
-        type=UniversalType.ARRAY,
-        dtype=ListDtype(StructDtype((("v", TimestampDtype(6, False)),))),
-        item_object_fields=[
-            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
-        ],
-    )
+    field = FieldSpec(element=FieldSpec(fields={
+        "v": FieldSpec(
+            type=UniversalType.DATETIME, dtype=TimestampDtype(6, False), format="%Y%m%d",
+        ),
+    }))
     from mountainash.conform.errors import ConformTransformError
 
     with expect_call_failure(
@@ -345,7 +298,7 @@ def test_native_array_of_struct_keeps_child_conversion_metadata(
         reason="Ibis 12 Polars compiler has no ArrayMap translation; nested child conversion is unsupported",
     ):
         result = ma.relation(source).conform(
-            TypeSpec(fields=[field], missing_values=[]),
+            TypeSpec(fields={"items": field}, missing_values=[]),
         ).to_polars()
     assert result["items"].to_list() == [[{"v": datetime(2026, 1, 1)}]]
 
@@ -367,17 +320,14 @@ def test_native_array_child_conversion_retains_provider_capability_boundary(
         {"items": [[{"v": "20260101"}]]},
         backend_name,
     )
-    field = FieldSpec(
-        "items",
-        type=UniversalType.ARRAY,
-        dtype=ListDtype(StructDtype((("v", TimestampDtype(6, False)),))),
-        item_object_fields=[
-            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
-        ],
-    )
+    field = FieldSpec(element=FieldSpec(fields={
+        "v": FieldSpec(
+            type=UniversalType.DATETIME, dtype=TimestampDtype(6, False), format="%Y%m%d",
+        ),
+    }))
     with pytest.raises(BackendCapabilityError) as error:
         ma.relation(source).conform(
-            TypeSpec(fields=[field], missing_values=[]),
+            TypeSpec(fields={"items": field}, missing_values=[]),
         ).to_polars()
     assert error.value.function_key is FKEY_MOUNTAINASH_SCALAR_LIST.ELEMENT
 
@@ -393,15 +343,13 @@ def test_narwhals_struct_child_conversion_preserves_metadata(
         {"x": [{"v": "20260101"}]},
         backend_name,
     )
-    field = FieldSpec(
-        "x",
-        dtype=StructDtype((("v", TimestampDtype(6, False)),)),
-        object_fields=[
-            FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d"),
-        ],
-    )
+    field = FieldSpec(fields={
+        "v": FieldSpec(
+            type=UniversalType.DATETIME, dtype=TimestampDtype(6, False), format="%Y%m%d",
+        ),
+    })
     result = ma.relation(source).conform(
-        TypeSpec(fields=[field], missing_values=[]),
+        TypeSpec(fields={"x": field}, missing_values=[]),
     ).to_polars()
     assert result["x"].to_list() == [{"v": datetime(2026, 1, 1)}]
 
@@ -417,13 +365,7 @@ class TestRelationConformFullPipeline:
                 "extra": [10, 20, 30],
             }
         )
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
-                FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"score": FieldSpec(type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0), "label": FieldSpec(type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == [1.5, 0.0, 3.5]
         assert result["label"].to_list() == ["foo", "bar", "n/a"]
@@ -436,7 +378,7 @@ class TestRelationConformEdgeCases:
         import polars as pl
 
         df = pl.DataFrame({"a": [1], "b": [2]})
-        spec = TypeSpec(fields_match="open", fields=[])
+        spec = TypeSpec(fields_match="open", fields={})
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a", "b"]
 
@@ -446,7 +388,7 @@ class TestRelationConformEdgeCases:
         from mountainash.conform.errors import NoMatchingFieldsError
 
         df = pl.DataFrame({"a": [1], "b": [2]})
-        spec = TypeSpec(fields=[], fields_match="partial")
+        spec = TypeSpec(fields={}, fields_match="partial")
         with pytest.raises(NoMatchingFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
@@ -454,10 +396,7 @@ class TestRelationConformEdgeCases:
         import polars as pl
 
         df = pl.DataFrame({"val": ["hello", "world"]})
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.ANY)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.ANY)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["hello", "world"]
 
@@ -470,13 +409,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"keep": [1, 2], "extra": [10, 20]})
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="keep", type=UniversalType.INTEGER),
-                FieldSpec(name="gone", type=UniversalType.STRING),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"keep": FieldSpec(type=UniversalType.INTEGER), "gone": FieldSpec(type=UniversalType.STRING)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
         assert "extra" in result.columns
@@ -487,13 +420,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"raw_id": ["1", "2"]})
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id"),
-                FieldSpec(name="duration", type=UniversalType.NUMBER, rename_from="stress_duration"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id"), "duration": FieldSpec(type=UniversalType.NUMBER, rename_from="stress_duration")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
         assert result["id"].to_list() == [1, 2]
@@ -502,13 +429,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"id": [1, 2]})
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"id": FieldSpec(type=UniversalType.INTEGER), "strain": FieldSpec(type=UniversalType.NUMBER, rename_from="score.strain")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
 
@@ -517,13 +438,7 @@ class TestRelationConformMissingColumns:
         import polars as pl
 
         df = pl.DataFrame({"a": [1, 2]})
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="x", type=UniversalType.INTEGER),
-                FieldSpec(name="y", type=UniversalType.STRING),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"x": FieldSpec(type=UniversalType.INTEGER), "y": FieldSpec(type=UniversalType.STRING)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a"]
 
@@ -533,13 +448,7 @@ class TestRelationConformMissingColumns:
         from mountainash.conform.errors import NoMatchingFieldsError
 
         df = pl.DataFrame({"a": [1, 2]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="x", type=UniversalType.INTEGER),
-                FieldSpec(name="y", type=UniversalType.STRING),
-            ],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.INTEGER), "y": FieldSpec(type=UniversalType.STRING)}, fields_match="partial",)
         with pytest.raises(NoMatchingFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
@@ -553,10 +462,7 @@ class TestRelationConformFieldsMatchOpen:
             {"raw_id": ["1", "2"], "extra": [10, 20]},
             backend_name,
         )
-        spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id")}, fields_match="open",)
         result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
         assert "extra" in result.columns
@@ -570,10 +476,7 @@ class TestRelationConformFieldsMatchOpen:
             {"raw_id": ["1", "2"], "extra": [10, 20]},
             backend_name,
         )
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
         assert "extra" in result.columns
@@ -587,10 +490,7 @@ class TestRelationConformFieldsMatchOpen:
             {"raw_id": ["1", "2"], "extra": [10, 20]},
             backend_name,
         )
-        spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER, rename_from="raw_id")],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id")}, fields_match="partial",)
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["id"]
 
@@ -599,10 +499,7 @@ class TestRelationConformFieldsMatchOpen:
             {"val": ["1", "2"], "other": ["a", "b"]},
             backend_name,
         )
-        spec = TypeSpec(
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"val": FieldSpec(type=UniversalType.INTEGER)}, fields_match="open",)
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, 2]
         assert result["other"].to_list() == ["a", "b"]
@@ -612,10 +509,7 @@ class TestRelationConformFieldsMatchOpen:
             {"val": [1, None, 3], "tag": ["a", "b", "c"]},
             backend_name,
         )
-        spec = TypeSpec(
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"val": FieldSpec(type=UniversalType.INTEGER, null_fill=-1)}, fields_match="open",)
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
         assert result["tag"].to_list() == ["a", "b", "c"]
@@ -625,13 +519,7 @@ class TestRelationConformFieldsMatchOpen:
             {"src_a": [1, 2], "src_b": ["x", "y"], "keep": [10, 20]},
             backend_name,
         )
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER, rename_from="src_a"),
-                FieldSpec(name="b", type=UniversalType.STRING, rename_from="src_b"),
-            ],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER, rename_from="src_a"), "b": FieldSpec(type=UniversalType.STRING, rename_from="src_b")}, fields_match="open",)
         result = ma.relation(df).conform(spec).to_polars()
         assert "a" in result.columns
         assert "b" in result.columns
@@ -648,32 +536,20 @@ class TestFieldsMatchModes:
         # fields_match must be set to "open" explicitly (the model default is
         # now the strict "exact"); open keeps the unmapped b/c columns.
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER)}, fields_match="open",)
         assert spec.fields_match == "open"
         result = ma.relation(df).conform(spec).to_polars()
         assert sorted(result.columns) == ["a", "b", "c"]
 
     def test_partial_drops_unmapped(self, backend_name, backend_factory):
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER)}, fields_match="partial",)
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a"]
 
     def test_partial_skips_missing_fields(self, backend_name, backend_factory):
         df = backend_factory.create({"a": [1], "b": [2]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="gone", type=UniversalType.STRING),
-            ],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "gone": FieldSpec(type=UniversalType.STRING)}, fields_match="partial",)
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a"]
 
@@ -681,29 +557,20 @@ class TestFieldsMatchModes:
         from mountainash.conform.errors import NoMatchingFieldsError
 
         df = backend_factory.create({"a": [1]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="x", type=UniversalType.INTEGER)],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.INTEGER)}, fields_match="partial",)
         with pytest.raises(NoMatchingFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
     def test_exact_passes_when_count_matches(self, backend_name, backend_factory):
         df = backend_factory.create({"a": ["1"], "b": ["2"]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
-            fields_match="exact",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "b": FieldSpec(type=UniversalType.INTEGER)}, fields_match="exact",)
         result = ma.relation(df).conform(spec).to_polars()
         assert sorted(result.columns) == ["a", "b"]
 
     def test_exact_raises_on_count_mismatch(self, backend_name, backend_factory):
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
         spec = TypeSpec(
-            fields=[FieldSpec(name="a"), FieldSpec(name="b")],
+            fields={"a": FieldSpec(), "b": FieldSpec()},
             fields_match="exact",
         )
         from mountainash.conform.errors import ExactFieldsMismatchError
@@ -714,13 +581,7 @@ class TestFieldsMatchModes:
 
     def test_equal_passes_when_columns_match(self, backend_name, backend_factory):
         df = backend_factory.create({"a": ["1"], "b": ["2"]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
-            fields_match="equal",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "b": FieldSpec(type=UniversalType.INTEGER)}, fields_match="equal",)
         result = ma.relation(df).conform(spec).to_polars()
         assert sorted(result.columns) == ["a", "b"]
 
@@ -728,13 +589,7 @@ class TestFieldsMatchModes:
         from mountainash.conform.errors import MissingFieldsError
 
         df = backend_factory.create({"a": [1]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
-            fields_match="equal",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "b": FieldSpec(type=UniversalType.INTEGER)}, fields_match="equal",)
         with pytest.raises(MissingFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
@@ -742,22 +597,13 @@ class TestFieldsMatchModes:
         from mountainash.conform.errors import ExtraFieldsError
 
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
-            fields_match="equal",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "b": FieldSpec(type=UniversalType.INTEGER)}, fields_match="equal",)
         with pytest.raises(ExtraFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
     def test_subset_passes_when_all_spec_fields_present(self, backend_name, backend_factory):
         df = backend_factory.create({"a": ["1"], "b": [2], "c": [3]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
-            fields_match="subset",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER)}, fields_match="subset",)
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a"]
 
@@ -765,25 +611,13 @@ class TestFieldsMatchModes:
         from mountainash.conform.errors import MissingFieldsError
 
         df = backend_factory.create({"a": [1]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="gone", type=UniversalType.STRING),
-            ],
-            fields_match="subset",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "gone": FieldSpec(type=UniversalType.STRING)}, fields_match="subset",)
         with pytest.raises(MissingFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
     def test_superset_passes_when_no_extra_columns(self, backend_name, backend_factory):
         df = backend_factory.create({"a": ["1"]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.STRING),
-            ],
-            fields_match="superset",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "b": FieldSpec(type=UniversalType.STRING)}, fields_match="superset",)
         result = ma.relation(df).conform(spec).to_polars()
         assert list(result.columns) == ["a"]
 
@@ -791,13 +625,7 @@ class TestFieldsMatchModes:
         from mountainash.conform.errors import ExtraFieldsError
 
         df = backend_factory.create({"a": [1], "b": [2], "c": [3]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
-            fields_match="superset",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER), "b": FieldSpec(type=UniversalType.INTEGER)}, fields_match="superset",)
         with pytest.raises(ExtraFieldsError):
             ma.relation(df).conform(spec).to_polars()
 
@@ -805,10 +633,7 @@ class TestFieldsMatchModes:
         from mountainash.conform.errors import ConformError
 
         df = backend_factory.create({"a": [1]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
-            fields_match="bogus",
-        )
+        spec = TypeSpec(fields={"a": FieldSpec(type=UniversalType.INTEGER)}, fields_match="bogus",)
         with pytest.raises(ConformError, match="Invalid fields_match"):
             ma.relation(df).conform(spec).to_polars()
 
@@ -823,13 +648,7 @@ class TestRelationConformOpenStructAccess:
                 {"id": 2, "score": {"strain": 8.2, "recovery": 90}},
             ]
         )
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
-            ],
-            fields_match="open",
-        )
+        spec = TypeSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER), "strain": FieldSpec(type=UniversalType.NUMBER, rename_from="score.strain")}, fields_match="open",)
         result = ma.relation(df).conform(spec).to_polars()
         assert "id" in result.columns
         assert "strain" in result.columns
@@ -853,61 +672,49 @@ class TestConformOwnsDeclarations:
                 assert list(rel.schema) == list(out.columns)
 
     def test_owns_declared_type(self, backend_name, backend_factory):
+        from dataclasses import replace
+
         data = backend_factory.create({"value": ["7"]}, backend_name)
-        spec = TypeSpec(fields=[FieldSpec(name="value", type=UniversalType.INTEGER)])
+        spec = TypeSpec(fields={"value": FieldSpec(type=UniversalType.INTEGER)})
         old = ma.relation(data).conform(spec)
-        spec.fields[0].type = UniversalType.STRING
+        spec = replace(
+            spec,
+            fields={
+                **spec.fields,
+                "value": FieldSpec(type=UniversalType.STRING),
+            },
+        )
         new = ma.relation(data).conform(spec)
         self._check(old, expected=[7])
         self._check(new, expected=["7"])
 
-    def test_owns_raw_mapping_schema(self, backend_name, backend_factory):
-        data = backend_factory.create({"value": ["7"]}, backend_name)
-        spec = {"fields": [{"name": "value", "type": "integer"}]}
-        old = ma.relation(data).conform(spec)
-        spec["fields"][0]["type"] = "string"
-        new = ma.relation(data).conform(spec)
-        self._check(old, expected=[7])
-        self._check(new, expected=["7"])
 
     def test_owns_missing_values(self, backend_name, backend_factory):
+        from dataclasses import replace
+
         data = backend_factory.create({"value": ["NA"]}, backend_name)
         spec = TypeSpec(
-            fields=[FieldSpec(name="value", type=UniversalType.STRING, missing_values=[""])]
+            fields={"value": FieldSpec(type=UniversalType.STRING, missing_values=[""])}
         )
         old = ma.relation(data).conform(spec)
-        spec.fields[0].missing_values.append("NA")
+        spec = replace(
+            spec,
+            fields={
+                **spec.fields,
+                "value": spec.fields["value"].variant(missing_values=["", "NA"]),
+            },
+        )
         new = ma.relation(data).conform(spec)
         self._check(old, expected=["NA"])
         self._check(new, expected=[None])
 
-    @pytest.mark.parametrize("as_proxy", [False, True])
-    def test_owns_contract_override(self, backend_name, backend_factory, as_proxy):
-        from types import MappingProxyType
-
-        data = backend_factory.create(
-            {"value": [1], "support": [2]}, backend_name
-        )
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="value", type=UniversalType.INTEGER)],
-        )
-        override = {"extra_columns": "discard"}
-        arg = MappingProxyType(override) if as_proxy else override
-        old = ma.relation(data).conform(spec, contract=arg)
-        override["extra_columns"] = "evolve"
-        new = ma.relation(data).conform(spec, contract=arg)
-        # schema inference keeps unmapped columns under an extra_columns=discard
-        # override while execution drops them (separate defect, not ownership).
-        self._check(old, expected_cols=["value"], schema_parity=False)
-        self._check(new, expected_cols=["value", "support"])
 
 
 def test_nested_override_freeze_uses_effective_child_type():
     import polars as pl
-    spec = TypeSpec(fields=[FieldSpec(name="record", dtype=ma.MountainashDtype.STRUCT,
-        object_fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type=pl.Int64)],
-    )], missing_values=[])
+    spec = TypeSpec(fields={"record": FieldSpec(fields={
+        "id": FieldSpec(dtype=ma.MountainashDtype.I8, backend_type=pl.Int64),
+    })}, missing_values=[])
     source = pl.DataFrame({"record": [{"id": 300}, None]})
     with pytest.warns(UserWarning):
         out = ma.relation(source).conform(spec, contract={"data_type": "freeze"}).to_polars()
@@ -927,9 +734,7 @@ def test_native_override_reconciliation_policy(backend_name, backend_factory, ac
     values = ["1", "300", "bad"] if discarding else ["1", "300"]
     source = backend_factory.create({"value": values}, backend_name)
     override = "int64" if backend_name.startswith("ibis") else "Int64"
-    spec = TypeSpec(fields=[FieldSpec(
-        name="value", dtype=ma.MountainashDtype.I8, backend_type=override,
-    )], missing_values=[])
+    spec = TypeSpec(fields={"value": FieldSpec(dtype=ma.MountainashDtype.I8, backend_type=override,)}, missing_values=[])
     rel = ma.relation(source).conform(spec, contract={"data_type": action})
     with pytest.warns(UserWarning, match="value"):
         if action == "freeze":
@@ -955,10 +760,10 @@ def test_native_override_reconciliation_policy(backend_name, backend_factory, ac
 def test_native_container_override_replaces_nested_casts():
     # This native dtype is Polars-owned; other targets reject it.
     import polars as pl
-    spec = TypeSpec(fields=[FieldSpec(name="record", dtype=ma.MountainashDtype.STRUCT,
-        object_fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8)],
+    spec = TypeSpec(fields={"record": FieldSpec(
+        dtype=ma.MountainashDtype.STRUCT,
         backend_type=pl.Struct({"id": pl.Int64}),
-    )], missing_values=[])
+    )}, missing_values=[])
     source = pl.DataFrame({"record": [{"id": 128}, None]})
     with pytest.warns(UserWarning):
         out = ma.relation(source).conform(spec).to_polars()
@@ -971,11 +776,13 @@ def test_native_container_override_replaces_nested_casts():
 def test_null_typed_native_container_uses_declared_children(values, in_array):
     # Polars Null is schema evidence; pandas object is deliberately not equivalent.
     import polars as pl
-    child = FieldSpec(name="id", dtype=ma.MountainashDtype.I8)
-    field = FieldSpec(name="record", dtype=ma.MountainashDtype.LIST if in_array else ma.MountainashDtype.STRUCT,
-        **({"item_object_fields": [child]} if in_array else {"object_fields": [child]}))
+    child = FieldSpec(dtype=ma.MountainashDtype.I8)
+    field = (
+        FieldSpec(element=FieldSpec(fields={"id": child}))
+        if in_array else FieldSpec(fields={"id": child})
+    )
     out = ma.relation(pl.DataFrame({"record": values})).conform(
-        TypeSpec(fields=[field], missing_values=[]),
+        TypeSpec(fields={"record": field}, missing_values=[]),
     ).to_polars()
     expected = pl.List(pl.Struct({"id": pl.Int8})) if in_array else pl.Struct({"id": pl.Int8})
     assert out.schema["record"] == expected
@@ -985,11 +792,12 @@ def test_null_typed_native_container_uses_declared_children(values, in_array):
 @pytest.mark.parametrize("action", ["discard_value", "discard_row"])
 def test_null_container_fill_obeys_failure_policy(action):
     import polars as pl
-    field = FieldSpec(name="record", dtype=ma.MountainashDtype.STRUCT,
-        object_fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8)],
-        null_fill={"id": 128})
+    field = FieldSpec(
+        fields={"id": FieldSpec(dtype=ma.MountainashDtype.I8)},
+        null_fill={"id": 128},
+    )
     out = ma.relation(pl.DataFrame({"record": [None]})).conform(
-        TypeSpec(fields=[field], missing_values=[]), contract={"data_type": action},
+        TypeSpec(fields={"record": field}, missing_values=[]), contract={"data_type": action},
     ).to_polars()
     assert out.schema["record"] == pl.Struct({"id": pl.Int8})
     assert out["record"].to_list() == [{"id": None}]
@@ -1016,10 +824,7 @@ def test_parameterized_timestamp_conform_retains_known_type(backend_name, backen
         ).select(at=ibis.null().cast(ibis.expr.datatypes.Timestamp(timezone="UTC", scale=6)))
     else:
         source = backend_factory.create({"at": [value, None]}, backend_name)
-    spec = TypeSpec(
-        fields=[FieldSpec("at", dtype=TimestampDtype(6, True, "UTC"))],
-        missing_values=[],
-    )
+    spec = TypeSpec(fields={"at": FieldSpec(dtype=TimestampDtype(6, True, "UTC"))}, missing_values=[],)
     try:
         out = ma.relation(source).conform(spec).to_polars()
         assert out.schema["at"] == pl.Datetime("us", "UTC")
@@ -1045,15 +850,9 @@ def test_parameterized_timestamp_actions_preserve_policy(backend_name, backend_f
     value = "2026-01-01T00:00:00.123456"
     values = [value] if action == "coerce" else [value, "not-a-timestamp", None]
     source = backend_factory.create({"at": values}, backend_name)
-    spec = TypeSpec(
-        fields=[FieldSpec(
-            "at",
-            type=UniversalType.DATETIME,
-            dtype=TimestampDtype(6, False, None),
-            format=format,
-        )],
-        missing_values=[],
-    )
+    spec = TypeSpec(fields={"at": FieldSpec(type=UniversalType.DATETIME,
+    dtype=TimestampDtype(6, False, None),
+    format=format,)}, missing_values=[],)
     relation = ma.relation(source).conform(spec, contract={"data_type": action})
     if action == "freeze":
         with pytest.raises(SchemaDriftError):
@@ -1085,16 +884,36 @@ def test_missing_parameterized_timestamp_is_typed_null(backend_name, backend_fac
     from mountainash.core.dtypes import TimestampDtype
 
     source = backend_factory.create({"id": [1, 2]}, backend_name)
-    spec = TypeSpec(
-        fields_match="open",
-        fields=[FieldSpec("at", dtype=TimestampDtype(6, True, "UTC"))],
-        missing_values=[],
-    )
+    spec = TypeSpec(fields_match="open", fields={"at": FieldSpec(dtype=TimestampDtype(6, True, "UTC"))}, missing_values=[],)
     out = ma.relation(source).conform(
         spec, contract={"missing_columns": "null_fill"},
     ).to_polars()
     assert out.schema["at"] == pl.Datetime("us", "UTC")
-    assert out["at"].to_list() == [None, None]
+
+def test_recursive_child_missing_values_and_null_fill_survive_conform():
+    import polars as pl
+
+    source = pl.DataFrame({
+        "record": [{"outer": {"value": "MISSING"}}, {"outer": {"value": "7"}}],
+    })
+    field = FieldSpec(fields={
+        "outer": FieldSpec(fields={
+            "value": FieldSpec(
+                type=UniversalType.INTEGER,
+                missing_values=["MISSING"],
+                null_fill=0,
+            ),
+        }),
+    })
+
+    out = ma.relation(source).conform(
+        TypeSpec(fields={"record": field}, missing_values=[]),
+    ).to_polars()
+
+    assert out["record"].to_list() == [
+        {"outer": {"value": 0}},
+        {"outer": {"value": 7}},
+    ]
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_parameterized_nested_conform_preserves_null_shapes(backend_name, backend_factory):
     from datetime import datetime, timezone
@@ -1116,29 +935,20 @@ def test_parameterized_nested_conform_preserves_null_shapes(backend_name, backen
         if backend_name == "ibis-sqlite" else records
     )
     source = backend_factory.create({"record": physical}, backend_name)
-    target = StructDtype(fields=(
-        ("at", TimestampDtype(6, True, "UTC")),
-        ("events", ListDtype(element=StructDtype(fields=(("id", ma.MountainashDtype.I16),)))),
-    ))
-    legacy_children = [
-        FieldSpec(
-            "events",
-            type=UniversalType.ARRAY,
-            dtype=ListDtype(element=StructDtype(fields=(("id", ma.MountainashDtype.I64),))),
-            item_object_fields=[FieldSpec("id", type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I64)],
-        ),
-        FieldSpec(
-            "at",
+    fields = {
+        "at": FieldSpec(
             type=UniversalType.DATETIME,
             dtype=TimestampDtype(6, True, "UTC"),
             format="any",
             description="event time",
         ),
-    ]
-    out = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("record", type=UniversalType.OBJECT, dtype=target, object_fields=legacy_children)],
-        missing_values=[],
-    )).to_polars()
+        "events": FieldSpec(element=FieldSpec(fields={
+            "id": FieldSpec(type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I16),
+        })),
+    }
+    out = ma.relation(source).conform(
+        TypeSpec(fields={"record": FieldSpec(fields=fields)}, missing_values=[]),
+    ).to_polars()
     assert out.schema["record"] == pl.Struct({
         "at": pl.Datetime("us", "UTC"),
         "events": pl.List(pl.Struct({"id": pl.Int16})),
@@ -1161,10 +971,7 @@ def test_parameterized_timestamp_action_preserves_exact_ns(action, target_precis
     source = pl.DataFrame({"at": [1, 1001, 123456789, None]}).with_columns(
         pl.col("at").cast(pl.Datetime("ns", "UTC"))
     )
-    spec = TypeSpec(
-        fields=[FieldSpec("at", dtype=TimestampDtype(target_precision, True, "UTC"))],
-        missing_values=[],
-    )
+    spec = TypeSpec(fields={"at": FieldSpec(dtype=TimestampDtype(target_precision, True, "UTC"))}, missing_values=[],)
     relation = ma.relation(source).conform(spec, contract={"data_type": action})
     if action == "freeze" and target_precision == 6:
         with pytest.raises(SchemaDriftError):
@@ -1186,18 +993,20 @@ def test_partial_nested_timestamp_preserves_resolved_ns_precision(nested):
     source = pl.DataFrame({"value": [1, 1001, 123456789, None]}).with_columns(
         pl.col("value").cast(pl.Datetime("ns", "UTC"))
     )
-    target = StructDtype((("value", TimestampDtype(SchemaTypeStatus.UNKNOWN, True, "UTC")),))
-    field = (
-        FieldSpec("items", type=UniversalType.ARRAY, dtype=ListDtype(target),
-                  item_object_fields=[FieldSpec("value", type=UniversalType.DATETIME)])
-        if nested else
-        FieldSpec("record", type=UniversalType.OBJECT, dtype=target,
-                  object_fields=[FieldSpec("value", type=UniversalType.DATETIME)])
+    column = "items" if nested else "record"
+    timestamp = FieldSpec(
+        type=UniversalType.DATETIME,
+        dtype=TimestampDtype(SchemaTypeStatus.UNKNOWN, True, "UTC"),
     )
-    column = field.name
+    field = (
+        FieldSpec(element=FieldSpec(fields={"value": timestamp}))
+        if nested else FieldSpec(fields={"value": timestamp})
+    )
     value = pl.struct("value")
     source = source.select((pl.concat_list(value) if nested else value).alias(column))
-    out = ma.relation(source).conform(TypeSpec(fields=[field], missing_values=[])).to_polars()
+    out = ma.relation(source).conform(
+        TypeSpec(fields={column: field}, missing_values=[]),
+    ).to_polars()
     actual = out[column].explode() if nested else out[column]
     actual = actual.struct.field("value")
     assert actual.dtype == pl.Datetime("ns", "UTC")
@@ -1216,7 +1025,7 @@ def test_aware_none_target_matches_utc_source(backend_name, backend_factory, act
     instant = datetime(2026, 1, 1, microsecond=123456, tzinfo=timezone.utc)
     source = backend_factory.create({"at": [instant, None]}, backend_name)
     target = TimestampDtype(6, True, None)
-    spec = TypeSpec(fields=[FieldSpec("at", dtype=target)], missing_values=[])
+    spec = TypeSpec(fields={"at": FieldSpec(dtype=target)}, missing_values=[])
     out = ma.relation(source).conform(spec, contract={"data_type": action}).to_polars()
     assert out.schema["at"] == pl.Datetime("us", "UTC")
     assert out["at"].to_list() == [instant, None]
@@ -1234,11 +1043,15 @@ def test_native_child_conversion_discards_invalid_parent_not_missing_child(
     from datetime import datetime
     from mountainash.core.dtypes import ListDtype, StructDtype, TimestampDtype
 
-    child = FieldSpec("v", type=UniversalType.DATETIME, format="%Y%m%d", missing_values=["MISSING"])
-    target = StructDtype((("v", TimestampDtype(6, False)),))
+    child = FieldSpec(
+        type=UniversalType.DATETIME,
+        dtype=TimestampDtype(6, False),
+        format="%Y%m%d",
+        missing_values=["MISSING"],
+    )
     field = (
-        FieldSpec("x", dtype=ListDtype(target), item_object_fields=[child])
-        if nested else FieldSpec("x", dtype=target, object_fields=[child])
+        FieldSpec(element=FieldSpec(fields={"v": child}))
+        if nested else FieldSpec(fields={"v": child})
     )
     values = [{"v": "20260101"}, {"v": "bad"}, {"v": "MISSING"}, None]
     expected = [{"v": datetime(2026, 1, 1)}, None, {"v": None}, None]
@@ -1249,6 +1062,6 @@ def test_native_child_conversion_discards_invalid_parent_not_missing_child(
         del expected[1]
     source = backend_factory.create({"x": values}, backend_name)
     result = ma.relation(source).conform(
-        TypeSpec(fields=[field], missing_values=[]), contract={"data_type": action},
+        TypeSpec(fields={"x": field}, missing_values=[]), contract={"data_type": action},
     ).to_polars()
     assert result["x"].to_list() == expected

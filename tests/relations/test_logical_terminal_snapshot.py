@@ -96,12 +96,10 @@ def test_discard_row_slices_ordinary_identity_columns_before_validation():
     frame = ma.relation(
         pl.DataFrame({"id": [1, 1, 2], "meta": ['{"a":1}', "{broken", '{"a":2}']})
     )
-    spec = TypeSpec(
-        fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="meta", type=UniversalType.OBJECT),
-        ]
-    )
+    spec = TypeSpec(fields={
+        "id": FieldSpec(type=UniversalType.INTEGER),
+        "meta": FieldSpec(type=UniversalType.OBJECT),
+    })
     relation = frame.conform(spec, contract={"data_type": "discard_row"})
 
     result = ValidationRunner().validate_relation(

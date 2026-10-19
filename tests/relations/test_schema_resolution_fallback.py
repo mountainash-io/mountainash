@@ -111,7 +111,7 @@ def test_pandas_conform_value_dependent_promotion_requires_execution(wrapped):
     from mountainash.typespec.universal_types import UniversalType
 
     source = pd.DataFrame({"x": [1.0, None]})
-    spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.ANY, null_fill="missing")])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.ANY, null_fill="missing")})
     relation = ma.relation(nw.from_native(source) if wrapped else source).conform(spec)
     with pytest.raises(IncompleteSchemaError):
         relation.collect_schema()

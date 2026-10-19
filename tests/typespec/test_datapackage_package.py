@@ -186,9 +186,8 @@ def test_package_revalidates_malformed_foreign_key_at_package_location():
         assert caught.value.descriptor_path == "$.resources[0].schema.foreignKeys[0].fields"
 
 
-def test_package_accepts_typed_self_reference_none():
     spec = TypeSpec(
-        fields=[FieldSpec("id", UniversalType.INTEGER)],
+        fields={"id": FieldSpec(type=UniversalType.INTEGER)},
         foreign_keys=[
             ForeignKey(
                 fields=["id"],

@@ -1108,7 +1108,7 @@ _KNOWN_UNTESTED_OPTION_PARAMS.update(
             ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson", "failure_behavior"),
             ("MountainAshScalarGeospatialExpressionSystemProtocol", "serialize_geojson", "format"),
             ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "failure_behavior"),
-            ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "item_object_fields"),
+            ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "element"),
             ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "item_type"),
             ("MountainAshScalarListExpressionSystemProtocol", "parse_list", "delimiter"),
             ("MountainAshScalarListExpressionSystemProtocol", "parse_list", "failure_behavior"),

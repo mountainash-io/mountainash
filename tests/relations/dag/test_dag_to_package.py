@@ -110,10 +110,10 @@ def test_dag_to_package_conformed_relation_exports():
     df = pl.DataFrame({"id": [1, 2], "value": ["10", "20"]})
     dag.add("raw", ma.relation(df))
 
-    spec = TypeSpec(fields=[
-        FieldSpec(name="id", type="integer"),
-        FieldSpec(name="value", type="integer"),
-    ])
+    spec = TypeSpec(fields={
+        "id": FieldSpec(type="integer"),
+        "value": FieldSpec(type="integer"),
+    })
     dag.add("conformed", ma.relation(df).conform(spec))
 
     pkg = dag.to_package()

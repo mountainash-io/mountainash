@@ -99,7 +99,7 @@ def test_metadata_does_not_enforce_conform_freeze_but_execution_does(backend_nam
     from mountainash.typespec.universal_types import UniversalType
 
     source = _source(backend_name, {"n": [2, 7], "extra": [3, 4]}, "schema_freeze")
-    spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)], fields_match="open")
+    spec = TypeSpec(fields={'n': FieldSpec(type=UniversalType.INTEGER)}, fields_match='open')
     relation = ma.relation(source).conform(spec, contract={"extra_columns": "freeze"})
     schema = relation.collect_schema()
     assert list(schema) == ["n"]

@@ -24,25 +24,21 @@ class TestGeopointFormatResolution:
         [("default", D.STRING), ("array", D.LIST), ("object", D.STRUCT)],
     )
     def test_geopoint_resolves_by_format(self, format_: str, expected: D) -> None:
-        assert resolve_field_canonical(
-            FieldSpec("point", U.GEOPOINT, format=format_)
-        ) is expected
+        assert resolve_field_canonical(FieldSpec(type=U.GEOPOINT, format=format_)) is expected
 
 
 class TestGeojsonFormatResolution:
     @pytest.mark.parametrize("format_", ["default", "topojson"])
     def test_geojson_resolves_to_json(self, format_: str) -> None:
-        assert resolve_field_canonical(
-            FieldSpec("geometry", U.GEOJSON, format=format_)
-        ) is D.JSON
+        assert resolve_field_canonical(FieldSpec(type=U.GEOJSON, format=format_)) is D.JSON
 
 
 class TestInvalidGeospatialFormats:
     @pytest.mark.parametrize(
         "field",
         [
-            FieldSpec("point", U.GEOPOINT, format="wkt"),
-            FieldSpec("geometry", U.GEOJSON, format="object"),
+            FieldSpec(type=U.GEOPOINT, format="wkt"),
+            FieldSpec(type=U.GEOJSON, format="object"),
         ],
     )
     def test_invalid_geospatial_formats_are_typed(self, field: FieldSpec) -> None:
@@ -51,7 +47,7 @@ class TestInvalidGeospatialFormats:
 
     def test_invalid_geopoint_format_names_field_and_allowed_set(self) -> None:
         with pytest.raises(InvalidGeospatialFormatError) as exc_info:
-            resolve_field_canonical(FieldSpec("point", U.GEOPOINT, format="wkt"))
+            resolve_field_canonical(FieldSpec(type=U.GEOPOINT, format="wkt"), field_name="point")
         err = exc_info.value
         assert err.field_name == "point"
         assert err.universal_type is U.GEOPOINT
@@ -60,7 +56,7 @@ class TestInvalidGeospatialFormats:
 
     def test_invalid_geojson_format_names_field_and_allowed_set(self) -> None:
         with pytest.raises(InvalidGeospatialFormatError) as exc_info:
-            resolve_field_canonical(FieldSpec("geometry", U.GEOJSON, format="object"))
+            resolve_field_canonical(FieldSpec(type=U.GEOJSON, format="object"), field_name="geometry")
         err = exc_info.value
         assert err.field_name == "geometry"
         assert err.universal_type is U.GEOJSON
@@ -70,8 +66,8 @@ class TestInvalidGeospatialFormats:
     @pytest.mark.parametrize(
         "field",
         [
-            FieldSpec("point", U.GEOPOINT, format=[]),
-            FieldSpec("geometry", U.GEOJSON, format={"format": "json"}),
+            FieldSpec(type=U.GEOPOINT, format=[]),
+            FieldSpec(type=U.GEOJSON, format={"format": "json"}),
         ],
     )
     def test_unhashable_geospatial_formats_are_typed(self, field: FieldSpec) -> None:
@@ -84,13 +80,13 @@ class TestNonGeospatialDelegatesToCanonical:
     """Every other UniversalType delegates unchanged to to_canonical()."""
 
     def test_string_field(self) -> None:
-        assert resolve_field_canonical(FieldSpec("s", U.STRING)) is D.STRING
+        assert resolve_field_canonical(FieldSpec(type=U.STRING)) is D.STRING
 
     def test_integer_field(self) -> None:
-        assert resolve_field_canonical(FieldSpec("i", U.INTEGER)) is D.I64
+        assert resolve_field_canonical(FieldSpec(type=U.INTEGER)) is D.I64
 
     def test_any_field_is_none(self) -> None:
-        assert resolve_field_canonical(FieldSpec("a", U.ANY)) is None
+        assert resolve_field_canonical(FieldSpec(type=U.ANY)) is None
 
     def test_list_field(self) -> None:
-        assert resolve_field_canonical(FieldSpec("l", U.LIST)) is D.LIST
+        assert resolve_field_canonical(FieldSpec(type=U.LIST)) is D.LIST

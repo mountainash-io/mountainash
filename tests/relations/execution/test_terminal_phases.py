@@ -114,7 +114,7 @@ def test_source_marker_is_checked_before_projection_drops_it(year, raises, targe
             .conform(
                 TypeSpec(
                     fields_match="open",
-                    fields=[FieldSpec(name="year", type=UniversalType.YEAR)],
+                    fields={"year": FieldSpec(type=UniversalType.YEAR)},
                 )
             )
             .select("id")
@@ -195,7 +195,7 @@ def test_checked_projection_returns_the_checked_source_snapshot():
             .conform(
                 TypeSpec(
                     fields_match="open",
-                    fields=[FieldSpec(name="year", type=UniversalType.YEAR)],
+                    fields={"year": FieldSpec(type=UniversalType.YEAR)},
                 )
             )
             .select("id")

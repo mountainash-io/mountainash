@@ -53,7 +53,7 @@ def test_projected_decimal_conform_introspection_and_execution(decimal_projectio
     from decimal import Decimal
 
     dtype = ma.DecimalDtype(precision=4, scale=2)
-    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=dtype)])
+    spec = TypeSpec(fields={"value": FieldSpec(type=U.NUMBER, dtype=dtype)})
     projected = decimal_projection_source.select(
         ma.col("value").cast(dtype, rounding="half_to_even").alias("value")
     )
@@ -71,7 +71,7 @@ def test_projected_decimal_conform_still_enforces_concrete_conversion(decimal_pr
 
     source_dtype = ma.DecimalDtype(precision=4, scale=2)
     target = ma.DecimalDtype(precision=3, scale=1)
-    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=target)])
+    spec = TypeSpec(fields={"value": FieldSpec(type=U.NUMBER, dtype=target)})
     with pytest.raises(DecimalConversionRequiredError):
         _ = decimal_projection_source.conform(spec).schema
     projected = decimal_projection_source.select(
@@ -87,7 +87,7 @@ def test_decimal_conform_terminal_unknown_requires_rounding():
     from mountainash.conform.errors import DecimalConversionRequiredError
     from mountainash.conform.expressions import resolve_conform_output
 
-    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=ma.DecimalDtype(4, 2))])
+    spec = TypeSpec(fields={"value": FieldSpec(type=U.NUMBER, dtype=ma.DecimalDtype(4, 2))})
     with pytest.raises(DecimalConversionRequiredError):
         resolve_conform_output(
             spec, available_columns=["value"],
@@ -109,7 +109,7 @@ class TestOpenMode:
     def test_open_keeps_unmapped_extras(self):
         df = pl.DataFrame({"a": [1], "b": [2], "c": ["x"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+            fields={"a": FieldSpec(type=U.INTEGER)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -122,11 +122,7 @@ class TestOpenMode:
     def test_open_renamed_source_drops_original(self):
         df = pl.DataFrame({"src_a": [1], "b": [2]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="a", type=U.INTEGER, rename_from="src_a",
-                ),
-            ],
+            fields={"a": FieldSpec(type=U.INTEGER, rename_from="src_a")},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -138,7 +134,7 @@ class TestOpenMode:
     def test_open_typed_cast(self):
         df = pl.DataFrame({"a": ["1", "2"]})  # string source, cast to INTEGER
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+            fields={"a": FieldSpec(type=U.INTEGER)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -148,7 +144,7 @@ class TestOpenMode:
         # Non-dotted ANY type with no null_fill → passthrough → source dtype.
         df = pl.DataFrame({"a": [1.5, 2.5]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.ANY)],
+            fields={"a": FieldSpec(type=U.ANY)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -158,7 +154,7 @@ class TestOpenMode:
     def test_open_any_with_null_fill_undetermined(self):
         df = pl.DataFrame({"a": [1, None]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.ANY, null_fill=0)],
+            fields={"a": FieldSpec(type=U.ANY, null_fill=0)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -170,10 +166,7 @@ class TestSelectExact:
     def test_select_exact_rejects_positional_mapping(self):
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="x", type=U.INTEGER),
-                FieldSpec(name="y", type=U.STRING),
-            ],
+            fields={"x": FieldSpec(type=U.INTEGER), "y": FieldSpec(type=U.STRING)},
             fields_match="exact",
         )
         with pytest.raises(ExactFieldsMismatchError, match="name mismatch"):
@@ -183,10 +176,10 @@ class TestSelectEqual:
     def test_select_equal_one_to_one(self):
         df = pl.DataFrame({"a": [1], "b": ["x"]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+            fields={
+                "a": FieldSpec(type=U.INTEGER),
+                "b": FieldSpec(type=U.STRING),
+            },
             fields_match="equal",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -198,7 +191,7 @@ class TestSelectSubset:
         # Subset: spec is subset of available — extras are dropped from output.
         df = pl.DataFrame({"a": [1], "b": ["x"], "extra": [3.14]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+            fields={"a": FieldSpec(type=U.INTEGER)},
             fields_match="subset",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -211,10 +204,10 @@ class TestSelectSuperset:
         # Superset: spec may declare more than available; absent skipped in infer.
         df = pl.DataFrame({"a": [1]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="missing", type=U.STRING),
-            ],
+            fields={
+                "a": FieldSpec(type=U.INTEGER),
+                "missing": FieldSpec(type=U.STRING),
+            },
             fields_match="superset",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -225,11 +218,11 @@ class TestSelectPartial:
     def test_select_partial_some_present_some_absent(self):
         df = pl.DataFrame({"a": [1], "c": [2.0]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-                FieldSpec(name="c", type=U.NUMBER),
-            ],
+            fields={
+                "a": FieldSpec(type=U.INTEGER),
+                "b": FieldSpec(type=U.STRING),
+                "c": FieldSpec(type=U.NUMBER),
+            },
             fields_match="partial",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -276,7 +269,7 @@ class TestParityGuards:
     def test_parity_open_typed_cast(self):
         df = pl.DataFrame({"a": ["1", "2"], "b": ["keep", "me"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+            fields={"a": FieldSpec(type=U.INTEGER)},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -293,10 +286,10 @@ class TestParityGuards:
         # Exact-mode requires ordered source names, not positional renaming.
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="x", type=U.INTEGER),
-                FieldSpec(name="y", type=U.STRING),
-            ],
+            fields={
+                "x": FieldSpec(type=U.INTEGER),
+                "y": FieldSpec(type=U.STRING),
+            },
             fields_match="exact",
         )
         rel = ma.relation(df).conform(spec)
@@ -307,11 +300,7 @@ class TestParityGuards:
         # Categorical on a STRING field → registry maps pl.Categorical → STRING.
         df = pl.DataFrame({"grade": ["A", "B", "A"]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="grade", type=U.STRING, categories=["A", "B"],
-                ),
-            ],
+            fields={"grade": FieldSpec(type=U.STRING, categories=["A", "B"])},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -331,11 +320,7 @@ class TestParityGuards:
         # we're verifying.
         df = pl.DataFrame({"grade": ["1", "2", "3"]})  # string source
         spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="grade", type=U.INTEGER, categories=[1, 2, 3],
-                ),
-            ],
+            fields={"grade": FieldSpec(type=U.INTEGER, categories=[1, 2, 3])},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -356,7 +341,7 @@ class TestDottedSource:
         # (dotted roots are excluded from renamed_sources), so it survives.
         df = pl.DataFrame({"payload": [{"id": 1, "tag": "x"}]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.INTEGER, rename_from="payload.id")],
+            fields={"id": FieldSpec(type=U.INTEGER, rename_from="payload.id")},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -385,7 +370,7 @@ class TestDottedSource:
         # because UNKNOWN ≠ the runtime's concrete type by design.
         df = pl.DataFrame({"payload": [{"id": 1}]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.ANY, rename_from="payload.id")],
+            fields={"id": FieldSpec(type=U.ANY, rename_from="payload.id")},
             fields_match="open",
         )
         inferred = _infer(ma.relation(df).conform(spec))
@@ -397,7 +382,7 @@ class TestDottedSource:
         # so the emitted column set must match to_polars() exactly.
         df = pl.DataFrame({"payload": [{"id": 1, "tag": "x"}]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.INTEGER, rename_from="payload.id")],
+            fields={"id": FieldSpec(type=U.INTEGER, rename_from="payload.id")},
             fields_match="equal",
         )
         rel = ma.relation(df).conform(spec)
@@ -420,10 +405,10 @@ class TestExactModeOrderParity:
     """
 
     _SPEC = TypeSpec(
-        fields=[
-            FieldSpec(name="x_src", type=U.INTEGER),
-            FieldSpec(name="y_src", type=U.STRING),
-        ],
+        fields={
+            "x_src": FieldSpec(type=U.INTEGER),
+            "y_src": FieldSpec(type=U.STRING),
+        },
         fields_match="exact",
     )
 
@@ -485,7 +470,7 @@ class TestDataTypePolicyParity:
         # "evolve" skips the cast entirely -- output keeps STRING. Infer
         # must report the same STRING via EmittedField.effective_type (R2).
         df = pl.DataFrame({"n": ["1", "2"]})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        spec = TypeSpec(fields={"n": FieldSpec(type=U.INTEGER)}, fields_match="open")
         rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
 
         inferred = _infer(rel)
@@ -498,7 +483,7 @@ class TestDataTypePolicyParity:
         # ignored entirely.
         df = pl.DataFrame({"n": ["1", "2"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="n", type=U.INTEGER)],
+            fields={"n": FieldSpec(type=U.INTEGER)},
             fields_match="open",
             contract={"data_type": "evolve"},
         )
@@ -513,7 +498,7 @@ class TestDataTypePolicyParity:
         # "evolve" has nothing to evolve -- declared_type still applies, and
         # parity holds via the ordinary (non-evolve) path.
         df = pl.DataFrame({"n": pl.Series([1, 2], dtype=pl.Int32)})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        spec = TypeSpec(fields={"n": FieldSpec(type=U.INTEGER)}, fields_match="open")
         rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
 
         inferred = _infer(rel)
@@ -526,10 +511,10 @@ class TestDataTypePolicyParity:
         # instead of raising MissingFieldsError, matching to_polars() exactly.
         df = pl.DataFrame({"a": [1]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+            fields={
+                "a": FieldSpec(type=U.INTEGER),
+                "b": FieldSpec(type=U.STRING),
+            },
             fields_match="equal",
             contract={"missing_columns": "skip"},
         )
@@ -548,10 +533,10 @@ class TestDataTypePolicyParity:
         # execute time -- the whole point of the "typed" null (finding 11).
         df = pl.DataFrame({"a": [1]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+            fields={
+                "a": FieldSpec(type=U.INTEGER),
+                "b": FieldSpec(type=U.STRING),
+            },
             fields_match="equal",
             contract={"missing_columns": "null_fill"},
         )
@@ -571,7 +556,7 @@ class TestFreezeNeverRaisesDuringInference:
     def test_freeze_data_type_contract_does_not_raise_during_schema(self):
         df = pl.DataFrame({"n": ["a", "b"]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="n", type=U.INTEGER)],
+            fields={"n": FieldSpec(type=U.INTEGER)},
             fields_match="open",
             contract={"data_type": "freeze"},
         )
@@ -588,10 +573,10 @@ class TestFreezeNeverRaisesDuringInference:
     def test_freeze_missing_columns_contract_does_not_raise_during_schema(self):
         df = pl.DataFrame({"a": [1]})
         spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+            fields={
+                "a": FieldSpec(type=U.INTEGER),
+                "b": FieldSpec(type=U.STRING),
+            },
             fields_match="open",
             contract={"missing_columns": "freeze"},
         )
@@ -606,7 +591,7 @@ class TestFreezeNeverRaisesDuringInference:
     def test_freeze_extra_columns_contract_does_not_raise_during_schema(self):
         df = pl.DataFrame({"a": [1], "extra": [2]})
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+            fields={"a": FieldSpec(type=U.INTEGER)},
             fields_match="open",
             contract={"extra_columns": "freeze"},
         )
@@ -634,7 +619,7 @@ def test_narwhals_routed_native_subclass_uses_selected_dtype_domain():
     class Frame(pl.DataFrame):
         pass
 
-    spec = TypeSpec(fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type=nw.Int64)])
+    spec = TypeSpec(fields={"id": FieldSpec(dtype=ma.MountainashDtype.I8, backend_type=nw.Int64)})
     rel = ma.relation(Frame({"id": [300]})).conform(spec, contract={"data_type": "freeze"})
     assert rel.schema["id"] is ma.MountainashDtype.I64
     with pytest.warns(UserWarning):
@@ -649,17 +634,17 @@ def test_conform_inference_retains_parameterized_target_without_native_defaults(
     exact = TimestampDtype(6, True, "UTC")
     source = pl.DataFrame({"at": pl.Series([None], dtype=pl.Datetime("ns", "UTC"))})
     declared = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("at", dtype=exact)], missing_values=[],
+        fields={"at": FieldSpec(dtype=exact)}, missing_values=[],
     ))
     assert infer_schema(declared._node) == {"at": exact}
 
     partial = TimestampDtype(timezone_aware=True, timezone=None)
     resolved = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("at", dtype=partial)], missing_values=[],
+        fields={"at": FieldSpec(dtype=partial)}, missing_values=[],
     ))
     assert infer_schema(resolved._node) == {"at": TimestampDtype(9, True, None)}
     unresolved = ma.relation({"at": [None]}).conform(TypeSpec(
-        fields=[FieldSpec("at", dtype=partial)], missing_values=[],
+        fields={"at": FieldSpec(dtype=partial)}, missing_values=[],
     ))
     assert infer_schema(unresolved._node) == {"at": partial}
     assert partial.precision is SchemaTypeStatus.UNKNOWN

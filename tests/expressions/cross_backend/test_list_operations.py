@@ -781,3 +781,34 @@ def test_element_deferred_binding_recovers_after_failure(backend_factory):
         compiled.resolve(strings)
     result = numeric.select(compiled.resolve(numeric).name("out")).to_pyarrow()
     assert result.column("out").to_pylist() == [[2, None, 4, 2], []]
+
+
+@pytest.mark.parametrize("backend_name", [
+    "polars",
+    "polars-lazy",
+    "narwhals-polars",
+    "ibis-duckdb",
+])
+@pytest.mark.cross_backend
+def test_cast_items_uses_complete_element_declaration(backend_name, backend_factory):
+    from mountainash.core.dtypes import MountainashDtype
+    from mountainash.typespec import FieldSpec
+
+    source = backend_factory.create(
+        {"items": [[{"count": "2"}, None, {"count": "-3"}], [], None]},
+        backend_name,
+    )
+    result = ma.relation(source).select(
+        ma.col("items").list.cast_items(
+            element=FieldSpec(fields={
+                "count": FieldSpec(dtype=MountainashDtype.I32),
+            }),
+            field_name="items",
+        ).alias("items"),
+    ).to_polars()
+    assert result["items"].to_list() == [
+        [{"count": 2}, None, {"count": -3}],
+        [],
+        None,
+    ]
+    assert tuple(result["items"].to_list()[0][0]) == ("count",)

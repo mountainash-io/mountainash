@@ -9,16 +9,7 @@ from mountainash.relations.backends.relation_systems.polars.extensions_mountaina
     MountainashPolarsExtensionRelationSystem,
 )
 
-SPEC = TypeSpec(
-    fields=[
-        FieldSpec("list", UniversalType.LIST, item_type="integer"),
-        FieldSpec("point", UniversalType.GEOPOINT, format="array"),
-        FieldSpec("geometry", UniversalType.GEOJSON),
-        FieldSpec("duration", UniversalType.DURATION),
-        FieldSpec("year", UniversalType.YEAR),
-        FieldSpec("yearmonth", UniversalType.YEARMONTH),
-    ]
-)
+SPEC = TypeSpec(fields={'list': FieldSpec(type=UniversalType.LIST, item_type='integer'), 'point': FieldSpec(type=UniversalType.GEOPOINT, format='array'), 'geometry': FieldSpec(type=UniversalType.GEOJSON), 'duration': FieldSpec(type=UniversalType.DURATION), 'year': FieldSpec(type=UniversalType.YEAR), 'yearmonth': FieldSpec(type=UniversalType.YEARMONTH)})
 
 
 def test_polars_empty_frame_typed():

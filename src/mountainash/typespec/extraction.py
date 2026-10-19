@@ -50,13 +50,12 @@ def _universal_from_native(native: Any, target: TypeTarget) -> UniversalType:
 
 
 def _field_from_source_shape(
-    name: str,
     shape: "SourceShape",
     *,
     universal_type: UniversalType | None = None,
     backend_type: str | None = None,
 ) -> FieldSpec:
-    """Build a complete native field descriptor from recursive schema evidence."""
+    """Build an unnamed field declaration from recursive schema evidence."""
     if universal_type is None:
         universal_type = (
             from_canonical(shape.canonical_type)[0]
@@ -64,46 +63,45 @@ def _field_from_source_shape(
             else UniversalType.ANY
         )
 
-    object_fields = None
-    item_object_fields = None
+    from mountainash.core.dtypes import ArrayDtype, MountainashDtype, NativeDtype, SchemaTypeStatus, StructDtype
+
+    dtype = (
+        shape.canonical_type if isinstance(shape.detailed_dtype, NativeDtype)
+        else shape.detailed_dtype or shape.canonical_type
+    )
+    fields = None
+    element = None
     if shape.canonical_type is not None:
-        if shape.canonical_type.name == "STRUCT":
-            object_fields = [
-                _field_from_source_shape(child_name, child_shape)
+        if shape.canonical_type is MountainashDtype.STRUCT and (
+            shape.struct_fields
+            or isinstance(dtype, StructDtype) and dtype.fields is not SchemaTypeStatus.UNKNOWN
+        ):
+            fields = {
+                child_name: _field_from_source_shape(child_shape)
                 for child_name, child_shape in shape.struct_fields
-            ]
+            }
         elif shape.canonical_type.name == "LIST":
             child = shape.item_shape
-            if (
-                child is not None
-                and child.canonical_type is not None
-                and child.canonical_type.name == "STRUCT"
-            ):
-                item_object_fields = [
-                    _field_from_source_shape(child_name, child_shape)
-                    for child_name, child_shape in child.struct_fields
-                ]
-
+            if isinstance(dtype, ArrayDtype) and isinstance(dtype.dimensions, tuple):
+                for _ in dtype.dimensions[1:]:
+                    child = child.item_shape if child is not None else None
+            if child is not None:
+                element = _field_from_source_shape(child)
     if shape.decimal is not None:
         # Exact decimals retain portable precision/scale without a native spelling.
         return FieldSpec(
-            name=name,
             type=UniversalType.NUMBER,
             dtype=shape.decimal,
         )
 
-    from mountainash.core.dtypes import MountainashDtype, NativeDtype
     if shape.canonical_type in (MountainashDtype.JSON, MountainashDtype.DURATION):
         universal_type = UniversalType.ANY
     return FieldSpec(
-        name=name,
         type=universal_type,
-        dtype=(
-            shape.canonical_type if isinstance(shape.detailed_dtype, NativeDtype)
-            else shape.detailed_dtype or shape.canonical_type
-        ),
-        object_fields=object_fields,
-        item_object_fields=item_object_fields,
+        dtype=None if fields is not None or element is not None else dtype,
+        fields=fields,
+        element=element,
+        dimensions=dtype.dimensions if element is not None and isinstance(dtype, ArrayDtype) else None,
         backend_type=backend_type,
     )
 
@@ -155,7 +153,7 @@ def extract_from_dataclass(
     if not hasattr(dataclass_type, '__dataclass_fields__'):
         raise ValueError(f"{dataclass_type} is not a dataclass")
 
-    fields = []
+    fields: dict[str, FieldSpec] = {}
 
     # Resolve postponed (string) annotations once per class. Under
     # `from __future__ import annotations`, dataclasses.fields()[i].type is
@@ -202,17 +200,18 @@ def extract_from_dataclass(
         constraints = None
         if preserve_optional and not is_optional:
             # Field is required if not Optional and has no default
-            has_default = field_info.default is not field_info.default_factory
-            if not has_default and field_info.default_factory is not field_info.default_factory:
+            from dataclasses import MISSING
+            has_default = (
+                field_info.default is not MISSING
+                or field_info.default_factory is not MISSING
+            )
+            if not has_default:
                 constraints = FieldConstraints(required=True)
 
-        # Create schema field
-        schema_field = FieldSpec(
-            name=field_name,
+        fields[field_name] = FieldSpec(
             type=universal_type,
             constraints=constraints,
         )
-        fields.append(schema_field)
 
     return TypeSpec(
         fields=fields,
@@ -277,7 +276,7 @@ from_pydantic = extract_from_pydantic
 
 def _from_pydantic_v1(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
     """Extract schema from Pydantic v1 model."""
-    fields = []
+    fields: dict[str, FieldSpec] = {}
 
     for field_name, field_info in model_type.__fields__.items():
         # Get field type
@@ -299,29 +298,26 @@ def _from_pydantic_v1(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
             logger.warning(f"Could not normalize type {field_type} for field {field_name}: {e}")
             universal_type = UniversalType.ANY
 
-        # Build constraints from Pydantic validators
-        constraints = FieldConstraints(required=not is_optional)
+        constraints = {"required": not is_optional}
 
-        # Extract numeric constraints
         if hasattr(field_info, 'field_info'):
             fi = field_info.field_info
             if hasattr(fi, 'gt') and fi.gt is not None:
-                constraints.minimum = fi.gt
+                constraints["exclusive_minimum"] = fi.gt
             elif hasattr(fi, 'ge') and fi.ge is not None:
-                constraints.minimum = fi.ge
+                constraints["minimum"] = fi.ge
 
             if hasattr(fi, 'lt') and fi.lt is not None:
-                constraints.maximum = fi.lt
+                constraints["exclusive_maximum"] = fi.lt
             elif hasattr(fi, 'le') and fi.le is not None:
-                constraints.maximum = fi.le
+                constraints["maximum"] = fi.le
 
-            # String constraints
-            if hasattr(fi, 'min_length') and fi.min_length is not None:
-                constraints.min_length = fi.min_length
-            if hasattr(fi, 'max_length') and fi.max_length is not None:
-                constraints.max_length = fi.max_length
-            if hasattr(fi, 'regex') and fi.regex is not None:
-                constraints.pattern = str(fi.regex)
+            if getattr(fi, 'min_length', None) is not None:
+                constraints["min_length"] = fi.min_length
+            if getattr(fi, 'max_length', None) is not None:
+                constraints["max_length"] = fi.max_length
+            if getattr(fi, 'regex', None) is not None:
+                constraints["pattern"] = str(fi.regex)
 
         # Detect format from type
         format_hint = _detect_format_from_type(field_type)
@@ -332,13 +328,12 @@ def _from_pydantic_v1(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
             description = field_info.field_info.description
 
         schema_field = FieldSpec(
-            name=field_name,
             type=universal_type,
             format=format_hint,
-            constraints=constraints if constraints else None,
+            constraints=FieldConstraints(**constraints),
             description=description,
         )
-        fields.append(schema_field)
+        fields[field_name] = schema_field
 
     return TypeSpec(
         fields=fields,
@@ -350,7 +345,7 @@ def _from_pydantic_v1(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
 
 def _from_pydantic_v2(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
     """Extract schema from Pydantic v2 model."""
-    fields = []
+    fields: dict[str, FieldSpec] = {}
 
     # Get model fields from Pydantic v2
     model_fields = model_type.model_fields
@@ -375,29 +370,26 @@ def _from_pydantic_v2(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
             logger.warning(f"Could not normalize type {field_type} for field {field_name}: {e}")
             universal_type = UniversalType.ANY
 
-        # Build constraints
-        constraints = FieldConstraints(required=not is_optional)
+        constraints = {"required": not is_optional}
 
-        # Extract constraints from metadata
         if field_info.metadata:
             for constraint in field_info.metadata:
-                # Pydantic v2 uses constraint objects
-                if hasattr(constraint, 'gt'):
-                    constraints.minimum = constraint.gt
-                elif hasattr(constraint, 'ge'):
-                    constraints.minimum = constraint.ge
+                if getattr(constraint, "gt", None) is not None:
+                    constraints["exclusive_minimum"] = constraint.gt
+                elif getattr(constraint, "ge", None) is not None:
+                    constraints["minimum"] = constraint.ge
 
-                if hasattr(constraint, 'lt'):
-                    constraints.maximum = constraint.lt
-                elif hasattr(constraint, 'le'):
-                    constraints.maximum = constraint.le
+                if getattr(constraint, "lt", None) is not None:
+                    constraints["exclusive_maximum"] = constraint.lt
+                elif getattr(constraint, "le", None) is not None:
+                    constraints["maximum"] = constraint.le
 
-                if hasattr(constraint, 'min_length'):
-                    constraints.min_length = constraint.min_length
-                if hasattr(constraint, 'max_length'):
-                    constraints.max_length = constraint.max_length
-                if hasattr(constraint, 'pattern'):
-                    constraints.pattern = constraint.pattern
+                if getattr(constraint, "min_length", None) is not None:
+                    constraints["min_length"] = constraint.min_length
+                if getattr(constraint, "max_length", None) is not None:
+                    constraints["max_length"] = constraint.max_length
+                if getattr(constraint, "pattern", None) is not None:
+                    constraints["pattern"] = constraint.pattern
 
         # Detect format
         format_hint = _detect_format_from_type(field_type)
@@ -406,14 +398,12 @@ def _from_pydantic_v2(model_type: Type['BaseModel'], **metadata) -> TypeSpec:
         description = field_info.description
 
         schema_field = FieldSpec(
-            name=field_name,
             type=universal_type,
             format=format_hint or "default",
-            constraints=constraints if constraints else None,
+            constraints=FieldConstraints(**constraints),
             description=description,
         )
-        fields.append(schema_field)
-
+        fields[field_name] = schema_field
     return TypeSpec(
         fields=fields,
         title=metadata.get("title", model_type.__name__),
@@ -507,7 +497,7 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
     if pl is None:
         raise ImportError("polars is required")
 
-    fields = []
+    fields = {}
     from .source_shape import extract_source_shapes
 
     schema_dict = df.schema
@@ -521,13 +511,10 @@ def _from_polars(df: 'pl.DataFrame', preserve_backend_types: bool, **metadata) -
             and shape.item_shape.canonical_type.name == "STRUCT"
         )
         backend_type_str = None if isinstance(dtype, pl.Struct) or nested_struct else str(dtype)
-        fields.append(
-            _field_from_source_shape(
-                col_name,
-                shapes[col_name],
-                universal_type=universal_type,
-                backend_type=backend_type_str if preserve_backend_types else None,
-            )
+        fields[col_name] = _field_from_source_shape(
+            shape,
+            universal_type=universal_type,
+            backend_type=backend_type_str if preserve_backend_types else None,
         )
 
     return TypeSpec(
@@ -545,7 +532,7 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
     if pd is None:
         raise ImportError("pandas is required")
 
-    fields = []
+    fields = {}
     from .source_shape import extract_source_shapes
     shapes = extract_source_shapes(df)
 
@@ -561,17 +548,14 @@ def _from_pandas(df: 'pd.DataFrame', preserve_backend_types: bool, **metadata) -
             shape.canonical_type is not None
             and shape.canonical_type.name in {"LIST", "STRUCT"}
         )
-        fields.append(
-            _field_from_source_shape(
-                col_name,
-                shape,
-                universal_type=universal_type,
-                backend_type=(
-                    str(dtype)
-                    if preserve_backend_types and not recursive_shape
-                    else None
-                ),
-            )
+        fields[col_name] = _field_from_source_shape(
+            shape,
+            universal_type=universal_type,
+            backend_type=(
+                str(dtype)
+                if preserve_backend_types and not recursive_shape
+                else None
+            ),
         )
 
     return TypeSpec(
@@ -591,7 +575,7 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
     if pa is None:
         raise ImportError("pyarrow is required")
 
-    fields = []
+    fields = {}
     from .source_shape import extract_source_shapes
     shapes = extract_source_shapes(table)
 
@@ -609,13 +593,10 @@ def _from_pyarrow(table: 'pa.Table', preserve_backend_types: bool, **metadata) -
             if pa.types.is_struct(backend_type) or nested_struct
             else str(backend_type)
         )
-        fields.append(
-            _field_from_source_shape(
-                field.name,
-                shapes[field.name],
-                universal_type=universal_type,
-                backend_type=backend_type_str if preserve_backend_types else None,
-            )
+        fields[field.name] = _field_from_source_shape(
+            shapes[field.name],
+            universal_type=universal_type,
+            backend_type=backend_type_str if preserve_backend_types else None,
         )
 
     return TypeSpec(
@@ -632,17 +613,14 @@ def _from_ibis(table: 'ibis.Table', preserve_backend_types: bool, **metadata) ->
 
     schema = table.schema()
     shapes = extract_source_shapes(table)
-    fields = []
+    fields = {}
     for field_name in schema.names:
         field_type = schema[field_name]
         universal_type = _universal_from_native(field_type, TypeTarget.IBIS)
-        fields.append(
-            _field_from_source_shape(
-                field_name,
-                shapes[field_name],
-                universal_type=universal_type,
-                backend_type=str(field_type) if preserve_backend_types else None,
-            )
+        fields[field_name] = _field_from_source_shape(
+            shapes[field_name],
+            universal_type=universal_type,
+            backend_type=str(field_type) if preserve_backend_types else None,
         )
 
     return TypeSpec(
@@ -661,16 +639,13 @@ def _from_narwhals(df: Any, preserve_backend_types: bool, **metadata) -> TypeSpe
     from .source_shape import extract_source_shapes
     schema_dict = df.schema
     shapes = extract_source_shapes(df)
-    fields = []
+    fields = {}
     for col_name, dtype in schema_dict.items():
         universal_type = _universal_from_native(dtype, TypeTarget.NARWHALS)
-        fields.append(
-            _field_from_source_shape(
-                col_name,
-                shapes[col_name],
-                universal_type=universal_type,
-                backend_type=str(dtype) if preserve_backend_types else None,
-            )
+        fields[col_name] = _field_from_source_shape(
+            shapes[col_name],
+            universal_type=universal_type,
+            backend_type=str(dtype) if preserve_backend_types else None,
         )
 
     return TypeSpec(
@@ -712,6 +687,20 @@ def extract_schema_from_dataframe(
     return extract_from_dataframe(df, preserve_backend_types=include_backend_types)
 
 
+def _copy_cached_schema(schema: TypeSpec) -> TypeSpec:
+    """Return an independent TypeSpec map sharing immutable field definitions."""
+    return TypeSpec(
+        fields=schema.fields,
+        title=schema.title,
+        description=schema.description,
+        primary_key=schema.primary_key,
+        foreign_keys=schema.foreign_keys,
+        missing_values=schema.missing_values,
+        fields_match=schema.fields_match,
+        unique_keys=schema.unique_keys,
+        schema_url=schema.schema_url,
+        contract=schema.contract,
+    )
 def extract_schema_from_dataclass(
     dataclass_type: Type,
     use_cache: bool = True
@@ -742,10 +731,9 @@ def extract_schema_from_dataclass(
         >>> schema.field_names
         ['id', 'name']
     """
-    # Check cache first
     if use_cache and dataclass_type in _DATACLASS_SCHEMA_CACHE:
         logger.debug(f"Using cached schema for dataclass {dataclass_type.__name__}")
-        return _DATACLASS_SCHEMA_CACHE[dataclass_type]
+        return _copy_cached_schema(_DATACLASS_SCHEMA_CACHE[dataclass_type])
 
     # Extract schema
     schema = extract_from_dataclass(dataclass_type, preserve_optional=True)
@@ -753,8 +741,7 @@ def extract_schema_from_dataclass(
     # Cache result
     if use_cache:
         _DATACLASS_SCHEMA_CACHE[dataclass_type] = schema
-
-    return schema
+    return _copy_cached_schema(schema)
 
 
 def extract_schema_from_pydantic(
@@ -787,10 +774,9 @@ def extract_schema_from_pydantic(
         >>> schema.field_names
         ['id', 'name']
     """
-    # Check cache first
     if use_cache and model_class in _PYDANTIC_SCHEMA_CACHE:
         logger.debug(f"Using cached schema for Pydantic model {model_class.__name__}")
-        return _PYDANTIC_SCHEMA_CACHE[model_class]
+        return _copy_cached_schema(_PYDANTIC_SCHEMA_CACHE[model_class])
 
     # Extract schema
     schema = extract_from_pydantic(model_class)
@@ -798,8 +784,7 @@ def extract_schema_from_pydantic(
     # Cache result
     if use_cache:
         _PYDANTIC_SCHEMA_CACHE[model_class] = schema
-
-    return schema
+    return _copy_cached_schema(schema)
 
 
 # ============================================================================

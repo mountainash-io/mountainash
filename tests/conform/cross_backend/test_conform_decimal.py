@@ -36,7 +36,7 @@ NATIVE_DECIMAL_BACKENDS = [
     if b == "ibis-sqlite" else b
     for b in ALL_BACKENDS
 ]
-SPEC = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
+SPEC = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=D103)})
 
 CONVERSION_BACKENDS = [
     pytest.param(name, marks=pytest.mark.xfail(
@@ -124,9 +124,7 @@ def test_freeze_raises_drift(backend_name, backend_factory):
 def test_matching_decimal_passes_unchanged(backend_name, mode):
     frame = _decimal_frame(backend_name, 17, 2, [D("1.25"), None])
     target = ma.DecimalDtype(precision=17, scale=2)
-    spec = TypeSpec(fields=[FieldSpec(
-        name="x", type=UniversalType.NUMBER, dtype=target, null_fill="9.995",
-    )])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=target, null_fill="9.995",)})
     rel = ma.relation(frame).conform(spec, contract={"data_type": mode})
     out = rel.to_polars()
     assert out.schema["x"] == pl.Decimal(17, 2)
@@ -149,7 +147,7 @@ def test_different_precision_scale_is_a_mismatch(backend_name):
 
 def test_spec_without_dtype_is_unchanged():
     frame = pl.DataFrame({"x": ["1.5"]})
-    spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER)])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER)})
     assert ma.relation(frame).conform(spec).to_polars()["x"].to_list() == [1.5]
 
 
@@ -157,13 +155,7 @@ def test_spec_without_dtype_is_unchanged():
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_null_fill_of_a_missing_declared_decimal_keeps_its_type(backend_name, backend_factory):
     """The requested Polars result retains a typed decimal null, not a float null."""
-    spec = TypeSpec(
-        fields=[
-            FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=D103),
-            FieldSpec(name="k", type=UniversalType.INTEGER),
-        ],
-        fields_match="subset",
-    )
+    spec = TypeSpec(fields={"amount": FieldSpec(type=UniversalType.NUMBER, dtype=D103), "k": FieldSpec(type=UniversalType.INTEGER)}, fields_match="subset",)
     df = backend_factory.create({"k": ["1"]}, backend_name)
     rel = ma.relation(df).conform(spec, contract={"missing_columns": "null_fill"})
     out = rel.to_polars()
@@ -213,10 +205,8 @@ def test_decimal_source_preparation(backend_name, fill, expected):
             _decimal_frame(backend_name, 6, 3, [D("12.345"), None])
         return
     frame = _decimal_frame(backend_name, 6, 3, [D("12.345"), None])
-    spec = TypeSpec(fields=[FieldSpec(
-        name="x", type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=5, scale=2),
-        rounding="half_to_even", null_fill=fill,
-    )])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=5, scale=2),
+    rounding="half_to_even", null_fill=fill,)})
     out = ma.relation(frame).conform(spec).to_polars()
     assert out["x"].to_list() == expected
     assert out.schema["x"] == pl.Decimal(5, 2)
@@ -248,9 +238,7 @@ def test_conversion_preparation_and_policies(
     backend_name, backend_factory, values, mode, action, options, precision, expected,
 ):
     target = ma.DecimalDtype(precision=precision, scale=2)
-    spec = TypeSpec(fields=[FieldSpec(
-        name="x", type=UniversalType.NUMBER, dtype=target, rounding=mode, **options,
-    )])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=target, rounding=mode, **options,)})
     source = backend_factory.create({options.get("rename_from", "x"): values}, backend_name)
     rel = ma.relation(source).conform(spec, contract={"data_type": action})
     if backend_name == "ibis-sqlite":
@@ -272,10 +260,8 @@ def test_conversion_preparation_and_policies(
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_conversion_precision_limit_is_not_a_declaration_limit(backend_name, backend_factory):
-    spec = TypeSpec(fields=[FieldSpec(
-        name="x", type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=17, scale=2),
-        rounding="half_to_even",
-    )])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=17, scale=2),
+    rounding="half_to_even",)})
     source = backend_factory.create({"x": ["1.25"]}, backend_name)
     with pytest.raises(InvalidOptionValueError):
         ma.relation(source).conform(spec).to_polars()
@@ -287,10 +273,8 @@ def test_conversion_precision_limit_is_not_a_declaration_limit(backend_name, bac
     ("bad", "coerce"), ("999.995", "discard_value"), ("999.995", "discard_row"),
 ])
 def test_conversion_errors_are_not_hidden(backend_name, backend_factory, value, action):
-    spec = TypeSpec(fields=[FieldSpec(
-        name="x", type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=5, scale=2),
-        rounding="half_to_even",
-    )])
+    spec = TypeSpec(fields={"x": FieldSpec(type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=5, scale=2),
+    rounding="half_to_even",)})
     source = backend_factory.create({"x": [value]}, backend_name)
     rel = ma.relation(source).conform(spec, contract={"data_type": action})
     if backend_name == "ibis-sqlite":

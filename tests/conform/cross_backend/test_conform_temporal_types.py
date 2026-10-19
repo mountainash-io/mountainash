@@ -26,14 +26,14 @@ def _frame(backend, data):
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_conform_duration_rejects_integer_source(backend):
     df = _frame(backend, {"d": [1_000_000, 2_000_000]})
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="d", type=UniversalType.DURATION)])
+    spec = TypeSpec(fields_match="open", fields={"d": FieldSpec(type=UniversalType.DURATION)})
     with pytest.raises(IncompatibleSourceTypeError, match="requires duration source"):
         ma.relation(df).conform(spec).to_polars()
 
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_conform_year(backend):
     df = _frame(backend, {"y": [2024, 2025]})
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="y", type=UniversalType.YEAR)])
+    spec = TypeSpec(fields_match="open", fields={"y": FieldSpec(type=UniversalType.YEAR)})
     out = ma.relation(df).conform(spec).to_polars()
     # YEAR is a canonical semantic-string type — maps to the backend's string
     # dtype on every target (spec §11), like YEARMONTH below.
@@ -43,7 +43,7 @@ def test_conform_year(backend):
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_conform_yearmonth_rejects_integer_source(backend):
     df = _frame(backend, {"ym": [202401, 202402]})
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="ym", type=UniversalType.YEARMONTH)])
+    spec = TypeSpec(fields_match="open", fields={"ym": FieldSpec(type=UniversalType.YEARMONTH)})
     with pytest.raises(IncompatibleSourceTypeError, match="requires yearmonth source"):
         ma.relation(df).conform(spec).to_polars()
 
@@ -51,6 +51,6 @@ def test_conform_yearmonth_rejects_integer_source(backend):
 @pytest.mark.parametrize("backend", ALL_BACKENDS)
 def test_conform_any_skips_cast(backend):
     df = _frame(backend, {"a": [1, 2]})
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="a", type=UniversalType.ANY)])
+    spec = TypeSpec(fields_match="open", fields={"a": FieldSpec(type=UniversalType.ANY)})
     out = ma.relation(df).conform(spec).to_polars()
     assert out.schema["a"] == pl.Int64  # untouched

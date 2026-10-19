@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
+from datetime import date, datetime, time
+from decimal import Decimal
 from enum import Enum
 import hashlib
 from types import MappingProxyType
@@ -11,6 +13,7 @@ from copy import deepcopy
 import pickle
 
 from mountainash.core.dtypes import NativeDtype
+from mountainash.typespec.spec import FieldSpec, TypeSpec
 
 
 def freeze_declaration(value: Any) -> Any:
@@ -20,17 +23,26 @@ def freeze_declaration(value: Any) -> Any:
     if isinstance(value, Enum):
         return ("__enum__", value.__class__.__module__, value.__class__.__qualname__, value.value)
     if is_dataclass(value) and not isinstance(value, type):
-        return MappingProxyType(
-            {
-                "__dataclass__": f"{value.__class__.__module__}:{value.__class__.__qualname__}",
-                "fields": MappingProxyType(
-                    {
-                        item.name: freeze_declaration(getattr(value, item.name))
-                        for item in fields(value)
-                    }
-                ),
-            }
+        properties = (
+            value._constructor_properties()
+            if isinstance(value, FieldSpec)
+            else {item.name: getattr(value, item.name) for item in fields(value)}
         )
+        frozen = {}
+        for name, item in properties.items():
+            if name == "fields" and isinstance(value, (FieldSpec, TypeSpec)) and item is not None:
+                frozen[name] = MappingProxyType({
+                    "__named_fields__": tuple(
+                        (local_name, freeze_declaration(definition))
+                        for local_name, definition in item.items()
+                    ),
+                })
+            else:
+                frozen[name] = freeze_declaration(item)
+        return MappingProxyType({
+            "__dataclass__": f"{value.__class__.__module__}:{value.__class__.__qualname__}",
+            "fields": MappingProxyType(frozen),
+        })
     if isinstance(value, Mapping):
         return MappingProxyType(
             {key: freeze_declaration(item) for key, item in value.items()}
@@ -70,6 +82,10 @@ def _canonical_bytes(value: Any) -> bytes:
         return b"s" + str(len(encoded)).encode() + b":" + encoded
     if isinstance(value, bytes):
         return b"y" + str(len(value)).encode() + b":" + value
+    if isinstance(value, (datetime, date, time)):
+        return type(value).__name__.encode() + _canonical_bytes(value.isoformat())
+    if isinstance(value, Decimal):
+        return b"decimal" + _canonical_bytes(str(value))
     if isinstance(value, Mapping):
         parts = sorted(
             (_canonical_bytes(key), _canonical_bytes(item)) for key, item in value.items()

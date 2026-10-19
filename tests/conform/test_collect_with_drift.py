@@ -36,7 +36,7 @@ from mountainash.typespec.universal_types import UniversalType as U
 class TestCollectWithDriftBasics:
     def test_returns_conform_collection(self):
         df = pl.DataFrame({"n": [1, 2]})
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=U.INTEGER)})
         rel = ma.relation(df).conform(spec)
 
         collection = rel.collect_with_drift()
@@ -50,7 +50,7 @@ class TestCollectWithDriftBasics:
         """collect_with_drift is a terminal -- the frame must be eager,
         mirroring collect()'s own LazyFrame -> DataFrame unwrap contract."""
         lf = pl.DataFrame({"n": [1, 2]}).lazy()
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=U.INTEGER)})
         rel = ma.relation(lf).conform(spec)
 
         collection = rel.collect_with_drift()
@@ -72,7 +72,7 @@ class TestCollectWithDriftBasics:
         stays STRING even though the spec declares INTEGER. effective_schema
         must report the actual STRING, not the declared type (finding 5)."""
         df = pl.DataFrame({"n": ["1", "2"]})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        spec = TypeSpec(fields={'n': FieldSpec(type=U.INTEGER)}, fields_match='open')
         rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
 
         collection = rel.collect_with_drift()
@@ -83,7 +83,7 @@ class TestCollectWithDriftBasics:
 
     def test_backend_override_accepted(self):
         df = pl.DataFrame({"n": [1, 2]})
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=U.INTEGER)})
         rel = ma.relation(df).conform(spec)
 
         collection = rel.collect_with_drift(backend="polars")
@@ -101,9 +101,7 @@ class TestCollectWithDriftLogicalTerminalGuard:
         from mountainash.relations import LogicalTerminalRequired
 
         df = pl.DataFrame({"payload": ["[1]", "[2]"]})
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=U.ARRAY)]
-        )
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=U.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
 
         with pytest.raises(LogicalTerminalRequired) as exc_info:
@@ -127,9 +125,7 @@ class TestCollectWithDriftLogicalTerminalGuard:
         monkeypatch.setattr(materialization_module, "materialize_native", spy)
 
         df = pl.DataFrame({"payload": ["[1]", "[2]"]})
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=U.ARRAY)]
-        )
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=U.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
 
         with pytest.raises(LogicalTerminalRequired):
@@ -151,14 +147,10 @@ class TestMultiConformOrdering:
         # Relation.conform() call).
         left = ma.relation(
             {"id": [1], "a": [1], "left_extra": [9]}
-        ).conform(TypeSpec(fields_match="open", fields=[
-            FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="a", type=U.INTEGER),
-        ]))
+        ).conform(TypeSpec(fields_match='open', fields={'id': FieldSpec(type=U.INTEGER), 'a': FieldSpec(type=U.INTEGER)}))
         right = ma.relation(
             {"id": [1], "b": [2], "right_extra": [8]}
-        ).conform(TypeSpec(fields_match="open", fields=[
-            FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="b", type=U.INTEGER),
-        ]))
+        ).conform(TypeSpec(fields_match='open', fields={'id': FieldSpec(type=U.INTEGER), 'b': FieldSpec(type=U.INTEGER)}))
         return left.join(right, on="id")
 
     def test_join_of_two_conformed_relations_two_drifts_in_traversal_order(self):
@@ -186,17 +178,11 @@ class TestMultiConformOrdering:
 class TestFreezeFailFast:
     def _joined_with_left_freeze(self):
         # Left: data_type="freeze" AND an actual unsafe mismatch -- trips.
-        left_spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="x", type=U.INTEGER)],
-            fields_match="open",
-            contract={"data_type": "freeze"},
-        )
+        left_spec = TypeSpec(fields={'id': FieldSpec(type=U.INTEGER), 'x': FieldSpec(type=U.INTEGER)}, fields_match='open', contract={'data_type': 'freeze'})
         left = ma.relation({"id": [1], "x": ["not-a-number"]}).conform(left_spec)
 
         # Right: no freeze, no mismatch -- must never be reached.
-        right_spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="y", type=U.INTEGER)],
-        )
+        right_spec = TypeSpec(fields_match='open', fields={'id': FieldSpec(type=U.INTEGER), 'y': FieldSpec(type=U.INTEGER)})
         right = ma.relation({"id": [1], "y": [2]}).conform(right_spec)
 
         return left.join(right, on="id")
@@ -233,7 +219,7 @@ class TestAssessDrift:
 
     def test_single_conform_node_assessed(self):
         df = pl.DataFrame({"n": ["1", "2"]})
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=U.INTEGER)})
         rel = ma.relation(df).conform(spec)
 
         drifts = rel.assess_drift()
@@ -243,10 +229,10 @@ class TestAssessDrift:
 
     def test_aggregates_across_two_conform_nodes(self):
         left = ma.relation({"id": [1], "a": [1]}).conform(
-            TypeSpec(fields_match="open", fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="a", type=U.INTEGER)])
+            TypeSpec(fields_match='open', fields={'id': FieldSpec(type=U.INTEGER), 'a': FieldSpec(type=U.INTEGER)})
         )
         right = ma.relation({"id": [1], "b": [2]}).conform(
-            TypeSpec(fields_match="open", fields=[FieldSpec(name="id", type=U.INTEGER), FieldSpec(name="b", type=U.INTEGER)])
+            TypeSpec(fields_match='open', fields={'id': FieldSpec(type=U.INTEGER), 'b': FieldSpec(type=U.INTEGER)})
         )
         joined = left.join(right, on="id")
 
@@ -257,11 +243,7 @@ class TestAssessDrift:
     def test_freeze_configured_node_is_reported_not_raised(self):
         """The core assess_drift guarantee: a freeze policy that WOULD raise
         at execute time is instead folded into the returned drift report."""
-        spec = TypeSpec(
-            fields=[FieldSpec(name="n", type=U.INTEGER)],
-            fields_match="open",
-            contract={"data_type": "freeze"},
-        )
+        spec = TypeSpec(fields={'n': FieldSpec(type=U.INTEGER)}, fields_match='open', contract={'data_type': 'freeze'})
         rel = ma.relation({"n": ["not-a-number"]}).conform(spec)
 
         # Must not raise.
@@ -293,7 +275,7 @@ class TestAssessDrift:
                 accessed.append(name)
                 raise AttributeError(name)
 
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="n", type=U.INTEGER)])
+        spec = TypeSpec(fields_match='open', fields={'n': FieldSpec(type=U.INTEGER)})
         rel = ma.relation(_WatchedFrame()).conform(spec)
 
         drifts = rel.assess_drift()

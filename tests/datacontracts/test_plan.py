@@ -3,20 +3,20 @@ import polars as pl
 import pytest
 
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
 from mountainash.datacontracts.plan import PlanResult, ValidationPlan
 from mountainash.datacontracts.validator import Validator
+from mountainash.typespec import FieldSpec, UniversalType
 
 
 class BatchContract(BaseDataContract):
-    batch_id: str = Field(nullable=False)
+    batch_id = FieldSpec(type=UniversalType.STRING, required=True)
 
     class Config:
         coerce = False
 
 
 class AccountContract(BaseDataContract):
-    account_id: int = Field(nullable=False, ge=1)
+    account_id = FieldSpec(type=UniversalType.INTEGER, required=True, minimum=1)
 
     class Config:
         coerce = False

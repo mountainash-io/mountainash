@@ -30,7 +30,7 @@ class TestDAGSchema:
         dag = RelationDAG()
         dag.add("raw", ma.relation(pl.LazyFrame({"a": ["1"], "b": ["x"]})))
         spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
+            fields={"a": FieldSpec(type=UniversalType.INTEGER)},
             fields_match="open",
         )
         dag.add("conformed", dag.ref("raw").conform(spec))

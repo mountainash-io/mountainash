@@ -45,7 +45,7 @@ def _structured_dag():
     dag = RelationDAG()
     df = pl.DataFrame({"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']})
     spec = TypeSpec(
-        fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)]
+        fields_match="open", fields={"meta": FieldSpec(type=UniversalType.OBJECT)}
     )
     rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
     dag.add("resource", rel)
@@ -142,7 +142,7 @@ class TestPerCallValidationContext:
 
         compile_calls = 0
         spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)]
+            fields_match="open", fields={"meta": FieldSpec(type=UniversalType.OBJECT)}
         )
         rel = ma.relation(table).conform(spec, contract={"data_type": "coerce"})
         root_node = rel._node
@@ -181,7 +181,7 @@ class TestPerCallValidationContext:
             {"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']}, "ibis-duckdb"
         )
         spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)]
+            fields_match="open", fields={"meta": FieldSpec(type=UniversalType.OBJECT)}
         )
         rel = ma.relation(table).conform(spec, contract={"data_type": "coerce"})
         dag = RelationDAG()

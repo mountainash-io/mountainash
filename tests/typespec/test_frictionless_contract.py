@@ -27,7 +27,7 @@ from mountainash.typespec.universal_types import UniversalType
 
 def _spec(**kwargs):
     return TypeSpec(
-        fields=[FieldSpec(name="a", type=UniversalType.STRING)],
+        fields={"a": FieldSpec(type=UniversalType.STRING)},
         **kwargs,
     )
 

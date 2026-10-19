@@ -10,6 +10,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import F
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
 from ._operation_options import validate_failure_behavior, validate_field_name, validate_fields
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from ...api_base import BaseExpressionAPI
     from mountainash.typespec.spec import FieldSpec
 
@@ -19,7 +20,7 @@ class MountainAshScalarStructAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
     def cast(
         self,
         *,
-        fields: tuple["FieldSpec", ...],
+        fields: "Mapping[str, FieldSpec]",
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
         converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),

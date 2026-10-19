@@ -53,10 +53,10 @@ class TestConformTransform:
     def test_cast_string_to_integer(self):
         df = pl.DataFrame({"age": ["25", "35"], "name": ["alice", "bob"]})
         spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+            fields={
+                "age": FieldSpec(type=UniversalType.INTEGER),
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
@@ -64,7 +64,7 @@ class TestConformTransform:
     def test_cast_string_to_float(self):
         df = pl.DataFrame({"score": ["88.5", "92.1"]})
         spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="score", type=UniversalType.NUMBER)],
+            fields={"score": FieldSpec(type=UniversalType.NUMBER)},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].dtype == pl.Float64
@@ -72,11 +72,11 @@ class TestConformTransform:
     def test_cast_multiple_columns(self):
         df = pl.DataFrame({"age": ["25", "35"], "score": ["88.5", "92.1"], "name": ["a", "b"]})
         spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="score", type=UniversalType.NUMBER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+            fields={
+                "age": FieldSpec(type=UniversalType.INTEGER),
+                "score": FieldSpec(type=UniversalType.NUMBER),
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
@@ -135,11 +135,11 @@ class TestFullPipeline:
         assert df.dtypes == [pl.String, pl.String, pl.String]
 
         spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="score", type=UniversalType.NUMBER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+            fields={
+                "age": FieldSpec(type=UniversalType.INTEGER),
+                "score": FieldSpec(type=UniversalType.NUMBER),
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
         )
         result = (
             ma.relation(df)
@@ -163,10 +163,10 @@ class TestFullPipeline:
 
         df = ingress_factory.convert(records)
         spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="salary", type=UniversalType.INTEGER),
-                FieldSpec(name="dept", type=UniversalType.STRING),
-            ],
+            fields={
+                "salary": FieldSpec(type=UniversalType.INTEGER),
+                "dept": FieldSpec(type=UniversalType.STRING),
+            },
         )
         df = ma.relation(df).conform(spec).to_polars()
 
@@ -184,10 +184,10 @@ class TestFullPipeline:
     def test_pipeline_with_select_and_rename(self, ingress_factory, sample_records):
         df = ingress_factory.convert(sample_records)
         spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+            fields={
+                "age": FieldSpec(type=UniversalType.INTEGER),
+                "name": FieldSpec(type=UniversalType.STRING),
+            },
         )
 
         result = (

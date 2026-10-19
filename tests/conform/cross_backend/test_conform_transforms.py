@@ -29,28 +29,19 @@ from fixtures.call_expectations import expect_call_failure
 class TestConformCast:
     def test_cast_string_to_integer(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.INTEGER)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, 2, 3]
 
     def test_cast_string_to_number(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["1.5", "2.5", "3.5"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.NUMBER)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.NUMBER)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1.5, 2.5, 3.5]
 
     def test_cast_string_to_string(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["hello", "world"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.STRING)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.STRING)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["hello", "world"]
 
@@ -59,20 +50,14 @@ class TestConformCast:
 class TestConformRename:
     def test_rename_column(self, backend_name, backend_factory):
         df = backend_factory.create({"old_name": ["a", "b", "c"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="new_name", type=UniversalType.STRING, rename_from="old_name")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"new_name": FieldSpec(type=UniversalType.STRING, rename_from="old_name")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["new_name"].to_list() == ["a", "b", "c"]
 
     def test_rename_default_keeps_unmapped(self, backend_name, backend_factory):
         """fields_match="open" keeps unmapped columns; the renamed source is dropped."""
         df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"new": FieldSpec(type=UniversalType.STRING, rename_from="old")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "new" in result.columns
         assert "keep" in result.columns
@@ -81,10 +66,7 @@ class TestConformRename:
     def test_rename_partial_drops_unmapped(self, backend_name, backend_factory):
         """Explicit fields_match='partial' drops unmapped columns."""
         df = backend_factory.create({"old": ["a", "b"], "keep": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="new", type=UniversalType.STRING, rename_from="old")],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"new": FieldSpec(type=UniversalType.STRING, rename_from="old")}, fields_match="partial",)
         result = ma.relation(df).conform(spec).to_polars()
         assert "new" in result.columns
         assert "keep" not in result.columns
@@ -95,19 +77,13 @@ class TestConformRename:
 class TestConformNullFill:
     def test_null_fill_integer(self, backend_name, backend_factory):
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.INTEGER, null_fill=-1)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.INTEGER, null_fill=-1)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == [1, -1, 3]
 
     def test_null_fill_string(self, backend_name, backend_factory):
         df = backend_factory.create({"val": ["x", None, "z"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="val", type=UniversalType.STRING, null_fill="unknown")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"val": FieldSpec(type=UniversalType.STRING, null_fill="unknown")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["val"].to_list() == ["x", "unknown", "z"]
 
@@ -117,10 +93,7 @@ class TestConformOnlyMappedFields:
     def test_default_keeps_unmapped(self, backend_name, backend_factory):
         """fields_match="open" keeps unmapped columns."""
         df = backend_factory.create({"keep": ["a", "b"], "extra": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
-        )
+        spec = TypeSpec(fields_match="open", fields={"keep": FieldSpec(type=UniversalType.STRING)}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
         assert "extra" in result.columns
@@ -128,10 +101,7 @@ class TestConformOnlyMappedFields:
     def test_partial_drops_unmapped(self, backend_name, backend_factory):
         """Explicit fields_match='partial' produces only spec fields."""
         df = backend_factory.create({"keep": ["a", "b"], "drop": [1, 2]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="keep", type=UniversalType.STRING)],
-            fields_match="partial",
-        )
+        spec = TypeSpec(fields={"keep": FieldSpec(type=UniversalType.STRING)}, fields_match="partial",)
         result = ma.relation(df).conform(spec).to_polars()
         assert "keep" in result.columns
         assert "drop" not in result.columns
@@ -141,10 +111,7 @@ class TestConformMultiTransform:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_cast_and_rename(self, backend_name, backend_factory):
         df = backend_factory.create({"raw_id": ["1", "2", "3"]}, backend_name)
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[FieldSpec(name="user_id", type=UniversalType.INTEGER, rename_from="raw_id")],
-        )
+        spec = TypeSpec(fields_match="open", fields={"user_id": FieldSpec(type=UniversalType.INTEGER, rename_from="raw_id")}, )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["user_id"].to_list() == [1, 2, 3]
 
@@ -158,13 +125,7 @@ class TestConformMultiTransform:
             },
             backend_name,
         )
-        spec = TypeSpec(
-            fields_match="open",
-            fields=[
-                FieldSpec(name="score", type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0),
-                FieldSpec(name="label", type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a"),
-            ],
-        )
+        spec = TypeSpec(fields_match="open", fields={"score": FieldSpec(type=UniversalType.NUMBER, rename_from="raw_score", null_fill=0.0), "label": FieldSpec(type=UniversalType.STRING, rename_from="raw_label", null_fill="n/a")}, )
         with expect_call_failure(
             when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
             errors=(IbisTypeError,),
@@ -197,12 +158,7 @@ class TestConformFromFrictionless:
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_value_domains_follow_conform_cast_and_rename(backend_name, backend_factory):
     frame = backend_factory.create({"raw": ["0", "1", "2"]}, backend_name)
-    spec = TypeSpec(
-        fields_match="open",
-        fields=[
-            FieldSpec(name="number", type=UniversalType.INTEGER, rename_from="raw"),
-        ],
-    )
+    spec = TypeSpec(fields_match="open", fields={"number": FieldSpec(type=UniversalType.INTEGER, rename_from="raw")}, )
     result = (
         ma.relation(frame)
         .conform(spec)

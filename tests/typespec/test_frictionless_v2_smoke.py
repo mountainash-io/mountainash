@@ -77,7 +77,12 @@ def test_unit_b_typespec_cutover_smoke() -> None:
                             "name": "items",
                             "type": "array",
                             "x-mountainash": {
-                                "item_object_fields": [{"name": "code", "type": "string"}]
+                                "element": {
+                                    "type": "object",
+                                    "x-mountainash": {
+                                        "fields": [{"name": "code", "type": "string"}]
+                                    },
+                                }
                             },
                         },
                         {"name": "point", "type": "geopoint", "format": "array"},
@@ -110,9 +115,9 @@ def test_unit_b_typespec_cutover_smoke() -> None:
     assert raw_schema == descriptor["resources"][0]["schema"]
     assert spec is not None
     assert spec.fields_match == "exact"
-    assert spec.get_field("untyped").type is UniversalType.ANY
-    assert spec.get_field("tags").type is UniversalType.LIST
-    assert spec.get_field("items").item_object_fields[0].name == "code"
+    assert spec.fields["untyped"].type is UniversalType.ANY
+    assert spec.fields["tags"].type is UniversalType.LIST
+    assert list(spec.fields["items"].element.fields) == ["code"]
     assert resolve_field_canonical(spec.get_field("point")) is MountainashDtype.LIST
     assert resolve_field_canonical(spec.get_field("geometry")) is MountainashDtype.JSON
     assert spec.foreign_keys[0].fields == ["parent_id"]
@@ -128,8 +133,8 @@ def test_unit_b_typespec_cutover_smoke() -> None:
 
     score = spec.get_field("score")
     assert score is not None
-    assert score.categories == [LabeledValue(1, "One")]
-    assert score.missing_values == [LabeledValue("-", "Dash")]
+    assert tuple(score.categories) == (LabeledValue(1, "One"),)
+    assert tuple(score.missing_values) == (LabeledValue("-", "Dash"),)
     assert score.constraints is not None
     assert score.constraints.exclusive_minimum == 0
     assert score.constraints.exclusive_maximum == 10

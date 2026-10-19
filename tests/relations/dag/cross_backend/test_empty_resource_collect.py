@@ -14,18 +14,18 @@ from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.datapackage import DataResource, DataPackage
 
 CHILD = TypeSpec(
-    fields=[
-        FieldSpec(name="date", type=UniversalType.STRING),
-        FieldSpec(name="v", type=UniversalType.INTEGER),
-    ],
+    fields={
+        "date": FieldSpec(type=UniversalType.STRING),
+        "v": FieldSpec(type=UniversalType.INTEGER),
+    },
     primary_key=["date", "v"],
     fields_match="open",
 )
 PARENT = TypeSpec(
-    fields=[
-        FieldSpec(name="date", type=UniversalType.STRING),
-        FieldSpec(name="total", type=UniversalType.INTEGER),
-    ],
+    fields={
+        "date": FieldSpec(type=UniversalType.STRING),
+        "total": FieldSpec(type=UniversalType.INTEGER),
+    },
     primary_key=["date"],
     fields_match="open",
 )
@@ -94,8 +94,10 @@ def test_raw_dict_schema_via_from_descriptor():
 @pytest.mark.parametrize("mode", ["exact", "equal", "subset", "partial"])
 def test_strict_modes_still_raise_on_empty(mode):
     spec = TypeSpec(
-        fields=[FieldSpec(name="date", type=UniversalType.STRING),
-                FieldSpec(name="v", type=UniversalType.INTEGER)],
+        fields={
+            "date": FieldSpec(type=UniversalType.STRING),
+            "v": FieldSpec(type=UniversalType.INTEGER),
+        },
         primary_key=["date", "v"], fields_match=mode,
     )
     pkg = DataPackage(name="t", resources=[

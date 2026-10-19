@@ -34,7 +34,7 @@ def _fk(fields, resource, ref_fields):
 
 
 def _open_spec(*fields):
-    return TypeSpec(fields=list(fields), fields_match="open")
+    return TypeSpec(fields=dict(fields), fields_match="open")
 
 
 class TestFrameLevelNotAssessed:
@@ -42,7 +42,7 @@ class TestFrameLevelNotAssessed:
     keys -- key_changes stays None (not [])."""
 
     def test_key_changes_stays_none(self):
-        spec = _open_spec(FieldSpec(name="id", type=UniversalType.INTEGER))
+        spec = _open_spec(("id", FieldSpec(type=UniversalType.INTEGER)))
         result = ma.relation(pl.DataFrame({"id": [1, 2]})).conform(spec).collect_with_drift()
 
         assert result.drift.key_changes is None
@@ -54,7 +54,7 @@ class TestDagCleanAssessment:
 
     def test_no_declared_fks_is_assessed_clean(self):
         dag = RelationDAG()
-        spec = _open_spec(FieldSpec(name="id", type=UniversalType.INTEGER))
+        spec = _open_spec(("id", FieldSpec(type=UniversalType.INTEGER)))
         dag.add("orders", ma.relation(pl.DataFrame({"id": [1, 2]})).conform(spec))
 
         coll = dag.collect_with_drift("orders")
@@ -74,8 +74,8 @@ class TestFkFieldDropped:
         # "customer_id" is declared but the source frame doesn't have it --
         # open/skip silently omits it from the conformed output.
         spec = _open_spec(
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="customer_id", type=UniversalType.INTEGER),
+            ("id", FieldSpec(type=UniversalType.INTEGER)),
+            ("customer_id", FieldSpec(type=UniversalType.INTEGER)),
         )
         dag.add("orders", ma.relation(pl.DataFrame({"id": [1, 2]})).conform(spec))
         dag.add_constraint(
@@ -96,7 +96,7 @@ class TestFkFieldDropped:
         """A FK field that was never a spec field at all is equally dropped."""
         dag = RelationDAG()
         dag.add("customers", ma.relation(pl.DataFrame({"id": [1, 2]})))
-        spec = _open_spec(FieldSpec(name="id", type=UniversalType.INTEGER))
+        spec = _open_spec(("id", FieldSpec(type=UniversalType.INTEGER)))
         dag.add(
             "orders",
             ma.relation(pl.DataFrame({"id": [1, 2]})).conform(
@@ -119,7 +119,7 @@ class TestDanglingReference:
         dag = RelationDAG()
         # "customers" exists but has no "id" column at all.
         dag.add("customers", ma.relation(pl.DataFrame({"name": ["a", "b"]})))
-        spec = _open_spec(FieldSpec(name="customer_id", type=UniversalType.INTEGER))
+        spec = _open_spec(("customer_id", FieldSpec(type=UniversalType.INTEGER)))
         dag.add(
             "orders",
             ma.relation(pl.DataFrame({"customer_id": [1, 2]})).conform(spec),
@@ -141,7 +141,7 @@ class TestDanglingReference:
         schema_of() KeyError branch, which add_constraint()'s target
         validation makes unreachable through the public API."""
         dag = RelationDAG()
-        spec = _open_spec(FieldSpec(name="customer_id", type=UniversalType.INTEGER))
+        spec = _open_spec(("customer_id", FieldSpec(type=UniversalType.INTEGER)))
         dag.add(
             "orders",
             ma.relation(pl.DataFrame({"customer_id": [1, 2]})).conform(spec),
@@ -170,7 +170,7 @@ class TestFkTypeMismatch:
     def test_evolved_child_column_links_to_keys_dimension(self):
         dag = RelationDAG()
         dag.add("customers", ma.relation(pl.DataFrame({"id": [1, 2]})))  # I64
-        spec = _open_spec(FieldSpec(name="customer_id", type=UniversalType.INTEGER))
+        spec = _open_spec(("customer_id", FieldSpec(type=UniversalType.INTEGER)))
         dag.add(
             "orders",
             ma.relation(pl.DataFrame({"customer_id": ["1", "2"]})).conform(
@@ -193,7 +193,7 @@ class TestFkTypeMismatch:
         """actual I32 -> declared I64 is a safe widening cast: no drift."""
         dag = RelationDAG()
         dag.add("customers", ma.relation(pl.DataFrame({"id": [1, 2]})))  # I64
-        spec = _open_spec(FieldSpec(name="customer_id", type=UniversalType.INTEGER))
+        spec = _open_spec(("customer_id", FieldSpec(type=UniversalType.INTEGER)))
         dag.add(
             "orders",
             ma.relation(pl.DataFrame({"customer_id": pl.Series([1, 2], dtype=pl.Int32)}))
@@ -227,8 +227,8 @@ class TestPerNodeContextInDependencyLoop:
         dag = RelationDAG()
         dag.add("customers", ma.relation(pl.DataFrame({"id": [1, 2]})))
         spec = _open_spec(
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="customer_id", type=UniversalType.INTEGER),
+            ("id", FieldSpec(type=UniversalType.INTEGER)),
+            ("customer_id", FieldSpec(type=UniversalType.INTEGER)),
         )
         dag.add("clean_orders", ma.relation(orders_frame).conform(spec))
         dag.add("active_orders", dag.ref("clean_orders").filter(ma.col("id").gt(0)))
@@ -282,8 +282,8 @@ class TestFreezePolicy:
         dag = RelationDAG()
         dag.add("customers", ma.relation(pl.DataFrame({"id": [1, 2]})))
         spec = _open_spec(
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="customer_id", type=UniversalType.INTEGER),
+            ("id", FieldSpec(type=UniversalType.INTEGER)),
+            ("customer_id", FieldSpec(type=UniversalType.INTEGER)),
         )
         dag.add(
             "orders",
@@ -309,8 +309,8 @@ class TestFreezePolicy:
         dag = RelationDAG()
         dag.add("customers", ma.relation(pl.DataFrame({"id": [1, 2]})))
         spec = _open_spec(
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="customer_id", type=UniversalType.INTEGER),
+            ("id", FieldSpec(type=UniversalType.INTEGER)),
+            ("customer_id", FieldSpec(type=UniversalType.INTEGER)),
         )
         dag.add("orders", ma.relation(pl.DataFrame({"id": [1, 2]})).conform(spec))
         dag.add_constraint("orders", _fk(["customer_id"], "customers", ["id"]))

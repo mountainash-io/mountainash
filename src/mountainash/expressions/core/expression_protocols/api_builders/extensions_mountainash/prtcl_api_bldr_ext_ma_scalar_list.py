@@ -29,14 +29,14 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def cast_items(
         self,
         *,
-        item_object_fields: tuple["FieldSpec", ...] = (),
+        element: "FieldSpec | None" = None,
         item_type: str | None = None,
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
         converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),
         converted_validity: "BaseExpressionAPI | None" = None,
     ) -> BaseExpressionAPI:
-        """Cast list items using a scalar type or compiled nested fields."""
+        """Cast list items using a complete element declaration or lexical item type."""
         ...
 
     def element(self) -> BaseExpressionAPI:

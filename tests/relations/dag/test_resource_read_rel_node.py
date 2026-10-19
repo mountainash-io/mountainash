@@ -59,7 +59,7 @@ def test_validation_copy_applies_one_compiled_conform_plan(monkeypatch):
 
     monkeypatch.setattr(UnifiedRelationVisitor, "apply_conform", counted)
     spec = TypeSpec(
-        fields=[FieldSpec(name="n", type=UniversalType.INTEGER)],
+        fields={"n": FieldSpec(type=UniversalType.INTEGER)},
         fields_match="open",
     )
     resource = DataResource(
@@ -106,7 +106,7 @@ def test_resource_read_validation_copy_skips_builtin_conform():
     )
     calls = []
     visitor.apply_conform = lambda *args, **kwargs: calls.append((args, kwargs))
-    spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+    spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
     res = DataResource(name="orders", data=[{"n": "1"}], schema=spec)
     node = ResourceReadRelNode(
         resource=res,
@@ -159,7 +159,7 @@ def test_resource_read_rel_node_threads_resource_name_into_drift():
     expr_visitor = UnifiedExpressionVisitor(expr_sys, execution_context=context)
     visitor = UnifiedRelationVisitor(rel_sys, expr_visitor, execution_context=context)
 
-    spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+    spec = TypeSpec(fields={"n": FieldSpec(type=UniversalType.INTEGER)})
     res = DataResource(name="orders", type="table", data=[{"n": "1"}, {"n": "2"}], schema=spec)
     node = ResourceReadRelNode(resource=res)
 

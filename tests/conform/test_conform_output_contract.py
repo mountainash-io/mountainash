@@ -45,23 +45,19 @@ _UNSET = object()
 
 
 def _spec(*fields, fields_match=_UNSET, missing_values=None):
-    """Build a TypeSpec with minimal boilerplate.
-
-    When ``fields_match`` is not supplied, the TypeSpec default ("exact")
-    applies — the model default is non-optional post-cutover.
-    """
+    """Build a TypeSpec from contextual names and unnamed definitions."""
     kwargs = {}
     if fields_match is not _UNSET:
         kwargs["fields_match"] = fields_match
     return TypeSpec(
-        fields=list(fields),
+        fields=dict(fields),
         missing_values=missing_values or [],
         **kwargs,
     )
 
 
 def _fld(name, type_=UniversalType.STRING, **kwargs):
-    return FieldSpec(name=name, type=type_, **kwargs)
+    return name, FieldSpec(type=type_, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -107,8 +103,7 @@ class TestOpenModeSkipOnAbsent:
     def test_absent_field_skipped(self):
         spec = _spec(_fld("a"), _fld("b"), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["a"])
-        assert len(contract.emitted) == 1
-        assert contract.emitted[0].field.name == "a"
+        assert contract.emitted[0].local_name == "a"
 
     def test_all_absent_yields_empty(self):
         spec = _spec(_fld("a"), _fld("b"), fields_match="open")
@@ -118,8 +113,7 @@ class TestOpenModeSkipOnAbsent:
     def test_all_present_yields_all(self):
         spec = _spec(_fld("a"), _fld("b"), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["a", "b", "extra"])
-        assert len(contract.emitted) == 2
-        assert {em.field.name for em in contract.emitted} == {"a", "b"}
+        assert {em.local_name for em in contract.emitted} == {"a", "b"}
 
     def test_open_without_available_columns_includes_all(self):
         """open mode with available_columns=None: no skip guard, all fields emitted."""
@@ -136,8 +130,7 @@ class TestPartialMode:
     def test_partial_skips_absent(self):
         spec = _spec(_fld("a"), _fld("b"), fields_match="partial")
         contract = resolve_conform_output(spec, available_columns=["a"])
-        assert len(contract.emitted) == 1
-        assert contract.emitted[0].field.name == "a"
+        assert contract.emitted[0].local_name == "a"
 
     def test_partial_raises_when_none_match(self):
         spec = _spec(_fld("a"), _fld("b"), fields_match="partial")
@@ -239,7 +232,7 @@ class TestRenameTracking:
     def test_dotted_source_not_tracked_as_rename(self):
         """Dotted sources are struct access paths, not column renames."""
         spec = _spec(
-            FieldSpec(name="strain", type=UniversalType.NUMBER, rename_from="score.strain"),
+            ('strain', FieldSpec(type=UniversalType.NUMBER, rename_from='score.strain')),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["score"])
@@ -259,7 +252,7 @@ class TestDottedSource:
     def test_dotted_root_checked_for_availability(self):
         """The root col (before '.') must be in available_columns."""
         spec = _spec(
-            FieldSpec(name="city", type=UniversalType.STRING, rename_from="address.city"),
+            ('city', FieldSpec(type=UniversalType.STRING, rename_from='address.city')),
             fields_match="open",
         )
         # root "address" not available → skipped
@@ -268,7 +261,7 @@ class TestDottedSource:
 
     def test_dotted_root_present_includes_field(self):
         spec = _spec(
-            FieldSpec(name="city", type=UniversalType.STRING, rename_from="address.city"),
+            ('city', FieldSpec(type=UniversalType.STRING, rename_from='address.city')),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["address"])
@@ -293,7 +286,7 @@ class TestDeclaredType:
             (UniversalType.DATE,    to_canonical(UniversalType.DATE)),
         ]
         for utype, expected in cases:
-            spec = _spec(FieldSpec(name="f", type=utype), fields_match="open")
+            spec = _spec(('f', FieldSpec(type=utype)), fields_match="open")
             contract = resolve_conform_output(spec, available_columns=["f"])
             assert contract.emitted[0].declared_type == expected, (
                 f"Expected {expected} for {utype}, got {contract.emitted[0].declared_type}"
@@ -301,20 +294,20 @@ class TestDeclaredType:
 
     def test_any_no_fill_non_dotted_yields_passthrough(self):
         """ANY type, non-dotted source, no null_fill → PASSTHROUGH."""
-        spec = _spec(FieldSpec(name="f", type=UniversalType.ANY), fields_match="open")
+        spec = _spec(('f', FieldSpec(type=UniversalType.ANY)), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["f"])
         assert contract.emitted[0].declared_type is PASSTHROUGH
 
     def test_none_type_no_fill_non_dotted_yields_passthrough(self):
         """type=None (falls to ANY branch), non-dotted, no null_fill → PASSTHROUGH."""
-        spec = _spec(FieldSpec(name="f", type=None), fields_match="open")
+        spec = _spec(('f', FieldSpec(type=None)), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["f"])
         assert contract.emitted[0].declared_type is PASSTHROUGH
 
     def test_any_with_null_fill_yields_undetermined(self):
         """ANY type + null_fill → UNDETERMINED (coalesce may coerce dtype)."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.ANY, null_fill=""),
+            ('f', FieldSpec(type=UniversalType.ANY, null_fill='')),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
@@ -323,7 +316,7 @@ class TestDeclaredType:
     def test_any_dotted_source_yields_undetermined(self):
         """ANY type + dotted source → UNDETERMINED (nested ≠ struct root type)."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.ANY, rename_from="payload.id"),
+            ('f', FieldSpec(type=UniversalType.ANY, rename_from='payload.id')),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["payload"])
@@ -332,7 +325,7 @@ class TestDeclaredType:
     def test_categories_yields_string(self):
         """categories → STRING (dtype registry maps Categorical/Enum → STRING)."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.STRING, categories=["a", "b"]),
+            ('f', FieldSpec(type=UniversalType.STRING, categories=['a', 'b'])),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
@@ -341,7 +334,7 @@ class TestDeclaredType:
     def test_categories_on_integer_field_yields_integer(self):
         """categories preserve the declared integer base type."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.INTEGER, categories=[1, 2, 3]),
+            ('f', FieldSpec(type=UniversalType.INTEGER, categories=[1, 2, 3])),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
@@ -350,7 +343,7 @@ class TestDeclaredType:
     def test_array_type_yields_canonical_array(self):
         """ARRAY → to_canonical(ARRAY)."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.ARRAY),
+            ('f', FieldSpec(type=UniversalType.ARRAY)),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
@@ -359,7 +352,7 @@ class TestDeclaredType:
 
     def test_list_type_yields_canonical_list(self):
         """LIST lexical parsing still emits the physical canonical list."""
-        field = FieldSpec(name="f", type=UniversalType.LIST, item_type="integer")
+        field = ('f', FieldSpec(type=UniversalType.LIST, item_type='integer'))
         spec = _spec(field, fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["f"])
         assert contract.emitted[0].declared_type == to_canonical(UniversalType.LIST)
@@ -367,7 +360,7 @@ class TestDeclaredType:
     def test_temporal_with_custom_format_yields_canonical(self):
         """DATE/DATETIME/TIME with custom format → to_canonical(type)."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.DATE, format="%Y/%m/%d"),
+            ('f', FieldSpec(type=UniversalType.DATE, format='%Y/%m/%d')),
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
@@ -376,7 +369,7 @@ class TestDeclaredType:
     def test_temporal_with_default_format_yields_canonical(self):
         """DATE with default format falls to stage-5d → to_canonical(DATE)."""
         spec = _spec(
-            FieldSpec(name="f", type=UniversalType.DATE),  # format defaults to "default"
+            ('f', FieldSpec(type=UniversalType.DATE)),  # format defaults to "default"
             fields_match="open",
         )
         contract = resolve_conform_output(spec, available_columns=["f"])
@@ -392,12 +385,8 @@ class TestDeclaredType:
     ):
         from mountainash.typespec.converters import resolve_field_canonical
 
-        field = FieldSpec(
-            name="location",
-            type=UniversalType.GEOPOINT,
-            format=format_name,
-        )
-        spec = _spec(field, fields_match="open")
+        field = FieldSpec(type=UniversalType.GEOPOINT, format=format_name)
+        spec = _spec(("location", field), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["location"])
         assert contract.emitted[0].declared_type == resolve_field_canonical(field)
 
@@ -405,12 +394,8 @@ class TestDeclaredType:
     def test_geojson_formats_use_field_aware_canonical(self, format_name):
         from mountainash.typespec.converters import resolve_field_canonical
 
-        field = FieldSpec(
-            name="geometry",
-            type=UniversalType.GEOJSON,
-            format=format_name,
-        )
-        spec = _spec(field, fields_match="open")
+        field = FieldSpec(type=UniversalType.GEOJSON, format=format_name)
+        spec = _spec(("geometry", field), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["geometry"])
         assert contract.emitted[0].declared_type == resolve_field_canonical(field)
 
@@ -422,12 +407,12 @@ class TestConformOutputContractStructure:
     def test_emitted_order_matches_spec_field_order(self):
         spec = _spec(_fld("c"), _fld("a"), _fld("b"), fields_match="open")
         contract = resolve_conform_output(spec, available_columns=["a", "b", "c"])
-        assert [em.field.name for em in contract.emitted] == ["c", "a", "b"]
+        assert [em.local_name for em in contract.emitted] == ["c", "a", "b"]
 
     def test_renamed_sources_accumulates_multiple_renames(self):
         spec = _spec(
-            FieldSpec(name="x", type=UniversalType.STRING, rename_from="src_x"),
-            FieldSpec(name="y", type=UniversalType.STRING, rename_from="src_y"),
+            ('x', FieldSpec(type=UniversalType.STRING, rename_from='src_x')),
+            ('y', FieldSpec(type=UniversalType.STRING, rename_from='src_y')),
             fields_match="open",
         )
         contract = resolve_conform_output(

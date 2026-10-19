@@ -70,39 +70,29 @@ def simple_table_schema():
 @pytest.fixture
 def full_table_schema():
     """TypeSpec with all common types, constraints, and metadata."""
-    fields = [
-        FieldSpec(
-            name="employee_id",
+    fields = {
+        "employee_id": FieldSpec(
             type=UniversalType.INTEGER,
             description="Primary key",
             constraints=FieldConstraints(required=True, unique=True),
         ),
-        FieldSpec(
-            name="full_name",
+        "full_name": FieldSpec(
             type=UniversalType.STRING,
             description="Employee full name",
             constraints=FieldConstraints(required=True, max_length=200),
         ),
-        FieldSpec(
-            name="salary",
+        "salary": FieldSpec(
             type=UniversalType.NUMBER,
             description="Annual salary",
             constraints=FieldConstraints(minimum=0),
         ),
-        FieldSpec(
-            name="is_active",
-            type=UniversalType.BOOLEAN,
-        ),
-        FieldSpec(
-            name="hire_date",
-            type=UniversalType.DATE,
-        ),
-        FieldSpec(
-            name="notes",
+        "is_active": FieldSpec(type=UniversalType.BOOLEAN),
+        "hire_date": FieldSpec(type=UniversalType.DATE),
+        "notes": FieldSpec(
             type=UniversalType.STRING,
             constraints=FieldConstraints(required=False),
         ),
-    ]
+    }
     return TypeSpec(
         fields=fields,
         title="Employee",

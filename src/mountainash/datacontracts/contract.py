@@ -1,14 +1,9 @@
-"""BaseDataContract — native contract declaration layer (no Pandera).
-
-Declaration style is unchanged for users: `age: int = Field(ge=0)`.
-Contracts compile to validation checks; execution belongs to
-mountainash.validation.ValidationRunner (spec §9.2).
-"""
+"""BaseDataContract declaration discovery and validation entrypoints."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from mountainash.datacontracts.field import Field
+from mountainash.typespec.spec import FieldSpec
 
 if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
@@ -17,35 +12,32 @@ if TYPE_CHECKING:
 
 
 class BaseDataContract:
-    """Base class for native data contracts."""
+    """Base for classes whose FieldSpec members declare validation policy."""
 
-    _contract_fields: ClassVar["dict[str, Field]"] = {}
-    _contract_annotations: ClassVar["dict[str, Any]"] = {}
+    _contract_fields: ClassVar[dict[str, FieldSpec]] = {}
     __typespec__: ClassVar["TypeSpec | None"] = None
 
     class Config:
         name: str | None = None
         coerce: bool = True
-        natural_key: "list[str] | None" = None
+        natural_key: list[str] | None = None
         primary_key: Any = None
-        strict = None  # reserved
+        strict = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        annotations: dict[str, Any] = {}
-        for klass in reversed(cls.__mro__):
-            annotations.update(getattr(klass, "__annotations__", {}))
-        cls._contract_annotations = {
-            name: annotation
-            for name, annotation in annotations.items()
-            if not name.startswith("_") and name != "Config"
-        }
-        fields: dict[str, Field] = {}
-        for name in cls._contract_annotations:
-            value = getattr(cls, name, None)
-            if isinstance(value, Field):
-                fields[name] = value
-        cls._contract_fields = fields
+        members: dict[str, Any] = {}
+        for base in reversed(cls.__mro__[1:]):
+            members.update({
+                name: value for name, value in vars(base).items()
+                if isinstance(value, FieldSpec)
+            })
+        for name, value in vars(cls).items():
+            if isinstance(value, FieldSpec):
+                members[name] = value
+            elif name in members and not name.startswith("__"):
+                members.pop(name)
+        cls._contract_fields = members
 
     @classmethod
     def contract_name(cls) -> str:
@@ -55,27 +47,10 @@ class BaseDataContract:
     def to_typespec(cls) -> "TypeSpec":
         if cls.__typespec__ is not None:
             return cls.__typespec__
-        from mountainash.typespec.extraction import python_type_to_universal
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
-        from mountainash.typespec.universal_types import parse_universal
+        from mountainash.typespec.spec import TypeSpec
 
-        fields = []
-        for name, annotation in cls._contract_annotations.items():
-            contract_field = cls._contract_fields.get(name)
-            fields.append(
-                FieldSpec(
-                    name=name,
-                    type=parse_universal(python_type_to_universal(annotation)),
-                    title=contract_field.title if contract_field else None,
-                    description=contract_field.description if contract_field else None,
-                    constraints=contract_field.to_constraints() if contract_field else None,
-                )
-            )
-        # primary_key falls back to natural_key so keyed identity survives the
-        # TypeSpec round-trip (DAG validation resolves identity from
-        # TypeSpec.primary_key; a natural_key-only contract must not lose it).
         return TypeSpec(
-            fields=fields,
+            fields=dict(cls._contract_fields),
             title=cls.contract_name(),
             primary_key=(
                 getattr(cls.Config, "primary_key", None)
@@ -87,11 +62,7 @@ class BaseDataContract:
     def to_checks(cls) -> "list[ValidationCheck]":
         from mountainash.datacontracts.compiler import compile_datacontract
 
-        plan = compile_datacontract(
-            cls.to_typespec(),
-            extensions=cls._contract_fields,
-        )
-        return list(plan.checks)
+        return list(compile_datacontract(cls.to_typespec()).checks)
 
     @classmethod
     def validate_datacontract(

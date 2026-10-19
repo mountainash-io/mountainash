@@ -157,11 +157,9 @@ def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
 
     monkeypatch.setattr(Relation, "_compile_and_execute_with_visitor", counted_compile)
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="id", rename_from="old", type=UniversalType.INTEGER),
-            ]
-        )
+        TypeSpec(fields={
+            "id": FieldSpec(rename_from="old", type=UniversalType.INTEGER),
+        })
     )
 
     result = ValidationRunner().validate_relation(relation, plan=plan)
@@ -182,15 +180,9 @@ def test_binary_string_format_uses_base64_lexical_validation() -> None:
     result = ValidationRunner().validate_relation(
         pl.DataFrame({"payload": ["AQI=", "not base64"]}),
         plan=compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
-                        type=UniversalType.STRING,
-                        format="binary",
-                    )
-                ]
-            )
+            TypeSpec(fields={
+                "payload": FieldSpec(type=UniversalType.STRING, format="binary"),
+            })
         ),
     )
 
@@ -232,19 +224,12 @@ def test_nested_object_rule_executes_instead_of_isolating_an_error() -> None:
 
     result = ValidationRunner().validate_relation(
         pl.DataFrame({"payload": [{"child": "ok"}]}),
-        plan=compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
-                        type=UniversalType.OBJECT,
-                        object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
-                    )
-                ]
-            )
-        ),
+        plan=compile_datacontract(TypeSpec(fields={
+            "payload": FieldSpec(fields={
+                "child": FieldSpec(type=UniversalType.STRING),
+            }),
+        })),
     )
-
     assert result.check_summaries.filter(pl.col("check_id") == "payload_nested")["status"].item() == "passed"
 
 

@@ -4,30 +4,22 @@ import pytest
 
 import mountainash as ma
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.validator import Validator
+from mountainash.typespec import FieldSpec, UniversalType
 
 
 class PersonContract(BaseDataContract):
-    name: str
-    age: int = Field(ge=0)
+    name = FieldSpec(type=UniversalType.STRING)
+    age = FieldSpec(type=UniversalType.INTEGER, minimum=0)
 
     class Config:
-        coerce = False  # tests drive conform explicitly
+        coerce = False
 
 
 class DatedPersonContract(PersonContract):
-    """PersonContract plus the column the as-of contextual rule reads.
-
-    Exact-mode conform requires the contract to declare every input column;
-    a contextual rule's ``fields`` metadata is execution metadata, not a
-    schema extension.
-    """
-
-    extract_date: str
-
+    extract_date = FieldSpec(type=UniversalType.STRING)
 
 def _rules():
     return RuleRegistry([
@@ -174,7 +166,7 @@ class TestFlow:
 
 
 class CoercingContract(BaseDataContract):
-    age: int = Field(ge=0)
+    age = FieldSpec(type=UniversalType.INTEGER, minimum=0)
 
     class Config:
         coerce = True

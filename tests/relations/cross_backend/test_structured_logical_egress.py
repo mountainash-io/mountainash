@@ -58,13 +58,13 @@ _SUPPORTED_TERMINALS = (
 
 def _json_relation(backend_name, backend_factory, *, action: str = "coerce"):
     df = backend_factory.create({"payload": ["[1,2]", "[3]"]}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
     return ma.relation(df).conform(spec, contract={"data_type": action})
 
 
 def _json_object_relation(backend_name, backend_factory):
     df = backend_factory.create({"payload": ['{"a": 1, "nested": {"ok": true}}', "{}"]}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
+    spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.OBJECT)})
     return ma.relation(df).conform(spec, contract={"data_type": "coerce"})
 
 def _parameterized_array_relation(backend_name, backend_factory, values):
@@ -72,12 +72,11 @@ def _parameterized_array_relation(backend_name, backend_factory, values):
 
     df = backend_factory.create({"payload": values}, backend_name)
     field = FieldSpec(
-        name="payload",
         type=UniversalType.ARRAY,
         dtype=ArrayDtype(element=MountainashDtype.I16, dimensions=(2,)),
     )
     return ma.relation(df).conform(
-        TypeSpec(fields_match="open", fields=[field]),
+        TypeSpec(fields_match="open", fields={"payload": field}),
         contract={"data_type": "coerce"},
     )
 
@@ -91,32 +90,27 @@ def test_nested_logical_cells_require_removed_converter_capability(
 ):
     from mountainash.core.types import BackendCapabilityError
     from mountainash.core.dtypes import (
-        DecimalDtype, MountainashDtype, StructDtype,
+        DecimalDtype, MountainashDtype,
     )
 
     payload = FieldSpec(
-        name="payload",
         type=UniversalType.OBJECT,
-        dtype=StructDtype((
-            ("amount", DecimalDtype(precision=6, scale=2)),
-            ("enabled", MountainashDtype.BOOL),
-        )),
-        object_fields=[
-            FieldSpec(
-                name="amount", dtype=DecimalDtype(precision=6, scale=2),
+        fields={
+            "amount": FieldSpec(
+                dtype=DecimalDtype(precision=6, scale=2),
                 decimal_char=",", group_char=".", rounding="half_to_even",
             ),
-            FieldSpec(
-                name="enabled", type=UniversalType.BOOLEAN,
-                dtype=MountainashDtype.BOOL, true_values=["yes"], false_values=["no"],
+            "enabled": FieldSpec(
+                type=UniversalType.BOOLEAN, dtype=MountainashDtype.BOOL,
+                true_values=["yes"], false_values=["no"],
             ),
-        ],
+        },
     )
     source = backend_factory.create(
         {"payload": ['{"amount":"1.234,50","enabled":"yes"}']}, backend_name,
     )
     relation = ma.relation(source).conform(
-        TypeSpec(fields_match="open", fields=[payload]),
+        TypeSpec(fields_match="open", fields={"payload": payload}),
         contract={"data_type": "coerce"},
     )
 
@@ -274,7 +268,7 @@ class TestNativeTerminalSuccessForEvolveAndStructural:
         monkeypatch.setattr(transport, "decode_structured_value", decode_must_not_run)
 
         df = backend_factory.create({"payload": ["[1,2]", "[3]"]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"}, apply_value_transforms=False)
         result = rel.collect()
         assert result is not None
@@ -296,7 +290,7 @@ class TestNativeTerminalSuccessForNativeContainers:
             reason="SQLite cannot construct the native Array source; no terminal operation has run",
         ):
             df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
         assert result["payload"].to_list() == [[1, 2], [3]]
@@ -315,7 +309,7 @@ class TestNativeTerminalSuccessForNativeContainers:
             reason="SQLite cannot construct the native Struct source; no terminal operation has run",
         ):
             df = backend_factory.create({"payload": [{"a": 1}, {"a": 2}]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.OBJECT)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
         assert result["payload"].to_list() == [{"a": 1}, {"a": 2}]
@@ -331,7 +325,7 @@ class TestPandasNativePythonContainerIsOpaqueNotNative:
 
     def test_native_python_list_resolves_through_the_opaque_path(self, backend_name, backend_factory):
         df = backend_factory.create({"payload": [[1, 2], [3]]}, backend_name)
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = rel.to_polars()
         assert result["payload"].to_list() == [[1, 2], [3]]
@@ -395,7 +389,7 @@ def _opaque_relation(backend_name):
     import pandas as pd
     import polars as pl
 
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TypeSpec(fields_match='open', fields={'payload': FieldSpec(type=UniversalType.ARRAY)})
     if backend_name in ("polars", "narwhals-polars"):
         df = pl.DataFrame({"payload": pl.Series([[1, 2], [3]], dtype=pl.Object)})
     else:
@@ -453,7 +447,7 @@ def test_structured_timestamp_egress_preserves_nanoseconds(backend_name, backend
     )
     target = StructDtype((("at", TimestampDtype(9, True, "UTC")),))
     result = getattr(ma.relation(source).conform(
-        TypeSpec(fields=[FieldSpec("payload", dtype=target)], missing_values=[]),
+        TypeSpec(fields={'payload': FieldSpec(dtype=target)}, missing_values=[]),
     ), terminal)()
     column = result["payload"]
     arrow = column.to_arrow() if terminal == "to_polars" else column.array.__arrow_array__()
@@ -470,7 +464,7 @@ def test_structured_narrowing_obeys_discard_policy(backend_name, backend_factory
 
     source = backend_factory.create({"payload": ["[1]", "[300]", None]}, backend_name)
     result = ma.relation(source).conform(
-        TypeSpec(fields=[FieldSpec("payload", dtype=ListDtype(D.I8))], missing_values=[]),
+        TypeSpec(fields={'payload': FieldSpec(dtype=ListDtype(D.I8))}, missing_values=[]),
         contract={"data_type": action},
     ).to_polars()
     assert result.schema["payload"] == pl.List(pl.Int8)
@@ -482,12 +476,11 @@ def test_structured_narrowing_obeys_discard_policy(backend_name, backend_factory
 def test_polars_native_child_override_survives_pandas_logical_egress():
     # Native overrides are deliberately scoped to their owning execution target.
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, MountainashDtype as D
+    from mountainash.core.dtypes import MountainashDtype as D
 
-    spec = TypeSpec(fields=[FieldSpec(
-        "payload", dtype=StructDtype((("a", D.I64),)),
-        object_fields=[FieldSpec("a", dtype=D.STRING, backend_type=pl.Float64)],
-    )], missing_values=[])
+    spec = TypeSpec(fields={"payload": FieldSpec(fields={
+        "a": FieldSpec(dtype=D.I64, backend_type=pl.Float64),
+    })}, missing_values=[])
     result = ma.relation(pl.DataFrame({"payload": ['{"a":"1.5"}']})).conform(spec).to_pandas()
     assert result["payload"].tolist() == [{"a": 1.5}]
 
@@ -498,10 +491,7 @@ def test_multidimensional_array_logical_conversion(backend_name, backend_factory
     from mountainash.core.dtypes import ArrayDtype, MountainashDtype as D
 
     source = backend_factory.create({"payload": ['[["1","2"],["3","4"]]', None]}, backend_name)
-    result = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("payload", dtype=ArrayDtype(D.I16, (2, 2)))],
-        missing_values=[],
-    )).to_polars()
+    result = ma.relation(source).conform(TypeSpec(fields={'payload': FieldSpec(dtype=ArrayDtype(D.I16, (2, 2)))}, missing_values=[])).to_polars()
     assert result.schema["payload"] == pl.Array(pl.Int16, (2, 2))
     assert result["payload"].to_list() == [[[1, 2], [3, 4]], None]
 
@@ -514,10 +504,7 @@ def test_native_enum_refinement_is_unsupported_for_logical_egress(action):
     relation = ma.relation(
         pl.DataFrame({"payload": ['{"v":"a"}', '{"v":"c"}', None]})
     ).conform(
-        TypeSpec(fields=[FieldSpec(
-            "payload", type=UniversalType.OBJECT,
-            backend_type=pl.Struct({"v": pl.Enum(["a", "b"])}),
-        )], missing_values=[]),
+        TypeSpec(fields={'payload': FieldSpec(type=UniversalType.OBJECT, backend_type=pl.Struct({'v': pl.Enum(['a', 'b'])}))}, missing_values=[]),
         contract={"data_type": action},
     )
 
@@ -538,9 +525,7 @@ def test_partial_struct_logical_egress_promotes_null_child_evidence(backend_name
     source = backend_factory.create(
         {"payload": ['{"a":"2","b":null}', '{"a":"3","b":true}', None]}, backend_name,
     )
-    result = getattr(ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("payload", dtype=target)], missing_values=[],
-    )), terminal)()
+    result = getattr(ma.relation(source).conform(TypeSpec(fields={'payload': FieldSpec(dtype=target)}, missing_values=[])), terminal)()
     column = result["payload"]
     arrow = column.to_arrow() if terminal == "to_polars" else column.array.__arrow_array__()
     assert arrow.type == pa.struct([("a", pa.int16()), ("b", pa.bool_())])
@@ -555,13 +540,7 @@ def test_logical_json_transport_does_not_wrap_sibling_native_struct_scalars():
         "native": pl.Series([{"id": 7}], dtype=pl.Struct({"id": pl.Int64})),
         "payload": ['{"items":[1,2]}'],
     })
-    relation = ma.relation(source).conform(TypeSpec(
-        fields=[
-            FieldSpec("native", dtype=StructDtype((("id", D.I64),))),
-            FieldSpec("payload", type=UniversalType.OBJECT),
-        ],
-        missing_values=[],
-    ))
+    relation = ma.relation(source).conform(TypeSpec(fields={'native': FieldSpec(dtype=StructDtype((('id', D.I64),))), 'payload': FieldSpec(type=UniversalType.OBJECT)}, missing_values=[]))
 
     result = relation.to_polars()
 

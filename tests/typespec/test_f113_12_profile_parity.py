@@ -38,7 +38,7 @@ def test_raw_dialect_markers_have_shared_public_error(marker, required_form) -> 
 def test_typed_schema_profile_boundary_matches_raw(profile_uri: str) -> None:
     with pytest.raises(UnsupportedDescriptorVersion):
         TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+            fields={"id": FieldSpec(type=UniversalType.INTEGER)},
             schema_url=profile_uri,
         )
 

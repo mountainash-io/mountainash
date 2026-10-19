@@ -34,23 +34,30 @@ def _descriptor() -> dict:
                             "name": "items",
                             "type": "array",
                             "x-mountainash": {
-                                "item_object_fields": [
-                                    {"name": "code", "type": "integer"},
-                                    {
-                                        "name": "payload",
-                                        "type": "object",
-                                        "x-mountainash": {
-                                            "object_fields": [{"name": "score", "type": "integer"}]
-                                        },
+                                "element": {
+                                    "type": "object",
+                                    "x-mountainash": {
+                                        "fields": [
+                                            {"name": "code", "type": "integer"},
+                                            {
+                                                "name": "payload",
+                                                "type": "object",
+                                                "x-mountainash": {
+                                                    "fields": [
+                                                        {"name": "score", "type": "integer"}
+                                                    ]
+                                                },
+                                            },
+                                        ]
                                     },
-                                ]
+                                }
                             },
                         },
                         {
                             "name": "payload",
                             "type": "object",
                             "x-mountainash": {
-                                "object_fields": [
+                                "fields": [
                                     {"name": "id", "type": "integer"},
                                     {"name": "label", "type": "string"},
                                 ]

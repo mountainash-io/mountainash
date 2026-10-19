@@ -10,27 +10,22 @@ from __future__ import annotations
 import datetime
 import operator
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any
 
 import mountainash as ma
 from mountainash.datacontracts.rule import guarded
 from mountainash.typespec.spec import FieldConstraints
+from mountainash.typespec.converters import _collection_item
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.checks import RelationRule, RowRule, ValueRule, ValueValidatorKey
-from mountainash.validation.plan import (
-    build_compiled_plan,
-    freeze_field_extension,
-)
+from mountainash.validation.plan import build_compiled_plan
 from mountainash.validation.schema import require_valid_typespec
 
 if TYPE_CHECKING:
     from mountainash.datacontracts.contract import BaseDataContract
-    from mountainash.datacontracts.field import Field
-    from mountainash.validation.plan import FieldValidationExtension
     from mountainash.typespec.spec import FieldSpec, TypeSpec
     from mountainash.validation.checks import ValidationCheck
     from mountainash.validation.plan import CompiledValidationPlan
-
 # Truthful Python annotations. DATE/TIME/DATETIME map to their real
 # datetime.* types. DURATION/YEAR/YEARMONTH map to str — not a legacy
 # stringification defect, but the correct v2 annotation: item 113 Unit B
@@ -73,21 +68,36 @@ def _category_values(categories: "list[Any] | None") -> "list[Any] | None":
     return values or None
 
 
+def _nested_severity_groups(fields: Any, element: Any) -> tuple[str, ...]:
+    """List each nested field's explicit severity or the system default."""
+    groups: set[str] = set()
+
+    def visit(field: Any) -> None:
+        groups.add(field.severity or "blocking")
+        if field.fields is not None:
+            for child in field.fields.values():
+                visit(child)
+        if field.element is not None:
+            visit(_collection_item(field))
+
+    if fields is not None:
+        for child in fields.values():
+            visit(child)
+    if element is not None:
+        visit(element)
+    return tuple(sorted(groups)) or ("blocking",)
+
+
 def constraint_checks(
     field_spec: "FieldSpec",
+    local_name: str,
     *,
     severity: str = "blocking",
 ) -> "list[ValidationCheck]":
-    """Compile the complete standard constraint vocabulary once.
-
-    ``required`` remains an expression rule because it operates directly on
-    post-conform nulls. Every other standard field constraint is a logical
-    ``ValueRule`` and therefore shares canonical parsing/equality across
-    backends.
-    """
-    col = field_spec.name
-    constraints = field_spec.constraints
-    checks: "list[ValidationCheck]" = [
+    """Compile all standard and extended constraints for one named use."""
+    col = local_name
+    constraints = field_spec.constraints or FieldConstraints()
+    checks: list[ValidationCheck] = [
         ValueRule(
             id=f"{col}_type_format",
             fields=(col,),
@@ -96,198 +106,96 @@ def constraint_checks(
             severity=severity,
         )
     ]
-    constraints = constraints or FieldConstraints()
-
     if constraints.required:
-        checks.append(
-            RowRule(
-                id=f"{col}__not_null",
-                expr=ma.col(col).is_not_null(),
-                severity=severity,
-                fields=[col],
-                metadata={"standard_constraint": "required", "field": col},
-            )
-        )
+        checks.append(RowRule(
+            id=f"{col}__not_null", expr=ma.col(col).is_not_null(),
+            severity=severity, fields=[col],
+            metadata={"standard_constraint": "required", "field": col},
+        ))
     bounds = {
-        name: value
-        for name, value in {
-            "minimum": constraints.minimum,
-            "maximum": constraints.maximum,
+        name: value for name, value in {
+            "minimum": constraints.minimum, "maximum": constraints.maximum,
             "exclusive_minimum": constraints.exclusive_minimum,
             "exclusive_maximum": constraints.exclusive_maximum,
-        }.items()
-        if value is not None
+        }.items() if value is not None
     }
     if bounds:
-        checks.append(
-            ValueRule(
-                id=f"{col}_range",
-                fields=(col,),
-                validator=ValueValidatorKey.RANGE,
-                options=bounds,
-                severity=severity,
-            )
-        )
-    lengths = {
-        name: value
-        for name, value in {
-            "min_length": constraints.min_length,
-            "max_length": constraints.max_length,
-        }.items()
-        if value is not None
-    }
+        checks.append(ValueRule(id=f"{col}_range", fields=(col,),
+            validator=ValueValidatorKey.RANGE, options=bounds, severity=severity))
+    lengths = {name: value for name, value in {
+        "min_length": constraints.min_length, "max_length": constraints.max_length,
+    }.items() if value is not None}
     if lengths:
-        checks.append(
-            ValueRule(
-                id=f"{col}_length",
-                fields=(col,),
-                validator=ValueValidatorKey.LENGTH,
-                options=lengths,
-                severity=severity,
-            )
-        )
+        checks.append(ValueRule(id=f"{col}_length", fields=(col,),
+            validator=ValueValidatorKey.LENGTH, options=lengths, severity=severity))
     if field_spec.type is UniversalType.STRING and field_spec.format != "default":
-        checks.append(
-            ValueRule(
-                id=f"{col}_string_format",
-                fields=(col,),
-                validator=ValueValidatorKey.STRING_FORMAT,
-                options={"format": field_spec.format},
-                severity=severity,
-            )
-        )
+        checks.append(ValueRule(id=f"{col}_string_format", fields=(col,),
+            validator=ValueValidatorKey.STRING_FORMAT,
+            options={"format": field_spec.format}, severity=severity))
     if constraints.pattern is not None:
-        checks.append(
-            ValueRule(
-                id=f"{col}_pattern",
-                fields=(col,),
-                validator=ValueValidatorKey.XSD_PATTERN,
-                options={"pattern": constraints.pattern},
-                severity=severity,
-            )
-        )
+        checks.append(ValueRule(id=f"{col}_pattern", fields=(col,),
+            validator=ValueValidatorKey.XSD_PATTERN,
+            options={"pattern": constraints.pattern}, severity=severity))
     if constraints.enum is not None:
-        checks.append(
-            ValueRule(
-                id=f"{col}_enum_membership",
-                fields=(col,),
-                validator=ValueValidatorKey.MEMBERSHIP,
-                options={"allowed": constraints.enum},
-                severity=severity,
-                metadata={"enum_weights": constraints.enum_weights},
-            )
-        )
+        checks.append(ValueRule(id=f"{col}_enum_membership", fields=(col,),
+            validator=ValueValidatorKey.MEMBERSHIP,
+            options={"allowed": constraints.enum}, severity=severity,
+            metadata={"enum_weights": constraints.enum_weights}))
     categories = _category_values(field_spec.categories)
     if categories is not None:
-        checks.append(
-            ValueRule(
-                id=f"{col}_category_membership",
-                fields=(col,),
-                validator=ValueValidatorKey.MEMBERSHIP,
-                options={"allowed": categories},
-                severity=severity,
-            )
-        )
+        checks.append(ValueRule(id=f"{col}_category_membership", fields=(col,),
+            validator=ValueValidatorKey.MEMBERSHIP,
+            options={"allowed": categories}, severity=severity))
     if constraints.unique:
-        checks.append(
-            ValueRule(
-                id=f"{col}_unique",
-                fields=(col,),
-                validator=ValueValidatorKey.UNIQUE,
-                options={},
-                severity=severity,
-            )
-        )
+        checks.append(ValueRule(id=f"{col}_unique", fields=(col,),
+            validator=ValueValidatorKey.UNIQUE, options={}, severity=severity))
     if constraints.json_schema is not None:
-        checks.append(
-            ValueRule(
-                id=f"{col}_json_schema",
-                fields=(col,),
-                validator=ValueValidatorKey.JSON_SCHEMA,
-                options={"schema": constraints.json_schema},
-                severity=severity,
-            )
-        )
-    if field_spec.object_fields or field_spec.item_object_fields:
-        checks.append(
-            ValueRule(
-                id=f"{col}_nested",
+        checks.append(ValueRule(id=f"{col}_json_schema", fields=(col,),
+            validator=ValueValidatorKey.JSON_SCHEMA,
+            options={"schema": constraints.json_schema}, severity=severity))
+    extended = (
+        ("eq", constraints.eq, lambda value: ma.col(col).eq(value)),
+        ("ne", constraints.ne, lambda value: ma.col(col).ne(value)),
+        ("notin", constraints.notin, lambda value: ma.col(col).is_in(list(value)).not_()),
+        ("str_contains", constraints.str_contains, lambda value: ma.col(col).str.contains(value)),
+        ("str_startswith", constraints.str_startswith, lambda value: ma.col(col).str.starts_with(value)),
+        ("str_endswith", constraints.str_endswith, lambda value: ma.col(col).str.ends_with(value)),
+    )
+    for name, value, expression in extended:
+        if value is not None:
+            checks.append(RowRule(
+                id=f"{col}__{name}", expr=_maybe_guard(not constraints.required, col, expression(value)),
+                severity=severity, fields=[col],
+            ))
+    if field_spec.fields is not None or field_spec.element is not None:
+        nested_fields = field_spec.fields
+        nested_element = _collection_item(field_spec)
+        for nested_severity in _nested_severity_groups(
+            nested_fields, nested_element
+        ):
+            suffix = "" if nested_severity == "blocking" else f"__{nested_severity}"
+            checks.append(ValueRule(
+                id=f"{col}_nested{suffix}",
                 fields=(col,),
                 validator=ValueValidatorKey.NESTED,
                 options={
-                    "object_fields": field_spec.object_fields,
-                    "item_object_fields": field_spec.item_object_fields,
+                    "fields": nested_fields,
+                    "element": nested_element,
+                    "severity_group": nested_severity,
                 },
-                severity=severity,
-            )
-        )
+                severity=nested_severity,
+            ))
     if field_spec.type is UniversalType.GEOJSON:
         if field_spec.format == "topojson":
-            checks.append(
-                ValueRule(
-                    id=f"{col}_topojson",
-                    fields=(col,),
-                    validator=ValueValidatorKey.TOPOJSON,
-                    options={},
-                    severity=severity,
-                )
-            )
+            checks.append(ValueRule(id=f"{col}_topojson", fields=(col,),
+                validator=ValueValidatorKey.TOPOJSON, options={}, severity=severity))
         else:
-            checks.append(
-                ValueRule(
-                    id=f"{col}_geojson",
-                    fields=(col,),
-                    validator=ValueValidatorKey.GEOJSON,
-                    options={"format": field_spec.format},
-                    severity=severity,
-                )
-            )
-            checks.append(
-                ValueRule(
-                    id=f"{col}_geojson_winding",
-                    fields=(col,),
-                    validator=ValueValidatorKey.GEOJSON_WINDING,
-                    options={},
-                    severity="warning",
-                )
-            )
+            checks.append(ValueRule(id=f"{col}_geojson", fields=(col,),
+                validator=ValueValidatorKey.GEOJSON,
+                options={"format": field_spec.format}, severity=severity))
+            checks.append(ValueRule(id=f"{col}_geojson_winding", fields=(col,),
+                validator=ValueValidatorKey.GEOJSON_WINDING, options={}, severity="warning"))
     return checks
-
-def extra_field_checks(
-    col: str,
-    f: Any,
-    *,
-    severity: str = "blocking",
-    nullable: bool | None = None,
-) -> "list[ValidationCheck]":
-    """Compile native Field additions outside the Frictionless constraint shape."""
-    nullable = f.nullable if nullable is None else nullable
-    tests: "list[tuple[str, Any]]" = []
-    if f.eq is not None:
-        tests.append(("eq", ma.col(col).eq(f.eq)))
-    if f.ne is not None:
-        tests.append(("ne", ma.col(col).ne(f.ne)))
-    if f.gt is not None:
-        tests.append(("gt", ma.col(col).gt(f.gt)))
-    if f.lt is not None:
-        tests.append(("lt", ma.col(col).lt(f.lt)))
-    if f.notin is not None:
-        tests.append(("notin", ma.col(col).is_in(list(f.notin)).not_()))
-    if f.str_contains is not None:
-        tests.append(("str_contains", ma.col(col).str.contains(f.str_contains)))
-    if f.str_startswith is not None:
-        tests.append(("str_startswith", ma.col(col).str.starts_with(f.str_startswith)))
-    if f.str_endswith is not None:
-        tests.append(("str_endswith", ma.col(col).str.ends_with(f.str_endswith)))
-    return [
-        RowRule(
-            id=f"{col}__{name}",
-            expr=_maybe_guard(nullable, col, test),
-            severity=severity,
-            fields=[col],
-        )
-        for name, test in tests
-    ]
 
 
 def primary_key_check(spec: "TypeSpec") -> "RelationRule | None":
@@ -331,52 +239,21 @@ def unique_key_checks(spec: "TypeSpec") -> "list[RelationRule]":
 
 
 def compile_field_checks(
-    field_spec: "FieldSpec",
-    *,
-    extension: "FieldValidationExtension | None" = None,
+    local_name: str, field_spec: "FieldSpec"
 ) -> "tuple[ValidationCheck, ...]":
-    """Compile one standard field plus its frozen native additions."""
-    severity = extension.severity if extension is not None else "blocking"
-    checks = constraint_checks(field_spec, severity=severity)
-    if extension is not None:
-        checks.extend(
-            extra_field_checks(
-                field_spec.name,
-                extension,
-                severity=extension.severity,
-                nullable=not (
-                    field_spec.constraints.required
-                    if field_spec.constraints is not None
-                    else False
-                ),
-            )
-        )
-    return tuple(checks)
+    return tuple(constraint_checks(
+        field_spec,
+        local_name,
+        severity=field_spec.severity or "blocking",
+    ))
 
 
-def compile_datacontract(
-    spec: "TypeSpec",
-    extensions: "Mapping[str, Field] | None" = None,
-) -> "CompiledValidationPlan":
+def compile_datacontract(spec: "TypeSpec") -> "CompiledValidationPlan":
     """Compile a semantically valid TypeSpec into one immutable validation plan."""
     require_valid_typespec(spec)
-    extensions = extensions or {}
-    unknown_extensions = set(extensions) - set(spec.field_names)
-    if unknown_extensions:
-        raise ValueError(
-            f"native extensions name undeclared fields: {sorted(unknown_extensions)!r}"
-        )
-    frozen_extensions = {
-        name: freeze_field_extension(field) for name, field in extensions.items()
-    }
-    checks: "list[ValidationCheck]" = []
-    for field_spec in spec.fields:
-        checks.extend(
-            compile_field_checks(
-                field_spec,
-                extension=frozen_extensions.get(field_spec.name),
-            )
-        )
+    checks: list[ValidationCheck] = []
+    for local_name, field_spec in spec.fields.items():
+        checks.extend(compile_field_checks(local_name, field_spec))
     pk_check = primary_key_check(spec)
     if pk_check is not None:
         checks.append(pk_check)
@@ -384,52 +261,21 @@ def compile_datacontract(
     return build_compiled_plan(spec, checks)
 
 
-def _field_from_spec(field_spec: "FieldSpec") -> "Field":
-    from mountainash.datacontracts.field import Field
-
-    c = field_spec.constraints
-    enum = None
-    if c is not None and c.enum is not None:
-        enum = list(c.enum)
-    else:
-        enum = _category_values(field_spec.categories)
-    if c is None:
-        return Field(isin=enum, title=field_spec.title, description=field_spec.description)
-    str_length: "dict[str, int] | None" = None
-    if c.min_length is not None or c.max_length is not None:
-        str_length = {}
-        if c.min_length is not None:
-            str_length["min_value"] = c.min_length
-        if c.max_length is not None:
-            str_length["max_value"] = c.max_length
-    return Field(
-        nullable=not c.required,
-        ge=c.minimum,
-        le=c.maximum,
-        isin=enum,
-        str_matches=c.pattern,
-        str_length=str_length,
-        unique=c.unique,
-        title=field_spec.title,
-        description=field_spec.description,
-    )
-
-
 def contract_from_typespec(
     spec: "TypeSpec", *, name: str | None = None
 ) -> "type[BaseDataContract]":
-    """Generate a native BaseDataContract subclass from a TypeSpec."""
+    """Generate a native BaseDataContract subclass sharing field definitions."""
     from mountainash.datacontracts.contract import BaseDataContract
 
     contract_name = name or spec.title or "CompiledDataContract"
     annotations: dict[str, type] = {}
     namespace: dict[str, Any] = {"__annotations__": annotations}
-    for field_spec in spec.fields:
-        annotations[field_spec.name] = UNIVERSAL_TYPE_TO_PYTHON.get(field_spec.type, object)
-        namespace[field_spec.name] = _field_from_spec(field_spec)
+    for local_name, definition in spec.fields.items():
+        annotations[local_name] = UNIVERSAL_TYPE_TO_PYTHON.get(definition.type, object)
+        namespace[local_name] = definition
     config_attrs: dict[str, Any] = {"name": contract_name}
     if spec.primary_key:
         config_attrs["primary_key"] = spec.primary_key
     namespace["Config"] = type("Config", (BaseDataContract.Config,), config_attrs)
-    namespace["__typespec__"] = spec  # source spec preserved (conform + identity read it)
+    namespace["__typespec__"] = spec
     return type(contract_name, (BaseDataContract,), namespace)

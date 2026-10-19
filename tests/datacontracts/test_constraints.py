@@ -46,7 +46,8 @@ class TestConstraintCombinators:
 
     def test_with_enum(self):
         result = with_enum(SINGLE_CHAR, ["Y", "N"])
-        assert result.enum == ["Y", "N"]
+        assert set(result.enum) == {"Y", "N"}
+        assert len(result.enum) == 2
         assert result.min_length == 1
 
     def test_with_range(self):
@@ -62,5 +63,5 @@ class TestConstraintCombinators:
     def test_chained_combinators(self):
         result = required(with_enum(SINGLE_CHAR, ["Y", "N"]))
         assert result.required is True
-        assert result.enum == ["Y", "N"]
+        assert set(result.enum) == {"Y", "N"}
         assert result.min_length == 1

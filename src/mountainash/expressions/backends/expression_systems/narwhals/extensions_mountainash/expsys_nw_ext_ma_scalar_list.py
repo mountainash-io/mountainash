@@ -11,7 +11,6 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.dtypes import TypeTarget
 
 if TYPE_CHECKING:
@@ -112,7 +111,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         x,
         /,
         *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
+        element: FieldSpec | None = None,
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
@@ -134,8 +133,8 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             from mountainash.core.dtypes import registry
             dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
             return self._cast_target(x, nw.List(dtype))
-        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
-        dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        field = FieldSpec(element=element)
+        dtype = _resolve_field_native(field, TypeTarget.NARWHALS, field_name="items")
         return self._cast_target(x, dtype)
 
     def list_sum(self, x: NarwhalsExpr, /):
