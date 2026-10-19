@@ -132,7 +132,7 @@ Native strings remain serializable and are interpreted by the selected backend. 
 
 Schema inspection uses native metadata first and retains detailed dtype parameters. SQLite reports its physical integer/real affinities even when a precise declaration produces narrower typed Polars/Arrow egress. AST fallback inference uses the effective target when known; an unresolved native override reports `UNKNOWN`. `evolve` retains the source's detailed identity; `freeze` compares native parameters when source evidence is available.
 
-Bare canonical timestamp/duration casts retain the existing backend unit defaults. They do not promise nanosecond fidelity; backlog 334 tracks inherited sub-microsecond loss. Use an explicit native target with the required unit when that precision is needed.
+Bare canonical timestamp/duration expression casts preserve compatible source precision, units and timezone where the destination supports them. Typed empty/all-null columns still carry source metadata. Without temporal source metadata, existing backend defaults apply; explicit targets remain authoritative. Destination-imposed precision loss is ordinary conversion behavior, not a reason to reduce every backend to a common precision. Item334's expression repair is implemented; complete schema/conform and additional-provider qualification remains in progress.
 
 ## Sources
 

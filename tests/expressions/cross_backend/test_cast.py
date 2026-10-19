@@ -325,3 +325,177 @@ class TestCastThrowSqliteLenient:
         ):
             with pytest.raises(Exception):
                 collect_expr(df, expr)
+
+
+@pytest.fixture(params=[
+    "polars", "polars-lazy", "pandas", "narwhals-polars",
+    "narwhals-pandas", "narwhals-lazy", "narwhals-pyarrow",
+])
+def temporal_cast_provider(request):
+    """Native ns inputs avoid Python datetime's microsecond conversion."""
+    import narwhals as nw
+
+    def wrap(frame):
+        if request.param == "polars":
+            return frame
+        if request.param == "polars-lazy":
+            return frame.lazy()
+        if request.param == "pandas":
+            return frame.to_pandas()
+        if request.param == "narwhals-pandas":
+            return nw.from_native(frame.to_pandas())
+        if request.param == "narwhals-pyarrow":
+            return nw.from_native(frame.to_arrow())
+        return nw.from_native(frame.lazy() if request.param == "narwhals-lazy" else frame)
+
+    return request.param, wrap
+
+
+def _select_temporal(frame, expression):
+    import narwhals as nw
+    import pandas as pd
+    import polars as pl
+
+    compiled = expression.alias("value").compile(frame)
+    selected = (nw.from_native(frame) if isinstance(frame, pd.DataFrame) else frame).select(compiled)
+    if isinstance(selected, (pl.LazyFrame, nw.LazyFrame)):
+        selected = selected.collect()
+    return selected.to_arrow()
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("kind", ["timestamp", "duration"])
+@pytest.mark.parametrize("ticks", [[1, 999, 1001, -1, -1001, None], [], [None]],
+                         ids=["fractional", "empty", "all-null"])
+def test_bare_temporal_cast_preserves_source(temporal_cast_provider, kind, ticks):
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype as D
+
+    _, wrap = temporal_cast_provider
+    native = pl.Datetime("ns", "UTC") if kind == "timestamp" else pl.Duration("ns")
+    target = D.TIMESTAMP if kind == "timestamp" else D.DURATION
+    frame = wrap(pl.DataFrame({"value": pl.Series(ticks, dtype=pl.Int64).cast(native)}))
+    out = _select_temporal(frame, ma.col("value").cast(target))
+    expected = pa.timestamp("ns", tz="UTC") if kind == "timestamp" else pa.duration("ns")
+    assert out.schema.field("value").type == expected
+    assert out["value"].cast(pa.int64()).to_pylist() == ticks
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("shape", ["computed", "native", "chain", "conditional"])
+def test_temporal_cast_composition_preserves_parameters(temporal_cast_provider, shape):
+    import narwhals as nw
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype as D, TimestampDtype
+
+    provider, wrap = temporal_cast_provider
+    frame = wrap(pl.DataFrame({"value": pl.Series([1, -1001, None], dtype=pl.Int64).cast(
+        pl.Datetime("ns", "UTC")
+    )}))
+    value = ma.col("value")
+    expected = [1, -1001, None]
+    if shape == "computed":
+        expression = value.dt.add_microseconds(1).cast(D.TIMESTAMP)
+        expected = [1001, -1, None]
+    elif shape == "native":
+        expression = ma.native(
+            pl.col("value") if provider in {"polars", "polars-lazy"} else nw.col("value")
+        ).cast(TimestampDtype())
+    elif shape == "chain":
+        expression = value.cast(D.TIMESTAMP).cast(TimestampDtype())
+    else:
+        expression = ma.when(value.is_null()).then(value.cast(D.TIMESTAMP)).otherwise(value)
+    out = _select_temporal(frame, expression)
+    assert out.schema.field("value").type == pa.timestamp("ns", tz="UTC")
+    assert out["value"].cast(pa.int64()).to_pylist() == expected
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("kind", ["timestamp", "duration"])
+def test_bare_temporal_cast_retains_microsecond_range(temporal_cast_provider, kind):
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype as D
+
+    _, wrap = temporal_cast_provider
+    ticks = [9223372036854776, -9223372036854776, None]
+    native = pl.Datetime("us") if kind == "timestamp" else pl.Duration("us")
+    target = D.TIMESTAMP if kind == "timestamp" else D.DURATION
+    frame = wrap(pl.DataFrame({"value": pl.Series(ticks, dtype=pl.Int64).cast(native)}))
+    out = _select_temporal(frame, ma.col("value").cast(target))
+    expected = pa.timestamp("us") if kind == "timestamp" else pa.duration("us")
+    assert out.schema.field("value").type == expected
+    assert out["value"].cast(pa.int64()).to_pylist() == ticks
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("provider", ["pandas", "pyarrow"])
+@pytest.mark.parametrize("ticks", [[1, -1001, None], [], [None]])
+def test_opaque_temporal_cast_evaluates_operand_once(provider, ticks):
+    import narwhals as nw
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.core.dtypes import MountainashDtype as D
+
+    source = pl.DataFrame({"value": pl.Series(ticks, dtype=pl.Int64).cast(
+        pl.Datetime("ns", "UTC")
+    )})
+    frame = nw.from_native(source.to_pandas() if provider == "pandas" else source.to_arrow())
+    evaluations = []
+
+    def observe(series):
+        evaluations.append(len(series))
+        return series
+
+    native = nw.col("value").map_batches(observe, return_dtype=nw.Datetime("ns", "UTC"))
+    expression = ma.native(native).cast(D.TIMESTAMP).alias("value")
+    compiled = expression.compile(frame)
+    assert evaluations == []
+    out = frame.select(compiled).to_arrow()
+    assert evaluations == [len(ticks)]
+    assert out.schema.field("value").type == pa.timestamp("ns", tz="UTC")
+    assert out["value"].cast(pa.int64()).to_pylist() == ticks
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("target_kind", ["bare", "partial"])
+def test_ibis_native_temporal_cast_preserves_ticks(target_kind):
+    # SQL ticks isolate cast behavior from interval/Arrow export limitations.
+    import ibis
+    from mountainash.core.dtypes import MountainashDtype as D, TimestampDtype
+
+    connection = ibis.duckdb.connect()
+    try:
+        table = connection.sql(
+            "select make_timestamp_ns(x) as value "
+            "from (values (1), (999), (1001), (-1), (-1001), (NULL)) q(x)"
+        )
+        target = D.TIMESTAMP if target_kind == "bare" else TimestampDtype()
+        expression = ma.native(table.value).cast(target).alias("value")
+        result = table.select(expression.compile(table))
+        sql = str(ibis.to_sql(result))
+        actual = connection.raw_sql(f"select epoch_ns(value) from ({sql})").fetchall()
+        assert actual == [(1,), (999,), (1001,), (-1,), (-1001,), (None,)]
+        assert result.schema()["value"].scale == 9
+    finally:
+        connection.disconnect()
+
+
+@pytest.mark.cross_backend
+def test_temporal_cast_honors_explicit_precision(temporal_cast_provider):
+    import narwhals as nw
+    import polars as pl
+    import pyarrow as pa
+    from mountainash.core.dtypes import TimestampDtype
+
+    provider, wrap = temporal_cast_provider
+    frame = wrap(pl.DataFrame({"value": pl.Series([1000, -2000, None], dtype=pl.Int64).cast(
+        pl.Datetime("ns", "UTC")
+    )}))
+    native = pl.col("value") if provider in {"polars", "polars-lazy"} else nw.col("value")
+    expression = ma.native(native).cast(TimestampDtype(6, True, "UTC"))
+    out = _select_temporal(frame, expression)
+    assert out.schema.field("value").type == pa.timestamp("us", tz="UTC")
+    assert out["value"].cast(pa.int64()).to_pylist() == [1, -2, None]

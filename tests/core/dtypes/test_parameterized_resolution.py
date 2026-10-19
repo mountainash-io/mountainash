@@ -10,6 +10,20 @@ D = c.MountainashDtype
 
 
 @pytest.mark.parametrize("target,source,expected", [
+    (D.TIMESTAMP, c.TimestampDtype(9, True, "UTC"), c.TimestampDtype(9, True, "UTC")),
+    (D.TIMESTAMP, c.TimestampDtype(6, False, None), c.TimestampDtype(6, False, None)),
+    (D.DURATION, c.DurationDtype("ns", "fixed"), c.DurationDtype("ns", "fixed")),
+    (D.DURATION, c.DurationDtype("us", "fixed"), c.DurationDtype("us", "fixed")),
+    (D.TIMESTAMP, U, D.TIMESTAMP),
+    (D.TIMESTAMP, D.I64, D.TIMESTAMP),
+    (D.DURATION, c.TimestampDtype(9, True, "UTC"), D.DURATION),
+    (c.ListDtype(D.TIMESTAMP), c.ListDtype(c.TimestampDtype(9, True, "UTC")),
+     c.ListDtype(c.TimestampDtype(9, True, "UTC"))),
+    (c.ArrayDtype(D.DURATION, (2,)), c.ArrayDtype(c.DurationDtype("ns", "fixed"), (2,)),
+     c.ArrayDtype(c.DurationDtype("ns", "fixed"), (2,))),
+    (c.StructDtype((("at", D.TIMESTAMP),)),
+     c.StructDtype((("at", c.TimestampDtype(9, True, "UTC")),)),
+     c.StructDtype((("at", c.TimestampDtype(9, True, "UTC")),))),
     (c.TimestampDtype(timezone_aware=True, timezone="UTC"),
      c.TimestampDtype(9, True, "Europe/London"), c.TimestampDtype(9, True, "UTC")),
     (c.TimestampDtype(6), c.TimestampDtype(9, False, None), c.TimestampDtype(6, False, None)),

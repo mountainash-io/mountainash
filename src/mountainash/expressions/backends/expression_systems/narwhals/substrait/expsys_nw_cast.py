@@ -13,7 +13,7 @@ from mountainash.expressions.backends.expression_systems.narwhals.extensions_mou
 from ..base import NarwhalsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
-    CastTarget, SchemaTypeStatus, TypeTarget, dtype_is_complete,
+    CastTarget, MountainashDtype, SchemaTypeStatus, TypeTarget, dtype_is_complete,
     registry, resolve_dtype_parameters,
 )
 
@@ -59,11 +59,15 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 function_key=FKEY_SUBSTRAIT_CAST.CAST,
             )
         from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
-        if (
-            isinstance(dtype, PARAMETERIZED_DTYPES)
-            and dtype.native is None and not dtype_is_complete(dtype)
-            and self.dialect in {"narwhals-polars", "narwhals-lazy"}
-        ):
+        needs_source = (
+            dtype is MountainashDtype.TIMESTAMP
+            or dtype is MountainashDtype.DURATION
+            or (
+                isinstance(dtype, PARAMETERIZED_DTYPES)
+                and dtype.native is None and not dtype_is_complete(dtype)
+            )
+        )
+        if needs_source and self.dialect in {"narwhals-polars", "narwhals-lazy"}:
             from narwhals._polars.utils import native_to_narwhals_dtype, narwhals_to_native_dtype
             from narwhals._utils import Version
             from mountainash.expressions.backends.expression_systems.polars.temporal_cast import cast_temporal_compatible
@@ -84,6 +88,18 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
             return _polars_native_transform(
                 x, lambda expr: expr.pipe_with_dtype(cast_partial)
             )
+        if needs_source and self.dialect in {"narwhals-pandas", "narwhals-pyarrow"}:
+            from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import (
+                _pandas_elementwise_batches,
+            )
+
+            def cast_bound(series):
+                # Bind from the existing operand, without sampling or reevaluation.
+                source = registry.from_native(series.dtype, self._TARGET)
+                target = resolve_dtype_parameters(dtype, source)
+                return series.cast(registry.to_native_cast(target, self._TARGET))
+
+            return _pandas_elementwise_batches(x, cast_bound, None)
         return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
 
     def _cast_target(self, x: NarwhalsExpr, target: object) -> NarwhalsExpr:
