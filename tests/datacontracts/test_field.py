@@ -59,7 +59,7 @@ def test_generated_contract_enforces_extended_vocabulary_at_definition_severity(
         severity="warning",
     )
     generated = contract_from_typespec(TypeSpec(fields={"value": definition}), name="Generated")
-    result = generated.validate_datacontract(pl.DataFrame({"value": ["bac", "bzc", "xac", None]}))
+    result = generated.validate_datacontract(pl.DataFrame({"value": ["bac", "bzc", "xac", "bax", None]}))
     rows = {row["check_id"]: row for row in result.check_summaries.iter_rows(named=True)}
     outcomes = {
         check_id: (rows[check_id]["severity"], rows[check_id]["fail_count"])
@@ -69,7 +69,7 @@ def test_generated_contract_enforces_extended_vocabulary_at_definition_severity(
         "value__ne": ("warning", 1),
         "value__str_contains": ("warning", 1),
         "value__str_startswith": ("warning", 1),
-        "value__str_endswith": ("warning", 0),
+        "value__str_endswith": ("warning", 1),
     }
     assert (rows["value__notin"]["severity"], rows["value__notin"]["fail_count"]) == ("warning", 1)
     assert result.passes
