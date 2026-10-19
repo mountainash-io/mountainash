@@ -771,7 +771,7 @@ def _migrate_field_body(
 ) -> dict[str, Any]:
     from mountainash.core.dtypes import resolve_dtype_parameters
 
-    result = deepcopy(dict(raw))
+    result = dict(raw)  # bodies are owned: the public entry point deep-copies once
     extension = result.get("x-mountainash", {})
     has_legacy = "object_fields" in extension or "item_object_fields" in extension
     members = None

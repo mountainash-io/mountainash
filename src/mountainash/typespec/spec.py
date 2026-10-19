@@ -115,9 +115,6 @@ class FieldConstraints(_ImmutableDeclaration):
         for item in dataclass_fields(self):
             object.__setattr__(self, item.name, _own_value(getattr(self, item.name)))
 
-    def __deepcopy__(self, memo: dict) -> FieldConstraints:
-        return self
-
 
 _CONSTRAINT_NAMES = frozenset(item.name for item in dataclass_fields(FieldConstraints))
 _MIGRATION_GUIDE = "See docs/guides/composable-field-migration.md."
@@ -360,9 +357,6 @@ class FieldSpec(_ImmutableDeclaration):
     def to_checks(self, local_name: str) -> tuple[Any, ...]:
         from mountainash.datacontracts.compiler import compile_field_checks
         return compile_field_checks(local_name, self)
-
-    def __deepcopy__(self, memo: dict) -> FieldSpec:
-        return self
 
 
 @dataclass

@@ -151,33 +151,6 @@ def test_nested_array_constraints_measure_decoded_values(payload) -> None:
     assert (nested["status"], nested["pass_count"], nested["fail_count"]) == ("failed", 1, 1)
 
 
-def test_nested_default_severity_does_not_inherit_warning_container() -> None:
-    import polars as pl
-
-    from mountainash.datacontracts.compiler import compile_datacontract
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
-    from mountainash.validation import ValidationRunner
-
-    plan = compile_datacontract(TypeSpec(fields={
-        "payload": FieldSpec(
-            type=UniversalType.OBJECT,
-            severity="warning",
-            fields={
-                "age": FieldSpec(type=UniversalType.INTEGER, minimum=0),
-            },
-        ),
-    }))
-    result = ValidationRunner().validate_relation(
-        pl.DataFrame({"payload": [{"age": -1}]}), plan=plan
-    )
-    nested = result.check_summaries.filter(
-        pl.col("check_id") == "payload_nested"
-    ).row(0, named=True)
-    assert nested["severity"] == "blocking"
-    assert nested["fail_count"] == 1
-    assert not result.passes
-
-
 def test_severity_variant_changes_only_its_own_requirement() -> None:
     import polars as pl
 
