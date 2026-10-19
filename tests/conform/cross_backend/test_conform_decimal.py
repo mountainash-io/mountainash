@@ -65,8 +65,6 @@ def _decimal_frame(backend_name, precision, scale, values):
         return nw.from_native(frame, eager_only=True)
     if backend_name == "ibis-duckdb":
         return ibis.duckdb.connect().create_table("t", table, overwrite=True)
-    if backend_name == "ibis-polars":
-        return ibis.polars.connect().create_table("t", pl.from_arrow(table), overwrite=True)
     # ibis-sqlite: SQLite has no fixed-precision decimal type, so the column cannot be created.
     return ibis.sqlite.connect(":memory:").create_table("t", table, overwrite=True)
 

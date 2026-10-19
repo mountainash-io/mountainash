@@ -133,7 +133,7 @@ class TestDiscardValuePolicy:
                 "pandas",
             ),
             errors=(OperationNotDefinedError,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
-            reason="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them",
+            reason="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb apply them",
         ):
             result = ma.relation(df).conform(spec, contract={"data_type": "discard_value"}).to_polars()
 
@@ -167,7 +167,7 @@ class TestDiscardRowPolicy:
                 "pandas",
             ),
             errors=(OperationNotDefinedError,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
-            reason="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb/ibis-polars apply them",
+            reason="conform() discard_value/discard_row policies raise on pandas/narwhals and ibis-sqlite; polars and ibis-duckdb apply them",
         ):
             result = ma.relation(df).conform(spec, contract={"data_type": "discard_row"}).to_polars()
 

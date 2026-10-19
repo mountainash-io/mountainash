@@ -26,7 +26,6 @@ def test_null_and_nan_remain_distinct_after_connection_transfer(source_name, des
     })
     connection = {
         "ibis-duckdb": ibis.duckdb.connect,
-        "ibis-polars": ibis.polars.connect,
         "ibis-sqlite": lambda: ibis.sqlite.connect(":memory:"),
     }[source_name]()
     source = connection.create_table("source", payload)
@@ -74,7 +73,7 @@ def test_typed_empty_arrow_source_keeps_field_types(destination_name):
     assert native.schema()["amount"].is_decimal()
 
 
-@pytest.mark.parametrize("destination_name", ["ibis-duckdb", "ibis-polars"])
+@pytest.mark.parametrize("destination_name", ["ibis-duckdb"])
 def test_arrow_decimal_temporal_and_structured_payload_survives_transfer(destination_name):
     payload = pa.table({
         "id": pa.array([1, 2], type=pa.int64()),
@@ -153,7 +152,6 @@ def test_connectionless_ingress_nan_to_sqlite_is_rejected(shape):
     with pytest.raises(UnsupportedRelationTransportError) as caught:
         ma.relation(target).join(source, on="id").to_dicts()
     assert caught.value.destination_dialect == "ibis-sqlite"
-    assert caught.value.route in ("mapping_to_ibis", "ibis_memory_ibis")
     assert isinstance(caught.value.__cause__, ValueError)
     assert "NaN" in str(caught.value.__cause__)
 

@@ -38,7 +38,6 @@ ALL_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -97,24 +96,16 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TIME", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Narwhals does not support .dt.time() Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TIME", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Narwhals does not support .dt.time() Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_DAYS", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_days() method. Use dt.diff_days() for integer-based extraction. Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_DAYS", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_days() method. Use dt.diff_days() for integer-based extraction. Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_HOURS", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_hours() method. Use dt.diff_hours() for integer-based extraction. Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_HOURS", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_hours() method. Use dt.diff_hours() for integer-based extraction. Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MICROSECONDS", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_microseconds() method. Use integer arithmetic on dt.diff_seconds... Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MICROSECONDS", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_microseconds() method. Use integer arithmetic on dt.diff_seconds... Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MILLISECONDS", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_milliseconds() method. Use dt.diff_milliseconds() for integer-ba... Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MILLISECONDS", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_milliseconds() method. Use dt.diff_milliseconds() for integer-ba... Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MINUTES", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_minutes() method. Use dt.diff_minutes() for integer-based extrac... Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_MINUTES", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_minutes() method. Use dt.diff_minutes() for integer-based extrac... Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_NANOSECONDS", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_nanoseconds() method. Use integer arithmetic on dt.diff_seconds(... Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_NANOSECONDS", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_nanoseconds() method. Use integer arithmetic on dt.diff_seconds(... Since 2026-05-18."),
     ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_seconds() method. Use dt.diff_seconds() for integer-based extrac... Since 2026-05-18."),
-    ("FKEY_MOUNTAINASH_SCALAR_DATETIME.TOTAL_SECONDS", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: Ibis IntervalValue has no total_seconds() method. Use dt.diff_seconds() for integer-based extrac... Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acos() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acos() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOS", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acos() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acosh() is not directly supported by the Ibis backend. Since 2026-05-18."),
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acosh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acosh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acosh() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ACOSH", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: acosh() is not supported by the Narwhals backend. Since 2026-05-18."),
@@ -123,7 +114,6 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asin() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASIN", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asin() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asinh() is not directly supported by the Ibis backend. Since 2026-05-18."),
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asinh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asinh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asinh() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ASINH", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: asinh() is not supported by the Narwhals backend. Since 2026-05-18."),
@@ -135,7 +125,6 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atan2() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATAN2", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atan2() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atanh() is not directly supported by the Ibis backend. Since 2026-05-18."),
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atanh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atanh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atanh() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.ATANH", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: atanh() is not supported by the Narwhals backend. Since 2026-05-18."),
@@ -144,7 +133,6 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cos() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COS", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cos() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cosh() is not directly supported by the Ibis backend. Since 2026-05-18."),
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cosh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cosh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cosh() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.COSH", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: cosh() is not supported by the Narwhals backend. Since 2026-05-18."),
@@ -159,7 +147,6 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sin() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SIN", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sin() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sinh() is not directly supported by the Ibis backend. Since 2026-05-18."),
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sinh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sinh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sinh() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.SINH", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: sinh() is not supported by the Narwhals backend. Since 2026-05-18."),
@@ -168,7 +155,6 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tan() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TAN", "pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tan() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tanh() is not directly supported by the Ibis backend. Since 2026-05-18."),
-    ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tanh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tanh() is not directly supported by the Ibis backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tanh() is not supported by the Narwhals backend. Since 2026-05-18."),
     ("FKEY_SUBSTRAIT_SCALAR_ARITHMETIC.TANH", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "NotImplementedError: tanh() is not supported by the Narwhals backend. Since 2026-05-18."),
@@ -190,13 +176,11 @@ _NATIVE_SMOKE_WITNESSES: dict[tuple[str, str], NativeSmokeWitness] = {
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON", "pandas"): NativeSmokeWitness(NotImplementedError, "Narwhals GeoJSON compiler is unavailable for this concrete parser call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "Narwhals GeoJSON compiler is unavailable for this concrete parser call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "Narwhals GeoJSON compiler is unavailable for this concrete parser call."),
-    ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "Ibis GeoJSON compiler is unavailable for this concrete parser call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "Ibis GeoJSON compiler is unavailable for this concrete parser call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOJSON", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "Ibis GeoJSON compiler is unavailable for this concrete parser call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON", "pandas"): NativeSmokeWitness(NotImplementedError, "Narwhals GeoJSON compiler is unavailable for this concrete serializer call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON", "narwhals-polars"): NativeSmokeWitness(NotImplementedError, "Narwhals GeoJSON compiler is unavailable for this concrete serializer call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON", "narwhals-pandas"): NativeSmokeWitness(NotImplementedError, "Narwhals GeoJSON compiler is unavailable for this concrete serializer call."),
-    ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON", "ibis-polars"): NativeSmokeWitness(NotImplementedError, "Ibis GeoJSON compiler is unavailable for this concrete serializer call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON", "ibis-duckdb"): NativeSmokeWitness(NotImplementedError, "Ibis GeoJSON compiler is unavailable for this concrete serializer call."),
     ("FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.SERIALIZE_GEOJSON", "ibis-sqlite"): NativeSmokeWitness(NotImplementedError, "Ibis GeoJSON compiler is unavailable for this concrete serializer call."),
 }
@@ -216,7 +200,7 @@ for _backend in ALL_BACKENDS:
 # unconditional backend methods (or the explicitly noted default option), not
 # catalogue records or captured failures. New backends receive no inherited answer.
 _NARWHALS_CASES = ("pandas", "narwhals-polars", "narwhals-pandas")
-_IBIS_CASES = ("ibis-polars", "ibis-duckdb", "ibis-sqlite")
+_IBIS_CASES = ("ibis-duckdb", "ibis-sqlite")
 
 
 def _intrinsic_refusals(enum_name, members, backends, reason):
@@ -258,8 +242,6 @@ _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_STRING",
                     _NARWHALS_CASES, "No Narwhals implementation for this string operation.")
 _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_STRING", "TITLE INITCAP",
                     _IBIS_CASES, "No Ibis title/initcap implementation.")
-_intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_STRING", "LIKE",
-                    ("ibis-polars",), "The Ibis Polars LIKE compiler is unavailable.")
 _intrinsic_refusals("FKEY_SUBSTRAIT_SCALAR_STRING", "REGEXP_SPLIT",
                     (*_NARWHALS_CASES, "ibis-sqlite"), "No regex split primitive/compiler for this target.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_STRING",
@@ -297,7 +279,7 @@ _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST",
                     "DROP_NULLS MEDIAN STD VAR N_UNIQUE COUNT_MATCHES ITEM REVERSE HEAD TAIL "
                     "SLICE GATHER GATHER_EVERY SHIFT DIFF SET_DIFFERENCE SET_SYMMETRIC_DIFFERENCE "
                     "TO_STRUCT TO_ARRAY ARG_MIN ARG_MAX SAMPLE",
-                    ("ibis-polars", "ibis-duckdb"), "Ibis has no compatible array operation.")
+                    ("ibis-duckdb",), "Ibis has no compatible array operation.")
 _intrinsic_refusals("FKEY_MOUNTAINASH_SCALAR_LIST",
                     "EXPLODE JOIN ALL ANY DROP_NULLS STD VAR N_UNIQUE COUNT_MATCHES ITEM REVERSE "
                     "HEAD TAIL SLICE GATHER GATHER_EVERY SHIFT DIFF SET_UNION SET_INTERSECTION "

@@ -147,6 +147,9 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
 
     def read_resource(self, resource: Any) -> pl.LazyFrame:
         """Load a DataResource into a Polars LazyFrame."""
+        from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
+
+        self._resource_lowering = OCCURRENCE
         dialect = resource.to_dialect()
         if resource.data is not None:
             return self._read_inline(resource)
@@ -160,6 +163,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
         # Keep schema-phase eligibility identical to this reader's actual lazy
         # route; all other formats and path forms use the eager files fallback.
         if rf.polars_native_scan_supported(resource, fmt, dialect):
+            self._resource_lowering = DEFERRED_ONLY
             return self._native_local_scan(fmt, paths, resource, dialect)
         return pl.from_arrow(
             rf.parse_resource_to_arrow(resource, dialect=dialect)
@@ -208,11 +212,10 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
 
         return pl.DataFrame(schema=to_polars_schema(spec)).lazy()
 
-    @staticmethod
-    def _read_inline(resource: Any) -> pl.LazyFrame:
+    def _read_inline(self, resource: Any) -> pl.LazyFrame:
         from mountainash.pydata.ingress.pydata_ingress import PydataIngress
 
-        df = PydataIngress.convert(resource.data)  # eager pl.DataFrame
+        df, self._resource_lowering = PydataIngress._convert_for_compilation(resource.data)
 
         # Restore the declared dtype of columns Polars could not type from the
         # inline data (an all-null OR zero-row column infers pl.Null). Cast

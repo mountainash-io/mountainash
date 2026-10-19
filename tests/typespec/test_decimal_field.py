@@ -223,13 +223,12 @@ def _native_decimal_frame(backend_name):
         "narwhals-polars": lambda: nw.from_native(pl.from_arrow(table)),
         "pyarrow": lambda: table,
         "ibis-duckdb": lambda: ibis.duckdb.connect().create_table("t", table),
-        "ibis-polars": lambda: ibis.polars.connect().create_table("t", pl.from_arrow(table)),
     }[backend_name]()
 
 
 @pytest.mark.parametrize(
     "backend_name",
-    ["polars", "pandas", "narwhals-polars", "pyarrow", "ibis-duckdb", "ibis-polars"],
+    ["polars", "pandas", "narwhals-polars", "pyarrow", "ibis-duckdb"],
 )
 def test_decimal_extraction_per_backend(backend_name):
     """p/s survives native schema extraction on each backend family (schema only, no cast)."""

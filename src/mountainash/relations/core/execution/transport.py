@@ -93,6 +93,13 @@ class TransportSession:
 
         route = requirement.route
         value = source.value
+        if route in {"raw_to_ibis", "raw_to_polars", "raw_to_narwhals"}:
+            adapter = {
+                "raw_to_ibis": coerce_to_ibis,
+                "raw_to_polars": coerce_to_polars,
+                "raw_to_narwhals": coerce_to_narwhals,
+            }[route]
+            return self._adapt(source, requirement, adapter, requirement.destination.prototype, value)
         if route == "ibis_memory_payload":
             from mountainash.core.lazy_imports import import_ibis_expr_ops
 
@@ -214,8 +221,11 @@ class TransportSession:
         them; failed compilations release them through this session's scope.
         """
         from mountainash.core.types import is_narwhals_lazyframe, is_polars_lazyframe
-        from mountainash.relations.core.execution.metadata import CompiledSubtree
 
+        if not source.repeatable_result:
+            source = replace(
+                source, source_token=self.tokens.token(object()), reusable_lowering=False,
+            )
         if source.location.family is CONST_BACKEND.IBIS:
             from mountainash.relations.core.owned_copy import owned_ibis_table
 
@@ -234,14 +244,17 @@ class TransportSession:
                 from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 
                 value = get_relation_system(CONST_BACKEND.POLARS)().read(value)
-        return CompiledSubtree(
-            value, source.location, source.source_token,
-            replace(source.metadata, owned_checks=()),
+        return replace(
+            source, value=value, metadata=replace(source.metadata, owned_checks=()),
         )
 
     def transfer(self, source: CompiledSubtree, requirement: TransferRequirement) -> CompiledSubtree:
         if self._closed:
             raise RuntimeError("transport session is closed")
+        if not source.repeatable_result:
+            source = replace(
+                source, source_token=self.tokens.token(object()), reusable_lowering=False,
+            )
         key = (source.source_token, requirement.destination.key, requirement.route)
         if key in self._cache:
             return self._cache[key]
@@ -313,6 +326,8 @@ class TransportSession:
             # Native memtables retain their Arrow payload themselves; no
             # temporary destination tables are registered by this adapter.
             self._scope.handoff(tuple(self._retained))
-        self._scope.close()
-        self._cache.clear()
-        self._retained.clear()
+        try:
+            self._scope.close()
+        finally:
+            self._cache.clear()
+            self._retained.clear()

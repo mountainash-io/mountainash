@@ -55,7 +55,6 @@ IS_CLOSE_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]

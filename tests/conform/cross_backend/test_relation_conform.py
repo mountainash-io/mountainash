@@ -84,7 +84,6 @@ def test_explicit_native_timestamp_freeze_compares_parameters():
 #     "polars",
 #     "pandas",
 #     "narwhals",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]
@@ -192,7 +191,6 @@ class TestRelationConformStructStrictModes:
 
 _STRUCT_CAST = [
     pytest.param("narwhals-polars"),
-    pytest.param("ibis-polars"),
     pytest.param("ibis-duckdb"),
     "ibis-sqlite",
     # narwhals-pandas deliberately excluded: MA-CONF-01 already establishes
@@ -224,7 +222,7 @@ class TestRelationConformStructCastOffPolars:
 
 @pytest.mark.parametrize(
     "backend_name",
-    ("polars", "polars-lazy", "ibis-polars", "ibis-duckdb"),
+    ("polars", "polars-lazy", "ibis-duckdb"),
 )
 def test_native_struct_keeps_child_conversion_metadata(backend_name, backend_factory):
     from datetime import datetime
@@ -273,7 +271,7 @@ def test_native_struct_keeps_child_conversion_metadata(backend_name, backend_fac
     ]
 
 
-@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-polars", "ibis-duckdb"))
+@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-duckdb"))
 def test_native_array_of_struct_keeps_child_conversion_metadata(
     backend_name, backend_factory,
 ):
@@ -290,16 +288,9 @@ def test_native_array_of_struct_keeps_child_conversion_metadata(
             type=UniversalType.DATETIME, dtype=TimestampDtype(6, False), format="%Y%m%d",
         ),
     }))
-    from mountainash.conform.errors import ConformTransformError
-
-    with expect_call_failure(
-        when=backend_name == "ibis-polars",
-        errors=(ConformTransformError,),
-        reason="Ibis 12 Polars compiler has no ArrayMap translation; nested child conversion is unsupported",
-    ):
-        result = ma.relation(source).conform(
-            TypeSpec(fields={"items": field}, missing_values=[]),
-        ).to_polars()
+    result = ma.relation(source).conform(
+        TypeSpec(fields={"items": field}, missing_values=[]),
+    ).to_polars()
     assert result["items"].to_list() == [[{"v": datetime(2026, 1, 1)}]]
 
 

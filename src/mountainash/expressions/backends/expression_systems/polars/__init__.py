@@ -57,6 +57,9 @@ from .extensions_mountainash.expsys_pl_ext_ma_scalar_aggregate import SubstraitP
 
 
 
+from mountainash.expressions.core.expression_system.function_mapping.lowering import (
+    declare_builtin_expression_system,
+)
 @register_expression_system(CONST_BACKEND.POLARS)
 class PolarsExpressionSystem(
     # Foundation protocols
@@ -107,6 +110,8 @@ class PolarsExpressionSystem(
     """
 
     pass
+
+declare_builtin_expression_system(PolarsExpressionSystem, "polars")
 
 
 __all__ = [

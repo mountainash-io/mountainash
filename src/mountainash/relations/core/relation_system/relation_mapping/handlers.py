@@ -42,6 +42,7 @@ def _check_schema_join_null_promotion(
 
 
 def visit_join(node: Any, visitor: Any) -> Any:
+    from mountainash.core.lowering_reuse import REPEATABLE
     from mountainash.relations.core.join_layout import (
         keyed_layout_applies, layout_for_node, native_column_names,
     )
@@ -75,6 +76,7 @@ def visit_join(node: Any, visitor: Any) -> Any:
             visitor, right, rename=layout.right_rename, drop=layout.drop,
         )
     if layout.right_rename:
+        visitor.record_lowering(visitor.backend.project_rename, REPEATABLE, value=right)
         right = visitor.backend.project_rename(right, layout.right_rename)
     if visitor.execution_phase is None or visitor.execution_phase.name != "SCHEMA":
         for original, final in layout.collisions:
@@ -96,11 +98,13 @@ def visit_join(node: Any, visitor: Any) -> Any:
     if layout.merge:
         from mountainash import coalesce, col
 
+        visitor.record_lowering(visitor.backend.project_with_columns, REPEATABLE, value=result)
         result = visitor.backend.project_with_columns(result, [
             visitor.compile_expression(coalesce(col(lk), col(rk)).alias(lk))
             for lk, rk in layout.merge
         ])
     if layout.drop:
+        visitor.record_lowering(visitor.backend.project_drop, REPEATABLE, value=result)
         result = visitor.backend.project_drop(result, layout.drop)
     return result
 
@@ -159,6 +163,7 @@ def visit_ref(node: Any, visitor: Any) -> Any:
     return resolved
 
 def visit_resource_read(node: Any, visitor: Any) -> Any:
+    from mountainash.core.lowering_reuse import OCCURRENCE, fold_lowering
     schema_input = None
     if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
         resource = node.resource
@@ -195,6 +200,14 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
 
     def _read_and_conform():
         out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource)
+        if schema_input is None:
+            # The selected reader reports the path it actually took. Repeating
+            # routing here would resolve external descriptors a second time.
+            fold_lowering(visitor, getattr(visitor.backend, "_resource_lowering", OCCURRENCE))
+            if isinstance(node.resource.dialect, str) or isinstance(node.resource.table_schema, str):
+                # External descriptor resolvers are callbacks, not a repeatable
+                # source contract inferred from the native reader's output.
+                fold_lowering(visitor, OCCURRENCE)
         spec = node.resource.to_typespec()
         if spec is not None and node.apply_schema_conform:
             out = visitor.apply_conform(
@@ -261,7 +274,13 @@ def visit_source(node: Any, visitor: Any) -> Any:
                 )
             df = prototype if native_lazy else PydataIngress.convert(prototype)
     else:
-        df = PydataIngress.convert(node.data)
+        from mountainash.core.lowering_reuse import deferred_value, fold_lowering
+
+        df, lowering = PydataIngress._convert_for_compilation(node.data)
+        fold_lowering(visitor, lowering, deferred=deferred_value(df))
+    from mountainash.core.lowering_reuse import REPEATABLE
+
+    visitor.record_lowering(visitor.backend.read, REPEATABLE)
     return visitor._enrich_native_call(
         node, RKEY_MOUNTAINASH_REL.SOURCE,
         lambda: visitor.backend.read(df),

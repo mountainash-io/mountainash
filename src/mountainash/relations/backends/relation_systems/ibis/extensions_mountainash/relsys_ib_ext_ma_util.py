@@ -139,12 +139,17 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
         for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
         with the other backends (spec §A.6)."""
+        from mountainash.core.lowering_reuse import OCCURRENCE
+
+        self._resource_lowering = OCCURRENCE
         dialect = resource.to_dialect()
         if resource.data is not None:
             from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
                 MountainashPolarsExtensionRelationSystem,
             )
-            lf = MountainashPolarsExtensionRelationSystem()._read_inline(resource)
+            reader = MountainashPolarsExtensionRelationSystem()
+            lf = reader._read_inline(resource)
+            self._resource_lowering = reader._resource_lowering
             ensure_sqlite_nat_adapter()
             arrow = lf.collect().to_arrow()
             return ibis.memtable(arrow)

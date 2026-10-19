@@ -92,7 +92,6 @@ def test_declared_decimal_unary(
     from decimal import Decimal as D
     import mountainash as ma
     import polars as pl
-    from pyarrow import ArrowInvalid
     from fixtures.call_expectations import expect_call_failure
     from mountainash.core.types import BackendCapabilityError
 
@@ -108,12 +107,7 @@ def test_declared_decimal_unary(
     )
     expression = ma.col("a").round(2) if operation == "round" else getattr(ma.col("a"), operation)()
     query = ma.relation(frame).select(expression.alias("r"))
-    with expect_call_failure(
-        when=backend_name == "ibis-polars" and operation in {"ceil", "floor"},
-        reason="309: native Ibis-Polars Decimal ceil/floor Arrow precision conversion",
-        errors=(ArrowInvalid,),
-    ):
-        out = query.to_polars()
+    out = query.to_polars()
     dtype = out.schema["r"]
     if backend_name in {"pandas", "narwhals-pandas", "narwhals-polars", "narwhals-lazy"} and operation == "sign":
         assert dtype == pl.Int64

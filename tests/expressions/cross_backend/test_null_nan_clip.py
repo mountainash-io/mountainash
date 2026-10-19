@@ -64,7 +64,6 @@ class TestClip:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -95,7 +94,6 @@ class TestIsNotNan:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )

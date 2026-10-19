@@ -28,14 +28,13 @@ from fixtures.call_expectations import expect_call_failure
 #     "pandas",
 #     "narwhals-polars",
 #     "narwhals-pandas",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]
 
 LIST_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
-STRUCT_BACKENDS = ["polars", "narwhals-polars", "ibis-polars", "ibis-duckdb"]
+STRUCT_BACKENDS = ["polars", "narwhals-polars", "ibis-duckdb"]
 
 
 def sorted_dicts(dicts: list[dict], by: str | list[str]) -> list[dict]:
@@ -105,9 +104,9 @@ class TestWithRowIndex:
         values = ["b", "b", None, "a"]
         df = backend_factory.create({"a": values}, backend_name)
         with expect_call_failure(
-            when=backend_name in {"narwhals-lazy", "ibis-polars"},
-            errors=(TypeError,) if backend_name == "narwhals-lazy" else (BackendCapabilityError,),
-            reason="Relation.with_row_index() is unavailable on narwhals-lazy and ibis-polars; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
+            when=backend_name == "narwhals-lazy",
+            errors=(TypeError,),
+            reason="Relation.with_row_index() is unavailable on narwhals-lazy; eager narwhals/polars and ibis-duckdb/ibis-sqlite assign a 0..N-1 index",
         ):
             rel = ma.relation(df).with_row_index(**({} if name == "index" else {"name": name}))
             result = rel.to_dicts()
@@ -184,20 +183,6 @@ class TestUnnest:
                     "id": [1, 2],
                     "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
                 }
-            )
-        elif backend_name == "ibis-polars":
-            import ibis
-
-            conn = ibis.polars.connect()
-            df = conn.create_table(
-                "test_unnest",
-                pl.DataFrame(
-                    {
-                        "id": [1, 2],
-                        "info": [{"x": 10, "y": "a"}, {"x": 20, "y": "b"}],
-                    }
-                ),
-                overwrite=True,
             )
         elif backend_name == "ibis-duckdb":
             import ibis
@@ -282,7 +267,7 @@ class TestPivot:
             backend_name,
         )
         with expect_call_failure(
-            when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite", "narwhals-lazy"),
+            when=backend_name in ("ibis-duckdb", "ibis-sqlite", "narwhals-lazy"),
             errors=(AttributeError,) if backend_name == "narwhals-lazy" else (TypeError,),
             reason="Relation.pivot() raises on all ibis backends and narwhals-lazy; polars and eager narwhals compute it",
         ):
@@ -324,7 +309,7 @@ class TestTopK:
 # ---------------------------------------------------------------------------
 
 
-SAMPLE_BACKENDS = [name for name in ALL_BACKENDS if name != "ibis-polars"]
+SAMPLE_BACKENDS = ALL_BACKENDS
 SEEDED_COUNT_BACKENDS = [
     name for name in SAMPLE_BACKENDS if name not in {"ibis-duckdb", "ibis-sqlite"}
 ]
@@ -413,31 +398,3 @@ def test_seeded_exact_count_sampling_refuses_with_typed_limitation(
     assert error.value.function_key is RKEY_MOUNTAINASH_REL.SAMPLE
     assert error.value.limitation is not None
 
-@pytest.mark.cross_backend
-class TestJoinAsofStrategyRefusal:
-    def test_ibis_polars_forward_nearest_refuse(self):
-        import ibis
-        import polars as pl
-
-        con = ibis.polars.connect()
-        left = con.create_table("gate_l", pl.DataFrame({"t": [1, 3], "val": ["a", "b"]}), overwrite=True)
-        right = con.create_table("gate_r", pl.DataFrame({"t": [2, 4], "score": [20, 40]}), overwrite=True)
-
-        for strategy in ("forward", "nearest"):
-
-            def _build(strategy=strategy):
-                return ma.relation(left).join_asof(right, on="t", strategy=strategy).to_polars()
-
-            with pytest.raises(BackendCapabilityError) as error:
-                _build()
-            assert error.value.function_key is RKEY_MOUNTAINASH_REL.JOIN_ASOF
-
-    def test_ibis_polars_backward_executes(self):
-        import ibis
-        import polars as pl
-
-        con = ibis.polars.connect()
-        left = con.create_table("gate_l2", pl.DataFrame({"t": [1, 3], "val": ["a", "b"]}), overwrite=True)
-        right = con.create_table("gate_r2", pl.DataFrame({"t": [2, 4], "score": [20, 40]}), overwrite=True)
-        result = ma.relation(left).join_asof(right, on="t", strategy="backward").to_polars()
-        assert result.height == 2

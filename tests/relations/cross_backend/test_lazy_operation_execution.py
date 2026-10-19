@@ -128,3 +128,46 @@ def test_sampling_preserves_terminal_data_error(wrapped):
     query.compile()
     with pytest.raises((pl.exceptions.InvalidOperationError, nw.exceptions.InvalidOperationError)):
         query.to_polars()
+
+
+@pytest.mark.parametrize("wrapped", [False, True], ids=["polars", "narwhals-polars"])
+@pytest.mark.parametrize("sample", [False, True])
+@pytest.mark.parametrize("seed", [None, 42])
+def test_shared_deferred_source_retains_occurrence_transfers(wrapped, sample, seed):
+    import ibis
+
+    reads = []
+    source = _source(pl.DataFrame({"id": [1], "paired": [10]}), reads, wrapped)
+    branch = ma.relation(source)
+    if sample:
+        branch = branch.sample(n=1, seed=seed)
+    branch = branch.select("id", "paired")
+    stored = ma.relation(ibis.duckdb.connect().create_table("stored", {"id": [1]}))
+    query = ma.concat([stored.join(branch, on="id")] * 4)
+    for _ in range(2):
+        reads.clear()
+        assert query.to_dicts() == [{"id": 1, "paired": 10}] * 4
+        assert len(reads) == 4
+
+
+def test_shared_pivot_retains_input_materializations():
+    reads = []
+    source = _source(
+        pl.DataFrame({"id": [1], "category": ["a"], "value": [10]}), reads, False,
+    )
+    branch = ma.relation(source).pivot(on="category", index=["id"], values="value")
+    query = ma.concat([branch] * 4)
+    assert query.to_dicts() == [{"id": 1, "a": 10}] * 4
+    assert len(reads) == 4
+
+
+def test_named_deferred_plan_does_not_freeze_parent_pivot():
+    reads = []
+    source = _source(
+        pl.DataFrame({"id": [1], "category": ["a"], "value": [10]}), reads, False,
+    )
+    dag = ma.RelationDAG()
+    dag.add("source", ma.relation(source))
+    branch = dag.ref("source").pivot(on="category", index=["id"], values="value")
+    assert ma.concat([branch] * 4).to_dicts() == [{"id": 1, "a": 10}] * 4
+    assert len(reads) == 4

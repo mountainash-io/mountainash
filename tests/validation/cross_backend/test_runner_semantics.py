@@ -165,9 +165,9 @@ class TestOutcomeModel:
         ):
             df = backend_factory.create({"age": [None, None]}, backend_name)
         with expect_call_failure(
-            when=backend_name in ("ibis-polars", "ibis-sqlite"),
+            when=backend_name in ("ibis-sqlite",),
             errors=(AssertionError,),
-            reason="a ScalarRule verdict over an all-null column diverges on ibis-polars/ibis-sqlite; polars/narwhals compute the 'unknown' verdict",
+            reason="a ScalarRule verdict over an all-null column diverges on ibis-sqlite; polars/narwhals compute the 'unknown' verdict",
         ):
             result = ValidationRunner().validate_relation(
                 ma.relation(df), [ScalarRule(id="mean", expr=ma.col("age").mean().gt(0))]

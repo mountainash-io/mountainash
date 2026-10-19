@@ -15,7 +15,7 @@ from fixtures.call_expectations import expect_call_failure
 # Narwhals/pandas: strip_chars_start and strip_chars_end without arguments
 #   strip both sides instead of only the requested side.
 
-IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
+IBIS_BACKENDS = {"ibis-duckdb", "ibis-sqlite"}
 NARWHALS_PANDAS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
 
 

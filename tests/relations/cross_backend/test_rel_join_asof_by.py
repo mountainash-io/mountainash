@@ -31,7 +31,6 @@ def test_join_asof_by_groups_polars():
 ])
 @pytest.mark.parametrize("strategy", ["backward", "forward", "nearest"])
 def test_asof_schema_matches_execution(backend_name, backend_factory, by, expected_columns, strategy):
-    from mountainash.core.types import BackendCapabilityError
 
     left, right = backend_factory.create_pair(
         {"g": ["a", "a"], "h": [1, 2], "t": [2, 4], "v": [10, 20]},
@@ -39,10 +38,6 @@ def test_asof_schema_matches_execution(backend_name, backend_factory, by, expect
         backend_name,
     )
     joined = ma.relation(left).join_asof(right, on="t", by=by, strategy=strategy)
-    if backend_name == "ibis-polars" and strategy != "backward":
-        with pytest.raises(BackendCapabilityError):
-            joined.to_polars()
-        return
     actual = joined.to_polars().sort("t")
     assert actual.columns == expected_columns
     values = {

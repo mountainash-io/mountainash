@@ -17,7 +17,6 @@ POLARS_NARWHALS_IBIS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -28,7 +27,6 @@ POLARS_AND_IBIS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -39,7 +37,6 @@ POLARS_AND_IBIS_TIME = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -50,7 +47,6 @@ POLARS_IBIS_DUCKDB_SQLITE = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -116,9 +112,9 @@ class TestMonthEnd:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("ts").dt.month_end().dt.day()
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas'),
-            reason=('month_end()/days_in_month() raise on ibis-polars' if backend_name == 'ibis-polars' else 'datetime enrichment operations raise on pandas/narwhals'),
-            errors=((TypeError,) if backend_name == 'ibis-polars' else (NotImplementedError,)),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas'),
+            reason='datetime enrichment operations raise on pandas/narwhals',
+            errors=(NotImplementedError,),
         ):
             actual = collect_expr(df, expr)
             assert actual == [29, 31], f"[{backend_name}] got {actual}"  # 2024 is leap year
@@ -132,9 +128,9 @@ class TestDaysInMonth:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("ts").dt.days_in_month()
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas'),
-            reason=('month_end()/days_in_month() raise on ibis-polars' if backend_name == 'ibis-polars' else 'datetime enrichment operations raise on pandas/narwhals'),
-            errors=((TypeError,) if backend_name == 'ibis-polars' else (NotImplementedError,)),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas'),
+            reason='datetime enrichment operations raise on pandas/narwhals',
+            errors=(NotImplementedError,),
         ):
             actual = collect_expr(df, expr)
             assert actual == [29, 31], f"[{backend_name}] got {actual}"

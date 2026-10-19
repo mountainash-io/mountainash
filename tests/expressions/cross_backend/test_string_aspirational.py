@@ -14,7 +14,6 @@ POLARS_IBIS = [
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
     pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals fallback")),
     pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals fallback")),
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -25,7 +24,6 @@ POLARS_ONLY = [
     pytest.param("pandas", marks=pytest.mark.xfail(reason="pandas backend limited")),
     pytest.param("narwhals-polars", marks=pytest.mark.xfail(reason="narwhals fallback")),
     pytest.param("narwhals-pandas", marks=pytest.mark.xfail(reason="narwhals fallback")),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(reason="ibis backend issues")),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(reason="ibis backend issues")),
     pytest.param("ibis-sqlite", marks=pytest.mark.xfail(reason="sqlite fallback")),
 ]
@@ -42,7 +40,6 @@ _IBIS_TITLE_GATED = pytest.mark.xfail(
 TITLE_BACKENDS = [
     "polars", "polars-lazy", "pandas",
     "narwhals-polars", "narwhals-pandas",
-    pytest.param("ibis-polars", marks=_IBIS_TITLE_GATED),
     pytest.param("ibis-duckdb", marks=_IBIS_TITLE_GATED),
     pytest.param("ibis-sqlite", marks=_IBIS_TITLE_GATED),
 ]
@@ -179,7 +176,6 @@ class TestLengthVariants:
     pytest.param("narwhals", marks=pytest.mark.xfail(
         strict=True, reason="Narwhals has no str.repeat() — raises BackendCapabilityError",
     )),
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ])

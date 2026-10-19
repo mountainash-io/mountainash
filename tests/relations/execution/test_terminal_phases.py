@@ -66,6 +66,56 @@ def test_failed_native_terminal_releases_execution_scope(monkeypatch):
     assert closed == [True]
 
 
+def test_shared_transfer_failure_recovers_on_same_recipe():
+    import polars as pl
+
+    stored = ma.relation(REGISTRY["ibis-duckdb"].build({"id": [7]}, "stored"))
+    payload = {"id": ["bad"]}
+    request = ma.relation(payload).select(ma.col("id").cast(ma.MountainashDtype.I64))
+    query = ma.concat([stored.join(request, on="id")] * 4)
+    for _ in range(2):
+        with pytest.raises(pl.exceptions.InvalidOperationError):
+            query.to_dicts()
+    payload["id"][0] = "7"
+    assert query.to_dicts() == [{"id": 7}] * 4
+    assert stored.to_dicts() == [{"id": 7}]
+
+
+@pytest.mark.parametrize("named", [False, True])
+def test_lowering_error_survives_owned_cleanup_error(monkeypatch, named):
+    from mountainash.relations.core.execution.compilation import CompilationSession
+    from mountainash.relations.backends.relation_systems.polars import PolarsRelationSystem
+
+    primary = ValueError("native lowering failed")
+    released = []
+    initialize = CompilationSession.__init__
+
+    def release():
+        released.append(True)
+        raise RuntimeError("owned cleanup failed")
+
+    def initialize_with_owned_resource(self, *args, **kwargs):
+        initialize(self, *args, **kwargs)
+        if kwargs.get("transport") is None:
+            self.transport._scope.own(release)
+
+    def fail_lowering(*args, **kwargs):
+        raise primary
+
+    monkeypatch.setattr(CompilationSession, "__init__", initialize_with_owned_resource)
+    monkeypatch.setattr(PolarsRelationSystem, "filter", fail_lowering)
+    source = ma.relation({"id": [1]})
+    if named:
+        dag = ma.RelationDAG()
+        dag.add("source", source)
+        source = dag.ref("source")
+    branch = source.filter(ma.col("id") > 0)
+    with pytest.raises(ValueError) as caught:
+        ma.concat([branch] * 4).to_dicts()
+    assert caught.value is primary
+    assert released == [True]
+
+
 @pytest.mark.parametrize("year,raises", [("2024", False), ("not-a-year", True)])
 @pytest.mark.parametrize("targeted_join", [False, True])
 def test_source_marker_is_checked_before_projection_drops_it(year, raises, targeted_join, monkeypatch):

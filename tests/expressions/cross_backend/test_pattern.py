@@ -11,22 +11,15 @@ Tests pattern matching and regex operations:
 - Real-world patterns (email, phone)
 
 These tests validate that pattern operations work consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest
 import mountainash.expressions as ma
 import mountainash as ma_top
-from mountainash.core.types import BackendCapabilityError
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
-)
 
 
-# SQL LIKE's Ibis-Polars implementation refuses every pattern shape.  Keep the
-# backend in the ordinary result cases so that the public refusal and the
-# supported result contract remain adjacent.
-_LIKE_LIST = ["polars", "pandas", "narwhals-polars", "ibis-polars", "ibis-duckdb", "ibis-sqlite"]
+_LIKE_LIST = ["polars", "pandas", "narwhals-polars", "ibis-duckdb", "ibis-sqlite"]
 
 
 # =============================================================================
@@ -48,12 +41,6 @@ class TestSQLLikePatterns:
 
         # Pattern: starts with "John"
         expr = ma.col("name").str.like("John%")
-        if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError) as error:
-                ma_top.relation(df).filter(expr).to_dict()
-            assert error.value.function_key is FK_STR.LIKE
-            assert error.value.limitation is None
-            return
 
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["John Doe", "John Smith"]
@@ -69,12 +56,6 @@ class TestSQLLikePatterns:
 
         # Pattern: ends with "Smith"
         expr = ma.col("name").str.like("%Smith")
-        if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError) as error:
-                ma_top.relation(df).filter(expr).to_dict()
-            assert error.value.function_key is FK_STR.LIKE
-            assert error.value.limitation is None
-            return
 
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["Jane Smith", "John Smith"]
@@ -90,37 +71,10 @@ class TestSQLLikePatterns:
 
         # Pattern: contains "oh"
         expr = ma.col("name").str.like("%oh%")
-        if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError) as error:
-                ma_top.relation(df).filter(expr).to_dict()
-            assert error.value.function_key is FK_STR.LIKE
-            assert error.value.limitation is None
-            return
 
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["John Doe", "John Smith", "Bob Johnson"]
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
-
-
-class TestLikeIbisPolarsRefusal:
-    """Ibis-Polars intrinsically refuses LIKE for either literal or dynamic
-    patterns because its StringSQLLike translator is absent."""
-
-    @pytest.mark.parametrize(
-        "pattern",
-        [
-            pytest.param("J%", id="literal"),
-            pytest.param(ma.col("pattern"), id="dynamic"),
-        ],
-    )
-    def test_like_refusal_identifies_the_operation(self, pattern, backend_factory):
-        df = backend_factory.create({"text": ["hello"], "pattern": ["J%"]}, "ibis-polars")
-
-        with pytest.raises(BackendCapabilityError) as error:
-            ma.col("text").str.like(pattern).compile(df)
-
-        assert error.value.function_key is FK_STR.LIKE
-        assert error.value.limitation is None
 
 
 # =============================================================================
@@ -132,7 +86,6 @@ class TestLikeIbisPolarsRefusal:
     "polars",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 
@@ -180,7 +133,6 @@ class TestRegexMatch:
     "polars",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 
@@ -228,7 +180,6 @@ class TestRegexContains:
     "polars",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 
@@ -290,11 +241,6 @@ class TestPatternWithBooleanLogic:
 
         # Filter: age > 28 AND name starts with "J"
         expr = (ma.col("age") > 28) & ma.col("name").str.like("J%")
-        if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError) as error:
-                ma_top.relation(df).filter(expr).to_dict()
-            assert error.value.function_key is FK_STR.LIKE
-            return
         actual = ma_top.relation(df).filter(expr).to_dict()["name"]
         expected = ["Jane Smith", "John Smith"]
         assert actual == expected, (
@@ -329,7 +275,6 @@ class TestPatternWithBooleanLogic:
     "polars",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 
@@ -379,7 +324,6 @@ class TestChainedPatternOperations:
     "polars",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 
@@ -428,7 +372,6 @@ class TestRealWorldPatterns:
     "polars",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 
@@ -486,11 +429,6 @@ class TestPatternEdgeCases:
 
         # Pattern: exact match empty string
         expr = ma.col("text").str.like("")
-        if backend_name == "ibis-polars":
-            with pytest.raises(BackendCapabilityError) as error:
-                expr.compile(df)
-            assert error.value.function_key is FK_STR.LIKE
-            return
         backend_expr = expr.compile(df)
         result = df.filter(backend_expr)
 
@@ -502,7 +440,6 @@ class TestPatternEdgeCases:
         "polars",
         "pandas",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
 
@@ -526,7 +463,6 @@ class TestPatternEdgeCases:
         "polars",
         "pandas",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
 

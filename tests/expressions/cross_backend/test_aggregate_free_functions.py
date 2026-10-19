@@ -28,7 +28,7 @@ class TestCorr:
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
             when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') or backend_name == 'ibis-duckdb' or backend_name == 'ibis-sqlite',
-            reason=('ma.corr() raises on all backends except ibis-polars' if backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else ('ma.corr() raises on all backends except ibis-polars' if backend_name == 'ibis-duckdb' else 'ma.corr() raises on all backends except ibis-polars')),
+            reason=('ma.corr() raises on all tested backends' if backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else ('ma.corr() raises on all tested backends' if backend_name == 'ibis-duckdb' else 'ma.corr() raises on all tested backends')),
             errors=((NotImplementedError,) if backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else ((UnsupportedOperationError,) if backend_name == 'ibis-duckdb' else (OperationNotDefinedError,))),
         ):
             result = ma.relation(df).group_by("g").agg(ma.corr(ma.col("x"), ma.col("y")).alias("c")).to_dicts()

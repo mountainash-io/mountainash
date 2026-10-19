@@ -8,6 +8,10 @@ Extension ops carry mountainash URIs.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
+from mountainash.core.lowering_reuse import REPEATABLE, DEFERRED_ONLY, declare_lowering
+
 from mountainash.relations.core.relation_nodes import (
     AggregateRelNode,
     FetchRelNode,
@@ -248,6 +252,20 @@ MOUNTAINASH_OPERATIONS = [
         protocol_method=ExtProto.empty_frame,
     ),
 ]
+
+# These groups perform declarative relational transformations. Source handlers
+# additionally qualify their selected ingress/read path at the boundary.
+SUBSTRAIT_OPERATIONS = [replace(d, lowering=REPEATABLE) for d in SUBSTRAIT_OPERATIONS]
+MOUNTAINASH_OPERATIONS = [
+    replace(d, lowering=DEFERRED_ONLY if d.operation_key is RM.SAMPLE else REPEATABLE)
+    for d in MOUNTAINASH_OPERATIONS
+]
+for _handler in (
+    handlers.visit_join, handlers.visit_join_asof, handlers.visit_ref,
+    handlers.visit_source, handlers.visit_resource_read, handlers.visit_conform,
+):
+    declare_lowering(_handler)
+del _handler
 
 
 def register_all_relation_operations() -> None:

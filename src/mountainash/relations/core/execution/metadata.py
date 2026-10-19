@@ -46,6 +46,8 @@ class CompiledSubtree:
     location: ExecutionLocation
     source_token: int
     metadata: CompilationMetadata
+    reusable_lowering: bool = False
+    repeatable_result: bool = False
 
 
 def _unique_identity(items: Any) -> tuple:

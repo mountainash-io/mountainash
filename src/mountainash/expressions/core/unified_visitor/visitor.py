@@ -32,6 +32,11 @@ from ..expression_nodes import (
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
 from mountainash.core.capabilities.schema import PolicyConsumer
 from .type_context import TypeContext
+from mountainash.core.lowering_reuse import (
+    DEFERRED_ONLY,
+    fold_lowering,
+    selected_lowering,
+)
 
 # Alias for compatibility
 SubstraitNode = ExpressionNode
@@ -84,14 +89,20 @@ class _CallOperandResolver:
     def __len__(self) -> int:
         return len(self._arguments)
 
+    def _track_native_value(self, value):
+        if self._visitor._is_backend_expression(value):
+            fold_lowering(self._visitor, DEFERRED_ONLY)
+
     def body_compiler(self, index: int):
         """Visit a scoped operand afresh after the backend binds its element."""
         argument = self._arguments[index]
-        return lambda: (
-            self._visitor.visit(argument)
-            if isinstance(argument, ExpressionNode)
-            else argument
-        )
+        def compile_body():
+            if isinstance(argument, ExpressionNode):
+                return self._visitor.visit(argument)
+            self._track_native_value(argument)
+            return argument
+
+        return compile_body
 
     def native(self, index: int) -> Any:
         """Return the native operand, compiling at most once."""
@@ -105,6 +116,8 @@ class _CallOperandResolver:
                     if isinstance(argument, ExpressionNode)
                     else argument
                 )
+                if not isinstance(argument, ExpressionNode):
+                    self._track_native_value(value)
             self._native[index] = value
         return self._native[index]
 
@@ -123,6 +136,7 @@ class _CallOperandResolver:
         """Require a raw literal for a backend intrinsic scalar parameter."""
         argument = self._arguments[index]
         if not isinstance(argument, ExpressionNode):
+            self._track_native_value(argument)
             return argument
         if (
             isinstance(argument, LiteralNode)
@@ -182,6 +196,8 @@ class UnifiedExpressionVisitor:
         self._input_data = input_data
         self.type_context = TypeContext(expression_system, self.visit)
         self._over_window_spec = None
+        self.reusable_lowering = True
+        self.repeatable_result = True
         # Discovery is the execution context factory's job (T06): every
         # caller now constructs an already-prepared execution_context
         # before this visitor, and _prepare_capability_context() already
@@ -284,9 +300,12 @@ class UnifiedExpressionVisitor:
                 raise TypeError(
                     f"Backend mismatch: {source_backend} expression cannot be used " f"with {target_backend} backend"
                 )
+            fold_lowering(self, DEFERRED_ONLY)
             return node.value
 
-        return self.backend.lit(node.value, dtype=node.dtype)
+        method = self.backend.lit
+        fold_lowering(self, selected_lowering(method))
+        return method(node.value, dtype=node.dtype)
 
     def visit_field_reference(self, node: FieldReferenceNode) -> SupportedExpressions:
         """Compile a column reference to backend expression.
@@ -307,7 +326,9 @@ class UnifiedExpressionVisitor:
             # operators will handle the unknown_values
             pass
 
-        return self.backend.col(node.field)
+        method = self.backend.col
+        fold_lowering(self, selected_lowering(method))
+        return method(node.field)
 
     def _gate_and_resolve_args(
         self,
@@ -360,20 +381,29 @@ class UnifiedExpressionVisitor:
                         limitation=fact,
                     )
 
-        prepared = self.backend.prepare_call_arguments(
+        helper = self.backend.prepare_call_arguments
+        fold_lowering(self, selected_lowering(helper))
+        companion = getattr(self.backend, f"_prepare_call_{method_name}", None)
+        if companion is not None:
+            fold_lowering(self, selected_lowering(companion))
+        prepared = helper(
             method_name, _CallOperandResolver, self,
             function_key, arguments, compiled_arguments,
         )
         if prepared is not None:
             return prepared
-        return [
-            compiled_arguments[i]
-            if compiled_arguments is not None and i in compiled_arguments
-            else self.visit(argument)
-            if isinstance(argument, ExpressionNode)
-            else argument
-            for i, argument in enumerate(arguments)
-        ]
+        resolved = []
+        for index, argument in enumerate(arguments):
+            if compiled_arguments is not None and index in compiled_arguments:
+                value = compiled_arguments[index]
+            elif isinstance(argument, ExpressionNode):
+                value = self.visit(argument)
+            else:
+                value = argument
+                if self._is_backend_expression(value):
+                    fold_lowering(self, DEFERRED_ONLY)
+            resolved.append(value)
+        return resolved
 
     def _bound_call(self, function_key, protocol_method, arguments, options):
         from mountainash.core.capabilities.predicates import bind_expression_call
@@ -542,7 +572,9 @@ class UnifiedExpressionVisitor:
         )
 
         if node.function_key is FKEY_SUBSTRAIT_SCALAR_COMPARISON.COALESCE:
-            args = self.backend.prepare_coalesce_arguments(
+            helper = self.backend.prepare_coalesce_arguments
+            fold_lowering(self, selected_lowering(helper))
+            args = helper(
                 args,
                 [self.type_context.is_null_scalar(argument) for argument in node.arguments],
                 self.type_context.cached_native(node),
@@ -556,6 +588,7 @@ class UnifiedExpressionVisitor:
                 f"for function {node.function_key}"
             )
         method = getattr(self.backend, method_name)
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
 
         options = node.options or {}
         self._gate_options(node.function_key, options)
@@ -630,11 +663,12 @@ class UnifiedExpressionVisitor:
                 args[2] = self._normalize_conditional_branch(
                     node.else_clause, args[2], result_type, requires_null_carrier
                 )
+            method = self.backend.if_then_else
+            fold_lowering(self, selected_lowering(method, func_def.lowering))
             with self.backend.operand_types(operand_types):
                 current = self.backend.if_then_else(*args)
             if index:
-                if needs_binding:
-                    compiled_arguments = {2: current}
+                compiled_arguments = {2: current}
                 logical_else = (
                     IfThenNode(conditions=[(condition, branch)], else_clause=logical_else)
                     if needs_binding else current
@@ -697,7 +731,9 @@ class UnifiedExpressionVisitor:
         branch_type = self.type_context.cached_native(node)
         if branch_type is None:
             return expression
-        return self.backend.normalize_conditional_branch(
+        helper = self.backend.normalize_conditional_branch
+        fold_lowering(self, selected_lowering(helper))
+        return helper(
             expression,
             branch_type,
             result_type,
@@ -713,7 +749,9 @@ class UnifiedExpressionVisitor:
         """Apply the declared backend storage contract without resolving anew."""
         if result_type is None or not requires_null_carrier:
             return expression
-        return self.backend.normalize_conditional_result(
+        helper = self.backend.normalize_conditional_result
+        fold_lowering(self, selected_lowering(helper))
+        return helper(
             expression,
             result_type,
             requires_null_carrier=requires_null_carrier,
@@ -756,8 +794,10 @@ class UnifiedExpressionVisitor:
         )
         self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
         self._gate_options(function_key, options)
+        method = getattr(self.backend, "cast")
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
         with self.backend.operand_types(operand_types):
-            return self.backend.cast(*args, **options)
+            return method(*args, **options)
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
         """Compile a membership test (IN operator) to backend expression."""
@@ -777,7 +817,10 @@ class UnifiedExpressionVisitor:
             protocol_method,
             method_name="is_in",
         )
-        return self.backend.is_in(value_expr, *options)
+        func_def = ExpressionFunctionRegistry.get(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
+        method = getattr(self.backend, "is_in")
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
+        return method(value_expr, *options)
 
     def visit_window_function(self, node: WindowFunctionNode) -> SupportedExpressions:
         """Compile a window function node to backend expression.
@@ -836,6 +879,7 @@ class UnifiedExpressionVisitor:
         method = getattr(self.backend, method_name)
         with self.backend.operand_types(operand_types):
             result = method(*compiled_args, **options) if options else method(*compiled_args)
+        fold_lowering(self, selected_lowering(method, func_def.lowering))
         # An enclosing OverNode applies its window to the composed expression.
         # Applying it here too would create a nested native window.
         if node.window_spec is None:
@@ -883,6 +927,8 @@ class UnifiedExpressionVisitor:
                 partition_by.append(self.visit(FieldReferenceNode(field=p)))
             else:
                 partition_by.append(p)
+                if self._is_backend_expression(p):
+                    fold_lowering(self, DEFERRED_ONLY)
 
         # Resolve order_by expressions
         order_by = []
@@ -890,7 +936,9 @@ class UnifiedExpressionVisitor:
             col_expr = self.visit(FieldReferenceNode(field=sf.column))
             order_by.append((col_expr, sf.descending))
 
-        return self.backend.apply_window(
+        method = self.backend.apply_window
+        fold_lowering(self, selected_lowering(method))
+        return method(
             expr,
             partition_by=partition_by,
             order_by=order_by,

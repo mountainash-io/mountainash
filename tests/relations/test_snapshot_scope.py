@@ -125,7 +125,7 @@ def test_checkpoint_replacement_keeps_sibling_and_bounds_linear_storage(connecti
         assert rel.item("x") == 64
 
 
-@pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb", "ibis-polars"])
+@pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "ibis-duckdb"])
 @pytest.mark.parametrize("batch", [False, True])
 def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(backend_name, monkeypatch, batch):
     """Native-array carriers; pandas object cells are explicitly unownable."""
@@ -390,7 +390,7 @@ def test_inprocess_failed_second_copy_leaves_no_partial_ownership():
         assert scope.detach(prior).item("x") == 7
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite", "ibis-polars"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_recognized_native_alias_retains_physical_table(backend_name):
     from mountainash.relations.core.owned_copy import drain_pending_drops
     source = REGISTRY[backend_name].build({"x": [7]}, "alias_source")

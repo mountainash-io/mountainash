@@ -22,7 +22,7 @@ from mountainash.relations.core.materialization import (
 from mountainash.relations.core.relation_api.relation import Relation
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_validation_materialization_caches_ibis_without_changing_identity(
     backend_name, backend_factory
 ):
@@ -43,7 +43,7 @@ def test_validation_materialization_caches_ibis_without_changing_identity(
 
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_logical_terminal_materialization_caches_ibis_once_per_scope(
     backend_name, backend_factory
 ):
@@ -73,7 +73,7 @@ def test_materialization_scope_releases_owned_callbacks_once():
     assert releases == ["released"]
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_repeated_ibis_cache_lifetime_releases_after_use(backend_name, backend_factory):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
     identity = identify_backend_identity(table)
@@ -101,7 +101,7 @@ def test_ordinary_collect_purpose_returns_eager_native(backend_name, backend_fac
     assert native.compiler_identity == identity
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_ordinary_native_collect_purpose_leaves_ibis_table_uncached(
     backend_name, backend_factory
 ):
@@ -134,7 +134,7 @@ def test_diagnostic_polars_view_from_polars_eager_native():
     assert view.frame.to_dict(as_series=False) == {"x": [1, 2, 3]}
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_diagnostic_polars_view_from_ibis_uses_arrow_not_pandas(
     backend_name, backend_factory, monkeypatch
 ):
@@ -151,7 +151,7 @@ def test_diagnostic_polars_view_from_ibis_uses_arrow_not_pandas(
     assert view.frame["age"].to_list() == [30, -1, None]
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_collect_retains_ibis_table_and_dialect(backend_name, backend_factory):
     table = backend_factory.create({"d": [_dt.date(2024, 1, 2), None]}, backend_name)
     result = ma.relation(table).collect(unwrap=False)
@@ -159,7 +159,7 @@ def test_collect_retains_ibis_table_and_dialect(backend_name, backend_factory):
     assert identify_backend_identity(result).dialect == backend_name
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_to_pandas_does_not_call_to_polars(backend_name, backend_factory, monkeypatch):
     relation = ma.relation(backend_factory.create({"x": [1, None]}, backend_name))
     monkeypatch.setattr(Relation, "to_polars", lambda self: pytest.fail("Polars transit"))
@@ -167,7 +167,7 @@ def test_to_pandas_does_not_call_to_polars(backend_name, backend_factory, monkey
     assert result["x"].tolist()[0] == 1
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_ibis_to_polars_egress_preserves_nullable_date(
     backend_name, backend_factory
 ):

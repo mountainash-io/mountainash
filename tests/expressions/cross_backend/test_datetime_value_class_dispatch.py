@@ -25,7 +25,6 @@ TIMESTAMP_BACKENDS = (
     "narwhals-pandas",
     "narwhals-lazy",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 )
 

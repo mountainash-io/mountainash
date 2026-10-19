@@ -42,7 +42,6 @@ _SYSTEM_SPECS = {
     "narwhals-polars": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-polars"),
     "narwhals-lazy": (NarwhalsExpressionSystem, CONST_BACKEND.NARWHALS, "narwhals-lazy"),
     "ibis-duckdb": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-duckdb"),
-    "ibis-polars": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-polars"),
     "ibis-sqlite": (IbisExpressionSystem, CONST_BACKEND.IBIS, "ibis-sqlite"),
 }
 
@@ -292,7 +291,6 @@ def test_list_parse_matrix_covers_every_item_type(
     build = lambda: _compile_for(backend_name, expr)
     if (
         backend_name == "ibis-sqlite"
-        or (backend_name == "ibis-polars" and item_type != "string")
         or (
             backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
             and item_type in {"datetime", "time"}
@@ -365,7 +363,6 @@ def test_list_parse_invalid_item_is_complete_value_failure(
     build = lambda: _compile_for(backend_name, expr)
     if (
         backend_name == "ibis-sqlite"
-        or (backend_name == "ibis-polars" and item_type != "string")
         or (
             backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}
             and (
@@ -702,7 +699,7 @@ def test_geojson_is_polars_only(backend_name: str) -> None:
         visitor()
 
 
-@pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas", "ibis-duckdb", "ibis-polars"])
+@pytest.mark.parametrize("backend_name", ["narwhals-polars", "narwhals-pandas", "ibis-duckdb", ])
 def test_native_geopoint_array_throw_executes_supported_backends(backend_name: str) -> None:
     expr = ma.col("point").geo.parse_geopoint(
         format="array", source_representation="native", field_name="point"
@@ -783,10 +780,7 @@ def test_geopoint_matrix_valid_values_and_top_level_null(
         assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
         return
     elif (format_name, source_representation) == ("object", "native"):
-        if backend_name in {"polars", "polars-lazy", "ibis-duckdb"} or (
-            backend_name == "ibis-polars"
-            and failure_behavior is CaseFailureBehaviour.THROW
-        ):
+        if backend_name in {"polars", "polars-lazy", "ibis-duckdb"}:
             pass
         elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
             with pytest.raises(NotImplementedError):
@@ -867,10 +861,7 @@ def test_geopoint_matrix_invalid_length_null_nonfinite_and_throw_or_null(
         assert error.value.function_key is FK_GEO.PARSE_GEOPOINT
         return
     elif (format_name, source_representation) == ("object", "native"):
-        if backend_name in {"polars", "polars-lazy", "ibis-duckdb"} or (
-            backend_name == "ibis-polars"
-            and failure_behavior is CaseFailureBehaviour.THROW
-        ):
+        if backend_name in {"polars", "polars-lazy", "ibis-duckdb"}:
             pass
         elif backend_name in {"pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"}:
             with pytest.raises(NotImplementedError):

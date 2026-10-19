@@ -8,7 +8,7 @@ provided, the conform pipeline should use ``str.to_date``/``str.to_datetime``/
 
 Backend support:
 - to_date: honored on polars, polars-lazy, narwhals-polars, narwhals-lazy,
-  ibis-duckdb and ibis-polars; ibis-sqlite rejects the operation. Default
+  and ibis-duckdb; ibis-sqlite rejects the operation. Default
   pandas string storage cannot materialize Narwhals `to_date`, while Arrow-backed
   pandas strings preserve the supported native behavior.
 - to_datetime: honored on all except ibis-sqlite; ibis-sqlite rejects it.

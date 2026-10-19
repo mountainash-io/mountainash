@@ -38,7 +38,6 @@ T_FALSE = -1
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTernaryComparisons:
@@ -118,7 +117,6 @@ class TestTernaryComparisons:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTernaryLogicalOperations:
@@ -212,7 +210,6 @@ class TestTernaryLogicalOperations:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTernaryToBooleanConversions:
@@ -295,7 +292,6 @@ class TestTernaryToBooleanConversions:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestBooleanToTernaryConversions:
@@ -369,7 +365,6 @@ class TestBooleanToTernaryConversions:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTernaryConstants:
@@ -426,7 +421,6 @@ class TestTernaryConstants:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestRealWorldScenarios:
