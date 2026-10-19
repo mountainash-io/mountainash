@@ -116,11 +116,6 @@ def test_malformed_canonical_descriptor_is_rejected(raw):
                  "$.fields[0].constraints.minimum", id="minimum-array"),
     pytest.param({"fields": [{"name": "n", "type": "integer", "constraints": {"exclusiveMaximum": {"v": 1}}}]},
                  "$.fields[0].constraints.exclusiveMaximum", id="exclusive-maximum-object"),
-    pytest.param({"fields": [{"name": "p", "type": "object", "x-mountainash": {"fields": [
-        {"name": "n", "type": "integer", "x-mountainash": {"constraints": {"eq": {"x": 1}}}},
-    ]}}]}, "$.fields[0].x-mountainash.fields[0].x-mountainash.constraints.eq", id="nested-eq-object"),
-    pytest.param({"fields": [{"name": "n", "type": "integer", "x-mountainash": {"constraints": {"ne": [1]}}}]},
-                 "$.fields[0].x-mountainash.constraints.ne", id="ne-array"),
 ])
 def test_malformed_supported_property_is_rejected_with_path(descriptor, path):
     from mountainash.typespec.errors import InvalidDescriptorStructure
@@ -130,7 +125,7 @@ def test_malformed_supported_property_is_rejected_with_path(descriptor, path):
     assert exc.value.descriptor_path == path
 
 
-def test_scalar_bounds_and_equality_values_remain_accepted():
+def test_bounds_and_equality_values_survive_json():
     descriptor = {"fields": [
         {"name": "n", "type": "integer", "constraints": {"minimum": 0, "exclusiveMaximum": 9},
          "x-mountainash": {"constraints": {"eq": 3, "ne": 4}}},
@@ -139,6 +134,18 @@ def test_scalar_bounds_and_equality_values_remain_accepted():
         {"name": "b", "type": "boolean", "x-mountainash": {"constraints": {"eq": True}}},
     ]}
     assert typespec_to_frictionless(typespec_from_frictionless(json.loads(json.dumps(descriptor)))) == descriptor
+
+
+def test_structured_equality_values_written_by_the_codec_read_back():
+    spec = TypeSpec(fields={
+        "items": FieldSpec(element=FieldSpec(type=UniversalType.INTEGER), eq=[1, 2], ne=[3]),
+        "point": FieldSpec(fields={"x": FieldSpec(type=UniversalType.INTEGER)}, eq={"x": 1}),
+    })
+    descriptor = json.loads(json.dumps(typespec_to_frictionless(spec)))
+    restored = typespec_from_frictionless(descriptor)
+    assert typespec_to_frictionless(restored) == descriptor
+    assert list(restored.fields["items"].constraints.eq) == [1, 2]
+    assert dict(restored.fields["point"].constraints.eq) == {"x": 1}
 
 # ============================================================================
 # TestToFrictionless

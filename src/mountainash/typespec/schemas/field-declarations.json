@@ -7,7 +7,6 @@
     "x-mountainash": {"type": "object"}
   },
   "definitions": {
-    "scalarValue": {"type": ["number", "string", "boolean"]},
     "boundValue": {"type": ["number", "string"]},
     "namedField": {
       "allOf": [
@@ -77,8 +76,6 @@
         "constraints": {
           "type": "object",
           "properties": {
-            "eq": {"$ref": "#/definitions/scalarValue"},
-            "ne": {"$ref": "#/definitions/scalarValue"},
             "notin": {"type": "array"},
             "str_contains": {"type": "string"},
             "str_startswith": {"type": "string"},
