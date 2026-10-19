@@ -8,6 +8,7 @@
 - Dask sampling defers one global sample through native partition execution and preserves pandas object-backed Decimal/list values (351).
 - DuckDB, Spark/Connect and SQLFrame sampling now retain native deferred plans and Arrow terminals, including post-sample positional operations. Explain's fallback renders the prepared plan instead of evaluating a native object's representation (351).
 - SQLFrame schema inspection no longer mistakes dynamic column attributes for callable schema methods (351).
+- Data-contract sampling no longer invents a seed when omitted, preserving unseeded Ibis validation. Native sample snapshots keep checks and failure reporting on the same rows and release owned storage at the end of the run; the obsolete approximate-sample fallback is removed (351, PR 404).
 
 ### Changed
 - Ibis exact-count sampling with a seed now has a concrete-dialect capability refusal for DuckDB, SQLite, PostgreSQL, MySQL, SingleStoreDB and Exasol. Fractional sampling and existing explicit policy bypasses are unchanged (351).

@@ -107,6 +107,10 @@ class BaseDataContract:
     ) -> "ValidationResult":
         """Validate data against this contract; returns a ValidationResult.
 
+        ``sample`` selects an exact-count native snapshot shared by validation
+        and failure reporting. Omitting ``random_seed`` leaves sampling unseeded;
+        supplying it requires backend support for seeded exact-count sampling.
+
         Raises IdentityInvalidError if this contract declares a keyed identity
         (Config.primary_key / Config.natural_key) and the data does not honour
         it: always for key fields missing from the data (declaration-phase,
@@ -135,7 +139,7 @@ class BaseDataContract:
     ) -> "ValidationResult":
         """Quick validation — same runner, fail_fast=True (item 18 subsumed).
 
-        See validate_datacontract for the allow_imperfect_key contract.
+        See validate_datacontract for sampling and allow_imperfect_key contracts.
         """
         from mountainash.datacontracts.validator import Validator
 

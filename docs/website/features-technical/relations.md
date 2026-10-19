@@ -108,6 +108,14 @@ Ibis DuckDB, SQLite, PostgreSQL, MySQL, SingleStoreDB and Exasol. This includes
 including seeded support where available; it does not promise an exact row count.
 Disabling the gate does not make seeded exact-count sampling supported.
 
+Data-contract validation follows the same sampling support:
+`contract.validate_datacontract(table, sample=k)` and its `_quick` counterpart
+leave an omitted `random_seed` unset. Validation is an explicit terminal: it
+holds one native sample snapshot for the run, and failure reporting uses the
+validated rows rather than evaluating the sample again. Explicit `random_seed`
+values remain unsupported for the Ibis SQL dialects listed above. The old
+empty-sample `limit(k)` fallback is no longer needed with exact-count sampling.
+
 
 ### Timestamp concatenation
 

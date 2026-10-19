@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import inspect
 from copy import deepcopy
-import random
 from typing import TYPE_CHECKING, Any, Callable
 
 import polars as pl
@@ -86,43 +85,22 @@ class Validator:
         return self.prepare(data)
 
     @staticmethod
-    def _to_polars_frame(rel: Any) -> pl.DataFrame:
-        materialised = rel.to_polars()
-        if isinstance(materialised, pl.LazyFrame):
-            materialised = materialised.collect()
-        return materialised
-    @classmethod
     def _slice(
-        cls,
         rel: Any,
         *,
         head: int | None,
         tail: int | None,
         sample: int | None,
         random_seed: int | None,
-    ) -> tuple[Any, dict[str, Any]]:
-        """Apply slicing once, keeping seeded sampling on the source backend."""
-        diagnostics: dict[str, Any] = {}
+    ) -> Any:
+        """Choose the sample once on its source backend for this validation run."""
         if head is not None:
             rel = rel.head(head)
         if tail is not None:
             rel = rel.tail(tail)
         if sample is not None:
-            effective_seed = (
-                random_seed if random_seed is not None else random.randrange(2**31)
-            )
-            sampled = rel.sample(n=sample, seed=effective_seed)
-            if sampled.count_rows() == 0 and rel.count_rows() > 0:
-                rel = rel.limit(sample)
-                diagnostics["sample_fallback"] = {
-                    "reason": "sampled slice was empty on non-empty input",
-                    "requested_sample": sample,
-                    "random_seed": effective_seed,
-                    "fallback": f"limit({sample})",
-                }
-            else:
-                rel = sampled
-        return rel, diagnostics
+            rel = rel.sample(n=sample, seed=random_seed).snapshot()
+        return rel
 
     # -- public API -----------------------------------------------------------
 
@@ -220,41 +198,39 @@ class Validator:
             if isinstance(prepared, Relation)
             else ma.relation(prepared)
         )
-        rel, slice_diagnostics = self._slice(
-            rel, head=head, tail=tail, sample=sample, random_seed=random_seed
-        )
-
-        rel = rel.conform(
-            spec,
-            apply_value_transforms=self._contract_coerce,
-        )
-
-        result = ValidationRunner().validate_relation(
-            rel,
-            checks,
-            identity=identity,
-            allow_imperfect_key=allow_imperfect_key,
-            context=context or {},
-            fail_fast=fail_fast,
-            failure_sample=failure_sample,
-            validator_name=self.name,
-            datacontract_name=self._contract_name,
-        )
-        if slice_diagnostics:
-            result.diagnostics.update(slice_diagnostics)
-        if skipped:
-            # skipped summaries are visibility only: appended to the frame,
-            # never part of the runner's pass computation (they cannot fail)
-            result.check_summaries = pl.concat(
-                [result.check_summaries, summaries_frame(skipped)]
+        with ma.materialization_scope():
+            rel = self._slice(
+                rel, head=head, tail=tail, sample=sample, random_seed=random_seed
             )
 
-        if not result.passes:
-            result.processor = ValidationResultProcessor(
-                result.failure_cases,
-                source_data=self._to_polars_frame(rel),
+            rel = rel.conform(
+                spec,
+                apply_value_transforms=self._contract_coerce,
+            )
+
+            result = ValidationRunner().validate_relation(
+                rel,
+                checks,
                 identity=identity,
-                check_summaries=result.check_summaries,
+                allow_imperfect_key=allow_imperfect_key,
+                context=context or {},
+                fail_fast=fail_fast,
+                failure_sample=failure_sample,
                 validator_name=self.name,
+                datacontract_name=self._contract_name,
             )
-        return result
+            if skipped:
+                # Skipped summaries are visibility only, not pass computation.
+                result.check_summaries = pl.concat(
+                    [result.check_summaries, summaries_frame(skipped)]
+                )
+
+            if not result.passes:
+                result.processor = ValidationResultProcessor(
+                    result.failure_cases,
+                    source_data=result._materialized_source,
+                    identity=identity,
+                    check_summaries=result.check_summaries,
+                    validator_name=self.name,
+                )
+            return result
