@@ -864,7 +864,9 @@ def _build_field_expr(
 ) -> FieldBuildResult:
     """Lower one field through the backend-neutral expression API."""
     import mountainash as ma
-    from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype
+    from mountainash.core.dtypes import (
+        DecimalDtype, DurationDtype, MountainashDtype, NativeDtype, TimestampDtype,
+    )
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldSpec
     from mountainash.typespec.universal_types import UniversalType, to_canonical
@@ -1137,6 +1139,9 @@ def _build_field_expr(
             # Preserve fill digits: casting to the source scale first can double-round.
             expr = expr.cast(MountainashDtype.STRING)
             fill = fill.cast(MountainashDtype.STRING)
+        elif isinstance(shape.detailed_dtype, (TimestampDtype, DurationDtype)):
+            # A microsecond Python fill must not downcast nanosecond source values.
+            fill = fill.cast(shape.detailed_dtype)
         expr = ma.coalesce(expr, fill)
         transform_input = expr
     if incompatible_source:

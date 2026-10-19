@@ -782,7 +782,7 @@ class UnifiedExpressionVisitor:
         from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
 
         target = node.target_type
-        if (
+        if getattr(self.backend, "dialect", None) == "narwhals-pandas" and (
             target is MountainashDtype.TIMESTAMP
             or target is MountainashDtype.DURATION
             or (
@@ -790,7 +790,7 @@ class UnifiedExpressionVisitor:
                 and target.native is None and not dtype_is_complete(target)
             )
         ):
-            # Use available declarations; native binding handles computed operands.
+            # Eager pandas declarations are available without lazy schema probing.
             source = self.type_context.resolve_declared_native(node.input)
             if source is not None and source.native_dtype is not None:
                 options["dtype"] = resolve_dtype_parameters(

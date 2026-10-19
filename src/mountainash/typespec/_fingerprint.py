@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
+from datetime import date, time, timedelta
 from enum import Enum
 import hashlib
 from types import MappingProxyType
@@ -57,6 +58,9 @@ def _canonical_bytes(value: Any) -> bytes:
             value.target.value, native_class.__module__, native_class.__qualname__,
             pickle.dumps(value.value, protocol=5),
         ))
+    if isinstance(value, (date, time, timedelta)):
+        # Preserve temporal value, timezone and fold without float conversion.
+        return b"temporal" + _canonical_bytes(pickle.dumps(value, protocol=5))
     if value is None:
         return b"n"
     if type(value) is bool:  # noqa: E721 — bool has its own canonical tag
