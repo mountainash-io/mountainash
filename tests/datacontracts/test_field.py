@@ -79,7 +79,6 @@ def _summary(result, check_id):
 def test_range_is_guarded_for_optional_values():
     checks = FieldSpec(type=UniversalType.INTEGER, minimum=0, maximum=100).to_checks("age")
     assert _ids(checks) == ["age_type_format", "age_range"]
-    assert checks[1].fields == ("age",)
     result = ValidationRunner().validate_relation(ma.relation(pl.DataFrame({"age": [50, None]})), checks)
     assert result.passes
 

@@ -728,9 +728,7 @@ class TestConformOwnsDeclarations:
         old = ma.relation(data).conform(spec, contract=arg)
         override["extra_columns"] = "evolve"
         new = ma.relation(data).conform(spec, contract=arg)
-        # schema inference keeps unmapped columns under an extra_columns=discard
-        # override while execution drops them (separate defect, not ownership).
-        self._check(old, expected_cols=["value"], schema_parity=False)
+        self._check(old, expected_cols=["value"])
         self._check(new, expected_cols=["value", "support"])
 
 

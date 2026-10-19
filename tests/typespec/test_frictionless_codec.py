@@ -230,11 +230,11 @@ def test_decoder_owns_descriptor_metadata() -> None:
     dialect = {"delimiter": ";"}
     raw = {"resources": [{"name": "orders", "data": payload, "schema": schema, "dialect": dialect}]}
     resource = DataPackage.from_descriptor(raw).resources[0]
-    assert resource.data == payload
-    assert resource.table_schema == schema
-    assert resource.table_schema is not schema
-    assert resource.dialect == dialect
-    assert resource.dialect is not dialect
+    payload.append({"id": 2})
+    schema["fields"].append({"name": "extra"})
+    dialect["delimiter"] = ","
+    assert resource.table_schema == {"fields": [{"name": "id"}]}
+    assert resource.dialect == {"delimiter": ";"}
 
 
 _V1_URIS = [

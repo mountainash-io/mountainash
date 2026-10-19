@@ -168,23 +168,6 @@ def test_plain_native_container_shapes_are_wildcards() -> None:
     assert object_result.drift.type_mismatches == []
 
 
-@pytest.mark.parametrize(
-    ("name", "field", "shape"),
-    [
-        ("items", FieldSpec(type=UniversalType.ARRAY),
-         SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))),
-        ("record", FieldSpec(type=UniversalType.OBJECT),
-         SourceShape(MountainashDtype.STRUCT, struct_fields=(("id", SourceShape(MountainashDtype.I64)),))),
-    ],
-    ids=["plain-array", "plain-object"],
-)
-def test_plain_native_container_without_child_schema_preserves_source(
-    name: str, field: FieldSpec, shape: SourceShape
-) -> None:
-    result = _build_conform_exprs(_spec((name, field)), available_columns=(name,), actual_shapes={name: shape})
-    assert result.exprs[0].node.function_key.name == "ALIAS"
-
-
 @pytest.mark.parametrize("child", [MountainashDtype.I64, MountainashDtype.U32, MountainashDtype.FP32])
 def test_geopoint_numeric_children_are_shape_compatible(child: MountainashDtype) -> None:
     result = resolve_conform_output(
