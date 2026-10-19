@@ -43,7 +43,7 @@ def test_shared_conform_recipe_keeps_named_constraint_contexts(backend_name):
     dag = RelationDAG()
     frame = REGISTRY[backend_name].build({"id": [1]}, "named_source")
     shared = ma.relation(frame).conform(_open_spec(
-        FieldSpec(name="id", type=UniversalType.INTEGER),
+        ("id", FieldSpec(type=UniversalType.INTEGER)),
     ))
     dag.add("parent_a", ma.relation(frame))
     dag.add("parent_b", ma.relation(frame))
