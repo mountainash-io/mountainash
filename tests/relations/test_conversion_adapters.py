@@ -62,7 +62,7 @@ class TestCoerceToPolarsRouteMatrix:
         result = coerce_to_polars(target, value)
         self._assert_result(result, {"id": [2, 3], "v": [None, 20]})
 
-    @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+    @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
     @pytest.mark.parametrize("endpoint", ["public", "coercion"])
     def test_ibis_source(self, backend_name, backend_factory, endpoint):
         source = backend_factory.create(

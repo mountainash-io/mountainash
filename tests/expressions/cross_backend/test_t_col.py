@@ -34,7 +34,6 @@ T_FALSE = -1
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColDefaultBehavior:
@@ -76,7 +75,6 @@ class TestTColDefaultBehavior:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColCustomSentinels:
@@ -136,7 +134,6 @@ class TestTColCustomSentinels:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColMultipleSentinels:
@@ -194,7 +191,6 @@ class TestTColMultipleSentinels:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColWithAllComparisons:
@@ -283,7 +279,6 @@ class TestTColWithAllComparisons:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColWithLogicalOperators:
@@ -361,7 +356,6 @@ class TestTColWithLogicalOperators:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColWithCollections:
@@ -402,7 +396,6 @@ class TestTColWithCollections:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColRealWorldUseCases:
@@ -514,7 +507,6 @@ class TestTColRealWorldUseCases:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColWithAutoBooleanization:
@@ -573,7 +565,6 @@ class TestTColWithAutoBooleanization:
 @pytest.mark.parametrize("backend_name", [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ])
 class TestTColEdgeCases:

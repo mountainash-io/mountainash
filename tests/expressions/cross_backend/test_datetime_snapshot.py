@@ -36,7 +36,7 @@ class TestTodaySnapshot:
         assert result["d"][0] in (date.today(), date.today() - timedelta(days=1))
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_today_compiles_to_native_date_on_ibis(backend_name, backend_factory):
     df = backend_factory.create({"a": [1]}, backend_name)
     assert ma.today().compile(df).type().is_date()

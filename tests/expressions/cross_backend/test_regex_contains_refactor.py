@@ -13,7 +13,6 @@ from importlib.metadata import version
 import pytest
 
 import mountainash as ma
-from ibis.common.exceptions import UnsupportedArgumentError
 from mountainash.core.types import BackendCapabilityError
 from fixtures.call_expectations import expect_call_failure
 from fixtures.backend_registry import ALL_BACKENDS as REGEX_BACKENDS
@@ -25,7 +24,6 @@ ALL_BACKENDS = [
     "polars-lazy",
     "pandas",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -67,9 +65,9 @@ class TestRegexContainsRefactor:
 
         expr = ma.col("s").str.contains(ma.col("needle"))
         with expect_call_failure(
-            when=backend_name == 'pandas' or backend_name == 'ibis-polars',
-            reason=('Columnar literal contains raises on pandas and ibis-polars.' if backend_name == 'pandas' else 'Columnar literal contains raises on pandas and ibis-polars.'),
-            errors=((BackendCapabilityError,) if backend_name == 'pandas' else (UnsupportedArgumentError,)),
+            when=backend_name == 'pandas',
+            reason=('Columnar literal contains raises on pandas.'),
+            errors=((BackendCapabilityError,)),
         ):
             actual = collect_expr(df, expr)
             assert actual == [True, True, False, True], f"[{backend_name}] Expected [True, True, False, True], got {actual}"
@@ -95,8 +93,8 @@ def test_regex_pattern_projection(backend_name, backend_factory, shape, case_sen
         .then(1).otherwise(-1).alias("score")
     )
     assert query.columns == ["id", "value", "pattern", "score"]
-    unsupported = backend_name in {"pandas", "narwhals-pandas", "ibis-polars"}
-    error_type = UnsupportedArgumentError if backend_name == "ibis-polars" else TypeError
+    unsupported = backend_name in {"pandas", "narwhals-pandas", }
+    error_type = TypeError
     if backend_name in {"pandas", "narwhals-pandas"} and (
         version("narwhals") == "2.27.1" and version("pandas") == "3.0.6"
     ):
@@ -158,7 +156,7 @@ def test_regex_case_sensitivity(
         assert result[6] is None
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 @pytest.mark.parametrize("pattern,sensitive", [("^AU$", False), ("(?i)^au$", True)])
 def test_native_ibis_regex_literal_preserves_values(
     backend_name, backend_factory, collect_expr, pattern, sensitive,

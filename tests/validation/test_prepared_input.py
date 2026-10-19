@@ -27,7 +27,7 @@ import mountainash.relations.backends  # noqa: F401
 import mountainash.expressions.backends  # noqa: F401
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_prepare_validation_input_uses_one_native_ibis_cache(
     backend_name, backend_factory, mocker
 ):
@@ -44,7 +44,7 @@ def test_prepare_validation_input_uses_one_native_ibis_cache(
         assert copies.call_count == 1
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_prepare_validation_input_snapshot_uses_one_arrow_extraction(
     backend_name, backend_factory, mocker
 ):

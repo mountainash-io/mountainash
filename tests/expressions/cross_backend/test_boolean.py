@@ -10,7 +10,7 @@ Tests boolean operations:
 - Boolean with other operations
 
 These tests validate that boolean operations work consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest

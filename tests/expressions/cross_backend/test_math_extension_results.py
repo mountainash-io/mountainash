@@ -12,7 +12,7 @@ from fixtures.call_expectations import expect_call_failure
 
 
 NARWHALS_BACKENDS = {"pandas", "narwhals-polars", "narwhals-pandas"}
-IBIS_BACKENDS = {"ibis-polars", "ibis-duckdb", "ibis-sqlite"}
+IBIS_BACKENDS = {"ibis-duckdb", "ibis-sqlite"}
 
 
 @pytest.mark.cross_backend
@@ -131,7 +131,7 @@ class TestCbrt:
         data = {"a": [-8.0, -27.0]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            when=backend_name in ('polars', 'polars-lazy', 'pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'ibis-duckdb', 'ibis-sqlite'),
             reason='ma.col(x).cbrt() on negative inputs yields NaN across all backends',
             errors=(AssertionError,),
         ):
@@ -241,7 +241,7 @@ class TestDeclaredDecimalMath:
         values = ma.relation(frame).select(
             ma.col("a").sqrt().alias("sqrt"),
         ).to_polars()
-        if backend_name in {"ibis-duckdb", "ibis-polars"}:
+        if backend_name in {"ibis-duckdb", }:
             assert values.schema["sqrt"] == pl.Decimal(10, 2)
         else:
             assert values.schema["sqrt"] == pl.Float64
@@ -296,7 +296,7 @@ class TestDeclaredDecimalMath:
         }
         inverse_hyperbolic = {"sinh", "cosh", "tanh", "asinh", "acosh", "atanh"}
         pandas_family = {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"}
-        if backend_name in {"polars", "polars-lazy", "ibis-polars"} and operation == "cbrt":
+        if backend_name in {"polars", "polars-lazy", } and operation == "cbrt":
             unsupported_error = InvalidOperationError
         elif backend_name in {"narwhals-polars", "narwhals-lazy"} and operation == "cbrt":
             from narwhals.exceptions import InvalidOperationError as NarwhalsInvalidOperationError
@@ -304,10 +304,6 @@ class TestDeclaredDecimalMath:
         elif backend_name in pandas_family and operation in trig | {"acosh", "atan2"}:
             unsupported_error = NotImplementedError
         elif backend_name in {"polars", "polars-lazy"} and operation in trig:
-            unsupported_error = InvalidOperationError
-        elif backend_name == "ibis-polars" and operation in inverse_hyperbolic:
-            unsupported_error = NotImplementedError
-        elif backend_name == "ibis-polars" and operation in trig - {"radians", "degrees"}:
             unsupported_error = InvalidOperationError
         elif backend_name == "ibis-duckdb" and operation in inverse_hyperbolic:
             unsupported_error = NotImplementedError
@@ -393,7 +389,7 @@ class TestDeclaredDecimalMath:
 
         unsupported_hyperbolic = operation in {
             "sinh", "cosh", "tanh", "asinh", "acosh", "atanh"
-        } and backend_name in {"ibis-polars", "ibis-duckdb"}
+        } and backend_name in {"ibis-duckdb"}
         if backend_name == "ibis-sqlite":
             with pytest.raises(BackendCapabilityError) as error:
                 ma.relation(source).select(
@@ -562,9 +558,7 @@ class TestDeclaredDecimalMath:
             {"a": (10, 2)},
         )
         error_type = (
-            OperationNotDefinedError
-            if backend_name == "ibis-polars"
-            else NotImplementedError
+            NotImplementedError
             if n > 1 and backend_name in {
                 "pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"
             }
@@ -573,9 +567,7 @@ class TestDeclaredDecimalMath:
         with expect_call_failure(
             when=error_type is not None,
             reason=(
-                "Ibis-Polars window translation is unsupported"
-                if backend_name == "ibis-polars"
-                else "Narwhals diff(n>1) is unsupported"
+                "Narwhals diff(n>1) is unsupported"
             ),
             errors=(error_type,) if error_type else (AssertionError,),
         ):
@@ -605,7 +597,6 @@ class TestDeclaredDecimalMath:
         from mountainash.expressions.core.expression_system.function_keys.enums import (
             FKEY_MOUNTAINASH_SCALAR_VALUE,
         )
-        from ibis.common.exceptions import OperationNotDefinedError
 
         if backend_name == "ibis-sqlite":
             source = backend_factory.create(
@@ -642,10 +633,6 @@ class TestDeclaredDecimalMath:
             .cast(ma.DecimalDtype(12, 3), rounding="half_to_even")
             .alias("change")
         ).sort("group", "idx")
-        if backend_name == "ibis-polars":
-            with pytest.raises(OperationNotDefinedError):
-                authored.to_polars()
-            return
         if backend_name in {"pandas", "narwhals-polars", "narwhals-lazy", "narwhals-pandas"}:
             with expect_call_failure(
                 when=True,
@@ -663,7 +650,6 @@ class TestDeclaredDecimalMath:
         self, backend_name, backend_factory
     ):
         import mountainash as ma
-        from ibis.common.exceptions import OperationNotDefinedError
 
         source = backend_factory.create(
             {
@@ -685,7 +671,6 @@ class TestDeclaredDecimalMath:
     ):
         import duckdb
         from decimal import Decimal as D
-        import pyarrow as pa
 
         import mountainash as ma
 
@@ -708,9 +693,6 @@ class TestDeclaredDecimalMath:
         query = ma.relation(frame).select(ma.col("a").sqrt().alias("root"))
         if backend_name == "ibis-duckdb":
             with pytest.raises(duckdb.OutOfRangeException):
-                query.to_polars()
-        elif backend_name == "ibis-polars":
-            with pytest.raises(pa.ArrowInvalid):
                 query.to_polars()
         else:
             value = query.to_polars()["root"][0]
@@ -771,7 +753,6 @@ class TestDeclaredDecimalMath:
     ):
         import duckdb
         from decimal import Decimal as D
-        import pyarrow as pa
 
         import mountainash as ma
 
@@ -796,9 +777,6 @@ class TestDeclaredDecimalMath:
         query = ma.relation(frame).select(ma.col("a").ln().alias("log"))
         if backend_name == "ibis-duckdb":
             with pytest.raises(duckdb.OutOfRangeException):
-                query.to_polars()
-        elif backend_name == "ibis-polars":
-            with pytest.raises(pa.ArrowInvalid):
                 query.to_polars()
         else:
             result = query.to_polars()["log"][0]

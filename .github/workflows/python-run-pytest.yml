@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       test_scope:
-        description: "pr (affected, 3 backends) | full (everything, 9 backends)"
+        description: "pr (affected, 3 backends) | full (everything, 8 backends)"
         default: "pr"
         type: choice
         options: ["pr", "full"]

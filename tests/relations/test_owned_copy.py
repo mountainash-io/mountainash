@@ -299,16 +299,3 @@ def test_ambiguous_cleanup_completion_keeps_identifier_for_retry(connection, mon
     assert dropped == [target]
 
 
-def test_ibis_polars_severs_buffer_before_registering():
-    connection = ibis.polars.connect()
-    values = np.array([7], dtype=np.int64)
-    source = connection.create_table("source", pl.DataFrame(pl.Series("x", values)))
-    copy = owned_copy(source)
-    try:
-        values[0] = 88
-        assert ma.relation(source).to_dicts() == [{"x": 88}]
-        connection.drop_table("source")
-        assert ma.relation(copy.value).to_dicts() == [{"x": 7}]
-    finally:
-        copy.release()
-        connection.disconnect()

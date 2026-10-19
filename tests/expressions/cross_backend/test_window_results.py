@@ -6,7 +6,6 @@ backends. Window functions require .over() context for partitioned operations.
 Test data uses unique sort keys to ensure deterministic output ordering.
 
 Known divergences use exact scoped observer bindings:
-- ibis-polars: no translation rule for any WindowFunction (IB-WIN-01)
 - ibis-duckdb/ibis-sqlite: rank/dense_rank/row_number are 0-based (IB-WIN-02)
 - ibis: rank(method='average'/'max') has no SQL equivalent (IB-WIN-05)
 - ibis: cum_prod unsupported (IB-WIN-04)
@@ -40,9 +39,9 @@ class TestWindowRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).sort("group", "score").to_dict()
@@ -55,9 +54,9 @@ class TestWindowRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df)
@@ -73,9 +72,9 @@ class TestWindowRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).to_dict()
             assert result["rnk"] == [1]
@@ -91,9 +90,9 @@ class TestWindowDenseRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").dense_rank().over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df)
@@ -108,9 +107,9 @@ class TestWindowDenseRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").dense_rank().over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df)
@@ -132,9 +131,9 @@ class TestWindowRowNumber:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").row_number().over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
@@ -146,9 +145,9 @@ class TestWindowRowNumber:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").row_number().over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
@@ -166,9 +165,9 @@ class TestWindowLead:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lead(1).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -183,9 +182,9 @@ class TestWindowLead:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lead(2).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -206,9 +205,9 @@ class TestWindowLag:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lag(1).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -223,9 +222,9 @@ class TestWindowLag:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").lag(2).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -246,9 +245,9 @@ class TestWindowShift:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").shift(1).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -263,9 +262,9 @@ class TestWindowShift:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").shift(-1).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -280,9 +279,9 @@ class TestWindowShift:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").shift(2).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -303,9 +302,9 @@ class TestWindowFirstValue:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").first_value().over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("fv")).sort("group", "score").to_dict()
@@ -323,9 +322,9 @@ class TestWindowLastValue:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").last_value().over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("lv")).sort("group", "score").to_dict()
@@ -343,9 +342,9 @@ class TestWindowNtile:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").ntile(2).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
-            reason=('window operations raise on ibis-polars / ntile() is unsupported off Polars' if backend_name == 'ibis-polars' else ('ntile() is unsupported off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'ntile() is unsupported off Polars')),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else ((SignatureValidationError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (NotImplementedError,))),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
+            reason=(('ntile() is unsupported off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'ntile() is unsupported off Polars')),
+            errors=(((SignatureValidationError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (NotImplementedError,))),
         ):
             result = (
                 ma.relation(df)
@@ -360,7 +359,7 @@ class TestWindowNtile:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").ntile(3).over("group")
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') or backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
+            when=backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') or backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason=('ntile() is unsupported off Polars' if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else ('ntile() is unsupported off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'ntile() is unsupported off Polars')),
             errors=((NotImplementedError,) if backend_name in ('pandas', 'narwhals-pandas', 'narwhals-polars', 'narwhals-lazy') else ((SignatureValidationError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,))),
         ):
@@ -385,9 +384,9 @@ class TestWindowCumSum:
         data = {"a": [1, 2, 3, 4, 5]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").cum_sum().alias("cs")).to_dict()
             assert result["cs"] == [1, 3, 6, 10, 15]
@@ -397,9 +396,9 @@ class TestWindowCumSum:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").cum_sum().over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("group"), ma.col("val"), expr.alias("cs")).sort("group", "val").to_dict()
             assert result["cs"] == [1, 3, 6, 10, 30]
@@ -414,9 +413,9 @@ class TestWindowCumMax:
         data = {"a": [3, 1, 4, 1, 5]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").cum_max().alias("cm")).to_dict()
             assert result["cm"] == [3, 3, 4, 4, 5]
@@ -431,9 +430,9 @@ class TestWindowCumMin:
         data = {"a": [5, 3, 4, 1, 2]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").cum_min().alias("cm")).to_dict()
             assert result["cm"] == [5, 3, 3, 1, 1]
@@ -448,9 +447,9 @@ class TestWindowCumCount:
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").cum_count().alias("cc")).to_dict()
             assert result["cc"] == [1, 2, 3, 4, 5]
@@ -459,9 +458,9 @@ class TestWindowCumCount:
         data = {"a": [10, None, 30, None, 50]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").cum_count().alias("cc")).to_dict()
             assert result["cc"] == [1, 1, 2, 2, 3]
@@ -476,9 +475,9 @@ class TestWindowCumProd:
         data = {"a": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite') or backend_name == 'narwhals-lazy',
-            reason=('cum_prod() raises on all Ibis backends' if backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite') else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((AttributeError,) if backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite') else (InvalidOperationError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'narwhals-lazy',
+            reason=('cum_prod() raises on all Ibis backends' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'order-dependent window operations raise on narwhals-lazy'),
+            errors=((AttributeError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").cum_prod().alias("cp")).to_dict()
             assert result["cp"] == [1, 2, 6, 24]
@@ -493,9 +492,9 @@ class TestWindowDiff:
         data = {"a": [10, 20, 35, 50]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'narwhals-lazy',
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'order-dependent window operations raise on narwhals-lazy'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (InvalidOperationError,)),
+            when=backend_name == 'narwhals-lazy',
+            reason=('order-dependent window operations raise on narwhals-lazy'),
+            errors=((InvalidOperationError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").diff().alias("d")).to_dict()
             assert result["d"] == [None, 10, 15, 15]
@@ -505,9 +504,9 @@ class TestWindowDiff:
         data = {"a": [10, 20, 30, 40, 50]}
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') or backend_name == 'ibis-polars',
-            reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else 'window operations raise on ibis-polars'),
-            errors=((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else (OperationNotDefinedError,)),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
+            errors=((NotImplementedError,)),
         ):
             result = ma.relation(df).select(ma.col("a"), ma.col("a").diff(n=2).alias("d")).to_dict()
             assert result["d"] == [None, None, 20, 20, 20]
@@ -526,24 +525,19 @@ class TestWindowRankDescending:
         df = backend_factory.create(data, backend_name)
         expr_asc = ma.col("score").rank(method="min").over("group")
         expr_desc = ma.col("score").rank(method="min", descending=True).over("group")
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='window operations raise on ibis-polars',
-            errors=(OperationNotDefinedError,),
-        ):
-            result_asc = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_asc.alias("rnk"))
-                .sort("group", "score", "id")
-                .to_dict()
-            )
-            result_desc = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_desc.alias("rnk"))
-                .sort("group", "score", "id")
-                .to_dict()
-            )
-            assert result_asc["rnk"] != result_desc["rnk"]
+        result_asc = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_asc.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        result_desc = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr_desc.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result_asc["rnk"] != result_desc["rnk"]
 
 
 @pytest.mark.cross_backend
@@ -556,7 +550,7 @@ class TestWindowRankMethodDense:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="dense").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
             reason="rank(method='dense'|'ordinal') raises off Polars",
             errors=(TypeError,),
         ):
@@ -579,7 +573,7 @@ class TestWindowRankMethodOrdinal:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="ordinal").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
             reason="rank(method='dense'|'ordinal') raises off Polars",
             errors=(TypeError,),
         ):
@@ -602,7 +596,7 @@ class TestWindowRankMethodAverage:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="average").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason="rank(method='average'|'max') raises on Ibis",
             errors=(BackendCapabilityError,),
         ):
@@ -625,7 +619,7 @@ class TestWindowRankMethodMax:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="max").over("group")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason="rank(method='average'|'max') raises on Ibis",
             errors=(BackendCapabilityError,),
         ):
@@ -659,9 +653,9 @@ class TestWindowPercentRank:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").percent_rank().over("group", order_by="score")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (NotImplementedError,)),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
+            errors=((NotImplementedError,)),
         ):
             result = (
                 ma.relation(df)
@@ -683,9 +677,9 @@ class TestWindowCumeDist:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").cume_dist().over("group", order_by="score")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else 'percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else (NotImplementedError,)),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy'),
+            reason=('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals'),
+            errors=((NotImplementedError,)),
         ):
             result = (
                 ma.relation(df)
@@ -710,9 +704,9 @@ class TestWindowNthValue:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").nth_value(2).over("group")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') or backend_name in ('polars', 'polars-lazy'),
-            reason=('window operations raise on ibis-polars' if backend_name == 'ibis-polars' else ('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else 'nth_value().over() raises on eager and lazy Polars')),
-            errors=((OperationNotDefinedError,) if backend_name == 'ibis-polars' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else (ShapeError,))),
+            when=backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') or backend_name in ('polars', 'polars-lazy'),
+            reason=(('percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else 'nth_value().over() raises on eager and lazy Polars')),
+            errors=(((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy') else (ShapeError,))),
         ):
             result = (
                 ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("nth")).sort("group", "score").to_dict()
@@ -733,9 +727,9 @@ class TestWindowOverScalar:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("salary").add(ma.lit(0)).over("dept")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
-            reason=('scalar_expr.over(...) raises off Polars' if backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite') else 'scalar_expr.over(...) raises off Polars'),
-            errors=((IbisTypeError,) if backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite') else (InvalidOperationError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name in ('narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
+            reason=('scalar_expr.over(...) raises off Polars' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'scalar_expr.over(...) raises off Polars'),
+            errors=((IbisTypeError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (InvalidOperationError,)),
         ):
             result = (
                 ma.relation(df)
@@ -760,9 +754,9 @@ class TestWindowMultiPartition:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("salary").rank(method="min").over("dept", "level")
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite') or backend_name == 'ibis-polars',
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL' if backend_name in ('ibis-duckdb', 'ibis-sqlite') else 'window operations raise on ibis-polars'),
-            errors=((AssertionError,) if backend_name in ('ibis-duckdb', 'ibis-sqlite') else (OperationNotDefinedError,)),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
+            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
+            errors=((AssertionError,)),
         ):
             result = (
                 ma.relation(df)

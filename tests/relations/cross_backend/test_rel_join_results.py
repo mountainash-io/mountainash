@@ -22,7 +22,6 @@ from mountainash.core.types import BackendCapabilityError
 #     "pandas",
 #     "narwhals-polars",
 #     "narwhals-pandas",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]
@@ -387,13 +386,8 @@ class TestJoinAsofGatedCells:
         right_data = {"t": [2, 4, 6], "score": [20, 40, 60]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="forward")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        with expect_call_failure(
-            when=backend_name == "ibis-polars",
-            errors=(BackendCapabilityError,),
-            reason="Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
-        ):
-            result = ma.relation(left).join_asof(right, on="t", strategy="forward").to_dicts()
-            assert result == oracle
+        result = ma.relation(left).join_asof(right, on="t", strategy="forward").to_dicts()
+        assert result == oracle
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_strategy(self, backend_name, backend_factory):
@@ -401,13 +395,8 @@ class TestJoinAsofGatedCells:
         right_data = {"t": [2, 4, 6], "score": [20, 40, 60]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        with expect_call_failure(
-            when=backend_name == "ibis-polars",
-            errors=(BackendCapabilityError,),
-            reason="Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
-        ):
-            result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
-            assert result == oracle
+        result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+        assert result == oracle
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_forward_tie(self, backend_name, backend_factory):
@@ -419,13 +408,8 @@ class TestJoinAsofGatedCells:
         right_data = {"t": [4, 6], "score": [40, 60]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        with expect_call_failure(
-            when=backend_name == "ibis-polars",
-            errors=(BackendCapabilityError,),
-            reason="Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
-        ):
-            result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
-            assert result == oracle  # forward-wins -> score 60
+        result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+        assert result == oracle  # forward-wins -> score 60
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_nearest_duplicate_right_keys(self, backend_name, backend_factory):
@@ -438,12 +422,10 @@ class TestJoinAsofGatedCells:
         oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
         with expect_call_failure(
-            when=backend_name in ("narwhals-pandas", "pandas", "ibis-polars"),
-            errors=(AssertionError,) if backend_name != "ibis-polars" else (BackendCapabilityError,),
+            when=backend_name in ("narwhals-pandas", "pandas", ),
+            errors=(AssertionError,),
             reason=(
                 "Relation.join_asof(strategy='nearest') on narwhals-pandas/'pandas' may select a different (but still equally-near) right row than Polars when the right frame has duplicate keys at the winning distance"
-                if backend_name != "ibis-polars"
-                else "Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected"
             ),
         ):
             result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
@@ -460,13 +442,8 @@ class TestJoinAsofGatedCells:
         right_data = {"t": [3, 4], "val": ["R3", "R4"]}
         oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
-        with expect_call_failure(
-            when=backend_name == "ibis-polars",
-            errors=(BackendCapabilityError,),
-            reason="Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected",
-        ):
-            result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
-            assert result == oracle
+        result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
+        assert result == oracle
 
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_temporal_nearest_strategy(self, backend_name, backend_factory):
@@ -478,12 +455,10 @@ class TestJoinAsofGatedCells:
         oracle = self._oracle(left_data, right_data, on="t", strategy="nearest")
         left, right = backend_factory.create_pair(left_data, right_data, backend_name)
         with expect_call_failure(
-            when=backend_name in ("ibis-sqlite", "ibis-polars"),
+            when=backend_name in ("ibis-sqlite",),
             errors=(BackendCapabilityError,),
             reason=(
                 "Relation.join_asof(strategy='nearest') or tolerance=... over a temporal `on` column raises BackendCapabilityError on ibis-sqlite; forward/backward over temporal keys (no distance needed) work fine there"
-                if backend_name == "ibis-sqlite"
-                else "Relation.join_asof(strategy='forward'|'nearest') raises BackendCapabilityError on ibis-polars; backward is native and unaffected"
             ),
         ):
             result = ma.relation(left).join_asof(right, on="t", strategy="nearest").to_dicts()
@@ -492,9 +467,7 @@ class TestJoinAsofGatedCells:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_asof_temporal_tolerance(self, backend_name, backend_factory):
         """Natural/Polars-idiomatic calling convention: `tolerance` is a
-        `datetime.timedelta` for a temporal `on` column. `strategy="backward"`
-        here, so ibis-polars is NOT gated (only forward/nearest are) — the
-        native path computes this with full Polars parity."""
+        `datetime.timedelta` for a temporal `on` column, with backward matching."""
         from datetime import datetime, timedelta
 
         base = datetime(2026, 1, 1)

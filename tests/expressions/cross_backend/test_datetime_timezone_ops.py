@@ -22,7 +22,6 @@ TEMPORAL_BACKENDS = [
     "narwhals-pandas",
     "narwhals-lazy",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 ]
 
@@ -150,7 +149,7 @@ class TestLocalTimestampIbisRefusal:
 
 
 @pytest.mark.cross_backend
-@pytest.mark.parametrize("dialect", ["duckdb", "polars"])
+@pytest.mark.parametrize("dialect", ["duckdb"])
 def test_ibis_conversion_preserves_native_timestamp_scale(dialect):
     """Exercise Ibis timestamp metadata without Python datetime's ns truncation.
 

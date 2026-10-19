@@ -26,7 +26,6 @@ def test_null_and_nan_remain_distinct_after_connection_transfer(source_name, des
     })
     connection = {
         "ibis-duckdb": ibis.duckdb.connect,
-        "ibis-polars": ibis.polars.connect,
         "ibis-sqlite": lambda: ibis.sqlite.connect(":memory:"),
     }[source_name]()
     source = connection.create_table("source", payload)
@@ -74,7 +73,7 @@ def test_typed_empty_arrow_source_keeps_field_types(destination_name):
     assert native.schema()["amount"].is_decimal()
 
 
-@pytest.mark.parametrize("destination_name", ["ibis-duckdb", "ibis-polars"])
+@pytest.mark.parametrize("destination_name", ["ibis-duckdb"])
 def test_arrow_decimal_temporal_and_structured_payload_survives_transfer(destination_name):
     payload = pa.table({
         "id": pa.array([1, 2], type=pa.int64()),

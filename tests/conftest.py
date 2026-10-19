@@ -42,12 +42,11 @@ TEMPORAL_BACKENDS = [
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 ]  # Pandas temporal support varies
 
 # Map backend names to Ibis backend types
-IBIS_BACKEND_TYPES = {"ibis-duckdb": "duckdb", "ibis-polars": "polars", "ibis-sqlite": "sqlite"}
+IBIS_BACKEND_TYPES = {"ibis-duckdb": "duckdb", "ibis-sqlite": "sqlite"}
 
 
 # =============================================================================
@@ -215,14 +214,6 @@ def ibis_duckdb_df(sample_data) -> Any:
 
     conn = ibis.duckdb.connect()
     return conn.create_table("sample", sample_data, overwrite=True)
-
-
-@pytest.fixture
-def ibis_polars_df(sample_data) -> Any:
-    """Create Ibis Table with Polars backend from sample data."""
-    conn = ibis.polars.connect()
-    pl_df = pl.DataFrame(sample_data)
-    return conn.create_table("sample", pl_df, overwrite=True)
 
 
 @pytest.fixture
@@ -524,8 +515,8 @@ def declared_decimal_frame(backend_name):
         if backend_name in {"pandas", "narwhals-pandas"}:
             arrow_frame = frame.to_arrow().to_pandas(types_mapper=pd.ArrowDtype)
             return nw.from_native(arrow_frame) if backend_name == "narwhals-pandas" else arrow_frame
-        if backend_name in {"ibis-duckdb", "ibis-polars"}:
-            connection = getattr(ibis, backend_name.removeprefix("ibis-")).connect()
+        if backend_name == "ibis-duckdb":
+            connection = ibis.duckdb.connect()
             connections.append(connection)
             return connection.create_table("declared_decimal", frame, overwrite=True)
         raise ValueError("SQLite has no native fixed-precision Decimal input")

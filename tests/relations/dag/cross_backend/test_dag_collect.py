@@ -14,7 +14,6 @@ from mountainash.relations.dag.dag import RelationDAG
 #     "pandas",
 #     "narwhals-polars",
 #     "narwhals-pandas",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]

@@ -88,7 +88,6 @@ def test_invalid_split_delimiter_is_not_a_storage_limitation(backend_name, nativ
     "backend_name",
     [
         "ibis-duckdb",
-        "ibis-polars",
         "narwhals-polars",
         "narwhals-pandas",
     ],

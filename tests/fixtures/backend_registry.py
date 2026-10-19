@@ -63,11 +63,6 @@ def _build_narwhals_pandas(data: DataDict, table_name: str):
     return nw.from_native(pd.DataFrame(data), eager_only=True)
 
 
-def _build_ibis_polars(data: DataDict, table_name: str):
-    conn = ibis.polars.connect()
-    return conn.create_table(table_name, pl.DataFrame(data), overwrite=True)
-
-
 def create_ibis_sqlite_table(conn, name: str, data: DataDict, *, overwrite: bool = True):
     """Create an ibis-sqlite table, safe against null date/timestamp values.
 
@@ -101,7 +96,6 @@ REGISTRY: dict[str, BackendSpec] = {
     "narwhals-polars": BackendSpec("narwhals-polars", "narwhals",     "eager",    _build_narwhals_polars),
     "narwhals-pandas": BackendSpec("narwhals-pandas", "narwhals",     "eager",    _build_narwhals_pandas),
     "ibis-duckdb":     BackendSpec("ibis-duckdb",     "ibis",         "deferred", _build_ibis_duckdb),
-    "ibis-polars":     BackendSpec("ibis-polars",     "ibis",         "deferred", _build_ibis_polars),
     "ibis-sqlite":     BackendSpec("ibis-sqlite",     "ibis",         "deferred", _build_ibis_sqlite),
     # Legacy alias: "narwhals" resolves to narwhals-polars for pre-existing
     # tests that hardcode this name in their @parametrize lists.
@@ -157,7 +151,7 @@ def partition_items_by_scope(items, scope: str):
     return kept, deselected
 
 
-# ALL_BACKENDS is the full canonical registry list — ALWAYS all 9 backends.
+# ALL_BACKENDS is the full canonical registry list.
 # It is the parametrize source AND what structural tests assert against. Backend
 # SCOPING (pr vs full) is applied by DESELECTING out-of-scope parametrized cases
 # at collection (see tests/conftest.py::pytest_collection_modifyitems), not by

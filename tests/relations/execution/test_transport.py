@@ -356,7 +356,7 @@ def test_scope_handoff_and_failure_cleanup_are_isolated():
     assert "Owned-resource cleanup also failed: ValueError" in caught.value.__notes__
 
 
-@pytest.mark.parametrize("source_name", ["ibis-duckdb", "ibis-polars"])
+@pytest.mark.parametrize("source_name", ["ibis-duckdb"])
 @pytest.mark.parametrize("year", ["2024", "invalid"])
 def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
     source_name,

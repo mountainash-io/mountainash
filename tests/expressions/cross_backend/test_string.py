@@ -5,7 +5,7 @@ Tests all string operations: upper, lower, trim, length, contains,
 starts_with, ends_with, replace, substring.
 
 These tests validate that string operations work consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest
@@ -14,7 +14,6 @@ import mountainash as ma_top
 from fixtures.backend_registry import ALL_BACKENDS
 from fixtures.call_expectations import expect_call_failure
 from mountainash.core.types import BackendCapabilityError
-from polars.exceptions import ComputeError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_SUBSTRAIT_SCALAR_STRING as FK_STR,
 )
@@ -241,18 +240,14 @@ class TestStringStartsEndsWith:
 # =============================================================================
 # Cross-Backend Tests - CASE_INSENSITIVE_ASCII
 # =============================================================================
-#
-# Ibis Polars does not compile the ASCII-folding implementation. Its direct
-# refusal is asserted below; the remaining backends verify the result.
-_ASCII_FOLD_HONORING_BACKENDS = [b for b in ALL_BACKENDS if b != "ibis-polars"]
+_ASCII_FOLD_HONORING_BACKENDS = ALL_BACKENDS
 
 # SQLite's native LOWER()/UPPER() are ASCII-only without ICU, so the Unicode
 # folding result is verified on the other supported backends. The Ibis SQLite
 # refusal is asserted directly below.
 _UNICODE_FOLD_KELVIN_HONORING_BACKENDS = [b for b in _ASCII_FOLD_HONORING_BACKENDS if b != "ibis-sqlite"]
 
-# Dynamic search operands are exercised only where the backend implements
-# them. Ibis Polars' ASCII-fold refusal remains explicit and separate.
+# Dynamic search operands are exercised only where the backend implements them.
 _DYNAMIC_OPERAND_HONORING = {
     "contains": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite", "narwhals-polars"],
     "starts_with": ["polars", "polars-lazy", "ibis-duckdb", "ibis-sqlite"],
@@ -350,8 +345,7 @@ def test_contains_ascii_null_input(backend_name, backend_factory, collect_expr):
 def test_case_insensitive_ascii_kelvin_sign_does_not_fold(backend_name, backend_factory, collect_expr):
     """Discriminator (the actual point of this feature): the Kelvin Sign
     (U+212A) folds to 'k' under full Unicode case-fold but must NOT fold
-    under CASE_INSENSITIVE_ASCII. Real cell on every backend except
-    ibis-polars (excluded from the parametrize list above)."""
+    under CASE_INSENSITIVE_ASCII on every tested backend."""
     df = backend_factory.create(_KELVIN_DATA, backend_name)
     expr = ma.col("text").str.contains("kelvin", case_sensitive="CASE_INSENSITIVE_ASCII")
     assert collect_expr(df, expr) == [False], f"[{backend_name}]"
@@ -393,19 +387,6 @@ def test_case_insensitive_ascii_dynamic_search_operand(method, backend_name, bac
 class TestCaseInsensitiveIbisRefusals:
     """Only the unsupported case-folding modes refuse; supported neighbors
     remain covered by the ordinary result tests above."""
-
-    @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
-    def test_ascii_fold_refusal_on_ibis_polars(self, method, backend_factory):
-        df = backend_factory.create({"text": ["hello"]}, "ibis-polars")
-        operation = getattr(FK_STR, method.upper())
-
-        with pytest.raises(BackendCapabilityError) as error:
-            getattr(ma.col("text").str, method)(
-                "hello", case_sensitive="CASE_INSENSITIVE_ASCII"
-            ).compile(df)
-
-        assert error.value.function_key is operation
-        assert error.value.limitation is None
 
     @pytest.mark.parametrize("method", ["contains", "starts_with", "ends_with"])
     def test_unicode_fold_refusal_on_ibis_sqlite(self, method, backend_factory):
@@ -535,13 +516,9 @@ class TestCountSubstring:
 # expression-system code, item 80 precedent) gates it LITERAL_ONLY --
 # narwhals' str.replace_all() pattern argument does not accept an
 # expression on ANY dialect (verified empirically), the same root cause as
-# sibling replace.substring (NW-STR-03), reused here. ibis-polars is
-# excluded too: a dynamic substring crashes with a raw, unenriched
-# polars.exceptions.ComputeError -- a pre-existing gap shared with
-# replace() (disclosed, not fixed here -- see backlog item
-# ibis-polars-dynamic-pattern-raw-error.md).
+# sibling replace.substring (NW-STR-03), reused here.
 _COUNT_SUBSTRING_DYNAMIC_HONORING = [
-    b for b in ALL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", "ibis-polars")
+    b for b in ALL_BACKENDS if b not in ("narwhals-polars", "narwhals-pandas", "narwhals-lazy", "pandas", )
 ]
 
 
@@ -606,8 +583,7 @@ class TestStringReplace:
         assert actual == expected, f"[{backend_name}] Expected {expected}, got {actual}"
 
 
-# Dynamic column-valued replacement is exercised on the Ibis dialects that
-# implement it. Ibis Polars' direct refusal is covered separately.
+# Dynamic column-valued replacement is exercised on the Ibis SQL dialects.
 _REPLACE_DYNAMIC_HONORING = ["ibis-duckdb", "ibis-sqlite"]
 
 
@@ -622,116 +598,6 @@ def test_str_replace_dynamic_operand(backend_name, backend_factory, collect_expr
     expr = ma.col("text").str.replace(ma.col("pattern"), "X")
     assert collect_expr(df, expr) == ["X world", "X bar", "X foo"], f"[{backend_name}]"
 
-
-class TestDynamicPatternIbisPolarsRefusals:
-    """Ibis Polars accepts literal patterns but intrinsically refuses a
-    column-valued pattern for these operations."""
-
-    @pytest.mark.parametrize(
-        ("operation", "build"),
-        [
-            (FK_STR.REPLACE, lambda: ma.col("text").str.replace(ma.col("pattern"), "X")),
-            (FK_STR.COUNT_SUBSTRING, lambda: ma.col("text").str.count_substring(ma.col("pattern"))),
-            (FK_STR.REGEXP_REPLACE, lambda: ma.col("text").str.regexp_replace(ma.col("pattern"), "X")),
-        ],
-        ids=["replace", "count_substring", "regexp_replace"],
-    )
-    def test_dynamic_pattern_refusal_identifies_the_operation(self, operation, build, backend_factory):
-        df = backend_factory.create({"text": ["hello world"], "pattern": ["hello"]}, "ibis-polars")
-
-        with pytest.raises(BackendCapabilityError) as error:
-            build().compile(df)
-
-        assert error.value.function_key is operation
-        assert error.value.limitation is None
-
-
-
-
-# ibis-polars raw native-error leaks on regexp_match_substring/string_split
-# (backlog item 83). Literal path is genuinely unaffected on ibis-polars
-# (no existing coverage found there prior to this item — confirmed via
-# grep, not assumed) — new regression tests below prove it, not merely
-# assume it stays untouched.
-def test_regexp_match_substring_literal_pattern_on_ibis_polars(backend_factory, collect_expr):
-    df = backend_factory.create({"text": ["abc 123", "no digits", "7 ate 9"]}, "ibis-polars")
-    expr = ma.col("text").str.regexp_match_substring(r"\d+")
-    assert collect_expr(df, expr) == ["123", None, "7"]
-
-
-def test_string_split_literal_separator_on_ibis_polars(backend_factory, collect_expr):
-    df = backend_factory.create({"text": ["a,b,c", "d,e", "f"]}, "ibis-polars")
-    expr = ma.col("text").str.string_split(",")
-    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
-
-
-class TestRegexpMatchSplitIbisPolarsRefusals:
-    """The supported literal cases above are distinct from these intrinsic
-    dynamic-operand refusals."""
-
-    @pytest.mark.parametrize(
-        ("operation", "build"),
-        [
-            (FK_STR.REGEXP_MATCH, lambda: ma.col("text").str.regexp_match_substring(ma.col("pattern"))),
-            (FK_STR.SPLIT, lambda: ma.col("text").str.string_split(ma.col("sep"))),
-        ],
-        ids=["regexp_match_substring", "string_split"],
-    )
-    def test_dynamic_operand_refusal_identifies_the_operation(self, operation, build, backend_factory):
-        df = backend_factory.create(
-            {"text": ["hello world"], "pattern": ["hello"], "sep": [" "]},
-            "ibis-polars",
-        )
-
-        with pytest.raises(BackendCapabilityError) as error:
-            build().compile(df)
-
-        assert error.value.function_key is operation
-        assert error.value.limitation is None
-
-    def test_string_split_null_separator_still_raises_on_ibis_polars(self, backend_factory, collect_expr):
-        """A null literal separator reaches the native Polars schema error."""
-        import polars as pl
-
-        df = backend_factory.create({"text": ["a,b,c"]}, "ibis-polars")
-        with pytest.raises(pl.exceptions.SchemaError):
-            collect_expr(df, ma.col("text").str.string_split(ma.lit(None)))
-
-
-class TestNullPatternNativeGap:
-    """Ibis Polars exposes Polars' concrete failure for null replacement
-    patterns."""
-
-    @pytest.mark.parametrize(
-        "build",
-        [
-            lambda: ma.col("text").str.replace(ma.lit(None), "X"),
-            lambda: ma.col("text").str.regexp_replace(ma.lit(None), "X"),
-        ],
-        ids=["replace", "regexp_replace"],
-    )
-    def test_null_literal_pattern_raises_native_compute_error(self, build, backend_factory, collect_expr):
-        df = backend_factory.create({"text": ["hello world"]}, "ibis-polars")
-        with expect_call_failure(
-            reason="Polars rejects a null replacement pattern.",
-            errors=(ComputeError,),
-        ):
-            collect_expr(df, build())
-
-
-def test_regexp_strpos_and_count_substring_identify_intrinsic_refusals(backend_factory):
-    df = backend_factory.create({"text": ["hello"], "pattern": ["ell"]}, "ibis-polars")
-    cases = (
-        (FK_STR.REGEXP_STRPOS, lambda: ma.col("text").str.regexp_strpos("ell")),
-        (FK_STR.REGEXP_STRPOS, lambda: ma.col("text").str.regexp_strpos(ma.col("pattern"))),
-        (FK_STR.REGEXP_COUNT, lambda: ma.col("text").str.regexp_count_substring("ell")),
-        (FK_STR.REGEXP_COUNT, lambda: ma.col("text").str.regexp_count_substring(ma.col("pattern"))),
-    )
-    for operation, build in cases:
-        with pytest.raises(BackendCapabilityError) as error:
-            build().compile(df)
-        assert error.value.function_key is operation
-        assert error.value.limitation is None
 
 
 # =============================================================================
@@ -787,14 +653,6 @@ def test_regexp_string_split_real_output_on_ibis_duckdb(backend_factory, collect
     assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
 
 
-def test_regexp_string_split_literal_pattern_on_ibis_polars(backend_factory, collect_expr):
-    """Ibis-Polars supports this literal pattern; dynamic input is tested
-    as an explicit refusal below."""
-    df = backend_factory.create({"text": ["a1b22c", "d333e", "f"]}, "ibis-polars")
-    expr = ma.col("text").str.regexp_string_split(r"\d+")
-    assert collect_expr(df, expr) == [["a", "b", "c"], ["d", "e"], ["f"]]
-
-
 def test_string_split_real_output_on_narwhals_polars(backend_factory, collect_expr):
     """narwhals's plain (non-regex) string_split has a working native
     primitive for a literal separator. Narwhals-pandas requires
@@ -814,15 +672,6 @@ class TestRegexpStringSplitRefusals:
 
         with pytest.raises(BackendCapabilityError) as error:
             ma.col("text").str.regexp_string_split(pattern).compile(df)
-
-        assert error.value.function_key is FK_STR.REGEXP_SPLIT
-        assert error.value.limitation is None
-
-    def test_ibis_polars_dynamic_pattern_refusal_identifies_regex_split(self, backend_factory):
-        df = backend_factory.create({"text": ["a1b"], "pattern": [r"\d+"]}, "ibis-polars")
-
-        with pytest.raises(BackendCapabilityError) as error:
-            ma.col("text").str.regexp_string_split(ma.col("pattern")).compile(df)
 
         assert error.value.function_key is FK_STR.REGEXP_SPLIT
         assert error.value.limitation is None
@@ -1223,7 +1072,7 @@ class TestConcatMultiOperand:
         A second, fully-populated row anchors ``c``'s dtype as string —
         an all-null column cannot be represented as a table at all on
         ibis-duckdb (rejects NULL-typed columns at creation) and infers
-        an untyped ``null`` column on ibis-polars/sqlite that concat_ws
+        an untyped ``null`` column on ibis-sqlite that concat_ws
         cannot accept as a string operand; this is a test-fixture
         table-construction limitation, unrelated to the fold under test."""
         data = {"a": ["p", "x"], "b": ["q", "y"], "c": [None, "z"]}

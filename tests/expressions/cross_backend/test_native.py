@@ -170,24 +170,6 @@ class TestNarwhalsNativeExpressions:
 class TestIbisNativeExpressions:
     """Test native Ibis expressions wrapped in the abstract API."""
 
-    def test_native_ibis_polars_passthrough(self, backend_factory, get_result_count):
-        """Native Ibis expression should pass through unchanged (Polars backend)."""
-        data = {"a": [1, 5, 10, 15, 20], "b": ["x", "y", "z", "w", "v"]}
-        df = backend_factory.create(data, "ibis-polars")
-
-        # Create native Ibis expression using the table's column
-        native_expr = df.a > 5
-
-        # Wrap in abstract API
-        ma_expr = ma.native(native_expr)
-
-        # Compile and filter
-        compiled = ma_expr.compile(df)
-        result = df.filter(compiled)
-
-        count = get_result_count(result, "ibis-polars")
-        assert count == 3, f"Expected 3 rows where a > 5, got {count}"
-
     def test_native_ibis_duckdb_passthrough(self, backend_factory, get_result_count):
         """Native Ibis expression should pass through unchanged (DuckDB backend)."""
         data = {"a": [1, 5, 10, 15, 20], "b": ["x", "y", "z", "w", "v"]}
@@ -209,7 +191,7 @@ class TestIbisNativeExpressions:
     def test_native_ibis_with_abstract_and(self, backend_factory, get_result_count):
         """Native Ibis expression combined with abstract via AND."""
         data = {"a": [1, 5, 10, 15, 20], "b": [10, 20, 30, 40, 50]}
-        df = backend_factory.create(data, "ibis-polars")
+        df = backend_factory.create(data, "ibis-duckdb")
 
         # Native: a > 5
         # Abstract: b < 45
@@ -220,7 +202,7 @@ class TestIbisNativeExpressions:
         compiled = combined.compile(df)
         result = df.filter(compiled)
 
-        count = get_result_count(result, "ibis-polars")
+        count = get_result_count(result, "ibis-duckdb")
         assert count == 2, f"Expected 2 rows, got {count}"
 
 
@@ -284,7 +266,7 @@ class TestAutomaticNativeRecognition:
     def test_ibis_native_auto_recognized(self, backend_factory, get_result_count):
         """Ibis native expression auto-recognized in operand."""
         data = {"a": [1, 5, 10, 15, 20]}
-        df = backend_factory.create(data, "ibis-polars")
+        df = backend_factory.create(data, "ibis-duckdb")
 
         # Pass native Ibis expression directly WITHOUT ma.native()
         # Note: Ibis columns are accessed via table.column
@@ -293,7 +275,7 @@ class TestAutomaticNativeRecognition:
         compiled = expr.compile(df)
         result = df.filter(compiled)
 
-        count = get_result_count(result, "ibis-polars")
+        count = get_result_count(result, "ibis-duckdb")
         assert count == 2, f"Expected 2 rows, got {count}"
 
     def test_multiple_native_operands_auto_recognized(self, backend_factory, get_result_count):
@@ -406,7 +388,7 @@ class TestNativeExpressionEdgeCases:
     def test_backend_mismatch_polars_native_with_ibis_fails(self, backend_factory):
         """Polars native expression with Ibis DataFrame should fail."""
         data = {"a": [1, 5, 10, 15, 20]}
-        df_ibis = backend_factory.create(data, "ibis-polars")
+        df_ibis = backend_factory.create(data, "ibis-duckdb")
 
         # Create a Polars native expression
         polars_native = pl.col("a") > 5
@@ -422,7 +404,7 @@ class TestNativeExpressionEdgeCases:
         """Ibis native expression with Polars DataFrame should fail."""
         data = {"a": [1, 5, 10, 15, 20]}
         df_polars = backend_factory.create(data, "polars")
-        df_ibis = backend_factory.create(data, "ibis-polars")
+        df_ibis = backend_factory.create(data, "ibis-duckdb")
 
         # Create an Ibis native expression (requires the table reference)
         ibis_native = df_ibis.a > 5
@@ -437,7 +419,7 @@ class TestNativeExpressionEdgeCases:
     def test_backend_mismatch_narwhals_native_with_ibis_fails(self, backend_factory):
         """Narwhals native expression with Ibis DataFrame should fail."""
         data = {"a": [1, 5, 10, 15, 20]}
-        df_ibis = backend_factory.create(data, "ibis-polars")
+        df_ibis = backend_factory.create(data, "ibis-duckdb")
 
         # Create a Narwhals native expression
         narwhals_native = nw.col("a") > 5

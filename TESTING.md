@@ -141,6 +141,18 @@ hatch run test:test-target tests/ternary/test_ternary_logic_operations.py
 
 Test expression compatibility across different DataFrame backends:
 
+The full shared pytest matrix is defined in `tests/fixtures/backend_registry.py`:
+`polars`, `polars-lazy`, `pandas`, `narwhals-polars`, `narwhals-pandas`,
+`narwhals-lazy`, `ibis-duckdb`, and `ibis-sqlite`. PR scope selects
+`polars`, `narwhals-polars`, and `ibis-duckdb`.
+
+Ibis-Polars is not a pytest execution target, including under
+`MA_BACKEND_SCOPE=full`. Use direct Polars for Polars execution and an Ibis SQL
+backend for Ibis coverage; do not add Ibis-Polars fixtures, direct connections,
+or explicit parametrizations. This testing-policy decision (backlog 361) does
+not remove production runtime support or repair the upstream compiler.
+Non-executing dialect metadata tests and historical evidence remain valid.
+
 ```bash
 # Test Polars backend integration
 hatch run test:test-target tests/visitors/test_polars_visitors.py
