@@ -27,16 +27,12 @@ class BaseDataContract:
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         members: dict[str, Any] = {}
-        for base in reversed(cls.__mro__[1:]):
-            members.update({
-                name: value for name, value in vars(base).items()
-                if isinstance(value, FieldSpec)
-            })
-        for name, value in vars(cls).items():
-            if isinstance(value, FieldSpec):
-                members[name] = value
-            elif name in members and not name.startswith("__"):
-                members.pop(name)
+        for owner in reversed(cls.__mro__):
+            for name, value in vars(owner).items():
+                if isinstance(value, FieldSpec):
+                    members[name] = value
+                elif name in members and not name.startswith("__"):
+                    members.pop(name)
         cls._contract_fields = members
 
     @classmethod

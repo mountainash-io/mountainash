@@ -45,30 +45,34 @@ def test_direct_member_compilation_preserves_severity_and_strict_bounds():
     assert result.passes
 
 
-def test_constraints_reverse_conversion_retains_extended_vocabulary():
+def test_generated_contract_enforces_extended_vocabulary_at_definition_severity():
     from mountainash.datacontracts.compiler import contract_from_typespec
     from mountainash.typespec import TypeSpec, UniversalType
 
     definition = FieldSpec(
         type=UniversalType.STRING,
-        eq="x",
-        ne="z",
-        notin=["bad"],
+        ne="bzc",
+        notin=["xac"],
         str_contains="a",
         str_startswith="b",
         str_endswith="c",
         severity="warning",
     )
-    generated = contract_from_typespec(
-        TypeSpec(fields={"value": definition}), name="Generated"
-    )
-    assert generated._contract_fields["value"] is definition
-    checks = generated.to_checks()
-    assert {check.id for check in checks if check.id.startswith("value__")} == {
-        "value__eq", "value__ne", "value__notin", "value__str_contains",
-        "value__str_startswith", "value__str_endswith",
+    generated = contract_from_typespec(TypeSpec(fields={"value": definition}), name="Generated")
+    result = generated.validate_datacontract(pl.DataFrame({"value": ["bac", "bzc", "xac", None]}))
+    rows = {row["check_id"]: row for row in result.check_summaries.iter_rows(named=True)}
+    outcomes = {
+        check_id: (rows[check_id]["severity"], rows[check_id]["fail_count"])
+        for check_id in ("value__ne", "value__str_contains", "value__str_startswith", "value__str_endswith")
     }
-    assert all(check.severity == "warning" for check in checks)
+    assert outcomes == {
+        "value__ne": ("warning", 1),
+        "value__str_contains": ("warning", 1),
+        "value__str_startswith": ("warning", 1),
+        "value__str_endswith": ("warning", 0),
+    }
+    assert (rows["value__notin"]["severity"], rows["value__notin"]["fail_count"]) == ("warning", 1)
+    assert result.passes
 
 
 def _summary(result, check_id):

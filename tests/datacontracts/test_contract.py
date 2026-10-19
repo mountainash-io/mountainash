@@ -60,3 +60,19 @@ class TestBaseDataContract:
         assert list(Child.to_typespec().fields) == ["first", "second", "third"]
         assert Child.to_typespec().get_field("first") is Child.first
         assert Child.to_typespec().get_field("first").description == "replacement"
+
+    def test_masked_member_stays_masked_in_further_subclasses(self):
+        class Parent(BaseDataContract):
+            x = FieldSpec(type=UniversalType.INTEGER, minimum=10)
+            y = FieldSpec(type=UniversalType.STRING)
+
+        class Masking(Parent):
+            x = None
+
+        class Grandchild(Masking):
+            z = FieldSpec(type=UniversalType.INTEGER)
+
+        assert Masking.to_typespec().field_names == ["y"]
+        assert Grandchild.to_typespec().field_names == ["y", "z"]
+        result = Grandchild.validate_datacontract(pl.DataFrame({"y": ["a"], "z": [1]}))
+        assert result.passes
