@@ -11,7 +11,7 @@ Tests conditional expressions:
 - Conditionals with string operations
 
 These tests validate that conditional operations work consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest
@@ -32,7 +32,6 @@ from fixtures.call_expectations import expect_call_failure
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -80,7 +79,6 @@ class TestBasicConditionals:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -121,7 +119,6 @@ class TestNestedConditionals:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -158,7 +155,6 @@ class TestCoalesce:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -191,7 +187,6 @@ class TestFillNull:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -236,7 +231,6 @@ class TestConditionalsWithBooleanLogic:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -269,7 +263,6 @@ class TestConditionalsWithArithmetic:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -308,7 +301,6 @@ class TestConditionalsWithStringOperations:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -348,7 +340,6 @@ class TestConditionalEdgeCases:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],

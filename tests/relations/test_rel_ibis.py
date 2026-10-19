@@ -1,7 +1,7 @@
 """Ibis integration tests for the Relation API.
 
 Exercises the full pipeline: relation(ibis_table) -> operations -> result.
-Uses ibis.polars.connect() as the in-memory backend.
+Uses ibis.duckdb.connect() as the in-memory backend.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ import mountainash.expressions.backends.expression_systems.ibis  # noqa: F401
 
 @pytest.fixture
 def ibis_con():
-    """Shared Ibis Polars connection for all tests in a function."""
-    return ibis.polars.connect()
+    """Shared Ibis DuckDB connection for all tests in a function."""
+    return ibis.duckdb.connect()
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def join_data() -> pl.DataFrame:
 
 @pytest.fixture
 def ibis_table(ibis_con, sample_data: pl.DataFrame):
-    """Create an Ibis table using the Polars backend (in-memory)."""
+    """Create an Ibis table using the DuckDB backend (in-memory)."""
     return ibis_con.create_table("test_data", sample_data)
 
 

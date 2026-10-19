@@ -38,7 +38,7 @@ class BackendResultHelper:
 
         Args:
             df: DataFrame from any backend
-            backend_name: Backend identifier ("polars", "pandas", "narwhals", "ibis-duckdb", "ibis-polars", "ibis-sqlite")
+            backend_name: Backend identifier ("polars", "pandas", "narwhals", "ibis-duckdb", "ibis-sqlite")
 
         Returns:
             Number of rows in DataFrame
@@ -300,10 +300,6 @@ class BackendDataFrameFactory:
         elif backend_name == "ibis-duckdb":
             conn = ibis.duckdb.connect()
             return conn.create_table("test_table", data, overwrite=True)
-        elif backend_name == "ibis-polars":
-            conn = ibis.polars.connect()
-            pl_df = pl.DataFrame(data)
-            return conn.create_table("test_table", pl_df, overwrite=True)
         elif backend_name == "ibis-sqlite":
             conn = ibis.sqlite.connect(":memory:")
             return create_ibis_sqlite_table(conn, "test_table", data)
@@ -339,11 +335,6 @@ class BackendDataFrameFactory:
             conn = ibis.duckdb.connect()
             left = conn.create_table(left_name, left_data, overwrite=True)
             right = conn.create_table(right_name, right_data, overwrite=True)
-            return left, right
-        elif backend_name == "ibis-polars":
-            conn = ibis.polars.connect()
-            left = conn.create_table(left_name, pl.DataFrame(left_data), overwrite=True)
-            right = conn.create_table(right_name, pl.DataFrame(right_data), overwrite=True)
             return left, right
         elif backend_name == "ibis-sqlite":
             conn = ibis.sqlite.connect(":memory:")

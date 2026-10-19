@@ -34,9 +34,6 @@ def test_entire_unknown_target_preserves_cast_and_infers_literal(backend_name, b
     assert result["n"].to_list() == [4, 4, 4]
 
 
-class NativeFixedArrayExportCrash(RuntimeError):
-    """An isolated native Arrow export received SIGSEGV."""
-
 
 def _construction_expectation(request, backend, dtype, *, nullable=False, conditional=False, extension_decimal=False):
     from contextlib import nullcontext
@@ -109,29 +106,6 @@ def test_parameterized_literal_family(backend_name, backend_factory, dtype, valu
         request.applymarker(pytest.mark.xfail(strict=True, raises=ValueError,
             reason="348: Narwhals constructs a one-element nested literal against an empty pandas index"))
 
-    if isinstance(dtype, ArrayDtype) and backend_name == "ibis-polars" and (null or rows == 0):
-        # Isolate a demonstrated native Arrow export segfault from the test runner.
-        import subprocess
-        import sys
-        if null and rows:
-            request.applymarker(pytest.mark.xfail(strict=True, raises=NativeFixedArrayExportCrash,
-                reason="344: PyArrow crashes converting the Ibis-Polars null LargeListArray to a fixed-size list"))
-
-        script = f"""
-import ibis
-import polars as pl
-import mountainash as ma
-from mountainash.core.dtypes import ArrayDtype, MountainashDtype
-source = ibis.polars.connect().create_table("input", pl.DataFrame({{"id": [1, 2]}}))
-out = ma.relation(source).head({rows}).select(ma.col("id"), ma.lit({None if null else [1, -3]!r}, dtype=ArrayDtype(MountainashDtype.I16, (2,))).alias("value")).to_polars()
-assert out.schema["value"] == pl.Array(pl.Int16, 2)
-assert out["value"].to_list() == {[None if null else [1, -3]] * rows!r}
-"""
-        child = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
-        if child.returncode == -11:
-            raise NativeFixedArrayExportCrash("typed-null fixed-array export received SIGSEGV")
-        assert child.returncode == 0, f"isolated native export exited {child.returncode}: {child.stderr}"
-        return
     source = backend_factory.create({"id": [1, 2]}, backend_name)
     value = None if null else value
     with _construction_expectation(request, backend_name, dtype, nullable=null):

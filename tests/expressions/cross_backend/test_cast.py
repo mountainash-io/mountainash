@@ -1,7 +1,7 @@
 """Cross-backend tests for cast operation behavior.
 
 Validates that type casting produces correct values consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 
 Uses canonical mountainash type strings ("i64", "string", "fp64", etc.)
 instead of backend-specific types.

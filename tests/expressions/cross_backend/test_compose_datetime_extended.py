@@ -10,9 +10,7 @@ from fixtures.call_expectations import expect_call_failure
 
 # week_of_year: pandas + all narwhals lack ISO week (NW-DT-06, bare BCE).
 
-# calendar-interval add (add_years/add_months): ibis-polars TypeError (IB-DT-10).
-
-# time-unit differences (diff_days): ibis-polars/ibis-sqlite no TimestampDelta (IB-DT-11).
+# time-unit differences (diff_days): ibis-sqlite no TimestampDelta (IB-DT-11).
 
 
 @pytest.mark.cross_backend
@@ -104,13 +102,8 @@ class TestComposeDatetimeArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_years(1).dt.year()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='calendar interval arithmetic raises TypeError on ibis-polars',
-            errors=(TypeError,),
-        ):
-            actual = collect_expr(df, expr)
-            assert actual == [2025, 2025], f"[{backend_name}] got {actual}"
+        actual = collect_expr(df, expr)
+        assert actual == [2025, 2025], f"[{backend_name}] got {actual}"
 
     def test_add_months(self, backend_name, backend_factory, collect_expr):
         """Test add_months."""
@@ -118,13 +111,8 @@ class TestComposeDatetimeArithmetic:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("ts").dt.add_months(3).dt.month()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='calendar interval arithmetic raises TypeError on ibis-polars',
-            errors=(TypeError,),
-        ):
-            actual = collect_expr(df, expr)
-            assert actual == [4, 1], f"[{backend_name}] got {actual}"
+        actual = collect_expr(df, expr)
+        assert actual == [4, 1], f"[{backend_name}] got {actual}"
 
 
 @pytest.mark.cross_backend
@@ -156,8 +144,8 @@ class TestComposeDatetimeDiff:
 
         expr = ma.col("end").dt.diff_days(ma.col("start"))
         with expect_call_failure(
-            when=backend_name in ('ibis-polars', 'ibis-sqlite'),
-            reason='time-unit differences raise on ibis-polars and ibis-sqlite',
+            when=backend_name in ('ibis-sqlite',),
+            reason='time-unit differences raise on ibis-sqlite',
             errors=(OperationNotDefinedError,),
         ):
             actual = collect_expr(df, expr)

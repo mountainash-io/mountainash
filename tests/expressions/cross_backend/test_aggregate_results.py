@@ -49,14 +49,14 @@ def _collect_agg(df, expr, alias="__value__"):
 
 
 # all-null aggregate: ibis-duckdb rejects the untyped all-null table (IB-REL-06),
-# ibis-polars/ibis-sqlite raise AttributeError on the inferred NullColumn (IB-AGG-06).
+# ibis-sqlite raise AttributeError on the inferred NullColumn (IB-AGG-06).
 
 # min/max/count all-null: only ibis-duckdb rejects the table (IB-REL-06).
 
 # mode() / any_value(): order-dependent, rejected on a narwhals LazyFrame (NW-AGG-03).
 
 # any_value()/n_unique() all-null: narwhals-lazy (NW-AGG-03) + ibis-duckdb
-# (IB-REL-06); ibis-polars/ibis-sqlite compute None over an all-null column.
+# (IB-REL-06); ibis-sqlite compute None over an all-null column.
 
 
 @pytest.mark.cross_backend
@@ -87,8 +87,8 @@ class TestAggregateSum:
         else:
             df = backend_factory.create(data, backend_name)
             with expect_call_failure(
-                when=backend_name in ("ibis-polars", "ibis-sqlite"),
-                reason="all-null sum raises on ibis-polars/ibis-sqlite",
+                when=backend_name in ("ibis-sqlite",),
+                reason="all-null sum raises on ibis-sqlite",
                 errors=(AttributeError,),
             ):
                 actual = _collect_agg(df, ma.col("a").sum())
@@ -130,8 +130,8 @@ class TestAggregateMean:
         else:
             df = backend_factory.create(data, backend_name)
             with expect_call_failure(
-                when=backend_name in ("ibis-polars", "ibis-sqlite"),
-                reason="all-null mean raises on ibis-polars/ibis-sqlite",
+                when=backend_name in ("ibis-sqlite",),
+                reason="all-null mean raises on ibis-sqlite",
                 errors=(AttributeError,),
             ):
                 actual = _collect_agg(df, ma.col("a").mean())
@@ -297,8 +297,8 @@ class TestAggregateStdDev:
         else:
             df = backend_factory.create(data, backend_name)
             with expect_call_failure(
-                when=backend_name in ("ibis-polars", "ibis-sqlite"),
-                reason="all-null std_dev raises on ibis-polars/ibis-sqlite",
+                when=backend_name in ("ibis-sqlite",),
+                reason="all-null std_dev raises on ibis-sqlite",
                 errors=(AttributeError,),
             ):
                 actual = _collect_agg(df, ma.col("a").std_dev())
@@ -334,8 +334,8 @@ class TestAggregateVariance:
         else:
             df = backend_factory.create(data, backend_name)
             with expect_call_failure(
-                when=backend_name in ("ibis-polars", "ibis-sqlite"),
-                reason="all-null variance raises on ibis-polars/ibis-sqlite",
+                when=backend_name in ("ibis-sqlite",),
+                reason="all-null variance raises on ibis-sqlite",
                 errors=(AttributeError,),
             ):
                 actual = _collect_agg(df, ma.col("a").variance())

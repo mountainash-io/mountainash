@@ -9,7 +9,7 @@ Tests time arithmetic, intervals, and truncation operations:
 - Chaining temporal operations
 
 These tests validate that temporal arithmetic works consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest
@@ -113,8 +113,8 @@ class TestTimeDifferences:
         # Calculate difference in hours
         expr = ma.col("end").dt.diff_hours(ma.col("start"))
         with expect_call_failure(
-            when=backend_name in ('ibis-polars', 'ibis-sqlite'),
-            reason='time-unit differences raise on ibis-polars and ibis-sqlite',
+            when=backend_name in ('ibis-sqlite',),
+            reason='time-unit differences raise on ibis-sqlite',
             errors=(OperationNotDefinedError,),
         ):
             actual = collect_expr(df, expr, alias="diff")
@@ -141,8 +141,8 @@ class TestTimeDifferences:
         # Calculate difference in minutes
         expr = ma.col("end").dt.diff_minutes(ma.col("start"))
         with expect_call_failure(
-            when=backend_name in ('ibis-polars', 'ibis-sqlite'),
-            reason='time-unit differences raise on ibis-polars and ibis-sqlite',
+            when=backend_name in ('ibis-sqlite',),
+            reason='time-unit differences raise on ibis-sqlite',
             errors=(OperationNotDefinedError,),
         ):
             actual = collect_expr(df, expr, alias="diff")
@@ -248,9 +248,9 @@ class TestFlexibleOffsetBy:
         # Subtract 3 months
         expr = ma.col("timestamp").dt.offset_by("-3mo")
         with expect_call_failure(
-            when=backend_name == 'ibis-polars' or backend_name == 'ibis-sqlite',
-            reason=('calendar interval arithmetic raises TypeError on ibis-polars' if backend_name == 'ibis-polars' else 'sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges'),
-            errors=((TypeError,) if backend_name == 'ibis-polars' else (AssertionError,)),
+            when=backend_name == 'ibis-sqlite',
+            reason=('sub-day temporal arithmetic/comparison on ibis-sqlite silently diverges'),
+            errors=((AssertionError,)),
         ):
             actual = collect_expr(df, expr)
 

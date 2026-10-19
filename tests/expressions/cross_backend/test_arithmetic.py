@@ -9,7 +9,7 @@ Tests basic arithmetic operations:
 - Edge cases (division by zero, negative numbers)
 
 These tests validate that arithmetic works consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 from decimal import Decimal as D
@@ -492,7 +492,7 @@ def test_declared_decimal_binary(
     unsupported = (
         not working
         and operation == "power"
-        and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"}
+        and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", }
     )
     with expect_call_failure(
         when=unsupported,
@@ -586,9 +586,7 @@ def test_decimal_multiplication_fractional_witnesses(
         return
     import pyarrow as pa
     with expect_call_failure(
-        when=not working and (
-            backend_name == "ibis-duckdb" or (backend_name == "ibis-polars" and declaration == (6, 2))
-        ),
+        when=not working and backend_name == "ibis-duckdb",
         reason="Ibis 12 Decimal product extraction narrows native scale/precision (288)",
         errors=(pa.ArrowInvalid,),
     ):
@@ -597,7 +595,7 @@ def test_decimal_multiplication_fractional_witnesses(
         assert out.schema["r"] == pl.Decimal(16, 6)
     with expect_call_failure(
         when=not working and backend_name in {
-            "polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"
+            "polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", 
         },
         reason="Polars native Decimal multiplication retains operand scale (288/284)",
         errors=(AssertionError,),
@@ -653,7 +651,7 @@ def test_decimal_operand_arrangements(
         return
     with expect_call_failure(
         when=not working and operation == "rpower"
-        and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"},
+        and backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", },
         reason="Polars Decimal rpower kernel remains unsupported (288)",
         errors=(nw.exceptions.InvalidOperationError,) if backend_name.startswith("narwhals") else (pl.exceptions.InvalidOperationError,),
     ):
@@ -718,7 +716,7 @@ def test_decimal_zero_divisor_computation_boundary(
         a, b = a.cast("fp64"), b.cast("fp64")
     query = ma_top.relation(frame).select(getattr(a, operation)(b).alias("r"))
     arrow_pandas = backend_name in {"pandas", "narwhals-pandas"}
-    polars_kernel = backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", "ibis-polars"}
+    polars_kernel = backend_name in {"polars", "polars-lazy", "narwhals-polars", "narwhals-lazy", }
     errors = nw.exceptions if backend_name.startswith("narwhals") else pl.exceptions
     error = None
     if arrow_pandas and operation == "modulus":

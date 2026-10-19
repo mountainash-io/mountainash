@@ -37,7 +37,7 @@ def test_right_target_uses_exact_connection(source_name, target_name):
 def test_nested_right_then_left_target_with_parent_filter():
     a = REGISTRY["ibis-duckdb"].build({"id": [1, 2]}, "a")
     b = REGISTRY["ibis-sqlite"].build({"id": [2]}, "b")
-    c = REGISTRY["ibis-polars"].build({"id": [2]}, "c")
+    c = REGISTRY["ibis-duckdb"].build({"id": [2]}, "c")
     rel = ma.relation(a).join(b, on="id", execute_on="right").join(
         c, on="id", execute_on="left",
     ).filter(ma.col("id") > 1)

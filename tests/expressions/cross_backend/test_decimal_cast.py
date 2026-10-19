@@ -317,8 +317,7 @@ def test_exponent_text_far_below_the_last_place(backend_name, backend_factory, c
 # without an exponent is identical on every engine. Each row is (plain spelling, exponent spelling, p, s).
 _EXACT_TIES = [("0.125", "1.25e-1", 10, 2), ("2.5", "25e-1", 10, 0), ("0.00000000005", "5e-11", 10, 10)]
 _ENGINE_TIE_RULE = {
-    "polars": "half_to_even", "polars-lazy": "half_to_even", "ibis-polars": "half_to_even",
-    "ibis-duckdb": "half_away_from_zero",
+    "polars": "half_to_even", "polars-lazy": "half_to_even", "ibis-duckdb": "half_away_from_zero",
 }
 
 
@@ -424,7 +423,7 @@ _TO_ZERO_BEYOND_17_MINUS_P = (["1.99999", "-1.99999", "12.3499999"], 16, 2, [D("
                 reason="to_zero on a 64-bit parse is exact only within 17 - p digits past the scale (documented limit)",
             ),
         )
-        if b in ("ibis-duckdb", "ibis-polars") else b
+        if b in ("ibis-duckdb",) else b
         for b in BACKENDS
     ],
 )
@@ -456,7 +455,7 @@ _LONG_NINES = "1." + "9" * 40
     "backend_name",
     [
         pytest.param(b, marks=pytest.mark.xfail(strict=True, reason="Ibis to_zero window (documented limit 1)"))
-        if b in ("ibis-duckdb", "ibis-polars") else b
+        if b in ("ibis-duckdb",) else b
         for b in BACKENDS
     ],
 )
@@ -482,7 +481,7 @@ _LONG_LEADING_POINT = [
     "backend_name",
     [
         pytest.param(b, marks=pytest.mark.xfail(strict=True, reason="Ibis to_zero window (documented limit 1)"))
-        if b in ("ibis-duckdb", "ibis-polars") else b
+        if b in ("ibis-duckdb",) else b
         for b in BACKENDS
     ],
 )

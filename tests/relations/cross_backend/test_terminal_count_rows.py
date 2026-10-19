@@ -14,7 +14,6 @@ from fixtures.backend_registry import ALL_BACKENDS
 #     "pandas",
 #     "narwhals-polars",
 #     "narwhals-pandas",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]

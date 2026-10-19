@@ -19,7 +19,6 @@ from fixtures.call_expectations import expect_call_failure
 #     "polars",
 #     "pandas",
 #     "narwhals",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]
@@ -166,9 +165,9 @@ class TestConformMultiTransform:
             ],
         )
         with expect_call_failure(
-            when=backend_name in ("ibis-duckdb", "ibis-polars", "ibis-sqlite"),
+            when=backend_name in ("ibis-duckdb", "ibis-sqlite"),
             errors=(IbisTypeError,),
-            reason="a full conform multi-transform pipeline raises on ibis-duckdb/ibis-polars/ibis-sqlite; polars/narwhals run it",
+            reason="a full conform multi-transform pipeline raises on ibis-duckdb/ibis-sqlite; polars/narwhals run it",
         ):
             result = ma.relation(df).conform(spec).to_polars()
             assert result["score"].to_list() == [1.5, 0.0, 3.5]

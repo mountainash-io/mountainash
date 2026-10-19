@@ -14,20 +14,18 @@ TRIG_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
 
 # Only Polars has native hyperbolic support: pandas/narwhals lack it (NW-MATH-10),
-# ibis-polars/ibis-duckdb lack it (IB-MATH-06), ibis-sqlite lacks it (IB-MATH-02).
+# ibis-duckdb lack it (IB-MATH-06), ibis-sqlite lacks it (IB-MATH-02).
 HYPERBOLIC_BACKENDS = [
     "polars",
     "polars-lazy",
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -185,8 +183,8 @@ class TestHyperbolic:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").sinh()
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-polars', 'ibis-duckdb'),
-            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-polars and ibis-duckdb')),
+            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-duckdb',),
+            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-duckdb')),
             errors=((NotImplementedError,) if backend_name == 'ibis-sqlite' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else (NotImplementedError,))),
         ):
             actual = collect_expr(df, expr)
@@ -197,8 +195,8 @@ class TestHyperbolic:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").cosh()
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-polars', 'ibis-duckdb'),
-            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-polars and ibis-duckdb')),
+            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-duckdb',),
+            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-duckdb')),
             errors=((NotImplementedError,) if backend_name == 'ibis-sqlite' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else (NotImplementedError,))),
         ):
             actual = collect_expr(df, expr)
@@ -209,8 +207,8 @@ class TestHyperbolic:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").tanh()
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-polars', 'ibis-duckdb'),
-            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-polars and ibis-duckdb')),
+            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-duckdb',),
+            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-duckdb')),
             errors=((NotImplementedError,) if backend_name == 'ibis-sqlite' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else (NotImplementedError,))),
         ):
             actual = collect_expr(df, expr)
@@ -230,8 +228,8 @@ class TestInverseHyperbolic:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").asinh()
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-polars', 'ibis-duckdb'),
-            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-polars and ibis-duckdb')),
+            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-duckdb',),
+            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-duckdb')),
             errors=((NotImplementedError,) if backend_name == 'ibis-sqlite' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else (NotImplementedError,))),
         ):
             actual = collect_expr(df, expr)
@@ -242,8 +240,8 @@ class TestInverseHyperbolic:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").acosh()
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-polars', 'ibis-duckdb'),
-            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-polars and ibis-duckdb')),
+            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-duckdb',),
+            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-duckdb')),
             errors=((NotImplementedError,) if backend_name == 'ibis-sqlite' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else (NotImplementedError,))),
         ):
             actual = collect_expr(df, expr)
@@ -254,8 +252,8 @@ class TestInverseHyperbolic:
         df = backend_factory.create(data, backend_name)
         expr = ma.col("val").atanh()
         with expect_call_failure(
-            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-polars', 'ibis-duckdb'),
-            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-polars and ibis-duckdb')),
+            when=backend_name == 'ibis-sqlite' or backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') or backend_name in ('ibis-duckdb',),
+            reason=('sinh/cosh/tanh/asinh/acosh/atanh unavailable on ibis-sqlite' if backend_name == 'ibis-sqlite' else ('trig, angular, and hyperbolic functions raise on pandas/narwhals' if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else 'hyperbolic functions raise on ibis-duckdb')),
             errors=((NotImplementedError,) if backend_name == 'ibis-sqlite' else ((NotImplementedError,) if backend_name in ('pandas', 'narwhals-polars', 'narwhals-pandas') else (NotImplementedError,))),
         ):
             actual = collect_expr(df, expr)

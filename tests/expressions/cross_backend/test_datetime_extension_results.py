@@ -237,7 +237,6 @@ TIMESTAMP_BACKENDS = [
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 ]
 
@@ -304,7 +303,7 @@ class TestDtNanosecond:
         }
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason='dt.nanosecond() returns 0 on Ibis Python-datetime inputs',
             errors=(AssertionError,),
         ):
@@ -321,7 +320,7 @@ class TestDtNanosecond:
         }
         df = backend_factory.create(data, backend_name)
         with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-polars', 'ibis-sqlite'),
+            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
             reason='dt.nanosecond() returns 0 on Ibis Python-datetime inputs',
             errors=(AssertionError,),
         ):

@@ -103,7 +103,7 @@ def _materialize_result(df, compiled, backend: str) -> list[Any]:
         if isinstance(result, pl.LazyFrame):
             result = result.collect()
         return result[alias].to_list()
-    if backend in ("ibis", "ibis-polars"):
+    if backend == "ibis":
         return df.select(compiled.name(alias)).to_pyarrow()[alias].to_pylist()
     if backend in ("narwhals-polars", "narwhals-pandas"):
         return df.select(compiled.alias(alias)).to_arrow()[alias].to_pylist()

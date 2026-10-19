@@ -32,7 +32,6 @@ def test_native_result_survives_gc_with_foreign_and_canonical_dependencies(backe
     source_connection = ibis.duckdb.connect()
     destination_connection = {
         "ibis-duckdb": ibis.duckdb.connect,
-        "ibis-polars": ibis.polars.connect,
         "ibis-sqlite": lambda: ibis.sqlite.connect(":memory:"),
     }[backend_name]()
 

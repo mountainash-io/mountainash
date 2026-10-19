@@ -76,14 +76,6 @@ def test_nonowning_adoption_preserves_connection(connection, body_fails):
             assert int(backend.run_expr(ibis.literal(8))) == 8
 
 
-def test_inprocess_ibis_backend_is_not_a_sql_copy_route():
-    con = ibis.polars.connect()
-    try:
-        with pytest.raises(BackendCapabilityError, match="unsupported SQL dialect"):
-            with adopt_connection(con):
-                pytest.fail("Ibis-Polars must keep its in-process copy route")
-    finally:
-        con.disconnect()
 
 
 def test_committed_deletion_is_idempotent(connection):

@@ -21,7 +21,6 @@ from fixtures.call_expectations import expect_call_failure
 #     "pandas",
 #     "narwhals-polars",
 #     "narwhals-pandas",
-#     "ibis-polars",
 #     "ibis-duckdb",
 #     "ibis-sqlite",
 # ]

@@ -191,7 +191,7 @@ class TestNativeTypesCrossBackend:
         from mountainash.core.dtypes import DtypeMappingError
 
         data = {"value": [1, 2, 3]}
-        df = backend_factory.create(data, "ibis-polars")
+        df = backend_factory.create(data, "ibis-duckdb")
         expr = ma.col("value").cast(pl.UInt16)
         with pytest.raises(DtypeMappingError, match="polars"):
             collect_expr(df, expr)

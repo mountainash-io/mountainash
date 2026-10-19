@@ -19,7 +19,7 @@ IBIS_BACKENDS = [
             reason="Ibis has no expression-level forward_fill/backward_fill — raises BackendCapabilityError",
         ),
     )
-    for backend in ("ibis-duckdb", "ibis-polars", "ibis-sqlite")
+    for backend in ("ibis-duckdb", "ibis-sqlite")
 ]
 
 
