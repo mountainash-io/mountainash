@@ -297,6 +297,11 @@ def resolve_dtype_parameters(
     unknown = SchemaTypeStatus.UNKNOWN
     if getattr(dtype, "native", None) is not None:
         return dtype
+    if (
+        dtype is MountainashDtype.TIMESTAMP and isinstance(source, TimestampDtype)
+        or dtype is MountainashDtype.DURATION and isinstance(source, DurationDtype)
+    ):
+        return _source_dtype(source)
     if isinstance(dtype, TimestampDtype):
         precision, aware, zone = dtype.precision, dtype.timezone_aware, dtype.timezone
         if isinstance(zone, str):

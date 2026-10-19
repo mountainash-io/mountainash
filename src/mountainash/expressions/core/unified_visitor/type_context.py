@@ -159,7 +159,7 @@ class TypeContext:
 
     def _cast_result_type(self, node: Any, *, declared_only: bool = False) -> ResolvedOperand | None:
         from mountainash.core.dtypes import (
-            DecimalDtype, SchemaTypeStatus, dtype_is_complete,
+            DecimalDtype, MountainashDtype, SchemaTypeStatus, dtype_is_complete,
             registry, resolve_dtype_parameters,
         )
         from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
@@ -176,7 +176,11 @@ class TypeContext:
             )
         if source is None or target is SchemaTypeStatus.UNKNOWN:
             return source
-        if isinstance(target, PARAMETERIZED_DTYPES) and source.native_dtype is not None:
+        if source.native_dtype is not None and (
+            target is MountainashDtype.TIMESTAMP
+            or target is MountainashDtype.DURATION
+            or isinstance(target, PARAMETERIZED_DTYPES)
+        ):
             target = resolve_dtype_parameters(target, registry.from_native(source.native_dtype))
         return self.backend.cast_operand_type(target, source.descriptor)
 

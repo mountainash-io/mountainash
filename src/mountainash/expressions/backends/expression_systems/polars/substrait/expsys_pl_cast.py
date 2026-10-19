@@ -13,7 +13,7 @@ from ..base import PolarsBaseExpressionSystem
 from ..temporal_cast import cast_temporal_compatible
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
-    CastTarget, SchemaTypeStatus, TypeTarget,
+    CastTarget, MountainashDtype, SchemaTypeStatus, TypeTarget,
     dtype_is_complete, registry, resolve_dtype_parameters,
 )
 
@@ -42,7 +42,14 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
         if dtype is SchemaTypeStatus.UNKNOWN:
             return x
         from mountainash.core.dtypes.canonical import PARAMETERIZED_DTYPES
-        if isinstance(dtype, PARAMETERIZED_DTYPES) and dtype.native is None and not dtype_is_complete(dtype):
+        if (
+            dtype is MountainashDtype.TIMESTAMP
+            or dtype is MountainashDtype.DURATION
+            or (
+                isinstance(dtype, PARAMETERIZED_DTYPES)
+                and dtype.native is None and not dtype_is_complete(dtype)
+            )
+        ):
             return x.pipe_with_dtype(
                 lambda expr, native: cast_temporal_compatible(
                     expr,

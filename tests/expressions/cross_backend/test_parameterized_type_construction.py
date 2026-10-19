@@ -129,8 +129,10 @@ def test_unknown_cast_and_literal_compose_without_losing_operand_metadata(backen
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("empty", [False, True])
-def test_partial_cast_after_join_preserves_source_nanoseconds(backend_name, backend_factory, empty):
+@pytest.mark.parametrize("bare", [False, True])
+def test_partial_cast_after_join_preserves_source_nanoseconds(backend_name, backend_factory, empty, bare):
     import numpy as np
+    from mountainash.core.dtypes import MountainashDtype
 
     integers = [] if empty else [1767225600123456789, 1767225600987654321]
     ids = np.arange(len(integers), dtype=np.int64)
@@ -153,12 +155,13 @@ def test_partial_cast_after_join_preserves_source_nanoseconds(backend_name, back
             {"id": ids, "at": np.array(integers, dtype="datetime64[ns]")},
             {"id": np.array([0, 1], dtype=np.int64)}, backend_name,
         )
-    target = TimestampDtype(timezone_aware=False, timezone=None)
+    target = MountainashDtype.TIMESTAMP if bare else TimestampDtype(timezone_aware=False, timezone=None)
     try:
         out = ma.relation(source).join(other, on="id").sort("id").select(ma.col("at").cast(target)).to_polars()
         assert out.schema["at"] == pl.Datetime("ns")
         assert out["at"].cast(pl.Int64).to_list() == integers
-        assert target.precision is SchemaTypeStatus.UNKNOWN
+        if not bare:
+            assert target.precision is SchemaTypeStatus.UNKNOWN
     finally:
         if backend_name.startswith("ibis-"):
             connection.disconnect()

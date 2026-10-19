@@ -863,8 +863,12 @@ def _build_field_expr(
     source_expr: Any = None,
 ) -> FieldBuildResult:
     """Lower one field through the backend-neutral expression API."""
+    from datetime import datetime, timedelta
+
     import mountainash as ma
-    from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype
+    from mountainash.core.dtypes import (
+        DecimalDtype, DurationDtype, MountainashDtype, NativeDtype, TimestampDtype,
+    )
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldSpec
     from mountainash.typespec.universal_types import UniversalType, to_canonical
@@ -1131,12 +1135,28 @@ def _build_field_expr(
             expr = expr.str.replace(fld.decimal_char, ".")
     post_missing = expr
     transform_input = expr
+    failure = CaseFailureBehaviour.THROW if type_action == "coerce" else CaseFailureBehaviour.NULL
     if fld.null_fill is not None:
         fill = ma.lit(fld.null_fill)
+        fill_dtype = decoded_target if isinstance(effective_type, NativeDtype) else effective_type
         if isinstance(effective_type, DecimalDtype) and shape.decimal is not None:
             # Preserve fill digits: casting to the source scale first can double-round.
             expr = expr.cast(MountainashDtype.STRING)
             fill = fill.cast(MountainashDtype.STRING)
+        elif (
+            isinstance(fill_dtype, TimestampDtype) and isinstance(fld.null_fill, datetime)
+            or isinstance(fill_dtype, DurationDtype) and isinstance(fld.null_fill, timedelta)
+        ):
+            # Type temporal literals before coalescing, but leave lexical fills
+            # to the ordinary destination conversion and its failure policy.
+            fill = fill.cast(
+                effective_type,
+                failure_behavior=(
+                    CaseFailureBehaviour.NULL
+                    if type_action in {"discard_value", "discard_row"}
+                    else CaseFailureBehaviour.THROW
+                ),
+            )
         expr = ma.coalesce(expr, fill)
         transform_input = expr
     if incompatible_source:
@@ -1274,7 +1294,6 @@ def _build_field_expr(
     )
 
 
-    failure = CaseFailureBehaviour.THROW if type_action == "coerce" else CaseFailureBehaviour.NULL
     residue: list[MaterializationResidueCheck] = []
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(fld.name))
