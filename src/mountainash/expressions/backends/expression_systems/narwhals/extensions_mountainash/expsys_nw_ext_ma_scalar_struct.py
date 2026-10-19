@@ -1,7 +1,8 @@
 """Narwhals backend for mountainash struct operations."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
 import narwhals as nw
 
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
@@ -13,6 +14,9 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol[nw.Expr]):

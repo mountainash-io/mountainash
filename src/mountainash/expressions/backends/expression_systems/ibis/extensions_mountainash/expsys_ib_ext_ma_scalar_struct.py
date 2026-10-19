@@ -1,7 +1,8 @@
 """Ibis backend for mountainash struct operations."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
 from mountainash.core.dtypes import TypeTarget
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
@@ -9,6 +10,11 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT
 from mountainash.typespec.converters import _resolve_field_native
 from mountainash.typespec.spec import FieldSpec
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
 class MountainAshIbisScalarStructExpressionSystem(IbisBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol["IbisValueExpr"]):
     """Ibis implementation of struct field access."""
     def cast_struct(

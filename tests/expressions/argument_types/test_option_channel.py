@@ -26,6 +26,9 @@ def _example_raw_value(annotation: str):
             return ast.literal_eval(inner.split(",")[0].strip())
         except (ValueError, SyntaxError):
             return None
+    if "FieldSpec" in annotation:
+        from mountainash.typespec import FieldSpec
+        return FieldSpec()
     if "int" in annotation:
         return 2
     if "str" in annotation:

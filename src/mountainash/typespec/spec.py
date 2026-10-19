@@ -120,6 +120,13 @@ class FieldConstraints(_ImmutableDeclaration):
 
 
 _CONSTRAINT_NAMES = frozenset(item.name for item in dataclass_fields(FieldConstraints))
+_MIGRATION_GUIDE = "See docs/guides/composable-field-migration.md."
+_RETIRED_FIELD_PROPERTIES = {
+    "name": "names come from the mapping key where the definition is attached, e.g. TypeSpec(fields={'id': FieldSpec(...)})",
+    "source_name": "use rename_from on the definition; the effective source is rename_from or the mapping key",
+    "object_fields": "use fields={'member': FieldSpec(...)}",
+    "item_object_fields": "use element=FieldSpec(fields={...})",
+}
 
 
 def _own_value(value: Any) -> Any:
@@ -223,7 +230,19 @@ class FieldSpec(_ImmutableDeclaration):
     rounding: str | None = None
     severity: str | None = None
 
-    def __init__(self, **properties: Any) -> None:
+    def __init__(self, *args: Any, **properties: Any) -> None:
+        if args:
+            raise TypeError(
+                "FieldSpec takes keyword properties only and has no name; attach it under a name instead, "
+                f"e.g. TypeSpec(fields={{'id': FieldSpec(type=...)}}). {_MIGRATION_GUIDE}"
+            )
+        retired = sorted(_RETIRED_FIELD_PROPERTIES.keys() & properties.keys())
+        if retired:
+            raise TypeError(
+                f"FieldSpec no longer accepts {', '.join(retired)}: "
+                + "; ".join(_RETIRED_FIELD_PROPERTIES[name] for name in retired)
+                + f". {_MIGRATION_GUIDE}"
+            )
         constraint_changes = {
             name: properties.pop(name) for name in _CONSTRAINT_NAMES if name in properties
         }
@@ -238,6 +257,13 @@ class FieldSpec(_ImmutableDeclaration):
         if properties:
             raise TypeError(f"unexpected FieldSpec properties: {', '.join(sorted(properties))}")
         self.__post_init__()
+
+    def __getattr__(self, name: str) -> Any:
+        if name in _RETIRED_FIELD_PROPERTIES:
+            raise AttributeError(
+                f"FieldSpec has no {name!r}: {_RETIRED_FIELD_PROPERTIES[name]}. {_MIGRATION_GUIDE}"
+            )
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
     def __post_init__(self) -> None:
         composed = self.fields is not None or self.element is not None
@@ -385,7 +411,10 @@ class TypeSpec:
 
     def __post_init__(self) -> None:
         if not isinstance(self.fields, Mapping):
-            raise TypeError("TypeSpec.fields requires a name-to-FieldSpec mapping")
+            raise TypeError(
+                "TypeSpec.fields requires a name-to-FieldSpec mapping, "
+                f"e.g. TypeSpec(fields={{'id': FieldSpec(type=...)}}). {_MIGRATION_GUIDE}"
+            )
         if any(not isinstance(name, str) or not isinstance(value, FieldSpec)
                for name, value in self.fields.items()):
             raise TypeError("TypeSpec.fields requires string names and FieldSpec definitions")

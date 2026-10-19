@@ -34,7 +34,7 @@ from mountainash.core.dtypes import (
 )
 from mountainash.typespec.errors import InvalidGeospatialFormatError
 from mountainash.core.dtypes.errors import DtypeMappingError
-from mountainash.typespec.universal_types import UniversalType, from_canonical, to_canonical
+from mountainash.typespec.universal_types import UniversalType, to_canonical
 
 if TYPE_CHECKING:
     from .spec import FieldSpec, TypeSpec

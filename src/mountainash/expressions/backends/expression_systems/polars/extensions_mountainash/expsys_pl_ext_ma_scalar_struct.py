@@ -1,7 +1,8 @@
 """Polars backend for mountainash struct operations."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
 import polars as pl
 
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
@@ -10,6 +11,10 @@ from mountainash.typespec.converters import _collection_item, _resolve_field_nat
 from mountainash.typespec.spec import FieldSpec
 from mountainash.core.dtypes import TypeTarget
 from ..temporal_cast import cast_temporal_compatible
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 
 def _invalid_nested(expr, field: FieldSpec, *, field_name: str):
     children = declared_fields(field)
