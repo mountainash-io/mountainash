@@ -184,6 +184,14 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
                         backend=self.BACKEND_NAME,
                         function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
                     )
+                if not children_fields:
+                    if len(children) > 1:
+                        raise BackendCapabilityError(
+                            "Ibis scalar element conversion cannot apply a row-discard policy to the whole list.",
+                            backend=self.BACKEND_NAME,
+                            function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
+                        )
+                    return children[0].cast(_resolve_field_native(element, TypeTarget.IBIS, field_name="items[]"))
                 return self.cast_struct(
                     item, *children,
                     fields=children_fields, failure_behavior=failure_behavior,

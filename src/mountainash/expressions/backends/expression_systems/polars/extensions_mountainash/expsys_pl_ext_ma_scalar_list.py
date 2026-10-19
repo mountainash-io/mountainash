@@ -105,21 +105,28 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         dtype = _resolve_field_native(field, TypeTarget.POLARS, field_name="items")
         if converted_fields:
             children = declared_fields(element)
-            names = tuple(children)
-            count = len(names)
+            strict = failure_behavior != "null"
+            if children:
+                names = tuple(children)
+                count = len(names)
+                item_element = pl.struct([
+                    value.alias(name)
+                    for name, value in zip(names, converted_fields[:count], strict=True)
+                ])
+                item_element = pl.when(pl.element().is_null()).then(
+                    pl.lit(None, dtype=dtype.inner),
+                ).otherwise(item_element.cast(dtype.inner, strict=strict))
+            else:
+                # A scalar element's converted expression already applies its own
+                # missing values, format and null fill to each item.
+                count = 1
+                item_element = converted_fields[0].cast(dtype.inner, strict=strict)
             validity = converted_fields[count] if len(converted_fields) > count else None
-            struct_element = pl.struct([
-                value.alias(name)
-                for name, value in zip(names, converted_fields[:count], strict=True)
-            ])
-            struct_element = pl.when(pl.element().is_null()).then(
-                pl.lit(None, dtype=dtype.inner),
-            ).otherwise(struct_element.cast(dtype.inner, strict=failure_behavior != "null"))
 
             def convert(bound, native, *, check=False):
                 nested = isinstance(native.inner, (pl.List, pl.Array))
                 body = convert(pl.element(), native.inner, check=check) if nested else (
-                    ~validity.fill_null(True) if check else struct_element
+                    ~validity.fill_null(True) if check else item_element
                 )
                 mapped = bound.arr.eval(body) if isinstance(native, pl.Array) else bound.list.eval(body)
                 if check:

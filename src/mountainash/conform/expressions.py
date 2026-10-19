@@ -1021,7 +1021,9 @@ def _build_field_expr(
     incompatible_source = False
     if shape_known and null_container_target is None:
         allowed = {
-            UniversalType.LIST: {MountainashDtype.STRING} if element is None else {MountainashDtype.LIST},
+            UniversalType.LIST: {MountainashDtype.STRING} if element is None else {
+                MountainashDtype.STRING, MountainashDtype.LIST,
+            },
             UniversalType.ARRAY: {MountainashDtype.LIST},
             UniversalType.OBJECT: {MountainashDtype.STRUCT},
             UniversalType.GEOPOINT: {
@@ -1339,10 +1341,23 @@ def _build_field_expr(
             field_name=local_name, failure_behavior=failure,
         )
     elif element is not None and canonical is MountainashDtype.LIST and not lexical:
-        converted_fields, converted_validity = (
-            _converted_child_fields(element.fields, expr, shape, list_element=True)
-            if child_conversion_required and element.fields is not None else ((), None)
-        )
+        converted_fields, converted_validity = (), None
+        if element.fields is not None:
+            if child_conversion_required:
+                converted_fields, converted_validity = _converted_child_fields(
+                    element.fields, expr, shape, list_element=True,
+                )
+        elif declared_element(element) is None and _needs_child_conversion(element, shape.item_shape):
+            from mountainash.typespec.converters import resolve_field_canonical
+            item_name = f"{local_name}[]"
+            item = _build_field_expr(
+                element, item_name, schema_missing_values, local_name=item_name,
+                type_action="discard_row" if type_action in {"discard_value", "discard_row"} else type_action,
+                declared_type=element.dtype, source_shape=shape.item_shape,
+                effective_type=resolve_field_canonical(element, field_name=item_name),
+                source_expr=expr.list.element(),
+            )
+            converted_fields, converted_validity = ((item_name, item.output),), item.discard_row_filter
         expr = expr.list.cast_items(
             element=element, converted_fields=converted_fields,
             converted_validity=converted_validity, field_name=local_name,

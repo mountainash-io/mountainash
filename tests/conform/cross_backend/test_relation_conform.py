@@ -1089,3 +1089,62 @@ def test_native_child_conversion_discards_invalid_parent_not_missing_child(
         TypeSpec(fields={"x": field}, missing_values=[]), contract={"data_type": action},
     ).to_polars()
     assert result["x"].to_list() == expected
+
+
+_SCALAR_ELEMENT_CASES = [
+    pytest.param(
+        [["2", None]], FieldSpec(type=UniversalType.INTEGER, null_fill=7), [[2, 7]], id="null-fill",
+    ),
+    pytest.param(
+        [["NA", "3"]], FieldSpec(type=UniversalType.INTEGER, missing_values=["NA"]), [[None, 3]],
+        id="missing-values",
+    ),
+    pytest.param(
+        [["20240102"]], FieldSpec(type=UniversalType.DATE, format="%Y%m%d"),
+        [[__import__("datetime").date(2024, 1, 2)]], id="format",
+    ),
+]
+
+
+@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy", "ibis-duckdb"))
+@pytest.mark.parametrize("values,element,expected", _SCALAR_ELEMENT_CASES)
+def test_scalar_element_conversion_applies_to_each_item(
+    backend_name, backend_factory, values, element, expected,
+):
+    source = backend_factory.create({"items": values}, backend_name)
+    result = ma.relation(source).conform(
+        TypeSpec(fields={"items": FieldSpec(element=element)}, missing_values=[]),
+    ).to_polars()
+    assert result["items"].to_list() == expected
+
+
+@pytest.mark.parametrize("backend_name", ("narwhals-polars",))
+def test_scalar_element_conversion_retains_provider_capability_boundary(backend_name, backend_factory):
+    from mountainash.core.types import BackendCapabilityError
+
+    source = backend_factory.create({"items": [["2", None]]}, backend_name)
+    field = FieldSpec(element=FieldSpec(type=UniversalType.INTEGER, null_fill=7))
+    with pytest.raises(BackendCapabilityError):
+        ma.relation(source).conform(TypeSpec(fields={"items": field}, missing_values=[])).to_polars()
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_lexical_list_refined_by_element_parses_like_the_lexical_list(backend_name, backend_factory):
+    from mountainash.core.types import BackendCapabilityError
+
+    lexical = dict(type=UniversalType.LIST, item_type="integer", delimiter=";")
+    source = backend_factory.create({"items": ["1;2", "3"]}, backend_name)
+
+    def conform(field):
+        return ma.relation(source).conform(
+            TypeSpec(fields={"items": field}, missing_values=[]),
+        ).to_polars()["items"].to_list()
+
+    with expect_call_failure(
+        when=backend_name in {"pandas", "narwhals-pandas", "ibis-sqlite"},
+        errors=(BackendCapabilityError,),
+        reason="lexical list parsing needs Arrow-backed pandas strings / is not compiled by Ibis-SQLite",
+    ):
+        baseline = conform(FieldSpec(**lexical))
+        refined = conform(FieldSpec(**lexical, element=FieldSpec(type=UniversalType.INTEGER, minimum=0)))
+        assert refined == baseline == [[1, 2], [3]]
