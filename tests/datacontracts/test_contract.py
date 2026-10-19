@@ -76,3 +76,24 @@ class TestBaseDataContract:
         assert Grandchild.to_typespec().field_names == ["y", "z"]
         result = Grandchild.validate_datacontract(pl.DataFrame({"y": ["a"], "z": [1]}))
         assert result.passes
+
+    def test_multiple_inheritance_keeps_first_declared_positions(self):
+        class Base(BaseDataContract):
+            x = FieldSpec(type=UniversalType.INTEGER)
+            y = FieldSpec(type=UniversalType.STRING)
+
+        class Mask(Base):
+            x = None
+
+        class Right(Base):
+            x = FieldSpec(type=UniversalType.INTEGER, minimum=0)
+
+        class RightFirst(Right, Mask):
+            pass
+
+        class MaskFirst(Mask, Right):
+            pass
+
+        assert RightFirst.to_typespec().field_names == ["x", "y"]
+        assert RightFirst.to_typespec().get_field("x") is Right.x
+        assert MaskFirst.to_typespec().field_names == ["y"]

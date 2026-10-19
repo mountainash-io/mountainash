@@ -26,14 +26,16 @@ class BaseDataContract:
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        members: dict[str, Any] = {}
+        # Position: first declaration along the inheritance order. Membership and
+        # value: what normal attribute lookup resolves, so overrides and masks
+        # (a non-FieldSpec value) follow ordinary Python inheritance.
+        order: dict[str, None] = {}
         for owner in reversed(cls.__mro__):
-            for name, value in vars(owner).items():
-                if isinstance(value, FieldSpec):
-                    members[name] = value
-                elif name in members and not name.startswith("__"):
-                    members.pop(name)
-        cls._contract_fields = members
+            order.update({name: None for name, value in vars(owner).items() if isinstance(value, FieldSpec)})
+        cls._contract_fields = {
+            name: value for name in order
+            if isinstance(value := getattr(cls, name, None), FieldSpec)
+        }
 
     @classmethod
     def contract_name(cls) -> str:
