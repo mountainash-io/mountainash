@@ -389,3 +389,47 @@ def test_composed_source_declarations_type_nested_columns():
     result = PydataIngress.convert([{"record": {"a": 1}, "values": [1, 2]}], source_spec=source)
     assert result.schema == {"record": pl.Struct({"a": pl.Int64}), "values": pl.List(pl.Int64)}
     assert result.to_dicts() == [{"record": {"a": 1}, "values": [1, 2]}]
+
+
+@pytest.fixture
+def python_only_converter():
+    name = "_review_c5_to_text"
+    CustomTypeRegistry.register(
+        name=name, target_universal_type="string",
+        python_converter=lambda value, **kwargs: None if value is None else str(value),
+    )
+    yield name
+    CustomTypeRegistry.unregister(name)
+
+
+def test_python_conversion_replaces_mixed_carrier_in_place(python_only_converter):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    spec = TypeSpec(fields={"value": FieldSpec(type=UniversalType.STRING, custom_cast=python_only_converter)},
+                    fields_match="open")
+    result = PydataIngress.convert([{"value": {"a": 1}}, {"value": "text"}], type_spec=spec)
+    assert result["value"].to_list() == ["{'a': 1}", "text"]
+
+
+def test_python_conversion_rename_keeps_column_position(python_only_converter):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    spec = TypeSpec(fields={
+        "renamed": FieldSpec(type=UniversalType.STRING, rename_from="raw", custom_cast=python_only_converter),
+    }, fields_match="open")
+    result = PydataIngress.convert([{"raw": 1, "tail": "t"}], type_spec=spec)
+    assert result.columns == ["renamed", "tail"]
+    assert result.to_dicts() == [{"renamed": "1", "tail": "t"}]
+
+
+@pytest.mark.parametrize("key_order", [("raw", "converted"), ("converted", "raw")])
+def test_vectorized_conversion_reads_unchanged_source_values(key_order):
+    from mountainash.pydata.ingress.pydata_ingress import PydataIngress
+
+    source_row = {"raw": "1.5", "converted": "y"}
+    spec = TypeSpec(fields={
+        "converted": FieldSpec(rename_from="raw", custom_cast="safe_float"),
+        "original": FieldSpec(type=UniversalType.STRING, rename_from="converted"),
+    }, fields_match="open")
+    result = PydataIngress.convert([{key: source_row[key] for key in key_order}], type_spec=spec)
+    assert result.select("converted", "original").to_dicts() == [{"converted": 1.5, "original": "y"}]
