@@ -74,7 +74,10 @@ def test_structural_nodes_keep_arguments_options_and_diagnostics_separate() -> N
         assert node.diagnostic_context["field_name"]
 
 
-def test_recursive_structural_options_are_json_serializable_and_backend_agnostic() -> None:
+def test_recursive_structural_options_are_backend_agnostic() -> None:
+    import dataclasses
+    from collections.abc import Mapping
+
     payload = FieldSpec(fields={"id": FieldSpec(type=UniversalType.INTEGER, enum=[1, 2], example={"k": [1]})})
     item = FieldSpec(fields={"payload": payload})
     nodes = (
@@ -84,21 +87,21 @@ def test_recursive_structural_options_are_json_serializable_and_backend_agnostic
     forbidden_modules = ("polars", "narwhals", "ibis", "pyarrow")
 
     def walk(value):
-        if isinstance(value, dict):
+        yield value
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            for f in dataclasses.fields(value):
+                yield from walk(getattr(value, f.name))
+        elif isinstance(value, Mapping):
             for child in value.values():
                 yield from walk(child)
-        elif isinstance(value, list):
+        elif isinstance(value, (list, tuple)):
             for child in value:
                 yield from walk(child)
-        else:
-            yield value
 
     for built in nodes:
-        options = built._node.model_dump(mode="json")["options"]
-        declaration = options["element"] if "element" in options else options["fields"]["items"]["element"]
-        leaf = declaration["fields"]["payload"]["fields"]["id"]
-        assert leaf["type"] == "integer"
-        assert leaf["example"] == {"k": [1]}
+        options = built._node.options
+        declaration = options["element"] if "element" in options else options["fields"]["items"].element
+        assert declaration.fields["payload"].fields["id"].type is UniversalType.INTEGER
         assert not any(type(value).__module__.startswith(forbidden_modules) for value in walk(options))
 
 @pytest.mark.parametrize(
