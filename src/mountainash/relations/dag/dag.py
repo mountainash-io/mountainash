@@ -407,7 +407,7 @@ class RelationDAG:
         session._execution_transport = compilation.transport
         session._execution_metadata = compilation.metadata
         try:
-            envelope, visitor = compilation.compile(prepared.root_key)
+            envelope, visitor = compilation.compile_root()
             if key_target_name is not None and phase is ExecutionPhase.EXECUTE:
                 from mountainash.relations.core.relation_api.relation import _guard_native_terminal
 
@@ -415,9 +415,12 @@ class RelationDAG:
                 envelope = session.cache_root(key_target_name, envelope, visitor)
             visitor._execution_session = session if retain_execution_scope else compilation
             return envelope.value, visitor
-        except BaseException:
-            compilation.close(release_owned=True)
-            session.close(release_owned=True)
+        except BaseException as primary:
+            for owner in (compilation, session):
+                try:
+                    owner.close(release_owned=True)
+                except BaseException as cleanup:
+                    primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
             raise
         finally:
             if not retain_execution_scope:

@@ -179,14 +179,27 @@ def test_union_rejects_structured_tag_only_on_later_input(backend_name, backend_
 
 
 @pytest.mark.parametrize("backend_name", list(REGISTRY))
-def test_union_all_of_matching_origin_keeps_logical_array(backend_name, backend_factory):
+def test_union_all_of_matching_origin_keeps_logical_array(backend_name, backend_factory, monkeypatch):
     frame = backend_factory.create({"id": [1], "payload": ["[1,2]"]}, backend_name)
     spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
     child = ma.relation(frame).conform(spec)
     rel = ma.concat([child, child.filter(ma.col("id") > 0)])
+    lowerings = []
+    node_type = type(child._node)
+    accept = node_type.accept
+
+    def observe(node, visitor):
+        if node is child._node and visitor.execution_phase.name == "EXECUTE":
+            lowerings.append(node)
+        return accept(node, visitor)
+
+    monkeypatch.setattr(node_type, "accept", observe)
     result = rel.to_dict()
     assert result["id"] == [1, 1]
     assert result["payload"] == [[1, 2], [1, 2]]
+    assert len(lowerings) == 1
+    with pytest.raises(LogicalTerminalRequired):
+        rel.collect()
 
 
 def test_union_checks_source_residue_before_set_discards_marker(backend_factory):

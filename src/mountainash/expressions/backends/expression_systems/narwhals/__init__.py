@@ -57,6 +57,9 @@ from .extensions_mountainash.expsys_nw_ext_ma_scalar_geospatial import MountainA
 
 
 
+from mountainash.expressions.core.expression_system.function_mapping.lowering import (
+    declare_builtin_expression_system,
+)
 @register_expression_system(CONST_BACKEND.NARWHALS)
 class NarwhalsExpressionSystem(
     # Foundation protocols
@@ -107,6 +110,8 @@ class NarwhalsExpressionSystem(
     """
 
     pass
+
+declare_builtin_expression_system(NarwhalsExpressionSystem, "narwhals")
 
 
 __all__ = [

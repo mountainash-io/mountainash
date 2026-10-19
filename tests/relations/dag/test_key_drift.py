@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import polars as pl
 import pytest
+from fixtures.backend_registry import REGISTRY
 
 import mountainash as ma
 from mountainash.conform.drift import KeyDrift
@@ -35,6 +36,29 @@ def _fk(fields, resource, ref_fields):
 
 def _open_spec(*fields):
     return TypeSpec(fields=list(fields), fields_match="open")
+
+
+@pytest.mark.parametrize("backend_name", list(REGISTRY))
+def test_shared_conform_recipe_keeps_named_constraint_contexts(backend_name):
+    dag = RelationDAG()
+    frame = REGISTRY[backend_name].build({"id": [1]}, "named_source")
+    shared = ma.relation(frame).conform(_open_spec(
+        FieldSpec(name="id", type=UniversalType.INTEGER),
+    ))
+    dag.add("parent_a", ma.relation(frame))
+    dag.add("parent_b", ma.relation(frame))
+    dag.add("first", shared)
+    dag.add("second", shared)
+    dag.add_constraint("first", _fk(["missing_a"], "parent_a", ["id"]))
+    dag.add_constraint("second", _fk(["missing_b"], "parent_b", ["id"]))
+    dag.add("combined", ma.concat([dag.ref("first"), dag.ref("second")]))
+
+    collected = dag.collect_with_drift("combined")
+    changes = [change for drift in collected.drifts for change in (drift.key_changes or [])]
+    assert sorted((change.reference, change.fields, change.kind) for change in changes) == [
+        ("parent_a", ["missing_a"], "fk_field_dropped"),
+        ("parent_b", ["missing_b"], "fk_field_dropped"),
+    ]
 
 
 class TestFrameLevelNotAssessed:

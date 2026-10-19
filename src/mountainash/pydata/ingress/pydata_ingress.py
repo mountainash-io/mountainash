@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from uuid import UUID
+
+from mountainash.core.lowering_reuse import OCCURRENCE, ReuseCase, selected_lowering
 from typing import TYPE_CHECKING, Any, Optional
 import logging
 # from enum import Enum
@@ -15,6 +20,38 @@ if TYPE_CHECKING:
     from mountainash.typespec.spec import TypeSpec
 
 logger = logging.getLogger(__name__)
+
+
+def repeatable_ingress_value(value: Any) -> bool:
+    """Qualify exact builtin values and stable native Series; callbacks stay conservative."""
+    if type(value) in {str, bytes, int, float, bool, type(None), date, datetime,
+                       time, timedelta, Decimal, UUID}:
+        return True
+    if type(value).__module__.startswith("numpy"):
+        import numpy as np
+        if isinstance(value, (np.ndarray, np.generic)):
+            return not value.dtype.hasobject
+    if type(value).__module__.startswith("polars") and type(value).__name__ == "Series":
+        from mountainash.core.lazy_imports import import_polars
+        pl = import_polars()
+        if pl is not None and type(value) is pl.Series:
+            return value.dtype != pl.Object
+    if type(value).__module__.startswith("pandas") and type(value).__name__ == "Series":
+        try:
+            import pandas as pd
+        except ImportError:
+            return False
+        if type(value) is pd.Series:
+            import numpy as np
+
+            # Extension arrays can supply their own conversion behavior.
+            return isinstance(value.dtype, np.dtype) and not value.dtype.hasobject
+    if type(value) in {list, tuple, set, frozenset}:
+        return all(repeatable_ingress_value(item) for item in value)
+    if type(value) is dict:
+        return all(repeatable_ingress_value(key) and repeatable_ingress_value(item)
+                   for key, item in value.items())
+    return False
 
 
 def schema_literal_ingress_safe(value: Any) -> bool:
@@ -43,6 +80,15 @@ def schema_literal_ingress_safe(value: Any) -> bool:
 
 class PydataIngress():
     """Factory for creating appropriate Python data conversion strategies with lazy loading."""
+    @classmethod
+    def _convert_for_compilation(cls, data: Any, /):
+        """Convert selected ingress data and report its compilation reuse permission."""
+        strategy = PydataIngressFactory.get_strategy(data)
+        native = strategy.convert(data)
+        descriptor = selected_lowering(strategy.convert)
+        if descriptor.reuse is not ReuseCase.OCCURRENCE and not repeatable_ingress_value(data):
+            descriptor = OCCURRENCE
+        return native, descriptor
 
     @classmethod
     def convert(cls,

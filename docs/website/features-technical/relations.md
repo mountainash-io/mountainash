@@ -22,6 +22,24 @@ result = (
 
 `ma.relation(df)` wraps the frame in a `Relation` object — backend-agnostic. Each chained call adds a node to a relational AST. The terminal call (`.to_polars()` here) triggers compilation: the visitor walks the AST, dispatches each node to the detected backend, and returns the result.
 
+### Shared recipes within one execution
+
+Repeated references to the same relation recipe can reuse native compilation and
+qualified transfers within a single root compilation. For example,
+`ma.concat([branch, branch])` can compile `branch` once rather than rebuilding it
+for each occurrence. Independently constructed recipes remain distinct, even if
+their data and operations are equal. Physical destinations remain separate.
+
+This is not a persistent result cache. Each terminal invocation starts fresh,
+including after a failed execution. Named DAG resources retain their existing
+capture and ownership rules.
+
+Reusing a deferred plan does not imply sharing its evaluated rows. Opaque native
+lazy plans remain supported, but cross-backend transfers may still evaluate each
+occurrence. Sampling, host-clock expressions, custom lowerings and eager readers
+retain their evaluation behavior. No cache flag or purity declaration is required.
+
+
 ## The AST
 
 The relation AST has 10 node types, mapped onto Substrait logical relations:
