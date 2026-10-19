@@ -152,13 +152,6 @@ def _scalar_rule():
 def test_compiled_plan_owns_expression_declarations(
     case, backend_name, backend_factory, request
 ):
-    if case is _window_partition and backend_name == "ibis-polars":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True,
-                reason="Ibis Polars cannot compile window functions (BackendCapabilityError)",
-            )
-        )
     check, mutate, rows = case()
     old = build_compiled_plan(_SPEC, [check])
     verdict_before = _run(old, backend_factory.create(rows, backend_name)).passes

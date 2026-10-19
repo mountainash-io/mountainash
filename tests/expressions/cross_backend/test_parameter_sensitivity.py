@@ -13,7 +13,6 @@ from datetime import datetime
 
 import mountainash.expressions as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from ibis.common.exceptions import UnsupportedArgumentError
 from mountainash.core.types import BackendCapabilityError
 from fixtures.call_expectations import expect_call_failure
 
@@ -24,7 +23,6 @@ POLARS_IBIS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -34,7 +32,6 @@ TEMPORAL_BACKENDS = [
     "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -130,7 +127,6 @@ TRIM_CUSTOM_CHARS_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -141,7 +137,6 @@ LTRIM_RTRIM_CUSTOM_CHARS_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -391,7 +386,6 @@ class TestDatetimeParameterSensitivity:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],
@@ -406,9 +400,9 @@ class TestCenterParameterSensitivity:
 
         expr = ma.col("val").str.center(7, "*")
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals') or backend_name == 'ibis-polars',
-            reason=('str.center() raises on the marked providers.' if backend_name in ('pandas', 'narwhals') else 'str.center() raises on the marked providers.'),
-            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals') else (UnsupportedArgumentError,)),
+            when=backend_name in ('pandas', 'narwhals'),
+            reason=('str.center() raises on the marked providers.'),
+            errors=((BackendCapabilityError,)),
         ):
             actual = collect_expr(df, expr)
 
@@ -421,9 +415,9 @@ class TestCenterParameterSensitivity:
         df = backend_factory.create(data, backend_name)
 
         with expect_call_failure(
-            when=backend_name in ('pandas', 'narwhals') or backend_name == 'ibis-polars',
-            reason=('str.center() raises on the marked providers.' if backend_name in ('pandas', 'narwhals') else 'str.center() raises on the marked providers.'),
-            errors=((BackendCapabilityError,) if backend_name in ('pandas', 'narwhals') else (UnsupportedArgumentError,)),
+            when=backend_name in ('pandas', 'narwhals'),
+            reason=('str.center() raises on the marked providers.'),
+            errors=((BackendCapabilityError,)),
         ):
             assert_parameter_sensitivity(
                 df,
@@ -446,7 +440,6 @@ class TestCenterParameterSensitivity:
         "polars",
         "pandas",
         "narwhals",
-        "ibis-polars",
         "ibis-duckdb",
         "ibis-sqlite",
     ],

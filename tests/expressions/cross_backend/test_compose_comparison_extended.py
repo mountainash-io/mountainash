@@ -117,7 +117,7 @@ class TestComposeComparisonNumeric:
         expr = ma.col("val").is_finite()
         with expect_call_failure(
             when=backend_name == 'ibis-sqlite',
-            reason='ma.col(x).is_finite()/is_infinite() raise on ibis-sqlite; polars, pandas, narwhals, and ibis-polars/ibis-duckdb evaluate them',
+            reason='ma.col(x).is_finite()/is_infinite() raise on ibis-sqlite; polars, pandas, narwhals, and ibis-duckdb evaluate them',
             errors=(OperationNotDefinedError,),
         ):
             result = df.filter(expr.compile(df))
@@ -132,7 +132,7 @@ class TestComposeComparisonNumeric:
         expr = ma.col("val").is_infinite()
         with expect_call_failure(
             when=backend_name == 'ibis-sqlite',
-            reason='ma.col(x).is_finite()/is_infinite() raise on ibis-sqlite; polars, pandas, narwhals, and ibis-polars/ibis-duckdb evaluate them',
+            reason='ma.col(x).is_finite()/is_infinite() raise on ibis-sqlite; polars, pandas, narwhals, and ibis-duckdb evaluate them',
             errors=(OperationNotDefinedError,),
         ):
             result = df.filter(expr.compile(df))

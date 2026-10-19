@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import ibis
-import polars as pl
 import pytest
 
 import mountainash as ma
@@ -16,39 +15,33 @@ from mountainash.validation.prepared import prepare_validation_input
 pytest_plugins = ("fixtures.ibis_physical",)
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite", "ibis-polars"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_dag_reexecution_is_fresh_while_previous_result_is_alive(backend_name):
     source = REGISTRY[backend_name].build({"x": [7]}, "fresh_source")
     connection = source._find_backend(use_default=False)
     dag = ma.RelationDAG()
     dag.add("source", ma.relation(source).filter(ma.col("x") > 0))
     first = dag.collect("source")
-    if connection.name == "polars":
-        connection.create_table("fresh_source", pl.DataFrame({"x": [88]}), overwrite=True)
-    else:
-        with adopt_connection(connection) as backend:
-            with owned_transaction(backend):
-                backend.drop_table("fresh_source")
-                backend.create_table("fresh_source", ibis.memtable({"x": [88]}))
+    with adopt_connection(connection) as backend:
+        with owned_transaction(backend):
+            backend.drop_table("fresh_source")
+            backend.create_table("fresh_source", ibis.memtable({"x": [88]}))
     second = dag.collect("source")
     assert ma.relation(first).to_dicts() == [{"x": 7}]
     assert ma.relation(second).to_dicts() == [{"x": 88}]
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite", "ibis-polars"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_validation_reexecution_is_fresh_with_prior_scope_open(backend_name):
     source = REGISTRY[backend_name].build({"x": [7]}, "fresh_validation")
     con = source._find_backend(use_default=False)
     context = _new_execution_context(source, policy=CapabilityPolicy.trusted())
     with MaterializationScope() as first_scope, MaterializationScope() as second_scope:
         first = prepare_validation_input(ma.relation(source), scope=first_scope, execution_context=context)
-        if con.name == "polars":
-            con.create_table("fresh_validation", pl.DataFrame({"x": [88]}), overwrite=True)
-        else:
-            with adopt_connection(con) as backend:
-                with owned_transaction(backend):
-                    backend.drop_table("fresh_validation")
-                    backend.create_table("fresh_validation", ibis.memtable({"x": [88]}))
+        with adopt_connection(con) as backend:
+            with owned_transaction(backend):
+                backend.drop_table("fresh_validation")
+                backend.create_table("fresh_validation", ibis.memtable({"x": [88]}))
         second = prepare_validation_input(ma.relation(source), scope=second_scope, execution_context=context)
         assert first.relation.to_dicts() == [{"x": 7}]
         assert second.relation.to_dicts() == [{"x": 88}]

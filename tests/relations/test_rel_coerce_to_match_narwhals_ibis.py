@@ -43,7 +43,6 @@ def _nw_pyarrow(data: dict):
 
 IBIS_CONNECTORS = {
     "duckdb": lambda: ibis.duckdb.connect(),
-    "polars": lambda: ibis.polars.connect(),
     "sqlite": lambda: ibis.sqlite.connect(":memory:"),
 }
 
@@ -216,13 +215,9 @@ class TestScalarListRejectedAgainstNarwhalsTarget:
             UnifiedRelationVisitor._coerce_to_match(target, [1, 2])
 
 
-@pytest.fixture(params=["duckdb", "polars", "sqlite"])
+@pytest.fixture(params=["duckdb", "sqlite"])
 def ibis_anchor(request):
-    """An Ibis Table anchor, one per registered dialect. Built from a
-    Polars DataFrame, not a raw dict -- the ibis-polars backend's
-    create_table() rejects a raw dict directly (confirmed via probe:
-    NotImplementedError: The `polars` backend currently does not support
-    reading data of <class 'dict'>), while duckdb/sqlite accept either."""
+    """An Ibis Table anchor, one per tested SQL dialect, built from a Polars frame."""
     con = IBIS_CONNECTORS[request.param]()
     anchor_df = pl.DataFrame({"id": [1, 2, 3], "a": ["x", "y", "z"]})
     return con.create_table("anchor", anchor_df)

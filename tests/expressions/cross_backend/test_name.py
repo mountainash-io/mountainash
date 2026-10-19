@@ -9,7 +9,7 @@ Tests name operations:
 - to_lower: Convert column name to lowercase
 
 These tests validate that name operations work consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest

@@ -15,7 +15,7 @@ Tests the public API interface:
 - Properties and helpers
 
 These tests validate that the ExpressionBuilder API works consistently
-across all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+across all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest

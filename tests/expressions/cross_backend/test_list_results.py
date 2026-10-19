@@ -2,7 +2,7 @@
 
 Verifies that list expression operations produce identical results across
 backends with native array column support. Uses reduced backend set since
-pandas, narwhals-pandas, ibis-polars, and ibis-sqlite lack native array types.
+pandas, narwhals-pandas, and ibis-sqlite lack native array types.
 """
 
 from __future__ import annotations

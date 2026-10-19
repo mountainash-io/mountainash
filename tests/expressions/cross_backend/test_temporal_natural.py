@@ -7,7 +7,7 @@ Tests natural language time expressions like:
 - "between 2 hours and 1 hour ago"
 
 These tests validate that temporal filtering works consistently across
-all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, Polars, SQLite).
+all backends: Polars, Pandas, Narwhals, and Ibis (DuckDB, SQLite).
 """
 
 import pytest

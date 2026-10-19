@@ -19,7 +19,6 @@ STRPTIME_BACKENDS = [
     "narwhals-lazy",
     "pandas",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 ]
 

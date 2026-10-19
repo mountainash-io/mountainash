@@ -8,8 +8,6 @@ fixed-duration length in v1); round_calendar covers all nine. See
 Known per-dialect gaps:
 - ibis-sqlite: sub-day temporal rounding and calendar multiples greater than
   one have no native implementation.
-- ibis-polars: MONTH/YEAR calendar FLOOR is supported; CEIL and tie modes
-  require unavailable calendar-interval addition.
 """
 
 from __future__ import annotations
@@ -30,7 +28,6 @@ TEMPORAL_BACKENDS = [
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 ]
 
@@ -39,12 +36,10 @@ TEMPORAL_BACKENDS = [
 # round_temporal case below is UNSUPPORTED there.
 HOUR_CAPABLE_BACKENDS = [b for b in TEMPORAL_BACKENDS if b != "ibis-sqlite"]
 
-# ibis-polars supports calendar FLOOR for MONTH/YEAR, but cannot add a
-# calendar interval for CEIL or nearest rounding. ibis-sqlite has no
-# TimestampBucket rule, so multiple > 1 is unsupported there for every unit.
-MONTH_YEAR_CAPABLE_BACKENDS = [b for b in TEMPORAL_BACKENDS if b != "ibis-polars"]
+# SQLite has no TimestampBucket rule, so multiple > 1 is unsupported there.
+MONTH_YEAR_CAPABLE_BACKENDS = TEMPORAL_BACKENDS
 QUARTER_MULTIPLE_CAPABLE_BACKENDS = [
-    b for b in TEMPORAL_BACKENDS if b not in ("ibis-polars", "ibis-sqlite")
+    b for b in TEMPORAL_BACKENDS if b not in ("ibis-sqlite",)
 ]
 
 # 2026-03-15 10:30:00 -- an exact tie point at the hour granularity (10:30:00
@@ -237,25 +232,6 @@ class TestRoundCalendarFloorCeilMonthYear:
             df, ma.col("ts").dt.round_calendar(rounding="CEIL", unit="YEAR")
         )
         assert actual == [datetime(2027, 1, 1, 0, 0, 0)]
-
-
-@pytest.mark.cross_backend
-@pytest.mark.parametrize(
-    ("unit", "expected"),
-    [
-        ("MONTH", datetime(2026, 3, 1, 0, 0, 0)),
-        ("YEAR", datetime(2026, 1, 1, 0, 0, 0)),
-    ],
-)
-class TestRoundCalendarPolarsMonthYearFloor:
-    def test_floor_has_native_value_oracle(
-        self, unit, expected, backend_factory, collect_expr
-    ):
-        df = backend_factory.create(_TIE_DATA, "ibis-polars")
-        actual = collect_expr(
-            df, ma.col("ts").dt.round_calendar(rounding="FLOOR", unit=unit)
-        )
-        assert actual == [expected]
 
 
 @pytest.mark.cross_backend

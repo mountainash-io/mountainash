@@ -74,17 +74,7 @@ def test_implicit_fill_controls_rules_status(backend_name, backend_factory):
         ("raw-node", lambda: (ma.col("n") + 1)._node, "n", [2, 3]),
     ],
 )
-def test_projection_contract(backend_name, backend_factory, operation, case, factory, name, values, request):
-    if backend_name == "ibis-polars" and case == "window":
-        from ibis.common.exceptions import OperationNotDefinedError
-
-        request.node.add_marker(
-            pytest.mark.xfail(
-                strict=True,
-                raises=OperationNotDefinedError,
-                reason="IB-WIN-01: Ibis-Polars has no WindowFunction translation",
-            )
-        )
+def test_projection_contract(backend_name, backend_factory, operation, case, factory, name, values):
     data = {"n": [1, 2], "m": [3, 4], "g": ["a", "a"]}
     source = backend_factory.create(data, backend_name)
     rel = getattr(ma.relation(source), operation)(factory())
@@ -202,13 +192,7 @@ def test_scalar_only_projection_preserves_source_cardinality(backend_name, backe
 
 @pytest.mark.cross_backend
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_scalar_alignment_does_not_change_aggregate_projection(backend_name, backend_factory, request):
-    if backend_name == "ibis-polars":
-        from ibis.common.exceptions import OperationNotDefinedError
-        request.applymarker(pytest.mark.xfail(
-            strict=True, raises=OperationNotDefinedError,
-            reason="IB-WIN-01: existing Ibis-Polars aggregate projection needs WindowFunction",
-        ))
+def test_scalar_alignment_does_not_change_aggregate_projection(backend_name, backend_factory):
     source = backend_factory.create({"n": [1, 2, 3]}, backend_name)
     result = ma.relation(source).select(
         ma.lit(7).alias("constant"), ma.col("n").sum().alias("total"),

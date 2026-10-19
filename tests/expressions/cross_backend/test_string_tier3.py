@@ -30,9 +30,6 @@ POLARS_ONLY = [
     pytest.param("narwhals-pandas", marks=pytest.mark.xfail(
         strict=True, reason="Polars-only operation — raises BackendCapabilityError on Narwhals",
     )),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(
-        strict=True, reason="Polars-only operation — raises BackendCapabilityError on Ibis",
-    )),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(
         strict=True, reason="Polars-only operation — raises BackendCapabilityError on Ibis",
     )),
@@ -52,9 +49,6 @@ POLARS_ONLY_HEX = [
     )),
     pytest.param("narwhals-pandas", marks=pytest.mark.xfail(
         strict=True, reason="to_integer(base=16) not supported on Narwhals",
-    )),
-    pytest.param("ibis-polars", marks=pytest.mark.xfail(
-        strict=True, reason="to_integer(base=16) not supported on Ibis",
     )),
     pytest.param("ibis-duckdb", marks=pytest.mark.xfail(
         strict=True, reason="to_integer(base=16) not supported on Ibis",

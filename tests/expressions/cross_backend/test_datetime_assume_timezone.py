@@ -33,7 +33,6 @@ TIMESTAMP_BACKENDS = [
     "narwhals-polars",
     "narwhals-pandas",
     "ibis-duckdb",
-    "ibis-polars",
     "ibis-sqlite",
 ]
 

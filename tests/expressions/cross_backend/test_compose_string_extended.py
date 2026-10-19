@@ -105,10 +105,7 @@ class TestComposeStringRegexExtended:
 # (and `polars-lazy`) already gates this cleanly via a pre-existing
 # LITERAL_ONLY fact (PL-STR-02, expressions/backends/capabilities/polars.py)
 # and every Narwhals variant already gates it too, so ibis-duckdb/
-# ibis-sqlite are the ONLY backends where a dynamic pattern genuinely honors
-# (verified empirically). ibis-polars is the sole gap this item closes —
-# excluded here and asserted cleanly gated instead; see
-# test_string.py::TestDynamicPatternIbisPolarsGate.
+# ibis-sqlite are the tested backends that honor a dynamic pattern.
 _REGEXP_REPLACE_DYNAMIC_HONORING = ["ibis-duckdb", "ibis-sqlite"]
 
 

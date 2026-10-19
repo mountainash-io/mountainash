@@ -105,7 +105,7 @@ if OP_SPECS:
                 return
             import polars as pl
             with expect_call_failure(
-                when=backend in {"polars", "ibis-polars"} and input_type in {"col", "complex"},
+                when=backend in {"polars", } and input_type in {"col", "complex"},
                 reason="312: native Polars list evaluation cannot capture a named outer column",
                 errors=(pl.exceptions.ComputeError,),
             ):

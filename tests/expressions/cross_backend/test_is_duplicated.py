@@ -1,9 +1,6 @@
 """Cross-backend tests for is_duplicated (mountainash extension).
 
 Known divergences:
-- ibis-polars: No translation rule for WindowFunction (documented Ibis-Polars
-  backend limitation — is_duplicated compiles to a per-value window count on
-  Ibis; see test_window_results.py for the same divergence on rank()).
 - ibis-duckdb/ibis-sqlite: the window-based is_duplicated computation does not
   guarantee input row order is preserved, so results are compared via an
   explicit ``idx`` sort key rather than raw positional equality (mirrors the
@@ -14,8 +11,6 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
-from ibis.common.exceptions import OperationNotDefinedError
-from fixtures.call_expectations import expect_call_failure
 
 
 def _collect_ordered(df, expr):
@@ -38,39 +33,24 @@ class TestIsDuplicated:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_duplicated()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='window operations raise on ibis-polars',
-            errors=(OperationNotDefinedError,),
-        ):
-            actual = _collect_ordered(df, expr)
-            assert actual == [True, True, True, False, True], f"[{backend_name}] got {actual}"
+        actual = _collect_ordered(df, expr)
+        assert actual == [True, True, True, False, True], f"[{backend_name}] got {actual}"
 
     def test_is_duplicated_all_unique(self, backend_name, backend_factory):
         data = {"idx": [0, 1, 2], "val": [10, 20, 30]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_duplicated()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='window operations raise on ibis-polars',
-            errors=(OperationNotDefinedError,),
-        ):
-            actual = _collect_ordered(df, expr)
-            assert actual == [False, False, False], f"[{backend_name}] got {actual}"
+        actual = _collect_ordered(df, expr)
+        assert actual == [False, False, False], f"[{backend_name}] got {actual}"
 
     def test_is_duplicated_strings(self, backend_name, backend_factory):
         data = {"idx": [0, 1, 2, 3], "name": ["a", "b", "a", "c"]}
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("name").is_duplicated()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='window operations raise on ibis-polars',
-            errors=(OperationNotDefinedError,),
-        ):
-            actual = _collect_ordered(df, expr)
-            assert actual == [True, False, True, False], f"[{backend_name}] got {actual}"
+        actual = _collect_ordered(df, expr)
+        assert actual == [True, False, True, False], f"[{backend_name}] got {actual}"
 
     def test_is_duplicated_not_for_unique_rule(self, backend_name, backend_factory):
         """The `unique` constraint shape: is_duplicated().not_() is True for unique rows."""
@@ -78,13 +58,8 @@ class TestIsDuplicated:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("val").is_duplicated().not_()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='window operations raise on ibis-polars',
-            errors=(OperationNotDefinedError,),
-        ):
-            actual = _collect_ordered(df, expr)
-            assert actual == [True, False, False, True], f"[{backend_name}] got {actual}"
+        actual = _collect_ordered(df, expr)
+        assert actual == [True, False, False, True], f"[{backend_name}] got {actual}"
 
     def test_is_duplicated_nulls_are_duplicates(self, backend_name, backend_factory):
         """Repeated NULLs are duplicates on ALL backends (consistency-guarantees)."""
@@ -92,10 +67,5 @@ class TestIsDuplicated:
         df = backend_factory.create(data, backend_name)
 
         expr = ma.col("name").is_duplicated()
-        with expect_call_failure(
-            when=backend_name == 'ibis-polars',
-            reason='window operations raise on ibis-polars',
-            errors=(OperationNotDefinedError,),
-        ):
-            actual = _collect_ordered(df, expr)
-            assert actual == [False, True, True], f"[{backend_name}] got {actual}"
+        actual = _collect_ordered(df, expr)
+        assert actual == [False, True, True], f"[{backend_name}] got {actual}"

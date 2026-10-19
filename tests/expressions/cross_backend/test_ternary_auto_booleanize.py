@@ -38,7 +38,6 @@ T_FALSE = -1
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -211,7 +210,6 @@ class TestAutoBooleanizeOnCompile:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -275,7 +273,6 @@ class TestTernaryToBooleanCoercion:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -318,7 +315,6 @@ class TestBooleanToTernaryCoercion:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -416,7 +412,6 @@ class TestEdgeCases:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -478,7 +473,6 @@ class TestTernaryToBooleanCoercionExtended:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -562,7 +556,6 @@ class TestBooleanToTernaryCoercionExtended:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -647,7 +640,6 @@ class TestMultipleOperandsCoercion:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -716,7 +708,6 @@ class TestFilteringWithAutoBooleanization:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -785,7 +776,6 @@ class TestAllTernaryComparisonOperators:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -848,7 +838,6 @@ class TestTernaryConstantsAutoBooleanization:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -893,7 +882,6 @@ class TestCollectionOperationsAutoBooleanization:
     [
         "polars",
         "narwhals-polars",
-        "ibis-polars",
         "ibis-duckdb",
     ],
 )
@@ -995,7 +983,6 @@ class TestDeepNestingAndComplexChains:
 _XOR_PARITY_BACKENDS = [
     "polars",
     "narwhals-polars",
-    "ibis-polars",
     "ibis-duckdb",
 ]
 

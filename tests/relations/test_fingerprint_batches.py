@@ -6,7 +6,7 @@ import polars as pl
 import pytest
 
 from mountainash.core.backend_detection import identify_backend_identity
-from mountainash.core.types import BackendCapabilityError
+
 
 
 @pytest.fixture(params=["polars", "polars-lazy", "ibis-duckdb"])
@@ -80,14 +80,6 @@ def test_empty_source_still_delivers_schema(stream_source):
     assert sum(sizes) == 0
 
 
-def test_ibis_polars_batch_api_is_not_a_bounded_reader():
-    con = ibis.polars.connect()
-    try:
-        source = con.create_table("source", pl.DataFrame({"k": [1], "v": [2]}))
-        with pytest.raises(BackendCapabilityError, match="bounded"):
-            consume(source, lambda schema: None, lambda frame: None)
-    finally:
-        con.disconnect()
 
 
 def test_lazy_source_error_is_preserved():

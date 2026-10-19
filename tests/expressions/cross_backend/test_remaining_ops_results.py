@@ -29,7 +29,6 @@ TEMPORAL_BACKENDS = [
     "polars-lazy",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]

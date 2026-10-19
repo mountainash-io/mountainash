@@ -229,7 +229,7 @@ def test_narwhals_snapshot_captures_every_declared_dialect_directly(dialect):
     assert result.columns["age"].to_pylist() == [30, -1, None]
 
 
-@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-polars", "ibis-sqlite"])
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_ibis_snapshot_uses_one_owned_copy_and_arrow_extraction(
     backend_name, backend_factory, mocker
 ):

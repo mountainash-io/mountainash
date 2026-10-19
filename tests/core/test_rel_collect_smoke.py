@@ -29,7 +29,6 @@ ALL_BACKENDS = [
     "pandas",
     "narwhals-polars",
     "narwhals-pandas",
-    "ibis-polars",
     "ibis-duckdb",
     "ibis-sqlite",
 ]
@@ -242,11 +241,6 @@ _KNOWN_REL_SMOKE_FAILURES: dict[tuple[str, str], str] = {
     ),
     # pivot: ibis pivot_wider() API does not accept an `on` keyword argument
     # — parameter name mismatch between mountainash relay and ibis API.
-    ("pivot", "ibis-polars"): (
-        "TypeError: Table.pivot_wider() got an unexpected keyword argument 'on'. "
-        "Ibis pivot_wider() uses different param names than mountainash relay. "
-        "Since 2026-05-18."
-    ),
     ("pivot", "ibis-duckdb"): (
         "TypeError: Table.pivot_wider() got an unexpected keyword argument 'on'. "
         "Ibis pivot_wider() uses different param names than mountainash relay. "
@@ -332,13 +326,6 @@ class TestRelCollectSmoke:
                 df_right = backend_factory.create(right_data, backend_name)
 
         builder = _OPERATIONS[op_name]
-        if key == ("with_row_index", "ibis-polars"):
-            with pytest.raises(BackendCapabilityError) as raised:
-                builder(df, df_right).collect()
-            assert type(raised.value) is BackendCapabilityError
-            assert raised.value.function_key is RKEY_MOUNTAINASH_REL.WITH_ROW_INDEX
-            assert raised.value.limitation is None
-            return
         if op_name == "unnest" and backend_name in {
             "pandas", "narwhals-polars", "narwhals-pandas"
         }:
