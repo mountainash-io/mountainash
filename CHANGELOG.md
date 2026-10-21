@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-21
+
+### Added
+- Public `from_arrow(table, connection=None)` eagerly imports Arrow into a Polars Relation or a caller-supplied Ibis-DuckDB connection (item 9, focused ingestion slice). SQL import retains the exact connection without Polars ingress, uses existing owned-table cleanup, and requires an idle caller-owned connection. Populated and typed-empty logical schemas/values and subsequent Relation use are qualified; native datetime conversions remain unchanged.
+
 ## Unreleased — 2026-10-19
 
 ### Fixed
