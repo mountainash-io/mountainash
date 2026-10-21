@@ -356,3 +356,23 @@ def owned_sql_batch(connection: Any, expressions: Sequence[Any]) -> tuple[OwnedC
                 except BaseException as cleanup:
                     original.add_note(f"Owned-copy release also failed: {type(cleanup).__name__}")
             raise
+
+
+def owned_arrow_table(table: Any, connection: Any) -> OwnedCopy:
+    """Import Arrow once on the supplied connection with native-owned lifetime."""
+    from mountainash.relations.backends.relation_systems.ibis._physical import (
+        adopt_connection, owned_transaction, require_idle,
+    )
+
+    with adopt_connection(connection) as backend:
+        require_idle(backend)
+        drain_pending_drops(connection)
+        name = "ma_owned_" + uuid.uuid4().hex
+        try:
+            with owned_transaction(backend):
+                backend.create_table(name, table, temp=True)
+                native = backend.table(name)
+            return register_owned_ibis_table(connection, name, native)
+        except BaseException as original:
+            _failed_copy(connection, (name,), original)
+            raise
