@@ -136,6 +136,46 @@ placement and transfers without executing them.
 
 Principle: `e.cross-backend/backend-detection.md`.
 
+## Explicit Arrow ingestion
+
+Use `from_arrow` when data has already been parsed into a PyArrow table:
+
+```python
+import mountainash as ma
+
+local = ma.from_arrow(arrow_table)  # Polars in-process execution
+loaded = ma.from_arrow(arrow_table, connection=connection)  # Ibis-DuckDB
+assert loaded.compile().get_backend() is connection
+result = loaded.filter(ma.col("id") > 0).select("id")
+```
+
+The function is also exported from `mountainash.relations`. It imports eagerly
+and returns a normal Relation over the completed native source. Subsequent
+building and compilation do not repeat ingestion. `ma.relation(data)` remains
+a plan-building operation; terminal `backend="ibis"` is still not a connection
+selector.
+
+Without a connection, conversion uses Polars directly. With a caller-supplied
+Ibis-DuckDB connection, import creates one owned temporary table on that exact
+connection, without passing through Polars. The connection must be idle; an
+active caller transaction is refused without committing or rolling it back.
+The caller owns the connection and must keep it open for use and cleanup.
+
+Derived Relations and native plans retain the imported SQL table. Once its
+last native owner is released, existing ownership machinery queues deletion
+for owner-thread idle cleanup; garbage collection does not itself perform SQL
+deletion. Unrelated caller tables and connection ownership are unchanged.
+This follows the existing sequential, owner-thread execution contract.
+
+Populated and schema-bearing empty inputs preserve logical types and values,
+including decimal precision/scale, dates, int8 ternary values, nullable metadata
+columns and string/decimal lists. This is not byte-identical Arrow schema
+serialization: Polars exports large-string/list representations, and native
+datetime conversions apply (for example, seconds become milliseconds in Polars).
+Custom Arrow schema metadata and field-nullability flags are not round-trip
+guarantees. Polars may share input buffers; use the existing `snapshot()` when
+an independent copy is required.
+
 ## The unified visitor
 
 A single visitor class dispatches **every** node type via a function registry. Source: `src/mountainash/expressions/core/unified_visitor/` and `src/mountainash/relations/core/unified_visitor/`.
