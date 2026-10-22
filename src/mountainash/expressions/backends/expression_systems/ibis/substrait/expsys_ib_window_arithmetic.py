@@ -45,8 +45,10 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
         Returns:
             Row number expression (requires .over() for partition context).
+
+        Ibis numbers from 0; ``+ 1`` gives the 1-based Substrait result.
         """
-        return ibis.row_number()
+        return ibis.row_number() + 1
 
     def rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> IbisNumericExpr:
         """The rank of the current row, with gaps.
@@ -62,6 +64,8 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
         Raises:
             BackendCapabilityError: For rank methods without SQL equivalents.
+
+        Ibis numbers from 0; ``+ 1`` gives the 1-based Substrait result.
         """
         from mountainash.core.types import BackendCapabilityError
         from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_WINDOW
@@ -74,7 +78,7 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
                 f"SQL only supports RANK (method='min'), DENSE_RANK (method='dense'), "
                 f"and ROW_NUMBER (method='ordinal').",
             )
-        return ibis.rank()
+        return ibis.rank() + 1
 
     def dense_rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
         """The rank of the current row, without gaps.
@@ -85,8 +89,10 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
 
         Returns:
             Dense rank expression (requires .over() for partition context).
+
+        Ibis numbers from 0; ``+ 1`` gives the 1-based Substrait result.
         """
-        return ibis.dense_rank()
+        return ibis.dense_rank() + 1
 
     def percent_rank(self) -> IbisNumericExpr:
         """The relative rank of the current row.

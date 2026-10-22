@@ -6,7 +6,6 @@ backends. Window functions require .over() context for partitioned operations.
 Test data uses unique sort keys to ensure deterministic output ordering.
 
 Known divergences use exact scoped observer bindings:
-- ibis-duckdb/ibis-sqlite: rank/dense_rank/row_number are 0-based (IB-WIN-02)
 - ibis: rank(method='average'/'max') has no SQL equivalent (IB-WIN-05)
 - ibis: cum_prod unsupported (IB-WIN-04)
 - ibis/narwhals/pandas: rank(method='dense'/'ordinal') via method param (MA-WIN-01),
@@ -38,46 +37,31 @@ class TestWindowRank:
         data = {"group": ["A", "A", "A", "B", "B"], "score": [10, 30, 20, 15, 25]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).sort("group", "score").to_dict()
-            )
-            # A: scores [10,20,30] -> ranks [1,2,3]; B: scores [15,25] -> ranks [1,2]
-            assert result["rnk"] == [1, 2, 3, 1, 2]
+        result = (
+            ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).sort("group", "score").to_dict()
+        )
+        # A: scores [10,20,30] -> ranks [1,2,3]; B: scores [15,25] -> ranks [1,2]
+        assert result["rnk"] == [1, 2, 3, 1, 2]
 
     def test_rank_with_ties(self, backend_name, backend_factory):
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 20, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rnk"))
-                .sort("group", "score", "id")
-                .to_dict()
-            )
-            # Tied scores get same rank; next rank skips: [1, 2, 2, 4]
-            assert result["rnk"] == [1, 2, 2, 4]
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        # Tied scores get same rank; next rank skips: [1, 2, 2, 4]
+        assert result["rnk"] == [1, 2, 2, 4]
 
     def test_rank_single_row_partition(self, backend_name, backend_factory):
         data = {"group": ["A"], "score": [99]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="min").over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).to_dict()
-            assert result["rnk"] == [1]
+        result = ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rnk")).to_dict()
+        assert result["rnk"] == [1]
 
 
 @pytest.mark.cross_backend
@@ -89,36 +73,26 @@ class TestWindowDenseRank:
         data = {"group": ["A", "A", "A", "B", "B"], "score": [10, 30, 20, 15, 25]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").dense_rank().over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), expr.alias("drnk"))
-                .sort("group", "score")
-                .to_dict()
-            )
-            assert result["drnk"] == [1, 2, 3, 1, 2]
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), expr.alias("drnk"))
+            .sort("group", "score")
+            .to_dict()
+        )
+        assert result["drnk"] == [1, 2, 3, 1, 2]
 
     def test_dense_rank_with_ties(self, backend_name, backend_factory):
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 20, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").dense_rank().over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
-                .sort("group", "score", "id")
-                .to_dict()
-            )
-            # Dense rank: no gaps -> [1, 2, 2, 3]
-            assert result["drnk"] == [1, 2, 2, 3]
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        # Dense rank: no gaps -> [1, 2, 2, 3]
+        assert result["drnk"] == [1, 2, 2, 3]
 
 
 @pytest.mark.cross_backend
@@ -130,29 +104,19 @@ class TestWindowRowNumber:
         data = {"group": ["A", "A", "A", "B", "B"], "score": [10, 30, 20, 15, 25]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").row_number().over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
-            )
-            assert result["rn"] == [1, 2, 3, 1, 2]
+        result = (
+            ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
+        )
+        assert result["rn"] == [1, 2, 3, 1, 2]
 
     def test_row_number_single_partition(self, backend_name, backend_factory):
         data = {"group": ["A", "A", "A"], "score": [30, 10, 20]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").row_number().over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
-            )
-            assert result["rn"] == [1, 2, 3]
+        result = (
+            ma.relation(df).select(ma.col("group"), ma.col("score"), expr.alias("rn")).sort("group", "score").to_dict()
+        )
+        assert result["rn"] == [1, 2, 3]
 
 
 @pytest.mark.cross_backend
@@ -753,24 +717,19 @@ class TestWindowMultiPartition:
         }
         df = backend_factory.create(data, backend_name)
         expr = ma.col("salary").rank(method="min").over("dept", "level")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite'),
-            reason=('rank/dense_rank/row_number return values one lower on ibis SQL'),
-            errors=((AssertionError,)),
-        ):
-            result = (
-                ma.relation(df)
-                .select(
-                    ma.col("dept"),
-                    ma.col("level"),
-                    ma.col("salary"),
-                    expr.alias("rnk"),
-                )
-                .sort("dept", "level", "salary")
-                .to_dict()
+        result = (
+            ma.relation(df)
+            .select(
+                ma.col("dept"),
+                ma.col("level"),
+                ma.col("salary"),
+                expr.alias("rnk"),
             )
-            assert len(result["rnk"]) == 5
-            assert all(r >= 1 for r in result["rnk"])
+            .sort("dept", "level", "salary")
+            .to_dict()
+        )
+        # eng/jr: 90,100 -> 1,2; eng/sr: 120 -> 1; sales/jr: 80 -> 1; sales/sr: 110 -> 1
+        assert result["rnk"] == [1, 2, 1, 1, 1]
 
 
 class TestWindowRequiresOver:

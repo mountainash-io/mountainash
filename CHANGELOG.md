@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-22
+
+### Fixed
+- `row_number()`, `rank()` and `dense_rank()` are 1-based on Ibis backends, matching Polars, Narwhals and Substrait (backlog 365). Previously Ibis-DuckDB/SQLite returned values one lower; IB-WIN-02 is resolved.
+
 ## Unreleased — 2026-10-21
 
 ### Added
