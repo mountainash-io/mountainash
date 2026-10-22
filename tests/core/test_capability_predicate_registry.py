@@ -561,3 +561,66 @@ def test_dynamic_policy_accepts_proven_disjoint_partition(isolated, partition):
     })
     allowed = ma.lit(-7).node if partition == "form" else ma.col("value").node
     assert CapabilityRegistry.violations_for(_call(x=allowed, overflow="SATURATE")) == frozenset()
+
+
+def _window_shape_policy(operation, field):
+    from mountainash.core.capabilities.predicates import WINDOW_ROOT
+
+    return CapabilityPolicyRule(
+        key=CapabilityKey(
+            operation, WINDOW_ROOT,
+            Selector("predicate", Predicate((Clause(f"{WINDOW_ROOT}.{field}", ClauseOp.EQ, True),))),
+        ),
+        level=CapabilityLevel.UNSUPPORTED,
+        message=f"window {field} blocked",
+        consumer=PolicyConsumer.GATE,
+        action=PolicyAction.BLOCK,
+        applicability=unbounded,
+    )
+
+
+def _window_segment(*policies):
+    return BoundSegment(
+        "mountainash.expressions.backends.capabilities.polars.dialects.polars.substrait.window.shape",
+        _SCOPE,
+        CapabilitySegment(Domain.WINDOW, policies=policies),
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "order_by", "blocked"),
+    [
+        ("multi_key", ["a", "b"], True),
+        ("multi_key", "-b", False),
+        ("any_descending", ["a", "-b"], True),
+        ("any_descending", ["a", "b"], False),
+    ],
+)
+def test_window_shape_policy_gates_on_effective_window(isolated, field, order_by, blocked):
+    from mountainash.expressions.core.expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW
+
+    CapabilityRegistry.register_segment(
+        _window_segment(_window_shape_policy(SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER, field))
+    )
+    expr = ma.col("a").row_number().over("g", order_by=order_by)
+    df = pl.DataFrame({"g": [1, 1], "a": [1, 2], "b": [2, 1]})
+    if blocked:
+        with pytest.raises(BackendCapabilityError, match=f"window {field} blocked"):
+            expr.compile(df)
+    else:
+        expr.compile(df)
+
+
+def test_window_shape_policy_rejected_on_non_window_operation(isolated):
+    with pytest.raises(ValueError):
+        CapabilityRegistry.register_segment(_window_segment(_window_shape_policy(_OP, "multi_key")))
+
+
+def test_window_root_is_reserved_as_call_binding():
+    from mountainash.core.capabilities.predicates import WINDOW_ROOT, bind_expression_call
+
+    with pytest.raises(ValueError, match="reserved"):
+        bind_expression_call(
+            operation_key=_OP, backend=CONST_BACKEND.POLARS, dialect="polars",
+            protocol_method=lambda x: None, arguments=[], options={WINDOW_ROOT: True},
+        )

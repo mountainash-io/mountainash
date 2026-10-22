@@ -30,6 +30,7 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
+from mountainash.core.capabilities.predicates import WINDOW_ROOT
 from mountainash.core.capabilities.schema import PolicyConsumer
 from .type_context import TypeContext
 from mountainash.core.lowering_reuse import (
@@ -863,6 +864,13 @@ class UnifiedExpressionVisitor:
         takes_order_by = any(p.name == "order_by" for p in _protocol_sig_params(protocol_method))
 
         bound = self._bound_call(node.function_key, protocol_method, node.arguments, options)
+        # Window shape for capability predicates (backlog 364).
+        keys = window_spec.order_by
+        bound = replace(bound, bindings={**bound.bindings, WINDOW_ROOT: {
+            "order_keys": len(keys),
+            "multi_key": len(keys) > 1,
+            "any_descending": any(sf.descending for sf in keys),
+        }})
         self._gate_predicate_violations(bound, phase="raw")
         self._gate_operation(node.function_key)
         operand_types = self._required_operand_types(func_def, protocol_method, node.arguments, options)

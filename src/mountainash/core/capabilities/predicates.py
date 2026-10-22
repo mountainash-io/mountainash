@@ -22,6 +22,19 @@ if TYPE_CHECKING:
     from mountainash.core.dtypes.metadata import OperandType
 
 OPERAND_TYPES_ROOT = "__operand_types__"
+# Derived window shape of a window-function call (order_keys, multi_key,
+# any_descending); bound by the compiler, never by the caller.
+WINDOW_ROOT = "__window__"
+
+
+def is_window_operation(operation_key: Any) -> bool:
+    """Whether window-shape metadata is bound for calls to this operation."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import (
+        FKEY_MOUNTAINASH_WINDOW,
+        SUBSTRAIT_ARITHMETIC_WINDOW,
+    )
+
+    return isinstance(operation_key, (SUBSTRAIT_ARITHMETIC_WINDOW, FKEY_MOUNTAINASH_WINDOW))
 
 
 @dataclass(frozen=True)
@@ -39,6 +52,8 @@ class BoundCall:
     def __post_init__(self) -> None:
         if OPERAND_TYPES_ROOT in self.bindings or OPERAND_TYPES_ROOT in self.supplied:
             raise ValueError(f"{OPERAND_TYPES_ROOT} is reserved compiler metadata")
+        if WINDOW_ROOT in self.supplied:
+            raise ValueError(f"{WINDOW_ROOT} is reserved compiler metadata")
 
 
 def _unwrap_literal(value: Any) -> Any:
