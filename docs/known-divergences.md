@@ -7671,8 +7671,8 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 367: pandas `rank` returns float64, so row_number/rank/dense_rank values are floats (1.0, 2.0, ...) on NumPy-backed pandas; the values match other backends. No integer cast is applied: null sort keys rank as NaN, which NumPy integers cannot hold (see 252).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[2]`
 
 ### Related executable policies
 
@@ -7777,8 +7777,8 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 367: pandas `rank` returns float64, so row_number/rank/dense_rank values are floats (1.0, 2.0, ...) on NumPy-backed pandas; the values match other backends. No integer cast is applied: null sort keys rank as NaN, which NumPy integers cannot hold (see 252).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[0]`
 
 ### Related executable policies
 

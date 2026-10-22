@@ -795,6 +795,21 @@ class TestWindowMultiKeyOrder:
             assert sorted(out["r"]) == [1, 2, 3]
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("fn", ["row_number", "dense_rank"])
+def test_integral_rank_dtype(backend_name, backend_factory, fn):
+    """Integral ranking functions return integers (backlog 367)."""
+    df = backend_factory.create({"g": [1, 1], "a": [2, 1]}, backend_name)
+    expr = getattr(ma.col("a"), fn)().over("g")
+    with expect_call_failure(
+        when=backend_name in ("pandas", "narwhals-pandas"),
+        reason="backlog 367: pandas NumPy rank returns float64 (declared divergence)",
+        errors=(AssertionError,),
+    ):
+        values = ma.relation(df).with_columns(expr.alias("r")).to_dict()["r"]
+        assert all(type(v) is int for v in values)
+
 
 class TestWindowRequiresOver:
     """Window functions that don't pre-populate window_spec must have .over()."""
