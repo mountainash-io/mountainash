@@ -8,7 +8,7 @@ Many functions are not implemented and will raise NotImplementedError.
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 import narwhals as nw
 
@@ -36,51 +36,54 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False) -> NarwhalsExpr:
+    # Only the first sort key is used and Narwhals cannot express per-key
+    # direction in .over(); the declared refusal is tracked in backlog 364.
+
+    def row_number(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = ()) -> NarwhalsExpr:
         """The number of the current row within its partition, starting at 1.
 
         Args:
-            order_by_col: Optional ordering column for rank computation.
-            descending: Whether to rank in descending order.
+            order_by: (key, descending) pairs; only the first is used.
 
         Raises:
-            NotImplementedError: When no order_by_col is provided.
+            NotImplementedError: When no order_by is provided.
         """
-        if order_by_col is not None:
-            return order_by_col.rank(method="ordinal", descending=descending)
+        if order_by:
+            key, descending = order_by[0]
+            return key.rank(method="ordinal", descending=descending)
         raise NotImplementedError(
             "row_number() is not supported by the Narwhals backend without order_by."
         )
 
-    def rank(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> NarwhalsExpr:
+    def rank(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = (), rank_method: str = "min", **kwargs: Any) -> NarwhalsExpr:
         """The rank of the current row, with gaps.
 
         Args:
-            order_by_col: Optional ordering column for rank computation.
-            descending: Whether to rank in descending order.
+            order_by: (key, descending) pairs; only the first is used.
             rank_method: Rank method — 'average', 'min', 'max', 'dense', 'ordinal'.
 
         Raises:
-            NotImplementedError: When no order_by_col is provided.
+            NotImplementedError: When no order_by is provided.
         """
-        if order_by_col is not None:
-            return order_by_col.rank(method=rank_method, descending=descending)
+        if order_by:
+            key, descending = order_by[0]
+            return key.rank(method=rank_method, descending=descending)
         raise NotImplementedError(
             "rank() is not supported by the Narwhals backend without order_by."
         )
 
-    def dense_rank(self, *, order_by_col: NarwhalsExpr | None = None, descending: bool = False) -> NarwhalsExpr:
+    def dense_rank(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = ()) -> NarwhalsExpr:
         """The rank of the current row, without gaps.
 
         Args:
-            order_by_col: Optional ordering column for rank computation.
-            descending: Whether to rank in descending order.
+            order_by: (key, descending) pairs; only the first is used.
 
         Raises:
-            NotImplementedError: When no order_by_col is provided.
+            NotImplementedError: When no order_by is provided.
         """
-        if order_by_col is not None:
-            return order_by_col.rank(method="dense", descending=descending)
+        if order_by:
+            key, descending = order_by[0]
+            return key.rank(method="dense", descending=descending)
         raise NotImplementedError(
             "dense_rank() is not supported by the Narwhals backend without order_by."
         )

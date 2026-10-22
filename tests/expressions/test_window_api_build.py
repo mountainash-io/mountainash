@@ -223,14 +223,12 @@ class TestOverMethodWindowFunctionNode:
         assert node.window_spec.partition_by[0].field == "dept"
         assert node.window_spec.partition_by[1].field == "team"
 
-    def test_over_order_by_preserved_from_rank(self):
-        """rank()'s order_by takes precedence over .over()'s order_by."""
-        api = _col("x").rank().over("dept", order_by="salary")
-        node = api._node
-        assert isinstance(node, WindowFunctionNode)
-        # rank()'s order_by ("x") wins over .over()'s ("salary")
-        assert len(node.window_spec.order_by) == 1
-        assert node.window_spec.order_by[0].column == "x"
+    def test_over_order_by_overrides_receiver_ordering(self):
+        """.over(order_by=...) replaces the ordering rank() pre-populated (backlog 364)."""
+        node = _col("x").rank().over("dept", order_by=["salary", "-age"])._node
+        assert [(s.column, s.descending) for s in node.window_spec.order_by] == [
+            ("salary", False), ("age", True),
+        ]
 
     def test_over_order_by_on_non_ranking_window(self):
         """For non-ranking windows (no pre-populated spec), .over() sets order_by."""
@@ -320,6 +318,5 @@ class TestOverNoPartition:
         node = api._node
         assert isinstance(node, WindowFunctionNode)
         assert node.window_spec.partition_by == []
-        # rank()'s order_by ("x") takes precedence
-        assert len(node.window_spec.order_by) == 1
-        assert node.window_spec.order_by[0].column == "x"
+        # .over()'s order_by replaces rank()'s receiver ordering (backlog 364)
+        assert [s.column for s in node.window_spec.order_by] == ["salary"]

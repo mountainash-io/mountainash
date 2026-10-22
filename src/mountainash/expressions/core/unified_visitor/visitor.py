@@ -860,17 +860,7 @@ class UnifiedExpressionVisitor:
         method_name = protocol_method.__name__
 
         options = dict(node.options) if node.options else {}
-        first_sort = window_spec.order_by[0] if window_spec.order_by else None
-        order_node = None
-        for parameter in _protocol_sig_params(protocol_method):
-            if parameter.name == "descending":
-                options["descending"] = (
-                    first_sort.descending if first_sort is not None
-                    else options.get("descending", parameter.default)
-                )
-            elif parameter.name == "order_by_col" and first_sort is not None:
-                order_node = FieldReferenceNode(field=first_sort.column)
-                options["order_by_col"] = order_node
+        takes_order_by = any(p.name == "order_by" for p in _protocol_sig_params(protocol_method))
 
         bound = self._bound_call(node.function_key, protocol_method, node.arguments, options)
         self._gate_predicate_violations(bound, phase="raw")
@@ -881,12 +871,19 @@ class UnifiedExpressionVisitor:
         )
         self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
         self._gate_options(node.function_key, options)
-        if order_node is not None:
-            options["order_by_col"] = self.visit(order_node)
+
+        # Ranking functions receive every sort key with its direction (backlog 364).
+        # Keys are native expressions, so they bypass option gating.
+        call_kwargs = dict(options)
+        if takes_order_by:
+            call_kwargs["order_by"] = tuple(
+                (self.visit(FieldReferenceNode(field=sf.column)), sf.descending)
+                for sf in window_spec.order_by
+            )
 
         method = getattr(self.backend, method_name)
         with self.backend.operand_types(operand_types):
-            result = method(*compiled_args, **options) if options else method(*compiled_args)
+            result = method(*compiled_args, **call_kwargs) if call_kwargs else method(*compiled_args)
         fold_lowering(self, selected_lowering(method, func_def.lowering))
         # An enclosing OverNode applies its window to the composed expression.
         # Applying it here too would create a nested native window.

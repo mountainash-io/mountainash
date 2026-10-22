@@ -732,6 +732,70 @@ class TestWindowMultiPartition:
         assert result["rnk"] == [1, 2, 1, 1, 1]
 
 
+_NARWHALS_FAMILY = ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy")
+_NW_364 = (
+    "backlog 364: Narwhals ranks on the first key and ignores descending; "
+    "declared refusal pending"
+)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestWindowMultiKeyOrder:
+    """.over(order_by=[...]) orders ranking functions by every key (backlog 364)."""
+
+    DATA = {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}
+
+    @pytest.mark.parametrize(
+        ("fn", "order_by", "expected"),
+        [
+            # rows sorted by (a, b): (1,1), (1,2), (2,1), (2,2)
+            ("row_number", ["a", "b"], [1, 2, 3, 4]),
+            ("row_number", ["a", "-b"], [2, 1, 4, 3]),
+            ("row_number", ["b", "a"], [1, 3, 2, 4]),
+            ("dense_rank", ["a", "b"], [1, 2, 3, 4]),
+            ("dense_rank", ["a", "-b"], [2, 1, 4, 3]),
+            ("rank", ["a", "b"], [1, 2, 3, 4]),
+        ],
+    )
+    def test_all_keys_ordered(self, backend_name, backend_factory, fn, order_by, expected):
+        kwargs = {"method": "min"} if fn == "rank" else {}
+        expr = getattr(ma.col("a"), fn)(**kwargs).over("g", order_by=order_by)
+        df = backend_factory.create(self.DATA, backend_name)
+        # Narwhals row_number follows the .over() frame order for ascending keys;
+        # tie-aware ranks and any descending key use only the first key.
+        with expect_call_failure(
+            when=backend_name in _NARWHALS_FAMILY
+            and (fn != "row_number" or any(k.startswith("-") for k in order_by)),
+            reason=_NW_364,
+            errors=(AssertionError,),
+        ):
+            out = ma.relation(df).with_columns(expr.alias("r")).sort("a", "b").to_dict()
+            assert out["r"] == expected
+
+    def test_single_descending_key(self, backend_name, backend_factory):
+        expr = ma.col("a").row_number().over("g", order_by="-b")
+        df = backend_factory.create(self.DATA, backend_name)
+        out = ma.relation(df).with_columns(expr.alias("r")).sort("b", "a").to_dict()
+        # b descending: the two b=2 rows take 1-2, the two b=1 rows take 3-4
+        assert sorted(out["r"][:2]) == [3, 4]
+        assert sorted(out["r"][2:]) == [1, 2]
+
+    def test_row_number_null_key_completes(self, backend_name, backend_factory):
+        df = backend_factory.create({"g": [1, 1, 1], "a": [2, None, 1], "b": [1, 2, 3]}, backend_name)
+        expr = ma.col("a").row_number().over("g", order_by=["a", "b"])
+        # Narwhals ranks the first key alone, and a null key ranks as null.
+        with expect_call_failure(
+            when=backend_name in _NARWHALS_FAMILY,
+            reason=_NW_364,
+            errors=(AssertionError,),
+        ):
+            out = ma.relation(df).with_columns(expr.alias("r")).to_dict()
+            assert None not in out["r"]
+            assert sorted(out["r"]) == [1, 2, 3]
+
+
+
 class TestWindowRequiresOver:
     """Window functions that don't pre-populate window_spec must have .over()."""
 

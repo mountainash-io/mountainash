@@ -8,7 +8,7 @@ These implementations return expressions that can be used with window specificat
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 import ibis
 
@@ -36,12 +36,11 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
+    def row_number(self, *, order_by: Sequence[Tuple[IbisNumericExpr, bool]] = ()) -> IbisNumericExpr:
         """The number of the current row within its partition, starting at 1.
 
         Args:
-            order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
-            descending: Ignored — Ibis ranking gets ordering from apply_window.
+            order_by: Ignored — Ibis ranking gets ordering from apply_window.
 
         Returns:
             Row number expression (requires .over() for partition context).
@@ -50,12 +49,11 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
         """
         return ibis.row_number() + 1
 
-    def rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> IbisNumericExpr:
+    def rank(self, *, order_by: Sequence[Tuple[IbisNumericExpr, bool]] = (), rank_method: str = "min", **kwargs: Any) -> IbisNumericExpr:
         """The rank of the current row, with gaps.
 
         Args:
-            order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
-            descending: Ignored — Ibis ranking gets ordering from apply_window.
+            order_by: Ignored — Ibis ranking gets ordering from apply_window.
             rank_method: Rank method — only 'min' is supported (SQL RANK).
                 'average' and 'max' have no SQL equivalent.
 
@@ -80,12 +78,11 @@ class SubstraitIbisWindowArithmeticExpressionSystem(IbisBaseExpressionSystem, Su
             )
         return ibis.rank() + 1
 
-    def dense_rank(self, *, order_by_col: IbisNumericExpr | None = None, descending: bool = False) -> IbisNumericExpr:
+    def dense_rank(self, *, order_by: Sequence[Tuple[IbisNumericExpr, bool]] = ()) -> IbisNumericExpr:
         """The rank of the current row, without gaps.
 
         Args:
-            order_by_col: Ignored — Ibis ranking gets ordering from apply_window.
-            descending: Ignored — Ibis ranking gets ordering from apply_window.
+            order_by: Ignored — Ibis ranking gets ordering from apply_window.
 
         Returns:
             Dense rank expression (requires .over() for partition context).

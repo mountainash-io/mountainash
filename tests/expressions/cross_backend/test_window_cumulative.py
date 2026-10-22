@@ -47,6 +47,25 @@ class TestCumSum:
             assert result == [210, 200, 180, 150, 50], f"[{backend_name}] got {result}"
 
 
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+class TestCumulativeMixedDirectionOrder:
+    def test_cum_count_mixed_direction_order(self, backend_name, backend_factory):
+        """Order-dependent windows follow every key and its direction (backlog 364)."""
+        df = backend_factory.create({"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}, backend_name)
+        expr = ma.col("a").cum_count().over("g", order_by=["a", "-b"])
+        with expect_call_failure(
+            when=backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"),
+            reason=(
+                "backlog 364: Narwhals .over() ignores descending; "
+                "pandas-like also orders by the last key only (backlog 368)"
+            ),
+            errors=(AssertionError,),
+        ):
+            out = ma.relation(df).with_columns(expr.alias("c")).sort("a", "b").to_dict()
+            assert out["c"] == [2, 1, 4, 3]
+
+
 # =============================================================================
 # Cross-backend: cum_max basic
 # =============================================================================

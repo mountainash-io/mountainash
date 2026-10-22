@@ -8,7 +8,7 @@ These implementations return expressions that can be used with window specificat
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 import polars as pl
 
@@ -35,48 +35,64 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
     # Ranking Functions
     # =========================================================================
 
-    def row_number(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, **kwargs: Any) -> PolarsExpr:
+    @staticmethod
+    def _rank_key(order_by: Sequence[Tuple[PolarsExpr, bool]]) -> Tuple[PolarsExpr, bool]:
+        """One rankable key for several sort keys, with its direction.
+
+        One key ranks natively with its direction. Several keys rank as a
+        struct; a descending key is replaced by its descending dense rank,
+        which sorts ascending in that key's descending order for any dtype.
+        """
+        if len(order_by) == 1:
+            return order_by[0]
+        fields = [
+            (key.rank("dense", descending=True) if desc else key).alias(f"_k{i}")
+            for i, (key, desc) in enumerate(order_by)
+        ]
+        return pl.struct(fields), False
+
+    def row_number(self, *, order_by: Sequence[Tuple[PolarsExpr, bool]] = (), **kwargs: Any) -> PolarsExpr:
         """The number of the current row within its partition, starting at 1.
 
         Args:
-            order_by_col: Optional ordering column for rank computation.
-            descending: Whether to rank in descending order.
+            order_by: (key, descending) pairs in priority order.
 
         Returns:
             Row number expression (requires .over() for partition context).
         """
-        if order_by_col is not None:
-            return order_by_col.rank(method="ordinal", descending=descending)
+        if order_by:
+            key, descending = self._rank_key(order_by)
+            return key.rank(method="ordinal", descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, rank_method: str = "min", **kwargs: Any) -> PolarsExpr:
+    def rank(self, *, order_by: Sequence[Tuple[PolarsExpr, bool]] = (), rank_method: str = "min", **kwargs: Any) -> PolarsExpr:
         """The rank of the current row.
 
         Args:
-            order_by_col: Optional ordering column for rank computation.
-            descending: Whether to rank in descending order.
+            order_by: (key, descending) pairs in priority order.
             rank_method: Polars rank method — 'average', 'min', 'max',
                         'dense', 'ordinal'.
 
         Returns:
             Rank expression (requires .over() for partition context).
         """
-        if order_by_col is not None:
-            return order_by_col.rank(method=rank_method, descending=descending)
+        if order_by:
+            key, descending = self._rank_key(order_by)
+            return key.rank(method=rank_method, descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
-    def dense_rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False, **kwargs: Any) -> PolarsExpr:
+    def dense_rank(self, *, order_by: Sequence[Tuple[PolarsExpr, bool]] = (), **kwargs: Any) -> PolarsExpr:
         """The rank of the current row, without gaps.
 
         Args:
-            order_by_col: Optional ordering column for rank computation.
-            descending: Whether to rank in descending order.
+            order_by: (key, descending) pairs in priority order.
 
         Returns:
             Dense rank expression (requires .over() for partition context).
         """
-        if order_by_col is not None:
-            return order_by_col.rank(method="dense", descending=descending)
+        if order_by:
+            key, descending = self._rank_key(order_by)
+            return key.rank(method="dense", descending=descending)
         return pl.int_range(1, pl.len() + 1)
 
     def percent_rank(self, *, order_by_col: PolarsExpr | None = None, descending: bool = False) -> PolarsExpr:
@@ -244,12 +260,17 @@ class SubstraitPolarsWindowArithmeticExpressionSystem(PolarsBaseExpressionSystem
             return expr
         over_kwargs: dict[str, Any] = {}
         if order_by:
-            order_cols = [col for col, _ in order_by]
-            desc_flags = [desc for _, desc in order_by]
-            over_kwargs["order_by"] = order_cols if len(order_cols) > 1 else order_cols[0]
-            # Polars .over() accepts descending as a single bool
-            if any(desc_flags):
-                over_kwargs["descending"] = True
+            desc_flags = {desc for _, desc in order_by}
+            if len(desc_flags) == 1:
+                # Polars .over() takes a single descending flag.
+                cols = [col for col, _ in order_by]
+                if desc_flags.pop():
+                    over_kwargs["descending"] = True
+            else:
+                # Mixed directions: a descending key sorts ascending by its
+                # descending dense rank (backlog 364).
+                cols = [col.rank("dense", descending=True) if desc else col for col, desc in order_by]
+            over_kwargs["order_by"] = cols if len(cols) > 1 else cols[0]
         if partition_by:
             return expr.over(*partition_by, **over_kwargs)
         return expr.over(**over_kwargs)
