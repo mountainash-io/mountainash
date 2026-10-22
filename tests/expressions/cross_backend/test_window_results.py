@@ -8,8 +8,7 @@ Test data uses unique sort keys to ensure deterministic output ordering.
 Known divergences use exact scoped observer bindings:
 - ibis: rank(method='average'/'max') has no SQL equivalent (IB-WIN-05)
 - ibis: cum_prod unsupported (IB-WIN-04)
-- ibis/narwhals/pandas: rank(method='dense'/'ordinal') via method param (MA-WIN-01),
-  ntile (MA-WIN-02), .over() on elementwise expressions (MA-WIN-03)
+- ibis/narwhals/pandas: ntile (MA-WIN-02), .over() on elementwise expressions (MA-WIN-03)
 - narwhals/pandas: percent_rank/cume_dist/nth_value/diff(n>1) (NW-WIN-04)
 - narwhals-lazy: order-dependent window ops on a LazyFrame (NW-WIN-03)
 """
