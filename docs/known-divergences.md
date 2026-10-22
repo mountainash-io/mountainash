@@ -6,7 +6,7 @@ Examples are render-only illustrations, not executable tests, runtime rules, or 
 Catalogue descriptions retain their native/public layers and authored scope. Related policies are listed, not evaluated.
 Neither these examples nor upstream issue status establishes a verified version range.
 
-Illustrative examples: **420**
+Illustrative examples: **455**
 
 ## ibis/family — cum_prod() raises on all Ibis backends
 
@@ -73,25 +73,6 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `IB-WIN-05` — by_design; no upstream URL
 
-## ibis/family — rank(method='dense'\|'ordinal') raises off Polars
-
-Target: `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK`
-
-### Illustration
-
-    Input data: {"values": {"group": ["A", "A", "A", "A"], "id": [1, 2, 3, 4], "score": [10, 20, 30, 30]}}
-    Reference result: {"historical_source_claim": [1, 2, 3, 3]}
-    Contrasting result: {"historical_source_claim": "rank(method='dense'|'ordinal') raises off Polars"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
 ## ibis/family — ntile() is unsupported off Polars
 
 Target: `SUBSTRAIT_ARITHMETIC_WINDOW.NTILE`
@@ -102,25 +83,6 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.NTILE`
     Input data: {"values": {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 40]}}
     Reference result: {"historical_source_claim": [1, 1, 2, 2]}
     Contrasting result: {"historical_source_claim": "ntile() is unsupported off Polars"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
-
-## ibis/family — rank(method='dense'\|'ordinal') raises off Polars
-
-Target: `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER`
-
-### Illustration
-
-    Input data: {"values": {"group": ["A", "A", "A", "A"], "id": [1, 2, 3, 4], "score": [10, 20, 30, 30]}}
-    Reference result: {"historical_source_claim": [1, 2, 3, 4]}
-    Contrasting result: {"historical_source_claim": "rank(method='dense'|'ordinal') raises off Polars"}
 
 ### Catalogue descriptions
 
@@ -4899,6 +4861,166 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `NW-DT-06` — needs_investigation; no upstream URL
 
+## narwhals/family — backward_fill() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [null, 5, null]}}
+    Reference result: {"historical_source_claim": [null, 5, 5]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[7]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — cum_count() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [3, 2, 1]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[3]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — cum_max() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MAX`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [3, 2, 2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[1]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — cum_min() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MIN`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [1, 1, 2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[2]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — cum_prod() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_PROD`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [6, 2, 2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[4]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — cum_sum() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_SUM`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [6, 3, 2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[0]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — diff() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.DIFF`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [2, -1, null]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[5]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — forward_fill() with descending window order is refused on Narwhals
+
+Target: `FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [null, 5, null]}}
+    Reference result: {"historical_source_claim": [5, 5, null]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[6]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
 ## narwhals/family — ma.corr() raises on all backends except ibis-polars
 
 Target: `FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR`
@@ -4941,20 +5063,101 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `NW-WIN-04` — needs_investigation; no upstream URL
 
-## narwhals/family — rank(method='dense'\|'ordinal') raises off Polars
+## narwhals/family — first_value() with descending window order is refused on Narwhals
 
-Target: `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK`
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE`
 
 ### Illustration
 
-    Input data: {"values": {"group": ["A", "A", "A", "A"], "id": [1, 2, 3, 4], "score": [10, 20, 30, 30]}}
-    Reference result: {"historical_source_claim": [1, 2, 3, 3]}
-    Contrasting result: {"historical_source_claim": "rank(method='dense'|'ordinal') raises off Polars"}
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [2, 2, 2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[2]`
 
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — lag() with descending window order is refused on Narwhals
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LAG`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [1, 2, null]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[0]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — last_value() with descending window order is refused on Narwhals
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [3, 3, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[3]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — lead() with descending window order is refused on Narwhals
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LEAD`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [null, 3, 1]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[1]`
+
+### Related executable policies
+
+No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/family — nth_value() with descending window order is refused on Narwhals
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": "-a", "partition_by": ["g"], "n": 2}
+    Input data: {"values": {"g": [1, 1, 1], "a": [1, 2, 3], "v": [3, 1, 2]}}
+    Reference result: {"historical_source_claim": [1, 1, 1]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported."}
+
+### Catalogue descriptions
+
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[4]`
 
 ### Related executable policies
 
@@ -4973,8 +5176,8 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[4]`
 
 ### Related executable policies
 
@@ -5026,25 +5229,6 @@ No retained executable policy is authored for this target and concrete scope.
 ### Explicit issue references
 
 - `NW-WIN-04` — needs_investigation; no upstream URL
-
-## narwhals/family — rank(method='dense'\|'ordinal') raises off Polars
-
-Target: `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER`
-
-### Illustration
-
-    Input data: {"values": {"group": ["A", "A", "A", "A"], "id": [1, 2, 3, 4], "score": [10, 20, 30, 30]}}
-    Reference result: {"historical_source_claim": [1, 2, 3, 4]}
-    Contrasting result: {"historical_source_claim": "rank(method='dense'|'ordinal') raises off Polars"}
-
-### Catalogue descriptions
-
-No matching catalogue description is authored; support and verification remain unknown.
-
-
-### Related executable policies
-
-No retained executable policy is authored for this target and concrete scope.
 
 ## narwhals/family — scalar_expr.over(...) raises off Polars
 
@@ -5131,6 +5315,111 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `NW-MATH-01` — needs_filing; no upstream URL
 
+## narwhals/narwhals-duckdb — rank(method='average') with several sort keys is refused on narwhals-duckdb
+
+Target: `FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"], "method": "average"}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-duckdb; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.extensions_mountainash.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.extensions_mountainash.window:policies[8]`
+
+## narwhals/narwhals-duckdb — rank(method='max') with several sort keys is refused on narwhals-duckdb
+
+Target: `FKEY_MOUNTAINASH_WINDOW.RANK_MAX`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"], "method": "max"}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-duckdb; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.extensions_mountainash.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.extensions_mountainash.window:policies[9]`
+
+## narwhals/narwhals-duckdb — dense_rank() with several sort keys is refused on narwhals-duckdb
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-duckdb; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.substrait.window:information[2]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.substrait.window:policies[7]`
+
+## narwhals/narwhals-duckdb — rank() with several sort keys is refused on narwhals-duckdb
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.RANK`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-duckdb; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.substrait.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.substrait.window:policies[6]`
+
+## narwhals/narwhals-duckdb — row_number() with several sort keys is refused on narwhals-duckdb
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-duckdb; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.substrait.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_duckdb.substrait.window:policies[5]`
+
 ## narwhals/narwhals-lazy — order-dependent window operations raise on narwhals-lazy
 
 Target: `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT`
@@ -5143,12 +5432,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[3]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[3]`
 
 ### Explicit issue references
 
@@ -5166,12 +5456,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[3]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[3]`
 
 ### Explicit issue references
 
@@ -5189,12 +5480,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MAX`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[1]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[1]`
 
 ### Explicit issue references
 
@@ -5212,12 +5504,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MAX`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[1]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[1]`
 
 ### Explicit issue references
 
@@ -5235,12 +5528,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MIN`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[2]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[2]`
 
 ### Explicit issue references
 
@@ -5258,12 +5552,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MIN`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[2]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[2]`
 
 ### Explicit issue references
 
@@ -5281,12 +5576,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_PROD`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[4]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[4]`
 
 ### Explicit issue references
 
@@ -5304,12 +5600,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_SUM`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[0]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[0]`
 
 ### Explicit issue references
 
@@ -5327,12 +5624,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_SUM`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[0]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[0]`
 
 ### Explicit issue references
 
@@ -5350,12 +5648,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_SUM`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[0]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[0]`
 
 ### Explicit issue references
 
@@ -5373,12 +5672,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.CUM_SUM`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[0]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[0]`
 
 ### Explicit issue references
 
@@ -5396,12 +5696,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.DIFF`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[5]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[5]`
 
 ### Explicit issue references
 
@@ -5419,12 +5720,13 @@ Target: `FKEY_MOUNTAINASH_WINDOW.DIFF`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[5]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.extensions_mountainash.window:policies[5]`
 
 ### Explicit issue references
 
@@ -5939,12 +6241,13 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[2]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.substrait.window:policies[2]`
 
 ### Explicit issue references
 
@@ -5962,12 +6265,13 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[3]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_lazy.substrait.window:policies[3]`
 
 ### Explicit issue references
 
@@ -6324,6 +6628,280 @@ No retained executable policy is authored for this target and concrete scope.
 ### Explicit issue references
 
 - `NW-DT-03` — needs_investigation; no upstream URL
+
+## narwhals/narwhals-pandas — backward_fill() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [null, 5, null, 7]}}
+    Reference result: {"historical_source_claim": [7, 5, null, 7]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[9]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[7]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[7]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[17]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — cum_count() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_COUNT`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[5]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[3]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[3]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[13]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — cum_max() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MAX`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [4, 3, 4, 4]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[3]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[1]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[11]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — cum_min() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_MIN`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [3, 3, 1, 2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[4]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[2]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[2]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[12]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — cum_prod() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_PROD`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [12, 3, 24, 24]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[6]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[4]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[4]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[14]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — cum_sum() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.CUM_SUM`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [7, 3, 10, 9]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[2]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[0]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[10]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — diff() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.DIFF`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [1, null, -1, -2]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[7]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[5]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[5]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[15]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — forward_fill() with a multi-key window order is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [null, 5, null, 7]}}
+    Reference result: {"historical_source_claim": [5, 5, 7, 7]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[8]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.extensions_mountainash.window:information[6]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[6]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[16]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — rank(method='average') with several sort keys is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"], "method": "average"}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[8]`
+
+## narwhals/narwhals-pandas — rank(method='max') with several sort keys is refused on narwhals-pandas
+
+Target: `FKEY_MOUNTAINASH_WINDOW.RANK_MAX`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"], "method": "max"}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.extensions_mountainash.window:policies[9]`
 
 ## narwhals/narwhals-pandas — NULL-on-cast-failure cannot materialize on the marked provider.
 
@@ -7659,24 +8237,173 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `NW-WIN-04` — needs_investigation; no upstream URL
 
-## narwhals/narwhals-pandas — rank(method='dense'\|'ordinal') raises off Polars
+## narwhals/narwhals-pandas — dense_rank() with several sort keys is refused on narwhals-pandas
 
 Target: `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK`
 
 ### Illustration
 
-    Input data: {"values": {"group": ["A", "A", "A", "A"], "id": [1, 2, 3, 4], "score": [10, 20, 30, 30]}}
-    Reference result: {"historical_source_claim": [1, 2, 3, 3]}
-    Contrasting result: {"historical_source_claim": "rank(method='dense'|'ordinal') raises off Polars"}
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
 
 ### Catalogue descriptions
 
 - **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 367: pandas `rank` returns float64, so row_number/rank/dense_rank values are floats (1.0, 2.0, ...) on NumPy-backed pandas; the values match other backends. No integer cast is applied: null sort keys rank as NaN, which NumPy integers cannot hold (see 252).
   Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[2]`
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[5]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[7]`
+
+## narwhals/narwhals-pandas — first_value() with a multi-key window order is refused on narwhals-pandas
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [3, 3, 3, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[8]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[2]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[2]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[10]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — lag() with a multi-key window order is refused on narwhals-pandas
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LAG`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [3, null, 2, 4]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[6]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[0]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[8]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — last_value() with a multi-key window order is refused on narwhals-pandas
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [1, 1, 1, 1]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[9]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[3]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[3]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[11]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — lead() with a multi-key window order is refused on narwhals-pandas
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.LEAD`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [2, 4, null, 1]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[7]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[1]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[9]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
+
+## narwhals/narwhals-pandas — nth_value() with a multi-key window order is refused on narwhals-pandas
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE`
+
+### Illustration
+
+    Arguments: {"column": "v", "order_by": ["a", "b"], "partition_by": ["g"], "n": 2}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1], "v": [4, 3, 1, 2]}}
+    Reference result: {"historical_source_claim": [4, 4, 4, 4]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[10]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[4]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[4]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[12]`
+
+### Explicit issue references
+
+- `NW-WIN-05` — needs_filing; no upstream URL
 
 ## narwhals/narwhals-pandas — percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals
 
@@ -7691,16 +8418,22 @@ Target: `SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE`
 
 ### Catalogue descriptions
 
-No matching catalogue description is authored; support and verification remain unknown.
-
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[10]`
+- **native**, family; `__window__` / `{"_identity": [["__window__.any_descending", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.any_descending"}]}}`; categories: unclassified: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.family.substrait.window:information[4]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[4]`
+- **gate/block**, `__window__`: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[12]`
 
 ### Explicit issue references
 
 - `NW-WIN-04` — needs_investigation; no upstream URL
+- `NW-WIN-05` — needs_filing; no upstream URL
 
 ## narwhals/narwhals-pandas — ntile() is unsupported off Polars
 
@@ -7765,24 +8498,51 @@ No retained executable policy is authored for this target and concrete scope.
 
 - `NW-WIN-04` — needs_investigation; no upstream URL
 
-## narwhals/narwhals-pandas — rank(method='dense'\|'ordinal') raises off Polars
+## narwhals/narwhals-pandas — rank() with several sort keys is refused on narwhals-pandas
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.RANK`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 367: pandas `rank` returns float64, so row_number/rank/dense_rank values are floats (1.0, 2.0, ...) on NumPy-backed pandas; the values match other backends. No integer cast is applied: null sort keys rank as NaN, which NumPy integers cannot hold (see 252).
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[1]`
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[4]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[6]`
+
+## narwhals/narwhals-pandas — row_number() with several sort keys is refused on narwhals-pandas
 
 Target: `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER`
 
 ### Illustration
 
-    Input data: {"values": {"group": ["A", "A", "A", "A"], "id": [1, 2, 3, 4], "score": [10, 20, 30, 30]}}
-    Reference result: {"historical_source_claim": [1, 2, 3, 4]}
-    Contrasting result: {"historical_source_claim": "rank(method='dense'|'ordinal') raises off Polars"}
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
 
 ### Catalogue descriptions
 
 - **native**, narwhals-pandas; `*` / `{"_identity": {"tag": "null", "value": ""}, "kind": "unconditioned", "value": null}`; categories: unclassified: Backlog 367: pandas `rank` returns float64, so row_number/rank/dense_rank values are floats (1.0, 2.0, ...) on NumPy-backed pandas; the values match other backends. No integer cast is applied: null sort keys rank as NaN, which NumPy integers cannot hold (see 252).
   Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[0]`
+- **native**, narwhals-pandas; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:information[3]`
 
 ### Related executable policies
 
-No retained executable policy is authored for this target and concrete scope.
+- **gate/block**, `__window__`: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pandas.substrait.window:policies[5]`
 
 ## narwhals/narwhals-pandas — scalar_expr.over(...) raises off Polars
 
@@ -10083,6 +10843,111 @@ No matching catalogue description is authored; support and verification remain u
 ### Related executable policies
 
 No retained executable policy is authored for this target and concrete scope.
+
+## narwhals/narwhals-pyarrow — rank(method='average') with several sort keys is refused on narwhals-pyarrow
+
+Target: `FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"], "method": "average"}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pyarrow; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.extensions_mountainash.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.extensions_mountainash.window:policies[8]`
+
+## narwhals/narwhals-pyarrow — rank(method='max') with several sort keys is refused on narwhals-pyarrow
+
+Target: `FKEY_MOUNTAINASH_WINDOW.RANK_MAX`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"], "method": "max"}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pyarrow; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.extensions_mountainash.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.extensions_mountainash.window:policies[9]`
+
+## narwhals/narwhals-pyarrow — dense_rank() with several sort keys is refused on narwhals-pyarrow
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pyarrow; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.substrait.window:information[2]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.substrait.window:policies[7]`
+
+## narwhals/narwhals-pyarrow — rank() with several sort keys is refused on narwhals-pyarrow
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.RANK`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pyarrow; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.substrait.window:information[1]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.substrait.window:policies[6]`
+
+## narwhals/narwhals-pyarrow — row_number() with several sort keys is refused on narwhals-pyarrow
+
+Target: `SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER`
+
+### Illustration
+
+    Arguments: {"column": "a", "order_by": ["a", "b"], "partition_by": ["g"]}
+    Input data: {"values": {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}}
+    Reference result: {"historical_source_claim": [2, 1, 4, 3]}
+    Contrasting result: {"historical_source_claim": "BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions."}
+
+### Catalogue descriptions
+
+- **native**, narwhals-pyarrow; `__window__` / `{"_identity": [["__window__.multi_key", "eq", ["value", {"tag": "bool", "value": "true"}]]], "kind": "predicate", "value": {"clauses": [{"op": {"enum": "mountainash.core.capabilities.schema.ClauseOp", "name": "EQ", "value": "eq"}, "operand": true, "path": "__window__.multi_key"}]}}`; categories: unclassified: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.substrait.window:information[0]`
+
+### Related executable policies
+
+- **gate/block**, `__window__`: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.
+  Source: `mountainash.expressions.backends.capabilities.narwhals.dialects.narwhals_pyarrow.substrait.window:policies[5]`
 
 ## polars/family — The multi-column projection raises ShapeError on eager and lazy Polars.
 

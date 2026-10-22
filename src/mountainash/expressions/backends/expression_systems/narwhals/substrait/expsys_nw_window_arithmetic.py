@@ -36,20 +36,36 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     # Ranking Functions
     # =========================================================================
 
-    # Only the first sort key is used and Narwhals cannot express per-key
-    # direction in .over(); the declared refusal is tracked in backlog 364.
+    @staticmethod
+    def _rank_key(order_by: Sequence[Tuple[NarwhalsExpr, bool]]) -> Tuple[NarwhalsExpr, bool]:
+        """One rankable key for several sort keys (backlog 364).
+
+        Dense ranks are folded lexicographically, then compressed at each step.
+        UInt64 arithmetic avoids overflowing Polars' UInt32 ranks. A null key
+        ranks last at the row count: when nulls exist, every non-null dense rank
+        is strictly smaller. Unsupported dialects are gated before lowering.
+        """
+        if len(order_by) == 1:
+            return order_by[0]
+        size = nw.len().cast(nw.UInt64)
+        base = size + 1
+        key = None
+        for col, desc in order_by:
+            r = col.rank("dense", descending=desc).fill_null(size)
+            key = r if key is None else (key * base + r).rank("dense")
+        return key, False
 
     def row_number(self, *, order_by: Sequence[Tuple[NarwhalsExpr, bool]] = ()) -> NarwhalsExpr:
         """The number of the current row within its partition, starting at 1.
 
         Args:
-            order_by: (key, descending) pairs; only the first is used.
+            order_by: (key, descending) pairs in priority order.
 
         Raises:
             NotImplementedError: When no order_by is provided.
         """
         if order_by:
-            key, descending = order_by[0]
+            key, descending = self._rank_key(order_by)
             return key.rank(method="ordinal", descending=descending)
         raise NotImplementedError(
             "row_number() is not supported by the Narwhals backend without order_by."
@@ -59,14 +75,14 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """The rank of the current row, with gaps.
 
         Args:
-            order_by: (key, descending) pairs; only the first is used.
+            order_by: (key, descending) pairs in priority order.
             rank_method: Rank method — 'average', 'min', 'max', 'dense', 'ordinal'.
 
         Raises:
             NotImplementedError: When no order_by is provided.
         """
         if order_by:
-            key, descending = order_by[0]
+            key, descending = self._rank_key(order_by)
             return key.rank(method=rank_method, descending=descending)
         raise NotImplementedError(
             "rank() is not supported by the Narwhals backend without order_by."
@@ -76,13 +92,13 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
         """The rank of the current row, without gaps.
 
         Args:
-            order_by: (key, descending) pairs; only the first is used.
+            order_by: (key, descending) pairs in priority order.
 
         Raises:
             NotImplementedError: When no order_by is provided.
         """
         if order_by:
-            key, descending = order_by[0]
+            key, descending = self._rank_key(order_by)
             return key.rank(method="dense", descending=descending)
         raise NotImplementedError(
             "dense_rank() is not supported by the Narwhals backend without order_by."

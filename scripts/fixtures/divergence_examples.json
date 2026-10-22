@@ -25,23 +25,9 @@
   {
     "backend": "ibis",
     "dialect": null,
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank(method='dense'|'ordinal') raises off Polars",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 30, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"rank(method='dense'|'ordinal') raises off Polars\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": null,
     "target": "SUBSTRAIT_ARITHMETIC_WINDOW.NTILE",
     "title": "ntile() is unsupported off Polars",
     "text": "Arguments: {\"x\": 2}\nInput data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"score\": [10, 20, 30, 40]}}\nReference result: {\"historical_source_claim\": [1, 1, 2, 2]}\nContrasting result: {\"historical_source_claim\": \"ntile() is unsupported off Polars\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": null,
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank(method='dense'|'ordinal') raises off Polars",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 30, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 4]}\nContrasting result: {\"historical_source_claim\": \"rank(method='dense'|'ordinal') raises off Polars\"}"
   },
   {
     "backend": "ibis",
@@ -1547,6 +1533,62 @@
   {
     "backend": "narwhals",
     "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL",
+    "title": "backward_fill() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [null, 5, null]}}\nReference result: {\"historical_source_claim\": [null, 5, 5]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_COUNT",
+    "title": "cum_count() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [3, 2, 1]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_MAX",
+    "title": "cum_max() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [3, 2, 2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_MIN",
+    "title": "cum_min() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [1, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_PROD",
+    "title": "cum_prod() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [6, 2, 2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_SUM",
+    "title": "cum_sum() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [6, 3, 2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.DIFF",
+    "title": "diff() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [2, -1, null]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL",
+    "title": "forward_fill() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [null, 5, null]}}\nReference result: {\"historical_source_claim\": [5, 5, null]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
     "target": "FKEY_SUBSTRAIT_SCALAR_AGGREGATE.CORR",
     "title": "ma.corr() raises on all backends except ibis-polars",
     "text": "Input data: {\"values\": {\"g\": [\"a\", \"a\", \"a\", \"a\"], \"x\": [1.0, 2.0, 3.0, 4.0], \"y\": [2.0, 4.0, 6.0, 8.0]}}\nReference result: {\"historical_source_claim\": 1.0}\nContrasting result: {\"historical_source_claim\": \"ma.corr() raises on all backends except ibis-polars\"}"
@@ -1562,9 +1604,37 @@
   {
     "backend": "narwhals",
     "dialect": null,
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank(method='dense'|'ordinal') raises off Polars",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 30, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"rank(method='dense'|'ordinal') raises off Polars\"}"
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE",
+    "title": "first_value() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [2, 2, 2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.LAG",
+    "title": "lag() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [1, 2, null]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE",
+    "title": "last_value() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [3, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.LEAD",
+    "title": "lead() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [null, 3, 1]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": null,
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE",
+    "title": "nth_value() with descending window order is refused on Narwhals",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": \"-a\", \"partition_by\": [\"g\"], \"n\": 2}\nInput data: {\"values\": {\"g\": [1, 1, 1], \"a\": [1, 2, 3], \"v\": [3, 1, 2]}}\nReference result: {\"historical_source_claim\": [1, 1, 1]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals .over(order_by=...) has no sort direction; descending window order is unsupported.\"}"
   },
   {
     "backend": "narwhals",
@@ -1588,13 +1658,6 @@
     "title": "percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals",
     "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\", \"B\"], \"score\": [10, 20, 20, 30, 10, 20]}}\nReference result: {\"historical_source_claim\": \"all values in [0,1]\"}\nContrasting result: {\"historical_source_claim\": \"percent_rank/cume_dist/nth_value and diff(n>1) raise on pandas/narwhals\"}",
     "issue": "NW-WIN-04"
-  },
-  {
-    "backend": "narwhals",
-    "dialect": null,
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank(method='dense'|'ordinal') raises off Polars",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 30, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 4]}\nContrasting result: {\"historical_source_claim\": \"rank(method='dense'|'ordinal') raises off Polars\"}"
   },
   {
     "backend": "narwhals",
@@ -1625,6 +1688,41 @@
     "title": "ma.col(x).cot() raises on pandas and all narwhals backends",
     "text": "Input data: {\"values\": {\"a\": [\"pi/4\", \"pi/2\"]}}\nReference result: {\"historical_source_claim\": [1.0, 0.0]}\nContrasting result: {\"historical_source_claim\": \"historical NotImplementedError\"}",
     "issue": "NW-MATH-01"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-duckdb",
+    "target": "FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE",
+    "title": "rank(method='average') with several sort keys is refused on narwhals-duckdb",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"method\": \"average\"}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-duckdb",
+    "target": "FKEY_MOUNTAINASH_WINDOW.RANK_MAX",
+    "title": "rank(method='max') with several sort keys is refused on narwhals-duckdb",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"method\": \"max\"}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-duckdb",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
+    "title": "dense_rank() with several sort keys is refused on narwhals-duckdb",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-duckdb",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
+    "title": "rank() with several sort keys is refused on narwhals-duckdb",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-duckdb",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
+    "title": "row_number() with several sort keys is refused on narwhals-duckdb",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals duckdb cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
   },
   {
     "backend": "narwhals",
@@ -2042,6 +2140,84 @@
   {
     "backend": "narwhals",
     "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.BACKWARD_FILL",
+    "title": "backward_fill() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [null, 5, null, 7]}}\nReference result: {\"historical_source_claim\": [7, 5, null, 7]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_COUNT",
+    "title": "cum_count() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_MAX",
+    "title": "cum_max() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [4, 3, 4, 4]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_MIN",
+    "title": "cum_min() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [3, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_PROD",
+    "title": "cum_prod() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [12, 3, 24, 24]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.CUM_SUM",
+    "title": "cum_sum() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [7, 3, 10, 9]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.DIFF",
+    "title": "diff() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [1, null, -1, -2]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.FORWARD_FILL",
+    "title": "forward_fill() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [null, 5, null, 7]}}\nReference result: {\"historical_source_claim\": [5, 5, 7, 7]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE",
+    "title": "rank(method='average') with several sort keys is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"method\": \"average\"}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "FKEY_MOUNTAINASH_WINDOW.RANK_MAX",
+    "title": "rank(method='max') with several sort keys is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"method\": \"max\"}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
     "target": "FKEY_SUBSTRAIT_CAST.CAST",
     "title": "NULL-on-cast-failure cannot materialize on the marked provider.",
     "text": "Arguments: {\"x\": {\"field\": \"value\"}}\nOptions: {\"dtype\": \"mountainash.core.dtypes.canonical.MountainashDtype.I64\", \"failure_behavior\": \"mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast.CaseFailureBehaviour.NULL\"}\nInput data: {\"fixture\": {\"value\": [\"1\", \"1x\", \"3\"]}}\nReference result: {\"outcome\": [1, null, 3], \"status\": \"historical-source-assertion\"}\nContrasting result: {\"outcome\": \"Narwhals has no try-cast failure-behavior parameter.\", \"status\": \"historical-declaration\"}"
@@ -2398,8 +2574,48 @@
     "backend": "narwhals",
     "dialect": "narwhals-pandas",
     "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank(method='dense'|'ordinal') raises off Polars",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 30, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"rank(method='dense'|'ordinal') raises off Polars\"}"
+    "title": "dense_rank() with several sort keys is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.FIRST_VALUE",
+    "title": "first_value() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [3, 3, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.LAG",
+    "title": "lag() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [3, null, 2, 4]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.LAST_VALUE",
+    "title": "last_value() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [1, 1, 1, 1]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.LEAD",
+    "title": "lead() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [2, 4, null, 1]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.NTH_VALUE",
+    "title": "nth_value() with a multi-key window order is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"v\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"n\": 2}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1], \"v\": [4, 3, 1, 2]}}\nReference result: {\"historical_source_claim\": [4, 4, 4, 4]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas-like orders multi-key windows by the last key only (backlog 368).\"}",
+    "issue": "NW-WIN-05"
   },
   {
     "backend": "narwhals",
@@ -2434,9 +2650,16 @@
   {
     "backend": "narwhals",
     "dialect": "narwhals-pandas",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
+    "title": "rank() with several sort keys is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pandas",
     "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank(method='dense'|'ordinal') raises off Polars",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 30, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 4]}\nContrasting result: {\"historical_source_claim\": \"rank(method='dense'|'ordinal') raises off Polars\"}"
+    "title": "row_number() with several sort keys is refused on narwhals-pandas",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pandas cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
   },
   {
     "backend": "narwhals",
@@ -3135,6 +3358,41 @@
     "target": "mountainash.relations.core.relation_api.relation.Relation.to_polars",
     "title": "an opaque-carrier structured field (no schema evidence, already-native Python container) fails to decode through logical egress when the source is a Narwhals-wrapped Polars frame",
     "text": "Input schema: {\"payload\": \"opaque Python object; no native list schema evidence\"}\nInput data: {\"fixture\": {\"payload\": [[1, 2], [3]]}}\nReference result: {\"claim\": \"source_reported_expected\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": [\"result payload dtype Object and values [[1,2],[3]]\"]}\nContrasting result: {\"claim\": \"source_reported_observed\", \"fresh_native_result\": false, \"status\": \"historical_source_claim\", \"value\": \"Polars Object dtype has no defined Arrow representation; Narwhals' to_arrow() serializes raw object pointers instead of the underlying value\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pyarrow",
+    "target": "FKEY_MOUNTAINASH_WINDOW.RANK_AVERAGE",
+    "title": "rank(method='average') with several sort keys is refused on narwhals-pyarrow",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"method\": \"average\"}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pyarrow",
+    "target": "FKEY_MOUNTAINASH_WINDOW.RANK_MAX",
+    "title": "rank(method='max') with several sort keys is refused on narwhals-pyarrow",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"], \"method\": \"max\"}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pyarrow",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
+    "title": "dense_rank() with several sort keys is refused on narwhals-pyarrow",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pyarrow",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
+    "title": "rank() with several sort keys is refused on narwhals-pyarrow",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
+  },
+  {
+    "backend": "narwhals",
+    "dialect": "narwhals-pyarrow",
+    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
+    "title": "row_number() with several sort keys is refused on narwhals-pyarrow",
+    "text": "Arguments: {\"column\": \"a\", \"order_by\": [\"a\", \"b\"], \"partition_by\": [\"g\"]}\nInput data: {\"values\": {\"g\": [1, 1, 1, 1], \"a\": [1, 1, 2, 2], \"b\": [2, 1, 2, 1]}}\nReference result: {\"historical_source_claim\": [2, 1, 4, 3]}\nContrasting result: {\"historical_source_claim\": \"BackendCapabilityError: Narwhals pyarrow cannot rank by several sort keys: .over(partition) accepts only elementary expressions.\"}"
   },
   {
     "backend": "polars",

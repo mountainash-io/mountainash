@@ -167,14 +167,17 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
     method = definition.protocol_method
     from mountainash.core.capabilities.predicates import (
         OPERAND_TYPES_ROOT,
+        WINDOW_ROOT,
+        is_window_operation,
         metadata_arguments,
         validate_metadata_predicate,
     )
 
-    if OPERAND_TYPES_ROOT in definition.options or (
-        method is not None and OPERAND_TYPES_ROOT in inspect.signature(method).parameters
+    if any(
+        root in definition.options or (method is not None and root in inspect.signature(method).parameters)
+        for root in (OPERAND_TYPES_ROOT, WINDOW_ROOT)
     ):
-        raise ValueError(f"{OPERAND_TYPES_ROOT} is reserved compiler metadata")
+        raise ValueError("__operand_types__ and __window__ are reserved compiler metadata")
     if fact.predicate is not None and metadata_arguments(fact.predicate):
         if (
             kind != "expression"
@@ -184,7 +187,13 @@ def _validate_fact(family: CONST_BACKEND, fact: CapabilityFact) -> None:
         ):
             raise ValueError("operand metadata facts require expression UNSUPPORTED/GATE/BUILD")
         validate_metadata_predicate(fact.predicate, method)
-    if fact.param != WILDCARD_PARAM and method is not None:
+    if fact.param == WINDOW_ROOT:
+        if not is_window_operation(fact.operation_key):
+            raise ValueError(
+                f"CapabilityFact({fact.operation_key}, {fact.param!r}): window-shape "
+                "facts apply only to window operations"
+            )
+    elif fact.param != WILDCARD_PARAM and method is not None:
         sig = inspect.signature(method)
         params = set(sig.parameters) - {"self"}
         if fact.param not in params:

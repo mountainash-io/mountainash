@@ -42,10 +42,15 @@ if TYPE_CHECKING:
 
 
 def _validate_operation_subject(operation: Enum, subject: str | None) -> None:
+    from mountainash.core.capabilities.predicates import WINDOW_ROOT, is_window_operation
     from mountainash.core.capabilities.registry import _definition_for
 
     if not isinstance(operation, Enum):
         raise TypeError("operation requires an operation enum")
+    if subject == WINDOW_ROOT:
+        if not is_window_operation(operation):
+            raise ValueError(f"window-shape subject {subject!r} applies only to window operations, not {operation!r}")
+        return
     _, definition = _definition_for(operation)
     method = definition.protocol_method
     if subject is not None and subject != WILDCARD_PARAM and method is not None:

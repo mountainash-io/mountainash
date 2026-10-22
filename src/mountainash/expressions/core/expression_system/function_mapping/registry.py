@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 
 
-_RESERVED_OPERAND_TYPES = "__operand_types__"
+_RESERVED_METADATA_ROOTS = ("__operand_types__", "__window__")
 
 
 def _expression_parameter_names(method: Callable) -> frozenset[str]:
@@ -108,10 +108,9 @@ class ExpressionFunctionDef:
             raise TypeError("type_arguments must be a tuple of protocol parameter names")
         if len(set(self.type_arguments)) != len(self.type_arguments):
             raise ValueError("type_arguments must not contain duplicates")
-        if _RESERVED_OPERAND_TYPES in self.options:
-            raise ValueError(
-                f"{_RESERVED_OPERAND_TYPES!r} is reserved for compiler operand metadata"
-            )
+        for root in _RESERVED_METADATA_ROOTS:
+            if root in self.options:
+                raise ValueError(f"{root!r} is reserved for compiler metadata")
 
         method = self.protocol_method
         if method is None:
@@ -120,10 +119,9 @@ class ExpressionFunctionDef:
             return
 
         signature = inspect.signature(method)
-        if _RESERVED_OPERAND_TYPES in signature.parameters:
-            raise ValueError(
-                f"{_RESERVED_OPERAND_TYPES!r} is reserved for compiler operand metadata"
-            )
+        for root in _RESERVED_METADATA_ROOTS:
+            if root in signature.parameters:
+                raise ValueError(f"{root!r} is reserved for compiler metadata")
         if not self.type_arguments and not isinstance(
             self.result_type, PreserveResultType
         ):
