@@ -463,73 +463,9 @@
   {
     "backend": "ibis",
     "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 20, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 2, 3]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\"], \"score\": [10, 30, 20, 15, 25]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"historical 0-based rank\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
     "target": "SUBSTRAIT_ARITHMETIC_WINDOW.NTILE",
     "title": "ntile() is unsupported off Polars",
     "text": "Arguments: {\"x\": 3}\nInput data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\", \"A\", \"A\"], \"score\": [10, 20, 30, 40, 50, 60]}}\nReference result: {\"historical_source_claim\": [1, 1, 2, 2, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"historical unsupported ntile\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"dept\": [\"eng\", \"eng\", \"eng\", \"sales\", \"sales\"], \"level\": [\"jr\", \"sr\", \"jr\", \"jr\", \"sr\"], \"salary\": [100, 120, 90, 80, 110]}}\nReference result: {\"historical_source_claim\": \"five ranks all >= 1\"}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 20, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 2, 4]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\"], \"score\": [10, 30, 20, 15, 25]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"historical 0-based rank\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\"], \"score\": [99]}}\nReference result: {\"historical_source_claim\": [1]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\"], \"score\": [10, 30, 20, 15, 25]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"historical 0-based rank\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-duckdb",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\"], \"score\": [30, 10, 20]}}\nReference result: {\"historical_source_claim\": [1, 2, 3]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
   },
   {
     "backend": "ibis",
@@ -1525,73 +1461,9 @@
   {
     "backend": "ibis",
     "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 20, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 2, 3]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.DENSE_RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\"], \"score\": [10, 30, 20, 15, 25]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"historical 0-based rank\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
     "target": "SUBSTRAIT_ARITHMETIC_WINDOW.NTILE",
     "title": "ntile() is unsupported off Polars",
     "text": "Arguments: {\"x\": 3}\nInput data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\", \"A\", \"A\"], \"score\": [10, 20, 30, 40, 50, 60]}}\nReference result: {\"historical_source_claim\": [1, 1, 2, 2, 3, 3]}\nContrasting result: {\"historical_source_claim\": \"historical unsupported ntile\"}"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"dept\": [\"eng\", \"eng\", \"eng\", \"sales\", \"sales\"], \"level\": [\"jr\", \"sr\", \"jr\", \"jr\", \"sr\"], \"salary\": [100, 120, 90, 80, 110]}}\nReference result: {\"historical_source_claim\": \"five ranks all >= 1\"}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"A\"], \"id\": [1, 2, 3, 4], \"score\": [10, 20, 20, 30]}}\nReference result: {\"historical_source_claim\": [1, 2, 2, 4]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\"], \"score\": [10, 30, 20, 15, 25]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"historical 0-based rank\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.RANK",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\"], \"score\": [99]}}\nReference result: {\"historical_source_claim\": [1]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\", \"B\", \"B\"], \"score\": [10, 30, 20, 15, 25]}}\nReference result: {\"historical_source_claim\": [1, 2, 3, 1, 2]}\nContrasting result: {\"historical_source_claim\": \"historical 0-based rank\"}",
-    "issue": "IB-WIN-02"
-  },
-  {
-    "backend": "ibis",
-    "dialect": "ibis-sqlite",
-    "target": "SUBSTRAIT_ARITHMETIC_WINDOW.ROW_NUMBER",
-    "title": "rank/dense_rank/row_number return values one lower on ibis SQL",
-    "text": "Input data: {\"values\": {\"group\": [\"A\", \"A\", \"A\"], \"score\": [30, 10, 20]}}\nReference result: {\"historical_source_claim\": [1, 2, 3]}\nContrasting result: {\"historical_source_claim\": \"historical rank divergence/WindowFunction failure\"}",
-    "issue": "IB-WIN-02"
   },
   {
     "backend": "ibis",

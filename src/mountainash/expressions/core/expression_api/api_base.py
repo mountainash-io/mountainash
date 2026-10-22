@@ -386,10 +386,11 @@ class BaseExpressionAPI(ABC):
                 updated_node = self._node.model_copy(update={"window_spec": spec})
                 return self.create(updated_node)
             else:
-                # Merge: add partition_by from .over() into existing spec
-                # Preserve existing order_by (from rank()) and bounds (from cum_sum())
+                # Merge: add partition_by from .over() into existing spec.
+                # .over(order_by=...) replaces the receiver's ordering (backlog 364);
+                # bounds from cum_sum() etc. are preserved.
                 existing = self._node.window_spec
-                merged_order_by = existing.order_by if existing.order_by else sort_fields
+                merged_order_by = sort_fields if sort_fields else existing.order_by
                 merged_lower = existing.lower_bound if existing.lower_bound is not None else lower_bound
                 merged_upper = existing.upper_bound if existing.upper_bound is not None else upper_bound
                 merged_spec = WindowSpec(

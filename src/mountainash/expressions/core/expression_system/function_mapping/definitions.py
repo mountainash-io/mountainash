@@ -2434,7 +2434,6 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="row_number",
-            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.row_number,
         ),
         ExpressionFunctionDef(
@@ -2442,7 +2441,6 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="rank",
-            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
         ),
         ExpressionFunctionDef(
@@ -2450,7 +2448,6 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             projection_rule=ProjectionRule("first_order", "contextual"),
             substrait_uri=SubstraitExtension.SCALAR_ARITHMETIC,
             substrait_name="dense_rank",
-            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.dense_rank,
         ),
         ExpressionFunctionDef(
@@ -2532,7 +2529,6 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="rank_average",
             is_extension=True,
-            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
         ),
         ExpressionFunctionDef(
@@ -2541,7 +2537,6 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             substrait_uri=MountainashExtension.WINDOW,
             substrait_name="rank_max",
             is_extension=True,
-            options=("descending",),
             protocol_method=SubstraitWindowArithmeticExpressionSystemProtocol.rank,
         ),
         ExpressionFunctionDef(

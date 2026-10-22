@@ -19,10 +19,10 @@ TESTED_PARAMS: list[tuple] = [
     (FK_WIN.NTH_VALUE, "window_offset"),
     (FK_WIN.NTH_VALUE, "x"),
     (FK_WIN.NTILE, "x"),
-    # order_by_col is visitor-injected from WindowSpec, not user-facing
-    (FK_WIN.RANK, "order_by_col"),
-    (FK_WIN.DENSE_RANK, "order_by_col"),
-    (FK_WIN.ROW_NUMBER, "order_by_col"),
+    # order_by is visitor-supplied from WindowSpec, not user-facing
+    (FK_WIN.RANK, "order_by"),
+    (FK_WIN.DENSE_RANK, "order_by"),
+    (FK_WIN.ROW_NUMBER, "order_by"),
     # Mountainash extension window operations
     ("backward_fill", "x"),
     ("cum_count", "x"),

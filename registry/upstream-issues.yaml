@@ -219,14 +219,14 @@ issues:
   category: window-ops
   summary: 'ibis-duckdb/sqlite: ranking functions return 0-based values instead of
     1-based'
-  root_cause: by_design
+  root_cause: mountainash_internal
   affected_backends:
   - ibis-duckdb
   - ibis-sqlite
   upstream_issue: null
   upstream_issue_filed_by: null
-  status: by_design
-  our_workaround: xfail_strict
+  status: resolved_in_mountainash
+  our_workaround: none
   notes: 'rank(), dense_rank(), row_number() return 0-based values on ibis-duckdb and
     ibis-sqlite; SQL standard and other backends (polars/narwhals) use 1-based.
     Re-verified 2026-08-13 (backlog item 87): this is deliberate Ibis design, not a
@@ -234,8 +234,10 @@ issues:
     output verbatim, and ibis.row_number() empirically confirmed 0-based too on
     ibis-duckdb. Corrected from the prior needs_investigation/upstream_bug
     classification (root_cause and status were speculative "possibly a mountainash
-    visitor offset issue" before this was checked against Ibis''s own docs).'
-  last_verified: '2026-08-13'
+    visitor offset issue" before this was checked against Ibis''s own docs).
+    Resolved 2026-10-22 (backlog 365): the Ibis lowering adds 1, so ranks are
+    1-based on every backend.'
+  last_verified: '2026-10-22'
 - id: IB-WIN-03
   project: ibis
   category: window-ops

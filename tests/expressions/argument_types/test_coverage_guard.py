@@ -692,7 +692,7 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'cum_prod', 'x'),
         ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'diff', 'x'),
         ('test_arg_types_window', 'MountainashWindowExpressionSystemProtocol', 'forward_fill', 'x'),
-        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'dense_rank', 'order_by_col'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'dense_rank', 'order_by'),
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'first_value', 'x'),
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'lag', 'x'),
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'last_value', 'x'),
@@ -700,8 +700,8 @@ _KNOWN_METADATA_ONLY_TESTED_PARAMS: dict[tuple[str, str | None, str, str], Known
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'nth_value', 'window_offset'),
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'nth_value', 'x'),
         ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'ntile', 'x'),
-        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'rank', 'order_by_col'),
-        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'row_number', 'order_by_col'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'rank', 'order_by'),
+        ('test_arg_types_window', 'SubstraitWindowArithmeticExpressionSystemProtocol', 'row_number', 'order_by'),
     }
 }
 
@@ -873,9 +873,6 @@ _KNOWN_UNTESTED_OPTION_PARAMS: dict[tuple[str, str, str], KnownGap] = {
         ("SubstraitScalarStringExpressionSystemProtocol", "replace", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "starts_with", "case_sensitivity"),
         ("SubstraitScalarStringExpressionSystemProtocol", "strpos", "case_sensitivity"),
-        ("SubstraitWindowArithmeticExpressionSystemProtocol", "dense_rank", "descending"),
-        ("SubstraitWindowArithmeticExpressionSystemProtocol", "rank", "descending"),
-        ("SubstraitWindowArithmeticExpressionSystemProtocol", "row_number", "descending"),
     }
 }
 
