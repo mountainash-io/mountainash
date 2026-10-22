@@ -624,3 +624,17 @@ def test_window_root_is_reserved_as_call_binding():
             operation_key=_OP, backend=CONST_BACKEND.POLARS, dialect="polars",
             protocol_method=lambda x: None, arguments=[], options={WINDOW_ROOT: True},
         )
+
+
+@pytest.mark.parametrize("location", ["option", "parameter"])
+def test_window_root_is_reserved_in_function_definition(location):
+    from mountainash.expressions.core.expression_system.function_mapping.registry import ExpressionFunctionDef
+
+    with pytest.raises(ValueError, match="reserved"):
+        ExpressionFunctionDef(
+            function_key=_OP,
+            substrait_uri=None,
+            substrait_name=None,
+            options=("__window__",) if location == "option" else (),
+            protocol_method=(lambda __window__: None) if location == "parameter" else None,
+        )

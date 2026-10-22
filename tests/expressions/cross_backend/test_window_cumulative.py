@@ -7,6 +7,7 @@ import pytest
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from mountainash.core.types import BackendCapabilityError
 from narwhals.exceptions import InvalidOperationError
 from fixtures.call_expectations import expect_call_failure
 
@@ -54,16 +55,25 @@ class TestCumulativeMixedDirectionOrder:
         """Order-dependent windows follow every key and its direction (backlog 364)."""
         df = backend_factory.create({"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}, backend_name)
         expr = ma.col("a").cum_count().over("g", order_by=["a", "-b"])
+        out_of_scope = backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy")
+        if out_of_scope:
+            with pytest.raises(BackendCapabilityError, match="no sort direction"):
+                ma.relation(df).with_columns(expr.alias("c")).to_dict()
+            return
+        out = ma.relation(df).with_columns(expr.alias("c")).sort("a", "b").to_dict()
+        assert out["c"] == [2, 1, 4, 3]
+
+    def test_cum_count_multi_key_order(self, backend_name, backend_factory):
+        """Ascending multi-key order: pandas-like orders by the last key only (NW-WIN-05, backlog 368)."""
+        df = backend_factory.create({"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}, backend_name)
+        expr = ma.col("a").cum_count().over("g", order_by=["a", "b"])
         with expect_call_failure(
-            when=backend_name in ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"),
-            reason=(
-                "backlog 364: Narwhals .over() ignores descending; "
-                "pandas-like also orders by the last key only (backlog 368)"
-            ),
-            errors=(AssertionError,),
+            when=backend_name in ("pandas", "narwhals-pandas"),
+            reason="NW-WIN-05 (backlog 368): pandas-like orders multi-key windows by the last key only",
+            errors=(BackendCapabilityError,),
         ):
             out = ma.relation(df).with_columns(expr.alias("c")).sort("a", "b").to_dict()
-            assert out["c"] == [2, 1, 4, 3]
+            assert out["c"] == [1, 2, 3, 4]
 
 
 # =============================================================================

@@ -25,6 +25,11 @@ from mountainash.core.capabilities.schema import (
 from mountainash.core.constants import CONST_BACKEND
 
 
+def test_window_predicate_without_shape_does_not_match():
+    predicate = Predicate((Clause("__window__.multi_key", ClauseOp.EQ, True),))
+    assert not predicate_holds(predicate, {}, frozenset())
+
+
 def test_clause_eq_requires_scalar_operand():
     with pytest.raises(ValueError, match="EQ"):
         Clause("unit", ClauseOp.EQ, frozenset({"WEEK"}))  # frozenset is IN's operand

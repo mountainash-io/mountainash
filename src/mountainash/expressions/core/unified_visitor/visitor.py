@@ -30,7 +30,7 @@ from ..expression_nodes import (
     OverNode,
 )
 from ..expression_system.function_mapping.registry import ExpressionFunctionRegistry as FunctionRegistry
-from mountainash.core.capabilities.predicates import WINDOW_ROOT
+from mountainash.core.capabilities.predicates import WINDOW_ROOT, is_window_operation
 from mountainash.core.capabilities.schema import PolicyConsumer
 from .type_context import TypeContext
 from mountainash.core.lowering_reuse import (
@@ -406,7 +406,7 @@ class UnifiedExpressionVisitor:
             resolved.append(value)
         return resolved
 
-    def _bound_call(self, function_key, protocol_method, arguments, options):
+    def _bound_call(self, function_key, protocol_method, arguments, options, *, window_spec=None):
         from mountainash.core.capabilities.predicates import bind_expression_call
 
         bound = bind_expression_call(
@@ -417,6 +417,14 @@ class UnifiedExpressionVisitor:
             arguments=arguments,
             options=options,
         )
+        if is_window_operation(function_key):
+            effective_window = window_spec or self._over_window_spec
+            keys = effective_window.order_by if effective_window is not None else ()
+            bound = replace(bound, bindings={**bound.bindings, WINDOW_ROOT: {
+                "order_keys": len(keys),
+                "multi_key": len(keys) > 1,
+                "any_descending": any(sf.descending for sf in keys),
+            }})
         if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
             return bound
         from mountainash.core.capabilities import CapabilityRegistry
@@ -863,14 +871,9 @@ class UnifiedExpressionVisitor:
         options = dict(node.options) if node.options else {}
         takes_order_by = any(p.name == "order_by" for p in _protocol_sig_params(protocol_method))
 
-        bound = self._bound_call(node.function_key, protocol_method, node.arguments, options)
-        # Window shape for capability predicates (backlog 364).
-        keys = window_spec.order_by
-        bound = replace(bound, bindings={**bound.bindings, WINDOW_ROOT: {
-            "order_keys": len(keys),
-            "multi_key": len(keys) > 1,
-            "any_descending": any(sf.descending for sf in keys),
-        }})
+        bound = self._bound_call(
+            node.function_key, protocol_method, node.arguments, options, window_spec=window_spec,
+        )
         self._gate_predicate_violations(bound, phase="raw")
         self._gate_operation(node.function_key)
         operand_types = self._required_operand_types(func_def, protocol_method, node.arguments, options)

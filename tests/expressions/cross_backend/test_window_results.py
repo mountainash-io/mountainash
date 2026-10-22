@@ -513,18 +513,13 @@ class TestWindowRankMethodDense:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="dense").over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
-            reason="rank(method='dense'|'ordinal') raises off Polars",
-            errors=(TypeError,),
-        ):
-            result = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
-                .sort("group", "score", "id")
-                .to_dict()
-            )
-            assert result["drnk"] == [1, 2, 3, 3]
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("drnk"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result["drnk"] == [1, 2, 3, 3]
 
 
 @pytest.mark.cross_backend
@@ -536,18 +531,13 @@ class TestWindowRankMethodOrdinal:
         data = {"group": ["A", "A", "A", "A"], "score": [10, 20, 30, 30], "id": [1, 2, 3, 4]}
         df = backend_factory.create(data, backend_name)
         expr = ma.col("score").rank(method="ordinal").over("group")
-        with expect_call_failure(
-            when=backend_name in ('ibis-duckdb', 'ibis-sqlite', 'narwhals-polars', 'narwhals-pandas', 'narwhals-lazy', 'pandas'),
-            reason="rank(method='dense'|'ordinal') raises off Polars",
-            errors=(TypeError,),
-        ):
-            result = (
-                ma.relation(df)
-                .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rn"))
-                .sort("group", "score", "id")
-                .to_dict()
-            )
-            assert result["rn"] == [1, 2, 3, 4]
+        result = (
+            ma.relation(df)
+            .select(ma.col("group"), ma.col("score"), ma.col("id"), expr.alias("rn"))
+            .sort("group", "score", "id")
+            .to_dict()
+        )
+        assert result["rn"] == [1, 2, 3, 4]
 
 
 @pytest.mark.cross_backend
@@ -732,11 +722,8 @@ class TestWindowMultiPartition:
         assert result["rnk"] == [1, 2, 1, 1, 1]
 
 
-_NARWHALS_FAMILY = ("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy")
-_NW_364 = (
-    "backlog 364: Narwhals ranks on the first key and ignores descending; "
-    "declared refusal pending"
-)
+# pandas-backed Narwhals cannot rank by several keys: refused by a declared fact.
+_NW_PANDAS_LIKE = ("pandas", "narwhals-pandas")
 
 
 @pytest.mark.cross_backend
@@ -747,31 +734,48 @@ class TestWindowMultiKeyOrder:
     DATA = {"g": [1, 1, 1, 1], "a": [1, 1, 2, 2], "b": [2, 1, 2, 1]}
 
     @pytest.mark.parametrize(
-        ("fn", "order_by", "expected"),
+        ("fn", "method", "order_by", "expected"),
         [
             # rows sorted by (a, b): (1,1), (1,2), (2,1), (2,2)
-            ("row_number", ["a", "b"], [1, 2, 3, 4]),
-            ("row_number", ["a", "-b"], [2, 1, 4, 3]),
-            ("row_number", ["b", "a"], [1, 3, 2, 4]),
-            ("dense_rank", ["a", "b"], [1, 2, 3, 4]),
-            ("dense_rank", ["a", "-b"], [2, 1, 4, 3]),
-            ("rank", ["a", "b"], [1, 2, 3, 4]),
+            ("row_number", None, ["a", "b"], [1, 2, 3, 4]),
+            ("row_number", None, ["a", "-b"], [2, 1, 4, 3]),
+            ("row_number", None, ["b", "a"], [1, 3, 2, 4]),
+            ("dense_rank", None, ["a", "b"], [1, 2, 3, 4]),
+            ("dense_rank", None, ["a", "-b"], [2, 1, 4, 3]),
+            ("rank", "min", ["a", "b"], [1, 2, 3, 4]),
+            ("rank", "dense", ["a", "b"], [1, 2, 3, 4]),
+            ("rank", "ordinal", ["a", "-b"], [2, 1, 4, 3]),
+            ("rank", "average", ["a", "b"], [1, 2, 3, 4]),
+            ("rank", "max", ["a", "b"], [1, 2, 3, 4]),
         ],
     )
-    def test_all_keys_ordered(self, backend_name, backend_factory, fn, order_by, expected):
-        kwargs = {"method": "min"} if fn == "rank" else {}
+    def test_all_keys_ordered(self, backend_name, backend_factory, fn, method, order_by, expected):
+        kwargs = {"method": method} if method is not None else {}
         expr = getattr(ma.col("a"), fn)(**kwargs).over("g", order_by=order_by)
         df = backend_factory.create(self.DATA, backend_name)
-        # Narwhals row_number follows the .over() frame order for ascending keys;
-        # tie-aware ranks and any descending key use only the first key.
+        if backend_name in _NW_PANDAS_LIKE:
+            with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
+                ma.relation(df).with_columns(expr.alias("r")).to_dict()
+            return
         with expect_call_failure(
-            when=backend_name in _NARWHALS_FAMILY
-            and (fn != "row_number" or any(k.startswith("-") for k in order_by)),
-            reason=_NW_364,
-            errors=(AssertionError,),
+            when=backend_name in ("ibis-duckdb", "ibis-sqlite") and method in ("average", "max"),
+            reason="IB-WIN-05: rank(method='average'|'max') raises on Ibis",
+            errors=(BackendCapabilityError,),
         ):
             out = ma.relation(df).with_columns(expr.alias("r")).sort("a", "b").to_dict()
             assert out["r"] == expected
+
+    def test_dense_rank_large_partition(self, backend_name, backend_factory):
+        size = 65_536
+        data = {"g": [1] * size, "a": list(range(size)), "b": [0] * size, "c": [0] * size}
+        df = backend_factory.create(data, backend_name)
+        expr = ma.col("a").dense_rank().over("g", order_by=["a", "b", "c"])
+        if backend_name in _NW_PANDAS_LIKE:
+            with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
+                ma.relation(df).with_columns(expr.alias("r")).to_dict()
+            return
+        out = ma.relation(df).with_columns(expr.alias("r")).sort("a").to_dict()
+        assert out["r"] == list(range(1, size + 1))
 
     def test_single_descending_key(self, backend_name, backend_factory):
         expr = ma.col("a").row_number().over("g", order_by="-b")
@@ -784,15 +788,13 @@ class TestWindowMultiKeyOrder:
     def test_row_number_null_key_completes(self, backend_name, backend_factory):
         df = backend_factory.create({"g": [1, 1, 1], "a": [2, None, 1], "b": [1, 2, 3]}, backend_name)
         expr = ma.col("a").row_number().over("g", order_by=["a", "b"])
-        # Narwhals ranks the first key alone, and a null key ranks as null.
-        with expect_call_failure(
-            when=backend_name in _NARWHALS_FAMILY,
-            reason=_NW_364,
-            errors=(AssertionError,),
-        ):
-            out = ma.relation(df).with_columns(expr.alias("r")).to_dict()
-            assert None not in out["r"]
-            assert sorted(out["r"]) == [1, 2, 3]
+        if backend_name in _NW_PANDAS_LIKE:
+            with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
+                ma.relation(df).with_columns(expr.alias("r")).to_dict()
+            return
+        out = ma.relation(df).with_columns(expr.alias("r")).to_dict()
+        assert None not in out["r"]
+        assert sorted(out["r"]) == [1, 2, 3]
 
 
 @pytest.mark.cross_backend
@@ -809,6 +811,23 @@ def test_integral_rank_dtype(backend_name, backend_factory, fn):
     ):
         values = ma.relation(df).with_columns(expr.alias("r")).to_dict()["r"]
         assert all(type(v) is int for v in values)
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda d: __import__("pyarrow").table(d),
+        lambda d: __import__("duckdb").from_arrow(__import__("pyarrow").table(d)),
+    ],
+    ids=["narwhals-pyarrow", "narwhals-duckdb"],
+)
+def test_multi_key_rank_refused_on_other_narwhals_dialects(make):
+    import narwhals as nw
+
+    df = nw.from_native(make({"g": [1, 1], "a": [1, 2], "b": [2, 1]}))
+    expr = ma.col("a").row_number().over("g", order_by=["a", "b"])
+    with pytest.raises(BackendCapabilityError, match="cannot rank by several sort keys"):
+        ma.relation(df).with_columns(expr.alias("r")).to_dict()
 
 
 class TestWindowRequiresOver:

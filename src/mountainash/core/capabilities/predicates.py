@@ -166,6 +166,8 @@ def evaluate_clause(
     from mountainash.expressions.core.expression_nodes import ExpressionNode, LiteralNode
 
     root = clause.path.split(".")[0]
+    if root == WINDOW_ROOT and root not in bindings:
+        return False
     if clause.op in (ClauseOp.IS_LITERAL, ClauseOp.IS_DYNAMIC):
         argument = bindings.get(root)
         literal = isinstance(argument, LiteralNode)

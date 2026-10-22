@@ -40,18 +40,18 @@ class SubstraitNarwhalsWindowArithmeticExpressionSystem(NarwhalsBaseExpressionSy
     def _rank_key(order_by: Sequence[Tuple[NarwhalsExpr, bool]]) -> Tuple[NarwhalsExpr, bool]:
         """One rankable key for several sort keys (backlog 364).
 
-        Each key is dense-ranked in its own direction with nulls last, then
-        folded lexicographically; re-dense-ranking after each step keeps values
-        within the row count, so the fold cannot overflow. Dialects that cannot
-        evaluate this under .over(partition) are refused by capability facts
-        before lowering.
+        Dense ranks are folded lexicographically, then compressed at each step.
+        UInt64 arithmetic avoids overflowing Polars' UInt32 ranks. A null key
+        ranks last at the row count: when nulls exist, every non-null dense rank
+        is strictly smaller. Unsupported dialects are gated before lowering.
         """
         if len(order_by) == 1:
             return order_by[0]
-        base = nw.len() + 2
+        size = nw.len().cast(nw.UInt64)
+        base = size + 1
         key = None
         for col, desc in order_by:
-            r = col.rank("dense", descending=desc).fill_null(nw.len() + 1)
+            r = col.rank("dense", descending=desc).fill_null(size)
             key = r if key is None else (key * base + r).rank("dense")
         return key, False
 

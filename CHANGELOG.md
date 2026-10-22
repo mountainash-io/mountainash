@@ -4,7 +4,9 @@
 
 ### Fixed
 - `row_number()`, `rank()` and `dense_rank()` are 1-based on Ibis backends, matching Polars, Narwhals and Substrait (backlog 365). Previously Ibis-DuckDB/SQLite returned values one lower; IB-WIN-02 is resolved.
-- `.over(order_by=[...])` replaces the ordering a ranking function takes from its receiver column, and every key (with its direction) is honoured by `row_number`/`rank`/`dense_rank` and order-dependent windows on Polars and Ibis (backlog 364). Narwhals still uses only the first key and ignores direction; a declared refusal follows.
+- `rank(method="dense")` and `rank(method="ordinal")` no longer pass a spurious `rank_method` option, so they resolve to `dense_rank()`/`row_number()` on every backend that supports those functions, not only Polars.
+- `.over(order_by=[...])` replaces the ordering a ranking function takes from its receiver column, and every key (with its direction) is honoured by `row_number`/`rank`/`dense_rank` and order-dependent windows on Polars and Ibis (backlog 364).
+- Narwhals ranks by every sort key on Polars-backed frames, and refuses window orders it cannot express — multi-key ranking on pandas/pyarrow/DuckDB, descending order-dependent windows on any Narwhals backend, multi-key order-dependent windows on pandas (NW-WIN-05, backlog 368) — with a declared `BackendCapabilityError` instead of silently wrong results (backlog 364).
 
 ### Changed
 - Declare Narwhals-pandas float64 ranking output (`row_number`/`rank`/`dense_rank`) as a native divergence (backlog 367); values are unchanged and no cast is applied.

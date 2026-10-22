@@ -1376,6 +1376,20 @@ issues:
     and this entry now self-reference via upstream_ref (backlog item 87,
     2026-08-13).'
   last_verified: '2026-08-13'
+- id: NW-WIN-05
+  project: narwhals
+  category: window-ops
+  summary: pandas-like .over(order_by=[...]) orders by the last key only
+  root_cause: upstream_bug
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: none
+  notes: 'Backlog 368. Refused by a declared capability fact; not filed (owner decision 2026-10-22).'
+  last_verified: '2026-10-22'
 - id: NW-LIST-01
   project: narwhals
   category: list-ops

@@ -88,7 +88,7 @@ class SubstraitWindowArithmeticAPIBuilder(BaseExpressionAPIBuilder, SubstraitWin
         node = WindowFunctionNode(
             function_key=function_key,
             arguments=[],
-            options={"rank_method": method},
+            options={"rank_method": method} if method not in ("dense", "ordinal") else {},
             window_spec=WindowSpec(
                 order_by=[SortField(column=col_name, descending=descending)],
             ),
