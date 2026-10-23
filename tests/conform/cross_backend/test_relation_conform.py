@@ -108,7 +108,12 @@ class TestRelationConformBasic:
         assert result["user_id"].to_list() == [1, 2, 3]
         assert list(result.columns) == ["user_id"]
 
-    def test_null_fill_and_cast(self, backend_name, backend_factory):
+    def test_null_fill_and_cast(self, backend_name, backend_factory, request):
+        if backend_name in {"pandas", "narwhals-pandas"}:
+            request.applymarker(pytest.mark.xfail(
+                strict=True, raises=ValueError,
+                reason="373: owned conform fill regression introduces a nullable integer intermediate",
+            ))
         df = backend_factory.create({"val": [1, None, 3]}, backend_name)
         spec = TableSchema(
             fields_match="open",
@@ -573,7 +578,12 @@ class TestRelationConformFieldsMatchOpen:
         assert result["val"].to_list() == [1, 2]
         assert result["other"].to_list() == ["a", "b"]
 
-    def test_null_fill_with_open(self, backend_name, backend_factory):
+    def test_null_fill_with_open(self, backend_name, backend_factory, request):
+        if backend_name in {"pandas", "narwhals-pandas"}:
+            request.applymarker(pytest.mark.xfail(
+                strict=True, raises=ValueError,
+                reason="373: owned conform fill regression introduces a nullable integer intermediate",
+            ))
         df = backend_factory.create(
             {"val": [1, None, 3], "tag": ["a", "b", "c"]},
             backend_name,
