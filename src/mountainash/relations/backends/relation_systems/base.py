@@ -9,6 +9,12 @@ Phase 1.
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes.protocols import ResolvedType
+    from mountainash.relations.core.execution.location import ExecutionLocation
+
 
 class BaseRelationSystem:
     """Mixin carrying backend identity for all relation systems."""
@@ -17,3 +23,19 @@ class BaseRelationSystem:
 
     def __init__(self, dialect: str | None = None) -> None:
         self.dialect = dialect
+
+    def describe_output_schema(
+        self, native: Any, *, location: ExecutionLocation,
+    ) -> dict[str, ResolvedType]:
+        """Output types of a native relation, from its schema adapter's evidence.
+
+        Sufficient where the native carrier's schema is its physical output
+        (Polars, Narwhals-wrapped pandas/Arrow/Polars). A backend whose logical
+        schema can differ from what its engine produces overrides this.
+        """
+        from mountainash.typespec.source_shape import extract_source_shapes, shape_type_evidence
+
+        return {
+            name: shape_type_evidence(shape)
+            for name, shape in extract_source_shapes(native).items()
+        }

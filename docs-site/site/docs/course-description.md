@@ -33,7 +33,7 @@ By working through this manual, you will be able to:
 
 - Build fluent expression chains that compile to Polars, pandas, PyArrow, or SQL without rewriting them per backend
 - Construct relational pipelines with filters, joins, aggregations, window functions, and a dozen terminal output formats
-- Define portable schemas with TypeSpec and use `conform()` to clean messy data in a single call
+- Define portable schemas with TableSchema and use `conform()` to clean messy data in a single call
 - Set up data contracts that validate both structure and business rules across environments
 - Orchestrate multi-step workflows with the pipeline framework and RelationDAG
 - Reason about the architecture well enough to extend the library with new operations, backends, or node types
@@ -44,12 +44,12 @@ The manual is organized into **15 chapters covering 200 concepts**, sequenced so
 
 1. **Foundations** (Ch. 1–2) — foundation concepts, then core infrastructure: backend detection, type guards, enums, factory patterns, lazy imports
 2. **The expression system** (Ch. 3–8) — the fluent expression API, AST nodes, the function key registry, the visitor pattern, and how expressions compile through Polars, Narwhals, and Ibis with cross-backend consistency
-3. **Type system** (Ch. 9) — TypeSpec's universal type metadata and its alignment with the Frictionless Table Schema standard
+3. **Type system** (Ch. 9) — TableSchema's universal type metadata and its alignment with the Frictionless Table Schema standard
 4. **The relation system** (Ch. 10, 11, 14) — core and advanced relational API operations, the Substrait-aligned relational AST, and the unified visitor that drives compilation
 5. **Pipelines and orchestration** (Ch. 12–13) — the declarative pipeline framework with typed parameter binding and caching, plus RelationDAG and DataPackage integration
 6. **Relation backends** (Ch. 15) — how the relational AST compiles to Polars LazyFrame, Narwhals, and Ibis SQL
 
-Woven throughout — rather than isolated in a single chapter — are two cross-cutting topics: **ternary logic** (three-valued TRUE/FALSE/UNKNOWN semantics for real-world data with sentinel values) and **data conformance** (TypeSpec-driven column transformation), both of which appear wherever they're relevant to the chapter at hand.
+Woven throughout — rather than isolated in a single chapter — are two cross-cutting topics: **ternary logic** (three-valued TRUE/FALSE/UNKNOWN semantics for real-world data with sentinel values) and **data conformance** (TableSchema-driven column transformation), both of which appear wherever they're relevant to the chapter at hand.
 
 ## What This Manual Does Not Cover
 

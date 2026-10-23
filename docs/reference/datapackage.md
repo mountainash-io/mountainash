@@ -1,8 +1,9 @@
 # Data Package v2 descriptors
 
 Mountainash implements the Unit A Frictionless Data Package v2 descriptor boundary. The
-storage models retain the authored descriptor graph, while typed schema and dialect
-objects are created only when a consumer asks for them.
+storage models retain the authored descriptor graph (raw mappings, reference strings and
+extension values); typed `TableSchema` and dialect objects are created only when a
+consumer asks for them.
 
 ## Inputs
 
@@ -187,7 +188,7 @@ One descriptor with both roots:
 ```python
 import mountainash as ma
 
-spec = ma.TypeSpec.from_simple_dict({
+spec = ma.table_schema({
     "tags": "array",
     "profile": "object",
 })
@@ -198,15 +199,26 @@ result = ma.relation(frame).conform(spec).to_dicts()
 ## Schema and dialect references
 
 A resource stores `schema` and `dialect` as their raw mapping, reference string, or
-already typed object. The raw value is not eagerly converted during package loading.
+already typed object. The raw value is not eagerly converted during package loading, and
+reading it never rewrites storage: `to_descriptor()` keeps authored properties such as an
+explicit `format: default` or custom `x-` extension values, even though the typed
+`TableSchema` does not retain properties the codec does not model.
 
-`DataResource.to_typespec()` and `DataResource.to_dialect()` are lazy, one-hop
+`DataResource.to_table_schema()` and `DataResource.to_dialect()` are lazy, one-hop
 accessors:
 
 ```python
-schema = resource.to_typespec()  # TypeSpec | None
-dialect = resource.to_dialect()  # TableDialect | None
+resource = package.resources[0]
+schema = resource.to_table_schema()  # TableSchema | None
+dialect = resource.to_dialect()      # TableDialect | None
 ```
+
+`to_table_schema()` returns an already typed `TableSchema` unchanged, and otherwise
+converts the resolved raw mapping through the shared Frictionless codec
+(`mountainash.typespec.frictionless`; `TableSchema.from_frictionless()` /
+`to_frictionless()` delegate to the same functions). The codec is a pure mapping
+import/export boundary: it does no file or network resolution and selects no backend.
+Resolving the typed schema does not synchronize it back to the raw resource value.
 
 A relative reference resolves against the package descriptor directory when the package
 came from `from_path()`, or against the explicit `base_uri` supplied to another input

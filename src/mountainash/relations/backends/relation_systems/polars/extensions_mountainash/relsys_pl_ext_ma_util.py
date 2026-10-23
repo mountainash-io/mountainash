@@ -20,22 +20,22 @@ def _declared_polars_schema(resource: Any) -> Optional[dict[str, Any]]:
     """Resolve a resource's schema to a Polars {name: dtype} map.
 
     Raw Frictionless mappings stay on the direct adapter path. References and
-    authored TypeSpec values resolve through ``resource.to_typespec()`` so the
+    schema declarations resolve through ``resource.to_table_schema()`` so the
     descriptor codec remains the single resolution boundary.
     """
     table_schema = resource.table_schema
     if table_schema is None:
         return None
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
-    if isinstance(table_schema, TypeSpec):
+    if isinstance(table_schema, TableSchema):
         spec = table_schema
     elif isinstance(table_schema, dict):
-        from mountainash.typespec.frictionless import typespec_from_frictionless
+        from mountainash.typespec.frictionless import table_schema_from_frictionless
 
-        spec = typespec_from_frictionless(table_schema)
+        spec = table_schema_from_frictionless(table_schema)
     else:
-        spec = resource.to_typespec()
+        spec = resource.to_table_schema()
         if spec is None:
             return None
 

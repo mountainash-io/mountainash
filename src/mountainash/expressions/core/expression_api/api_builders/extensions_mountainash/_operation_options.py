@@ -1,10 +1,11 @@
 """Validation shared by the Unit C structural operation builders."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from mountainash.core.errors import InvalidOptionValueError
-from mountainash.typespec.spec import FieldSpec
+from mountainash.typespec.spec import FieldDefinition
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 
@@ -27,13 +28,22 @@ def validate_failure_behavior(method: str, value: Any) -> CaseFailureBehaviour:
     return value
 
 
-def validate_fields(method: str, option: str, fields: Any) -> tuple[FieldSpec, ...]:
-    if not isinstance(fields, tuple) or not fields:
-        invalid(method, option, "must be a non-empty tuple of FieldSpec")
-    for index, field in enumerate(fields):
-        if not isinstance(field, FieldSpec):
-            invalid(method, f"{option}[{index}]", "must be FieldSpec")
-    return fields
+def validate_field_mapping(method: str, option: str, fields: Any) -> dict[str, FieldDefinition]:
+    """Own an ordered ``name -> FieldDefinition`` mapping (an empty record is a valid declaration)."""
+    if not isinstance(fields, Mapping):
+        invalid(method, option, "must be an ordered mapping of field name to FieldDefinition")
+    for name, definition in fields.items():
+        if not isinstance(name, str):
+            invalid(method, f"{option}[{name!r}]", "field names must be strings")
+        if not isinstance(definition, FieldDefinition):
+            invalid(method, f"{option}[{name!r}]", "must be FieldDefinition")
+    return dict(fields)
+
+
+def validate_element(method: str, option: str, element: Any) -> FieldDefinition:
+    if not isinstance(element, FieldDefinition):
+        invalid(method, option, "must be a complete FieldDefinition")
+    return element
 
 
 def validate_item_type(method: str, item_type: Any) -> str:

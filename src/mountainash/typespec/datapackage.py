@@ -13,7 +13,7 @@ from mountainash.typespec.descriptor_context import (
     DescriptorResolver,
     LocalDescriptorResolver,
 )
-from mountainash.typespec.spec import ForeignKey, TypeSpec
+from mountainash.typespec.spec import ForeignKey, TableSchema
 from mountainash.typespec.errors import (
     DescriptorError,
     DescriptorReferenceInvalid,
@@ -318,7 +318,7 @@ def _resource_public_values(
     """Return resource values using descriptor-facing aliases."""
     if isinstance(value, DataResource):
         raw = value.model_dump(by_alias=True, exclude_none=True)
-        if isinstance(value.table_schema, TypeSpec):
+        if isinstance(value.table_schema, TableSchema):
             raw["schema"] = value.table_schema
         if isinstance(value.dialect, TableDialect):
             raw["dialect"] = value.dialect
@@ -346,7 +346,7 @@ def _owned_resource_values(
             value
             if key == "data" and retain_data_identity
             else value
-            if not copy_typed_declarations and isinstance(value, (TypeSpec, TableDialect))
+            if not copy_typed_declarations and isinstance(value, (TableSchema, TableDialect))
             else deepcopy(value)
         )
         for key, value in raw.items()
@@ -358,7 +358,7 @@ def _validate_schema_storage(
     *,
     location: InvariantLocation,
 ) -> None:
-    if value is None or isinstance(value, TypeSpec):
+    if value is None or isinstance(value, TableSchema):
         return
     if isinstance(value, str) and value:
         return
@@ -369,7 +369,7 @@ def _validate_schema_storage(
         location,
         ".schema",
         value,
-        "schema mapping, reference string, or TypeSpec",
+        "schema mapping, reference string, or TableSchema",
     )
 
 
@@ -423,12 +423,12 @@ def _normalize_resource_update_names(
 
 @dataclass(frozen=True)
 class _ValidatedSchemaDeclaration:
-    value: Mapping[str, object] | TypeSpec | None
+    value: Mapping[str, object] | TableSchema | None
     foreign_keys: tuple[ForeignKey, ...]
 
 
 class DataResource(BaseModel):
-    """Frictionless Data Resource — wraps a TypeSpec with resource-level metadata."""
+    """Frictionless Data Resource — wraps a TableSchema with resource-level metadata."""
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -442,7 +442,7 @@ class DataResource(BaseModel):
     type: Optional[str] = None
     dialect: dict[str, Any] | str | TableDialect | None = None
     # 'schema' shadows BaseModel.schema() — use table_schema internally, alias "schema"
-    table_schema: dict[str, Any] | str | TypeSpec | None = Field(
+    table_schema: dict[str, Any] | str | TableSchema | None = Field(
         default=None,
         alias="schema",
     )
@@ -623,8 +623,8 @@ class DataResource(BaseModel):
             return _ValidatedSchemaDeclaration(None, ())
 
         source_location = self._invariant_location.child("schema")
-        if isinstance(source, TypeSpec):
-            value: Mapping[str, object] | TypeSpec = source
+        if isinstance(source, TableSchema):
+            value: Mapping[str, object] | TableSchema = source
             foreign_keys = tuple(source.foreign_keys or ())
             policy_location = source_location
         else:
@@ -656,27 +656,27 @@ class DataResource(BaseModel):
     def _validated_foreign_keys(self) -> tuple[ForeignKey, ...]:
         return self._validated_schema_declaration().foreign_keys
 
-    def to_typespec(self) -> TypeSpec | None:
+    def to_table_schema(self) -> TableSchema | None:
         declaration = self._validated_schema_declaration()
         if declaration.value is None:
             return None
-        if isinstance(declaration.value, TypeSpec):
+        if isinstance(declaration.value, TableSchema):
             return declaration.value
 
-        from mountainash.typespec.frictionless import typespec_from_frictionless
+        from mountainash.typespec.frictionless import table_schema_from_frictionless
 
         source = self.table_schema
         source_location = self._invariant_location.child("schema")
         raw = declaration.value
         try:
-            return typespec_from_frictionless(raw)
+            return table_schema_from_frictionless(raw)
         except InvalidDescriptorStructure as exc:
             if not isinstance(source, str):
                 raise
             raise DescriptorReferenceInvalid(
-                "resolved schema has an invalid structure",
+                f"resolved schema has an invalid structure: {exc}",
                 descriptor_kind=DescriptorKind.SCHEMA.value,
-                descriptor_path=source_location.descriptor_path,
+                descriptor_path=source_location.descriptor_path + exc.descriptor_path[1:],
                 resource_name=self.name,
                 reference=source,
                 expected_kind=DescriptorKind.SCHEMA.value,
@@ -743,12 +743,12 @@ class DataResource(BaseModel):
             ) from exc
 
     def to_contract(self, *, name: Optional[str] = None) -> Any:
-        spec = self.to_typespec()
-        if spec is None:
+        schema = self.to_table_schema()
+        if schema is None:
             raise ValueError(
                 f"DataResource {self.name!r} has no table_schema — cannot build a contract"
             )
-        return spec.to_contract(name=name)
+        return schema.to_contract(name=name)
 
 
 def _dag_constraint_edge(
@@ -1409,9 +1409,9 @@ class DataPackage(BaseModel):
                 continue
             if r.name in overrides:
                 relation = ma.relation(overrides[r.name])
-                spec = r.to_typespec()
-                if spec is not None:
-                    relation = relation.conform(spec)
+                schema = r.to_table_schema()
+                if schema is not None:
+                    relation = relation.conform(schema)
                 dag.add(r.name, relation)
             else:
                 dag.add(r.name, resource_to_relation(r))

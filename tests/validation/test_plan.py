@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 
 import mountainash as ma
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.checks import RowRule
 from mountainash.validation.plan import build_compiled_plan, thaw_value
@@ -21,7 +21,7 @@ def test_compiled_plan_copies_mutable_check_declarations():
     )
 
     plan = build_compiled_plan(
-        TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]),
+        TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)}),
         [check],
     )
     fields.append("later")
@@ -50,11 +50,9 @@ from mountainash.validation.checks import RelationRule, ScalarRule  # noqa: E402
 from mountainash.validation.identity import RowIdentity  # noqa: E402
 from mountainash.validation.runner import ValidationRunner  # noqa: E402
 
-_SPEC = TypeSpec(
-    fields=[
-        FieldSpec(name="v", type=UniversalType.INTEGER),
-        FieldSpec(name="g", type=UniversalType.INTEGER),
-    ]
+_SPEC = TableSchema(
+    fields={"v": FieldDefinition(type=UniversalType.INTEGER),
+        "g": FieldDefinition(type=UniversalType.INTEGER),}
 )
 
 
@@ -70,12 +68,13 @@ def _run(plan, data):
 ])
 def test_precise_declarations_execute_through_compiled_validation(dtype, value):
     import polars as pl
-    field = FieldSpec(name="value", dtype=dtype,
+    field = FieldDefinition(dtype=dtype,
                       rounding="half_to_even" if isinstance(dtype, ma.DecimalDtype) else None)
-    plan = build_compiled_plan(TypeSpec(fields=[field], missing_values=[]), [
+    spec = TableSchema(fields={"value": field}, missing_values=[])
+    plan = build_compiled_plan(spec, [
         RowRule(id="value_kept", expr=ma.col("value").eq(value)),
     ])
-    field.dtype = ma.MountainashDtype.BOOL
+    spec.fields["value"] = FieldDefinition(dtype=ma.MountainashDtype.BOOL)
     for _ in range(2):
         assert _run(plan, pl.DataFrame({"value": [value]})).passes
 
@@ -85,11 +84,12 @@ def test_native_validation_snapshot_owns_executable_parameters():
     import datetime
     import polars as pl
     native = pl.Datetime("ns")
-    field = FieldSpec(name="at", backend_type=native)
-    spec = TypeSpec(fields=[field], missing_values=[])
+    field = FieldDefinition(backend_type=native)
+    spec = TableSchema(fields={"at": field}, missing_values=[])
     checks = [RowRule(id="instant", expr=ma.col("at").eq(datetime.datetime(1970, 1, 1, microsecond=1000)))]
     old = build_compiled_plan(spec, checks)
     native.time_unit = "us"
+    spec.fields["at"] = FieldDefinition(backend_type=native)
     new = build_compiled_plan(spec, checks)
     data = pl.DataFrame({"at": [1_000_000]})
     assert not _run(new, data).passes

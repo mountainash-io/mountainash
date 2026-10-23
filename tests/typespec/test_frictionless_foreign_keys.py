@@ -12,7 +12,7 @@ from mountainash.typespec.descriptor_context import DescriptorKind
 from mountainash.typespec.frictionless import (
     foreign_key_from_dict,
     foreign_key_to_dict,
-    typespec_from_frictionless,
+    table_schema_from_frictionless,
 )
 from mountainash.typespec.frictionless_invariants import (
     InvariantLocation,
@@ -70,7 +70,7 @@ def test_adapters_accept_mapping_without_mutating_input() -> None:
     schema_view = MappingProxyType(schema)
     expected = dict(schema)
 
-    spec = typespec_from_frictionless(schema_view)
+    spec = table_schema_from_frictionless(schema_view)
     dialect_input = MappingProxyType({"delimiter": ";"})
     dialect = TableDialect.from_descriptor(dialect_input)
 
@@ -152,7 +152,7 @@ def test_resolved_foreign_key_target_is_validated_by_typed_accessor() -> None:
 
     assert resolver.calls == []
     with pytest.raises(InvalidDescriptorRelationship):
-        package.resources[0].to_typespec()
+        package.resources[0].to_table_schema()
     assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
 
 

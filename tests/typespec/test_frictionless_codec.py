@@ -13,8 +13,8 @@ from mountainash.exceptions import (
     UnsupportedResourceDialect,
 )
 from mountainash.typespec.datapackage import DataPackage, DataResource, TableDialect
-from mountainash.typespec.frictionless import typespec_to_frictionless
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.frictionless import table_schema_to_frictionless
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -583,8 +583,8 @@ def test_canonical_contributor_role_fallback(contributors, canonical_roles) -> N
 
 
 def test_authored_operational_models_use_typed_adapters() -> None:
-    spec = TypeSpec(
-        fields=[FieldSpec(name="id", type=UniversalType.INTEGER)]
+    spec = TableSchema(
+        fields={"id": FieldDefinition(type=UniversalType.INTEGER)}
     )
     dialect = TableDialect(delimiter=";")
     package = DataPackage(
@@ -598,7 +598,7 @@ def test_authored_operational_models_use_typed_adapters() -> None:
         ]
     )
     result = package.to_descriptor()
-    assert result["resources"][0]["schema"] == typespec_to_frictionless(spec)
+    assert result["resources"][0]["schema"] == table_schema_to_frictionless(spec)
     assert result["resources"][0]["dialect"] == {"delimiter": ";"}
 
 

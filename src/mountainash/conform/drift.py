@@ -2,7 +2,7 @@
 
 These are frozen dataclasses only: no evaluation logic lives here. A
 `ConformDrift` records, per conform node, what diverged between the
-declared `TypeSpec` and the actual observed schema, plus the policy
+declared `TableSchema` and the actual observed schema, plus the policy
 action that was (or would be) applied for each divergence. A
 `ConformCollection` wraps the materialised frame alongside the drift
 report(s) collected for the plan.

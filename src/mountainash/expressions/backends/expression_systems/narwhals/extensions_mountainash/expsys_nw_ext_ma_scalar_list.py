@@ -9,9 +9,8 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import _resolve_field_native
-from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
+from mountainash.typespec.converters import resolve_native_type
+from mountainash.typespec.spec import FieldDefinition
 from mountainash.core.dtypes import TypeTarget
 
 if TYPE_CHECKING:
@@ -111,17 +110,11 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         x,
         /,
-        *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
+        *,
+        element: FieldDefinition | None = None,
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
-        if converted_fields:
-            raise BackendCapabilityError(
-                "Narwhals has no native list-element expression for nested child conversion.",
-                backend=self.BACKEND_NAME,
-                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
-            )
         if failure_behavior == "null":
             raise BackendCapabilityError(
                 "Narwhals list casting does not implement whole-list null on an invalid item.",
@@ -134,8 +127,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
             from mountainash.core.dtypes import registry
             dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
             return self._cast_target(x, nw.List(dtype))
-        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
-        dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
+        dtype = resolve_native_type(FieldDefinition(element=element), TypeTarget.NARWHALS)
         return self._cast_target(x, dtype)
 
     def list_sum(self, x: NarwhalsExpr, /):

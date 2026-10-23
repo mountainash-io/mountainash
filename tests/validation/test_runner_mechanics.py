@@ -189,13 +189,13 @@ class TestStructuredFailurePolicyMechanics:
     run to an unguarded `status="error"` crash (spec 12.2/12.3)."""
 
     def test_coerce_malformed_json_fails_type_format_not_error(self):
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.spec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import UniversalType
         from mountainash.validation.checks import ValueRule, ValueValidatorKey
 
         df = pl.DataFrame({"payload": ['{"a": 1}', "{broken"]})
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)]
+        spec = TableSchema(
+            fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.OBJECT)}
         )
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = ValidationRunner().validate_relation(

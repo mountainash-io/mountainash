@@ -197,6 +197,10 @@ class _DummyRelationSystem(RelationSystem):
     def join_asof(self, left, right, *, on, by=None, strategy="backward", tolerance=None):
         return left
 
+    # --- RelationSystem: physical output description ---
+    def describe_output_schema(self, native, *, location):
+        return {}
+
 
 class TestRelationSystemRegistry:
     """Test register / get lifecycle."""

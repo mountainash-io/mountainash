@@ -8,7 +8,7 @@ Total questions: 72
 
 Mountainash is a cross-backend data expression and relational pipeline library for Python. It solves the problem of backend lock-in: when you write data transformations directly against Polars, pandas, or SQL, your logic is tied to that specific engine. Mountainash provides a unified Python API that compiles to native operations across Polars, pandas (via Narwhals), and SQL databases (via Ibis), so you can write your transformation logic once and run it on any supported backend.
 
-Unlike thin compatibility layers, mountainash provides a full Substrait-aligned abstract syntax tree (AST), three-valued ternary logic, schema-first data quality via TypeSpec, and declarative pipeline orchestration — enabling "abstract data products" that behave consistently across backends.
+Unlike thin compatibility layers, mountainash provides a full Substrait-aligned abstract syntax tree (AST), three-valued ternary logic, schema-first data quality via TableSchema, and declarative pipeline orchestration — enabling "abstract data products" that behave consistently across backends.
 
 ### What backends does mountainash support?
 
@@ -199,24 +199,24 @@ Namespaces group related operations under a dotted accessor on the expression AP
 
 Namespaces are implemented via `NamespaceDescriptor`, a Python descriptor that returns a namespace-specific API object when accessed. This keeps the main expression API uncluttered while providing discoverability through dot-completion.
 
-### What is TypeSpec and how does it relate to Frictionless Table Schema?
+### What is TableSchema and how does it relate to Frictionless Table Schema?
 
-`TypeSpec` is mountainash's universal type metadata container. It describes a table's schema as a list of `FieldSpec` objects, each specifying a column's name, `UniversalType` (an enum of logical types like STRING, INTEGER, DATE), and optional `FieldConstraints` (nullable, unique, enum values, min/max).
+`TableSchema` owns an ordered name-to-`FieldDefinition` mapping. Definitions are unnamed immutable shared declarations; use `.variant(...)` for a local copy. Names belong to schema mappings or contract members, not the reusable definition.
 
-TypeSpec is aligned with the Frictionless Table Schema standard, meaning you can convert between TypeSpec and Frictionless schemas without loss. This alignment enables interoperability with the broader Frictionless data ecosystem, including DataPackage descriptors used by the RelationDAG.
+The neutral model supports Frictionless interchange through a typed codec. Supported properties survive JSON text; normalization and unknown-property loss are explicit. Raw DataResource storage preserves the original descriptor separately.
 
-TypeSpec is backend-agnostic — the Type Bridge and Backend Type Mapping convert between UniversalType values and backend-specific types (Polars dtypes, pandas dtypes, Arrow schemas) when needed.
+Registered native type/schema adapters own representation conversion. Existing expression/relation systems still own data execution; a codec or adapter does not create another engine.
 
 ### What does the conform() operation do?
 
-`Relation.conform()` applies a TypeSpec schema to a relation, transforming it to match the specified column names, types, and constraints. It handles:
+`Relation.conform()` builds a deferred conversion plan. It handles:
 
-- **Column selection** — only columns listed in the TypeSpec are retained.
-- **Column ordering** — columns are reordered to match the TypeSpec.
-- **Type casting** — columns are cast to the UniversalType specified in each FieldSpec.
-- **Constraint enforcement** — nullable, unique, and other constraints can be validated.
+- **Column selection** — keep or discard extras according to `fields_match` and explicit contract policy.
+- **Column binding** — mapping keys name outputs; `rename_from` reads original source values, including swaps and fan-out.
+- **Type casting and missing values** — shared resolution supplies target types; original missing values may use `null_fill`.
+- **Constraint checks** — run separately through `schema.to_contract().validate_datacontract(data)`, not as conform side effects.
 
-This is central to mountainash's "schema-first data quality" approach: you define the expected shape of your data as a TypeSpec, then use `.conform()` to ensure any input data matches that shape before further processing. It works identically across all three backends.
+Conform and inference share an output contract. Supported backends retain their explicit capability outcomes and tracked limitations; conformance does not silently fall back to another engine.
 
 ### What is the difference between dependency edges and constraint edges in RelationDAG?
 
@@ -286,13 +286,13 @@ This alignment provides a well-defined vocabulary for operations and makes mount
 
 ### How does schema extraction work?
 
-Schema Extraction infers a TypeSpec from existing data structures. Mountainash supports three extraction sources:
+Schema Extraction infers a TableSchema from existing data structures. Mountainash supports three extraction sources:
 
-1. **DataFrame Extraction** — inspects a Polars, pandas, or Arrow DataFrame's schema to produce a TypeSpec with column names and mapped UniversalType values.
-2. **Dataclass Extraction** — inspects Python dataclass field annotations to produce a TypeSpec.
-3. **Pydantic Extraction** — inspects Pydantic model field definitions (including validators and constraints) to produce a TypeSpec with FieldConstraints.
+1. **DataFrame Extraction** — inspects a Polars, pandas, or Arrow DataFrame's schema to produce a TableSchema with column names and mapped UniversalType values.
+2. **Dataclass Extraction** — inspects Python dataclass field annotations to produce a TableSchema.
+3. **Pydantic Extraction** — reads supported annotations and field constraint metadata, not arbitrary Python validator code.
 
-All three produce the same TypeSpec format, so you can extract a schema from any supported source and use it with `.conform()`, `validate_match()`, or schema comparison regardless of origin.
+All three produce the same TableSchema format, so you can extract a schema from any supported source and use it with `.conform()`, `validate_match()`, or schema comparison regardless of origin.
 
 ### What is visitor composition?
 
@@ -442,19 +442,19 @@ The default resolver uses the DAG's own computed results — when A finishes col
 
 ### What are Foreign Key integrity checks?
 
-FK Integrity Check validates that foreign key relationships declared in TypeSpec or DataPackage descriptors are satisfied by the actual data. A `ForeignKeyReference` specifies that column(s) in one table must reference valid values in column(s) of another table.
+FK Integrity Check validates that foreign key relationships declared in TableSchema or DataPackage descriptors are satisfied by the actual data. A `ForeignKeyReference` specifies that column(s) in one table must reference valid values in column(s) of another table.
 
-During or after `dag.collect()`, mountainash can verify these constraints by checking that every value in the FK column exists in the referenced table's primary key column. Violations are reported as data quality errors. This integrates with the Constraint Edges in the two-edge graph model — constraint edges declare the FK relationship, and the integrity check validates it.
+Constraint edges carry foreign-key metadata; collection follows dependency edges. Integrity checking is a separate validation responsibility, not implicit dependency execution.
 
 ### How does schema validation work?
 
-Schema Validation compares actual data against a TypeSpec to verify conformance. The `validate_match` function checks:
+`validate_match(data, schema)` checks structural and type compatibility:
 
 - **Column presence** — all required columns exist in the data.
 - **Column types** — each column's actual type matches the expected UniversalType.
-- **Constraints** — nullable, unique, enum, min/max constraints on FieldSpec are satisfied.
+- **Value constraints** — use `schema.to_contract().validate_datacontract(data)` separately; `validate_match` does not run these checks.
 
-Schema Comparison goes further, comparing two TypeSpec objects to identify differences — added columns, removed columns, type changes, constraint changes. This is useful for detecting schema drift between pipeline runs or data versions.
+`compare_specs(actual, expected)` compares field names and types. Value requirements and conform drift policy have separate owners.
 
 ### How does Backend Type Mapping convert between UniversalType and native types?
 
@@ -544,11 +544,11 @@ To resolve this, use `.select()` after the join to choose the columns you want, 
 
 ### How do I handle schema drift between pipeline runs?
 
-Schema drift — when the structure of input data changes between runs — can be managed with TypeSpec:
+Schema drift — when the structure of input data changes between runs — can be managed with TableSchema:
 
-1. **Define expected schemas** — create TypeSpec objects for each data source.
-2. **Use validate_match** — before processing, validate incoming data against the expected TypeSpec.
-3. **Use conform** — apply `.conform()` to force data into the expected shape, which will raise errors on incompatible changes.
+1. **Define expected schemas** — create TableSchema objects for each data source.
+2. **Use validate_match** — before processing, validate incoming data against the expected TableSchema.
+3. **Use conform** — convert according to the declared target and explicit drift/failure policies; conversion is not constraint validation.
 4. **Compare schemas** — use Schema Comparison to detect and report differences between expected and actual schemas.
 
 For pipeline-based workflows, the PipelineBuilder's typed parameter binding via ParamSpec ensures that pipeline parameters are validated at bind time.
@@ -585,9 +585,9 @@ Resource Overrides let you customize how individual resources are loaded (e.g., 
 
 Type mismatches commonly occur when joining or concatenating relations from different sources (e.g., a CSV file where all columns are strings and a database where columns have proper types). Strategies include:
 
-1. **Use `.conform()`** — define a TypeSpec for the target schema and apply `.conform()` to each source before combining. This ensures all sources have matching types.
+1. **Use `.conform()`** — define a TableSchema for the target schema and apply `.conform()` to each source before combining. This ensures all sources have matching types.
 2. **Use `cast()` explicitly** — cast individual columns before the join: `col("id").cast(UniversalType.INTEGER)`.
-3. **Define TypeSpec in DataPackage** — when using DataPackage integration, the resource schemas define expected types, and mountainash casts automatically during `ResourceReadRelNode` processing.
+3. **Define TableSchema in DataPackage** — when using DataPackage integration, the resource schemas define expected types, and mountainash casts automatically during `ResourceReadRelNode` processing.
 
 Type mismatches in join keys are handled automatically by Cross-Type Joins, but non-key columns require explicit handling.
 
@@ -608,7 +608,7 @@ Since mountainash compiles to native backend operations, performance is primaril
 Use mountainash when:
 
 - **Backend portability matters** — your code needs to run against different backends (e.g., Polars for local development, SQL for production).
-- **Schema-first data quality** — you want TypeSpec-driven validation and conformance.
+- **Schema-first data quality** — you want TableSchema-driven validation and conformance.
 - **Multi-resource DAG workflows** — you have complex dependencies between data sources.
 - **Team standardization** — you want a unified API regardless of individual backend preferences.
 
@@ -617,15 +617,15 @@ Stick with native code when:
 - You need backend-specific features that mountainash does not expose.
 - Your transformation is simple and the overhead of abstraction is not justified.
 
-### How should I structure TypeSpec schemas for best results?
+### How should I structure TableSchema schemas for best results?
 
-Follow these guidelines for effective TypeSpec design:
+Follow these guidelines for effective TableSchema design:
 
-1. **Be explicit about types** — always specify `UniversalType` rather than relying on inference.
-2. **Set nullable correctly** — mark columns as non-nullable only when you are certain they never contain NULLs.
-3. **Use constraints sparingly** — `FieldConstraints` (min, max, enum, unique) are powerful but add validation overhead.
-4. **Align with Frictionless** — if you plan to use DataPackage integration, ensure your TypeSpec follows Frictionless Table Schema conventions.
-5. **Extract from canonical sources** — use Pydantic Extraction or Dataclass Extraction to derive TypeSpec from your domain models, keeping schemas DRY.
+1. **State known requirements** — supply precise types where required; unknown evidence and unconstrained intent are valid and distinct.
+2. **State null requirements explicitly** — use `required=True` when nulls must fail checking; `null_fill` is a separate conversion instruction.
+3. **Reuse definitions** — share immutable FieldDefinition values and copy local settings with `.variant(...)`.
+4. **Keep interchange at its boundary** — use the typed Frictionless codec for supported properties and raw DataResource storage for descriptor fidelity.
+5. **Extract from canonical sources** — use Pydantic Extraction or Dataclass Extraction to derive TableSchema from your domain models, keeping schemas DRY.
 
 ### How should I organize relational pipelines?
 
@@ -685,7 +685,7 @@ You can combine both: use a PipelineBuilder step that internally creates and col
 
 Layer multiple data quality mechanisms:
 
-1. **Schema extraction** at the source — derive TypeSpec from domain models.
+1. **Schema extraction** at the source — derive TableSchema from domain models.
 2. **Schema validation** at ingestion — use `validate_match()` to verify incoming data.
 3. **Conformance** at transformation boundaries — apply `.conform()` at each stage.
 4. **FK integrity checks** for referential data — use RelationDAG constraint edges and FK Integrity Check.
@@ -783,7 +783,7 @@ ParamSpec ensures type safety — the Pydantic model validates parameter values 
 
 ### How does mountainash compare to Ibis or Narwhals alone?
 
-- **vs Ibis** — Ibis is SQL-focused: it provides a DataFrame-like API that compiles to SQL for various database backends. Mountainash goes further with a full Substrait-aligned AST, TypeSpec schema system, RelationDAG orchestration, ternary logic, and pipeline framework. Mountainash *uses* Ibis as one of its backends.
+- **vs Ibis** — Ibis is SQL-focused: it provides a DataFrame-like API that compiles to SQL for various database backends. Mountainash goes further with a full Substrait-aligned AST, TableSchema schema system, RelationDAG orchestration, ternary logic, and pipeline framework. Mountainash *uses* Ibis as one of its backends.
 - **vs Narwhals** — Narwhals is a thin compatibility layer that provides a common API across DataFrame libraries (pandas, Polars, cuDF). It aims for minimal overhead. Mountainash provides a richer abstraction with AST-based compilation, schema validation, DAG workflows, and pipeline orchestration. Mountainash uses Narwhals as its pandas-ecosystem backend.
 
 Mountainash's unique value is the combination: Substrait-aligned AST, three backends, schema-first quality, and pipeline orchestration in a single coherent library.

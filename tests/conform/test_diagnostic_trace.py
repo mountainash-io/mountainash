@@ -27,7 +27,7 @@ from mountainash.expressions.core.expression_nodes import FieldReferenceNode, Sc
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_LIST,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 KEY = FKEY_MOUNTAINASH_SCALAR_LIST.LEN
@@ -231,9 +231,9 @@ def test_true_marker_without_winning_fact_raises_invariant() -> None:
 
 
 def test_relation_terminal_enriches_temporal_null_residue() -> None:
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
+        fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
     )
     with pytest.raises(BackendCapabilityError) as raised:
         relation(pd.DataFrame({"duration": ["not-a-duration"]})).conform(spec).collect()
@@ -246,9 +246,9 @@ def test_relation_terminal_enriches_temporal_null_residue() -> None:
 
 
 def test_relation_terminal_removes_collision_safe_residue_marker() -> None:
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
+        fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
     )
     result = (
         relation(
@@ -268,9 +268,9 @@ def test_relation_terminal_removes_collision_safe_residue_marker() -> None:
 def test_polars_throw_mode_temporal_failure_is_transform_error() -> None:
     import polars as pl
 
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
+        fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
     )
     with pytest.raises(ConformTransformError) as raised:
         relation(pl.DataFrame({"duration": ["not-a-duration"]})).conform(spec).collect()
@@ -280,9 +280,9 @@ def test_polars_throw_mode_temporal_failure_is_transform_error() -> None:
 def test_relation_lazy_terminal_removes_residue_markers() -> None:
     import polars as pl
 
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
+        fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
     )
     result = relation(pl.DataFrame({"duration": ["P1D"]}).lazy()).conform(spec).collect()
     assert result.columns == ["duration"]
@@ -293,9 +293,9 @@ def test_dag_collect_owns_residue_terminal_and_preserves_lazy_shape() -> None:
 
     from mountainash.relations.dag.dag import RelationDAG
 
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="duration", type=UniversalType.DURATION)],
+        fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
     )
     dag = RelationDAG()
     dag.add("durations", relation(pl.DataFrame({"duration": ["P1D"]})).conform(spec))

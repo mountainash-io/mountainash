@@ -1604,3 +1604,181 @@ class TestWiringAuditHelpers:
         )
 
     # staleness centralized in tests/core/test_gap_staleness.py
+
+
+# =============================================================================
+# Native Type / Schema Adapter Alignment
+# =============================================================================
+#
+# Three independent surfaces are compared: the protocol declarations, the
+# runtime registrations (DtypeRegistry and the native schema adapter registry)
+# and the implementations discovered in the bounded adapter packages. Matching
+# names and call shapes does not show that an adapter behaves correctly or that
+# it owns its construction; behaviour is exercised by the owning dtype/typespec
+# suites and ownership is reviewed against the code, not asserted here.
+
+
+def _native_adapter_protocols():
+    from mountainash.core.dtypes.protocols import NativeArrowTransportAdapter, NativeTypeAdapter
+    from mountainash.typespec.protocols import NativeSchemaAdapter
+
+    return NativeTypeAdapter, NativeArrowTransportAdapter, NativeSchemaAdapter
+
+
+def _call_shape(function) -> list:
+    """Parameter names, kinds and required-ness, without the receiver."""
+    return [
+        (p.name, p.kind, p.default is inspect.Parameter.empty)
+        for p in inspect.signature(function).parameters.values()
+        if p.name != "self"
+    ]
+
+
+def _native_adapter_violations(cls: type) -> List[str]:
+    """Where ``cls`` departs from the native adapter protocols it declares.
+
+    An operation counts only when the class defines it itself: an inherited
+    protocol stub is not an implementation. Public operations outside every
+    declared protocol are drift.
+    """
+    declared = [protocol for protocol in _native_adapter_protocols() if protocol in cls.__mro__]
+    if not declared:
+        return [f"{cls.__name__} declares no native adapter protocol"]
+    problems: List[str] = []
+    allowed: Set[str] = set()
+    for protocol in declared:
+        for name in sorted(get_protocol_methods(protocol)):
+            allowed.add(name)
+            own = vars(cls).get(name)
+            if own is None or own is vars(protocol)[name] or getattr(own, "__isabstractmethod__", False):
+                problems.append(f"{protocol.__name__}.{name} is not implemented by {cls.__name__} itself")
+                continue
+            expected, actual = _call_shape(vars(protocol)[name]), _call_shape(own)
+            if expected != actual:
+                problems.append(f"{cls.__name__}.{name}: call shape {actual} != protocol {expected}")
+    problems += [
+        f"{cls.__name__}.{name} is outside every declared protocol"
+        for name in sorted(get_implementation_methods(cls) - allowed)
+    ]
+    return problems
+
+
+def _discovered_native_adapter_classes() -> Set[type]:
+    """Classes in the bounded adapter packages implementing any native adapter operation."""
+    import mountainash.core.dtypes as dtypes_package
+
+    operations = set().union(*(get_protocol_methods(p) for p in _native_adapter_protocols()))
+    modules = [
+        importlib.import_module(f"{dtypes_package.__name__}.{info.name}")
+        for info in pkgutil.iter_modules(dtypes_package.__path__)
+        if info.name.startswith("target_")
+    ]
+    modules.append(importlib.import_module("mountainash.typespec.native_schema"))
+    return {
+        cls
+        for module in modules
+        for _, cls in inspect.getmembers(module, inspect.isclass)
+        if cls.__module__ == module.__name__ and operations & get_implementation_methods(cls)
+    }
+
+
+def _registered_native_adapter_classes():
+    from mountainash.core.dtypes import TypeTarget, registry
+    from mountainash.typespec.adapter_registry import NATIVE_SCHEMA_ADAPTERS, get_native_schema_adapter
+
+    type_adapters = {target: type(registry._adapter(target)) for target in TypeTarget}
+    schema_adapters = {
+        target: type(get_native_schema_adapter(target)) for target in NATIVE_SCHEMA_ADAPTERS.list_keys()
+    }
+    return type_adapters, schema_adapters
+
+
+class TestNativeAdapterAlignment:
+    """Native type, Arrow transport and native schema adapters against their protocols."""
+
+    @pytest.fixture(autouse=True, scope="class")
+    def _optional_libraries(self):
+        # An unavailable dependency is not a qualified implementation.
+        for name in ("polars", "pandas", "pyarrow", "ibis", "narwhals"):
+            pytest.importorskip(name)
+
+    def test_registrations_and_discovered_implementations_agree(self):
+        type_adapters, schema_adapters = _registered_native_adapter_classes()
+        registered = {*type_adapters.values(), *schema_adapters.values()}
+        discovered = _discovered_native_adapter_classes()
+        assert discovered == registered, (
+            f"implemented but not registered: {sorted(c.__name__ for c in discovered - registered)}; "
+            f"registered but not discovered: {sorted(c.__name__ for c in registered - discovered)}"
+        )
+
+    def test_every_type_target_has_its_own_adapter_and_python_has_no_table_adapter(self):
+        from mountainash.core.dtypes import TypeTarget
+
+        type_adapters, schema_adapters = _registered_native_adapter_classes()
+        assert len(set(type_adapters.values())) == len(TypeTarget)
+        assert set(schema_adapters) <= set(TypeTarget)
+        # Python type support does not imply a Python-table adapter.
+        assert TypeTarget.PYTHON in type_adapters and TypeTarget.PYTHON not in schema_adapters
+
+    def test_registered_adapters_declare_the_protocols_of_their_registry(self):
+        from mountainash.core.dtypes.protocols import NativeArrowTransportAdapter, NativeTypeAdapter
+        from mountainash.typespec.protocols import NativeSchemaAdapter
+
+        type_adapters, schema_adapters = _registered_native_adapter_classes()
+        for cls in type_adapters.values():
+            assert {NativeTypeAdapter, NativeArrowTransportAdapter} <= set(cls.__mro__), cls.__name__
+        for cls in schema_adapters.values():
+            assert NativeSchemaAdapter in cls.__mro__, cls.__name__
+
+    def test_registered_implementations_follow_their_protocols(self):
+        type_adapters, schema_adapters = _registered_native_adapter_classes()
+        problems = [
+            problem
+            for cls in (*type_adapters.values(), *schema_adapters.values())
+            for problem in _native_adapter_violations(cls)
+        ]
+        assert not problems, "\n".join(problems)
+
+    def test_registered_adapters_are_instantiable_so_no_stub_is_left_abstract(self):
+        type_adapters, schema_adapters = _registered_native_adapter_classes()
+        for cls in (*type_adapters.values(), *schema_adapters.values()):
+            assert not cls.__abstractmethods__, cls.__name__
+
+
+class TestNativeAdapterViolationDetection:
+    """The checker above must be able to fail: inherited stubs, drift and rogue operations."""
+
+    def test_inherited_protocol_stubs_are_not_implementations(self):
+        from typing import Any
+
+        from mountainash.typespec.protocols import NativeSchemaAdapter
+
+        class Inherited(NativeSchemaAdapter[Any, Any]):
+            pass
+
+        assert len(_native_adapter_violations(Inherited)) == len(get_protocol_methods(NativeSchemaAdapter))
+        with pytest.raises(TypeError):
+            Inherited()
+
+    def test_parameter_names_kinds_and_extra_operations_are_reported(self):
+        from typing import Any
+
+        from mountainash.typespec.protocols import NativeSchemaAdapter
+
+        class Drifted(NativeSchemaAdapter[Any, Any]):
+            def extract_schema(self, frame): ...
+            def decode_schema(self, schema): ...
+            def encode_schema(self, schema, resolved_types): ...  # keyword-only in the protocol
+            def describe(self): ...
+
+        problems = "\n".join(_native_adapter_violations(Drifted))
+        assert "extract_schema: call shape" in problems
+        assert "encode_schema: call shape" in problems
+        assert "decode_schema" not in problems
+        assert "Drifted.describe is outside every declared protocol" in problems
+
+    def test_a_class_declaring_no_protocol_is_reported(self):
+        class Structural:
+            def extract_schema(self, carrier): ...
+
+        assert _native_adapter_violations(Structural) == ["Structural declares no native adapter protocol"]

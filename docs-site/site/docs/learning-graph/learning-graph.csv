@@ -145,8 +145,8 @@ ConceptID,ConceptLabel,Dependencies,TaxonomyID
 144,Backend Divergences,143|89,RLBAK
 145,Execution Target,16|111,RLBAK
 146,execute_on Parameter,145|95,RLBAK
-147,TypeSpec,3|1,TYPES
-148,FieldSpec,147,TYPES
+147,TableSchema,3|1,TYPES
+148,FieldDefinition,147,TYPES
 149,FieldConstraints,148,TYPES
 150,UniversalType Enum,147|13,TYPES
 151,Type Bridge,150|18,TYPES

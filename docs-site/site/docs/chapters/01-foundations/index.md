@@ -73,7 +73,7 @@ The advantage of protocols over abstract base classes is decoupling. A backend i
 
 Pydantic is a data validation and settings management library that uses Python type annotations to define data models. When you create a Pydantic `BaseModel` subclass, each field's type annotation becomes a validation rule applied at instantiation time.
 
-Mountainash uses Pydantic models in two critical areas. First, the expression AST nodes are all Pydantic `BaseModel` subclasses, configured as frozen (immutable) objects. Second, the type specification system (TypeSpec, FieldSpec) and data package integration use Pydantic for schema definition and validation.
+Expression AST nodes use Pydantic models. Shared schema declarations instead use immutable FieldDefinition values and an owned TableSchema mapping; schema declarations, native representation and validation have distinct responsibilities.
 
 ```python
 from pydantic import BaseModel, ConfigDict
@@ -290,7 +290,7 @@ Properties of DAGs that mountainash exploits include:
 
 - Python type hints provide the structural backbone for mountainash's API contracts, enabling static analysis and IDE support across all modules.
 - Protocol classes enable mountainash's extensible architecture by defining interfaces without requiring inheritance, allowing backends to be added independently.
-- Pydantic models serve as the foundation for both expression AST nodes (immutable, validated) and schema definitions (TypeSpec, FieldSpec).
+- Expression AST nodes use Pydantic; shared schema declarations use FieldDefinition and TableSchema rather than a second AST model.
 - DataFrames are the universal input/output format; mountainash supports Polars, pandas, PyArrow, and Ibis tables through a unified API.
 - Polars is the primary backend with native support, while pandas and PyArrow route through Narwhals, and SQL databases route through Ibis.
 - Lazy evaluation means mountainash constructs AST plans rather than executing immediately, enabling optimization and backend independence.

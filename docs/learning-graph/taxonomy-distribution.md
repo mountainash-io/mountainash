@@ -98,8 +98,8 @@ All categories are under the 30% threshold. Good balance!
 
 **Concepts**:
 
-- 147. TypeSpec
-- 148. FieldSpec
+- 147. TableSchema
+- 148. FieldDefinition
 - 149. FieldConstraints
 - 150. UniversalType Enum
 - 151. Type Bridge

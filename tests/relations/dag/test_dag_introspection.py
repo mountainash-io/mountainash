@@ -24,13 +24,13 @@ class TestDAGSchema:
 
     def test_schema_conformed_relation(self):
         """dag.schema() reports correct columns for a conformed plan (item 44)."""
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.spec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import UniversalType
 
         dag = RelationDAG()
         dag.add("raw", ma.relation(pl.LazyFrame({"a": ["1"], "b": ["x"]})))
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=UniversalType.INTEGER)},
             fields_match="open",
         )
         dag.add("conformed", dag.ref("raw").conform(spec))

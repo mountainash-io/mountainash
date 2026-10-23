@@ -301,3 +301,29 @@ class BackendCapabilityError(MountainashError):
         self.context = MappingProxyType(dict(context)) if context is not None else None
         self.candidate_fields = tuple(sorted(set(candidate_fields)))
         self.candidate_fact_keys = tuple(sorted(set(candidate_fact_keys)))
+
+
+def detect_schema_carrier(obj: Any) -> "TypeTarget | None":
+    """Identify the native schema representation of a table carrier.
+
+    Independent of execution placement: a pandas frame has a pandas schema even
+    when it executes through Narwhals. A user subclass of a supported carrier
+    class has that carrier's schema. Returns None for unsupported carriers
+    (including non-table Ibis expressions). Imports no optional library: only
+    the object's own class hierarchy is inspected.
+    """
+    from mountainash.core.dtypes.targets import TypeTarget
+
+    for module, class_names, target in (
+        ("polars", ("DataFrame", "LazyFrame"), TypeTarget.POLARS),
+        ("pyarrow", ("Table",), TypeTarget.PYARROW),
+        ("pandas", ("DataFrame",), TypeTarget.PANDAS),
+        ("ibis", ("Table",), TypeTarget.IBIS),
+        ("narwhals", ("DataFrame", "LazyFrame"), TypeTarget.NARWHALS),
+    ):
+        if any(
+            cls.__module__.startswith(module) and cls.__name__ in class_names
+            for cls in type(obj).__mro__
+        ):
+            return target
+    return None

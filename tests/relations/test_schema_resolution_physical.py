@@ -1,9 +1,15 @@
 """Physical SQL type metadata for bound Ibis output expressions."""
 from __future__ import annotations
 
+import ibis
 import ibis.expr.datatypes as ibis_dt
+import pytest
+
 import mountainash as ma
-from mountainash.core.dtypes import DecimalDtype, NativeDtype, TimeDtype, TimestampDtype
+from mountainash.core.dtypes import (
+    DecimalDtype, MountainashDtype, NativeDtype, TimeDtype, TimestampDtype,
+)
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from tests.fixtures.ibis_physical import connection
 
 
@@ -121,7 +127,8 @@ def test_building_and_structural_drift_do_not_describe_sql_output(connection, mo
 
         with monkeypatch.context() as context:
             context.setattr(connection, "compile", unexpected_compile)
-            relation = ma.relation(source).select("n").conform(ma.typespec({"n": "integer"}))
+            declared = TableSchema(fields={"n": FieldDefinition(dtype=MountainashDtype.I64)})
+            relation = ma.relation(source).select("n").conform(declared)
             assert not any(report.type_mismatches for report in relation.assess_drift())
     finally:
         connection.drop_table("schema_build_only", force=True)
@@ -173,3 +180,92 @@ def test_sql_calendar_interval_is_not_a_fixed_duration(connection):
     # Physical mixed calendar INTERVAL is not an Ibis fixed-unit dtype.
     with pytest.raises(DtypeMappingError):
         registry.to_native_schema(dtype, TypeTarget.IBIS)
+
+
+_INSPECTION_ROUTES = {
+    # The relation reads the SQL source directly: native-source inspection.
+    "native_source": lambda connection, sql: ma.relation(connection.sql(sql)),
+    # A projection over it is compiled first: compiled-result inspection.
+    "compiled_output": _project,
+}
+
+
+@pytest.mark.parametrize("route", sorted(_INSPECTION_ROUTES))
+def test_each_inspection_route_reports_physical_sql_types(connection, route):
+    """Both callers reach the Ibis physical description, not the logical Ibis schema."""
+    if connection.name == "sqlite":
+        sql = "SELECT CAST(NULL AS TIMESTAMP(3)) AS local_time"
+    elif connection.name == "duckdb":
+        sql = (
+            "SELECT CAST(NULL AS TIMESTAMP(3)) AS local_time, "
+            "CAST(NULL AS DECIMAL(12, 5)) AS amount, CAST(NULL AS TIME) AS clock"
+        )
+    else:
+        sql = (
+            "SELECT CAST(NULL AS TIMESTAMP(3)) AS local_time, "
+            "CAST(NULL AS DECIMAL(12, 5)) AS amount, CAST(NULL AS TIME(3)) AS clock"
+        )
+
+    schema = _INSPECTION_ROUTES[route](connection, sql).collect_schema()
+
+    assert list(schema)[0] == "local_time"
+    if connection.name == "sqlite":
+        assert not isinstance(schema["local_time"], TimestampDtype)
+        return
+    assert schema["local_time"] == TimestampDtype(precision=3, timezone_aware=False, timezone=None)
+    assert schema["amount"] == DecimalDtype(precision=12, scale=5)
+    assert schema["clock"] == TimeDtype(precision=3 if connection.name == "postgres" else 6)
+
+
+@pytest.mark.parametrize("route", sorted(_INSPECTION_ROUTES))
+def test_sqlite_output_without_rows_needs_permission_to_complete(route):
+    """SQLite infers expression types from rows: metadata alone cannot complete this."""
+    import polars as pl
+    from mountainash.exceptions import IncompleteSchemaError
+
+    connection = ibis.sqlite.connect()
+    try:
+        source = connection.create_table("schema_no_rows", pl.DataFrame({"a": pl.Series([], dtype=pl.Int64)}))
+        computed = source.mutate(x=source.a + 1).select("x")
+        relation = ma.relation(computed) if route == "native_source" else ma.relation(computed).select("x")
+
+        with pytest.raises(IncompleteSchemaError, match="no rows from which to infer"):
+            relation.collect_schema()
+        assert relation.collect_schema(allow_execution=True) == {"x": MountainashDtype.I64}
+    finally:
+        connection.disconnect()
+
+
+def test_in_memory_and_unbound_sql_relations_use_logical_types_without_a_connection():
+    """No bound connection means no physical description to ask for."""
+    memory = ma.relation(ibis.memtable({"n": [1], "text": ["a"]}))
+    unbound = ma.relation(ibis.table({"ts": ibis_dt.Timestamp(scale=3)}, name="unbound_source"))
+
+    assert memory.collect_schema() == {"n": MountainashDtype.I64, "text": MountainashDtype.STRING}
+    assert unbound.schema == {
+        "ts": TimestampDtype(precision=3, timezone_aware=False, timezone=None),
+    }
+
+
+def test_postgres_description_releases_its_temporary_view_on_failure(connection, monkeypatch):
+    """Only the PostgreSQL technique acquires a temporary resource; it owns its cleanup."""
+    if connection.name != "postgres":
+        pytest.skip("temporary-view description is PostgreSQL-only; selected by MA_TRANSACTION_CASES")
+
+    def leftover_views():
+        with connection.con.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM pg_catalog.pg_class WHERE relname LIKE 'ma_schema_%'")
+            return cursor.fetchone()[0]
+
+    before = leftover_views()
+    relation = ma.relation(connection.sql("SELECT CAST(NULL AS TIME(3)) AS clock"))
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("catalog unavailable")
+
+    with monkeypatch.context() as context:
+        context.setattr(connection, "get_schema", fail)
+        with pytest.raises(RuntimeError, match="catalog unavailable"):
+            relation.collect_schema()
+    assert leftover_views() == before
+    assert relation.collect_schema() == {"clock": TimeDtype(precision=3)}

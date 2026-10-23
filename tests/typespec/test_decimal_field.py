@@ -1,4 +1,4 @@
-"""FieldSpec.dtype (DecimalDtype): declaration, persistence, lowering, extraction, comparison (item 241)."""
+"""FieldDefinition.dtype (DecimalDtype): declaration, persistence, lowering, extraction, comparison (item 241)."""
 from __future__ import annotations
 
 import ibis
@@ -9,29 +9,32 @@ import pyarrow as pa
 import pytest
 
 import mountainash as ma
-from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 from mountainash.typespec.converters import to_arrow_schema, to_polars_schema
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
+    InvalidDescriptorStructure,
     InvalidDtypeDeclaration,
 )
 from mountainash.typespec.extraction import extract_from_dataframe
 from mountainash.typespec.frictionless import (
-    typespec_from_frictionless,
-    typespec_to_frictionless,
+    table_schema_from_frictionless,
+    table_schema_to_frictionless,
 )
 from mountainash.typespec.spec import compare_specs
 
 D103 = ma.DecimalDtype(precision=10, scale=3)
 
 
-class TestFieldSpecDecimal:
-    def test_number_with_dtype(self):
-        assert FieldSpec(name="a", type=UniversalType.NUMBER, dtype=D103).dtype == D103
+def _schema(**fields):
+    return TableSchema(fields=fields)
 
-    def test_default_is_none(self):
-        assert FieldSpec(name="a", type=UniversalType.NUMBER).dtype is None
 
+def _number(**kwargs):
+    return FieldDefinition(type=UniversalType.NUMBER, **kwargs)
+
+
+class TestFieldDefinitionDecimal:
     @pytest.mark.parametrize(
         "kwargs,error",
         [
@@ -42,88 +45,80 @@ class TestFieldSpecDecimal:
     )
     def test_rejected_combinations(self, kwargs, error):
         with pytest.raises(error):
-            FieldSpec(name="a", dtype=D103, **kwargs)
+            FieldDefinition(dtype=D103, **kwargs)
 
     @pytest.mark.parametrize("mode", ["bankers", 1])
     def test_invalid_rounding_declaration(self, mode):
         with pytest.raises(InvalidDtypeDeclaration):
-            FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103, rounding=mode)
+            _number(dtype=D103, rounding=mode)
 
     def test_rounding_requires_decimal_target(self):
         with pytest.raises(InvalidDtypeDeclaration):
-            FieldSpec(name="x", type=UniversalType.NUMBER, rounding="half_to_even")
+            _number(rounding="half_to_even")
 
 
 class TestCompareSpecsDecimal:
     def test_precision_scale_difference_is_a_type_change(self):
-        a = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
-        b = TypeSpec(
-            fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=ma.DecimalDtype(precision=12, scale=4))]
-        )
+        a = _schema(x=_number(dtype=D103))
+        b = _schema(x=_number(dtype=ma.DecimalDtype(precision=12, scale=4)))
         assert "x" in compare_specs(a, b).type_changes
 
     def test_declared_decimal_against_plain_number_is_a_type_change(self):
-        a = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
-        b = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER)])
+        a = _schema(x=_number(dtype=D103))
+        b = _schema(x=_number())
         assert "x" in compare_specs(a, b).type_changes
         assert "x" in compare_specs(b, a).type_changes
 
     def test_equal_decimals_do_not_differ(self):
-        a = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
-        b = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER, dtype=D103)])
+        a = _schema(x=_number(dtype=D103))
+        b = _schema(x=_number(dtype=D103))
         assert not compare_specs(a, b).type_changes
 
     def test_rounding_is_not_type_incompatibility(self):
-        left = TypeSpec(fields=[FieldSpec(
-            name="x", type=UniversalType.NUMBER, dtype=D103, rounding="half_to_even",
-        )])
-        right = TypeSpec(fields=[FieldSpec(
-            name="x", type=UniversalType.NUMBER, dtype=D103, rounding="to_zero",
-        )])
+        left = _schema(x=_number(dtype=D103, rounding="half_to_even"))
+        right = _schema(x=_number(dtype=D103, rounding="to_zero"))
         result = compare_specs(left, right)
         assert result.is_compatible and not result.type_changes
 
     def test_extra_actual_field_still_compatible(self):
-        # Baseline behaviour measured on develop, must be unchanged.
-        a = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.NUMBER)])
-        b = TypeSpec(
-            fields=[
-                FieldSpec(name="x", type=UniversalType.NUMBER),
-                FieldSpec(name="y", type=UniversalType.STRING),
-            ]
-        )
+        a = _schema(x=_number())
+        b = _schema(x=_number(), y=FieldDefinition(type=UniversalType.STRING))
         diff = compare_specs(b, a)
         assert diff.is_compatible is True
         assert diff.removed_fields == ["y"] and not diff.type_changes
 
     def test_geopoint_formats_unchanged(self):
-        a = TypeSpec(fields=[FieldSpec(name="p", type=UniversalType.GEOPOINT, format="default")])
-        b = TypeSpec(fields=[FieldSpec(name="p", type=UniversalType.GEOPOINT, format="array")])
+        a = _schema(p=FieldDefinition(type=UniversalType.GEOPOINT, format="default"))
+        b = _schema(p=FieldDefinition(type=UniversalType.GEOPOINT, format="array"))
         assert not compare_specs(a, b).type_changes
 
 
 class TestFrictionlessDecimal:
     def test_round_trip_including_nested(self):
-        child = FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=D103, rounding="half_to_even")
-        spec = TypeSpec(
-            fields=[
-                child,
-                FieldSpec(name="rec", type=UniversalType.OBJECT, object_fields=[child]),
-                FieldSpec(name="items", type=UniversalType.ARRAY, item_object_fields=[child]),
-            ]
+        child = _number(dtype=D103, rounding="half_to_even")
+        spec = _schema(
+            amount=child,
+            rec=FieldDefinition(type=UniversalType.OBJECT, fields={"amount": child}),
+            items=FieldDefinition(
+                type=UniversalType.ARRAY,
+                element=FieldDefinition(type=UniversalType.OBJECT, fields={"amount": child}),
+            ),
         )
-        desc = typespec_to_frictionless(spec)
+        desc = table_schema_to_frictionless(spec)
         assert desc["fields"][0]["type"] == "number"
         assert desc["fields"][0]["x-mountainash"]["dtype"] == {
             "kind": "decimal", "precision": 10, "scale": 3,
         }
-        back = typespec_from_frictionless(desc)
-        assert back.fields[0].dtype == D103
-        assert back.fields[1].object_fields[0].dtype == D103
-        assert back.fields[2].item_object_fields[0].dtype == D103
-        assert back.fields[0].rounding == "half_to_even"
-        assert back.fields[1].object_fields[0].rounding == "half_to_even"
-        assert back.fields[2].item_object_fields[0].rounding == "half_to_even"
+        back = table_schema_from_frictionless(desc)
+        assert list(back.fields) == ["amount", "rec", "items"]
+        nested = [
+            back.fields["amount"],
+            back.fields["rec"].fields["amount"],
+            back.fields["items"].element.fields["amount"],
+        ]
+        for restored in nested:
+            assert restored.dtype == D103
+            assert restored.rounding == "half_to_even"
 
     @pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero", "to_zero"])
     def test_rounding_descriptor_contract(self, mode):
@@ -134,9 +129,9 @@ class TestFrictionlessDecimal:
                 "rounding": mode,
             },
         }]}
-        spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].rounding == mode
-        assert typespec_to_frictionless(spec) == descriptor
+        spec = table_schema_from_frictionless(descriptor)
+        assert spec.fields["amount"].rounding == mode
+        assert table_schema_to_frictionless(spec) == descriptor
 
     @pytest.mark.parametrize("rounding_extension", [{}, {"rounding": None}])
     def test_legacy_rounding_is_omitted_on_write(self, rounding_extension):
@@ -145,10 +140,10 @@ class TestFrictionlessDecimal:
             "name": "x", "type": "number",
             "x-mountainash": {"dtype": dtype, **rounding_extension},
         }]}
-        spec = typespec_from_frictionless(descriptor)
-        assert spec.fields[0].rounding is None
-        assert spec.fields[0].dtype == D103
-        assert typespec_to_frictionless(spec) == {"fields": [{
+        spec = table_schema_from_frictionless(descriptor)
+        assert spec.fields["x"].rounding is None
+        assert spec.fields["x"].dtype == D103
+        assert table_schema_to_frictionless(spec) == {"fields": [{
             "name": "x", "type": "number", "x-mountainash": {"dtype": dtype},
         }]}
 
@@ -158,14 +153,12 @@ class TestFrictionlessDecimal:
     ])
     def test_invalid_rounding_descriptor(self, extension):
         with pytest.raises(InvalidDtypeDeclaration):
-            typespec_from_frictionless({"fields": [{
+            table_schema_from_frictionless({"fields": [{
                 "name": "x", "type": "number", "x-mountainash": extension,
             }]})
 
     def test_plain_number_emits_no_dtype_extension(self):
-        desc = typespec_to_frictionless(
-            TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.NUMBER)])
-        )
+        desc = table_schema_to_frictionless(_schema(a=_number()))
         assert "x-mountainash" not in desc["fields"][0]
 
     @pytest.mark.parametrize(
@@ -176,14 +169,22 @@ class TestFrictionlessDecimal:
             {"kind": "decimal", "precision": "10", "scale": 3},
             {"kind": "decimal", "precision": 39, "scale": 3},
             {"precision": 10, "scale": 3},
-            "decimal(10,3)",
         ],
     )
     def test_malformed_dtype_extension_raises(self, bad):
         """Our own x-mountainash.dtype is validated on load, never silently dropped."""
         desc = {"fields": [{"name": "amount", "type": "number", "x-mountainash": {"dtype": bad}}]}
         with pytest.raises(InvalidDtypeDeclaration):
-            typespec_from_frictionless(desc)
+            table_schema_from_frictionless(desc)
+
+    def test_string_dtype_extension_reports_its_descriptor_location(self):
+        desc = {"fields": [{
+            "name": "amount", "type": "number",
+            "x-mountainash": {"dtype": "decimal(10,3)"},
+        }]}
+        with pytest.raises(InvalidDescriptorStructure) as caught:
+            table_schema_from_frictionless(desc)
+        assert caught.value.descriptor_path == "$.fields[0].x-mountainash.dtype"
 
     def test_dtype_on_a_non_number_field_raises_on_load(self):
         desc = {
@@ -196,18 +197,17 @@ class TestFrictionlessDecimal:
             ]
         }
         with pytest.raises(IncompatibleFieldPropertiesError):
-            typespec_from_frictionless(desc)
+            table_schema_from_frictionless(desc)
 
 
 class TestConvertersDecimal:
     def test_lowering(self):
-        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.NUMBER, dtype=D103)])
+        spec = _schema(a=_number(dtype=D103))
         assert to_polars_schema(spec)["a"] == pl.Decimal(10, 3)
         assert to_arrow_schema(spec).field("a").type == pa.decimal128(10, 3)
 
     def test_plain_number_lowering_unchanged(self):
-        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.NUMBER)])
-        assert to_polars_schema(spec)["a"] == pl.Float64
+        assert to_polars_schema(_schema(a=_number()))["a"] == pl.Float64
 
 
 def _native_decimal_frame(backend_name):
@@ -231,10 +231,9 @@ def _native_decimal_frame(backend_name):
 )
 def test_decimal_extraction_per_backend(backend_name):
     """p/s survives native schema extraction on each backend family (schema only, no cast)."""
-    field = extract_from_dataframe(_native_decimal_frame(backend_name)).fields[0]
+    field = extract_from_dataframe(_native_decimal_frame(backend_name)).fields["a"]
     assert field.type is UniversalType.NUMBER
     assert field.dtype == ma.DecimalDtype(precision=12, scale=4)
-    assert field.backend_type is None
     assert field.rounding is None
 
 

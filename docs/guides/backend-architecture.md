@@ -176,6 +176,28 @@ Custom Arrow schema metadata and field-nullability flags are not round-trip
 guarantees. Polars may share input buffers; use the existing `snapshot()` when
 an independent copy is required.
 
+## Schema representation vs execution backend
+
+Schema declarations (`FieldDefinition`, `TableSchema`) are backend-independent. Three identities that look alike are selected independently:
+
+| Identity | Selected by | Owner |
+|----------|-------------|-------|
+| Native type target (`TypeTarget`: polars, pandas, pyarrow, ibis, narwhals, python) | Explicit target, or `detect_target` for a native dtype object | `DtypeRegistry` and the per-target `NativeTypeAdapter` in `core/dtypes/target_*.py` |
+| Native schema carrier | `detect_schema_carrier(obj)` (`core/types.py`), by the object's class hierarchy | `NATIVE_SCHEMA_ADAPTERS` in `typespec/adapter_registry.py`; `extract_source_shapes(native)` is the façade |
+| Execution backend / location | `detect_dataframe_backend_type` and the execution location (backend family, dialect, connection) | The registered `RelationSystem` / `ExpressionSystem` |
+
+Pandas, PyArrow and Python are type targets but not execution backends. A pandas frame has a pandas schema representation even when it executes through Narwhals, and a supported dtype does not by itself prove a dialect can execute every operation. Unsupported representations do not silently switch backends; existing capability outcomes apply.
+
+Shared resolution (`typespec/converters.py`) combines a declaration with source evidence for a selected target; conform compiles conversion instructions and executes through the ordinary backends. Native adapters only translate representations; they never read field constraints or null-fill policy. Arrow transport of native refinements goes through `DtypeRegistry.to_arrow_transport`, which selects the owning target's adapter, not the execution backend.
+
+### Physical output description
+
+`RelationSystem.describe_output_schema(native, *, location)` returns ordered output types for a native relation at its actual execution location. It is an existing abstract method of the registered relation-system contract, not a new registry. `BaseRelationSystem` derives it from the carrier's native schema adapter (sufficient for Polars and Narwhals-wrapped carriers). The Ibis system overrides it: an Ibis expression's own schema is logical and can erase physical detail such as temporal precision, so for a relation bound to a connection with a known dialect it asks the engine to describe the compiled output query.
+
+The dialect inspectors are private and backend-local (`relations/backends/relation_systems/ibis/schema_metadata.py`), selected by `location.dialect`: `ibis-sqlite`, `ibis-duckdb`, `ibis-postgres`. A location with no bound connection, or a dialect without a technique, reports the logical schema. The operation neither decides whether incomplete evidence may be completed by executing nor selects a connection; completeness and execution permission stay with the schema resolver (`collect_schema(allow_execution=...)`, see [datapackage reference](../reference/datapackage.md)).
+
+Support boundaries: the three Ibis dialect techniques above are the implemented set. Postgres is a service dialect: where such a service is unavailable, a rendered or compiled path is unexecuted and not qualified by rendering alone. Adding a dialect adds a private technique here and no registry or public setting; see [extension-points.md](extension-points.md#schema-extension-recipes).
+
 ## The unified visitor
 
 A single visitor class dispatches **every** node type via a function registry. Source: `src/mountainash/expressions/core/unified_visitor/` and `src/mountainash/relations/core/unified_visitor/`.

@@ -13,9 +13,8 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import _resolve_field_native
-from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
+from mountainash.typespec.converters import resolve_native_type
+from mountainash.typespec.spec import FieldDefinition
 from mountainash.core.dtypes import TypeTarget
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
 
@@ -42,12 +41,6 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
 
     def _prepare_call_list_filter(self, operands):
         return [operands.native(0), operands.body_compiler(1)]
-
-    def _prepare_call_cast_list_items(self, operands):
-        return [
-            operands.native(0),
-            *(operands.body_compiler(index) for index in range(1, len(operands))),
-        ]
 
     def _compile_list_body(self, array, compile_body, *, filtering=False):
         """Bind the body through the visitor and lower native scoped reductions."""
@@ -166,28 +159,11 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         self,
         x,
         /,
-        *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
+        *,
+        element: FieldDefinition | None = None,
         item_type: str | None = None,
         failure_behavior: str = "throw",
     ):
-        if converted_fields:
-            def compile_item():
-                item = self.list_element()
-                if item.type().is_array():
-                    return self._compile_list_body(item, compile_item)
-                children = tuple(compile_field() for compile_field in converted_fields)
-                if any(isinstance(child, Deferred) for child in children):
-                    raise BackendCapabilityError(
-                        "Ibis nested child conversion does not support deferred outer-column references.",
-                        backend=self.BACKEND_NAME,
-                        function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
-                    )
-                return self.cast_struct(
-                    item, *children,
-                    fields=item_object_fields, failure_behavior=failure_behavior,
-                )
-            return deferrable(lambda array: self._compile_list_body(array, compile_item))(x)
         if self.dialect == "ibis-sqlite" or failure_behavior == "null":
             raise BackendCapabilityError(
                 "SQLite list casting is unavailable; other Ibis engines require throw mode "
@@ -201,8 +177,7 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
             canonical = to_canonical(parse_universal(item_type))
             dtype = registry.to_native_schema(canonical, TypeTarget.IBIS)
             return x.cast(f"array<{dtype}>")
-        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
-        dtype = _resolve_field_native(field, TypeTarget.IBIS)
+        dtype = resolve_native_type(FieldDefinition(element=element), TypeTarget.IBIS)
         return x.cast(dtype)
 
     def list_sum(self, x, /):

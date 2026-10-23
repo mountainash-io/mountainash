@@ -459,15 +459,13 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
 def test_ref_child_adopts_source_conform_diagnostics():
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     dag = ma.RelationDAG()
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[
-            FieldSpec(name="payload", type=UniversalType.OBJECT),
-        ],
+        fields={"payload": FieldDefinition(type=UniversalType.OBJECT),},
     )
     source = ma.relation(
         pl.DataFrame(

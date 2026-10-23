@@ -103,6 +103,7 @@ class TestOutcomeModel:
     @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
     def test_empty_value_checks_pass(self, backend_name, backend_factory):
         """Value diagnostics must not turn an empty typed input into an error."""
+        from mountainash.typespec import FieldDefinition, UniversalType
         from mountainash.validation import ValueRule, ValueValidatorKey
         from mountainash.validation.value import VALUE_RULE_REGISTRY
 
@@ -113,6 +114,12 @@ class TestOutcomeModel:
             "XSD_PATTERN": {"pattern": "."},
             "MEMBERSHIP": {"allowed": [True]},
             "JSON_SCHEMA": {"schema": {}},
+            "NESTED": {
+                "definition": FieldDefinition(
+                    type=UniversalType.OBJECT,
+                    fields={"flag": FieldDefinition(type=UniversalType.BOOLEAN)},
+                )
+            },
         }
         checks = [
             ValueRule(

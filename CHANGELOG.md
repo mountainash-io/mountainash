@@ -3,13 +3,33 @@
 ## Unreleased — 2026-10-22
 
 ### Fixed
+- Shared-schema conform: Ibis/DuckDB string values with a numeric null fill now convert through the deferred public relation path (`["4", None]` → `[4, 0]`, Int64). Failed conversions are not treated as original missing values.
+- Conform output reconciliation honors explicit extra-column policies over presets and preserves row cardinality for literal-only projections.
+- Nested shared definitions apply conversion and fill settings at every element level, including whole record/list fills; fixed-array element conversion preserves declared dimensions.
+- Shared declaration fingerprints retain exact Decimal fill and constraint values without float conversion.
+- Native schema extraction retains Arrow field qualifiers, pandas categorical representation and Polars fixed-array dimensions. Wrapped Arrow time precision remains available to conformance and schema checks without rewriting authored unknown parameters.
+- Bare temporal-family metadata no longer invents precision/unit conflicts during schema comparison or `freeze` reconciliation; known different families still report a mismatch.
+- Shared contract checks retain generated-class inheritance, nested field-local severity, concrete member/element diagnostics and within-collection element uniqueness without counting a duplicate row more than once.
+- Typed Frictionless interchange preserves recursive declarations, extended requirements and temporal/Decimal values through JSON text. Referenced-schema errors retain their nested descriptor location without mutating raw resource storage.
+- Native Decimal columns are not treated as lexical missing-value sources. Ibis finite Decimal literals retain their value's precision/scale before requested conversion, avoiding an intermediate SQL-default rounding step.
+- Contextual geospatial resolution errors retain the containing field's name.
+- Python ingress evaluates custom and native targets against unchanged source values across existing input shapes. Frame-based custom results remain aligned after row-discard policies, including empty results, without round-tripping untouched native columns through Python.
+- Python egress projects custom targets before conversion without premature native casting, including renamed targets and native fan-out from the same source.
+- Raw resource fields without type evidence remain UNKNOWN rather than becoming explicitly unconstrained declarations.
+- Schema-level `missing_values=None` serializes as explicit `missingValues: []`, preserving disabled-sentinel behavior through JSON instead of restoring the empty-string default. Field-level inheritance is unchanged.
 - `row_number()`, `rank()` and `dense_rank()` are 1-based on Ibis backends, matching Polars, Narwhals and Substrait (backlog 365). Previously Ibis-DuckDB/SQLite returned values one lower; IB-WIN-02 is resolved.
 - `rank(method="dense")` and `rank(method="ordinal")` no longer pass a spurious `rank_method` option, so they resolve to `dense_rank()`/`row_number()` on every backend that supports those functions, not only Polars.
 - `.over(order_by=[...])` replaces the ordering a ranking function takes from its receiver column, and every key (with its direction) is honoured by `row_number`/`rank`/`dense_rank` and order-dependent windows on Polars and Ibis (backlog 364).
 - Narwhals ranks by every sort key on Polars-backed frames, and refuses window orders it cannot express — multi-key ranking on pandas/pyarrow/DuckDB, descending order-dependent windows on any Narwhals backend, multi-key order-dependent windows on pandas (NW-WIN-05, backlog 368) — with a declared `BackendCapabilityError` instead of silently wrong results (backlog 364).
 
 ### Changed
+- Shared schema declarations use unnamed immutable `FieldDefinition` values and an owned ordered `TableSchema.fields` mapping. `.variant(...)` creates independent definitions; deferred operations capture declaration snapshots. The module remains `mountainash.typespec`; old model aliases are not retained.
+- Native type/schema construction is owned by registered adapters; physical relation description routes through the selected relation system, with Ibis dialect inspection isolated inside its backend.
+- Persisted legacy nested declarations use the explicit pure `migrate_nested_field_declarations` boundary; ordinary typed reads validate the packaged recursive grammar and reject retired child-declaration keys.
 - Declare Narwhals-pandas float64 ranking output (`row_number`/`rank`/`dense_rank`) as a native divergence (backlog 367); values are unchanged and no cast is applied.
+
+### Qualification
+- The strategic shared-schema restart is in Phase-4 qualification, not release-qualified. Final approval still requires item 373 solved and integrated. List/struct native-override precedence (341) and opaque-container nested validation semantics (356) remain owner-deferred, with failing expectations visible. PostgreSQL live execution is not claimed qualified.
 
 ## Unreleased — 2026-10-21
 

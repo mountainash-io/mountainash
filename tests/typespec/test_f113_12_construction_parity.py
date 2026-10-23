@@ -20,7 +20,7 @@ from mountainash.exceptions import (
     UnsupportedDescriptorVersion,
 )
 from mountainash.typespec.datapackage import DataPackage, DataResource
-from mountainash.typespec.spec import FieldSpec, ForeignKey, ForeignKeyReference, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, ForeignKey, ForeignKeyReference, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -309,11 +309,11 @@ def test_relationship_construction_matrix_has_constraint_edge_without_dependency
             {"name": "child", "path": "child.csv", "type": "table", "schema": schema},
         ]
     }
-    authored = TypeSpec(
-        fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="parent_id", type=UniversalType.INTEGER),
-        ],
+    authored = TableSchema(
+        fields={
+            "id": FieldDefinition(type=UniversalType.INTEGER),
+            "parent_id": FieldDefinition(type=UniversalType.INTEGER),
+        },
         foreign_keys=[
             ForeignKey(
                 fields=["parent_id"],
@@ -349,7 +349,7 @@ def test_relationship_construction_matrix_has_constraint_edge_without_dependency
 
     for package in packages:
         child = package.resources[1]
-        assert child.to_typespec() is not None
+        assert child.to_table_schema() is not None
         dag = package.to_relation_dag()
         assert dag.constraint_edges == {("parent", "child")}
         assert dag.dependency_edges == set()
@@ -362,7 +362,7 @@ def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) ->
         resources=[DataResource(name="child", path="child.csv", type="table", table_schema=missing.as_uri())]
     )
     with pytest.raises(DescriptorReferenceNotFound) as caught:
-        package.resources[0].to_typespec()
+        package.resources[0].to_table_schema()
     _assert_error_fields(
         caught,
         error_type=DescriptorReferenceNotFound,
@@ -380,7 +380,7 @@ def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) ->
         resources=[DataResource(name="child", path="child.csv", type="table", table_schema="schema.json")]
     )
     with pytest.raises(MissingDescriptorBase) as relative_caught:
-        relative.resources[0].to_typespec()
+        relative.resources[0].to_table_schema()
     _assert_error_fields(
         relative_caught,
         error_type=MissingDescriptorBase,
@@ -406,7 +406,7 @@ def test_referenced_schema_errors_keep_exact_reference_fields(tmp_path: Path) ->
         ]
     )
     with pytest.raises(DescriptorReferenceSchemeDenied) as denied_caught:
-        denied.resources[0].to_typespec()
+        denied.resources[0].to_table_schema()
     _assert_error_fields(
         denied_caught,
         error_type=DescriptorReferenceSchemeDenied,

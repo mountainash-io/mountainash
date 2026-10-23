@@ -9,7 +9,9 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from mountainash.core.dtypes import target_polars
+from mountainash.core.dtypes.target_polars import PolarsTypeAdapter
+
+POLARS = PolarsTypeAdapter()
 
 
 class TestParameterizedRoundTrip:
@@ -25,26 +27,24 @@ class TestParameterizedRoundTrip:
         ("List(Int64)", pl.List(pl.Int64)),
     ])
     def test_parameterized_repr_round_trips(self, s, expected):
-        assert target_polars.parse_type_string(s) == expected
+        assert POLARS.parse_type_string(s) == expected
 
     def test_array_with_bare_name_arg_and_shape_tuple(self):
         """Critical-finding case: bare-Name arg (Int64) + tuple-of-Constant
         kwarg (shape=(5,)) — the naive Name-rejecting implementation fails
         this one explicitly."""
-        result = target_polars.parse_type_string("Array(Int64, shape=(5,))")
+        result = POLARS.parse_type_string("Array(Int64, shape=(5,))")
         assert result == pl.Array(pl.Int64, shape=(5,))
 
     def test_parameterized_result_is_instance_not_class(self):
-        result = target_polars.parse_type_string(
-            "Datetime(time_unit='us', time_zone='UTC')"
-        )
+        result = POLARS.parse_type_string("Datetime(time_unit='us', time_zone='UTC')")
         assert isinstance(result, pl.Datetime)
 
 
 class TestBareNamesUnchanged:
     def test_bare_name_still_resolves(self):
-        assert target_polars.parse_type_string("Int64") is pl.Int64
-        assert target_polars.parse_type_string("String") is pl.String
+        assert POLARS.parse_type_string("Int64") is pl.Int64
+        assert POLARS.parse_type_string("String") is pl.String
 
     def test_bare_enum_categorical_still_resolve(self):
         """Gap 4 resolution: the bare (no-param) Enum/Categorical forms
@@ -52,8 +52,8 @@ class TestBareNamesUnchanged:
         The empty-categories footgun of *using* them is pre-existing and
         addressed via `categories`/parameterized strings, not by rejecting
         the bare form here."""
-        assert target_polars.parse_type_string("Enum") is pl.Enum
-        assert target_polars.parse_type_string("Categorical") is pl.Categorical
+        assert POLARS.parse_type_string("Enum") is pl.Enum
+        assert POLARS.parse_type_string("Categorical") is pl.Categorical
 
 
 class TestGarbageRejected:
@@ -64,4 +64,4 @@ class TestGarbageRejected:
         "os.system('x')",
     ])
     def test_unparseable_returns_none(self, s):
-        assert target_polars.parse_type_string(s) is None
+        assert POLARS.parse_type_string(s) is None

@@ -828,12 +828,12 @@
     },
     {
       "id": 147,
-      "label": "TypeSpec",
+      "label": "TableSchema",
       "group": "TSPEC"
     },
     {
       "id": 148,
-      "label": "FieldSpec",
+      "label": "FieldDefinition",
       "group": "TSPEC"
     },
     {

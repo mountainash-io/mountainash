@@ -379,7 +379,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
     )
     from mountainash.relations.core.execution.metadata import MetadataSession
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     snapshot = CapabilityRegistry.snapshot()
@@ -406,7 +406,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         )
         table = backend_factory.create({"id": [1], "year": [year]}, source_name)
         target = backend_factory.create({"id": [1]}, "ibis-sqlite")
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         rel = ma.relation(table).conform(spec)
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             native, visitor = rel._compile_and_execute_with_visitor()

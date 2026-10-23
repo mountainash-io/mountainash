@@ -1,4 +1,4 @@
-# TypeSpec and conformance vs. hand-written schema code
+# Shared schemas and conformance vs. hand-written schema code
 
 ## What we built this to address
 
@@ -24,7 +24,7 @@ The schema becomes the conformance step:
 ```python
 import mountainash as ma
 
-spec = ma.typespec({
+spec = ma.table_schema({
     "id":     "integer",
     "name":   "string",
     "amount": "number",
@@ -35,7 +35,7 @@ spec = ma.typespec({
 ma.relation(raw_df).conform(spec).to_polars()
 ```
 
-`conform(spec)` compiles to a relation node whose expressions are derived from the spec fields: cast each column to its declared type, add any missing columns as null, drop unexpected columns (configurable), apply renames declared by `aliases`, fill nulls per `null_fill`. The five lines of hand-rolled code go away. The schema is the source of truth — and it's the same schema that drives validation, generation, documentation, and Frictionless interchange.
+`conform(spec)` builds a deferred relation node. At execution it applies conversion, missing-column and extra-column policies, `rename_from` bindings and `null_fill` instructions. The same declarations can be compiled into validation checks; conversion alone does not assert that their constraints passed.
 
 ## Side-by-side
 
@@ -49,12 +49,15 @@ def conform_orders(df):
     return df[["id", "name", "amount", "ts", "region"]]
 
 # mountainash, schema-driven
-spec = ma.typespec({
-    "id":     {"type": "integer", "aliases": ["customer_id"]},
-    "name":   "string",
-    "amount": {"type": "number",  "aliases": ["amt"]},
-    "ts":     "datetime",
-    "region": {"type": "string",  "null_fill": "UNK"},
+import mountainash as ma
+from mountainash.typespec import UniversalType
+
+spec = ma.TableSchema(fields={
+    "id": ma.FieldDefinition(type=UniversalType.INTEGER, rename_from="customer_id"),
+    "name": ma.FieldDefinition(type=UniversalType.STRING),
+    "amount": ma.FieldDefinition(type=UniversalType.NUMBER, rename_from="amt"),
+    "ts": ma.FieldDefinition(type=UniversalType.DATETIME),
+    "region": ma.FieldDefinition(type=UniversalType.STRING, null_fill="UNK"),
 })
 
 ma.relation(raw_df).conform(spec).to_polars()
@@ -73,29 +76,29 @@ pandera schemas are good. They're well-designed, they integrate with pandas/Pola
 
 What mountainash adds is:
 
-- **Cross-backend execution.** The same TypeSpec drives conform and validation on Polars, pandas (via Narwhals), and any Ibis-supported SQL engine.
-- **Conformance, not just validation.** A pandera schema reports that the data is wrong. A TypeSpec compiles into a transformation that tries to make it right (cast, fill, rename) and then validates the result.
-- **Frictionless round-trip.** TypeSpec is structurally aligned with Frictionless Table Schema. `schema.json` and `datapackage.json` files read and write byte-equivalent.
-- **One source for multiple tools.** A pandera schema is for validation. A `CREATE TABLE` is for the warehouse. A Pydantic model is for the API. TypeSpec aspires to be one definition that conform, the data contract, the Frictionless descriptor, and (eventually) the generator all consume.
+- **Cross-backend execution.** The same TableSchema drives conform and validation through the supported Polars, Narwhals and Ibis paths, subject to their declared capabilities.
+- **Conformance and validation stay separate.** Conformance applies casts, fills and renames; contract checks assess constraints on the resulting values.
+- **Interchange without format-owned declarations.** Frictionless codecs preserve supported declaration semantics. Raw DataPackage storage has a separate lossless contract.
+- **Reusable definitions.** An unnamed FieldDefinition can be attached under several local names. `.variant(...)` makes an independent copy with changed requirements or source binding.
 
-pandera schemas and Pydantic models can be used as input to `ma.datacontract(...)` directly — they don't have to be discarded to start with TypeSpec.
+Dataclass and Pydantic extraction remain supported schema inputs. Pydantic models can also be passed to `ma.datacontract(...)`; existing Python models do not need to become Mountainash contracts.
 
 ## On `CREATE TABLE` and warehouse DDL
 
-DDL is for the warehouse. TypeSpec is for the application code that produces and consumes data flowing in and out of the warehouse. They live at different layers and we think both should exist. The honest framing isn't "TypeSpec replaces DDL"; it's "TypeSpec gives the application layer the same level of schema-as-code rigour that the warehouse layer already has."
+DDL describes the warehouse. TableSchema describes requirements used by the application. Native schema adapters translate representable type information; they do not claim that a warehouse type enforces every application constraint.
 
 ## What this costs
 
-- **Coverage.** The Frictionless type set is what's natively supported. Custom domain types are supported via `CustomTypeRegistry`, but the converter is hand-written. A project with many bespoke semantic types will do that work.
-- **Ibis coalesce strictness.** Mixing string columns with numeric `null_fill` literals can hit Ibis type strictness. Tracked as a divergence with a clear error message; not a silent fault.
+- **Representation boundaries.** A backend or interchange format cannot necessarily express every declaration. Native overrides and unsupported operations retain explicit outcomes rather than silently switching engines.
+- **Qualification.** Schema construction, native type construction, conversion and validation are distinct capabilities. A successful schema conversion is not evidence that every operation executes on that backend.
 
 ## Where we'd point elsewhere
 
 - **Single-runtime projects with pandera already in place.** The migration probably doesn't pay back the cost of doing it.
-- **Schemas that change weekly.** TypeSpec works best when the schema is a contract; for highly exploratory work, the schema definitions become as much churn as the code they replaced.
+- **Schemas that change weekly.** Explicit requirements are most useful when consumers need a shared contract; unconstrained exploration may not need them.
 
 ## Related
 
-- Technical: [TypeSpec and conformance](../features-technical/typespec-conform.md)
+- Technical: [Shared schemas and conformance](../features-technical/typespec-conform.md)
 - Comparison: [Data contracts](datacontracts.md)
 - Vision: [What "virtually any data" means](../vision.md#what-virtually-any-data-means)

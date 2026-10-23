@@ -25,7 +25,7 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 from mountainash.relations.core.errors import LogicalTerminalRequired
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_SUBSTRAIT_REL as RS
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -34,7 +34,7 @@ from mountainash.typespec.universal_types import UniversalType
 def test_transported_structured_field_keeps_terminal_guard(source_name, destination_name):
     source_frame = REGISTRY[source_name].build({"id": [1, 2], "payload": ["[1,2]", "[3]"]}, "source")
     destination_frame = REGISTRY[destination_name].build({"id": [1, 2]}, "target")
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     source = ma.relation(source_frame).conform(spec, contract={"data_type": "coerce"})
     rel = source.join(destination_frame, on="id", execute_on="right").rename({"payload": "body"})
     with pytest.raises(LogicalTerminalRequired):
@@ -92,7 +92,7 @@ def test_source_xsd_error_after_join_suffix_keeps_source_field_and_operation():
         )
         a = REGISTRY["ibis-duckdb"].build({"id": [1], "year": ["invalid"]}, "source")
         b = REGISTRY["ibis-sqlite"].build({"id": [1], "year": ["2024"]}, "destination")
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         rel = ma.relation(a).conform(spec).join(b, on="id", execute_on="right", suffix="_source")
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             with pytest.raises(BackendCapabilityError) as caught:
@@ -110,7 +110,7 @@ def test_two_conform_children_retain_distinct_origins_after_suffix_and_rename(ba
         {"id": [1], "payload": ["[2]"]},
         backend_name,
     )
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     rel = (
         ma.relation(first)
         .conform(spec)
@@ -153,7 +153,7 @@ def test_source_check_markers_do_not_leak_through_same_connection_join_suffix_an
         left, right = backend_factory.create_pair(
             {"id": [1], "year": ["2024"]}, {"id": [1], "year": ["2025"]}, "ibis-duckdb"
         )
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         rel = ma.relation(left).join(ma.relation(right).conform(spec), on="id", suffix="_right")
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             result = rel.collect()
@@ -172,7 +172,7 @@ def test_union_rejects_structured_tag_only_on_later_input(backend_name, backend_
         {"id": [2], "payload": ["[2]"]},
         backend_name,
     )
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     rel = ma.concat([ma.relation(left), ma.relation(right).conform(spec)], distinct=distinct)
     with pytest.raises(UnsupportedStructuredTransportUse):
         rel.collect()
@@ -181,7 +181,7 @@ def test_union_rejects_structured_tag_only_on_later_input(backend_name, backend_
 @pytest.mark.parametrize("backend_name", list(REGISTRY))
 def test_union_all_of_matching_origin_keeps_logical_array(backend_name, backend_factory, monkeypatch):
     frame = backend_factory.create({"id": [1], "payload": ["[1,2]"]}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     child = ma.relation(frame).conform(spec)
     rel = ma.concat([child, child.filter(ma.col("id") > 0)])
     lowerings = []
@@ -228,7 +228,7 @@ def test_union_checks_source_residue_before_set_discards_marker(backend_factory)
         left, right = backend_factory.create_pair(
             {"id": [1], "year": ["invalid"]}, {"id": [2], "year": ["2024"]}, "ibis-duckdb"
         )
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         rel = ma.concat([ma.relation(left).conform(spec), ma.relation(right).conform(spec)])
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             with pytest.raises(BackendCapabilityError) as caught:
@@ -265,7 +265,7 @@ def test_union_discards_checked_marker_from_valid_source(backend_factory):
         left, right = backend_factory.create_pair(
             {"id": [1], "year": ["2024"]}, {"id": [2], "year": ["2025"]}, "ibis-duckdb"
         )
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         rel = ma.concat([ma.relation(left).conform(spec), ma.relation(right).conform(spec)])
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             out = rel.collect()

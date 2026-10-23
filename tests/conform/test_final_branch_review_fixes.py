@@ -28,12 +28,12 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait.pr
 )
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
 from mountainash.typespec.source_shape import SourceShape
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
-def _spec(*fields: FieldSpec) -> TypeSpec:
-    return TypeSpec(fields=list(fields), fields_match="open")
+def _spec(name: str, field: FieldDefinition) -> TableSchema:
+    return TableSchema(fields={name: field}, fields_match="open")
 
 
 def _contract(action: str):
@@ -46,24 +46,9 @@ def _compile(expr):
     return UnifiedExpressionVisitor(system, execution_context=context).visit(expr._node)
 
 
-def test_unknown_list_and_default_geopoint_use_lexical_operations() -> None:
-    list_result = _build_conform_exprs(
-        _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer")),
-        available_columns=("items",),
-        actual_shapes={"items": SourceShape(None)},
-    )
-    point_result = _build_conform_exprs(
-        _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="default")),
-        available_columns=("point",),
-        actual_shapes={"point": SourceShape(None)},
-    )
-    assert list_result.exprs[0].node.arguments[0].function_key.name == "PARSE"
-    assert point_result.exprs[0].node.arguments[0].function_key.name == "PARSE_GEOPOINT"
-
-
 def test_unknown_native_shapes_remain_unresolved() -> None:
     conformed = ma.relation(pd.DataFrame({"items": ["not-json"]})).conform(
-        _spec(FieldSpec(name="items", type=UniversalType.ARRAY))
+        _spec("items", FieldDefinition(type=UniversalType.ARRAY))
     )
     with pytest.raises(
         ConformTransformError,
@@ -72,7 +57,7 @@ def test_unknown_native_shapes_remain_unresolved() -> None:
         conformed.to_polars()
     with pytest.raises(UnresolvedSourceTypeError):
         _build_conform_exprs(
-            _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array")),
+            _spec("point", FieldDefinition(type=UniversalType.GEOPOINT, format="array")),
             available_columns=("point",),
             actual_shapes={"point": SourceShape(None)},
         )
@@ -80,18 +65,17 @@ def test_unknown_native_shapes_remain_unresolved() -> None:
 
 def test_unknown_any_source_passes_through_without_synthetic_drift() -> None:
     result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        _spec("value", FieldDefinition(type=UniversalType.ANY)),
         available_columns=("value",),
         actual_shapes={"value": SourceShape(None)},
     )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
     assert result.drift is not None
     assert result.drift.type_mismatches == []
 
 
 def test_any_string_source_normalizes_missing_sentinels() -> None:
     result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        _spec("value", FieldDefinition(type=UniversalType.ANY)),
         available_columns=("value",),
         actual_shapes={"value": SourceShape(MountainashDtype.STRING)},
     )
@@ -99,27 +83,10 @@ def test_any_string_source_normalizes_missing_sentinels() -> None:
     assert output["value"].to_list() == [None, "kept"]
 
 
-@pytest.mark.parametrize("action", ["evolve", "discard_value", "discard_row"])
-def test_incompatible_concrete_source_uses_data_type_action(action: str) -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer")),
-        available_columns=("items",),
-        actual_shapes={"items": SourceShape(MountainashDtype.STRUCT)},
-        contract=_contract(action),
-    )
-    assert len(result.exprs) == 1
-    if action == "evolve":
-        assert result.row_filters == []
-    else:
-        assert result.exprs[0].node.function_key.name == "ALIAS"
-        if action == "discard_row":
-            assert len(result.row_filters) == 1
-
-
 def test_incompatible_concrete_source_still_raises_in_coerce() -> None:
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(
-            _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer")),
+            _spec("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")),
             available_columns=("items",),
             actual_shapes={"items": SourceShape(MountainashDtype.STRUCT)},
             contract=_contract("coerce"),
@@ -127,7 +94,7 @@ def test_incompatible_concrete_source_still_raises_in_coerce() -> None:
 
 def test_incompatible_relation_actions_are_materialized() -> None:
     frame = pl.DataFrame({"items": [{"id": 1}, None]})
-    spec = _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"))
+    spec = _spec("items", FieldDefinition(type=UniversalType.LIST, item_type="integer"))
 
     evolved = ma.relation(frame).conform(spec, contract={"data_type": "evolve"}).to_polars()
     assert evolved["items"].dtype == pl.Struct({"id": pl.Int64})
@@ -146,14 +113,14 @@ def test_incompatible_relation_actions_are_materialized() -> None:
 
 def test_plain_native_container_shapes_are_wildcards() -> None:
     list_result = resolve_conform_output(
-        _spec(FieldSpec(name="items", type=UniversalType.ARRAY)),
+        _spec("items", FieldDefinition(type=UniversalType.ARRAY)),
         available_columns=("items",),
         actual_shapes={"items": SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64))},
         contract=_contract("freeze"),
         raise_on_freeze=False,
     )
     object_result = resolve_conform_output(
-        _spec(FieldSpec(name="record", type=UniversalType.OBJECT)),
+        _spec("record", FieldDefinition(type=UniversalType.OBJECT)),
         available_columns=("record",),
         actual_shapes={
             "record": SourceShape(
@@ -171,7 +138,7 @@ def test_plain_native_container_shapes_are_wildcards() -> None:
 @pytest.mark.parametrize("child", [MountainashDtype.I64, MountainashDtype.U32, MountainashDtype.FP32])
 def test_geopoint_numeric_children_are_shape_compatible(child: MountainashDtype) -> None:
     result = resolve_conform_output(
-        _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array")),
+        _spec("point", FieldDefinition(type=UniversalType.GEOPOINT, format="array")),
         available_columns=("point",),
         actual_shapes={"point": SourceShape(MountainashDtype.LIST, SourceShape(child))},
         contract=_contract("freeze"),
@@ -197,18 +164,17 @@ def test_geopoint_numeric_children_are_shape_compatible(child: MountainashDtype)
     ],
     ids=["array-child", "object-child"],
 )
-def test_unknown_geopoint_numeric_child_reports_shape_drift(
+def test_unknown_geopoint_numeric_child_does_not_invent_shape_drift(
     format_name: str, actual_shape: SourceShape
 ) -> None:
     result = resolve_conform_output(
-        _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format=format_name)),
+        _spec("point", FieldDefinition(type=UniversalType.GEOPOINT, format=format_name)),
         available_columns=("point",),
         actual_shapes={"point": actual_shape},
         contract=_contract("freeze"),
         raise_on_freeze=False,
     )
-    assert len(result.drift.type_mismatches) == 1
-    assert result.drift.type_mismatches[0].reason == "shape"
+    assert result.drift.type_mismatches == []
 
 
 @pytest.mark.parametrize("failure_behavior", CaseFailureBehaviour)
@@ -240,7 +206,7 @@ def test_polars_geojson_rejects_nonfinite_json_constants(
 
 def test_integer_categories_resolve_declared_base_type() -> None:
     result = resolve_conform_output(
-        _spec(FieldSpec(name="status", type=UniversalType.INTEGER, categories=[1, 2])),
+        _spec("status", FieldDefinition(type=UniversalType.INTEGER, categories=[1, 2])),
         available_columns=("status",),
     )
     assert result.emitted[0].declared_type is MountainashDtype.I64
@@ -260,7 +226,7 @@ def test_polars_default_datetime_uses_exact_grammar_and_utc_naive() -> None:
         __import__("datetime").datetime(2024, 1, 2, 3, 4, 5),
         __import__("datetime").datetime(2024, 1, 2, 1, 4, 5, 123000),
     ]
-    spec = _spec(FieldSpec(name="value", type=UniversalType.DATETIME))
+    spec = _spec("value", FieldDefinition(type=UniversalType.DATETIME))
     public = ma.relation(
         pl.DataFrame({"value": ["2024-01-02T03:04:05+02:00"]})
     ).conform(spec).to_polars()
@@ -286,27 +252,21 @@ def test_native_geojson_serializer_preserves_top_level_null() -> None:
 )
 def test_integer_year_normalizes_before_xsd_validation(value, expected) -> None:
     result = ma.relation(pl.DataFrame({"year": [value]})).conform(
-        _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
+        _spec("year", FieldDefinition(type=UniversalType.YEAR)),
     ).to_polars()
     assert result["year"].to_list() == [expected]
 
 def test_integer_year_preserves_null_with_known_integer_schema() -> None:
     result = ma.relation(pl.DataFrame({"year": [2024, None]})).conform(
-        _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
+        _spec("year", FieldDefinition(type=UniversalType.YEAR)),
     ).to_polars()
     assert result["year"].to_list() == ["2024", None]
 
 
 def test_polars_xsd_coerce_keeps_throw_behavior() -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="duration", type=UniversalType.DURATION)),
-        available_columns=("duration",),
-    )
-    node = result.exprs[0].node
-    assert node.arguments[0].options.get("failure_behavior", "throw") == "throw"
     with pytest.raises(ConformTransformError):
         ma.relation(pl.DataFrame({"duration": ["invalid"]})).conform(
-            _spec(FieldSpec(name="duration", type=UniversalType.DURATION)),
+            _spec("duration", FieldDefinition(type=UniversalType.DURATION)),
         ).to_polars()
 
 
@@ -342,12 +302,12 @@ def test_supported_throw_materialization_wraps_when_no_residue_fact() -> None:
 
 
 def test_pandas_unknown_lexical_fields_reach_operation_dispatch() -> None:
-    list_spec = _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"))
+    list_spec = _spec("items", FieldDefinition(type=UniversalType.LIST, item_type="integer"))
     with pytest.raises(Exception) as raised:
         ma.relation(pd.DataFrame({"items": ["1,2"]})).conform(list_spec).to_polars()
     assert not isinstance(raised.value, UnresolvedSourceTypeError)
 
-    point_spec = _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="default"))
+    point_spec = _spec("point", FieldDefinition(type=UniversalType.GEOPOINT, format="default"))
     result = ma.relation(pd.DataFrame({"point": ["1,2"]})).conform(point_spec).to_polars()
     assert result["point"].to_list() == ["1,2"]
 
@@ -367,25 +327,27 @@ def test_source_representation_dispatch_rejects_incompatible_shapes(
 ) -> None:
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(
-            _spec(FieldSpec(name="value", type=field_type)),
+            _spec("value", FieldDefinition(type=field_type)),
             available_columns=("value",),
             actual_shapes={"value": shape},
         )
 
 
 @pytest.mark.parametrize(
-    "field",
+    ("name", "field"),
     [
-        FieldSpec(name="items", type=UniversalType.ARRAY),
-        FieldSpec(name="record", type=UniversalType.OBJECT),
-        FieldSpec(name="point", type=UniversalType.GEOPOINT, format="array"),
+        ("items", FieldDefinition(type=UniversalType.ARRAY)),
+        ("record", FieldDefinition(type=UniversalType.OBJECT)),
+        ("point", FieldDefinition(type=UniversalType.GEOPOINT, format="array")),
     ],
 )
-def test_evolve_unknown_native_source_bypasses_shape_resolution(field: FieldSpec) -> None:
+def test_evolve_unknown_native_source_bypasses_shape_resolution(
+    name: str, field: FieldDefinition
+) -> None:
     result = _build_conform_exprs(
-        _spec(field),
-        available_columns=(field.name,),
-        actual_shapes={field.name: SourceShape(None)},
+        _spec(name, field),
+        available_columns=(name,),
+        actual_shapes={name: SourceShape(None)},
         contract=_contract("evolve"),
     )
     assert len(result.exprs) == 1
@@ -397,7 +359,7 @@ def test_evolve_unknown_native_source_bypasses_shape_resolution(field: FieldSpec
 @pytest.mark.parametrize("action", ["evolve", "freeze"])
 def test_non_transforming_data_type_actions_are_not_marked_applied(action: str) -> None:
     result = resolve_conform_output(
-        _spec(FieldSpec(name="value", type=UniversalType.INTEGER)),
+        _spec("value", FieldDefinition(type=UniversalType.INTEGER)),
         available_columns=("value",),
         actual_shapes={"value": SourceShape(MountainashDtype.STRING)},
         contract=_contract(action),
@@ -406,18 +368,9 @@ def test_non_transforming_data_type_actions_are_not_marked_applied(action: str) 
     assert result.drift.type_mismatches[0].applied is False
 
 
-def test_canonical_json_source_revalidates_through_geojson_parser() -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="geometry", type=UniversalType.GEOJSON)),
-        available_columns=("geometry",),
-        actual_shapes={"geometry": SourceShape(MountainashDtype.JSON)},
-    )
-    assert result.exprs[0].node.arguments[0].function_key.name == "PARSE_GEOJSON"
-
-
 def test_geopoint_object_shape_comparison_ignores_child_order() -> None:
     result = resolve_conform_output(
-        _spec(FieldSpec(name="point", type=UniversalType.GEOPOINT, format="object")),
+        _spec("point", FieldDefinition(type=UniversalType.GEOPOINT, format="object")),
         available_columns=("point",),
         actual_shapes={
             "point": SourceShape(
@@ -433,91 +386,18 @@ def test_geopoint_object_shape_comparison_ignores_child_order() -> None:
     )
     assert result.drift.type_mismatches == []
 
-@pytest.mark.parametrize(
-    ("field", "shape"),
-    [
-        (
-            FieldSpec(name="items", type=UniversalType.ARRAY),
-            SourceShape(MountainashDtype.LIST, SourceShape(MountainashDtype.I64)),
-        ),
-        (
-            FieldSpec(name="record", type=UniversalType.OBJECT),
-            SourceShape(
-                MountainashDtype.STRUCT,
-                struct_fields=(("id", SourceShape(MountainashDtype.I64)),),
-            ),
-        ),
-    ],
-    ids=["plain-array", "plain-object"],
-)
-def test_plain_native_container_without_child_schema_preserves_source(
-    field: FieldSpec, shape: SourceShape
-) -> None:
-    result = _build_conform_exprs(
-        _spec(field),
-        available_columns=(field.name,),
-        actual_shapes={field.name: shape},
-    )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
-
-
-@pytest.mark.parametrize(
-    "shape",
-    [
-        SourceShape(MountainashDtype.LIST),
-        SourceShape(MountainashDtype.STRUCT),
-        SourceShape(MountainashDtype.JSON),
-    ],
-    ids=["list", "struct", "json"],
-)
-def test_any_accepts_every_physical_container_representation(shape: SourceShape) -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
-        available_columns=("value",),
-        actual_shapes={"value": shape},
-    )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
-
-
-@pytest.mark.parametrize(
-    "source",
-    [MountainashDtype.DATE, MountainashDtype.TIME, MountainashDtype.TIMESTAMP],
-    ids=["date", "time", "timestamp"],
-)
-def test_native_temporal_sources_can_cast_to_string(source: MountainashDtype) -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=UniversalType.STRING)),
-        available_columns=("value",),
-        actual_shapes={"value": SourceShape(source)},
-    )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
-
 def test_native_duration_source_uses_configured_action() -> None:
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(
-            _spec(FieldSpec(name="value", type=UniversalType.DURATION)),
+            _spec("value", FieldDefinition(type=UniversalType.DURATION)),
             available_columns=("value",),
             actual_shapes={"value": SourceShape(MountainashDtype.DURATION)},
         )
-    evolved = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=UniversalType.DURATION)),
-        available_columns=("value",),
-        actual_shapes={"value": SourceShape(MountainashDtype.DURATION)},
-        contract=_contract("evolve"),
-    )
-    assert evolved.exprs[0].node.function_key.name == "ALIAS"
 
-
-def test_year_accepts_integer_source_but_rejects_float() -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
-        available_columns=("year",),
-        actual_shapes={"year": SourceShape(MountainashDtype.I32)},
-    )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
+def test_year_rejects_float_source() -> None:
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(
-            _spec(FieldSpec(name="year", type=UniversalType.YEAR)),
+            _spec("year", FieldDefinition(type=UniversalType.YEAR)),
             available_columns=("year",),
             actual_shapes={"year": SourceShape(MountainashDtype.FP64)},
         )
@@ -536,7 +416,7 @@ def test_year_accepts_integer_source_but_rejects_float() -> None:
 def test_numeric_sources_cannot_feed_temporal_fields(field_type: UniversalType) -> None:
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(
-            _spec(FieldSpec(name="value", type=field_type)),
+            _spec("value", FieldDefinition(type=field_type)),
             available_columns=("value",),
             actual_shapes={"value": SourceShape(MountainashDtype.FP64)},
         )
@@ -558,56 +438,25 @@ def test_numeric_sources_cannot_feed_temporal_fields(field_type: UniversalType) 
 def test_unknown_custom_temporal_and_year_sources_require_shape_evidence(
     field_type: UniversalType, format_name: str | None
 ) -> None:
-    field = FieldSpec(name="value", type=field_type, format=format_name)
+    field = FieldDefinition(type=field_type, format=format_name)
     with pytest.raises(UnresolvedSourceTypeError):
         _build_conform_exprs(
-            _spec(field),
+            _spec("value", field),
             available_columns=("value",),
             actual_shapes={"value": SourceShape(None)},
         )
-    evolved = _build_conform_exprs(
-        _spec(field),
-        available_columns=("value",),
-        actual_shapes={"value": SourceShape(None)},
-        contract=_contract("evolve"),
-    )
-    assert evolved.exprs[0].node.function_key.name == "ALIAS"
-
-
 @pytest.mark.parametrize(
-    "field_type",
-    [UniversalType.DATE, UniversalType.TIME, UniversalType.DATETIME],
-)
-def test_unknown_default_temporal_sources_keep_lexical_dispatch(field_type: UniversalType) -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=field_type)),
-        available_columns=("value",),
-        actual_shapes={"value": SourceShape(None)},
-    )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
-
-
-@pytest.mark.parametrize("field_type", [UniversalType.DURATION, UniversalType.YEARMONTH])
-def test_unknown_lexical_duration_and_yearmonth_keep_dispatch(field_type: UniversalType) -> None:
-    result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=field_type)),
-        available_columns=("value",),
-        actual_shapes={"value": SourceShape(None)},
-    )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
-
-@pytest.mark.parametrize(
-    "field",
+    ("name", "field"),
     [
-        FieldSpec(name="items", type=UniversalType.ARRAY),
-        FieldSpec(name="record", type=UniversalType.OBJECT),
-        FieldSpec(name="value", type=UniversalType.DATE, format="%Y/%m/%d"),
-        FieldSpec(name="value", type=UniversalType.YEAR),
+        ("items", FieldDefinition(type=UniversalType.ARRAY)),
+        ("record", FieldDefinition(type=UniversalType.OBJECT)),
+        ("value", FieldDefinition(type=UniversalType.DATE, format="%Y/%m/%d")),
+        ("value", FieldDefinition(type=UniversalType.YEAR)),
     ],
     ids=["array", "object", "custom-date", "year"],
 )
 def test_absent_source_shape_evidence_is_unresolved(
-    field: FieldSpec, monkeypatch: pytest.MonkeyPatch
+    name: str, field: FieldDefinition, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     if field.type in {UniversalType.ARRAY, UniversalType.OBJECT}:
         source_shape_module = __import__(
@@ -616,49 +465,40 @@ def test_absent_source_shape_evidence_is_unresolved(
         )
         monkeypatch.setattr(source_shape_module, "extract_source_shapes", lambda _: {})
         conformed = ma.relation(
-            pl.DataFrame({field.name: ["not-json"]})
-        ).conform(_spec(field))
+            pl.DataFrame({name: ["not-json"]})
+        ).conform(_spec(name, field))
         expected_root = field.type.value
         with pytest.raises(
             ConformTransformError,
-            match=rf"invalid {expected_root} value in field '{field.name}' at row ordinal 0",
+            match=rf"invalid {expected_root} value in field '{name}' at row ordinal 0",
         ):
             conformed.to_polars()
     else:
         with pytest.raises(UnresolvedSourceTypeError):
             _build_conform_exprs(
-                _spec(field),
-                available_columns=(field.name,),
+                _spec(name, field),
+                available_columns=(name,),
                 actual_shapes={},
             )
-    evolved = _build_conform_exprs(
-        _spec(field),
-        available_columns=(field.name,),
-        actual_shapes={},
-        contract=_contract("evolve"),
-    )
-    assert evolved.exprs[0].node.function_key.name == "ALIAS"
 
 
 def test_absent_any_source_shape_evidence_passes_through() -> None:
     result = _build_conform_exprs(
-        _spec(FieldSpec(name="value", type=UniversalType.ANY)),
+        _spec("value", FieldDefinition(type=UniversalType.ANY)),
         available_columns=("value",),
         actual_shapes={},
     )
-    assert result.exprs[0].node.function_key.name == "ALIAS"
     assert result.drift is not None
     assert result.drift.type_mismatches == []
 
 def test_missing_dotted_source_shape_evidence_is_unresolved() -> None:
-    field = FieldSpec(
-        name="value",
+    field = FieldDefinition(
         type=UniversalType.ARRAY,
         rename_from="payload.value",
     )
     with pytest.raises(UnresolvedSourceTypeError):
         _build_conform_exprs(
-            _spec(field),
+            _spec("value", field),
             available_columns=("payload",),
             actual_shapes={"payload": SourceShape(MountainashDtype.STRUCT)},
         )

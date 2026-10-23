@@ -9,7 +9,7 @@ from mountainash.pydata.mappers.pydantic_mapping import map_list_of_namedtuples_
 
 if TYPE_CHECKING:
     from mountainash.core.types import SupportedDataFrames, PandasSeries, PolarsSeries
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
 
 from mountainash.typespec.extraction import (
@@ -145,7 +145,7 @@ class EgressToPythonData:
         df: 'SupportedDataFrames',
         /,
         dataclass_type: Type,
-        spec: Optional['TypeSpec'] = None,
+        spec: Optional['TableSchema'] = None,
         auto_derive_schema: bool = True,
         apply_defaults: bool = False
     ) -> List[Any]:
@@ -158,8 +158,8 @@ class EgressToPythonData:
         Args:
             df: Input DataFrame (any backend - pandas, Polars, Ibis, PyArrow, Narwhals)
             dataclass_type: The dataclass type to instantiate
-            spec: Optional TypeSpec for transformations
-            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
+            spec: Optional TableSchema for transformations
+            auto_derive_schema: Auto-derive TableSchema if not provided (default: True)
             apply_defaults: Whether to apply dataclass field defaults
 
         Returns:
@@ -179,7 +179,7 @@ class EgressToPythonData:
 
         # Auto-derive schema if needed
         if spec is None and auto_derive_schema:
-            # Extract TypeSpec from the dataclass (field names + types)
+            # Extract TableSchema from the dataclass (field names + types)
             spec = extract_schema_from_dataclass(dataclass_type, use_cache=True)
 
         # Apply schema transformations using HYBRID STRATEGY
@@ -224,7 +224,7 @@ class EgressToPythonData:
         df: 'SupportedDataFrames',
         /,
         model_class: Type,
-        spec: Optional['TypeSpec'] = None,
+        spec: Optional['TableSchema'] = None,
         auto_derive_schema: bool = True,
     ) -> List[Any]:
         """
@@ -237,8 +237,8 @@ class EgressToPythonData:
         Args:
             df: Input DataFrame (any backend - pandas, Polars, Ibis, PyArrow, Narwhals)
             model_class: The Pydantic model class to instantiate
-            spec: Optional TypeSpec for transformations
-            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
+            spec: Optional TableSchema for transformations
+            auto_derive_schema: Auto-derive TableSchema if not provided (default: True)
 
         Returns:
             List of Pydantic model instances
@@ -258,7 +258,7 @@ class EgressToPythonData:
         """
         # Auto-derive schema if needed
         if spec is None and auto_derive_schema:
-            # Extract TypeSpec from the Pydantic model
+            # Extract TableSchema from the Pydantic model
             spec = extract_schema_from_pydantic(model_class, use_cache=True)
 
         # Apply schema transformations using HYBRID STRATEGY

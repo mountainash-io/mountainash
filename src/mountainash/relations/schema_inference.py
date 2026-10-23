@@ -6,7 +6,7 @@ column names come from the AST structure.
 """
 from __future__ import annotations
 
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import fields, is_dataclass
 from typing import Any, Callable, Optional
 
 from mountainash.conform.contract import resolve_contract
@@ -34,14 +34,8 @@ from mountainash.expressions.core.expression_system.function_keys.enums import (
 )
 from mountainash.expressions.core.output_names import resolve_output_names
 from mountainash.relations.core.projection_names import require_projection_names
-from mountainash.typespec.frictionless import typespec_from_frictionless
+from mountainash.typespec.frictionless import table_schema_from_frictionless
 from mountainash.typespec.converters import resolve_field_canonical
-from mountainash.core.types import (
-    is_narwhals_dataframe,
-    is_narwhals_lazyframe,
-    is_pandas_dataframe,
-    is_pyarrow_table,
-)
 
 
 _DetailedDtype = (
@@ -118,180 +112,20 @@ def _canon(
     return SchemaTypeStatus.UNCONSTRAINED if canon is None else canon
 
 
-def _physical_sql_dtype(dtype: Any, native_type: str, dialect: str) -> Any:
-    """Retain physical temporal metadata erased by Ibis' logical types."""
-    import sqlglot.expressions as sge
+def _schema_from_dataframe(df: Any) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
+    """Logical output types of a native table carrier, from its schema adapter.
 
-    def refine(value: Any, sql_type: Any) -> Any:
-        if sql_type.this is sge.DataType.Type.DECIMAL and not sql_type.expressions:
-            # PostgreSQL NUMERIC without a typmod is genuinely unbounded, not
-            # an unresolved precision/scale placeholder in an Ibis expression.
-            return NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS)
-        if sql_type.this in {sge.DataType.Type.INT128, sge.DataType.Type.UINT128}:
-            return NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS)
-        if sql_type.this is sge.DataType.Type.INTERVAL:
-            return DurationDtype(
-                unit="us", semantics="calendar",
-                native=NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS),
-            )
-        if sql_type.this in {sge.DataType.Type.TIME, sge.DataType.Type.TIMETZ, sge.DataType.Type.TIME_NS}:
-            # Both engines store TIME at microsecond resolution; DuckDB TIME_NS
-            # stores nanoseconds. PostgreSQL additionally retains explicit typmods.
-            precision = (
-                int(sql_type.expressions[0].name) if sql_type.expressions
-                else 9 if sql_type.this is sge.DataType.Type.TIME_NS else 6
-            )
-            native = (
-                NativeDtype(value=sql_type.sql(dialect=dialect), target=TypeTarget.IBIS)
-                if sql_type.this is sge.DataType.Type.TIMETZ
-                else getattr(value, "native", None)
-            )
-            return TimeDtype(precision=precision, native=native)
-        if isinstance(value, TimestampDtype) and value.timezone_aware is True:
-            return replace(value, timezone=None)
-        if isinstance(value, (ListDtype, ArrayDtype)):
-            child = sql_type
-            depth = len(value.dimensions) if isinstance(value, ArrayDtype) else 1
-            for _ in range(depth):
-                child = child.expressions[0]
-            return replace(value, element=refine(value.element, child))
-        if isinstance(value, StructDtype) and isinstance(value.fields, tuple):
-            children = {field.name: field.kind for field in sql_type.expressions}
-            return replace(value, fields=tuple(
-                (name, refine(child, children[name])) for name, child in value.fields
-            ))
-        return value
-
-    return refine(dtype, sge.DataType.build(native_type, dialect=dialect))
-
-
-def _postgres_output_schema(connection: Any, query: str) -> tuple[Any, dict[str, str]]:
-    """Describe PostgreSQL output types and retain time modifiers omitted by Ibis."""
-    from uuid import uuid4
-
-    import sqlglot as sg
-    import sqlglot.expressions as sge
-
-    name = f"ma_schema_{uuid4().hex}"
-    create_stmt = sge.Create(
-        kind="VIEW",
-        this=sg.table(name),
-        expression=sg.parse_one(query, read=connection.dialect),
-        properties=sge.Properties(expressions=[sge.TemporaryProperty()]),
-    ).sql(connection.dialect)
-    drop_stmt = sge.Drop(kind="VIEW", this=sg.table(name), exists=True).sql(
-        connection.dialect
-    )
-    raw_connection = connection.con
-    with raw_connection.cursor() as cursor, raw_connection.transaction():
-        cursor.execute(create_stmt)
-    try:
-        schema = connection.get_schema(name)
-        catalog_query = """
-            SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod)
-            FROM pg_catalog.pg_attribute AS a
-            JOIN pg_catalog.pg_class AS c ON c.oid = a.attrelid
-            WHERE c.oid = pg_catalog.to_regclass(%s)
-              AND a.attnum > 0 AND NOT a.attisdropped
-            ORDER BY a.attnum
-        """
-        with raw_connection.cursor() as cursor, raw_connection.transaction():
-            rows = cursor.execute(catalog_query, (name,), prepare=True).fetchall()
-        return schema, dict(rows)
-    finally:
-        with raw_connection.cursor() as cursor, raw_connection.transaction():
-            cursor.execute(drop_stmt)
-
-
-
-
-def _schema_from_dataframe(
-    df: Any, *, physical: bool = False,
-) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
-    """Extract detailed dtype metadata from supported native schemas.
-
-    Known native dtypes are mapped through the registry using the carrier's
-    target; raw Python data held unconverted by a ``ReadRelNode`` retains only
-    output names and UNKNOWN dtype states until compilation supplies a carrier.
-    Native-only refinements remain explicit ``NativeDtype`` values.
+    The carrier's native schema adapter (selected by central carrier recognition)
+    supplies the evidence; nothing here inspects a physical engine or executes.
+    Raw Python data held unconverted by a ``ReadRelNode`` retains only output
+    names and UNKNOWN dtype states until compilation supplies a carrier, and an
+    unsupported object has no schema.
     """
-    if is_pyarrow_table(df):
-        return {
-            field.name: _canon(field, target=TypeTarget.PYARROW)
-            for field in df.schema
-        }
-    if is_narwhals_dataframe(df) or is_narwhals_lazyframe(df):
-        native = df.to_native()
-        if (
-            is_pandas_dataframe(native) or is_pyarrow_table(native)
-            or callable(getattr(type(native), "collect_schema", None))
-        ):
-            return _schema_from_dataframe(native, physical=physical)
-        return {
-            name: _canon(dtype, target=TypeTarget.NARWHALS)
-            for name, dtype in df.schema.items()
-        }
-    if callable(getattr(type(df), "collect_schema", None)):
-        polars_schema = df.collect_schema()
-        pairs = zip(polars_schema.names(), polars_schema.dtypes())
-        return {name: _canon(dtype) for name, dtype in pairs}
-    if hasattr(df, "schema") and not callable(df.schema):
-        return {name: _canon(dtype) for name, dtype in dict(df.schema).items()}
-    if hasattr(df, "schema") and callable(df.schema):
-        from mountainash.core.types import is_ibis_table
+    from mountainash.core.types import detect_schema_carrier
+    from mountainash.typespec.source_shape import extract_source_shapes, shape_type_evidence
 
-        if is_ibis_table(df):
-            from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
-
-            location = LocationResolver(IdentityTokens())._read(df)
-            connection = location.connection
-            if physical and getattr(connection, "name", None) in {"sqlite", "duckdb", "postgres"}:
-                # Ibis' expression schema is logical. Ask the bound SQL backend
-                # to describe the compiled output query so promotions and SQL
-                # expression types come from the physical output, not its inputs.
-                query = connection.compile(df)
-                if connection.name == "postgres":
-                    described, native_types = _postgres_output_schema(connection, query)
-                elif connection.name == "duckdb":
-                    native_result = connection.con.sql(query)
-                    native_types = dict(zip(native_result.columns, map(str, native_result.types)))
-                    described = {
-                        name: connection.compiler.type_mapper.from_string(native_type)
-                        for name, native_type in native_types.items()
-                    }
-                else:
-                    from ibis.common.exceptions import IbisError
-                    try:
-                        described = connection.sql(query).schema()
-                    except IbisError as error:
-                        if not str(error).startswith("Failed to infer types for columns "):
-                            raise
-                        from mountainash.relations.core.errors import CompileRequiresExecutionError
-                        raise CompileRequiresExecutionError(
-                            f"SQLite native metadata has no rows from which to infer output types: {error}"
-                        ) from error
-                    native_types = {}
-                result = {
-                    name: _canon(dtype, target=TypeTarget.IBIS)
-                    for name, dtype in described.items()
-                }
-                for name, native_type in native_types.items():
-                    result[name] = _physical_sql_dtype(
-                        result[name], native_type, connection.name,
-                    )
-                return result
-
-        schema_obj = df.schema()
-        if hasattr(schema_obj, "items"):
-            return {
-                name: _canon(dtype, target=TypeTarget.IBIS)
-                for name, dtype in dict(schema_obj).items()
-            }
-    if hasattr(df, "dtypes"):
-        return {
-            name: _canon(dtype, target=TypeTarget.PANDAS)
-            for name, dtype in dict(df.dtypes).items()
-        }
+    if detect_schema_carrier(df) is not None:
+        return {name: shape_type_evidence(shape) for name, shape in extract_source_shapes(df).items()}
     if isinstance(df, dict):
         return {str(name): SchemaTypeStatus.UNKNOWN for name in df}
     if isinstance(df, (list, tuple)) and df and all(isinstance(row, dict) for row in df):
@@ -301,6 +135,8 @@ def _schema_from_dataframe(
                 names.setdefault(str(name), SchemaTypeStatus.UNKNOWN)
         return names
     return {}
+
+
 def _schema_from_table_schema(
     table_schema: dict,
 ) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
@@ -311,32 +147,33 @@ def _schema_from_table_schema(
         if not name:
             continue
         try:
-            field = typespec_from_frictionless({"fields": [raw_field]}).fields[0]
+            field = table_schema_from_frictionless({"fields": [raw_field]}).fields[name]
             canonical = resolve_field_canonical(field)
         except (KeyError, TypeError, ValueError):
             result[name] = SchemaTypeStatus.UNKNOWN
             continue
         result[name] = (
             SchemaTypeStatus.UNKNOWN if field.backend_type
-            else SchemaTypeStatus.UNCONSTRAINED if canonical is None and raw_field.get("type")
-            else SchemaTypeStatus.UNKNOWN if canonical is None else canonical
+            else SchemaTypeStatus.UNKNOWN
+            if canonical is SchemaTypeStatus.UNCONSTRAINED and not raw_field.get("type")
+            else canonical
         )
     return result
 
 
-def _schema_from_typespec(
+def _schema_from_declaration(
     spec: Any,
 ) -> dict[str, _DetailedDtype | SchemaTypeStatus]:
-    """Extract field-aware canonical schema from a resolved TypeSpec."""
-    fields = getattr(spec, "fields", ())
+    """Extract field-aware canonical schema from a resolved TableSchema."""
+    fields = getattr(spec, "fields", {})
     result: dict[str, _DetailedDtype | SchemaTypeStatus] = {}
-    for field in fields:
+    for name, field in fields.items():
         try:
             canonical = resolve_field_canonical(field)
         except (KeyError, TypeError, ValueError):
-            result[field.name] = SchemaTypeStatus.UNKNOWN
+            result[name] = SchemaTypeStatus.UNKNOWN
             continue
-        result[field.name] = (
+        result[name] = (
             SchemaTypeStatus.UNKNOWN if field.backend_type
             else SchemaTypeStatus.UNCONSTRAINED if canonical is None else canonical
         )
@@ -398,8 +235,8 @@ def infer_schema(
         ts = node.resource.table_schema
         if isinstance(ts, dict):
             return _schema_from_table_schema(ts)
-        spec = node.resource.to_typespec()
-        return _schema_from_typespec(spec) if spec is not None else {}
+        spec = node.resource.to_table_schema()
+        return _schema_from_declaration(spec) if spec is not None else {}
 
     if isinstance(node, SourceRelNode):
         return _schema_from_source_data(node.data)
@@ -427,10 +264,10 @@ def infer_schema(
         input_schema = infer_schema(node.input, ref_resolver, identity_resolver=identity_resolver, _drifts=_drifts)
         spec = node.spec
         if isinstance(spec, dict):
-            spec = typespec_from_frictionless(spec)
+            spec = table_schema_from_frictionless(spec)
 
         # Resolve the same contract layering apply_conform() honours
-        # (TypeSpec.contract <- ConformRelNode.contract override) so build-time
+        # (TableSchema.contract <- ConformRelNode.contract override) so build-time
         # inference/assessment agrees with execute-time policy (item 48 Task
         # 9 parity fix — previously this branch silently ignored both
         # layers). An invalid fields_match is left for resolve_conform_output
@@ -481,25 +318,7 @@ def infer_schema(
         )
         if _drifts is not None and contract.drift is not None:
             _drifts.append(contract.drift)
-        if not node.apply_value_transforms:
-            emitted = {
-                em.field.name: input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
-                if em.type_action != "null_fill"
-                else _declared_dtype_for_infer(em, input_schema)
-                for em in contract.emitted
-            }
-        else:
-            emitted = {
-                em.field.name: _declared_dtype_for_infer(em, input_schema)
-                for em in contract.emitted
-            }
-        if contract.keeps_unmapped:
-            result = dict(input_schema)
-            for source in contract.renamed_sources:
-                result.pop(source, None)
-            result.update(emitted)
-            return result
-        return emitted
+        return contract.output_schema
 
     if isinstance(node, ExtensionRelNode):
         from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
@@ -582,43 +401,6 @@ def assess_drift(
     return drifts
 
 
-def _declared_dtype_for_infer(
-    em: Any,
-    input_schema: dict[str, _DetailedDtype | SchemaTypeStatus],
-) -> _DetailedDtype | SchemaTypeStatus:
-    """Resolve an EmittedField's declared_type against an upstream schema.
-
-    - ``type_action == "evolve"`` keeps detailed input-schema evidence where
-      available, then the drift resolver's effective type, else ``UNKNOWN``.
-      This takes precedence over the declared target.
-    - Concrete :class:`MountainashDtype` → returned as-is.
-    - ``PASSTHROUGH`` → look up ``em.source_name`` in ``input_schema`` (UNKNOWN
-      if absent — e.g. dotted struct child where the root is present but the
-      child isn't represented in the input schema).
-    - ``UNDETERMINED`` → ``SchemaTypeStatus.UNKNOWN`` (cannot be predicted
-      pre-compile; e.g. ANY + null_fill, dotted ANY, non-Polars categorical).
-    """
-    if em.type_action == "evolve":
-        return input_schema.get(
-            em.source_name,
-            em.effective_type if em.effective_type is not None else SchemaTypeStatus.UNKNOWN,
-        )
-    from mountainash.core.dtypes import DecimalDtype, NativeDtype, registry
-    if isinstance(em.effective_type, NativeDtype):
-        return registry.from_native(em.effective_type.value, target=em.effective_type.target) or SchemaTypeStatus.UNKNOWN
-    if em.field.backend_type and em.effective_type is None:
-        return SchemaTypeStatus.UNKNOWN
-    if isinstance(em.effective_type, (
-        MountainashDtype, DecimalDtype, TimestampDtype, TimeDtype, DurationDtype,
-        ListDtype, ArrayDtype, StructDtype,
-    )):
-        return em.effective_type
-    dt = em.declared_type
-    if dt is PASSTHROUGH:
-        return input_schema.get(em.source_name, SchemaTypeStatus.UNKNOWN)
-    if dt is UNDETERMINED:
-        return SchemaTypeStatus.UNKNOWN
-    return dt
 
 
 def _schema_from_source_data(
@@ -643,16 +425,16 @@ def _schema_from_source_data(
         except Exception:
             # Hint resolution is best-effort metadata; names remain usable.
             return schema
-        declared = _schema_from_typespec(spec)
+        declared = _schema_from_declaration(spec)
         # Match the flat model evidence honored by PyData ingress. ANY retains
         # the existing unconstrained status, not a fabricated concrete dtype.
         scalar_types = {
             U.STRING, U.INTEGER, U.NUMBER, U.BOOLEAN, U.DATE, U.DATETIME,
             U.TIME, U.DURATION, U.YEAR, U.YEARMONTH, U.ANY,
         }
-        for field in spec.fields:
-            if field.name in schema and field.type in scalar_types:
-                schema[field.name] = declared[field.name]
+        for name, field in spec.fields.items():
+            if name in schema and field.type in scalar_types:
+                schema[name] = declared[name]
         return schema
     if isinstance(data, list) and data and isinstance(data[0], dict):
         keys = list(data[0].keys())
@@ -747,14 +529,14 @@ def _aggregate_source_names(data: Any) -> tuple[str, ...] | None:
 
 def _aggregate_resource_names(node: Any) -> tuple[str, ...] | None:
     """Closed effective conform policy proves the successful reader's output."""
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
     if not node.apply_schema_conform:
         return None
     spec = node.resource.table_schema
     if isinstance(spec, dict):
-        spec = typespec_from_frictionless(spec)
-    if not isinstance(spec, TypeSpec) or spec.fields_match not in _VALID_FIELDS_MATCH:
+        spec = table_schema_from_frictionless(spec)
+    if not isinstance(spec, TableSchema) or spec.fields_match not in _VALID_FIELDS_MATCH:
         return None  # In particular, do not fetch referenced schemas.
     contract = resolve_contract(spec.fields_match, spec_contract=spec.contract)
     if (
@@ -765,7 +547,7 @@ def _aggregate_resource_names(node: Any) -> tuple[str, ...] | None:
         return None
     # Every declared field must exist or be null-filled; extras cannot survive.
     # The conform projection emits fields in declaration order on every backend.
-    return tuple(field.name for field in spec.fields)
+    return tuple(spec.fields)
 
 
 def _aggregate_input_names(node: Any) -> tuple[str, ...] | None:

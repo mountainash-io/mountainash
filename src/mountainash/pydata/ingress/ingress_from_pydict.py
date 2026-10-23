@@ -7,7 +7,7 @@ import logging
 from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
 from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
@@ -28,9 +28,9 @@ class DataframeFromPydict(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True,
     ) -> PolarsFrame:
         """
@@ -45,8 +45,8 @@ class DataframeFromPydict(BasePydataIngressHandler):
         Args:
             data: Dictionary of lists (columnar format)
                   Example: {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
-            type_spec: Optional TypeSpec for column type coercion and renaming
-            source_spec: Optional source dtype declarations.
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Optional source dtype declarations.
             inline_conform: Whether to apply target conversions.
 
         Returns:
@@ -58,8 +58,8 @@ class DataframeFromPydict(BasePydataIngressHandler):
 
         from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
 
-        overrides = _source_schema_overrides(source_spec)
-        if type_spec is not None and inline_conform:
+        overrides = _source_schema_overrides(source_table_schema)
+        if table_schema is not None and inline_conform:
 
             # Convert columnar format (dict of lists) to row format (list of dicts)
             # for hybrid conversion
@@ -79,7 +79,7 @@ class DataframeFromPydict(BasePydataIngressHandler):
             # HYBRID STRATEGY:
             # 1. Custom converters at edges (Python layer)
             # 2. Native conversions in DataFrame (vectorized, FAST!)
-            df = apply_hybrid_conversion(data_dicts, type_spec, schema_overrides=overrides)
+            df = apply_hybrid_conversion(data_dicts, table_schema, schema_overrides=overrides)
         else:
             # No spec - just create DataFrame directly from columnar data
             df = pl.DataFrame(data, strict=False, schema_overrides=overrides)

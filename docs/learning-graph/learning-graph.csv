@@ -145,8 +145,8 @@ ConceptID,ConceptLabel,Dependencies,TaxonomyID
 144,Backend Divergences,143|89,RELBK
 145,Execution Target,16|141,RELBK
 146,execute_on Parameter,145|102,RELBK
-147,TypeSpec,3|1,TSPEC
-148,FieldSpec,147,TSPEC
+147,TableSchema,3|1,TSPEC
+148,FieldDefinition,147,TSPEC
 149,FieldConstraints,148,TSPEC
 150,UniversalType Enum,147|18,TSPEC
 151,Type Bridge,150|18,TSPEC

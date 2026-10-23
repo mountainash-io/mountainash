@@ -1,6 +1,6 @@
 """Conform error hierarchy.
 
-All errors raised during TypeSpec conformance — fieldsMatch violations,
+All errors raised during TableSchema conformance — fieldsMatch violations,
 field count mismatches, and transform compilation failures.
 
 See: https://datapackage.org/standard/table-schema/#fieldsMatch
@@ -148,7 +148,7 @@ class ConformTransformError(ConformError):
             fields = sorted({candidate.field_name for candidate in self.candidates})
             detail = f"candidate fields {fields!r}"
         elif spec_summary is not None:
-            detail = f"Check TypeSpec parsing properties: {spec_summary}"
+            detail = f"Check TableSchema parsing properties: {spec_summary}"
         else:
             detail = "no matching conform operation diagnostic"
         super().__init__(f"Conform transform failed: {original_error}; {detail}")
@@ -166,7 +166,7 @@ class ConformTransformError(ConformError):
 
 
 class DecimalConversionRequiredError(ConformError):
-    """Decimal conversion requires an explicit FieldSpec rounding instruction."""
+    """Decimal conversion requires an explicit FieldDefinition rounding instruction."""
 
     def __init__(self, field_name: str, declared: Any, actual: Any) -> None:
         self.field_name = field_name
@@ -174,7 +174,7 @@ class DecimalConversionRequiredError(ConformError):
         self.actual = actual
         super().__init__(
             f"field {field_name!r} is declared {declared} but actual column is {actual}; "
-            f"declare FieldSpec.rounding or convert first with "
+            f"declare FieldDefinition.rounding or convert first with "
             f".cast(DecimalDtype(precision={declared.precision}, "
             f"scale={declared.scale}), rounding=...)"
         )

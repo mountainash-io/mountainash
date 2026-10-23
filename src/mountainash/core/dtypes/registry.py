@@ -1,20 +1,21 @@
 # src/mountainash/core/dtypes/registry.py
-"""Single per-target dtype mapping registry.
+"""Lazy dtype dispatch façade over the per-target native type adapters.
 
 Lazy per-target loading: importing mountainash never imports
 pandas/pyarrow/ibis; a missing optional dependency only raises when its
-target is actually requested.
+target is actually requested. The registry selects and retains one stateless
+adapter per target and delegates complete operations to it; it holds no
+mapping tables, native validation or backend branches.
 """
 from __future__ import annotations
 
 import importlib
 from typing import TYPE_CHECKING, Any, Optional
 
-from .canonical import (
-    PARAMETERIZED_DTYPES, CastTarget, DecimalDtype, MountainashDtype,
-    NativeDtype, resolve_dtype_parameters,
-)
-from .errors import DtypeMappingError, UnknownDtypeError
+from ._lowering import native_of
+from .canonical import CastTarget, SchemaTypeStatus
+from .errors import UnknownDtypeError
+from .protocols import NativeArrowTransportAdapter, NativeTypeAdapter
 from .targets import TypeTarget, detect_target
 
 if TYPE_CHECKING:
@@ -29,10 +30,20 @@ _MODULES: dict[TypeTarget, str] = {
     TypeTarget.PYTHON: "target_python",
 }
 
+_ADAPTER_CLASSES: dict[TypeTarget, str] = {
+    TypeTarget.POLARS: "PolarsTypeAdapter",
+    TypeTarget.PANDAS: "PandasTypeAdapter",
+    TypeTarget.PYARROW: "PyArrowTypeAdapter",
+    TypeTarget.IBIS: "IbisTypeAdapter",
+    TypeTarget.NARWHALS: "NarwhalsTypeAdapter",
+    TypeTarget.PYTHON: "PythonTypeAdapter",
+}
+
 
 class DtypeRegistry:
     def __init__(self) -> None:
         self._loaded: dict[TypeTarget, ModuleType] = {}
+        self._adapters: dict[TypeTarget, NativeTypeAdapter[Any]] = {}
 
     def _target(self, target: TypeTarget) -> ModuleType:
         if target not in self._loaded:
@@ -41,66 +52,21 @@ class DtypeRegistry:
             )
         return self._loaded[target]
 
+    def _adapter(self, target: TypeTarget) -> NativeTypeAdapter[Any]:
+        """The target's one stateless adapter; it serves both native type contracts."""
+        if target not in self._adapters:
+            self._adapters[target] = getattr(self._target(target), _ADAPTER_CLASSES[target])()
+        return self._adapters[target]
+
     def to_native_schema(self, dtype: Any, target: TypeTarget) -> Any:
         """Convert schema types without silently discarding descriptor parameters."""
-        native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
-        if native is not None:
-            if native.target is not target:
-                raise DtypeMappingError(
-                    f"Native refinement targets {native.target.value}, not {target.value}"
-                )
-            if target is TypeTarget.IBIS:
-                import ibis.expr.datatypes as dt
-                if not isinstance(native.value, dt.DataType):
-                    raise DtypeMappingError(
-                        "Physical SQL refinements cannot be represented losslessly by an Ibis dtype"
-                    )
-            if target is TypeTarget.PYARROW:
-                import pyarrow as pa
-                if isinstance(native.value, pa.Field):
-                    raise DtypeMappingError(
-                        "Arrow field qualifiers cannot be represented by a dtype-only schema mapping"
-                    )
-            return native.value
-        if isinstance(dtype, DecimalDtype):
-            return self._target(target).to_native_decimal(dtype)
-        if isinstance(dtype, PARAMETERIZED_DTYPES):
-            return self._target(target).to_native_parameterized(resolve_dtype_parameters(dtype))
-        if not isinstance(dtype, MountainashDtype):
-            raise DtypeMappingError(
-                f"No lossless {target.value} schema mapping for parameterized dtype {dtype!r}"
-            )
-        mod = self._target(target)
-        try:
-            return mod.SCHEMA_TYPES[dtype]
-        except KeyError:
-            raise DtypeMappingError(
-                f"No {target.value} schema mapping for {dtype.value!r}. "
-                f"Supported: {sorted(d.value for d in mod.SCHEMA_TYPES)}"
-            ) from None
+        return self._adapter(target).to_native_schema(dtype)
 
-    def to_native_cast(
-        self, dtype: CastTarget, target: TypeTarget
-    ) -> Any:
+    def to_native_cast(self, dtype: CastTarget, target: TypeTarget) -> Any:
         """Native type for expression cast use. Bare containers raise."""
-        if not isinstance(dtype, MountainashDtype):
-            return self.to_native_schema(dtype, target)
-        mod = self._target(target)
-        if dtype in mod.CAST_UNSUPPORTED:
-            supported = sorted(
-                d.value for d in mod.SCHEMA_TYPES if d not in mod.CAST_UNSUPPORTED
-            )
-            raise DtypeMappingError(
-                f"{dtype.value!r} is not a valid bare cast target on "
-                f"{target.value} (a container cast needs an element type — "
-                f"pass a native dtype for a parameterized cast). "
-                f"Supported cast targets: {supported}"
-            )
-        return self.to_native_schema(dtype, target)
+        return self._adapter(target).to_native_cast(dtype)
 
-    def from_native(
-        self, native: Any, target: Optional[TypeTarget] = None
-    ) -> Any:
+    def from_native(self, native: Any, target: Optional[TypeTarget] = None) -> Any:
         """Decode detailed native type metadata through its owning adapter."""
         if target is None:
             target = detect_target(native)
@@ -108,11 +74,33 @@ class DtypeRegistry:
                 raise UnknownDtypeError(
                     f"Cannot auto-detect a type target for {native!r}; pass target= explicitly."
                 )
-        return self._target(target).from_native(native)
+        return self._adapter(target).from_native(native)
 
     def parse_type_string(self, s: str, target: TypeTarget) -> Optional[Any]:
-        """Best-effort FieldSpec.backend_type parser. None = unparseable."""
-        return self._target(target).parse_type_string(s)
+        """Best-effort FieldDefinition.backend_type parser. None = unparseable."""
+        return self._adapter(target).parse_type_string(s)
+
+    def types_equal(self, left: Any, right: Any, target: TypeTarget) -> bool:
+        """Whether two native types of ``target`` are equivalent, retaining parameters."""
+        return self._adapter(target).types_equal(left, right)
+
+    def to_arrow_transport(self, dtype: Any) -> Any:
+        """Arrow dtype that transports an effective type; None stays None.
+
+        A native type or refinement is converted by its owning target. A
+        portable type is constructed by Arrow's own portable construction,
+        whose container children come back through this entrypoint so native
+        children reach their own owners.
+        """
+        if dtype is None:
+            return None
+        if dtype is SchemaTypeStatus.UNKNOWN:
+            return self._adapter(TypeTarget.PYARROW).to_arrow_transport(dtype)
+        native = native_of(dtype)
+        if native is not None:
+            owner: NativeArrowTransportAdapter[Any, Any] = self._adapter(native.target)  # type: ignore[assignment]
+            return owner.to_arrow_transport(native.value)
+        return self._target(TypeTarget.PYARROW).to_arrow_portable(dtype, self.to_arrow_transport)
 
 
 registry = DtypeRegistry()

@@ -38,7 +38,7 @@ Backend implementations for relational operations: PolarsRelationSystem (LazyFra
 
 ### TSPEC — Type System & Schema
 
-Universal type metadata: TypeSpec/FieldSpec/FieldConstraints, UniversalType enum, Frictionless Table Schema alignment, schema extraction from DataFrames/dataclasses/Pydantic, validation, and cross-backend type conversion.
+Universal type metadata: TableSchema/FieldDefinition/FieldConstraints, UniversalType enum, Frictionless Table Schema alignment, schema extraction from DataFrames/dataclasses/Pydantic, validation, and cross-backend type conversion.
 
 ### DAGPK — DAG & DataPackage
 
@@ -54,7 +54,7 @@ Declarative pipeline orchestration: PipelineBuilder fluent API, step/source deco
 
 ### TSPEC — Type System & Schema
 
-(See above — covers TypeSpec, FieldSpec, UniversalType, Frictionless, extraction, validation, conversion.)
+(See above — covers TableSchema, FieldDefinition, UniversalType, Frictionless, extraction, validation, conversion.)
 
 ## Taxonomy Summary Table
 

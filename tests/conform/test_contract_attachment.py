@@ -15,13 +15,13 @@ from mountainash.conform.errors import ConformError
 from mountainash.relations.core.relation_nodes.extensions_mountainash.reln_ext_conform import (
     ConformRelNode,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
 def _spec(**kwargs):
-    return TypeSpec(
-        fields=[FieldSpec(name="a", type=UniversalType.STRING)],
+    return TableSchema(
+        fields={"a": FieldDefinition(type=UniversalType.STRING)},
         **kwargs,
     )
 

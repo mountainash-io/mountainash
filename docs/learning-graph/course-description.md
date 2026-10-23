@@ -28,8 +28,8 @@ Python developers building data pipelines, analytics workflows, and data quality
 3. **Expression Backends** — Polars, Narwhals, and Ibis expression compilation with cross-backend consistency
 4. **Relation System** — Relational AST with Substrait-aligned node types, fluent relation builder, unified visitor
 5. **Relation Backends** — Polars LazyFrame, Narwhals, and Ibis SQL relation compilation
-6. **Type System (TypeSpec)** — Universal type metadata, Frictionless Table Schema alignment, schema extraction and validation
-7. **Data Conformance** — TypeSpec-driven column transformation via Relation.conform()
+6. **Type System (TableSchema)** — Universal type metadata, Frictionless Table Schema alignment, schema extraction and validation
+7. **Data Conformance** — TableSchema-driven column conversion via Relation.conform() (a deferred ConformRelNode)
 8. **Ternary Logic** — Three-valued semantics (TRUE/FALSE/UNKNOWN) with sentinel integers and auto-booleanization
 9. **DAG & DataPackage** — RelationDAG orchestrator, Frictionless DataPackage integration, two-edge graph model
 10. **Pipeline Framework** — Declarative multi-step pipelines with typed parameter binding and caching
@@ -66,7 +66,7 @@ After studying this package, developers will be able to:
 
 - Build fluent expression chains using col(), lit(), when(), and namespace operations
 - Construct relational pipelines with filter, sort, join, group_by, and terminal operations
-- Define TypeSpec schemas and use Relation.conform() for cross-backend conformance
+- Define TableSchema schemas and use Relation.conform() for cross-backend conformance
 - Create RelationDAG workflows from Frictionless DataPackage descriptors
 - Write cross-backend parametrized tests with appropriate xfail markers
 
@@ -82,7 +82,7 @@ After studying this package, developers will be able to:
 - Assess whether a new operation belongs in the Substrait or Mountainash extension namespace
 - Evaluate the six-step process for adding new operations across all architecture layers
 - Judge appropriate use of arguments vs options for expression parameters
-- Evaluate TypeSpec schema designs for Frictionless structural fidelity
+- Evaluate TableSchema designs for Frictionless structural fidelity
 
 ### Create
 
@@ -94,4 +94,4 @@ After studying this package, developers will be able to:
 
 ## Context
 
-Mountainash positions itself as a backend-portable abstraction layer for data expressions and relational operations. Unlike Ibis (SQL-focused) or Narwhals (DataFrame-agnostic thin layer), mountainash provides a full Substrait-aligned AST with three-valued ternary logic, schema-first data quality via TypeSpec, and declarative pipeline orchestration — enabling "abstract data products" that run identically across Polars, pandas, and SQL backends.
+Mountainash positions itself as a backend-portable abstraction layer for data expressions and relational operations. Unlike Ibis (SQL-focused) or Narwhals (DataFrame-agnostic thin layer), mountainash provides a full Substrait-aligned AST with three-valued ternary logic, schema-first data quality via TableSchema, and declarative pipeline orchestration — enabling "abstract data products" that run identically across Polars, pandas, and SQL backends.

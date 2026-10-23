@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 # Decimal cast targets are limited to precision 16 so the conversion always runs in an 18-digit
 # intermediate that can be widened before rounding. Polars aborts the process (a Rust panic, not a
 # catchable error) when Decimal.round carries out of the type's integer width, and a 38-digit
-# intermediate has no wider type to carry into. Declarations (TypeSpec) allow precision up to 38.
+# intermediate has no wider type to carry into. TableSchema declarations allow precision up to 38.
 MAX_CAST_PRECISION = 16
 
 

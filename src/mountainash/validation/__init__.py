@@ -52,9 +52,9 @@ from mountainash.validation.result import (
 )
 from mountainash.validation.runner import ROW_ORDINAL, ValidationRunner
 from mountainash.validation.schema import (
-    TypeSpecIssue,
-    require_valid_typespec,
-    validate_typespec_semantics,
+    TableSchemaIssue,
+    require_valid_table_schema,
+    validate_table_schema_semantics,
 )
 from mountainash.validation.plan import CompiledValidationPlan
 
@@ -81,7 +81,7 @@ __all__ = [
     "ValidationError",
     "ValidationResult",
     "ValidationRunner",
-    "TypeSpecIssue",
+    "TableSchemaIssue",
     "CompiledValidationPlan",
     "ValueRule",
     "ValueValidatorKey",
@@ -100,6 +100,6 @@ __all__ = [
     "summaries_frame",
     "validate_keyed_identity",
     "validate_severity",
-    "require_valid_typespec",
-    "validate_typespec_semantics",
+    "require_valid_table_schema",
+    "validate_table_schema_semantics",
 ]

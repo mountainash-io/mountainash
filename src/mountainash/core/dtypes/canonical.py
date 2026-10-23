@@ -2,7 +2,7 @@
 """Canonical mountainash dtype vocabulary.
 
 MountainashDtype is the ONLY in-memory type vocabulary. Substrait-aligned,
-structural. UniversalType (Frictionless) lives at the TypeSpec boundary and
+structural. UniversalType (Frictionless) lives at the shared-schema boundary and
 maps here via typespec.universal_types.
 """
 from __future__ import annotations
@@ -270,16 +270,22 @@ ConstructionDtype = PortableDtype | Literal[SchemaTypeStatus.UNKNOWN]
 CastTarget = ConstructionDtype | NativeDtype
 
 
-def _source_dtype(source: Any) -> Any:
-    """Inherit portable evidence without adopting its native override."""
+def portable_evidence(source: Any) -> Any:
+    """Portable type evidence of ``source`` without any native override.
+
+    Used wherever evidence is inherited as intent-free detail (parameter
+    resolution, wrapped-carrier acquisition): the portable parameters and
+    structure survive, the native refinements of the evidence's own target do
+    not. Absent or UNKNOWN evidence stays UNKNOWN.
+    """
     if source is None or isinstance(source, SchemaTypeStatus):
         return SchemaTypeStatus.UNKNOWN
     if isinstance(source, (ListDtype, ArrayDtype)):
-        return replace(source, element=_source_dtype(source.element), native=None)
+        return replace(source, element=portable_evidence(source.element), native=None)
     if isinstance(source, StructDtype):
         children = source.fields
         if children is not SchemaTypeStatus.UNKNOWN:
-            children = tuple((name, _source_dtype(child)) for name, child in children)
+            children = tuple((name, portable_evidence(child)) for name, child in children)
         return replace(source, fields=children, native=None)
     if isinstance(source, (*PARAMETERIZED_DTYPES, DecimalDtype)):
         return replace(source, native=None)
@@ -301,7 +307,7 @@ def resolve_dtype_parameters(
         dtype is MountainashDtype.TIMESTAMP and isinstance(source, TimestampDtype)
         or dtype is MountainashDtype.DURATION and isinstance(source, DurationDtype)
     ):
-        return _source_dtype(source)
+        return portable_evidence(source)
     if isinstance(dtype, TimestampDtype):
         precision, aware, zone = dtype.precision, dtype.timezone_aware, dtype.timezone
         if isinstance(zone, str):
@@ -335,7 +341,7 @@ def resolve_dtype_parameters(
     if isinstance(dtype, (ListDtype, ArrayDtype)):
         source_element = source.element if isinstance(source, (ListDtype, ArrayDtype)) else unknown
         element = (
-            _source_dtype(source_element) if dtype.element is unknown
+            portable_evidence(source_element) if dtype.element is unknown
             else resolve_dtype_parameters(dtype.element, source_element)
         )
         if isinstance(dtype, ArrayDtype):
@@ -347,10 +353,10 @@ def resolve_dtype_parameters(
     if isinstance(dtype, StructDtype):
         source_fields = source.fields if isinstance(source, StructDtype) else unknown
         if dtype.fields is unknown:
-            return replace(dtype, fields=_source_dtype(source).fields) if isinstance(source, StructDtype) else dtype
+            return replace(dtype, fields=portable_evidence(source).fields) if isinstance(source, StructDtype) else dtype
         evidence = dict(source_fields) if source_fields is not unknown else {}
         return replace(dtype, fields=tuple(
-            (name, _source_dtype(evidence.get(name, unknown)) if child is unknown
+            (name, portable_evidence(evidence.get(name, unknown)) if child is unknown
              else resolve_dtype_parameters(child, evidence.get(name, unknown)))
             for name, child in dtype.fields
         ))

@@ -20,7 +20,7 @@ class RefRelNode(RelationNode):
     with a ``ref_resolver`` callback (see RelationDAG.collect()).
 
     The output_schema field is intentionally typed Any so it accepts either a
-    raw Frictionless schema dict or a TypeSpec, mirroring DataResource.table_schema.
+    raw Frictionless schema dict or a TableSchema.
     """
 
     model_config = ConfigDict(frozen=False, arbitrary_types_allowed=True)

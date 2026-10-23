@@ -1,20 +1,21 @@
-"""Native BaseDataContract: declaration collection, TypeSpec round trip, validate."""
+"""Native BaseDataContract: declaration collection, TableSchema round trip, validate."""
 import polars as pl
 import pytest
 
-from mountainash.datacontracts.compiler import contract_from_typespec
+from typing import ClassVar
+
+from mountainash.datacontracts.compiler import contract_from_table_schema
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.errors import IdentityInvalidError
 
 
 class UserContract(BaseDataContract):
-    id: int = Field(nullable=False, unique=True)
-    email: str = Field(nullable=False, str_matches=r".+@.+")
-    age: int = Field(ge=0)
-    note: str  # type-only column
+    id: int = FieldDefinition(type=UniversalType.INTEGER, required=True, unique=True)
+    email: str = FieldDefinition(type=UniversalType.STRING, required=True, pattern=r".+@.+")
+    age: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
+    note: str = FieldDefinition(type=UniversalType.STRING)
 
     class Config:
         name = "users"
@@ -22,28 +23,121 @@ class UserContract(BaseDataContract):
 
 
 class TestDeclarationCollection:
-    def test_fields_and_annotations_collected(self):
-        assert set(UserContract._contract_fields) == {"id", "email", "age"}
-        assert set(UserContract._contract_annotations) == {"id", "email", "age", "note"}
+    def test_every_member_collected_in_declaration_order(self):
+        assert list(UserContract._contract_fields) == ["id", "email", "age", "note"]
 
     def test_declaration_syntax_preserved(self):
-        assert isinstance(UserContract._contract_fields["age"], Field)
-        assert UserContract._contract_fields["age"].ge == 0
+        assert isinstance(UserContract._contract_fields["age"], FieldDefinition)
+        assert UserContract._contract_fields["age"].minimum == 0
+
+    def test_annotation_without_a_definition_is_not_a_contract_member(self):
+        # Members are explicit shared definitions; an annotation never declares one.
+        with pytest.raises(TypeError, match="FieldDefinition"):
+
+            class AnnotationOnly(BaseDataContract):
+                note: str
+
+    def test_class_variable_annotation_is_not_a_member(self):
+        class WithClassVar(BaseDataContract):
+            kind: ClassVar[str] = "demo"
+            qty: int = FieldDefinition(type=UniversalType.INTEGER)
+
+        assert list(WithClassVar.to_table_schema().fields) == ["qty"]
+
+    def test_attached_definition_owns_type_even_with_annotation(self):
+        class Mismatched(BaseDataContract):
+            value: int = FieldDefinition(type=UniversalType.STRING)
+
+        assert Mismatched.to_table_schema().fields["value"].type == UniversalType.STRING
+
+    def test_one_definition_attached_under_different_names(self):
+        quantity = FieldDefinition(type=UniversalType.INTEGER, required=True, minimum=0)
+
+        class Lines(BaseDataContract):
+            ordered: int = quantity
+            shipped: int = quantity
+
+        fields = Lines.to_table_schema().fields
+        assert fields["ordered"] is fields["shipped"] or fields["ordered"] == fields["shipped"]
+        ids = [c.id for c in Lines.to_checks()]
+        assert {"ordered_range", "shipped_range", "ordered__not_null", "shipped__not_null"} <= set(ids)
+
+    def test_inheritance_keeps_base_order_and_subclass_replaces_in_place(self):
+        class Base(BaseDataContract):
+            a: int = FieldDefinition(type=UniversalType.INTEGER)
+            b: int = FieldDefinition(type=UniversalType.INTEGER)
+
+        class Child(Base):
+            c: int = FieldDefinition(type=UniversalType.INTEGER)
+            a: int = FieldDefinition(type=UniversalType.INTEGER, minimum=5)
+
+        assert list(Child.to_table_schema().fields) == ["a", "b", "c"]
+        assert Child.to_table_schema().fields["a"].minimum == 5
+        assert Base.to_table_schema().fields["a"].minimum is None
+
+    def test_unannotated_definition_member_is_collected(self):
+        class Bare(BaseDataContract):
+            qty = FieldDefinition(type=UniversalType.INTEGER, minimum=1)
+
+        assert list(Bare.to_table_schema().fields) == ["qty"]
+
+    def test_subclass_of_schema_generated_contract_replaces_definition_in_place(self):
+        schema = TableSchema(
+            fields={
+                "a": FieldDefinition(type=UniversalType.INTEGER),
+                "b": FieldDefinition(type=UniversalType.INTEGER),
+            },
+            fields_match="open",
+        )
+        Generated = contract_from_table_schema(schema)
+
+        class Stricter(Generated):
+            a: int = FieldDefinition(type=UniversalType.INTEGER, minimum=5)
+            c: int = FieldDefinition(type=UniversalType.INTEGER)
+
+        derived = Stricter.to_table_schema()
+        assert list(derived.fields) == ["a", "b", "c"]
+        assert derived.fields["a"].minimum == 5
+        assert derived.fields_match == "open"
+        assert "a_range" in {check.id for check in Stricter.to_checks()}
+        assert Generated.to_table_schema().fields["a"].minimum is None
 
 
-class TestToTypespec:
+class TestToTableSchema:
     def test_types_and_constraints(self):
-        spec = UserContract.to_typespec()
-        by_name = {f.name: f for f in spec.fields}
-        assert by_name["id"].type == UniversalType.INTEGER
-        assert by_name["email"].constraints.pattern == r".+@.+"
-        assert by_name["note"].constraints is None
+        schema = UserContract.to_table_schema()
+        assert schema.fields["id"].type == UniversalType.INTEGER
+        assert schema.fields["email"].constraints.pattern == r".+@.+"
+        assert schema.fields["note"].constraints.required is False
+
+    def test_returns_an_independent_schema(self):
+        schema = UserContract.to_table_schema()
+        schema.fields.pop("note")
+        assert "note" in UserContract.to_table_schema().fields
 
     def test_natural_key_survives_as_primary_key(self):
-        # Config.natural_key must survive the TypeSpec round-trip as
+        # Config.natural_key must survive the TableSchema round-trip as
         # primary_key so DAG validation resolves keyed identity for
         # natural_key-only contracts.
-        assert UserContract.to_typespec().primary_key == ["id"]
+        assert UserContract.to_table_schema().primary_key == ["id"]
+
+    def test_schema_to_contract_preserves_full_definitions(self):
+        schema = TableSchema(
+            fields={
+                "qty": FieldDefinition(
+                    type=UniversalType.INTEGER, required=True, minimum=0,
+                    exclusive_maximum=100, severity="warning", rename_from="quantity",
+                ),
+                "tag": FieldDefinition(
+                    type=UniversalType.STRING, str_startswith="t", notin=["tx"],
+                ),
+            },
+            fields_match="open",
+        )
+        round_tripped = contract_from_table_schema(schema).to_table_schema()
+        assert list(round_tripped.fields) == ["qty", "tag"]
+        assert round_tripped.fields == schema.fields
+        assert round_tripped.fields_match == "open"
 
     def test_to_checks_ids(self):
         ids = [c.id for c in UserContract.to_checks()]
@@ -58,7 +152,7 @@ class TestToTypespec:
 
     def test_to_checks_includes_primary_key_unique_for_primary_key_config(self):
         class OrderContract(BaseDataContract):
-            order_id: int = Field(nullable=False)
+            order_id: int = FieldDefinition(type=UniversalType.INTEGER, required=True)
 
             class Config:
                 name = "orders"
@@ -69,12 +163,86 @@ class TestToTypespec:
 
 
 def test_to_checks_matches_compile_datacontract_check_ids():
-    from mountainash.datacontracts.compiler import compile_datacontract, contract_from_typespec
+    from mountainash.datacontracts.compiler import compile_datacontract
 
-    spec = UserContract.to_typespec()
-    compiled_ids = {c.id for c in compile_datacontract(spec).checks}
-    contract_ids = {c.id for c in contract_from_typespec(spec).to_checks()}
+    schema = UserContract.to_table_schema()
+    compiled_ids = {c.id for c in compile_datacontract(schema).checks}
+    contract_ids = {c.id for c in contract_from_table_schema(schema).to_checks()}
     assert compiled_ids == contract_ids
+
+
+def _check_signature(checks):
+    return [
+        (
+            type(check).__name__, check.id, check.severity, tuple(check.fields or ()),
+            getattr(check, "validator", None), getattr(check, "options", None),
+        )
+        for check in checks
+    ]
+
+
+def test_every_route_compiles_the_same_requirements_and_severity():
+    """Direct definitions, compiled schemas, schema-generated contracts and
+    class-authored contracts keep one meaning for the full constraint vocabulary."""
+    from mountainash.datacontracts.compiler import compile_datacontract
+
+    definitions = {
+        "amount": FieldDefinition(
+            type=UniversalType.NUMBER, required=True, unique=True, minimum=1, maximum=10,
+            exclusive_minimum=0, exclusive_maximum=11, enum=[1, 2], enum_weights={"1": 1.0},
+            severity="warning",
+        ),
+        "value": FieldDefinition(
+            type=UniversalType.INTEGER, eq=1, ne=2, notin=[-1], severity="warning"
+        ),
+        "text": FieldDefinition(
+            type=UniversalType.STRING, str_contains="1", str_startswith="1", str_endswith="1",
+        ),
+        "label": FieldDefinition(
+            type=UniversalType.STRING, min_length=1, max_length=8, pattern=r"[a-z]+",
+            enum=["draft"], categories=["draft"],
+        ),
+        "payload": FieldDefinition(
+            type=UniversalType.OBJECT,
+            fields={"child": FieldDefinition(type=UniversalType.STRING, required=True)},
+            json_schema={"type": "object"},
+        ),
+        "items": FieldDefinition(
+            type=UniversalType.ARRAY,
+            element=FieldDefinition(type=UniversalType.INTEGER, minimum=0),
+        ),
+        "shape": FieldDefinition(type=UniversalType.GEOJSON),
+    }
+    schema = TableSchema(fields=definitions)
+    authored = type(
+        "Authored",
+        (BaseDataContract,),
+        {"__annotations__": {name: object for name in definitions}, **definitions},
+    )
+
+    direct = [c for name, d in schema.fields.items() for c in d.to_checks(name)]
+    compiled = list(compile_datacontract(schema).checks)
+    routes = {
+        "direct": _check_signature(direct),
+        "compiled": _check_signature(compiled),
+        "generated": _check_signature(schema.to_contract().to_checks()),
+        "authored": _check_signature(authored.to_checks()),
+        "authored_schema": _check_signature(authored.to_table_schema().to_contract().to_checks()),
+    }
+
+    reference = routes["direct"]
+    assert {check_id for _, check_id, *_ in reference} >= {
+        "amount__not_null", "amount_range", "amount_enum_membership", "amount_unique",
+        "value__eq", "value__ne", "value__notin",
+        "text__str_contains", "text__str_startswith", "text__str_endswith",
+        "label_length", "label_pattern", "label_category_membership",
+        "payload_json_schema", "payload_nested", "items_nested", "shape_geojson",
+    }
+    for name, signature in routes.items():
+        assert signature == reference, name
+    severities = {check_id: severity for _, check_id, severity, *_ in reference}
+    assert {severities[i] for i in ("amount_range", "amount_unique", "value__eq")} == {"warning"}
+    assert severities["label_pattern"] == "blocking"
 
 
 class TestValidate:
@@ -103,7 +271,7 @@ class TestValidate:
         assert {"email_pattern", "age_range"} <= failing
     def test_missing_coerce_config_preserves_default_coercion(self):
         class DefaultCoercionContract(BaseDataContract):
-            value: int
+            value: int = FieldDefinition(type=UniversalType.INTEGER)
 
             class Config:
                 name = "default-coercion"
@@ -163,7 +331,7 @@ class TestValidate:
 
 
 class NoKeyContract(BaseDataContract):
-    id: int = Field(unique=True)
+    id: int = FieldDefinition(type=UniversalType.INTEGER, unique=True)
 
     class Config:
         coerce = False
@@ -184,8 +352,8 @@ class TestSemanticStringNativeContract:
         [UniversalType.DURATION, UniversalType.YEAR, UniversalType.YEARMONTH],
     )
     def test_semantic_string_fields_compile_to_str(self, universal) -> None:
-        contract = contract_from_typespec(
-            TypeSpec(fields=[FieldSpec("value", universal)])
+        contract = contract_from_table_schema(
+            TableSchema(fields={"value": FieldDefinition(type=universal)})
         )
         assert contract.__annotations__["value"] is str
 

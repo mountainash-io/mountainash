@@ -8,10 +8,11 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
-from ._operation_options import validate_failure_behavior, validate_field_name, validate_fields
+from ._operation_options import validate_failure_behavior, validate_field_mapping, validate_field_name
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-    from mountainash.typespec.spec import FieldSpec
+    from collections.abc import Mapping
+    from mountainash.typespec.spec import FieldDefinition
 
 
 class MountainAshScalarStructAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarStructAPIBuilderProtocol):
@@ -19,14 +20,14 @@ class MountainAshScalarStructAPIBuilder(BaseExpressionAPIBuilder, MountainAshSca
     def cast(
         self,
         *,
-        fields: tuple["FieldSpec", ...],
+        fields: "Mapping[str, FieldDefinition]",
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
         converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),
         converted_validity: "BaseExpressionAPI | None" = None,
     ) -> BaseExpressionAPI:
         """Recursively cast a native struct, optionally using compiled child expressions."""
-        fields = validate_fields("struct.cast", "fields", fields)
+        fields = validate_field_mapping("struct.cast", "fields", fields)
         validate_field_name("struct.cast", field_name)
         failure = validate_failure_behavior("struct.cast", failure_behavior)
         node = ScalarFunctionNode(

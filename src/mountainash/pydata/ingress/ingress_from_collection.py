@@ -8,7 +8,7 @@ from mountainash.core.lazy_imports import import_polars
 
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
 from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
@@ -80,9 +80,9 @@ class IngressFromCollection(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 column_name: Optional[str] = None, *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True) -> PolarsFrame:
         """
         Convert basic container (list/set/frozenset) to single-column Polars DataFrame.
@@ -91,8 +91,8 @@ class IngressFromCollection(BasePydataIngressHandler):
             data: List, set, or frozenset of scalar values
             column_config: Optional column transformation configuration
             column_name: Name for the single column. Defaults to 'value'
-            source_spec: Optional source schema for constructor dtype overrides.
-            inline_conform: Whether to apply type_spec after construction.
+            source_table_schema: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply table_schema after construction.
 
         Returns:
             pl.DataFrame: Single-column DataFrame
@@ -113,7 +113,7 @@ class IngressFromCollection(BasePydataIngressHandler):
             >>> # Columns: ['fruit']
         """
         from .custom_type_helpers import _source_schema_overrides
-        schema_overrides = _source_schema_overrides(source_spec)
+        schema_overrides = _source_schema_overrides(source_table_schema)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
@@ -169,9 +169,9 @@ class IngressFromCollection(BasePydataIngressHandler):
         df = pl.DataFrame({column_name: data_list}, schema_overrides=schema_overrides)
 
         # Apply column transformations if provided
-        if type_spec is not None and inline_conform:
-            import mountainash as ma
-            df = ma.relation(df).conform(type_spec).to_polars()
+        if table_schema is not None and inline_conform:
+            from .custom_type_helpers import apply_hybrid_conversion_to_dataframe
+            df = apply_hybrid_conversion_to_dataframe(df, table_schema)
 
         return df
 declare_lowering(IngressFromCollection.convert.__func__, REPEATABLE)

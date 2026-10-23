@@ -147,15 +147,15 @@ def test_plugin_evidence_requires_permission_without_losing_known_fields(tmp_pat
     register_format(ObservedSpec, parser, schema_inspector=inspector if discovery == "bounded" else None)
     path = tmp_path / "rows.observation"
     path.write_text('{"id":1}\n{"id":2,"late":"value"}\n')
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     declared = None
     if projection.startswith("resource_"):
-        fields = [FieldSpec(name="late", type=UniversalType.STRING)]
+        fields = {"late": FieldDefinition(type=UniversalType.STRING)}
         if projection == "resource_exact":
-            fields.insert(0, FieldSpec(name="id", type=UniversalType.INTEGER))
-        declared = TypeSpec(fields=fields, fields_match=projection.removeprefix("resource_"))
+            fields = {"id": FieldDefinition(type=UniversalType.INTEGER), **fields}
+        declared = TableSchema(fields=fields, fields_match=projection.removeprefix("resource_"))
     dag = ma.RelationDAG()
     dag.add("source", resource_relation(path, format=ObservedSpec.FORMAT, schema=declared))
     query = dag.ref("source")
@@ -164,8 +164,8 @@ def test_plugin_evidence_requires_permission_without_losing_known_fields(tmp_pat
     if projection in {"late", "late_conform"}:
         query = query.select("late")
         if projection == "late_conform":
-            query = query.conform(TypeSpec(
-                fields=[FieldSpec(name="late", type=UniversalType.STRING)],
+            query = query.conform(TableSchema(
+                fields={"late": FieldDefinition(type=UniversalType.STRING)},
                 fields_match="open",
             ))
     with pytest.raises(IncompleteSchemaError):
@@ -178,13 +178,13 @@ def test_plugin_evidence_requires_permission_without_losing_known_fields(tmp_pat
 
 
 def test_empty_file_resource_schema_matches_declared_reconstruction(tmp_path):
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     path = tmp_path / "empty.json"
     path.write_text("[]")
-    relation = resource_relation(path, format="json", schema=TypeSpec(
-        fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+    relation = resource_relation(path, format="json", schema=TableSchema(
+        fields={"id": FieldDefinition(type=UniversalType.INTEGER)},
         fields_match="open",
     ))
     assert relation.collect_schema() == {"id": D.I64}

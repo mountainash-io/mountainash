@@ -1,6 +1,6 @@
 """Row identity: tiered resolution + keyed-identity validation (spec §7).
 
-Tiers: keyed (natural_key / TypeSpec.primary_key; validated against the
+Tiers: keyed (natural_key / TableSchema.primary_key; validated against the
 data) > row_number (opt-in diagnostic ordinal, never a join key) > none.
 No silent fallback between tiers.
 """
@@ -20,7 +20,7 @@ from mountainash.validation.errors import (
 
 if TYPE_CHECKING:
     from mountainash.relations.core.logical_snapshot import ResolvedLogicalSnapshot
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class RowIdentity:
 def resolve_identity(
     *,
     natural_key: list[str] | None = None,
-    spec: "TypeSpec | None" = None,
+    spec: "TableSchema | None" = None,
     row_identity: str | None = None,
 ) -> RowIdentity:
     """Resolve the identity tier: explicit natural_key > spec primary_key >
@@ -114,6 +114,6 @@ def require_keyed(identity: RowIdentity, *, feature: str) -> None:
     """Gate a keyed-only capability; no silent fallback to positional identity."""
     if identity.kind != "keyed":
         raise IdentityRequiredError(
-            f"{feature} requires keyed row identity (natural_key or TypeSpec.primary_key); "
+            f"{feature} requires keyed row identity (natural_key or TableSchema.primary_key); "
             f"current identity tier is {identity.kind!r}"
         )

@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from mountainash.core.dtypes import MountainashDtype
+from mountainash.core.dtypes import MountainashDtype, NativeDtype, TimeDtype, TypeTarget
 from mountainash.typespec.source_shape import SourceShape, extract_source_shapes
 
 
@@ -211,3 +211,174 @@ def test_narwhals_pandas_object_column_is_opaque_without_row_access(
     monkeypatch.setattr(pd.DataFrame, "__getitem__", fail)
     monkeypatch.setattr(pd.DataFrame, "iterrows", fail)
     assert extract_source_shapes(frame)["values"] == SourceShape(None)
+
+
+# ---------------------------------------------------------------------------
+# Wrapped carriers, lazy carriers and execution placement
+# ---------------------------------------------------------------------------
+
+
+def _arrow_time_frame():
+    pd = pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+    return pd.DataFrame({"t": pd.Series([], dtype=pd.ArrowDtype(pa.time64("us")))})
+
+
+def test_wrapped_pandas_keeps_underlying_precision_with_narwhals_native_evidence() -> None:
+    nw = pytest.importorskip("narwhals")
+    shape = extract_source_shapes(nw.from_native(_arrow_time_frame()))["t"]
+    assert shape.detailed_dtype == TimeDtype(6)
+    assert shape.native_dtype is not None
+    assert shape.native_dtype.target is TypeTarget.NARWHALS
+
+
+def test_wrapped_arrow_table_keeps_underlying_precision_with_narwhals_native_evidence() -> None:
+    nw = pytest.importorskip("narwhals")
+    pa = pytest.importorskip("pyarrow")
+    table = pa.table({"t": pa.array([], type=pa.time64("us"))})
+    shape = extract_source_shapes(nw.from_native(table))["t"]
+    assert shape.detailed_dtype == TimeDtype(6)
+    assert shape.native_dtype is not None
+    assert shape.native_dtype.target is TypeTarget.NARWHALS
+
+
+def test_standalone_decode_reports_only_the_evidence_the_schema_contains() -> None:
+    nw = pytest.importorskip("narwhals")
+    from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+    adapter = get_native_schema_adapter(TypeTarget.NARWHALS)
+    frame = nw.from_native(_arrow_time_frame())
+    decoded = adapter.decode_schema(frame.collect_schema())["t"]
+    acquired = adapter.extract_schema(frame)["t"]
+    assert decoded.detailed_dtype != TimeDtype(6)
+    assert acquired.detailed_dtype == TimeDtype(6)
+
+
+def test_execution_through_narwhals_does_not_change_the_native_schema_target() -> None:
+    pd = pytest.importorskip("pandas")
+    pytest.importorskip("narwhals")
+    frame = pd.DataFrame({"x": [1]})
+    placed = extract_source_shapes(frame, target=TypeTarget.NARWHALS)["x"]
+    native = extract_source_shapes(frame)["x"]
+    assert placed.native_dtype.target is TypeTarget.NARWHALS
+    assert native.native_dtype.target is TypeTarget.PANDAS
+    assert placed.canonical_type is native.canonical_type is MountainashDtype.I64
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_polars_and_narwhals_lazy_carriers_are_schema_only(lazy: bool) -> None:
+    pl = pytest.importorskip("polars")
+    nw = pytest.importorskip("narwhals")
+    frame = pl.DataFrame(schema={"values": pl.List(pl.Int64)})
+    carrier = frame.lazy() if lazy else frame
+    assert extract_source_shapes(carrier)["values"].item_shape == SourceShape(MountainashDtype.I64)
+    assert extract_source_shapes(nw.from_native(carrier))["values"].item_shape == SourceShape(
+        MountainashDtype.I64
+    )
+
+
+def test_arrow_field_qualifiers_are_native_evidence_while_portable_evidence_is_the_type() -> None:
+    pa = pytest.importorskip("pyarrow")
+    field = pa.field("x", pa.int64(), nullable=False, metadata={"unit": "m"})
+    table = pa.table({"x": pa.array([1], pa.int64())}).cast(pa.schema([field]))
+    shape = extract_source_shapes(table)["x"]
+    assert shape.canonical_type is MountainashDtype.I64
+    assert isinstance(shape.native_dtype, NativeDtype)
+    assert shape.native_dtype.value.nullable is False
+    assert shape.native_dtype.value.metadata == {b"unit": b"m"}
+
+
+def test_pandas_arrow_backed_dtype_keeps_pandas_native_evidence_over_arrow_detail() -> None:
+    pd = pytest.importorskip("pandas")
+    shape = extract_source_shapes(_arrow_time_frame())["t"]
+    assert shape.detailed_dtype == TimeDtype(6)
+    assert shape.native_dtype.target is TypeTarget.PANDAS
+    assert isinstance(shape.native_dtype.value, pd.ArrowDtype)
+
+
+def test_shape_evidence_owns_its_native_payload() -> None:
+    pd = pytest.importorskip("pandas")
+    frame = pd.DataFrame({"c": pd.Series(["a"], dtype=pd.CategoricalDtype(["a", "b"]))})
+    shape = extract_source_shapes(frame)["c"]
+    assert shape.native_dtype.value is not frame.dtypes["c"]
+    assert shape.native_dtype.value == frame.dtypes["c"]
+
+
+def test_acquisition_preserves_column_order() -> None:
+    pl = pytest.importorskip("polars")
+    frame = pl.DataFrame(schema={"b": pl.Int8, "a": pl.String, "c": pl.Boolean})
+    assert list(extract_source_shapes(frame)) == ["b", "a", "c"]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_wrapped_polars_keeps_underlying_precision_with_narwhals_native_evidence(lazy: bool) -> None:
+    nw = pytest.importorskip("narwhals")
+    pl = pytest.importorskip("polars")
+    from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+    frame = pl.DataFrame(schema={"t": pl.Time})
+    carrier = nw.from_native(frame.lazy() if lazy else frame)
+    adapter = get_native_schema_adapter(TypeTarget.NARWHALS)
+    acquired = adapter.extract_schema(carrier)["t"]
+    assert acquired.detailed_dtype == TimeDtype(9)
+    assert acquired.native_dtype.target is TypeTarget.NARWHALS
+    # Narwhals' own schema carries no Time precision to decode.
+    assert adapter.decode_schema(carrier.collect_schema())["t"].detailed_dtype != TimeDtype(9)
+
+
+def test_wrapped_native_evidence_is_narwhals_at_every_level_without_carrier_overrides() -> None:
+    nw = pytest.importorskip("narwhals")
+    pa = pytest.importorskip("pyarrow")
+    storage = pa.large_list(pa.struct([("a", pa.int64())]))
+    table = pa.table({"v": pa.array([[{"a": 1}]], storage)})
+    shape = extract_source_shapes(nw.from_native(table))["v"]
+    member = shape.item_shape.struct_fields[0][1]
+    assert shape.native_dtype.target is TypeTarget.NARWHALS
+    assert member.native_dtype.target is TypeTarget.NARWHALS
+    # large_list is Arrow storage detail, not an override a Narwhals target could honour.
+    assert shape.detailed_dtype.native is None
+
+
+def test_arrow_backed_pandas_nested_evidence_is_pandas_evidence_that_lowers_back() -> None:
+    pd = pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+    from mountainash.core.dtypes import registry
+
+    storage = pa.list_(pa.large_string())
+    shape = extract_source_shapes(pd.DataFrame({"v": pd.Series([], dtype=pd.ArrowDtype(storage))}))["v"]
+    assert shape.item_shape.native_dtype == NativeDtype(
+        value=pd.ArrowDtype(pa.large_string()), target=TypeTarget.PANDAS,
+    )
+    assert registry.to_native_schema(shape.detailed_dtype, TypeTarget.PANDAS) == pd.ArrowDtype(storage)
+
+
+def test_arrow_backed_pandas_native_only_type_is_pandas_evidence() -> None:
+    pd = pytest.importorskip("pandas")
+    pa = pytest.importorskip("pyarrow")
+    storage = pa.dictionary(pa.int32(), pa.string())
+    shape = extract_source_shapes(pd.DataFrame({"c": pd.Series([], dtype=pd.ArrowDtype(storage))}))["c"]
+    assert shape.detailed_dtype == NativeDtype(value=pd.ArrowDtype(storage), target=TypeTarget.PANDAS)
+
+
+@pytest.mark.parametrize("carrier", ["pyarrow", "pandas"])
+def test_wrapped_native_storage_leaves_do_not_become_foreign_overrides(carrier):
+    import narwhals as nw
+    import pandas as pd
+    import pyarrow as pa
+    from mountainash.core.dtypes import ListDtype, MountainashDtype, SchemaTypeStatus
+    from mountainash.typespec.converters import resolve_field_type
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.core.dtypes import registry
+
+    storage = pa.list_(pa.large_string())
+    source = (
+        pa.Table.from_arrays([pa.array([], type=storage)], names=["values"])
+        if carrier == "pyarrow"
+        else pd.DataFrame({"values": pd.Series([], dtype=pd.ArrowDtype(storage))})
+    )
+    shape = extract_source_shapes(nw.from_native(source))["values"]
+    authored = FieldDefinition(dtype=ListDtype(SchemaTypeStatus.UNKNOWN))
+    effective = resolve_field_type(authored, source=shape, target=TypeTarget.NARWHALS, path=("values",))
+    assert effective == ListDtype(MountainashDtype.STRING)
+    assert registry.to_native_schema(effective, TypeTarget.NARWHALS) == nw.List(nw.String)
+    assert authored.dtype.element is SchemaTypeStatus.UNKNOWN

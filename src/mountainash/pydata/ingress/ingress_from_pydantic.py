@@ -7,7 +7,7 @@ import logging
 from mountainash.core.lazy_imports import import_polars, import_pydantic
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
@@ -38,9 +38,9 @@ class DataframeFromPydantic(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True,
     ) -> PolarsFrame:
         """
@@ -54,9 +54,9 @@ class DataframeFromPydantic(BasePydataIngressHandler):
 
         Args:
             data: Single Pydantic model or list of Pydantic models
-            type_spec: Optional TypeSpec for column type coercion and renaming
-            source_spec: Explicit source dtypes, overriding scalar model declarations.
-            inline_conform: Apply type_spec conversions after source extraction.
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Explicit source dtypes, overriding scalar model declarations.
+            inline_conform: Apply table_schema conversions after source extraction.
 
         Returns:
             Polars DataFrame with hybrid conversions applied
@@ -93,10 +93,10 @@ class DataframeFromPydantic(BasePydataIngressHandler):
         from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
 
         model_type = type(data[0]) if isinstance(data, list) and data else type(data)
-        model_spec = extract_from_pydantic(model_type) if data_dicts else None
-        overrides = _source_schema_overrides(source_spec, model_spec=model_spec)
+        model_schema = extract_from_pydantic(model_type) if data_dicts else None
+        overrides = _source_schema_overrides(source_table_schema, model_table_schema=model_schema)
         df = apply_hybrid_conversion(
-            data_dicts, type_spec, schema_overrides=overrides,
+            data_dicts, table_schema, schema_overrides=overrides,
             inline_conform=inline_conform,
         )
 

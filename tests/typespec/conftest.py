@@ -17,7 +17,7 @@ from typing import Optional
 import pytest
 
 from mountainash.typespec.universal_types import UniversalType
-from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldConstraints, FieldDefinition, TableSchema
 from mountainash.typespec.custom_types import CustomTypeRegistry
 
 
@@ -64,46 +64,21 @@ def sample_optional_fields_cls():
 @pytest.fixture
 def simple_table_schema():
     """Minimal TypeSpec with two fields."""
-    return TypeSpec.from_simple_dict({"id": "integer", "name": "string"})
+    return TableSchema.from_simple_dict({"id": "integer", "name": "string"})
 
 
 @pytest.fixture
 def full_table_schema():
     """TypeSpec with all common types, constraints, and metadata."""
-    fields = [
-        FieldSpec(
-            name="employee_id",
-            type=UniversalType.INTEGER,
-            description="Primary key",
-            constraints=FieldConstraints(required=True, unique=True),
-        ),
-        FieldSpec(
-            name="full_name",
-            type=UniversalType.STRING,
-            description="Employee full name",
-            constraints=FieldConstraints(required=True, max_length=200),
-        ),
-        FieldSpec(
-            name="salary",
-            type=UniversalType.NUMBER,
-            description="Annual salary",
-            constraints=FieldConstraints(minimum=0),
-        ),
-        FieldSpec(
-            name="is_active",
-            type=UniversalType.BOOLEAN,
-        ),
-        FieldSpec(
-            name="hire_date",
-            type=UniversalType.DATE,
-        ),
-        FieldSpec(
-            name="notes",
-            type=UniversalType.STRING,
-            constraints=FieldConstraints(required=False),
-        ),
-    ]
-    return TypeSpec(
+    fields = {"employee_id": FieldDefinition(type=UniversalType.INTEGER,
+    description="Primary key",
+    constraints=FieldConstraints(required=True, unique=True),), "full_name": FieldDefinition(type=UniversalType.STRING,
+    description="Employee full name",
+    constraints=FieldConstraints(required=True, max_length=200),), "salary": FieldDefinition(type=UniversalType.NUMBER,
+    description="Annual salary",
+    constraints=FieldConstraints(minimum=0),), "is_active": FieldDefinition(type=UniversalType.BOOLEAN,), "hire_date": FieldDefinition(type=UniversalType.DATE,), "notes": FieldDefinition(type=UniversalType.STRING,
+    constraints=FieldConstraints(required=False),)}
+    return TableSchema(
         fields=fields,
         title="Employee",
         description="Employee records",
@@ -114,7 +89,7 @@ def full_table_schema():
 @pytest.fixture
 def source_schema():
     """Source TypeSpec with user_ prefix field names."""
-    return TypeSpec.from_simple_dict({
+    return TableSchema.from_simple_dict({
         "user_id": "integer",
         "user_name": "string",
         "user_email": "string",
@@ -124,7 +99,7 @@ def source_schema():
 @pytest.fixture
 def target_schema():
     """Target TypeSpec with short field names."""
-    return TypeSpec.from_simple_dict({
+    return TableSchema.from_simple_dict({
         "id": "integer",
         "name": "string",
         "email": "string",

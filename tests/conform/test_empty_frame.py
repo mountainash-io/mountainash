@@ -3,21 +3,19 @@ from __future__ import annotations
 
 import polars as pl
 
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
     MountainashPolarsExtensionRelationSystem,
 )
 
-SPEC = TypeSpec(
-    fields=[
-        FieldSpec("list", UniversalType.LIST, item_type="integer"),
-        FieldSpec("point", UniversalType.GEOPOINT, format="array"),
-        FieldSpec("geometry", UniversalType.GEOJSON),
-        FieldSpec("duration", UniversalType.DURATION),
-        FieldSpec("year", UniversalType.YEAR),
-        FieldSpec("yearmonth", UniversalType.YEARMONTH),
-    ]
+SPEC = TableSchema(
+    fields={"list": FieldDefinition(type = UniversalType.LIST, item_type="integer"),
+        "point": FieldDefinition(type = UniversalType.GEOPOINT, format="array"),
+        "geometry": FieldDefinition(type = UniversalType.GEOJSON),
+        "duration": FieldDefinition(type = UniversalType.DURATION),
+        "year": FieldDefinition(type = UniversalType.YEAR),
+        "yearmonth": FieldDefinition(type = UniversalType.YEARMONTH),}
 )
 
 
