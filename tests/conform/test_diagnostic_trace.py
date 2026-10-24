@@ -356,18 +356,18 @@ _ROUTES = [
     pytest.param("conform-last", True, id="replacement-then-conform"),
 ]
 _INPUTS = {
-    "all-valid": (0, 1.5),
-    "cast-only": (0, 1e100),
-    "replacement-only": (1, 1.5),
-    "both-failing": (1, 1e100),
+    "all-valid": (0, 1),
+    "cast-only": (0, 128),
+    "replacement-only": (1, 1),
+    "both-failing": (1, 128),
 }
 
 
-def _attribution_query(route: str, cast_first: bool, lazy: bool, other: int, big: float):
-    """One fp32 cast and one unrelated native replacement, via every route.
+def _attribution_query(route: str, cast_first: bool, lazy: bool, other: int, big: int):
+    """One Int8 cast and one unrelated native replacement, via every route.
 
     Direct routes apply both operations to the source without conform. Conform
-    routes let the schema perform the fp32 conversion and the Boolean flag
+    routes let the schema perform the Int8 conversion and the Boolean flag
     conversion, with the replacement before or after the conform.
     """
     import polars as pl
@@ -378,7 +378,7 @@ def _attribution_query(route: str, cast_first: bool, lazy: bool, other: int, big
     source = pl.DataFrame({"other": [other], "big": [big], "flag": ["true"]})
     source = source.lazy() if lazy else source
     replacement = ma.native(pl.col("other").replace_strict({0: 0})).name.alias("other")
-    cast = ma.col("big").cast("fp32").name.alias("big")
+    cast = ma.col("big").cast("i8").name.alias("big")
     relation_ = ma.relation(source)
     if route.startswith("direct"):
         exprs = (cast, replacement) if cast_first else (replacement, cast)
@@ -388,7 +388,7 @@ def _attribution_query(route: str, cast_first: bool, lazy: bool, other: int, big
     schema = TableSchema(
         fields={
             "other": FieldDefinition(type=UniversalType.INTEGER),
-            "big": FieldDefinition(type=UniversalType.NUMBER, dtype=MountainashDtype.FP32),
+            "big": FieldDefinition(type=UniversalType.INTEGER, dtype=MountainashDtype.I8),
             "flag": FieldDefinition(type=UniversalType.BOOLEAN),
         },
         missing_values=[],
@@ -418,8 +418,8 @@ def test_native_failures_are_attributed_only_to_their_own_operation(
         if isinstance(result, pl.LazyFrame):
             result = result.collect()
         flag = "true" if route.startswith("direct") else True
-        assert result.to_dicts() == [{"other": 0, "big": 1.5, "flag": flag}]
-        assert result.schema["big"] == pl.Float32
+        assert result.to_dicts() == [{"other": 0, "big": 1, "flag": flag}]
+        assert result.schema["big"] == pl.Int8
         assert result.schema["other"] == pl.Int64
         assert result.schema["flag"] == (pl.String if route.startswith("direct") else pl.Boolean)
         return

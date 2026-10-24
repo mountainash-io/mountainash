@@ -6,7 +6,8 @@ import polars as pl
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarStructExpressionSystemProtocol
 from mountainash.core.dtypes import CastTarget, TypeTarget, registry
-from ..numeric_cast import cast_container
+from ..container_cast import cast_container
+from ..temporal_cast import cast_temporal_compatible
 
 
 class MountainAshPolarsScalarStructExpressionSystem(PolarsBaseExpressionSystem, MountainAshScalarStructExpressionSystemProtocol[pl.Expr]):
@@ -24,7 +25,7 @@ class MountainAshPolarsScalarStructExpressionSystem(PolarsBaseExpressionSystem, 
         strict = failure_behavior != "null"
         if not converted_fields:
             return cast_container(x, native, strict=strict)
-        result = cast_container(pl.struct([
+        result = cast_temporal_compatible(pl.struct([
             value.alias(name) for name, value in zip(field_names, converted_fields, strict=True)
         ]), native, strict=strict)
         return pl.when(x.is_null()).then(pl.lit(None, dtype=native)).otherwise(result)

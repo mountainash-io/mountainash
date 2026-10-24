@@ -742,12 +742,17 @@ def test_temporal_cast_preserves_filtered_operand_cardinality(temporal_cast_prov
 
 
 # ---------------------------------------------------------------------------
-# Numeric conversion safety: finite overflow is never a successful conversion.
+# Numeric conversion boundaries: values are preserved through implicit
+# preparation and resolved targets; an explicit cast keeps the native semantics
+# of its provider.
 #
 # Expected values are hand-written literals or integer-domain arithmetic, never
-# produced by the cast under test. Outcomes outside the approved contract stay
-# as they are: float -> integer fractional handling, lexical/decimal/temporal
-# casts, and existing refusals (Narwhals null mode, SQLite try_cast).
+# produced by the cast under test. The correct oracle for an out-of-range value
+# is rejection (or null in null mode). Providers whose native cast does not
+# reject it are recorded as known native limitations (strict expected failures),
+# not as correct behavior and not as a runtime contract. Outcomes outside this
+# scope stay as they are: float -> integer fractional handling, lexical/decimal/
+# temporal casts, and existing refusals (Narwhals null mode, SQLite try_cast).
 # ---------------------------------------------------------------------------
 
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (  # noqa: E402
@@ -784,9 +789,14 @@ _ROUNDS_DOWN_TO_F32_MAX = _F32_MAX + 2.0**102
 _ROUNDS_UP_TO_INFINITY = _F32_MAX + 2.0**103
 
 _SQLITE = "ibis-sqlite"
-_SQLITE_WIDTH = (
-    "SQLite does not enforce destination width; Ibis result conversion may narrow "
-    "without reporting overflow (existing unqualified width behavior)."
+_WRAPPING_INTEGER_BACKENDS = frozenset({_SQLITE, "pandas", "narwhals-pandas"})
+_NATIVE_INTEGER_WRAP = (
+    "Known native limitation: this provider's cast wraps or narrows an out-of-range "
+    "integer instead of rejecting it (SQLite width, NumPy-backed pandas)."
+)
+_NATIVE_FLOAT32_INFINITY = (
+    "Known native limitation: this provider's Float64 -> Float32 cast yields infinity "
+    "for a finite out-of-range value; only DuckDB rejects it."
 )
 _NULL_MODE_REFUSALS = {
     **dict.fromkeys(("pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy"), BackendCapabilityError),
@@ -939,7 +949,15 @@ def _null_mode_outcome(backend_name):
 def _sqlite_width_unenforced(backend_name):
     # Failed is pytest.raises' no-exception outcome, NOT AssertionError. Valid
     # controls and refusal/type assertions must still fail normally.
-    return expect_call_failure(when=backend_name == _SQLITE, reason=_SQLITE_WIDTH, errors=(Failed,))
+    return expect_call_failure(
+        when=backend_name in _WRAPPING_INTEGER_BACKENDS, reason=_NATIVE_INTEGER_WRAP, errors=(Failed,),
+    )
+
+
+def _float32_overflow_unenforced(backend_name, *, when=True):
+    return expect_call_failure(
+        when=when and backend_name != "ibis-duckdb", reason=_NATIVE_FLOAT32_INFINITY, errors=(Failed,),
+    )
 
 
 @pytest.mark.cross_backend
@@ -947,7 +965,7 @@ def _sqlite_width_unenforced(backend_name):
 def test_integer_narrowing_keeps_bounds_and_rejects_overflow(
     backend_name, source, target, backend_factory,
 ):
-    """Exact representable bounds pass; the immediately out-of-range values raise, never wrap."""
+    """Representable bounds pass; exact native wrapping limitations stay explicit."""
     passing, rejected = _integer_cases(source, target)
     expression = _cast(target, "throw")
     result = _project(_numeric_frame(backend_factory, backend_name, passing, source), expression)
@@ -1016,7 +1034,7 @@ def test_float32_finite_overflow_is_rejected(backend_name, backend_factory):
     valid = _project(backend_factory.create({"value": [1.5, -1.5]}, backend_name), expression)
     assert valid.to_list() == [1.5, -1.5]
     _assert_physical(valid, pl.Float32, backend_name)
-    with _sqlite_width_unenforced(backend_name):
+    with _float32_overflow_unenforced(backend_name):
         for bad in _FLOAT32_REJECTED:
             _assert_rejected(backend_factory.create({"value": [1.5, bad]}, backend_name), expression, bad)
 
@@ -1050,7 +1068,14 @@ def test_float32_null_mode_nulls_only_overflow(backend_name):
     with _null_mode_outcome(backend_name):
         result = _project(frame, _cast("f32", "null"))
         assert result.dtype == pl.Float32
-        _assert_floats(result.to_list(), [1.5, None, None, None, _F32_MAX, math.inf])
+        actual = result.to_list()
+        _assert_floats([actual[i] for i in (0, 3, 4, 5)], [1.5, None, _F32_MAX, math.inf])
+        with expect_call_failure(
+            when=backend_name in {"polars", "polars-lazy"},
+            reason="Known native limitation: Polars non-strict Float64 -> Float32 yields infinity, not null.",
+            errors=(AssertionError,),
+        ):
+            assert actual[1:3] == [None, None]
 
 
 # (target, representable values, immediately out-of-range values): float -> integer
@@ -1085,8 +1110,8 @@ def test_float_to_integer_rejects_finite_out_of_range(backend_name, target, pass
             _assert_rejected(backend_factory.create({"value": [passing[0], bad]}, backend_name), expression, bad)
 
 
-# The operand's own metadata drives validity: a computed value is checked, not its
-# source column; native, computed and chained operands remain supported casts.
+# Cast the computed operand, not its source column; native, computed and chained
+# operands retain the same native conversion semantics.
 _INTEGER_ROUTES = {  # route: (input accepted, input rejected) for ... .cast("i8")
     "column": (127, 128),
     "computed": (126, 127),  # value + 1
@@ -1143,7 +1168,8 @@ def test_float32_cast_validates_the_actual_operand(backend_name, route, backend_
     assert result.dtype == pl.Float32
     assert result.to_list() == [_f32(accepted_result)]
     frame = backend_factory.create({"value": [rejected]}, backend_name)
-    _assert_rejected(frame, expression(frame), rejected)
+    with _float32_overflow_unenforced(backend_name):
+        _assert_rejected(frame, expression(frame), rejected)
 
 
 @pytest.mark.cross_backend
@@ -1156,14 +1182,15 @@ def test_float32_cast_validates_the_actual_operand(backend_name, route, backend_
 def test_list_element_operand_validates_the_extracted_element(
     backend_name, element, target, accepted, rejected, expected,
 ):
-    """The element's own type is the operand metadata; the sibling element is not cast."""
+    """Only the selected list element is cast; its sibling must remain irrelevant."""
     def frame_of(first, second):
         return _typed_frame(backend_name, pl.Series("items", [[first, second]], dtype=pl.List(element)))
 
     result = _project(frame_of(accepted, rejected), ma.col("items").list.get(0).cast(target))
     assert result.to_list() == [expected]
     assert result.dtype == (pl.Int8 if target == "i8" else pl.Float32)
-    _assert_rejected(frame_of(accepted, rejected), ma.col("items").list.get(1).cast(target), rejected)
+    with _float32_overflow_unenforced(backend_name, when=target == "fp32"):
+        _assert_rejected(frame_of(accepted, rejected), ma.col("items").list.get(1).cast(target), rejected)
 
 
 # ---------------------------------------------------------------------------
@@ -1224,9 +1251,10 @@ def test_literal_float32_cast_broadcasts_and_is_validated(backend_name, backend_
     result = _select_two(frame, ma.col("value"), ma.lit(1.5).cast("fp32"))
     assert result["second"].to_list() == [1.5, 1.5]
     assert result["second"].dtype == pl.Float32
-    with pytest.raises(Exception) as raised:
-        _select_two(frame, ma.col("value"), ma.lit(1e100).cast("fp32"))
-    assert not isinstance(raised.value, _REFUSALS), repr(raised.value)
+    with _float32_overflow_unenforced(backend_name):
+        with pytest.raises(Exception) as raised:
+            _select_two(frame, ma.col("value"), ma.lit(1e100).cast("fp32"))
+        assert not isinstance(raised.value, _REFUSALS), repr(raised.value)
 
 
 def _native_computed(backend_name, frame):

@@ -544,28 +544,6 @@ class UnifiedExpressionVisitor:
             )
         return resolved
 
-    def _native_operand_resolver(self, protocol_method, arguments, compiled_arguments):
-        """Lazily inspect an already-compiled named operand or variadic position."""
-        def resolve(name):
-            if isinstance(name, int):
-                index = name
-            else:
-                index = next(
-                    (i for i, parameter in enumerate(_protocol_sig_params(protocol_method))
-                     if parameter.name == name
-                     and parameter.kind in {
-                         inspect.Parameter.POSITIONAL_ONLY,
-                         inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                     }),
-                    -1,
-                )
-            if 0 <= index < len(arguments) and index < len(compiled_arguments):
-                return self.type_context.resolve_bound_native(
-                    arguments[index], compiled_arguments[index],
-                )
-            return None
-        return resolve
-
     def visit_scalar_function(self, node: ScalarFunctionNode) -> SupportedExpressions:
         """Compile a scalar function call to backend expression.
 
@@ -632,10 +610,7 @@ class UnifiedExpressionVisitor:
                 conform_node_id=self.conform_node_id,
             )
         try:
-            with self.backend.operand_types(
-                operand_types,
-                native_resolver=self._native_operand_resolver(protocol_method, node.arguments, args),
-            ):
+            with self.backend.operand_types(operand_types):
                 if options:
                     return method(*args, **options)
                 return method(*args)
@@ -838,11 +813,7 @@ class UnifiedExpressionVisitor:
         self._gate_options(function_key, options)
         method = getattr(self.backend, "cast")
         fold_lowering(self, selected_lowering(method, func_def.lowering))
-
-        with self.backend.operand_types(
-            operand_types,
-            native_resolver=self._native_operand_resolver(protocol_method, arguments, args),
-        ):
+        with self.backend.operand_types(operand_types):
             return method(*args, **options)
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:

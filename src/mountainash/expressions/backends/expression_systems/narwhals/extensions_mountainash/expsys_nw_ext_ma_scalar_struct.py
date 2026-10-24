@@ -4,7 +4,6 @@ from __future__ import annotations
 import narwhals as nw
 
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
-from mountainash.expressions.backends.expression_systems.narwhals.numeric_cast import checked_struct
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarStructExpressionSystemProtocol
 from mountainash.core.dtypes import CastTarget, TypeTarget, registry
 from mountainash.core.types import BackendCapabilityError
@@ -42,16 +41,6 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
             return self.cast(x, dtype=dtype, failure_behavior=failure_behavior)
         native = registry.to_native_cast(dtype, TypeTarget.NARWHALS)
         children = dict(zip(field_names, converted_fields, strict=True))
-        if isinstance(native, nw.Struct):
-            # Each converted child is checked from its own output dtype (argument
-            # positions 1..n), so narrowing that survived conversion is still rejected.
-            members = {}
-            for position, (name, child) in enumerate(children.items(), start=1):
-                evidence = self.native_operand_type(position)
-                members[name] = (child, None if evidence is None else evidence.native_dtype)
-            checked = checked_struct(x, native, members, self._cast_target)
-            if checked is not None:
-                return checked
         result = self._cast_target(nw.struct(**children), native)
         return nw.when(x.is_null()).then(nw.lit(None, dtype=native)).otherwise(result)
 

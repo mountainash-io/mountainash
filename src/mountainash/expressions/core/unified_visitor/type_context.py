@@ -68,30 +68,6 @@ class TypeContext:
         scope.resolved[id(node)] = (node, resolved)
         return resolved
 
-    def resolve_bound_native(self, node: Any, expression: Any) -> ResolvedOperand | None:
-        """Inspect an already-compiled operand without compiling it a second time.
-
-        Optional evidence is distinct from required capability descriptors. An
-        eager provider may instead bind its actual series dtype at execution.
-        """
-        if not self._scopes or self._scopes[-1].input_data is None:
-            return None
-        scope = self._scopes[-1]
-        try:
-            resolved = self.resolve_declared_native(node)
-        except BackendCapabilityError:
-            resolved = None
-        if resolved is not None and resolved.native_dtype is not None:
-            return resolved
-        try:
-            resolved = self.backend.infer_expression_operand_type(
-                scope.input_data, expression,
-            )
-        except BackendCapabilityError:
-            return None
-        scope.resolved[id(node)] = (node, resolved)
-        return resolved
-
     def _scope_for(self, node: Any) -> _Scope:
         if self._scopes and self._scopes[-1].input_data is not None:
             return self._scopes[-1]

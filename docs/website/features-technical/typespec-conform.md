@@ -174,12 +174,19 @@ cast the original struct directly. Parsing, missing-value and fill instructions
 remain in `FieldDefinition` and conformance. Do not combine a parent `dtype`
 with `fields` or `element`: those are alternative structural declarations.
 
-This does not remove existing native limitations. Narwhals list-boundary
-Float32 narrowing can turn finite `1e100` into infinity; this is accepted
-non-blocking debt under 312/NW-LIST-05 and 319, including affected nested list
-boundaries, not correct conversion. Pandas typed nested-null broadcast remains
-342; DuckDB cannot represent a zero-member `STRUCT()`. Polars and Narwhals over
-Polars preserve zero-member structs and distinguish them from null parents.
+Explicit numeric casts retain the selected backend's native conversion semantics.
+Boundary tests expose overflow and wrapping limitations; they do not install
+runtime guards into otherwise-valid casts. Mountainash must preserve values
+through its own implicit preparation—for example, an effective Float64 target
+must not first narrow through an authored Float32 child.
+
+Native Float32 narrowing can turn finite `1e100` into infinity, and some pandas
+integer casts can wrap out-of-range values. These are known numerical limitations,
+not correct results or universal checked-cast guarantees. Narwhals list processing
+remains under 312/NW-LIST-05 and 319. Existing pandas typed nested-null literal
+broadcast remains 342; it is not a reason to introduce such literals into general
+casts that previously worked. DuckDB cannot represent a zero-member `STRUCT()`;
+Polars and Narwhals over Polars preserve empty structs versus null parents.
 No provider switching or Python traversal is used to hide these limitations.
 
 ### Native schema boundaries

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import pytest
+from _pytest.outcomes import Failed
 from ibis.common.exceptions import UnsupportedBackendType
 
 import mountainash as ma
 from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
 from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
@@ -181,8 +183,8 @@ def test_container_dtype_controls_physical_result(
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("route", ["direct", "converted-child", "general-cast"])
 @pytest.mark.parametrize("nullable_parent", [False, True])
-def test_struct_float32_checks_actual_member_values(
-    backend_name, backend_factory, route, nullable_parent, request,
+def test_struct_float32_conversion_preserves_values_and_null_parents(
+    backend_name, backend_factory, route, nullable_parent,
 ):
     import polars as pl
 
@@ -192,8 +194,7 @@ def test_struct_float32_checks_actual_member_values(
         return
 
     def frame(data):
-        # Numeric safety uses structural dtype evidence, not inspection of
-        # Python objects stored in an untyped pandas object column.
+        # Use a typed Arrow struct, not an untyped pandas object column.
         if backend_name in {"pandas", "narwhals-pandas"}:
             import narwhals as nw
             import pandas as pd
@@ -212,13 +213,6 @@ def test_struct_float32_checks_actual_member_values(
         )
     values = [{"v": 1.5}, None] if nullable_parent else [{"v": 1.5}]
     source = frame({"p": values, "replacement": [1.5] * len(values)})
-    if route == "general-cast" and backend_name in {"pandas", "narwhals-pandas"}:
-        from pyarrow import ArrowInvalid
-
-        request.applymarker(pytest.mark.xfail(
-            strict=True, raises=ArrowInvalid,
-            reason="342: native Narwhals pandas typed nested-null broadcast",
-        ))
     if backend_name in {"pandas", "narwhals-pandas"} and route != "general-cast":
         with pytest.raises(BackendCapabilityError, match="cannot preserve null input structs"):
             ma.relation(source).select(expression).to_polars()
@@ -226,13 +220,48 @@ def test_struct_float32_checks_actual_member_values(
     result = ma.relation(source).select(expression).to_polars()
     assert result.to_series().to_list() == values
     assert result.to_series().dtype == pl.Struct({"v": pl.Float32})
-    source = frame({
-        "p": [{"v": 1.5 if route == "converted-child" else 1e100}],
-        "replacement": [1e100],
-    })
-    with pytest.raises(Exception) as raised:
-        ma.relation(source).select(expression).to_polars()
-    assert not isinstance(raised.value, (BackendCapabilityError, NotImplementedError, AttributeError, TypeError))
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("route", ["direct", "converted-child", "general-cast"])
+def test_struct_float32_out_of_range_member_follows_native_cast(backend_name, backend_factory, route):
+    """Native limitation: only DuckDB rejects a finite Float64 beyond Float32; the
+    other carriers' native struct cast yields infinity. Boundary values are
+    recorded here, not enforced by a runtime guard."""
+    import polars as pl
+
+    if backend_name == "ibis-sqlite":
+        with pytest.raises(UnsupportedBackendType):
+            backend_factory.create({"p": [{"v": 1e100}]}, backend_name)
+        return
+    target = StructDtype((("v", D.FP32),))
+    if route == "general-cast":
+        expression = ma.col("p").cast(target)
+    else:
+        children = (("v", ma.col("replacement")),) if route == "converted-child" else ()
+        expression = ma.col("p").struct.cast(dtype=target, field_name="p", converted_fields=children)
+    data = {"p": [{"v": 1.5 if route == "converted-child" else 1e100}], "replacement": [1e100]}
+    if backend_name in {"pandas", "narwhals-pandas"}:
+        import narwhals as nw
+        import pandas as pd
+
+        native = pl.DataFrame(data).to_arrow().to_pandas(types_mapper=pd.ArrowDtype)
+        source = nw.from_native(native) if backend_name == "narwhals-pandas" else native
+    else:
+        source = backend_factory.create(data, backend_name)
+    if backend_name in {"pandas", "narwhals-pandas"} and route != "general-cast":
+        with pytest.raises(BackendCapabilityError, match="cannot preserve null input structs"):
+            ma.relation(source).select(expression).to_polars()
+        return
+    with expect_call_failure(
+        when=backend_name != "ibis-duckdb",
+        reason="Native Float64 -> Float32 struct cast yields infinity instead of rejecting overflow.",
+        errors=(Failed,),
+    ):
+        with pytest.raises(Exception) as raised:
+            ma.relation(source).select(expression).to_polars()
+        assert not isinstance(raised.value, (BackendCapabilityError, NotImplementedError, AttributeError, TypeError))
 
 
 @pytest.mark.cross_backend
