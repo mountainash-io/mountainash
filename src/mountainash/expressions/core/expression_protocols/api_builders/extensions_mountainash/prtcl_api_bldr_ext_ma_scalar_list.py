@@ -16,7 +16,7 @@ from typing import Any, Protocol, Union, TYPE_CHECKING
 from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.core.dtypes import CastTarget
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
     from mountainash.expressions.core.expression_nodes import ExpressionNode
 
@@ -29,12 +29,11 @@ class MountainAshScalarListAPIBuilderProtocol(Protocol):
     def cast_items(
         self,
         *,
-        element: "FieldDefinition | None" = None,
-        item_type: str | None = None,
+        dtype: "CastTarget",
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
-        """Cast list items to a complete element definition or a lexical item type."""
+        """Cast a native list to the complete ``ListDtype`` target."""
         ...
 
     def element(self) -> BaseExpressionAPI:

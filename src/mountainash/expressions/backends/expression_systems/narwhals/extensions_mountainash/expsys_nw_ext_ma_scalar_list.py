@@ -9,9 +9,8 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import resolve_native_type
-from mountainash.typespec.spec import FieldDefinition
-from mountainash.core.dtypes import TypeTarget
+
+from mountainash.core.dtypes import CastTarget, TypeTarget, registry
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
@@ -111,8 +110,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         x,
         /,
         *,
-        element: FieldDefinition | None = None,
-        item_type: str | None = None,
+        dtype: CastTarget,
         failure_behavior: str = "throw",
     ):
         if failure_behavior == "null":
@@ -121,14 +119,7 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
             )
-        if item_type is not None:
-            from mountainash.typespec.universal_types import parse_universal, to_canonical
-            canonical = to_canonical(parse_universal(item_type))
-            from mountainash.core.dtypes import registry
-            dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
-            return self._cast_target(x, nw.List(dtype))
-        dtype = resolve_native_type(FieldDefinition(element=element), TypeTarget.NARWHALS)
-        return self._cast_target(x, dtype)
+        return self._cast_target(x, registry.to_native_cast(dtype, TypeTarget.NARWHALS))
 
     def list_sum(self, x: NarwhalsExpr, /):
         return x.list.sum()

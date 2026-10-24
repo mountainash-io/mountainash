@@ -11,8 +11,7 @@ import re
 from typing import get_type_hints
 import pytest
 
-from mountainash.typespec.spec import FieldDefinition
-from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
 
 from mountainash.expressions.backends.expression_systems.ibis import (
     IbisExpressionSystem,
@@ -371,7 +370,7 @@ def _init_a2_local_builders() -> dict:
         FKEY_MOUNTAINASH_SCALAR_DATETIME.OFFSET_BY: lambda: c.dt.offset_by(offset="1d"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: c.struct.field("x"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: c.struct.cast(
-            fields={"id": FieldDefinition(type=UniversalType.INTEGER)}, field_name="x"
+            dtype=StructDtype((("id", D.I64),)), field_name="x"
         ),
         FKEY_MOUNTAINASH_SCALAR_GEOSPATIAL.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(
             format="default", source_representation="lexical", field_name="x"
@@ -384,7 +383,7 @@ def _init_a2_local_builders() -> dict:
         ),
         FKEY_MOUNTAINASH_SCALAR_LIST.PARSE: lambda: s.str.parse_list(field_name="x"),
         FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: c.list.cast_items(
-            element=FieldDefinition(fields={"id": FieldDefinition(type=UniversalType.INTEGER)}), field_name="x"
+            dtype=ListDtype(StructDtype((("id", D.I64),))), field_name="x"
         ),
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
             value_type="integer", categories=(1, 2), ordered=True, field_name="x"

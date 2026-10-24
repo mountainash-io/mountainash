@@ -15,38 +15,29 @@ from mountainash.expressions.core.expression_protocols.api_builders.extensions_m
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
 from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
-from ._operation_options import validate_failure_behavior, validate_element, validate_field_name
+from mountainash.core.dtypes import ListDtype
+from ._operation_options import validate_container_dtype, validate_failure_behavior, validate_field_name
 if TYPE_CHECKING:
     from ...api_base import BaseExpressionAPI
-    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.core.dtypes import CastTarget
 
 
 class MountainAshScalarListAPIBuilder(BaseExpressionAPIBuilder, MountainAshScalarListAPIBuilderProtocol):
     def cast_items(
         self,
         *,
-        element: "FieldDefinition | None" = None,
-        item_type: str | None = None,
+        dtype: "CastTarget",
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
     ) -> BaseExpressionAPI:
-        """Cast native list items to a complete element definition or a lexical item type."""
-        element = validate_element("cast_items", "element", element) if item_type is None else None
+        """Cast a native list to the complete ``ListDtype`` target."""
+        target = validate_container_dtype("cast_items", dtype, ListDtype)
         validate_field_name("cast_items", field_name)
         failure = validate_failure_behavior("cast_items", failure_behavior)
-        if item_type is not None:
-            from ._operation_options import validate_item_type
-            validate_item_type("cast_items", item_type)
-        options = {
-            "element": element,
-            "failure_behavior": failure.value,
-        }
-        if item_type is not None:
-            options["item_type"] = item_type
         node = ScalarFunctionNode(
             function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
             arguments=[self._node],
-            options=options,
+            options={"dtype": target, "failure_behavior": failure.value},
             diagnostic_context={
                 "field_name": field_name,
                 "logical_type": "array",

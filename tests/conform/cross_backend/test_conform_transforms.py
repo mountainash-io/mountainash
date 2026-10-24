@@ -324,3 +324,177 @@ def test_native_fixed_array_element_fill_preserves_dimensions(lazy, dimensions, 
     result = ma.relation(frame.lazy() if lazy else frame).conform(schema).to_polars()
     assert result["groups"].to_list() == expected
     assert result.schema["groups"] == pl.Array(pl.Int64, dimensions)
+
+
+# ---------------------------------------------------------------------------
+# Fills under the effective container target. The authored child is narrower
+# (Int8) than the complete target (Int64); 128/129 only exist under the latter.
+# ---------------------------------------------------------------------------
+
+def _native_target(dtype, backend_name):
+    """The complete container target in the backend's own native vocabulary.
+
+    FieldDefinition rejects a portable ``dtype`` beside authored ``fields`` /
+    ``element`` (single structural authority), so an effective container
+    target is declared through the owning carrier's native dtype.
+    """
+    from mountainash.core.dtypes import TypeTarget, registry
+
+    # pandas executes through the Narwhals expression system (core/constants.py).
+    target = (
+        TypeTarget.POLARS if backend_name.startswith("polars")
+        else TypeTarget.NARWHALS if backend_name in {"pandas"} or backend_name.startswith("narwhals")
+        else TypeTarget.IBIS
+    )
+    return registry.to_native_cast(dtype, target)
+
+
+def _struct_source(backend_name, backend_factory, records):
+    import json
+
+    physical = (
+        [None if value is None else json.dumps(value) for value in records]
+        if backend_name == "ibis-sqlite" else records
+    )
+    return backend_factory.create({"record": physical}, backend_name)
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_child_fill_converts_under_effective_container_target(backend_name, backend_factory):
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype as D, StructDtype
+
+    source = _struct_source(backend_name, backend_factory, [
+        {"id": None, "keep": "a"}, {"id": 5, "keep": None}, None,
+    ])
+    field = FieldDefinition(
+        type=UniversalType.OBJECT,
+        backend_type=_native_target(StructDtype((("keep", D.STRING), ("id", D.I64))), backend_name),
+        fields={"id": FieldDefinition(dtype=D.I8, null_fill=129)},
+    )
+    out = ma.relation(source).conform(
+        TableSchema(fields={"record": field}, missing_values=[]),
+    ).to_polars()
+    assert out.schema["record"] == pl.Struct({"keep": pl.String, "id": pl.Int64})
+    assert out["record"].to_list() == [
+        {"keep": "a", "id": 129},   # child null: filled under Int64, not Int8
+        {"keep": None, "id": 5},    # untouched member preserved
+        None,                       # parent null is not a child null
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_list_element_fill_converts_under_effective_list_target(backend_name, backend_factory):
+    from mountainash.core.dtypes import ListDtype, MountainashDtype as D
+
+    with expect_call_failure(
+        when=backend_name in {"narwhals-polars", "narwhals-lazy", "ibis-sqlite"},
+        errors=(UnsupportedBackendType,) if backend_name == "ibis-sqlite"
+        else (BackendCapabilityError,),
+        reason="SQLite cannot store arrays; Narwhals lacks native element expressions",
+    ):
+        frame = backend_factory.create({"groups": [["128", None], None, []]}, backend_name)
+        schema = TableSchema(fields={"groups": FieldDefinition(
+            backend_type=_native_target(ListDtype(D.I64), backend_name),
+            element=FieldDefinition(dtype=D.I8, null_fill=129),
+        )}, missing_values=[])
+        result = ma.relation(frame).conform(schema).to_polars()
+        assert result["groups"].to_list() == [[128, 129], None, []]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+def test_invalid_nonmissing_child_is_never_filled(lazy, action):
+    # Native atomic nested discard is a Polars capability (see
+    # test_native_child_conversion_discards_invalid_parent_not_missing_child).
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype as D, StructDtype
+
+    field = FieldDefinition(
+        type=UniversalType.OBJECT,
+        backend_type=_native_target(StructDtype((("id", D.I64),)), "polars"),
+        fields={"id": FieldDefinition(dtype=D.I8, null_fill=7, missing_values=["NA"])},
+    )
+    frame = pl.DataFrame({"record": [
+        {"id": "bad"}, {"id": "NA"}, {"id": None}, {"id": "3"}, {"id": "129"}, None,
+    ]})
+    out = ma.relation(frame.lazy() if lazy else frame).conform(
+        TableSchema(fields={"record": field}, missing_values=[]), contract={"data_type": action},
+    ).to_polars()
+    expected = [None, {"id": 7}, {"id": 7}, {"id": 3}, {"id": 129}, None]
+    if action == "discard_row":
+        del expected[0]
+    assert out.schema["record"] == pl.Struct({"id": pl.Int64})
+    assert out["record"].to_list() == expected
+
+
+def test_invalid_nonmissing_child_with_fill_still_fails_under_coerce():
+    import polars as pl
+    from mountainash.conform.errors import ConformTransformError
+    from mountainash.core.dtypes import MountainashDtype as D, StructDtype
+
+    field = FieldDefinition(
+        type=UniversalType.OBJECT,
+        backend_type=_native_target(StructDtype((("id", D.I64),)), "polars"),
+        fields={"id": FieldDefinition(dtype=D.I8, null_fill=7)},
+    )
+    with pytest.raises((pl.exceptions.PolarsError, ConformTransformError)):
+        ma.relation(pl.DataFrame({"record": [{"id": "bad"}]})).conform(
+            TableSchema(fields={"record": field}, missing_values=[]),
+        ).to_polars()
+
+
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+def test_invalid_child_fill_keeps_existing_failure_scope(action):
+    # Original missingness remains authoritative: an invalid fill leaves the
+    # originally-null child null, rather than turning it into a source failure.
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype as D, StructDtype
+
+    field = FieldDefinition(
+        type=UniversalType.OBJECT,
+        backend_type=_native_target(StructDtype((("id", D.I64),)), "polars"),
+        fields={"id": FieldDefinition(dtype=D.I8, null_fill="oops")},
+    )
+    out = ma.relation(pl.DataFrame({"record": [{"id": None}, {"id": "3"}, None]})).conform(
+        TableSchema(fields={"record": field}, missing_values=[]), contract={"data_type": action},
+    ).to_polars()
+    assert out.schema["record"] == pl.Struct({"id": pl.Int64})
+    assert out["record"].to_list() == [{"id": None}, {"id": 3}, None]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("dimensions,values,expected", [
+    ((2,), [["128", None], None], [[128, 129], None]),
+    ((2, 2), [[["1", None], ["128", "3"]], None], [[[1, 129], [128, 3]], None]),
+])
+def test_fixed_array_effective_element_fills_under_wide_target(lazy, dimensions, values, expected):
+    """Polars-specific physical representation; other routes use the list matrix above."""
+    import polars as pl
+    from mountainash.core.dtypes import ArrayDtype, MountainashDtype as D
+
+    frame = pl.DataFrame({"groups": values}, schema={"groups": pl.Array(pl.String, dimensions)})
+    schema = TableSchema(fields={"groups": FieldDefinition(
+        backend_type=_native_target(ArrayDtype(D.I64, dimensions), "polars"),
+        element=FieldDefinition(dtype=D.I8, null_fill=129), dimensions=dimensions,
+    )}, missing_values=[])
+    result = ma.relation(frame.lazy() if lazy else frame).conform(schema).to_polars()
+    assert result.schema["groups"] == pl.Array(pl.Int64, dimensions)
+    assert result["groups"].to_list() == expected
+
+
+def test_fixed_array_invalid_element_is_not_filled_and_discards_array():
+    import polars as pl
+    from mountainash.core.dtypes import ArrayDtype, MountainashDtype as D
+
+    frame = pl.DataFrame(
+        {"groups": [[["1", None], ["bad", "3"]], [["1", None], ["128", "3"]]]},
+        schema={"groups": pl.Array(pl.String, (2, 2))},
+    )
+    schema = TableSchema(fields={"groups": FieldDefinition(
+        backend_type=_native_target(ArrayDtype(D.I64, (2, 2)), "polars"),
+        element=FieldDefinition(dtype=D.I8, null_fill=129), dimensions=(2, 2),
+    )}, missing_values=[])
+    result = ma.relation(frame).conform(schema, contract={"data_type": "discard_value"}).to_polars()
+    assert result.schema["groups"] == pl.Array(pl.Int64, (2, 2))
+    assert result["groups"].to_list() == [None, [[1, 129], [128, 3]]]

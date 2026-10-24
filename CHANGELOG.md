@@ -3,6 +3,11 @@
 ## Unreleased — 2026-10-22
 
 ### Fixed
+- Unidentified native failures at materialization now propagate unchanged instead of being attributed to an unrelated successful conform field. Positively identified native issues and owned conform errors retain their existing enrichment.
+- Numeric boundary safety is qualified in tests rather than enforced by new supplemental runtime guards. Scalar and container casts retain native conversion behavior; native overflow/wrapping limitations remain explicit. Removed the branch-added numeric predicates, numeric-only container reconstruction and unused safety metadata plumbing, restoring valid pandas general struct casts without a 342 waiver. Resolved-target widening and existing native failure scopes remain intact.
+- Container conformance executes the selected recursive target without casting through superseded child widths (341). Child fills use that same target; untouched members retain target order, null parents remain null, and authored declarations remain unchanged.
+- Coercing datacontract validation now consumes the same nested conversions and fills as logical conformance for JSON/opaque containers, including pandas-backed objects and lists. Non-coercing validation retains source values and structural aliases; no backend-specific validation path was added.
+- Transported UInt64 members and child fills retain their selected unsigned type before Arrow inference, including containers with partially specified siblings. This removes an unintended signed-Int64 intermediate without adding range guards or changing explicit native cast semantics.
 - Shared-schema conform: Ibis/DuckDB string values with a numeric null fill now convert through the deferred public relation path (`["4", None]` → `[4, 0]`, Int64). Failed conversions are not treated as original missing values.
 - Conform output reconciliation honors explicit extra-column policies over presets and preserves row cardinality for literal-only projections.
 - Nested shared definitions apply conversion and fill settings at every element level, including whole record/list fills; fixed-array element conversion preserves declared dimensions.
@@ -24,12 +29,13 @@
 
 ### Changed
 - Shared schema declarations use unnamed immutable `FieldDefinition` values and an owned ordered `TableSchema.fields` mapping. `.variant(...)` creates independent definitions; deferred operations capture declaration snapshots. The module remains `mountainash.typespec`; old model aliases are not retained.
+- Direct `.struct.cast(...)` and `.list.cast_items(...)` require a complete `dtype`. Struct child expressions use `converted_fields`; declaration parsing and fill instructions belong to conformance. Retired `fields`/`element` execution options are removed rather than retained as alternate modes.
 - Native type/schema construction is owned by registered adapters; physical relation description routes through the selected relation system, with Ibis dialect inspection isolated inside its backend.
 - Persisted legacy nested declarations use the explicit pure `migrate_nested_field_declarations` boundary; ordinary typed reads validate the packaged recursive grammar and reject retired child-declaration keys.
 - Declare Narwhals-pandas float64 ranking output (`row_number`/`rank`/`dense_rank`) as a native divergence (backlog 367); values are unchanged and no cast is applied.
 
 ### Qualification
-- The strategic shared-schema restart is in Phase-4 qualification, not release-qualified. Final approval still requires item 373 solved and integrated. List/struct native-override precedence (341) and opaque-container nested validation semantics (356) remain owner-deferred, with failing expectations visible. PostgreSQL live execution is not claimed qualified.
+- Resolved-container execution, JSON interchange and coercing/non-coercing contract consumers are locally qualified, with independent correctness, parsimony and principles reviews accepted. Item 373's final-approval gate remains removed; its debt remains. Explicit native numeric casts may overflow or wrap; exact boundary tests record limitations rather than add operational guards. Narwhals list limitations remain under 312/NW-LIST-05 and 319. Existing pandas typed-null literal broadcast (342), pandas nested masking (374), native empty-struct limits and untyped opaque-source Arrow inference remain separate limits. The coercing-consumer slice of 356 is repaired; broader debt is not silently closed.
 
 ## Unreleased — 2026-10-21
 

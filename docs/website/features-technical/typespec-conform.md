@@ -147,11 +147,62 @@ Schema inspection uses native metadata first and retains detailed dtype paramete
 
 Bare canonical timestamp/duration casts and source-bearing conform preserve compatible source precision, units and timezone where the destination supports them. Typed empty/all-null columns still carry source metadata; temporal null fills do not lower the source's precision. Without temporal source metadata, existing backend defaults apply; explicit targets remain authoritative. Destination-imposed precision loss is ordinary conversion behavior, not a reason to reduce every backend to a common precision. For example, DuckDB's aware timestamp ingestion converts `1001 ns` to `1000 ns`; that destination-specific result is tested as passing, while capable paths retain all digits. Native conversion errors remain errors.
 
-Whole-container native override execution has an unresolved precedence defect
-(item 341): an original Int8 child can still be cast before its enclosing native
-Int64 target, rejecting 128. The owner deferred this list/struct repair from the
-shared-schema implementation pass. Native schema construction selecting the
-correct target is not proof that this conformance path executes correctly.
+Whole-container overrides govern execution as well as schema construction.
+An authored Int8 child under an effective Int64 struct target preserves `128`;
+its `null_fill=129` also uses Int64. Unchanged target members retain their order,
+null parents remain null, and the original child definition stays Int8.
+
+JSON-restored declarations use the same conformance path as authored schemas.
+Coercing datacontracts validate the converted nested values, including child
+fills; non-coercing contracts retain source values while still applying structural
+aliases. This also applies to opaque pandas containers resolved at the logical
+materialization boundary.
+Unsigned JSON integer members are prepared using the selected unsigned target
+before Arrow container inference, including when a sibling's timestamp parameters
+remain partial. This preserves UInt64 values and fills without an intermediate
+signed-Int64 conversion; final casts retain native semantics.
+
+JSON stores supported native override strings, not native library dtype objects.
+Those strings belong to the selected adapter: for example, `List(Int64)` on
+Polars/Narwhals and `array<int64>` on Ibis. They are not a portable interchange
+syntax; use composed `FieldDefinition` declarations for portable structure.
+
+Direct expression casts accept the resolved physical target, not field
+declarations:
+
+```python
+from mountainash.core.dtypes import ListDtype, StructDtype
+
+record = ma.col("record").struct.cast(
+    dtype=StructDtype((("id", ma.MountainashDtype.I64),)),
+    field_name="record",
+)
+items = ma.col("items").list.cast_items(
+    dtype=ListDtype(ma.MountainashDtype.I64),
+    field_name="items",
+)
+```
+
+For an already compiled child expression, pass
+`converted_fields=(("id", expression),)` to `struct.cast`; no children means
+cast the original struct directly. Parsing, missing-value and fill instructions
+remain in `FieldDefinition` and conformance. Do not combine a parent `dtype`
+with `fields` or `element`: those are alternative structural declarations.
+
+Explicit numeric casts retain the selected backend's native conversion semantics.
+Boundary tests expose overflow and wrapping limitations; they do not install
+runtime guards into otherwise-valid casts. Mountainash must preserve values
+through its own implicit preparation—for example, an effective Float64 target
+must not first narrow through an authored Float32 child.
+
+Native Float32 narrowing can turn finite `1e100` into infinity, and some pandas
+integer casts can wrap out-of-range values. These are known numerical limitations,
+not correct results or universal checked-cast guarantees. Narwhals list processing
+remains under 312/NW-LIST-05 and 319. Existing pandas typed nested-null literal
+broadcast remains 342; it is not a reason to introduce such literals into general
+casts that previously worked. DuckDB cannot represent a zero-member `STRUCT()`;
+Polars and Narwhals over Polars preserve empty structs versus null parents.
+No provider switching or Python traversal is used to hide these limitations.
 
 ### Native schema boundaries
 
@@ -330,12 +381,13 @@ closed on.
 uniqueness, and foreign-key checks compare decoded logical values, never raw
 transported text — whitespace and object-key order never change the outcome.
 
-Nested conversion during direct validation of opaque/transported containers
-remains deferred under item 356. For example, a nested integer with
-`minimum=0, null_fill=7` over `["2", null, "-3"]` can report one passing and two
-failing records on that path, while validation after logical materialization
-reports two passing and one failing. This is existing debt, not newly qualified
-cross-carrier equivalence; the shared-schema migration does not repair or hide it.
+Validation consumes conversions and child fills when the relation requests
+conformance, including the logical terminal used by coercing datacontracts.
+Without requested value transformation, validation checks decoded source values;
+it does not apply a child fill merely because the declaration contains one.
+The historical carrier-dependent coercing-contract discrepancy recorded in item
+356 is repaired by the shared logical conversion path. This does not claim that
+every opaque source is representable by its provider's Arrow conversion.
 
 ## Exact decimals
 

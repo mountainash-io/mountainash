@@ -1,11 +1,10 @@
 """Protocol for mountainash struct field operations."""
 from __future__ import annotations
 
-from collections.abc import Mapping  # noqa: TC003 - runtime get_type_hints() resolution
 from typing import Protocol, Literal
 
 from mountainash.core.types import ExpressionT
-from mountainash.typespec.spec import FieldDefinition  # noqa: TC001 - runtime get_type_hints() resolution
+from mountainash.core.dtypes import CastTarget  # noqa: TC001 - runtime get_type_hints() resolution
 
 
 class MountainAshScalarStructExpressionSystemProtocol(Protocol[ExpressionT]):
@@ -17,6 +16,7 @@ class MountainAshScalarStructExpressionSystemProtocol(Protocol[ExpressionT]):
         x: ExpressionT,
         /,
         *converted_fields: ExpressionT,
-        fields: Mapping[str, FieldDefinition],
+        dtype: CastTarget,
+        field_names: tuple[str, ...] = (),
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> ExpressionT: ...

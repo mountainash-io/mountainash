@@ -1,11 +1,10 @@
 """Validation shared by the Unit C structural operation builders."""
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any
 
+from mountainash.core.dtypes import CastTarget, DtypeError, NativeDtype, parse_cast_target
 from mountainash.core.errors import InvalidOptionValueError
-from mountainash.typespec.spec import FieldDefinition
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 
@@ -22,28 +21,21 @@ def validate_field_name(method: str, field_name: Any) -> str:
     return field_name
 
 
+def validate_container_dtype(method: str, dtype: Any, container: type) -> CastTarget:
+    """Parse a required complete container target (portable ``container`` or native)."""
+    try:
+        target = parse_cast_target(dtype)
+    except DtypeError as error:
+        invalid(method, "dtype", f"must be a complete {container.__name__}: {error}")
+    if not isinstance(target, (container, NativeDtype)):
+        invalid(method, "dtype", f"must be a complete {container.__name__}")
+    return target
+
+
 def validate_failure_behavior(method: str, value: Any) -> CaseFailureBehaviour:
     if not isinstance(value, CaseFailureBehaviour):
         invalid(method, "failure_behavior", "must be CaseFailureBehaviour")
     return value
-
-
-def validate_field_mapping(method: str, option: str, fields: Any) -> dict[str, FieldDefinition]:
-    """Own an ordered ``name -> FieldDefinition`` mapping (an empty record is a valid declaration)."""
-    if not isinstance(fields, Mapping):
-        invalid(method, option, "must be an ordered mapping of field name to FieldDefinition")
-    for name, definition in fields.items():
-        if not isinstance(name, str):
-            invalid(method, f"{option}[{name!r}]", "field names must be strings")
-        if not isinstance(definition, FieldDefinition):
-            invalid(method, f"{option}[{name!r}]", "must be FieldDefinition")
-    return dict(fields)
-
-
-def validate_element(method: str, option: str, element: Any) -> FieldDefinition:
-    if not isinstance(element, FieldDefinition):
-        invalid(method, option, "must be a complete FieldDefinition")
-    return element
 
 
 def validate_item_type(method: str, item_type: Any) -> str:

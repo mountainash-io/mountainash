@@ -2354,3 +2354,34 @@ issues:
     broader Narwhals-backend qualification is not required by this finding.
     No workaround, unsupported declaration, or external issue is claimed.
   last_verified: '2026-10-19'
+- id: NW-CAST-02
+  project: narwhals
+  category: cast-semantics
+  summary: pandas Arrow struct Series.where routes nullable UInt64 children through floating values
+  root_cause: upstream_bug
+  affected_backends:
+  - pandas
+  - narwhals-pandas
+  upstream_issue: null
+  upstream_issue_filed_by: null
+  status: needs_filing
+  our_workaround: xfail_strict
+  notes: >-
+    Backlog 374, owner-accepted non-blocking debt. The defect is native pandas,
+    reproduced without Mountainash or Narwhals on pandas 3.0.6 with PyArrow
+    26.0.0: Series.where on an ArrowDtype struct with a nullable UInt64 child
+    rounds retained 9007199254740993 to 9007199254740992 while keeping the
+    struct dtype; the same masking with UInt64 maximum raises ArrowInvalid
+    (Narwhals 2.27.1 struct conditional observed 1.8446744073709552e+19 to uint64).
+    pandas' Arrow _replace_with_mask falls back from pc.replace_with_mask to an
+    object array (pandas/core/arrays/arrow/array.py:2695-2706). The project is
+    narwhals only because the registry has no pandas project; no pandas or
+    Narwhals issue has been filed or identified. Strict native witnesses with
+    correct retained-value oracles live in
+    tests/relations/cross_backend/test_lazy_provider_execution.py. No runtime
+    guard, provider unwrapping, Float64 substitution, release or 373 gate is
+    added; existing Narwhals refusals are unchanged and the native witness is
+    not public support. Requalify native masking and the public composed struct
+    conversion, retaining nullable-child, null-container, masked-row and UInt64
+    boundary controls, after an upstream repair.
+  last_verified: '2026-10-24'

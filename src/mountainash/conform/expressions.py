@@ -892,24 +892,23 @@ def _lower_field_value(
     schema_missing_values: Sequence[str] = (),
     type_action: str = "coerce",
     source_shape: SourceShape | None = None,
-    effective_type: Any = None,
+    effective_type: Any,
     data_type_action: str | None = None,
 ) -> FieldBuildResult:
     """Lower conversion without filling; missingness selects fill separately."""
 
     import mountainash as ma
     from mountainash.core.dtypes import (
-        ArrayDtype, DecimalDtype, ListDtype, MountainashDtype, NativeDtype,
+        ArrayDtype, DecimalDtype, ListDtype, MountainashDtype, NativeDtype, StructDtype,
     )
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldDefinition
     from mountainash.typespec.universal_types import UniversalType, to_canonical
 
     fld = field
-    declared_type = _resolve_declared_type(field, field.rename_from or "")
     if type_action == "null_fill":
         output = ma.lit(None)
-        target = effective_type if effective_type is not None else declared_type
+        target = effective_type
         if isinstance(target, DecimalDtype):
             output = ma.lit(None, dtype=target)
         elif isinstance(target, (MountainashDtype, NativeDtype)) or _parameterized_target(target):
@@ -935,11 +934,7 @@ def _lower_field_value(
         and (fld.dtype is not None or fld.backend_type or fld.fields is not None or fld.element is not None)
         and _is_null_shape(shape) and type_action != "evolve"
     ):
-        from mountainash.typespec.converters import resolve_native_type
-        target = shape.native_dtype.target
-        null_container_target = effective_type if isinstance(effective_type, NativeDtype) else NativeDtype(
-            value=resolve_native_type(fld, target, source=shape, path=path), target=target,
-        )
+        null_container_target = effective_type
     if _structured_carrier(fld, shape) in {
         StructuredCarrier.JSON_TEXT,
         StructuredCarrier.OPAQUE,
@@ -1139,57 +1134,11 @@ def _lower_field_value(
             )
         if type_action in {"discard_value", "discard_row"}:
             output = ma.lit(None)
-            typed_value = None
-
-            def _placeholder(inner):
-                if isinstance(inner.fields, Mapping):
-                    return {
-                        name: _placeholder(child)
-                        for name, child in inner.fields.items()
-                    }
-                return None
-
-            if fld.type in {UniversalType.LIST, UniversalType.ARRAY}:
-                if isinstance(fld.element, FieldDefinition):
-                    typed_value = ma.lit([]).list.cast_items(
-                        element=fld.element,
-                        field_name=output_name,
-                        failure_behavior=CaseFailureBehaviour.NULL,
-                    )
-                elif fld.item_type:
-                    typed_value = ma.lit([]).list.cast_items(
-                        item_type=fld.item_type,
-                        field_name=output_name,
-                        failure_behavior=CaseFailureBehaviour.NULL,
-                    )
-                else:
-                    typed_value = ma.lit([])
-            elif fld.type == UniversalType.GEOPOINT and fld.format == "array":
-                typed_value = ma.lit([]).list.cast_items(
-                    item_type="number",
-                    field_name=output_name,
-                    failure_behavior=CaseFailureBehaviour.NULL,
-                )
-            elif fld.type == UniversalType.OBJECT and isinstance(fld.fields, Mapping):
-                typed_value = ma.lit(_placeholder(fld)).struct.cast(
-                    fields=fld.fields,
-                    field_name=output_name,
-                    failure_behavior=CaseFailureBehaviour.NULL,
-                )
-            elif fld.type == UniversalType.GEOPOINT and fld.format == "object":
-                coordinate_fields = {
-                    "lon": FieldDefinition(type=UniversalType.NUMBER),
-                    "lat": FieldDefinition(type=UniversalType.NUMBER),
-                }
-                typed_value = ma.lit({"lon": None, "lat": None}).struct.cast(
-                    fields=coordinate_fields,
-                    field_name=output_name,
-                    failure_behavior=CaseFailureBehaviour.NULL,
-                )
-            if typed_value is not None:
-                output = ma.when(ma.lit(False)).then(typed_value).otherwise(output)
-            elif isinstance(declared_type, MountainashDtype) or _parameterized_target(effective_type):
-                output = output.cast(effective_type if _parameterized_target(effective_type) else declared_type)
+            if (
+                isinstance(effective_type, (MountainashDtype, NativeDtype))
+                or _parameterized_target(effective_type)
+            ):
+                output = ma.lit(None, dtype=effective_type)
             discard = None
             if type_action == "discard_row":
                 discard = ~(post_missing.is_not_null() & output.is_null())
@@ -1202,25 +1151,34 @@ def _lower_field_value(
         child_path: tuple[str | None, ...],
     ) -> tuple[tuple[tuple[str, Any], ...], Any]:
         from mountainash.core.dtypes import StructDtype
-        from mountainash.typespec.converters import resolve_field_canonical
 
         source_children = dict(parent_shape.struct_fields)
-        child_targets = dict(target_shape.fields) if (
+        child_targets = target_shape.fields if (
             isinstance(target_shape, StructDtype) and isinstance(target_shape.fields, tuple)
-        ) else {}
+        ) else ()
         converted = []
         validity = None
-        for name, child in children.items():
-            source_name = child.rename_from if child.rename_from is not None else name
+        for name, target in child_targets:
+            child = children.get(name)
+            source_name = child.rename_from if child is not None and child.rename_from is not None else name
+            child_source = (
+                ma.lit(None, dtype=target)
+                if child is None and parent_shape.struct_fields and source_name not in source_children
+                else parent_expr.struct.field(source_name)
+            )
+            if child is None:
+                converted.append((name, child_source))
+                continue
             child_result = _build_field_expr(
                 child, output_name=name, path=child_path + (name,),
-                source_expr=parent_expr.struct.field(source_name),
+                source_expr=child_source,
                 schema_missing_values=schema_missing_values,
                 type_action="discard_row" if type_action in {"discard_value", "discard_row"} else type_action,
                 data_type_action=data_type_action,
                 source_shape=source_children.get(source_name),
-                effective_type=child_targets.get(name, resolve_field_canonical(child)),
+                effective_type=target,
             )
+            residue.extend(child_result.residue_checks)
             converted.append((name, child_result.output))
             if child_result.discard_row_filter is not None:
                 validity = child_result.discard_row_filter if validity is None else validity & child_result.discard_row_filter
@@ -1231,7 +1189,7 @@ def _lower_field_value(
         semantic_text = child.type in {
             UniversalType.BOOLEAN, UniversalType.LIST, UniversalType.DURATION,
             UniversalType.YEAR, UniversalType.YEARMONTH, UniversalType.GEOJSON,
-        } and source is not None and source.canonical_type is MountainashDtype.STRING
+        } and (source is None or source.canonical_type in {None, MountainashDtype.STRING})
         return bool(
             semantic_text
             or child.format not in (None, "default")
@@ -1257,6 +1215,7 @@ def _lower_field_value(
 
 
     residue: list[MaterializationResidueCheck] = []
+    target_applied = False
     if type_action == "evolve":
         return FieldBuildResult(transform_input.name.alias(output_name))
     if (
@@ -1276,41 +1235,66 @@ def _lower_field_value(
             field_name=output_name,
             failure_behavior=failure,
         )
+        if isinstance(child_shape_type, ListDtype):
+            expr = expr.list.cast_items(
+                dtype=effective_type, field_name=output_name, failure_behavior=failure,
+            )
+            target_applied = True
     elif (
         fld.type == UniversalType.ARRAY
         and canonical is MountainashDtype.LIST
-        and isinstance(fld.element, FieldDefinition)
+        and isinstance(child_shape_type, (ListDtype, ArrayDtype))
         and not lexical
     ):
-        element = fld.element
-        element_type = getattr(child_shape_type, "element", None)
-        if isinstance(child_shape_type, ArrayDtype) and isinstance(child_shape_type.dimensions, tuple):
-            remaining_dimensions = child_shape_type.dimensions[1:]
-            if remaining_dimensions:
-                element = FieldDefinition(element=element, dimensions=remaining_dimensions)
-                element_type = ArrayDtype(element_type, remaining_dimensions)
-        if _needs_child_conversion(element, shape.item_shape):
-            if isinstance(shape.detailed_dtype, ArrayDtype):
-                expr = expr.cast(ListDtype(shape.item_shape.detailed_dtype))
-            built_element = _build_field_expr(
-                element, output_name=output_name, source_expr=expr.list.element(),
-                path=path + (None,), source_shape=shape.item_shape,
-                effective_type=element_type,
-                type_action="discard_row" if type_action in {"discard_value", "discard_row"} else type_action,
-                schema_missing_values=schema_missing_values,
-                data_type_action=data_type_action,
-            )
-            converted = expr.list.agg(built_element.output)
-            if built_element.discard_row_filter is not None:
-                valid = expr.list.agg(built_element.discard_row_filter).list.all()
-                converted = ma.when(valid).then(converted).otherwise(ma.lit(None))
-            expr = converted
-        elif not isinstance(child_shape_type, ArrayDtype):
+        leaf_shape = shape.item_shape
+        dimensions = child_shape_type.dimensions if isinstance(child_shape_type, ArrayDtype) else ()
+        if isinstance(dimensions, tuple):
+            for _ in dimensions[1:]:
+                leaf_shape = leaf_shape.item_shape if leaf_shape is not None else None
+        if isinstance(fld.element, FieldDefinition) and _needs_child_conversion(fld.element, leaf_shape):
+            def convert_items(collection, target, source, item_path):
+                remaining = target.dimensions[1:] if (
+                    isinstance(target, ArrayDtype) and isinstance(target.dimensions, tuple)
+                ) else ()
+                item_target = ArrayDtype(target.element, remaining) if remaining else target.element
+                item_shape = source.item_shape if source is not None else None
+                if source is not None and isinstance(source.detailed_dtype, ArrayDtype):
+                    collection = collection.cast(ListDtype(item_shape.detailed_dtype))
+                if remaining:
+                    nested_output, nested_valid = convert_items(
+                        collection.list.element(), item_target, item_shape, item_path + (None,),
+                    )
+                    output = collection.list.agg(nested_output)
+                    valid = collection.list.agg(nested_valid).list.all() if nested_valid is not None else None
+                else:
+                    built = _build_field_expr(
+                        fld.element, output_name=output_name, source_expr=collection.list.element(),
+                        path=item_path + (None,), source_shape=item_shape,
+                        effective_type=item_target,
+                        type_action="discard_row" if type_action in {"discard_value", "discard_row"} else type_action,
+                        schema_missing_values=schema_missing_values,
+                        data_type_action=data_type_action,
+                    )
+                    output = collection.list.agg(built.output)
+                    valid = (
+                        collection.list.agg(built.discard_row_filter).list.all()
+                        if built.discard_row_filter is not None else None
+                    )
+                    for check in built.residue_checks:
+                        residue.append(MaterializationResidueCheck(
+                            check.function_key, check.field_name,
+                            collection.list.agg(check.marker).list.any(),
+                        ))
+                if valid is not None:
+                    output = ma.when(valid).then(output).otherwise(ma.lit(None))
+                return output, valid
+
+            expr, _ = convert_items(expr, child_shape_type, shape, path)
+        elif isinstance(child_shape_type, ListDtype):
             expr = expr.list.cast_items(
-                element=element,
-                field_name=output_name,
-                failure_behavior=failure,
+                dtype=effective_type, field_name=output_name, failure_behavior=failure,
             )
+            target_applied = True
     elif fld.type == UniversalType.BOOLEAN:
         true_values = tuple(fld.true_values or ["true", "True", "TRUE", "1"])
         false_values = tuple(fld.false_values or ["false", "False", "FALSE", "0"])
@@ -1320,19 +1304,20 @@ def _lower_field_value(
             field_name=output_name,
             failure_behavior=failure,
         )
-    elif fld.type == UniversalType.OBJECT and isinstance(fld.fields, Mapping) and not lexical:
+    elif fld.type == UniversalType.OBJECT and isinstance(child_shape_type, StructDtype) and not lexical:
         converted_fields, converted_validity = (
             _converted_child_fields(fld.fields, expr, shape, child_shape_type, path)
-            if _needs_child_conversion(fld, shape)
+            if isinstance(fld.fields, Mapping) and _needs_child_conversion(fld, shape)
             else ((), None)
         )
         expr = expr.struct.cast(
-            fields=fld.fields,
+            dtype=effective_type,
             converted_fields=converted_fields,
             converted_validity=converted_validity,
             field_name=output_name,
             failure_behavior=failure,
         )
+        target_applied = True
     elif fld.type in {UniversalType.ARRAY, UniversalType.OBJECT}:
         # Plain native containers have no child schema to apply.  The source
         # already has the required physical representation; preserve it.
@@ -1398,7 +1383,7 @@ def _lower_field_value(
         target = to_canonical(fld.type)
         if target is not None:
             expr = expr.cast(target, failure_behavior=failure)
-    if null_container_target is None and (
+    if not target_applied and null_container_target is None and (
         isinstance(effective_type, NativeDtype)
         or _parameterized_target(effective_type)
         or (

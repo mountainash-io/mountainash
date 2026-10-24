@@ -598,8 +598,8 @@ class TestComposedStructure:
         (FieldDefinition(type=U.LIST), D.LIST),
         (FieldDefinition(type=U.ARRAY), D.LIST),
         (FieldDefinition(type=U.GEOPOINT), D.STRING),
-        (FieldDefinition(type=U.GEOPOINT, format="array"), D.LIST),
-        (FieldDefinition(type=U.GEOPOINT, format="object"), D.STRUCT),
+        (FieldDefinition(type=U.GEOPOINT, format="array"), ListDtype(D.FP64)),
+        (FieldDefinition(type=U.GEOPOINT, format="object"), StructDtype((("lon", D.FP64), ("lat", D.FP64)))),
         (FieldDefinition(type=U.GEOJSON), D.JSON),
         (FieldDefinition(type=U.GEOJSON, format="topojson"), D.JSON),
         (FieldDefinition(type=U.DURATION), D.XSD_DURATION),
@@ -633,19 +633,18 @@ def test_v2_six_field_schema_resolves_on_polars_narwhals_and_ibis(target):
         import polars as pl
 
         assert resolved["list"] == pl.List(pl.Int64)
-        assert resolved["point"] is pl.List
+        assert resolved["point"] == pl.List(pl.Float64)
         string_type = pl.String
     elif target is TypeTarget.NARWHALS:
         import narwhals as nw
 
         assert resolved["list"] == nw.List(nw.Int64)
-        assert resolved["point"] is nw.List
+        assert resolved["point"] == nw.List(nw.Float64)
         string_type = nw.String
     else:
         assert str(resolved["list"]) == "array<int64>"
-        assert resolved["point"] == "array"
+        assert str(resolved["point"]) == "array<float64>"
         string_type = "string"
-    assert resolved["point"] == registry.to_native_schema(D.LIST, target)
     for name in ("geometry", "duration", "year", "yearmonth"):
         assert resolved[name] == string_type
         assert registry.from_native(resolved[name], target) is D.STRING

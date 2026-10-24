@@ -8,7 +8,6 @@ import pytest
 
 import mountainash as ma
 from mountainash.conform.contract import resolve_contract
-from mountainash.conform.diagnostics import OperationDiagnosticTrace
 from mountainash.conform.errors import (
     ConformTransformError,
     IncompatibleSourceTypeError,
@@ -18,11 +17,7 @@ from mountainash.conform.expressions import _build_conform_exprs, resolve_confor
 from mountainash.core.capabilities.policy import _new_execution_context
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.dtypes import MountainashDtype
-from mountainash.core.limitations import enrich_materialization
 from mountainash.expressions.backends.expression_systems.polars import PolarsExpressionSystem
-from mountainash.expressions.core.expression_system.function_keys.enums import (
-    FKEY_MOUNTAINASH_SCALAR_DATETIME as FK_DT,
-)
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import (
     CaseFailureBehaviour,
 )
@@ -234,7 +229,7 @@ def test_polars_default_datetime_uses_exact_grammar_and_utc_naive() -> None:
     for value in ("2024-01-02", "2024-01-02 03:04:05"):
         with pytest.raises(Exception):
             pl.DataFrame({"value": [value]}).select(_compile(expr))
-        with pytest.raises(ConformTransformError):
+        with pytest.raises(pl.exceptions.PolarsError):
             ma.relation(pl.DataFrame({"value": [value]})).conform(spec).to_polars()
 
 
@@ -264,41 +259,10 @@ def test_integer_year_preserves_null_with_known_integer_schema() -> None:
 
 
 def test_polars_xsd_coerce_keeps_throw_behavior() -> None:
-    with pytest.raises(ConformTransformError):
+    with pytest.raises(pl.exceptions.PolarsError):
         ma.relation(pl.DataFrame({"duration": ["invalid"]})).conform(
             _spec("duration", FieldDefinition(type=UniversalType.DURATION)),
         ).to_polars()
-
-
-def test_supported_throw_materialization_wraps_when_no_residue_fact() -> None:
-    class Backend:
-        backend_type = CONST_BACKEND.POLARS
-        dialect = "polars"
-        BACKEND_NAME = "polars"
-
-    trace = OperationDiagnosticTrace()
-    from mountainash.expressions.core.expression_nodes import FieldReferenceNode, ScalarFunctionNode
-
-    trace.record(
-        ScalarFunctionNode(
-            function_key=FK_DT.PARSE_DEFAULT,
-            arguments=[FieldReferenceNode(field="value")],
-            options={"failure_behavior": "throw"},
-            diagnostic_context={"field_name": "value", "logical_type": "datetime", "format": "default"},
-        ),
-        backend_family=CONST_BACKEND.POLARS.value,
-        dialect="polars",
-        conform_node_id="conform:0",
-    )
-    original = ValueError("invalid datetime")
-    with pytest.raises(ConformTransformError) as raised:
-        enrich_materialization(
-            Backend(),
-            lambda: (_ for _ in ()).throw(original),
-            diagnostic_trace=trace,
-        )
-    assert raised.value.original_error is original
-    assert raised.value.candidates[0].field_name == "value"
 
 
 def test_pandas_unknown_lexical_fields_reach_operation_dispatch() -> None:
@@ -502,3 +466,36 @@ def test_missing_dotted_source_shape_evidence_is_unresolved() -> None:
             available_columns=("payload",),
             actual_shapes={"payload": SourceShape(MountainashDtype.STRUCT)},
         )
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+@pytest.mark.parametrize(
+    ("field_format", "source", "dtype"),
+    [
+        (
+            "array",
+            pl.Series("point", [{"lon": 1.0, "lat": 2.0}, None]),
+            pl.List(pl.Float64),
+        ),
+        (
+            "object",
+            pl.Series("point", [[1.0, 2.0], None]),
+            pl.Struct({"lon": pl.Float64, "lat": pl.Float64}),
+        ),
+    ],
+    ids=["array-over-struct", "object-over-list"],
+)
+def test_incompatible_geopoint_placeholders_execute_with_selected_dtype(
+    lazy: bool, action: str, field_format: str, source: pl.Series, dtype: pl.DataType
+) -> None:
+    frame = source.to_frame()
+    result = ma.relation(frame.lazy() if lazy else frame).conform(
+        TableSchema(
+            fields={"point": FieldDefinition(type=UniversalType.GEOPOINT, format=field_format)},
+            fields_match="open", missing_values=[],
+        ),
+        contract={"data_type": action},
+    ).to_polars()
+    assert result.schema["point"] == dtype
+    assert result["point"].to_list() == ([None, None] if action == "discard_value" else [None])
