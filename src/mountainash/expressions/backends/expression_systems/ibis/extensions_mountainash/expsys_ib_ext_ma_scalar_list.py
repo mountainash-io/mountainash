@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, FrozenSet, Optional
 
 import ibis
-from ibis.common.deferred import Deferred, deferrable
+from ibis.common.deferred import deferrable
 from ibis.expr import datashape as ds
 from ibis.expr import operations as ops
 

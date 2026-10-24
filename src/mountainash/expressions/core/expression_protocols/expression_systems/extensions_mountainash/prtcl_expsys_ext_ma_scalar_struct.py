@@ -1,7 +1,7 @@
 """Protocol for mountainash struct field operations."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping  # noqa: TC003 - runtime get_type_hints() resolution
 from typing import Protocol, Literal
 
 from mountainash.core.types import ExpressionT

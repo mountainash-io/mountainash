@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from mountainash.core.dtypes import (
     ArrayDtype,
@@ -40,14 +40,6 @@ from mountainash.typespec.converters import format_declaration_path, lexical_lis
 from mountainash.typespec.protocols import NativeSchemaAdapter
 from mountainash.typespec.source_shape import SourceShape, shape_from_dtype
 from mountainash.typespec.spec import FieldDefinition, TableSchema
-
-if TYPE_CHECKING:
-    import ibis.expr.datatypes as dt
-    import ibis.expr.types as ir
-    import narwhals as nw
-    import pandas as pd
-    import polars as pl
-    import pyarrow as pa
 
 UNKNOWN = SchemaTypeStatus.UNKNOWN
 UNCONSTRAINED = SchemaTypeStatus.UNCONSTRAINED

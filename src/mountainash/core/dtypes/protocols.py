@@ -9,10 +9,12 @@ retains it lazily.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import ClassVar, Protocol, TypeVar, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, runtime_checkable
 
 from .canonical import CastTarget, NativeDtype, PortableDtype, SchemaTypeStatus
-from .targets import TypeTarget
+
+if TYPE_CHECKING:
+    from .targets import TypeTarget
 
 # Annotation aliases over the existing vocabulary, not wrapper classes. Absent
 # source evidence is ``None`` and UNKNOWN stays missing knowledge; a consumer

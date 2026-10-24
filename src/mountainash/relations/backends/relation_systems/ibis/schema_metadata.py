@@ -17,7 +17,6 @@ caller-owned connection beyond the temporary-view step named below.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +32,7 @@ from mountainash.core.dtypes import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
     from mountainash.core.dtypes.protocols import ResolvedType
     from mountainash.relations.core.execution.location import ExecutionLocation
 

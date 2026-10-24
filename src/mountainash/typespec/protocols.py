@@ -7,10 +7,10 @@ adapters live with the dtype system (``core/dtypes/protocols.py``).
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Protocol, TypeVar
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from mountainash.core.dtypes.protocols import ResolvedType
     from mountainash.typespec.source_shape import SourceShape
     from mountainash.typespec.spec import TableSchema

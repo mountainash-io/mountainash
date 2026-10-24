@@ -899,8 +899,7 @@ def _lower_field_value(
 
     import mountainash as ma
     from mountainash.core.dtypes import (
-        ArrayDtype, DecimalDtype, DurationDtype, ListDtype, MountainashDtype,
-        NativeDtype, TimestampDtype,
+        ArrayDtype, DecimalDtype, ListDtype, MountainashDtype, NativeDtype,
     )
     from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
     from mountainash.typespec.spec import FieldDefinition

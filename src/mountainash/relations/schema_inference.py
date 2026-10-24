@@ -12,8 +12,6 @@ from typing import Any, Callable, Optional
 from mountainash.conform.contract import resolve_contract
 from mountainash.conform.expressions import (
     _VALID_FIELDS_MATCH,
-    PASSTHROUGH,
-    UNDETERMINED,
     resolve_conform_output,
 )
 from mountainash.core.dtypes import MountainashDtype, TypeTarget, registry

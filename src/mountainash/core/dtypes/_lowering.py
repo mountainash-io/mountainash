@@ -7,11 +7,13 @@ adapter's own mapping tables.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from .canonical import MountainashDtype, NativeDtype
 from .errors import DtypeMappingError
-from .targets import TypeTarget
+
+if TYPE_CHECKING:
+    from .targets import TypeTarget
 
 
 def native_of(dtype: Any) -> NativeDtype | None:

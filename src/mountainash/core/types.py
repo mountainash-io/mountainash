@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, TypeVar, Union, Protocol, Any
 from typing_extensions import TypeAlias, TypeGuard
 
 from mountainash.core.errors import MountainashError
+from mountainash.core.dtypes.targets import TypeTarget
 
 
 
@@ -312,8 +313,6 @@ def detect_schema_carrier(obj: Any) -> "TypeTarget | None":
     (including non-table Ibis expressions). Imports no optional library: only
     the object's own class hierarchy is inspected.
     """
-    from mountainash.core.dtypes.targets import TypeTarget
-
     for module, class_names, target in (
         ("polars", ("DataFrame", "LazyFrame"), TypeTarget.POLARS),
         ("pyarrow", ("Table",), TypeTarget.PYARROW),

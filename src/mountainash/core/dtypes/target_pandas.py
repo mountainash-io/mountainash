@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import is_dataclass, replace
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 from ._lowering import lower_scalar, native_of, native_refinement, reject_bare_container_cast
 from .canonical import (
@@ -14,9 +14,6 @@ from .canonical import (
 from .errors import DtypeMappingError, UnknownDtypeError
 from .protocols import NativeArrowTransportAdapter, NativeTypeAdapter, TypeEvidence
 from .targets import TypeTarget
-
-if TYPE_CHECKING:
-    import pyarrow as pa
 
 SCHEMA_TYPES: dict[D, str] = {
     D.BOOL: "boolean", D.I8: "Int8", D.I16: "Int16", D.I32: "Int32",

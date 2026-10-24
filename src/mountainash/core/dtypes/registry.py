@@ -15,11 +15,12 @@ from typing import TYPE_CHECKING, Any, Optional
 from ._lowering import native_of
 from .canonical import CastTarget, SchemaTypeStatus
 from .errors import UnknownDtypeError
-from .protocols import NativeArrowTransportAdapter, NativeTypeAdapter
 from .targets import TypeTarget, detect_target
 
 if TYPE_CHECKING:
     from types import ModuleType
+
+    from .protocols import NativeArrowTransportAdapter, NativeTypeAdapter
 
 _MODULES: dict[TypeTarget, str] = {
     TypeTarget.POLARS: "target_polars",
