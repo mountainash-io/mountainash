@@ -153,7 +153,7 @@ def test_lossy_sqlite_route_rolls_back_owned_resources_without_touching_caller(m
     assert released == ["owned"]
 
 
-def test_source_export_enriches_diagnostic_failure_without_owned_checks():
+def test_source_export_propagates_native_failure_with_unmatched_diagnostic():
     from mountainash.conform.diagnostics import OperationDiagnostic
     from mountainash.conform.errors import ConformTransformError
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
@@ -174,10 +174,9 @@ def test_source_export_enriches_diagnostic_failure_without_owned_checks():
     )
     destination = resolver.resolve(ma.relation(target)._node)
     requirement = TransferRequirement("root/right", destination, "ibis_to_polars", True)
-    with pytest.raises(ConformTransformError) as caught:
+    with pytest.raises(Exception, match="not-an-integer") as caught:
         TransportSession(tokens).transfer(source, requirement)
-    assert caught.value.__cause__ is not None
-    assert caught.value.candidates == (diagnostic,)
+    assert not isinstance(caught.value, ConformTransformError)
 
 
 @pytest.mark.parametrize("source_name", IBIS_BACKENDS)

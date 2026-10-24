@@ -5,7 +5,6 @@ import pytest
 import polars as pl
 
 import mountainash as ma
-from mountainash.conform.errors import ConformTransformError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
@@ -122,8 +121,11 @@ def test_boolean_throw_preserves_null_and_rejects_invalid_tokens(
         assert raised.value.backend == "ibis"
         assert raised.value.limitation is None
         return
-    with pytest.raises(ConformTransformError):
+    # Throw mode surfaces the backend's own error: synchronous (eager) backends
+    # raise a ConformTransformError at lowering; deferred ones propagate natively.
+    with pytest.raises(Exception) as raised:
         ma.relation(df).conform(spec).to_polars()
+    assert not isinstance(raised.value, BackendCapabilityError)
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)

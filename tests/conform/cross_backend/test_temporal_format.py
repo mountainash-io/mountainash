@@ -21,7 +21,6 @@ from datetime import date, datetime, time
 import pytest
 
 import mountainash as ma
-from mountainash.conform.errors import ConformTransformError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
@@ -70,9 +69,8 @@ def test_strptime_date_honors_format_or_reports_default_pandas_storage(
         assert raised.value.backend == "ibis"
         assert raised.value.limitation is None
     elif backend_name in _DEFAULT_PANDAS_DATE_STORAGE:
-        with pytest.raises(ConformTransformError) as raised:
+        with pytest.raises(NotImplementedError):
             ma.relation(df).conform(spec).to_polars()
-        assert isinstance(raised.value.original_error, NotImplementedError)
     else:
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]

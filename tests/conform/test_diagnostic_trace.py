@@ -265,16 +265,16 @@ def test_relation_terminal_removes_collision_safe_residue_marker() -> None:
     assert list(result.columns) == ["duration", "__ma_residue_conform_0_0"]
 
 
-def test_polars_throw_mode_temporal_failure_is_transform_error() -> None:
+def test_polars_throw_mode_temporal_failure_propagates_native_error() -> None:
     import polars as pl
 
     spec = TableSchema(
         fields_match="open",
         fields={"duration": FieldDefinition(type=UniversalType.DURATION)},
     )
-    with pytest.raises(ConformTransformError) as raised:
+    with pytest.raises(pl.exceptions.PolarsError) as raised:
         relation(pl.DataFrame({"duration": ["not-a-duration"]})).conform(spec).collect()
-    assert raised.value.candidates[0].field_name == "duration"
+    assert not isinstance(raised.value, ConformTransformError)
 
 
 def test_relation_lazy_terminal_removes_residue_markers() -> None:
@@ -302,3 +302,46 @@ def test_dag_collect_owns_residue_terminal_and_preserves_lazy_shape() -> None:
     result = dag.collect("durations")
     assert isinstance(result, pl.LazyFrame)
     assert result.collect().columns == ["duration"]
+
+
+def _unrelated_replacement_query(lazy: bool, conform_first: bool, other: int):
+    import polars as pl
+
+    import mountainash as ma
+
+    source = pl.DataFrame({"other": [other], "flag": ["true"]})
+    source = source.lazy() if lazy else source
+    schema = TableSchema(
+        fields={
+            "other": FieldDefinition(type=UniversalType.INTEGER),
+            "flag": FieldDefinition(type=UniversalType.BOOLEAN),
+        },
+        missing_values=[],
+    )
+    replacement = ma.native(pl.col("other").replace_strict({0: 0})).name.alias("other")
+    if conform_first:
+        return ma.relation(source).conform(schema).with_columns(replacement)
+    return ma.relation(source).with_columns(replacement).conform(schema)
+
+
+@pytest.mark.parametrize("conform_first", [True, False], ids=["conform-first", "conform-last"])
+@pytest.mark.parametrize("lazy", [False, True], ids=["eager", "lazy"])
+def test_unrelated_native_error_is_not_a_conform_failure(lazy, conform_first) -> None:
+    """Polars native-error attribution wiring; portable boundary suites remain."""
+    import polars as pl
+
+    query = _unrelated_replacement_query(lazy, conform_first, other=1)
+    with pytest.raises(pl.exceptions.InvalidOperationError):
+        query.to_polars()
+
+
+@pytest.mark.parametrize("conform_first", [True, False], ids=["conform-first", "conform-last"])
+@pytest.mark.parametrize("lazy", [False, True], ids=["eager", "lazy"])
+def test_valid_replacement_beside_boolean_conversion_succeeds(lazy, conform_first) -> None:
+    """Control: same queries succeed with a mapped value, including flag=True."""
+    import polars as pl
+
+    result = _unrelated_replacement_query(lazy, conform_first, other=0).to_polars()
+    if isinstance(result, pl.LazyFrame):
+        result = result.collect()
+    assert result.to_dicts() == [{"other": 0, "flag": True}]

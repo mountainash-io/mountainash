@@ -3,6 +3,7 @@
 ## Unreleased — 2026-10-22
 
 ### Fixed
+- Unidentified native failures at materialization now propagate unchanged instead of being attributed to an unrelated successful conform field. Positively identified native issues and owned conform errors retain their existing enrichment.
 - Shared-schema conform: Ibis/DuckDB string values with a numeric null fill now convert through the deferred public relation path (`["4", None]` → `[4, 0]`, Int64). Failed conversions are not treated as original missing values.
 - Conform output reconciliation honors explicit extra-column policies over presets and preserves row cardinality for literal-only projections.
 - Nested shared definitions apply conversion and fill settings at every element level, including whole record/list fills; fixed-array element conversion preserves declared dimensions.
