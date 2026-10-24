@@ -12,7 +12,7 @@ from mountainash.expressions.backends.expression_systems.narwhals.extensions_mou
 
 from ..base import NarwhalsBaseExpressionSystem
 from ..numeric_cast import (
-    WRAPPING_STORAGE, checked_cast, checks, numeric_target, source_of,
+    WRAPPING_STORAGE, checked_cast, checked_member, checks, numeric_target, source_of,
 )
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
@@ -126,6 +126,12 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
         numeric = numeric_target(native_target)
         if numeric is not None:
             return self._cast_numeric(x, native_target, numeric)
+        evidence = self.native_operand_type("x") if isinstance(native_target, nw.Struct) else None
+        if evidence is not None and evidence.native_dtype is not None:
+            # Struct leaves narrowing to Float32 follow the same scalar validity.
+            checked = checked_member(x, evidence.native_dtype, native_target, self._cast_target)
+            if checked is not None:
+                return checked.name.keep()
         return self._cast_target(x, native_target)
 
     def _cast_numeric(self, x: NarwhalsExpr, native_target: object, target: MountainashDtype) -> NarwhalsExpr:

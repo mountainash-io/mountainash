@@ -65,4 +65,10 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
             return x.pipe_with_dtype(
                 lambda expr, native: cast_float32_checked(expr, native, strict=strict)
             )
+        if isinstance(native_target, (pl.List, pl.Array, pl.Struct)):
+            from ..numeric_cast import convert_native, _has_float32
+            if _has_float32(native_target):
+                return x.pipe_with_dtype(
+                    lambda expr, native: convert_native(expr, native, native_target, strict=strict)
+                )
         return cast_temporal_compatible(x, native_target, strict=strict)

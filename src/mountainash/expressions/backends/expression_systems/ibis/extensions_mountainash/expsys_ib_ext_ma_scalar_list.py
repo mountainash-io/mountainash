@@ -1,7 +1,7 @@
 """Ibis backend for mountainash list operations."""
 from __future__ import annotations
 
-from typing import Any, FrozenSet, Optional
+from typing import Any, FrozenSet, Literal, Optional
 
 import ibis
 from ibis.common.deferred import deferrable
@@ -13,9 +13,7 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.backends.expression_systems.ibis.base import IbisBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import resolve_native_type
-from mountainash.typespec.spec import FieldDefinition
-from mountainash.core.dtypes import TypeTarget
+from mountainash.core.dtypes import CastTarget, TypeTarget, registry
 from .expsys_ib_ext_ma_scalar_set import _ibis_fill_null_false
 
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
@@ -160,9 +158,8 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
         x,
         /,
         *,
-        element: FieldDefinition | None = None,
-        item_type: str | None = None,
-        failure_behavior: str = "throw",
+        dtype: CastTarget,
+        failure_behavior: Literal["throw", "null"] = "throw",
     ):
         if self.dialect == "ibis-sqlite" or failure_behavior == "null":
             raise BackendCapabilityError(
@@ -171,14 +168,7 @@ class MountainAshIbisScalarListExpressionSystem(IbisBaseExpressionSystem, Mounta
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
             )
-        if item_type is not None:
-            from mountainash.typespec.universal_types import parse_universal, to_canonical
-            from mountainash.core.dtypes import registry
-            canonical = to_canonical(parse_universal(item_type))
-            dtype = registry.to_native_schema(canonical, TypeTarget.IBIS)
-            return x.cast(f"array<{dtype}>")
-        dtype = resolve_native_type(FieldDefinition(element=element), TypeTarget.IBIS)
-        return x.cast(dtype)
+        return x.cast(registry.to_native_cast(dtype, TypeTarget.IBIS))
 
     def list_sum(self, x, /):
         return x.sums()

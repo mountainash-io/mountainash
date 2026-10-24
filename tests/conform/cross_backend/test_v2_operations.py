@@ -9,6 +9,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.core.capabilities.identity import BackendIdentity
+from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
 from mountainash.core.capabilities.policy import (
     _CapabilityTarget, _new_execution_context, _prepare_capability_context,
     _resolve_policy,
@@ -28,8 +29,6 @@ from mountainash.expressions.core.expression_protocols.api_builders.substrait.pr
     CaseFailureBehaviour,
 )
 from mountainash.expressions.core.unified_visitor.visitor import UnifiedExpressionVisitor
-from mountainash.typespec.spec import FieldDefinition
-from mountainash.typespec.universal_types import UniversalType
 from mountainash.core.types import BackendCapabilityError
 from tests.fixtures.backend_helpers import BackendDataFrameFactory, BackendResultHelper
 from fixtures.backend_registry import ALL_BACKENDS
@@ -173,19 +172,16 @@ def test_ibis_boolean_list_parser_rejects_mixed_case_tokens() -> None:
     with pytest.raises(Exception):
         BackendResultHelper.select_and_extract(frame, compiled, "values", "ibis-duckdb")
 def test_polars_recursive_array_struct_cast() -> None:
-    field = FieldDefinition(type=UniversalType.INTEGER)
-    expr = ma.col("items").list.cast_items(element=FieldDefinition(fields={"id": field}), field_name="items")
+    dtype = ListDtype(StructDtype((("id", D.I64),)))
+    expr = ma.col("items").list.cast_items(dtype=dtype, field_name="items")
     result = pl.DataFrame({"items": [[{"id": "1"}, {"id": "2"}]]}).select(_compile(expr))
     assert result.to_series().to_list() == [[{"id": 1}, {"id": 2}]]
 
 
 def test_polars_nested_null_mode_cast_is_atomic() -> None:
-    nested = FieldDefinition(
-        type=UniversalType.OBJECT,
-        fields={"id": FieldDefinition(type=UniversalType.INTEGER)},
-    )
+    nested = StructDtype((("id", D.I64),))
     expr = ma.col("items").list.cast_items(
-        element=FieldDefinition(fields={"payload": nested}),
+        dtype=ListDtype(StructDtype((("payload", nested),))),
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="items",
     )
@@ -195,8 +191,7 @@ def test_polars_nested_null_mode_cast_is_atomic() -> None:
 
 
 def test_polars_struct_and_categorical_preserve_base_values() -> None:
-    field = FieldDefinition(type=UniversalType.INTEGER)
-    struct = ma.col("payload").struct.cast(fields={"id": field}, field_name="payload")
+    struct = ma.col("payload").struct.cast(dtype=StructDtype((("id", D.I64),)), field_name="payload")
     cat = ma.col("status").cat.cast(value_type="integer", categories=(1, 2), ordered=True, field_name="status")
     frame = pl.DataFrame({"payload": [{"id": "1"}], "status": ["2"]})
     out = frame.select([_compile(struct).alias("payload"), _compile(cat).alias("status")])
@@ -414,18 +409,8 @@ def test_list_parse_invalid_item_is_complete_value_failure(
 
 
 
-def _recursive_item_fields() -> tuple[FieldDefinition, ...]:
-    return {"payload": FieldDefinition(
-            type=UniversalType.OBJECT,
-            fields={"id": FieldDefinition(type=UniversalType.INTEGER)},
-        ),}
-
-
-def _recursive_struct_fields() -> tuple[FieldDefinition, ...]:
-    return {"nested": FieldDefinition(
-            type=UniversalType.OBJECT,
-            fields={"id": FieldDefinition(type=UniversalType.INTEGER)},
-        ),}
+_RECURSIVE_ITEM_DTYPE = ListDtype(StructDtype((("payload", StructDtype((("id", D.I64),))),)))
+_RECURSIVE_STRUCT_DTYPE = StructDtype((("nested", StructDtype((("id", D.I64),))),))
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -437,7 +422,7 @@ def test_list_cast_items_recursive_matrix(
     backend_name: str, failure_behavior: CaseFailureBehaviour,
 ) -> None:
     expr = ma.col("items").list.cast_items(
-        element=FieldDefinition(fields = _recursive_item_fields()),
+        dtype=_RECURSIVE_ITEM_DTYPE,
         failure_behavior=failure_behavior,
         field_name="items",
     )
@@ -467,7 +452,7 @@ def test_list_cast_items_null_mode_invalidates_complete_recursive_value(
     backend_name: str,
 ) -> None:
     expr = ma.col("items").list.cast_items(
-        element=FieldDefinition(fields = _recursive_item_fields()),
+        dtype=_RECURSIVE_ITEM_DTYPE,
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="items",
     )
@@ -495,7 +480,7 @@ def test_struct_cast_recursive_matrix(
     backend_name: str, failure_behavior: CaseFailureBehaviour,
 ) -> None:
     expr = ma.col("payload").struct.cast(
-        fields=_recursive_struct_fields(),
+        dtype=_RECURSIVE_STRUCT_DTYPE,
         failure_behavior=failure_behavior,
         field_name="payload",
     )
@@ -523,7 +508,7 @@ def test_struct_cast_recursive_matrix(
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_struct_cast_null_mode_invalidates_recursive_value(backend_name: str) -> None:
     expr = ma.col("payload").struct.cast(
-        fields=_recursive_struct_fields(),
+        dtype=_RECURSIVE_STRUCT_DTYPE,
         failure_behavior=CaseFailureBehaviour.NULL,
         field_name="payload",
     )
@@ -540,6 +525,21 @@ def test_struct_cast_null_mode_invalidates_recursive_value(backend_name: str) ->
         "payload",
     )
     assert values == [None, None]
+
+
+@pytest.mark.parametrize("backend_name", ("polars", "polars-lazy"))
+def test_container_dtype_cast_preserves_parent_null_and_empty_shapes(backend_name: str) -> None:
+    items = ma.col("items").list.cast_items(dtype=ListDtype(D.I64), field_name="items")
+    values = _extract(
+        backend_name, {"items": [["1"], [], None]}, _compile_for(backend_name, items), "items",
+    )
+    assert values == [[1], [], None]
+    payload = ma.col("payload").struct.cast(dtype=StructDtype((("id", D.I64),)), field_name="payload")
+    structs = _extract(
+        backend_name, {"payload": [{"id": "1"}, None]}, _compile_for(backend_name, payload), "payload",
+    )
+    assert structs == [{"id": 1}, None]
+
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 @pytest.mark.parametrize("value_type", ("string", "integer"))

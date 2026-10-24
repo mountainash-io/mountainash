@@ -30,6 +30,12 @@ TESTED_PARAMS: list[tuple] = [
     (FK_LIST.T_CONTAINS, "item"),
 ]
 
+# cross_backend/test_nested_cast.py checks distinct native target widths,
+# values and null/empty containers across the supported fixture matrix.
+TESTED_OPTION_PARAMS = [
+    ("MountainAshScalarListExpressionSystemProtocol", "cast_list_items", "dtype", "value-sensitive"),
+]
+
 OP_SPECS: list[OpSpec] = [
     OpSpec(
         function_key=FK_LIST.CONTAINS,

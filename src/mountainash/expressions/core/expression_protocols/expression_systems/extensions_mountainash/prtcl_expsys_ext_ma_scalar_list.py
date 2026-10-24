@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, FrozenSet, Optional, Protocol, Literal
 
 from mountainash.core.types import ExpressionT
-from mountainash.typespec.spec import FieldDefinition  # noqa: TC001 - runtime get_type_hints() resolution
+from mountainash.core.dtypes import CastTarget  # noqa: TC001 - runtime get_type_hints() resolution
 
 
 class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):
@@ -114,7 +114,6 @@ class MountainAshScalarListExpressionSystemProtocol(Protocol[ExpressionT]):
         x: ExpressionT,
         /,
         *,
-        element: FieldDefinition | None = None,
-        item_type: str | None = None,
+        dtype: CastTarget,
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> ExpressionT: ...

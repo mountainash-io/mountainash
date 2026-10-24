@@ -466,3 +466,36 @@ def test_missing_dotted_source_shape_evidence_is_unresolved() -> None:
             available_columns=("payload",),
             actual_shapes={"payload": SourceShape(MountainashDtype.STRUCT)},
         )
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+@pytest.mark.parametrize(
+    ("field_format", "source", "dtype"),
+    [
+        (
+            "array",
+            pl.Series("point", [{"lon": 1.0, "lat": 2.0}, None]),
+            pl.List(pl.Float64),
+        ),
+        (
+            "object",
+            pl.Series("point", [[1.0, 2.0], None]),
+            pl.Struct({"lon": pl.Float64, "lat": pl.Float64}),
+        ),
+    ],
+    ids=["array-over-struct", "object-over-list"],
+)
+def test_incompatible_geopoint_placeholders_execute_with_selected_dtype(
+    lazy: bool, action: str, field_format: str, source: pl.Series, dtype: pl.DataType
+) -> None:
+    frame = source.to_frame()
+    result = ma.relation(frame.lazy() if lazy else frame).conform(
+        TableSchema(
+            fields={"point": FieldDefinition(type=UniversalType.GEOPOINT, format=field_format)},
+            fields_match="open", missing_values=[],
+        ),
+        contract={"data_type": action},
+    ).to_polars()
+    assert result.schema["point"] == dtype
+    assert result["point"].to_list() == ([None, None] if action == "discard_value" else [None])

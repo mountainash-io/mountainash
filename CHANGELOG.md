@@ -5,6 +5,7 @@
 ### Fixed
 - Unidentified native failures at materialization now propagate unchanged instead of being attributed to an unrelated successful conform field. Positively identified native issues and owned conform errors retain their existing enrichment.
 - Scalar casts reject finite Float64-to-Float32 overflow on Polars and the supported Narwhals carriers; pandas NumPy/nullable integer narrowing rejects out-of-range values instead of wrapping. Computed/native operands use their own dtype through optional row-free metadata or eager series binding, without recompiling the operand. Ordinary Float32 rounding, NaN/infinity/null/signed-zero inputs and existing fractional conversions remain unchanged. Polars null mode yields null; existing Narwhals null-mode refusals and SQLite width limitations remain unchanged. This qualification does not extend support to additional Narwhals providers.
+- Container conformance executes the selected recursive target without casting through superseded child widths (341). Child fills use that same target; untouched members retain target order, null parents remain null, and authored declarations remain unchanged.
 - Shared-schema conform: Ibis/DuckDB string values with a numeric null fill now convert through the deferred public relation path (`["4", None]` → `[4, 0]`, Int64). Failed conversions are not treated as original missing values.
 - Conform output reconciliation honors explicit extra-column policies over presets and preserves row cardinality for literal-only projections.
 - Nested shared definitions apply conversion and fill settings at every element level, including whole record/list fills; fixed-array element conversion preserves declared dimensions.
@@ -26,12 +27,13 @@
 
 ### Changed
 - Shared schema declarations use unnamed immutable `FieldDefinition` values and an owned ordered `TableSchema.fields` mapping. `.variant(...)` creates independent definitions; deferred operations capture declaration snapshots. The module remains `mountainash.typespec`; old model aliases are not retained.
+- Direct `.struct.cast(...)` and `.list.cast_items(...)` require a complete `dtype`. Struct child expressions use `converted_fields`; declaration parsing and fill instructions belong to conformance. Retired `fields`/`element` execution options are removed rather than retained as alternate modes.
 - Native type/schema construction is owned by registered adapters; physical relation description routes through the selected relation system, with Ibis dialect inspection isolated inside its backend.
 - Persisted legacy nested declarations use the explicit pure `migrate_nested_field_declarations` boundary; ordinary typed reads validate the packaged recursive grammar and reject retired child-declaration keys.
 - Declare Narwhals-pandas float64 ranking output (`row_number`/`rank`/`dense_rank`) as a native divergence (backlog 367); values are unchanged and no cast is applied.
 
 ### Qualification
-- The strategic shared-schema restart is in Phase-4 qualification, not release-qualified. Final approval still requires item 373 solved and integrated. List/struct native-override precedence (341) and opaque-container nested validation semantics (356) remain owner-deferred, with failing expectations visible. PostgreSQL live execution is not claimed qualified.
+- Resolved-container execution remains in qualification; interchange and contract-consumer acceptance is a separate checkpoint. Item 373's final-approval gate has been removed by owner decision; its recorded debt remains. Narwhals list-boundary Float32 overflow is accepted non-blocking debt under 312/NW-LIST-05 and 319, not a claim of safe narrowing: finite `1e100` can become infinity. Existing pandas nested-null broadcast (342), pandas nested masking (374), native empty-struct limits and opaque-container validation (356) retain separate ownership. No provider bypass or broad backend exclusion is introduced.
 
 ## Unreleased — 2026-10-21
 

@@ -147,11 +147,40 @@ Schema inspection uses native metadata first and retains detailed dtype paramete
 
 Bare canonical timestamp/duration casts and source-bearing conform preserve compatible source precision, units and timezone where the destination supports them. Typed empty/all-null columns still carry source metadata; temporal null fills do not lower the source's precision. Without temporal source metadata, existing backend defaults apply; explicit targets remain authoritative. Destination-imposed precision loss is ordinary conversion behavior, not a reason to reduce every backend to a common precision. For example, DuckDB's aware timestamp ingestion converts `1001 ns` to `1000 ns`; that destination-specific result is tested as passing, while capable paths retain all digits. Native conversion errors remain errors.
 
-Whole-container native override execution has an unresolved precedence defect
-(item 341): an original Int8 child can still be cast before its enclosing native
-Int64 target, rejecting 128. The owner deferred this list/struct repair from the
-shared-schema implementation pass. Native schema construction selecting the
-correct target is not proof that this conformance path executes correctly.
+Whole-container overrides govern execution as well as schema construction.
+An authored Int8 child under an effective Int64 struct target preserves `128`;
+its `null_fill=129` also uses Int64. Unchanged target members retain their order,
+null parents remain null, and the original child definition stays Int8.
+
+Direct expression casts accept the resolved physical target, not field
+declarations:
+
+```python
+from mountainash.core.dtypes import ListDtype, StructDtype
+
+record = ma.col("record").struct.cast(
+    dtype=StructDtype((("id", ma.MountainashDtype.I64),)),
+    field_name="record",
+)
+items = ma.col("items").list.cast_items(
+    dtype=ListDtype(ma.MountainashDtype.I64),
+    field_name="items",
+)
+```
+
+For an already compiled child expression, pass
+`converted_fields=(("id", expression),)` to `struct.cast`; no children means
+cast the original struct directly. Parsing, missing-value and fill instructions
+remain in `FieldDefinition` and conformance. Do not combine a parent `dtype`
+with `fields` or `element`: those are alternative structural declarations.
+
+This does not remove existing native limitations. Narwhals list-boundary
+Float32 narrowing can turn finite `1e100` into infinity; this is accepted
+non-blocking debt under 312/NW-LIST-05 and 319, including affected nested list
+boundaries, not correct conversion. Pandas typed nested-null broadcast remains
+342; DuckDB cannot represent a zero-member `STRUCT()`. Polars and Narwhals over
+Polars preserve zero-member structs and distinguish them from null parents.
+No provider switching or Python traversal is used to hide these limitations.
 
 ### Native schema boundaries
 

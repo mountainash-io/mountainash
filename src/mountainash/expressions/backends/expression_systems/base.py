@@ -48,7 +48,7 @@ class BaseExpressionSystem(ABC):
         self.dialect = dialect
         self.execution_context = execution_context
         self._operand_type_stack: list[
-            tuple[Mapping[str, Any], Callable[[str], ResolvedOperand | None] | None]
+            tuple[Mapping[str, Any], Callable[[str | int], ResolvedOperand | None] | None]
         ] = []
 
     def native_argument_form(self, value: Any) -> str | None:
@@ -70,7 +70,7 @@ class BaseExpressionSystem(ABC):
         self,
         named_operands: Mapping[str, Any],
         *,
-        native_resolver: Callable[[str], ResolvedOperand | None] | None = None,
+        native_resolver: Callable[[str | int], ResolvedOperand | None] | None = None,
     ) -> Iterator[None]:
         """Scope descriptors and optional on-demand native evidence to one dispatch."""
         self._operand_type_stack.append((named_operands, native_resolver))
@@ -91,7 +91,7 @@ class BaseExpressionSystem(ABC):
             function_key=None,
         )
 
-    def native_operand_type(self, name: str) -> ResolvedOperand | None:
+    def native_operand_type(self, name: str | int) -> ResolvedOperand | None:
         """Request optional native evidence without changing required descriptors."""
         if not self._operand_type_stack:
             return None

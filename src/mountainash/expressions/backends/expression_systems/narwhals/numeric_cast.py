@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 import narwhals as nw
 
-from mountainash.core.dtypes import MountainashDtype, UnknownDtypeError, registry
+from mountainash.core.dtypes import MountainashDtype, StructDtype, TypeTarget, UnknownDtypeError, registry
 
 D = MountainashDtype
 
@@ -122,3 +122,70 @@ def checked_cast(
     if isinstance(candidate, nw.Series):
         return candidate.zip_with(valid, candidate)
     return nw.when(valid).then(candidate).otherwise(nw.lit(0, dtype=native_target))
+
+
+def _is_float32(native: Any) -> bool:
+    return native is nw.Float32 or isinstance(native, nw.Float32)
+
+
+def checked_member(
+    expr: Any, source: Any, target: Any, cast: Callable[[Any, Any], Any],
+) -> Any | None:
+    """The scalar-checked conversion of one struct member, or None if native suffices.
+
+    Only Narwhals vector primitives and the scalar owner above are used, from the
+    operand's own native dtype. Integer overflow already raises natively, so a
+    Float32 leaf (directly or through nested structs) is the only member that
+    needs a predicate. List items are left to the native cast: Narwhals has no
+    element-wise list expression.
+    """
+    if _is_float32(target):
+        origin = source_of(source)
+        if origin is not None and checks(origin, D.FP32):
+            return checked_cast(expr, target, origin, D.FP32)
+        return None
+    if isinstance(target, nw.Struct) and not isinstance(source, nw.Struct):
+        # Operand evidence keeps its actual carrier dtype (for example an
+        # Arrow-backed pandas struct). Decode structure through the shared
+        # registry rather than mistaking that carrier for unknown metadata.
+        try:
+            canonical = registry.from_native(source)
+        except (UnknownDtypeError, TypeError, ValueError):
+            return None
+        if isinstance(canonical, StructDtype):
+            source = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
+    if isinstance(source, nw.Struct) and isinstance(target, nw.Struct):
+        members = {
+            field.name: (expr.struct.field(field.name), field.dtype)
+            for field in source.fields
+        }
+        return checked_struct(expr, target, members, cast)
+    return None
+
+
+def checked_struct(
+    parent: Any,
+    target: Any,
+    members: dict[str, tuple[Any, Any | None]],
+    cast: Callable[[Any, Any], Any],
+) -> Any | None:
+    """Rebuild `target` from `members` (name -> expression, source dtype), or None.
+
+    Follows the native struct-cast policy: target order, source-only members are
+    projected away, absent target members are null, and a null parent stays null.
+    Returns None when no member needs a validity predicate.
+    """
+    rebuilt: dict[str, Any] = {}
+    changed = False
+    for field in target.fields:
+        if field.name not in members:
+            rebuilt[field.name] = nw.lit(None, dtype=field.dtype)
+            continue
+        child, source = members[field.name]
+        converted = None if source is None else checked_member(child, source, field.dtype, cast)
+        changed = changed or converted is not None
+        rebuilt[field.name] = child if converted is None else converted
+    if not changed:
+        return None
+    result = cast(nw.struct(**rebuilt), target)
+    return nw.when(parent.is_null()).then(nw.lit(None, dtype=target)).otherwise(result)

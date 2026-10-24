@@ -309,6 +309,11 @@ def _compose(
     path: "DeclarationPath", emit_warning: bool,
 ) -> Any:
     """The canonical type with members/elements replaced by their effective types."""
+    if definition.type is UniversalType.GEOPOINT:
+        if declared is MountainashDtype.LIST:
+            return ListDtype(MountainashDtype.FP64)
+        if declared is MountainashDtype.STRUCT:
+            return StructDtype((("lon", MountainashDtype.FP64), ("lat", MountainashDtype.FP64)))
     if declared is MountainashDtype.LIST and definition.item_type:
         item = lexical_list_element(definition, path)
         return declared if item is None else ListDtype(item)

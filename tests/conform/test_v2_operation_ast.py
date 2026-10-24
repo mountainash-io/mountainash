@@ -6,8 +6,7 @@ import pytest
 import mountainash as ma
 from mountainash.core.errors import InvalidOptionValueError
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
-from mountainash.typespec.spec import FieldDefinition
-from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import MountainashDtype as D, StructDtype
 
 
 @pytest.mark.parametrize(
@@ -15,9 +14,9 @@ from mountainash.typespec.universal_types import UniversalType
     [
         (lambda e: e.str.parse_list(field_name="x", item_type=[]), {}),
         (lambda e: e.str.parse_list(field_name="x", delimiter=""), {}),
-        (lambda e: e.list.cast_items(field_name="x", element=None), {}),
+        (lambda e: e.list.cast_items(field_name="x", dtype=None), {}),
         (lambda e: e.cat.cast(field_name="x", value_type="bad", categories=(), ordered=False), {}),
-        (lambda e: e.struct.cast(field_name="x", fields=()), {}),
+        (lambda e: e.struct.cast(field_name="x", dtype=()), {}),
         (lambda e: e.cat.cast(field_name="x", value_type="integer", categories=(True,), ordered=False), {}),
     ],
 )
@@ -31,10 +30,10 @@ def test_invalid_options_fail_before_node_creation(builder, kwargs) -> None:
     [
         lambda e: e.str.parse_list(field_name="", failure_behavior=CaseFailureBehaviour.THROW),
         lambda e: e.str.parse_list(field_name="x", failure_behavior="throw"),
-        lambda e: e.list.cast_items(element=object(), field_name="x"),
+        lambda e: e.list.cast_items(dtype=object(), field_name="x"),
         lambda e: e.cat.cast(value_type="string", categories=(1,), ordered=False, field_name="x"),
         lambda e: e.cat.cast(value_type="string", categories=("x",), ordered=1, field_name="x"),
-        lambda e: e.struct.cast(fields=(object(),), field_name="x"),
+        lambda e: e.struct.cast(dtype=(object(),), field_name="x"),
     ],
 )
 def test_every_new_builder_rejects_invalid_literal_options(builder) -> None:
@@ -44,7 +43,7 @@ def test_every_new_builder_rejects_invalid_literal_options(builder) -> None:
 
 def test_structural_builders_reject_every_invalid_literal_shape() -> None:
     source = ma.col("source")
-    field = FieldDefinition(type=UniversalType.INTEGER)
+    record = StructDtype((("id", D.I64),))
     invalid_builders = (
         lambda: source.str.parse_list(field_name=None),
         lambda: source.str.parse_list(field_name="x", item_type=None),
@@ -58,9 +57,10 @@ def test_structural_builders_reject_every_invalid_literal_shape() -> None:
         lambda: source.cat.cast(field_name="x", value_type="string", categories=(1,), ordered=False),
         lambda: source.cat.cast(field_name="x", value_type="integer", categories=(True,), ordered=False),
         lambda: source.cat.cast(field_name="x", value_type="integer", categories=(1,), ordered=1),
-        lambda: source.struct.cast(field_name="x", fields=None),
-        lambda: source.struct.cast(field_name="x", fields=[field]),
-        lambda: source.struct.cast(field_name="x", fields={"id": object()}),
+        lambda: source.struct.cast(field_name="x", dtype=None),
+        lambda: source.struct.cast(field_name="x", dtype=D.I64),
+        lambda: source.struct.cast(field_name="x", dtype=record, converted_fields=[("id", source)]),
+        lambda: source.struct.cast(field_name="x", dtype=record, converted_fields=(("id", 1),)),
     )
     for build in invalid_builders:
         with pytest.raises(InvalidOptionValueError):

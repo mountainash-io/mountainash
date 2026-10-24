@@ -566,3 +566,55 @@ class TestPreFillDiscardRowException:
         )
         assert res.logical_value is INVALID_STRUCTURED_VALUE
         assert res.keep is False
+
+def _placeholder_cases():
+    import polars as pl
+
+    return [
+        pytest.param(
+            FieldDefinition(type=UniversalType.LIST, item_type="integer"),
+            pl.Series("x", [{"id": 1}, None]), pl.List(pl.Int64), id="lexical-list",
+        ),
+        pytest.param(
+            FieldDefinition(type=UniversalType.ARRAY, element=FieldDefinition(
+                fields={"id": FieldDefinition(dtype=MountainashDtype.I16)},
+            )),
+            pl.Series("x", ["a", None]), pl.List(pl.Struct({"id": pl.Int16})), id="array-of-struct",
+        ),
+    ]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("action", ["discard_value", "discard_row"])
+@pytest.mark.parametrize("field,source,dtype", _placeholder_cases())
+def test_incompatible_source_placeholder_executes_with_selected_dtype(lazy, action, field, source, dtype) -> None:
+    from mountainash import relation
+
+    frame = source.to_frame()
+    result = relation(frame.lazy() if lazy else frame).conform(
+        TableSchema(fields={"x": field}, fields_match="open", missing_values=[]),
+        contract={"data_type": action},
+    ).to_polars()
+    assert result.schema["x"] == dtype
+    # discard_value nulls every incompatible value; discard_row additionally
+    # drops the non-null source row but keeps the null one.
+    assert result["x"].to_list() == ([None, None] if action == "discard_value" else [None])
+
+
+@pytest.mark.parametrize("action", ["coerce", "discard_value"])
+def test_lexical_list_item_type_parses_then_converts(action) -> None:
+    import polars as pl
+    from mountainash import relation
+
+    values = ["1,2", "3", None] if action == "coerce" else ["1,2", "3,x", None]
+    spec = _spec(
+        ("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")),
+        fields_match="open",
+    )
+    result = relation(pl.DataFrame({"items": values})).conform(
+        spec, contract={"data_type": action}
+    ).to_polars()
+    assert result.schema["items"] == pl.List(pl.Int64)
+    assert result["items"].to_list() == (
+        [[1, 2], [3], None] if action == "coerce" else [[1, 2], None, None]
+    )

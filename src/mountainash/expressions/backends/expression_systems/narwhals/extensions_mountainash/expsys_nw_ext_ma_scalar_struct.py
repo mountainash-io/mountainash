@@ -1,18 +1,12 @@
 """Narwhals backend for mountainash struct operations."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-
 import narwhals as nw
 
 from mountainash.expressions.backends.expression_systems.narwhals.base import NarwhalsBaseExpressionSystem
+from mountainash.expressions.backends.expression_systems.narwhals.numeric_cast import checked_struct
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarStructExpressionSystemProtocol
-from mountainash.typespec.converters import resolve_native_type
-from mountainash.typespec.spec import FieldDefinition
-from mountainash.core.dtypes import TypeTarget
+from mountainash.core.dtypes import CastTarget, TypeTarget, registry
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_STRUCT,
@@ -27,7 +21,8 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
         x,
         /,
         *converted_fields,
-        fields: Mapping[str, FieldDefinition],
+        dtype: CastTarget,
+        field_names: tuple[str, ...] = (),
         failure_behavior: str = "throw",
     ):
         if failure_behavior == "null":
@@ -43,22 +38,22 @@ class MountainAshNarwhalsScalarStructExpressionSystem(NarwhalsBaseExpressionSyst
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST,
             )
-        dtype = resolve_native_type(FieldDefinition(fields=fields), TypeTarget.NARWHALS)
-        if converted_fields:
-            count = len(fields)
-            validity = converted_fields[count] if len(converted_fields) > count else None
-            result = nw.struct(
-                **{
-                    name: value
-                    for name, value in zip(fields, converted_fields[:count], strict=True)
-                }
-            ).cast(dtype)
-            result = nw.when(x.is_null()).then(nw.lit(None, dtype=dtype)).otherwise(result)
-            if validity is not None:
-                result = nw.when(validity).then(result).otherwise(nw.lit(None, dtype=dtype))
-            return result
-        return self._cast_target(x, dtype)
+        if not converted_fields:
+            return self.cast(x, dtype=dtype, failure_behavior=failure_behavior)
+        native = registry.to_native_cast(dtype, TypeTarget.NARWHALS)
+        children = dict(zip(field_names, converted_fields, strict=True))
+        if isinstance(native, nw.Struct):
+            # Each converted child is checked from its own output dtype (argument
+            # positions 1..n), so narrowing that survived conversion is still rejected.
+            members = {}
+            for position, (name, child) in enumerate(children.items(), start=1):
+                evidence = self.native_operand_type(position)
+                members[name] = (child, None if evidence is None else evidence.native_dtype)
+            checked = checked_struct(x, native, members, self._cast_target)
+            if checked is not None:
+                return checked
+        result = self._cast_target(nw.struct(**children), native)
+        return nw.when(x.is_null()).then(nw.lit(None, dtype=native)).otherwise(result)
 
     def struct_field(self, x, /, *, field_name: str):
         return x.struct.field(field_name)
-

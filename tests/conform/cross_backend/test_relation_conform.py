@@ -924,15 +924,19 @@ def test_native_container_override_replaces_nested_casts():
 
 @pytest.mark.parametrize("values", [[], [None, None]])
 @pytest.mark.parametrize("in_array", [False, True])
-def test_null_typed_native_container_uses_declared_children(values, in_array):
+@pytest.mark.parametrize("override", [False, True])
+def test_null_typed_native_container_uses_declared_children(values, in_array, override):
     # Polars Null is schema evidence; pandas object is deliberately not equivalent.
     import polars as pl
     record = FieldDefinition(fields={"id": FieldDefinition(dtype=ma.MountainashDtype.I8)})
     field = FieldDefinition(element=record) if in_array else record
+    child_dtype = pl.Int64 if override else pl.Int8
+    expected = pl.List(pl.Struct({"id": child_dtype})) if in_array else pl.Struct({"id": child_dtype})
+    if override:
+        field = field.variant(backend_type=expected)
     out = ma.relation(pl.DataFrame({"record": values})).conform(
         TableSchema(fields={"record": field}, missing_values=[]),
     ).to_polars()
-    expected = pl.List(pl.Struct({"id": pl.Int8})) if in_array else pl.Struct({"id": pl.Int8})
     assert out.schema["record"] == expected
     assert out["record"].to_list() == values
 
@@ -1206,3 +1210,227 @@ def test_native_child_conversion_discards_invalid_parent_not_missing_child(
         TableSchema(fields={"x": field}, missing_values=[]), contract={"data_type": action},
     ).to_polars()
     assert result["x"].to_list() == expected
+
+
+# ---------------------------------------------------------------------------
+# Effective container targets: the complete container dtype governs every
+# depth, authored child declarations only describe conversion instructions.
+# Expected values are independent literals; every supported backend executes
+# the portable target, Polars-owned native targets are exercised separately.
+# ---------------------------------------------------------------------------
+
+def _container_source(backend_name, backend_factory, records):
+    """JSON text stands in for containers on ibis-sqlite (no native struct/list)."""
+    import json
+
+    physical = (
+        [None if value is None else json.dumps(value) for value in records]
+        if backend_name == "ibis-sqlite" else records
+    )
+    return backend_factory.create({"record": physical}, backend_name)
+
+
+def _native_target(dtype, backend_name):
+    """The complete container target in the backend's own native vocabulary.
+
+    FieldDefinition rejects a portable ``dtype`` beside authored ``fields`` /
+    ``element`` (single structural authority), so an effective container
+    target is declared through the owning carrier's native dtype.
+    """
+    from mountainash.core.dtypes import TypeTarget, registry
+
+    # pandas executes through the Narwhals expression system (core/constants.py).
+    target = (
+        TypeTarget.POLARS if backend_name.startswith("polars")
+        else TypeTarget.NARWHALS if backend_name in {"pandas"} or backend_name.startswith("narwhals")
+        else TypeTarget.IBIS
+    )
+    return registry.to_native_cast(dtype, target)
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_effective_struct_target_keeps_wide_values_and_target_order(backend_name, backend_factory):
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype as D, StructDtype
+
+    source = _container_source(backend_name, backend_factory, [
+        {"ratio": 1 + 2**-40, "id": 128, "keep": "a"},
+        None,
+        {"ratio": 1e100, "id": None, "keep": None},
+        {"ratio": None, "id": -129, "keep": "z"},
+    ])
+    field = FieldDefinition(
+        type=UniversalType.OBJECT,
+        backend_type=_native_target(
+            StructDtype((("keep", D.STRING), ("id", D.I64), ("ratio", D.FP64))), backend_name,
+        ),
+        fields={
+            "id": FieldDefinition(dtype=D.I8),
+            "ratio": FieldDefinition(dtype=D.FP32),
+        },
+    )
+    out = ma.relation(source).conform(
+        TableSchema(fields={"record": field}, missing_values=[]),
+    ).to_polars()
+    # "keep" carries no instruction but is a target member: it survives, in target order.
+    assert out.schema["record"] == pl.Struct({"keep": pl.String, "id": pl.Int64, "ratio": pl.Float64})
+    assert out["record"].to_list() == [
+        {"keep": "a", "id": 128, "ratio": 1 + 2**-40},
+        None,  # parent null stays distinct from the child-null row below
+        {"keep": None, "id": None, "ratio": 1e100},
+        {"keep": "z", "id": -129, "ratio": None},
+    ]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_effective_list_of_struct_target_widens_child_and_keeps_members(backend_name, backend_factory):
+    import polars as pl
+    from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
+
+    source = _container_source(backend_name, backend_factory, [
+        [{"id": 128, "keep": "a"}, None],
+        None,
+        [],
+        [{"id": None, "keep": None}],
+    ])
+    field = FieldDefinition(
+        type=UniversalType.ARRAY,
+        backend_type=_native_target(
+            ListDtype(StructDtype((("keep", D.STRING), ("id", D.I64)))), backend_name,
+        ),
+        element=FieldDefinition(fields={"id": FieldDefinition(dtype=D.I8)}),
+    )
+    out = ma.relation(source).conform(
+        TableSchema(fields={"record": field}, missing_values=[]),
+    ).to_polars()
+    assert out.schema["record"] == pl.List(pl.Struct({"keep": pl.String, "id": pl.Int64}))
+    assert out["record"].to_list() == [
+        [{"keep": "a", "id": 128}, None],  # null element is not an empty struct
+        None,                              # null list is not an empty list
+        [],
+        [{"keep": None, "id": None}],
+    ]
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+@pytest.mark.parametrize("container", ["struct", "list", "array"])
+def test_native_container_override_widens_struct_list_array(container, lazy):
+    # Native objects are Polars-owned: other targets are covered by the portable tests above.
+    import polars as pl
+
+    I8 = ma.MountainashDtype.I8
+    if container == "struct":
+        native = pl.Struct({"keep": pl.String, "id": pl.Int64, "at": pl.Datetime("ns", "UTC"), "ratio": pl.Float64})
+        from mountainash.core.dtypes import TimestampDtype
+        field = FieldDefinition(
+            fields={
+                "id": FieldDefinition(dtype=I8),
+                "at": FieldDefinition(dtype=TimestampDtype(6, True, "UTC")),
+                "ratio": FieldDefinition(dtype=ma.MountainashDtype.FP32),
+            },
+            backend_type=native,
+        )
+        parts = pl.DataFrame({
+            "ratio": [1 + 2**-40, None, 1e100],
+            "id": [128, None, None],
+            "at": pl.Series([123456789, None, None], dtype=pl.Int64).cast(pl.Datetime("ns", "UTC")),
+            "keep": ["a", None, None],
+            "present": [True, False, True],
+        })
+        source = parts.select(
+            pl.when(pl.col("present")).then(pl.struct("ratio", "id", "at", "keep")).alias("x")
+        )["x"]
+        expected = [
+            {"keep": "a", "id": 128, "at": 123456789, "ratio": 1 + 2**-40},
+            None,
+            {"keep": None, "id": None, "at": None, "ratio": 1e100},
+        ]
+    elif container == "list":
+        native = pl.List(pl.Int64)
+        field = FieldDefinition(element=FieldDefinition(dtype=I8), backend_type=native)
+        source = pl.Series("x", [[128, None], None, [], [-129]], dtype=pl.List(pl.Int64))
+        expected = [[128, None], None, [], [-129]]
+    else:
+        native = pl.Array(pl.Int64, (2, 2))
+        field = FieldDefinition(
+            element=FieldDefinition(dtype=I8), dimensions=(2, 2), backend_type=native,
+        )
+        source = pl.Series("x", [[[128, 1], [2, None]], None], dtype=native)
+        expected = [[[128, 1], [2, None]], None]
+    frame = source.to_frame()
+    with pytest.warns(UserWarning):
+        out = ma.relation(frame.lazy() if lazy else frame).conform(
+            TableSchema(fields={"x": field}, missing_values=[]),
+        ).to_polars()
+    assert out.schema["x"] == native
+    if container == "struct":
+        # Native refinement (ns precision) retained although the declaration said us.
+        flat = out["x"].struct.unnest()
+        assert flat["at"].dt.epoch("ns").to_list() == [123456789, None, None]
+        assert out["x"].struct.unnest().drop("at").to_dicts() == [
+            {"keep": "a", "id": 128, "ratio": 1 + 2**-40},
+            {"keep": None, "id": None, "ratio": None},
+            {"keep": None, "id": None, "ratio": 1e100},
+        ]
+        assert out["x"].is_null().to_list() == [False, True, False]
+    else:
+        assert out["x"].to_list() == expected
+
+
+@pytest.mark.parametrize("container", ["struct", "list"])
+@pytest.mark.parametrize("backend_name", [
+    "polars", "polars-lazy", "pandas", "narwhals-polars", "narwhals-pandas", "narwhals-lazy", "ibis-duckdb",
+])
+def test_unsigned64_maximum_survives_effective_container_target(backend_name, container):
+    # Typed UInt64 sources are built natively (Arrow-backed for pandas): generic
+    # dict inference cannot carry the maximum. SQLite has no unsigned 64-bit integer.
+    import narwhals as nw
+    import pandas as pd
+    import polars as pl
+    from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
+    from mountainash.core.types import BackendCapabilityError
+    from fixtures.call_expectations import expect_call_failure
+
+    top = 2**64 - 1
+    if container == "struct":
+        native = pl.Struct({"v": pl.UInt64})
+        values = [{"v": top}, None, {"v": 0}, {"v": None}]
+        field = FieldDefinition(
+            type=UniversalType.OBJECT,
+            backend_type=_native_target(StructDtype((("v", D.U64),)), backend_name),
+            fields={"v": FieldDefinition(dtype=D.I8)},
+        )
+    else:
+        native = pl.List(pl.UInt64)
+        values = [[top, 0], None, [], [None]]
+        field = FieldDefinition(
+            type=UniversalType.ARRAY,
+            backend_type=_native_target(ListDtype(D.U64), backend_name),
+            element=FieldDefinition(dtype=D.I8),
+        )
+    frame = pl.DataFrame({"record": pl.Series(values, dtype=native)})
+    if backend_name == "polars-lazy":
+        source = frame.lazy()
+    elif backend_name == "pandas":
+        source = frame.to_arrow().to_pandas(types_mapper=pd.ArrowDtype)
+    elif backend_name == "narwhals-pandas":
+        source = nw.from_native(frame.to_arrow().to_pandas(types_mapper=pd.ArrowDtype), eager_only=True)
+    elif backend_name == "narwhals-polars":
+        source = nw.from_native(frame, eager_only=True)
+    elif backend_name == "narwhals-lazy":
+        source = nw.from_native(frame.lazy())
+    elif backend_name == "ibis-duckdb":
+        import ibis
+        source = ibis.duckdb.connect().create_table("u64_container", frame.to_arrow(), overwrite=True)
+    else:
+        source = frame
+    with expect_call_failure(
+        when=container == "struct" and backend_name in {"pandas", "narwhals-pandas"},
+        errors=(BackendCapabilityError,),
+        reason="Existing Narwhals pandas struct cast refusal: null input structs cannot be preserved",
+    ):
+        out = ma.relation(source).conform(
+            TableSchema(fields={"record": field}, missing_values=[]),
+        ).to_polars()
+    assert out.schema["record"] == native
+    assert out["record"].to_list() == values
