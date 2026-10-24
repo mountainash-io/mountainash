@@ -11,9 +11,10 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Callable, Iterator, Mapping
     from mountainash.expressions.core.constants import CONST_BACKEND
     from mountainash.core.dtypes.metadata import LogicalKind, StorageKind
+    from mountainash.expressions.core.unified_visitor.type_context import ResolvedOperand
 
 
 class BaseExpressionSystem(ABC):
@@ -46,7 +47,9 @@ class BaseExpressionSystem(ABC):
     def __init__(self, dialect: str | None = None, *, execution_context: Any) -> None:
         self.dialect = dialect
         self.execution_context = execution_context
-        self._operand_type_stack: list[Mapping[str, Any]] = []
+        self._operand_type_stack: list[
+            tuple[Mapping[str, Any], Callable[[str], ResolvedOperand | None] | None]
+        ] = []
 
     def native_argument_form(self, value: Any) -> str | None:
         """Return a known native argument form, or leave it unknown."""
@@ -63,9 +66,14 @@ class BaseExpressionSystem(ABC):
         return companion(resolver_type(visitor, function_key, arguments, compiled_arguments))
 
     @contextmanager
-    def operand_types(self, named_operands: Mapping[str, Any]) -> Iterator[None]:
-        """Expose resolved descriptors to one backend dispatch and restore nesting."""
-        self._operand_type_stack.append(named_operands)
+    def operand_types(
+        self,
+        named_operands: Mapping[str, Any],
+        *,
+        native_resolver: Callable[[str], ResolvedOperand | None] | None = None,
+    ) -> Iterator[None]:
+        """Scope descriptors and optional on-demand native evidence to one dispatch."""
+        self._operand_type_stack.append((named_operands, native_resolver))
         try:
             yield
         finally:
@@ -75,13 +83,20 @@ class BaseExpressionSystem(ABC):
         """Return the current dispatch operand descriptor by protocol parameter name."""
         from mountainash.core.types import BackendCapabilityError
 
-        if self._operand_type_stack and name in self._operand_type_stack[-1]:
-            return self._operand_type_stack[-1][name]
+        if self._operand_type_stack and name in self._operand_type_stack[-1][0]:
+            return self._operand_type_stack[-1][0][name]
         raise BackendCapabilityError(
             f"operand metadata is unresolved for {name!r}",
             backend=self.BACKEND_NAME,
             function_key=None,
         )
+
+    def native_operand_type(self, name: str) -> ResolvedOperand | None:
+        """Request optional native evidence without changing required descriptors."""
+        if not self._operand_type_stack:
+            return None
+        resolver = self._operand_type_stack[-1][1]
+        return resolver(name) if resolver is not None else None
 
     def field_operand_type(self, input_data: Any, field: str) -> Any:
         """Resolve a direct field through the backend's metadata-only adapter."""

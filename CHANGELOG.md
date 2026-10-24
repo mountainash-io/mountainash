@@ -4,6 +4,7 @@
 
 ### Fixed
 - Unidentified native failures at materialization now propagate unchanged instead of being attributed to an unrelated successful conform field. Positively identified native issues and owned conform errors retain their existing enrichment.
+- Scalar casts reject finite Float64-to-Float32 overflow on Polars and the supported Narwhals carriers; pandas NumPy/nullable integer narrowing rejects out-of-range values instead of wrapping. Computed/native operands use their own dtype through optional row-free metadata or eager series binding, without recompiling the operand. Ordinary Float32 rounding, NaN/infinity/null/signed-zero inputs and existing fractional conversions remain unchanged. Polars null mode yields null; existing Narwhals null-mode refusals and SQLite width limitations remain unchanged. This qualification does not extend support to additional Narwhals providers.
 - Shared-schema conform: Ibis/DuckDB string values with a numeric null fill now convert through the deferred public relation path (`["4", None]` → `[4, 0]`, Int64). Failed conversions are not treated as original missing values.
 - Conform output reconciliation honors explicit extra-column policies over presets and preserves row cardinality for literal-only projections.
 - Nested shared definitions apply conversion and fill settings at every element level, including whole record/list fills; fixed-array element conversion preserves declared dimensions.

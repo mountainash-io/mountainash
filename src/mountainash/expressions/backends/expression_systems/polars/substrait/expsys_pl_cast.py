@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal
 import polars as pl
 
 from ..base import PolarsBaseExpressionSystem
+from ..numeric_cast import cast_float32_checked
 from ..temporal_cast import cast_temporal_compatible
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
@@ -59,4 +60,9 @@ class SubstraitPolarsCastExpressionSystem(PolarsBaseExpressionSystem, SubstraitC
                     strict=strict,
                 )
             )
-        return cast_temporal_compatible(x, registry.to_native_cast(dtype, self._TARGET), strict=strict)
+        native_target = registry.to_native_cast(dtype, self._TARGET)
+        if native_target == pl.Float32:
+            return x.pipe_with_dtype(
+                lambda expr, native: cast_float32_checked(expr, native, strict=strict)
+            )
+        return cast_temporal_compatible(x, native_target, strict=strict)

@@ -345,3 +345,84 @@ def test_valid_replacement_beside_boolean_conversion_succeeds(lazy, conform_firs
     if isinstance(result, pl.LazyFrame):
         result = result.collect()
     assert result.to_dicts() == [{"other": 0, "flag": True}]
+
+
+_ROUTES = [
+    pytest.param("direct-select", True, id="select-cast-first"),
+    pytest.param("direct-select", False, id="select-replacement-first"),
+    pytest.param("direct-with_columns", True, id="with_columns-cast-first"),
+    pytest.param("direct-with_columns", False, id="with_columns-replacement-first"),
+    pytest.param("conform-first", True, id="conform-then-replacement"),
+    pytest.param("conform-last", True, id="replacement-then-conform"),
+]
+_INPUTS = {
+    "all-valid": (0, 1.5),
+    "cast-only": (0, 1e100),
+    "replacement-only": (1, 1.5),
+    "both-failing": (1, 1e100),
+}
+
+
+def _attribution_query(route: str, cast_first: bool, lazy: bool, other: int, big: float):
+    """One fp32 cast and one unrelated native replacement, via every route.
+
+    Direct routes apply both operations to the source without conform. Conform
+    routes let the schema perform the fp32 conversion and the Boolean flag
+    conversion, with the replacement before or after the conform.
+    """
+    import polars as pl
+
+    import mountainash as ma
+    from mountainash.core.dtypes import MountainashDtype
+
+    source = pl.DataFrame({"other": [other], "big": [big], "flag": ["true"]})
+    source = source.lazy() if lazy else source
+    replacement = ma.native(pl.col("other").replace_strict({0: 0})).name.alias("other")
+    cast = ma.col("big").cast("fp32").name.alias("big")
+    relation_ = ma.relation(source)
+    if route.startswith("direct"):
+        exprs = (cast, replacement) if cast_first else (replacement, cast)
+        if route == "direct-select":
+            return relation_.select(*exprs, ma.col("flag"))
+        return relation_.with_columns(*exprs)
+    schema = TableSchema(
+        fields={
+            "other": FieldDefinition(type=UniversalType.INTEGER),
+            "big": FieldDefinition(type=UniversalType.NUMBER, dtype=MountainashDtype.FP32),
+            "flag": FieldDefinition(type=UniversalType.BOOLEAN),
+        },
+        missing_values=[],
+    )
+    if route == "conform-first":
+        return relation_.conform(schema).with_columns(replacement)
+    return relation_.with_columns(replacement).conform(schema)
+
+
+@pytest.mark.parametrize("lazy", [False, True], ids=["eager", "lazy"])
+@pytest.mark.parametrize(("route", "cast_first"), _ROUTES)
+@pytest.mark.parametrize("case", list(_INPUTS))
+def test_native_failures_are_attributed_only_to_their_own_operation(
+    case, route, cast_first, lazy
+) -> None:
+    """Valid, cast-only, replacement-only and both-failing inputs: native errors stay raw.
+
+    Conform routes order the operations by placing the conform before or after
+    the replacement; ``cast_first`` orders the direct routes.
+    """
+    import polars as pl
+
+    other, big = _INPUTS[case]
+    query = _attribution_query(route, cast_first, lazy, other, big)
+    if case == "all-valid":
+        result = query.to_polars()
+        if isinstance(result, pl.LazyFrame):
+            result = result.collect()
+        flag = "true" if route.startswith("direct") else True
+        assert result.to_dicts() == [{"other": 0, "big": 1.5, "flag": flag}]
+        assert result.schema["big"] == pl.Float32
+        assert result.schema["other"] == pl.Int64
+        assert result.schema["flag"] == (pl.String if route.startswith("direct") else pl.Boolean)
+        return
+    with pytest.raises(pl.exceptions.PolarsError) as raised:
+        query.to_polars()
+    assert not isinstance(raised.value, ConformTransformError)

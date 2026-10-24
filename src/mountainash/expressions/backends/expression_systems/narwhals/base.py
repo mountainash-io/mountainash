@@ -552,7 +552,12 @@ class NarwhalsBaseExpressionSystem(BaseExpressionSystem):
             )
         name = "__mountainash_operand_metadata__"
         lazy = input_data if type(input_data).__name__ == "LazyFrame" else input_data.lazy()
-        dtype = lazy.select(expression.alias(name)).collect_schema()[name]
+        # Infer only the dtype: public LazyFrame.select would impose lazy
+        # ordering rules on expressions that are valid on the eager input.
+        # The compliant projection still uses schema inference, never execution.
+        frame = lazy._compliant_frame
+        bound = expression.alias(name)._to_compliant_expr(frame.__narwhals_namespace__())
+        dtype = frame.select(bound).collect_schema()[name]
         dtype_name = type(dtype).__name__
         if dtype_name == "Object":
             descriptor = OperandType("unknown", "polars_object", None)

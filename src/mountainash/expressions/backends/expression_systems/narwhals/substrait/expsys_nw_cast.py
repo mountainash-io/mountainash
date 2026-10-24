@@ -11,6 +11,9 @@ import narwhals as nw
 from mountainash.expressions.backends.expression_systems.narwhals.extensions_mountainash.expsys_nw_ext_ma_scalar_value import _polars_native_transform
 
 from ..base import NarwhalsBaseExpressionSystem
+from ..numeric_cast import (
+    WRAPPING_STORAGE, checked_cast, checks, numeric_target, source_of,
+)
 from mountainash.expressions.core.expression_protocols.expression_systems.substrait import SubstraitCastExpressionSystemProtocol
 from mountainash.core.dtypes import (
     CastTarget, MountainashDtype, SchemaTypeStatus, TypeTarget, dtype_is_complete,
@@ -119,7 +122,60 @@ class SubstraitNarwhalsCastExpressionSystem(NarwhalsBaseExpressionSystem, Substr
                 x, None, None, native_polars=False,
                 compliant_transform=lambda source: self._bind_lazy_cast(source, dtype),
             )
-        return self._cast_target(x, registry.to_native_cast(dtype, self._TARGET))
+        native_target = registry.to_native_cast(dtype, self._TARGET)
+        numeric = numeric_target(native_target)
+        if numeric is not None:
+            return self._cast_numeric(x, native_target, numeric)
+        return self._cast_target(x, native_target)
+
+    def _cast_numeric(self, x: NarwhalsExpr, native_target: object, target: MountainashDtype) -> NarwhalsExpr:
+        """Reject newly invalid integer/Float32 conversions without re-reading the source.
+
+        The operand's native dtype, when the visitor can supply one, selects the
+        predicates from type domains. Wrapping storage (NumPy/nullable pandas) is
+        bound from the evaluated series instead, so an opaque operand runs once.
+        Without evidence the same eager binding is used where the compliant
+        expression supports it; other expressions keep the plain native cast.
+        """
+        evidence = self.native_operand_type("x")
+        if evidence is None or evidence.native_dtype is None:
+            return self._cast_bound_numeric(x, native_target, target)
+        source = source_of(evidence.native_dtype)
+        if source is None or not checks(source, target):
+            return self._cast_target(x, native_target)
+        if evidence.descriptor.storage_kind in WRAPPING_STORAGE:
+            return self._cast_bound_numeric(x, native_target, target)
+        if target is not MountainashDtype.FP32:
+            # Polars and Arrow-backed integer casts already raise natively.
+            return self._cast_target(x, native_target)
+        return checked_cast(x, native_target, source, target)
+
+    def _cast_bound_numeric(self, x: NarwhalsExpr, native_target: object, target: MountainashDtype) -> NarwhalsExpr:
+        from ..extensions_mountainash.expsys_nw_ext_ma_scalar_value import _ElementwiseBatchExpr
+
+        def cast_series(series):
+            # The evaluated operand's own dtype is the evidence; nothing is sampled.
+            source = source_of(series.dtype)
+            if source is None or not checks(source, target):
+                return series.cast(native_target)
+            return checked_cast(
+                nw.Series(series, level="full"), native_target, source, target,
+            )._compliant_series
+
+        def bind(source):
+            if not hasattr(source, "_from_callable"):
+                # Preserve native behavior outside the qualified handoff:
+                # supported Polars inputs resolve metadata before this path;
+                # supported pandas inputs provide this eager binding seam.
+                return source.cast(native_target)
+            return source._from_callable(
+                lambda frame: [cast_series(series) for series in source(frame)],
+                evaluate_output_names=source._evaluate_output_names,
+                alias_output_names=source._alias_output_names,
+                context=source,
+            )
+
+        return _ElementwiseBatchExpr(x, None, None, native_polars=False, compliant_transform=bind)
 
     def _bind_lazy_cast(self, expression, dtype):
         """Resolve lazy operands from bound metadata, never sampled rows."""

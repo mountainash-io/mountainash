@@ -813,7 +813,13 @@ class UnifiedExpressionVisitor:
         self._gate_options(function_key, options)
         method = getattr(self.backend, "cast")
         fold_lowering(self, selected_lowering(method, func_def.lowering))
-        with self.backend.operand_types(operand_types):
+
+        def native_operand(name):
+            if name == "x":
+                return self.type_context.resolve_bound_native(node.input, args[0])
+            return None
+
+        with self.backend.operand_types(operand_types, native_resolver=native_operand):
             return method(*args, **options)
 
     def visit_singular_or_list(self, node: SingularOrListNode) -> SupportedExpressions:
