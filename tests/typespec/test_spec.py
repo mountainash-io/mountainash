@@ -1,29 +1,137 @@
 """
-Tests for mountainash.typespec.spec — TypeSpec, FieldSpec, FieldConstraints, SpecDiff.
+Tests for mountainash.typespec.spec — TableSchema, FieldDefinition, FieldConstraints, SpecDiff.
 """
 from __future__ import annotations
 
 import pytest
 
+from mountainash.core.dtypes import MountainashDtype as D, SchemaTypeStatus
 from mountainash.typespec.errors import (
     IncompatibleFieldPropertiesError,
+    InvalidDtypeDeclaration,
     InvalidKeyShapeError,
 )
 from mountainash.typespec.frictionless import (
     _field_to_frictionless_dict,
-    typespec_from_frictionless,
-    typespec_to_frictionless,
+    table_schema_from_frictionless,
+    table_schema_to_frictionless,
 )
 from mountainash.typespec.spec import (
     FieldConstraints,
-    FieldSpec,
+    FieldDefinition,
     ForeignKey,
     ForeignKeyReference,
     LabeledValue,
-    TypeSpec,
+    TableSchema,
     compare_specs,
 )
 from mountainash.typespec.universal_types import UniversalType
+
+
+class TestSharedDeclarations:
+    def test_variant_retains_unspecified_constraints(self):
+        from mountainash.typespec.spec import FieldDefinition
+        from mountainash.core.dtypes import MountainashDtype as D
+
+        base = FieldDefinition(dtype=D.I64, minimum=0, maximum=100)
+        variant = base.variant(minimum=10)
+        replaced = base.variant(
+            constraints=FieldConstraints(maximum=200), minimum=20,
+        )
+        assert (base.constraints.minimum, base.constraints.maximum) == (0, 100)
+        assert (variant.constraints.minimum, variant.constraints.maximum) == (10, 100)
+        assert (replaced.constraints.minimum, replaced.constraints.maximum) == (20, 200)
+
+    def test_recursive_composition_preserves_shape_distinctions(self):
+        from mountainash.typespec.spec import FieldDefinition
+        from mountainash.core.dtypes import (
+            ArrayDtype, ListDtype, MountainashDtype as D,
+            SchemaTypeStatus, StructDtype,
+        )
+
+        quantity = FieldDefinition(dtype=D.I64, minimum=0)
+        assert FieldDefinition(fields={"qty": quantity}).dtype == StructDtype(
+            fields=(("qty", D.I64),),
+        )
+        assert FieldDefinition(fields={}).dtype == StructDtype(fields=())
+        assert FieldDefinition(element=quantity).dtype == ListDtype(element=D.I64)
+        assert FieldDefinition(
+            element=quantity, dimensions=SchemaTypeStatus.UNKNOWN,
+        ).dtype == ArrayDtype(element=D.I64, dimensions=SchemaTypeStatus.UNKNOWN)
+
+    def test_declarations_own_nested_metadata_and_schema_mapping(self):
+        from mountainash.typespec.spec import FieldDefinition, TableSchema
+        from dataclasses import FrozenInstanceError
+
+        enum = ["a", "b"]
+        metadata = {"type": "string", "examples": ["a"]}
+        definition = FieldDefinition(
+            constraints=FieldConstraints(enum=enum, json_schema=metadata),
+        )
+        named = {"first": definition}
+        schema = TableSchema(fields=named)
+        enum.append("c")
+        metadata["examples"].append("b")
+        named["second"] = definition
+        assert tuple(definition.constraints.enum) == ("a", "b")
+        assert tuple(definition.constraints.json_schema["examples"]) == ("a",)
+        assert list(schema.fields) == ["first"]
+        with pytest.raises((FrozenInstanceError, AttributeError)):
+            definition.title = "changed"
+
+    def test_constraint_keywords_cover_complete_vocabulary_and_severity(self):
+        definition = FieldDefinition(
+            type=UniversalType.STRING, required=True, unique=True,
+            eq="a", ne="b", notin=["c"], str_contains="x",
+            str_startswith="y", str_endswith="z", min_length=1, max_length=5,
+            pattern="^a", enum=["a", "d"], severity="warning",
+        )
+        c = definition.constraints
+        assert (c.required, c.unique, c.eq, c.ne) == (True, True, "a", "b")
+        assert tuple(c.notin) == ("c",)
+        assert (c.str_contains, c.str_startswith, c.str_endswith) == ("x", "y", "z")
+        assert (definition.min_length, definition.max_length, definition.pattern) == (1, 5, "^a")
+        assert definition.severity == "warning"
+        assert FieldDefinition().severity is None
+
+    def test_variant_overlay_can_relax_and_unset_booleans_without_touching_original(self):
+        base = FieldDefinition(dtype=D.I64, required=True, minimum=0, maximum=100)
+        relaxed = base.variant(required=False, maximum=500)
+        assert (relaxed.required, relaxed.minimum, relaxed.maximum) == (False, 0, 500)
+        assert (base.required, base.maximum) == (True, 100)
+        assert base.variant(rename_from="SRC").rename_from == "SRC"
+        assert base.rename_from is None
+
+    def test_variant_of_nested_shape_rederives_dtype(self):
+        record = FieldDefinition(fields={"a": FieldDefinition(dtype=D.I64)})
+        wider = record.variant(
+            fields={"a": FieldDefinition(dtype=D.I64), "b": FieldDefinition(dtype=D.STRING)},
+        )
+        assert [name for name, _ in wider.dtype.fields] == ["a", "b"]
+        assert len(record.dtype.fields) == 1
+
+    def test_unknown_and_empty_structure_are_distinct(self):
+        from mountainash.core.dtypes import StructDtype
+
+        unknown = FieldDefinition(dtype=StructDtype())
+        assert unknown.fields is None and unknown.dtype.fields is SchemaTypeStatus.UNKNOWN
+        assert FieldDefinition(fields=SchemaTypeStatus.UNKNOWN).dtype == unknown.dtype
+        assert FieldDefinition(fields={}).dtype != unknown.dtype
+
+    def test_nested_declaration_contradicting_dtype_raises(self):
+        with pytest.raises(InvalidDtypeDeclaration):
+            FieldDefinition(dtype=D.I64, fields={"a": FieldDefinition(dtype=D.I64)})
+        with pytest.raises(IncompatibleFieldPropertiesError):
+            FieldDefinition(type=UniversalType.STRING, fields={})
+
+    def test_schema_fields_assignment_is_copied_and_ordered(self):
+        schema = TableSchema()
+        named = {"b": FieldDefinition(), "a": FieldDefinition()}
+        schema.fields = named
+        named.pop("b")
+        assert list(schema.fields) == ["b", "a"]
+        with pytest.raises(InvalidDtypeDeclaration):
+            TableSchema(fields=[FieldDefinition()])
 
 
 # ============================================================================
@@ -47,16 +155,17 @@ class TestFieldConstraints:
         assert c.exclusive_minimum is None
         assert c.exclusive_maximum is None
         assert c.json_schema is None
+        assert (c.eq, c.ne, c.notin) == (None, None, None)
 
 
 # ============================================================================
-# TestUnitBModelDefaults / exports
+# Model defaults / exports
 # ============================================================================
 
 def test_unit_b_model_defaults() -> None:
-    assert FieldSpec("value", type=UniversalType.ANY).type is UniversalType.ANY
-    assert TypeSpec().fields_match == "exact"
-    assert TypeSpec().missing_values == [""]
+    assert FieldDefinition(type=UniversalType.ANY).type is UniversalType.ANY
+    assert TableSchema().fields_match == "exact"
+    assert TableSchema().missing_values == [""]
 
 
 def test_labeled_values_and_v2_constraints_store_exact_shapes() -> None:
@@ -66,14 +175,13 @@ def test_labeled_values_and_v2_constraints_store_exact_shapes() -> None:
         exclusive_maximum=10,
         json_schema={"type": "integer"},
     )
-    field = FieldSpec(
-        "value",
-        UniversalType.INTEGER,
+    definition = FieldDefinition(
+        type=UniversalType.INTEGER,
         categories=[labeled],
         missing_values=[LabeledValue("-", "Dash")],
         constraints=constraints,
     )
-    assert field.categories == [labeled]
+    assert definition.categories == (labeled,)
     assert constraints.json_schema == {"type": "integer"}
 
 
@@ -84,12 +192,12 @@ def test_labeled_value_and_model_classes_exported_from_typespec() -> None:
 
     from mountainash.typespec import (  # noqa: F401
         FieldConstraints,
-        FieldSpec,
+        FieldDefinition,
         ForeignKey,
         ForeignKeyReference,
         LabeledValue,
         MissingValue,
-        TypeSpec,
+        TableSchema,
     )
 
     module = sys.modules["mountainash.typespec"]
@@ -99,39 +207,27 @@ def test_labeled_value_and_model_classes_exported_from_typespec() -> None:
         "FieldConstraints",
         "ForeignKeyReference",
         "ForeignKey",
-        "FieldSpec",
-        "TypeSpec",
+        "FieldDefinition",
+        "TableSchema",
     ):
         assert hasattr(module, name), name
         assert name in module.__all__, name
+    for retired in ("FieldSpec", "TypeSpec"):
+        assert not hasattr(module, retired), retired
 
 
 # ============================================================================
-# TestFieldSpec
+# TestFieldDefinition
 # ============================================================================
 
-class TestFieldSpec:
-    def test_source_name_defaults_to_name(self):
-        f = FieldSpec(name="age", type=UniversalType.ANY)
-        assert f.source_name == "age"
-
-    def test_source_name_uses_rename_from(self):
-        f = FieldSpec(name="age", type=UniversalType.ANY, rename_from="AGE")
-        assert f.source_name == "AGE"
-
+class TestFieldDefinition:
     def test_default_type_is_any(self):
-        f = FieldSpec(name="col")
-        assert f.type is UniversalType.ANY
+        assert FieldDefinition().type is UniversalType.ANY
 
-    def test_null_fill_default_is_none(self):
-        f = FieldSpec(name="col", type=UniversalType.ANY)
-        assert f.null_fill is None
-
-    # --- serializer coverage (rewritten from the deleted to_dict methods) ---
+    # --- serializer coverage ---
 
     def test_field_dict_minimal(self):
-        f = FieldSpec(name="id", type=UniversalType.INTEGER)
-        d = _field_to_frictionless_dict(f)
+        d = _field_to_frictionless_dict(FieldDefinition(type=UniversalType.INTEGER), "id")
         assert d["name"] == "id"
         assert d["type"] == "integer"
         assert "x-mountainash" not in d
@@ -139,77 +235,61 @@ class TestFieldSpec:
 
     def test_field_dict_with_constraints(self):
         constraints = FieldConstraints(required=True, min_length=2)
-        f = FieldSpec(name="username", type=UniversalType.STRING, constraints=constraints)
-        d = _field_to_frictionless_dict(f)
+        definition = FieldDefinition(type=UniversalType.STRING, constraints=constraints)
+        d = _field_to_frictionless_dict(definition, "username")
         assert d["name"] == "username"
-        assert "constraints" in d
         assert d["constraints"]["required"] is True
         assert d["constraints"]["minLength"] == 2
 
-    def test_field_spec_has_object_fields_default_none(self):
-        f = FieldSpec(name="addr", type=UniversalType.OBJECT)
-        assert f.object_fields is None
+    def test_nested_fields_round_trip_in_declared_order(self):
+        geo = FieldDefinition(fields={"lat": FieldDefinition(type=UniversalType.NUMBER)})
+        addr = FieldDefinition(
+            fields={
+                "street": FieldDefinition(type=UniversalType.STRING),
+                "geo": geo,
+                "zip": FieldDefinition(type=UniversalType.STRING),
+            },
+        )
+        restored = table_schema_from_frictionless(
+            table_schema_to_frictionless(TableSchema(fields={"addr": addr}))
+        ).fields["addr"]
+        assert list(restored.fields) == ["street", "geo", "zip"]
+        assert list(restored.fields["geo"].fields) == ["lat"]
+        assert restored.fields["geo"].fields["lat"].type is UniversalType.NUMBER
 
-    def test_object_fields_omitted_from_dict_when_unset(self):
-        f = FieldSpec(name="addr", type=UniversalType.OBJECT)
-        d = _field_to_frictionless_dict(f)
-        assert "x-mountainash" not in d
-
-    def test_object_fields_exported_recursively_in_dict(self):
-        inner = [
-            FieldSpec(name="street", type=UniversalType.STRING),
-            FieldSpec(name="zip", type=UniversalType.STRING),
-        ]
-        f = FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=inner)
-        d = _field_to_frictionless_dict(f)
-        assert d["x-mountainash"]["object_fields"] == [
-            {"name": "street", "type": "string"},
-            {"name": "zip", "type": "string"},
-        ]
-
-    def test_object_fields_two_levels_deep_in_dict(self):
-        geo = [FieldSpec(name="lat", type=UniversalType.NUMBER)]
-        inner = [
-            FieldSpec(name="street", type=UniversalType.STRING),
-            FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=geo),
-        ]
-        f = FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=inner)
-        d = _field_to_frictionless_dict(f)
-        nested = d["x-mountainash"]["object_fields"][1]
-        assert nested["name"] == "geo"
-        assert nested["x-mountainash"]["object_fields"] == [{"name": "lat", "type": "number"}]
+    def test_element_round_trip(self):
+        rows = FieldDefinition(
+            element=FieldDefinition(
+                fields={
+                    "a": FieldDefinition(type=UniversalType.STRING),
+                    "b": FieldDefinition(type=UniversalType.INTEGER),
+                },
+            ),
+        )
+        restored = table_schema_from_frictionless(
+            table_schema_to_frictionless(TableSchema(fields={"rows": rows}))
+        ).fields["rows"]
+        assert list(restored.element.fields) == ["a", "b"]
+        assert restored.element.fields["b"].type is UniversalType.INTEGER
 
     # --- property/type compatibility (Section 8.7) ---
 
     @pytest.mark.parametrize(
-        "kwargs,prop",
+        "kwargs",
         [
-            ({"type": UniversalType.STRING, "item_type": "integer"}, "item_type"),
-            ({"type": UniversalType.STRING, "delimiter": ";"}, "delimiter"),
-            ({"type": UniversalType.INTEGER, "item_type": "integer"}, "item_type"),
-            (
-                {"type": UniversalType.LIST,
-                 "item_object_fields": [FieldSpec(name="a", type=UniversalType.STRING)]},
-                "item_object_fields",
-            ),
-            (
-                {"type": UniversalType.STRING,
-                 "object_fields": [FieldSpec(name="a", type=UniversalType.STRING)]},
-                "object_fields",
-            ),
+            {"type": UniversalType.STRING, "item_type": "integer"},
+            {"type": UniversalType.STRING, "delimiter": ";"},
+            {"type": UniversalType.INTEGER, "item_type": "integer"},
+            {"type": UniversalType.LIST, "element": FieldDefinition(type=UniversalType.STRING)},
+            {"type": UniversalType.STRING, "fields": {"a": FieldDefinition(type=UniversalType.STRING)}},
         ],
     )
-    def test_incompatible_property_type_combinations_raise(self, kwargs, prop):
-        with pytest.raises(IncompatibleFieldPropertiesError) as exc_info:
-            FieldSpec(
-                name="f",
-                type=kwargs["type"],
-                **{key: value for key, value in kwargs.items() if key != "type"},
-            )
-        assert exc_info.value.property_name == prop
+    def test_incompatible_property_type_combinations_raise(self, kwargs):
+        with pytest.raises(IncompatibleFieldPropertiesError):
+            FieldDefinition(**kwargs)
 
     def test_item_type_and_delimiter_legal_on_list(self):
-        f = FieldSpec(name="tags", type=UniversalType.LIST, item_type="integer", delimiter=";")
+        f = FieldDefinition(type=UniversalType.LIST, item_type="integer", delimiter=";")
         assert f.item_type == "integer"
         assert f.delimiter == ";"
 
@@ -219,54 +299,26 @@ class TestFieldSpec:
     )
     def test_array_rejects_lexical_properties(self, property_name, value):
         with pytest.raises(IncompatibleFieldPropertiesError):
-            FieldSpec(name="values", type=UniversalType.ARRAY, **{property_name: value})
-
-    def test_item_object_fields_legal_on_array(self):
-        f = FieldSpec(
-            name="rows",
-            type=UniversalType.ARRAY,
-            item_object_fields=[FieldSpec(name="a", type=UniversalType.STRING)],
-        )
-        assert f.item_object_fields[0].name == "a"
-
-    def test_item_object_fields_round_trip(self):
-        f = FieldSpec(
-            name="rows",
-            type=UniversalType.ARRAY,
-            item_object_fields=[
-                FieldSpec(name="a", type=UniversalType.STRING),
-                FieldSpec(name="b", type=UniversalType.INTEGER),
-            ],
-        )
-        d = _field_to_frictionless_dict(f)
-        assert d["x-mountainash"]["item_object_fields"] == [
-            {"name": "a", "type": "string"},
-            {"name": "b", "type": "integer"},
-        ]
-        restored = typespec_from_frictionless(typespec_to_frictionless(TypeSpec(fields=[f])))
-        assert restored.fields[0].item_object_fields[0].name == "a"
-        assert restored.fields[0].item_object_fields[1].type is UniversalType.INTEGER
+            FieldDefinition(type=UniversalType.ARRAY, **{property_name: value})
 
     def test_labeled_value_round_trip_on_categories_and_missing_values(self):
-        f = FieldSpec(
-            name="status",
+        definition = FieldDefinition(
             type=UniversalType.STRING,
             categories=[LabeledValue("a", "Active"), "raw"],
             missing_values=[LabeledValue("-", "Dash"), ""],
         )
-        restored = typespec_from_frictionless(typespec_to_frictionless(TypeSpec(fields=[f])))
-        rf = restored.fields[0]
-        assert rf.categories == [LabeledValue("a", "Active"), "raw"]
-        assert rf.missing_values == [LabeledValue("-", "Dash"), ""]
+        restored = table_schema_from_frictionless(
+            table_schema_to_frictionless(TableSchema(fields={"status": definition}))
+        ).fields["status"]
+        assert restored.categories == (LabeledValue("a", "Active"), "raw")
+        assert restored.missing_values == (LabeledValue("-", "Dash"), "")
 
     def test_read_side_property_type_incompatibility_raises(self):
-        # A raw descriptor with a stray itemType on a string field now raises
-        # on read (Section 8.11 read-side strictness change).
+        # A raw descriptor with a stray itemType on a string field raises on read.
         with pytest.raises(IncompatibleFieldPropertiesError):
-            typespec_from_frictionless(
+            table_schema_from_frictionless(
                 {"fields": [{"name": "x", "type": "string", "itemType": "integer"}]}
             )
-
 
 
 # ============================================================================
@@ -276,8 +328,8 @@ class TestFieldSpec:
 @pytest.mark.parametrize(
     "factory,label",
     [
-        (lambda: TypeSpec(primary_key="id"), "primary_key"),
-        (lambda: TypeSpec(unique_keys=[["ok"], "bad"]), "unique_keys[1]"),
+        (lambda: TableSchema(primary_key="id"), "primary_key"),
+        (lambda: TableSchema(unique_keys=[["ok"], "bad"]), "unique_keys[1]"),
         (
             lambda: ForeignKey(
                 fields="id",
@@ -298,40 +350,47 @@ def test_direct_key_shapes_require_list_str(factory, label) -> None:
 
 
 # ============================================================================
-# TestTypeSpec
+# TestTableSchema
 # ============================================================================
 
-class TestTypeSpec:
+class TestTableSchema:
     def test_from_simple_dict(self):
-        spec = TypeSpec.from_simple_dict({"id": "integer", "name": "string"})
-        assert len(spec.fields) == 2
-        assert spec.fields[0].name == "id"
-        assert spec.fields[0].type == UniversalType.INTEGER
-        assert spec.fields[1].name == "name"
-        assert spec.fields[1].type == UniversalType.STRING
+        schema = TableSchema.from_simple_dict({"id": "integer", "name": "string"})
+        assert list(schema.fields) == ["id", "name"]
+        assert schema.fields["id"].type == UniversalType.INTEGER
+        assert schema.fields["name"].type == UniversalType.STRING
 
     def test_field_names_property(self):
-        spec = TypeSpec.from_simple_dict({"a": "string", "b": "integer", "c": "number"})
-        assert spec.field_names == ["a", "b", "c"]
+        schema = TableSchema.from_simple_dict({"a": "string", "b": "integer", "c": "number"})
+        assert schema.field_names == ["a", "b", "c"]
 
     def test_get_field_by_name(self):
-        spec = TypeSpec.from_simple_dict({"score": "number"})
-        f = spec.get_field("score")
+        schema = TableSchema.from_simple_dict({"score": "number"})
+        f = schema.get_field("score")
         assert f is not None
-        assert f.name == "score"
         assert f.type == UniversalType.NUMBER
 
     def test_get_field_missing_returns_none(self):
-        spec = TypeSpec.from_simple_dict({"score": "number"})
-        assert spec.get_field("nonexistent") is None
+        schema = TableSchema.from_simple_dict({"score": "number"})
+        assert schema.get_field("nonexistent") is None
 
-    def test_typespec_to_frictionless_dict(self):
-        spec = TypeSpec.from_simple_dict({"id": "integer"}, title="My Spec")
-        d = typespec_to_frictionless(spec)
-        assert "fields" in d
+    def test_table_schema_to_frictionless_dict(self):
+        schema = TableSchema.from_simple_dict({"id": "integer"}, title="My Spec")
+        d = table_schema_to_frictionless(schema)
         assert len(d["fields"]) == 1
         assert d["fields"][0]["name"] == "id"
         assert d["title"] == "My Spec"
+
+    def test_source_name_is_rename_from_or_local_mapping_name(self):
+        schema = TableSchema(fields={
+            "age": FieldDefinition(rename_from="AGE"),
+            "name": FieldDefinition(),
+        })
+        sources = {
+            name: d.rename_from if d.rename_from is not None else name
+            for name, d in schema.fields.items()
+        }
+        assert sources == {"age": "AGE", "name": "name"}
 
 
 # ============================================================================
@@ -339,8 +398,8 @@ class TestTypeSpec:
 # ============================================================================
 
 class TestSpecDiff:
-    def _make_spec(self, columns: dict) -> TypeSpec:
-        return TypeSpec.from_simple_dict(columns)
+    def _make_spec(self, columns: dict) -> TableSchema:
+        return TableSchema.from_simple_dict(columns)
 
     def test_identical_specs_no_diff(self):
         source = self._make_spec({"id": "integer", "name": "string"})
@@ -423,12 +482,12 @@ class TestForeignKey:
 
 
 # ============================================================================
-# TestTypeSpec ForeignKeys
+# TestTableSchema ForeignKeys
 # ============================================================================
 
-class TestTypeSpecForeignKeys:
+class TestTableSchemaForeignKeys:
     def test_foreign_keys_default_is_none(self):
-        spec = TypeSpec()
+        spec = TableSchema()
         assert spec.foreign_keys is None
 
     def test_foreign_keys_with_value(self):
@@ -436,8 +495,8 @@ class TestTypeSpecForeignKeys:
             fields=["customer_id"],
             reference=ForeignKeyReference(resource="customers", fields=["id"]),
         )
-        spec = TypeSpec(
-            fields=[FieldSpec(name="customer_id", type=UniversalType.INTEGER)],
+        spec = TableSchema(
+            fields={"customer_id": FieldDefinition(type=UniversalType.INTEGER)},
             foreign_keys=[fk],
         )
         assert len(spec.foreign_keys) == 1
@@ -445,21 +504,20 @@ class TestTypeSpecForeignKeys:
         assert spec.foreign_keys[0].reference.resource == "customers"
 
 
-class TestTypeSpecToContract:
+class TestTableSchemaToContract:
     def test_to_contract_produces_native_contract(self):
-        # E6: TypeSpec.to_contract() lazily builds a native BaseDataContract
+        # E6: TableSchema.to_contract() lazily builds a native BaseDataContract
         # subclass (same lazy-import pattern as from_frictionless).
         from mountainash.datacontracts.contract import BaseDataContract
 
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="id",
+        spec = TableSchema(
+            fields={
+                "id": FieldDefinition(
                     type=UniversalType.INTEGER,
                     constraints=FieldConstraints(required=True, unique=True),
                 ),
-                FieldSpec(name="email", type=UniversalType.STRING),
-            ],
+                "email": FieldDefinition(type=UniversalType.STRING),
+            },
             title="users",
             primary_key=["id"],
         )
@@ -471,7 +529,7 @@ class TestTypeSpecToContract:
         assert "id_unique" in ids
 
     def test_to_contract_name_override(self):
-        spec = TypeSpec(fields=[FieldSpec(name="a", type=UniversalType.INTEGER)])
+        spec = TableSchema(fields={"a": FieldDefinition(type=UniversalType.INTEGER)})
         contract = spec.to_contract(name="Custom")
         assert contract.contract_name() == "Custom"
 
@@ -491,9 +549,9 @@ def test_parameterized_field_derives_semantic_type_without_losing_detail():
         (StructDtype((("at", TimestampDtype(6, True, "UTC")),)), UniversalType.OBJECT),
     ]
     for dtype, broad in cases:
-        field = FieldSpec("value", dtype=dtype)
+        field = FieldDefinition(dtype=dtype)
         assert field.type is broad
         assert field.dtype == dtype
-    unknown = FieldSpec("value", UniversalType.INTEGER, dtype=SchemaTypeStatus.UNKNOWN)
+    unknown = FieldDefinition(type=UniversalType.INTEGER, dtype=SchemaTypeStatus.UNKNOWN)
     assert unknown.type is UniversalType.INTEGER
     assert unknown.dtype is SchemaTypeStatus.UNKNOWN

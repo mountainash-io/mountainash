@@ -1,7 +1,7 @@
 """DAG validation — delegates to the mountainash.validation runner (spec §10).
 
 FK check generation has exactly one owner: validation.fk.build_fk_checks
-(dag.constraint_metadata + spec-supplied TypeSpec.foreign_keys, deduplicated;
+(dag.constraint_metadata + spec-supplied TableSchema.foreign_keys, deduplicated;
 invalid declarations surface as status="error" check summaries). Every
 planned and dependency relation compiles exactly once, through the requested
 backend, via ONE shared DAGMaterializationSession (spec §10/§18) — never a
@@ -71,7 +71,7 @@ def _run(
 ) -> DAGValidationResult:
     from mountainash.datacontracts.compiler import compile_datacontract
     from mountainash.datacontracts.contract import BaseDataContract
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.validation.fk import build_fk_checks
     from mountainash.validation.identity import resolve_identity
     from mountainash.validation.runner import ValidationRunner
@@ -79,29 +79,26 @@ def _run(
     checks_by_resource: dict[str, list[Any]] = {}
     plans_by_resource: dict[str, Any] = {}
     identity_by_resource: dict[str, Any] = {}
-    fk_specs: dict[str, TypeSpec] = {}
+    fk_specs: dict[str, TableSchema] = {}
 
     for name, spec in specs.items():
         if name not in dag.relations:
             raise KeyError(f"relation {name!r} not in DAG")
-        if isinstance(spec, TypeSpec):
+        if isinstance(spec, TableSchema):
             plan = compile_datacontract(spec)
             checks = []
             plans_by_resource[name] = plan
             spec_for_identity = spec
             natural_key = None
         elif isinstance(spec, type) and issubclass(spec, BaseDataContract):
-            spec_for_identity = spec.to_typespec()
-            plan = compile_datacontract(
-                spec_for_identity,
-                extensions=spec._contract_fields,
-            )
+            spec_for_identity = spec.to_table_schema()
+            plan = compile_datacontract(spec_for_identity)
             checks = []
             plans_by_resource[name] = plan
             natural_key = getattr(spec.Config, "natural_key", None)
         else:
             raise TypeError(
-                f"specs[{name!r}] must be TypeSpec or BaseDataContract subclass, "
+                f"specs[{name!r}] must be TableSchema or BaseDataContract subclass, "
                 f"got {type(spec).__name__}"
             )
         checks_by_resource[name] = checks

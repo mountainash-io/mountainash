@@ -10,7 +10,7 @@ from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_BOOLEAN,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
@@ -28,8 +28,8 @@ class TestBooleanCastingDefaults:
         df = backend_factory.create(
             {"flag": ["true", "True", "TRUE", "1"]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
+        spec = TableSchema(fields_match="open", 
+            fields={"flag": FieldDefinition(type=UniversalType.BOOLEAN)},
         )
         result = ma.relation(df).conform(
             spec, contract={"data_type": "discard_value"}
@@ -40,8 +40,8 @@ class TestBooleanCastingDefaults:
         df = backend_factory.create(
             {"flag": ["false", "False", "FALSE", "0"]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
+        spec = TableSchema(fields_match="open", 
+            fields={"flag": FieldDefinition(type=UniversalType.BOOLEAN)},
         )
         result = ma.relation(df).conform(
             spec, contract={"data_type": "discard_value"}
@@ -52,8 +52,8 @@ class TestBooleanCastingDefaults:
         df = backend_factory.create(
             {"flag": ["true", "false", "TRUE", "0"]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
+        spec = TableSchema(fields_match="open", 
+            fields={"flag": FieldDefinition(type=UniversalType.BOOLEAN)},
         )
         result = ma.relation(df).conform(
             spec, contract={"data_type": "discard_value"}
@@ -72,15 +72,12 @@ class TestBooleanCastingCustom:
         df = backend_factory.create(
             {"flag": ["yes", "no", "yes"]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="flag",
+        spec = TableSchema(fields_match="open", 
+            fields={"flag": FieldDefinition(
                     type=UniversalType.BOOLEAN,
                     true_values=["yes"],
                     false_values=["no"],
-                ),
-            ],
+                ),},
         )
         result = ma.relation(df).conform(
             spec, contract={"data_type": "discard_value"}
@@ -97,8 +94,8 @@ class TestBooleanCastingAlreadyBoolean:
     def test_preserves_existing_boolean_values(self):
         """A Boolean source column retains its Boolean values."""
         df = pl.DataFrame({"flag": [True, False, True]})
-        spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="flag", type=UniversalType.BOOLEAN)],
+        spec = TableSchema(fields_match="open", 
+            fields={"flag": FieldDefinition(type=UniversalType.BOOLEAN)},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["flag"].to_list() == [True, False, True]
@@ -110,16 +107,13 @@ def test_boolean_throw_preserves_null_and_rejects_invalid_tokens(
     backend_name, backend_factory
 ):
     df = backend_factory.create({"flag": ["yes", "no", None, "maybe"]}, backend_name)
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[
-            FieldSpec(
-                name="flag",
+        fields={"flag": FieldDefinition(
                 type=UniversalType.BOOLEAN,
                 true_values=["yes"],
                 false_values=["no"],
-            ),
-        ],
+            ),},
     )
     if backend_name == "ibis-sqlite":
         with pytest.raises(BackendCapabilityError) as raised:
@@ -135,16 +129,13 @@ def test_boolean_throw_preserves_null_and_rejects_invalid_tokens(
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_boolean_discard_value_turns_invalid_tokens_into_null(backend_name, backend_factory):
     df = backend_factory.create({"flag": ["yes", "no", None, "maybe"]}, backend_name)
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[
-            FieldSpec(
-                name="flag",
+        fields={"flag": FieldDefinition(
                 type=UniversalType.BOOLEAN,
                 true_values=["yes"],
                 false_values=["no"],
-            ),
-        ],
+            ),},
     )
     result = ma.relation(df).conform(
         spec, contract={"data_type": "discard_value"}
@@ -157,16 +148,13 @@ def test_boolean_discard_value_turns_invalid_tokens_into_null(backend_name, back
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_boolean_tokens_match_exactly_without_substring_replacement(backend_name, backend_factory):
     df = backend_factory.create({"flag": ["maybe", "y"]}, backend_name)
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[
-            FieldSpec(
-                name="flag",
+        fields={"flag": FieldDefinition(
                 type=UniversalType.BOOLEAN,
                 true_values=["y"],
                 false_values=["maybe"],
-            ),
-        ],
+            ),},
     )
     result = ma.relation(df).conform(
         spec, contract={"data_type": "discard_value"}
@@ -176,16 +164,13 @@ def test_boolean_tokens_match_exactly_without_substring_replacement(backend_name
 
 def test_ibis_sqlite_throw_mode_refuses_parse_tokens(backend_factory):
     df = backend_factory.create({"flag": ["yes"]}, "ibis-sqlite")
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[
-            FieldSpec(
-                name="flag",
+        fields={"flag": FieldDefinition(
                 type=UniversalType.BOOLEAN,
                 true_values=["yes"],
                 false_values=["no"],
-            ),
-        ],
+            ),},
     )
     with pytest.raises(BackendCapabilityError) as raised:
         ma.relation(df).conform(spec).to_polars()

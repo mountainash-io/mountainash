@@ -174,8 +174,8 @@ Total concepts: 200
 
 ## Type System & Schema (147–168)
 
-147. TypeSpec
-148. FieldSpec
+147. TableSchema
+148. FieldDefinition
 149. FieldConstraints
 150. UniversalType Enum
 151. Type Bridge

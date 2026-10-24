@@ -320,3 +320,57 @@ class TestExpressionDispatchValidation:
                     f"got {type(value).__name__}. "
                     "Dispatch would expose a protocol stub."
                 )
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Test Class 7: Native Schema Adapter Reachability
+# ═════════════════════════════════════════════════════════════════════════
+
+def _supported_schema_carriers():
+    """(label, carrier, schema type target) for every supported table carrier."""
+    import ibis
+    import narwhals as nw
+    import pandas as pd
+    import polars as pl
+    import pyarrow as pa
+
+    from mountainash.core.dtypes import TypeTarget
+
+    data = {"a": [1], "b": ["x"]}
+    return [
+        ("polars", pl.DataFrame(data), TypeTarget.POLARS),
+        ("polars lazy", pl.DataFrame(data).lazy(), TypeTarget.POLARS),
+        ("pyarrow", pa.table(data), TypeTarget.PYARROW),
+        ("pandas", pd.DataFrame(data), TypeTarget.PANDAS),
+        ("ibis", ibis.table({"a": "int64", "b": "string"}, name="t"), TypeTarget.IBIS),
+        ("narwhals", nw.from_native(pl.DataFrame(data)), TypeTarget.NARWHALS),
+        ("narwhals lazy", nw.from_native(pl.DataFrame(data).lazy()), TypeTarget.NARWHALS),
+    ]
+
+
+class TestNativeSchemaAdapterReachability:
+    """Public carrier acquisition reaches the registered adapter; no adapter lacks a carrier.
+
+    Reachability only: what each adapter reports is asserted by the owning
+    typespec suites.
+    """
+
+    @pytest.fixture(autouse=True, scope="class")
+    def _optional_libraries(self):
+        for name in ("polars", "pandas", "pyarrow", "ibis", "narwhals"):
+            pytest.importorskip(name)
+
+    def test_every_supported_carrier_acquires_through_its_registered_adapter(self):
+        from mountainash.typespec.source_shape import extract_source_shapes
+
+        for label, carrier, target in _supported_schema_carriers():
+            shapes = extract_source_shapes(carrier)
+            assert list(shapes) == ["a", "b"], label
+            # Only the carrier's own adapter reports native evidence of its target.
+            assert {shape.native_dtype.target for shape in shapes.values()} == {target}, label
+
+    def test_every_registered_adapter_has_a_supported_carrier(self):
+        from mountainash.typespec.adapter_registry import NATIVE_SCHEMA_ADAPTERS
+
+        carrier_targets = {target for _, _, target in _supported_schema_carriers()}
+        assert carrier_targets == set(NATIVE_SCHEMA_ADAPTERS.list_keys())

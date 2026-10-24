@@ -14,7 +14,8 @@ from typing import Protocol, TYPE_CHECKING
 from ..substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import FieldSpec
+    from collections.abc import Mapping
+    from mountainash.typespec.spec import FieldDefinition
     from mountainash.expressions.core.expression_api import BaseExpressionAPI
 
 
@@ -31,7 +32,7 @@ class MountainAshScalarStructAPIBuilderProtocol(Protocol):
     def cast(
         self,
         *,
-        fields: tuple["FieldSpec", ...],
+        fields: "Mapping[str, FieldDefinition]",
         field_name: str,
         failure_behavior: CaseFailureBehaviour = CaseFailureBehaviour.THROW,
         converted_fields: tuple[tuple[str, "BaseExpressionAPI"], ...] = (),

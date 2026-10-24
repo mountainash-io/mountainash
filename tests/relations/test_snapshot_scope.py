@@ -130,12 +130,11 @@ def test_checkpoint_replacement_keeps_sibling_and_bounds_linear_storage(connecti
 def test_snapshot_preserves_native_structured_restrictions_and_cuts_producer(backend_name, monkeypatch, batch):
     """Native-array carriers; pandas object cells are explicitly unownable."""
     from mountainash.conform.errors import UnsupportedStructuredTransportUse
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
     from mountainash.relations.core.relation_api.relation import Relation
 
     source = REGISTRY[backend_name].build({"id": [1], "payload": [[1, 2]]}, "structured_snapshot")
-    rel = ma.relation(source).conform(TypeSpec(fields_match="open", fields=[
-        FieldSpec(name="payload", type=UniversalType.ARRAY)]))
+    rel = ma.relation(source).conform(TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)}))
     refs = [weakref.ref(rel._node)]
     original = Relation._compile_and_execute_with_visitor
 

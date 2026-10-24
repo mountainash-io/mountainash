@@ -44,7 +44,7 @@ def checked_year():
     from mountainash.core.capabilities.schema import PolicyAction, PolicyConsumer
     from mountainash.core.constants import CONST_BACKEND
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_DATETIME as FK
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
     prior = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
@@ -58,7 +58,7 @@ def checked_year():
             ),)),
         ))
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
-            yield TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+            yield TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
     finally:
         CapabilityRegistry.restore(prior)
 

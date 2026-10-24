@@ -7,7 +7,7 @@ Validates that typespec, conform, pydata, relations, and expressions modules wor
 import pytest
 import polars as pl
 import mountainash as ma
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.pydata.ingress.pydata_ingress_factory import PydataIngressFactory
 
@@ -52,31 +52,31 @@ class TestConformTransform:
 
     def test_cast_string_to_integer(self):
         df = pl.DataFrame({"age": ["25", "35"], "name": ["alice", "bob"]})
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
 
     def test_cast_string_to_float(self):
         df = pl.DataFrame({"score": ["88.5", "92.1"]})
-        spec = TypeSpec(fields_match="open", 
-            fields=[FieldSpec(name="score", type=UniversalType.NUMBER)],
+        spec = TableSchema(fields_match="open",
+            fields={"score": FieldDefinition(type=UniversalType.NUMBER)},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].dtype == pl.Float64
 
     def test_cast_multiple_columns(self):
         df = pl.DataFrame({"age": ["25", "35"], "score": ["88.5", "92.1"], "name": ["a", "b"]})
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="score", type=UniversalType.NUMBER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "score": FieldDefinition(type=UniversalType.NUMBER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["age"].dtype == pl.Int64
@@ -133,12 +133,12 @@ class TestFullPipeline:
         df = ingress_factory.convert(sample_records)
         assert df.dtypes == [pl.String, pl.String, pl.String]
 
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="score", type=UniversalType.NUMBER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "score": FieldDefinition(type=UniversalType.NUMBER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
         )
         result = (
             ma.relation(df)
@@ -161,11 +161,11 @@ class TestFullPipeline:
         ]
 
         df = ingress_factory.convert(records)
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="salary", type=UniversalType.INTEGER),
-                FieldSpec(name="dept", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(fields_match="open",
+            fields={
+                "salary": FieldDefinition(type=UniversalType.INTEGER),
+                "dept": FieldDefinition(type=UniversalType.STRING),
+            },
         )
         df = ma.relation(df).conform(spec).to_polars()
 
@@ -182,11 +182,11 @@ class TestFullPipeline:
 
     def test_pipeline_with_select_and_rename(self, ingress_factory, sample_records):
         df = ingress_factory.convert(sample_records)
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(fields_match="open",
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
         )
 
         result = (

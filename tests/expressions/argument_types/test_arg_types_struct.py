@@ -5,7 +5,7 @@ import pytest
 import mountainash as ma
 from mountainash.core.dtypes import MountainashDtype as D
 from mountainash.core.types import BackendCapabilityError
-from mountainash.typespec import FieldSpec
+from mountainash.typespec.spec import FieldDefinition
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT
 from mountainash.expressions import BaseExpressionAPI
 
@@ -24,7 +24,7 @@ OP_SPECS: list[OpSpec] = [
         function_key=FK_STRUCT.CAST,
         op_name="cast_struct_children",
         build=lambda col, arg: col.struct.cast(
-            fields=(FieldSpec("v", dtype=D.I16),), field_name="a",
+            fields={"v": FieldDefinition(dtype=D.I16)}, field_name="a",
             converted_fields=(("v", arg if isinstance(arg, BaseExpressionAPI) else ma.lit(arg)),),
         ),
         raw_arg=7, arg_col_name="replacement", param_name="converted_fields",

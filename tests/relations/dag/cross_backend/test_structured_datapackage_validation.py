@@ -81,7 +81,7 @@ class TestPublicDataPackageStructuredLoop:
         pkg = DataPackage.from_descriptor(_descriptor())
         items, profiles = _items_and_profiles(backend_name, backend_factory)
         dag = pkg.to_relation_dag(overrides={"items": items, "profiles": profiles})
-        specs = {r.name: r.to_typespec() for r in pkg.resources}
+        specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
         result = dag.validate(specs)
 
@@ -101,7 +101,7 @@ class TestPublicDataPackageStructuredLoop:
         pkg = DataPackage.from_descriptor(_descriptor())
         items, profiles = _items_and_profiles(backend_name, backend_factory, duplicate_id=True)
         dag = pkg.to_relation_dag(overrides={"items": items, "profiles": profiles})
-        specs = {r.name: r.to_typespec() for r in pkg.resources}
+        specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
         result = dag.validate(specs)  # must not raise
 
@@ -118,7 +118,7 @@ class TestPublicDataPackageStructuredLoop:
         pkg = DataPackage.from_descriptor(_descriptor())
         items, profiles = _items_and_profiles(backend_name, backend_factory)
         dag = pkg.to_relation_dag(overrides={"items": items, "profiles": profiles})
-        specs = {r.name: r.to_typespec() for r in pkg.resources}
+        specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
         calls: list[str] = []
         original = materialization_module.materialize_native
@@ -148,7 +148,7 @@ class TestPublicDataPackageNativeTerminals:
 
     def _dag(self, backend_name, backend_factory, *, action="coerce", apply_value_transforms=True):
         pkg = DataPackage.from_descriptor(_descriptor())
-        spec = next(r.to_typespec() for r in pkg.resources if r.name == "profiles")
+        spec = next(r.to_table_schema() for r in pkg.resources if r.name == "profiles")
         df = backend_factory.create({"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']}, backend_name)
         rel = ma.relation(df).conform(
             spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms

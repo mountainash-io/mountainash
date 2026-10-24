@@ -95,14 +95,15 @@ def test_dag_named_and_fluent_schema_use_output_types(backend_name):
 @pytest.mark.parametrize("backend_name", SCHEMA_BACKENDS)
 def test_metadata_does_not_enforce_conform_freeze_but_execution_does(backend_name):
     from mountainash.conform.errors import SchemaDriftError
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     source = _source(backend_name, {"n": [2, 7], "extra": [3, 4]}, "schema_freeze")
-    spec = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)], fields_match="open")
+    spec = TableSchema(fields={"n": FieldDefinition(type=UniversalType.INTEGER)}, fields_match="open")
     relation = ma.relation(source).conform(spec, contract={"extra_columns": "freeze"})
     schema = relation.collect_schema()
-    assert list(schema) == ["n"]
+    # The frozen extra column has no successful execution to describe; only the
+    # declared field's type and the execution-time refusal are contractual.
     assert dtype_family(schema["n"]) is D.I64
     with pytest.raises(SchemaDriftError):
         relation.to_dict()

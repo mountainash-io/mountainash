@@ -248,12 +248,12 @@ class TestToDictsEdgeCases:
 
 @pytest.fixture
 def structured_rel():
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     df = pl.DataFrame({"tags": ["[1,2]", "[3]"], "name": ["a", "b"]})
-    spec = TypeSpec(
-        fields_match="open", fields=[FieldSpec(name="tags", type=UniversalType.ARRAY)]
+    spec = TableSchema(
+        fields_match="open", fields={"tags": FieldDefinition(type=UniversalType.ARRAY)}
     )
     return ma.relation(df).conform(spec, contract={"data_type": "coerce"})
 

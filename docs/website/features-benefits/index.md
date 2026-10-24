@@ -11,7 +11,7 @@ We don't claim mountainash is better at any of these tools' core competencies on
 | Writing the same logic twice — once in pandas/Polars, once in SQL for the warehouse | [Cross-backend execution](cross-backend.md) | Authored once. Compiled to whichever engine the call site needs. |
 | Picking a DataFrame library and accepting the lock-in that comes with it | [Expressions](expressions.md) | A Polars-shaped API that lowers to Polars / pandas / Ibis — no rewrite when scale or destination changes. |
 | Per-library DataFrame pipelines, often re-implementing the same chain in two engines | [Relations](relations.md) | One pipeline definition; the runtime is the terminal call. |
-| Hand-writing cast/rename/null-fill blocks at every data-ingest boundary | [TypeSpec and conformance](typespec-conform.md) | A schema *is* the transformation. One definition; conform applies it. |
+| Hand-writing cast/rename/null-fill blocks at every data-ingest boundary | [Shared schemas and conformance](typespec-conform.md) | A schema *is* the conversion. One definition; conform applies it. |
 | Maintaining pandera schemas for dev, SQL `CHECK`s for prod, and Pydantic for the API — all describing the same fields | [Data contracts](datacontracts.md) | One contract, validated on any backend the relation API supports. |
 | Reaching for Airflow/Prefect/Dagster for a five-step in-process pipeline | [Pipelines](pipelines.md) | A library-level pipeline framework that composes into relation code, with caching but no daemon. |
 | Treating NULL as FALSE in filters because that's what SQL/pandas does, and chasing the resulting bugs | [Ternary logic](ternary-logic.md) | First-class TRUE/UNKNOWN/FALSE with explicit booleanization, not silent NULL propagation. |
@@ -53,7 +53,7 @@ Continue to a specific comparison:
 - [Cross-backend execution vs. picking one library](cross-backend.md)
 - [Expressions vs. per-library DSLs and embedded SQL](expressions.md)
 - [Relations vs. per-library DataFrame pipelines](relations.md)
-- [TypeSpec and conformance vs. hand-written schema code](typespec-conform.md)
+- [Shared schemas and conformance vs. hand-written schema code](typespec-conform.md)
 - [Data contracts vs. pandera and great_expectations](datacontracts.md)
 - [Pipelines vs. orchestrators for in-process work](pipelines.md)
 - [Ternary logic vs. NULL-aware boolean reasoning](ternary-logic.md)

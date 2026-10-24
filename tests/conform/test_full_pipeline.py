@@ -5,7 +5,7 @@ from datetime import date
 
 import polars as pl
 import mountainash as ma
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -21,29 +21,24 @@ class TestFullPipeline:
             "raw_date": ["26/01/2024", "NA", "15/06/2023"],
             "extra_col": [1, 2, 3],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="price",
+        spec = TableSchema(fields_match="open", 
+            fields={"price": FieldDefinition(
                     type=UniversalType.NUMBER,
                     rename_from="raw_price",
                     group_char=".",
                     decimal_char=",",
                 ),
-                FieldSpec(
-                    name="active",
+                "active": FieldDefinition(
                     type=UniversalType.BOOLEAN,
                     rename_from="raw_active",
                     true_values=["yes"],
                     false_values=["no"],
                 ),
-                FieldSpec(
-                    name="event_date",
+                "event_date": FieldDefinition(
                     type=UniversalType.DATE,
                     rename_from="raw_date",
                     format="%d/%m/%Y",
-                ),
-            ],
+                ),},
             missing_values=["NA"],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -70,15 +65,12 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "amount": ["$1,234.56", "N/A", "€789.00"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="amount",
+        spec = TableSchema(fields_match="open", 
+            fields={"amount": FieldDefinition(
                     type=UniversalType.NUMBER,
                     bare_number=False,
                     group_char=",",
-                ),
-            ],
+                ),},
             missing_values=["N/A"],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -93,14 +85,11 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "score": [1.5, None, 3.5],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="score",
+        spec = TableSchema(fields_match="open", 
+            fields={"score": FieldDefinition(
                     type=UniversalType.NUMBER,
                     null_fill=0.0,
-                ),
-            ],
+                ),},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["score"].to_list() == [1.5, 0.0, 3.5]
@@ -110,15 +99,12 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "flag": ["Y", "N", "UNKNOWN", "Y"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="flag",
+        spec = TableSchema(fields_match="open", 
+            fields={"flag": FieldDefinition(
                     type=UniversalType.BOOLEAN,
                     true_values=["Y"],
                     false_values=["N"],
-                ),
-            ],
+                ),},
             missing_values=["UNKNOWN"],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -130,14 +116,11 @@ class TestFullPipeline:
         df = pl.DataFrame({
             "dt": ["2024-01-15 10:30:00", "-", "2023-06-20 14:00:00"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="dt",
+        spec = TableSchema(fields_match="open", 
+            fields={"dt": FieldDefinition(
                     type=UniversalType.DATETIME,
                     format="%Y-%m-%d %H:%M:%S",
-                ),
-            ],
+                ),},
             missing_values=["-"],
         )
         result = ma.relation(df).conform(spec).to_polars()
@@ -151,10 +134,8 @@ class TestFullPipeline:
             "name": ["Alice", "", "Charlie"],
             "age": [30, 25, 35],
         })
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(
+            fields={"name": FieldDefinition(type=UniversalType.STRING),},
             fields_match="open",
             missing_values=[""],
         )
@@ -168,11 +149,9 @@ class TestFullPipeline:
             "old_a": ["x", "y"],
             "old_b": [1, 2],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="new_a", type=UniversalType.STRING, rename_from="old_a"),
-                FieldSpec(name="new_b", type=UniversalType.INTEGER, rename_from="old_b"),
-            ],
+        spec = TableSchema(fields_match="open", 
+            fields={"new_a": FieldDefinition(type=UniversalType.STRING, rename_from="old_a"),
+                "new_b": FieldDefinition(type=UniversalType.INTEGER, rename_from="old_b"),},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert set(result.columns) == {"new_a", "new_b"}
@@ -185,15 +164,12 @@ class TestFullPipeline:
             "a": ["NA", "ok"],
             "b": ["BLANK", "ok"],
         })
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="a", type=UniversalType.STRING),
-                FieldSpec(
-                    name="b",
+        spec = TableSchema(fields_match="open", 
+            fields={"a": FieldDefinition(type=UniversalType.STRING),
+                "b": FieldDefinition(
                     type=UniversalType.STRING,
                     missing_values=["BLANK"],
-                ),
-            ],
+                ),},
             missing_values=["NA"],
         )
         result = ma.relation(df).conform(spec).to_polars()

@@ -10,19 +10,15 @@ import pytest
 
 import mountainash as ma
 from mountainash.conform.errors import ConformTransformError
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
 class TestStructCastingFlat:
     def test_flat_struct_cast_by_name(self):
         df = pl.DataFrame([{"addr": {"street": "Main St", "zip": "12345"}}])
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="street", type=UniversalType.STRING),
-                FieldSpec(name="zip", type=UniversalType.STRING),
-            ]),
-        ])
+        spec = TableSchema(fields={"addr": FieldDefinition(type=UniversalType.OBJECT, fields={"street": FieldDefinition(type=UniversalType.STRING),
+                "zip": FieldDefinition(type=UniversalType.STRING),}),})
         result = ma.relation(df).conform(spec).to_polars()
         assert result.schema["addr"] == pl.Struct({"street": pl.String, "zip": pl.String})
         assert result["addr"].to_list() == [{"street": "Main St", "zip": "12345"}]
@@ -30,12 +26,8 @@ class TestStructCastingFlat:
     def test_struct_field_matching_is_by_name_not_position(self):
         """Spec §5.2 spike (§13.1): reordered targets match source by name."""
         df = pl.DataFrame([{"addr": {"street": "Main St", "zip": "12345"}}])
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="zip", type=UniversalType.STRING),
-                FieldSpec(name="street", type=UniversalType.STRING),
-            ]),
-        ])
+        spec = TableSchema(fields={"addr": FieldDefinition(type=UniversalType.OBJECT, fields={"zip": FieldDefinition(type=UniversalType.STRING),
+                "street": FieldDefinition(type=UniversalType.STRING),}),})
         result = ma.relation(df).conform(spec).to_polars()
         row = result["addr"].to_list()[0]
         assert row["zip"] == "12345"
@@ -44,12 +36,8 @@ class TestStructCastingFlat:
     def test_inner_type_cast_applied(self):
         """Inner fields are cast, not only structurally wrapped."""
         df = pl.DataFrame([{"stats": {"count": "3", "label": "x"}}])
-        spec = TypeSpec(fields=[
-            FieldSpec(name="stats", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="count", type=UniversalType.INTEGER),
-                FieldSpec(name="label", type=UniversalType.STRING),
-            ]),
-        ])
+        spec = TableSchema(fields={"stats": FieldDefinition(type=UniversalType.OBJECT, fields={"count": FieldDefinition(type=UniversalType.INTEGER),
+                "label": FieldDefinition(type=UniversalType.STRING),}),})
         result = ma.relation(df).conform(spec).to_polars()
         assert {f.name: f.dtype for f in result.schema["stats"].fields}["count"] == pl.Int64
         assert result["stats"].to_list() == [{"count": 3, "label": "x"}]
@@ -58,15 +46,9 @@ class TestStructCastingFlat:
 class TestStructCastingNested:
     def test_two_level_nested_struct_cast(self):
         df = pl.DataFrame([{"addr": {"street": "Main St", "geo": {"lat": "1.5", "lon": "2.5"}}}])
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="street", type=UniversalType.STRING),
-                FieldSpec(name="geo", type=UniversalType.OBJECT, object_fields=[
-                    FieldSpec(name="lat", type=UniversalType.NUMBER),
-                    FieldSpec(name="lon", type=UniversalType.NUMBER),
-                ]),
-            ]),
-        ])
+        spec = TableSchema(fields={"addr": FieldDefinition(type=UniversalType.OBJECT, fields={"street": FieldDefinition(type=UniversalType.STRING),
+                "geo": FieldDefinition(type=UniversalType.OBJECT, fields={"lat": FieldDefinition(type=UniversalType.NUMBER),
+                    "lon": FieldDefinition(type=UniversalType.NUMBER),}),}),})
         result = ma.relation(df).conform(spec).to_polars()
         expected_dtype = pl.Struct({
             "street": pl.String,
@@ -90,14 +72,8 @@ def test_nested_date_cast_preserves_parent_nulls_and_matches_struct_fields_by_na
             "label": pl.String, "items": pl.List(pl.Struct({"day": pl.String}))
         })},
     )
-    spec = TypeSpec(fields=[
-        FieldSpec(name="payload", type=UniversalType.OBJECT, object_fields=[
-            FieldSpec(name="items", type=UniversalType.ARRAY, item_object_fields=[
-                FieldSpec(name="day", type=UniversalType.DATE),
-            ]),
-            FieldSpec(name="label", type=UniversalType.STRING),
-        ])
-    ])
+    spec = TableSchema(fields={"payload": FieldDefinition(type=UniversalType.OBJECT, fields={"items": FieldDefinition(type=UniversalType.ARRAY, element=FieldDefinition(fields = {"day": FieldDefinition(type=UniversalType.DATE),})),
+            "label": FieldDefinition(type=UniversalType.STRING),})})
     result = ma.relation(df).conform(spec).to_polars()
     assert result["payload"].to_list() == [
         {"items": [{"day": date(2026, 10, 12)}, None], "label": "ok"},
@@ -110,22 +86,16 @@ class TestStructCastingErrorHandling:
     def test_incompatible_inner_type_raises(self):
         """Spec §6/§13.1: incompatible inner type raises."""
         df = pl.DataFrame([{"addr": {"count": "not-a-number"}}])
-        spec = TypeSpec(fields=[
-            FieldSpec(name="addr", type=UniversalType.OBJECT, object_fields=[
-                FieldSpec(name="count", type=UniversalType.INTEGER),
-            ]),
-        ])
+        spec = TableSchema(fields={"addr": FieldDefinition(type=UniversalType.OBJECT, fields={"count": FieldDefinition(type=UniversalType.INTEGER),}),})
         with pytest.raises(Exception):
             ma.relation(df).conform(spec).to_polars()
 
     def test_categories_and_object_shape_conflict_is_rejected(self):
         """A concrete string source cannot satisfy a declared OBJECT shape."""
         df = pl.DataFrame({"x": ["a", "b"]})
-        spec = TypeSpec(fields=[
-            FieldSpec(name="x", type=UniversalType.OBJECT,
+        spec = TableSchema(fields={"x": FieldDefinition(type=UniversalType.OBJECT,
                       categories=["a", "b"], categories_ordered=False,
-                      object_fields=[FieldSpec(name="never", type=UniversalType.STRING)]),
-        ])
+                      fields={"never": FieldDefinition(type=UniversalType.STRING)}),})
         with pytest.raises(
             ConformTransformError,
             match=r"invalid object value in field 'x' at row ordinal 0",

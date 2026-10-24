@@ -21,7 +21,7 @@ from mountainash.relations.core.logical_snapshot import (
     resolved_snapshot_to_pandas,
     resolved_snapshot_to_polars,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation import ValidationRunner
 from mountainash.validation.identity import RowIdentity
@@ -96,11 +96,9 @@ def test_discard_row_slices_ordinary_identity_columns_before_validation():
     frame = ma.relation(
         pl.DataFrame({"id": [1, 1, 2], "meta": ['{"a":1}', "{broken", '{"a":2}']})
     )
-    spec = TypeSpec(
-        fields=[
-            FieldSpec(name="id", type=UniversalType.INTEGER),
-            FieldSpec(name="meta", type=UniversalType.OBJECT),
-        ]
+    spec = TableSchema(
+        fields={"id": FieldDefinition(type=UniversalType.INTEGER),
+            "meta": FieldDefinition(type=UniversalType.OBJECT),}
     )
     relation = frame.conform(spec, contract={"data_type": "discard_row"})
 

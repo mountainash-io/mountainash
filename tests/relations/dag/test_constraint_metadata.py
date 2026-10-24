@@ -208,7 +208,8 @@ def test_package_constraint_extraction_does_not_mutate_dependency_edges():
 
 
 def test_authored_typespec_foreign_keys_are_routed_to_dag():
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
+    from mountainash.typespec.universal_types import UniversalType
 
     package = DataPackage(
         resources=[
@@ -216,18 +217,16 @@ def test_authored_typespec_foreign_keys_are_routed_to_dag():
                 name="parent",
                 path="parent.csv",
                 type="table",
-                table_schema=TypeSpec(
-                    fields=[FieldSpec(name="id", type="integer")]
+                table_schema=TableSchema(
+                    fields={"id": FieldDefinition(type=UniversalType.INTEGER)}
                 ),
             ),
             DataResource(
                 name="child",
                 path="child.csv",
                 type="table",
-                table_schema=TypeSpec(
-                    fields=[
-                        FieldSpec(name="parent_id", type="integer"),
-                    ],
+                table_schema=TableSchema(
+                    fields={"parent_id": FieldDefinition(type=UniversalType.INTEGER),},
                     foreign_keys=[
                         _fk(["parent_id"], "parent", ["id"]),
                     ],

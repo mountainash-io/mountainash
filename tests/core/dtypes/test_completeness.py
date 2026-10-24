@@ -35,6 +35,14 @@ def test_cast_mapping_resolves_or_declares(dtype, target):
 
 @pytest.mark.parametrize("target", ALL_TARGETS)
 def test_target_module_contract(target):
+    """Every target keeps its explicit mapping tables and exposes one adapter
+    that implements both native type contracts."""
+    from mountainash.core.dtypes.protocols import NativeArrowTransportAdapter, NativeTypeAdapter
+
     mod = registry._target(target)
-    for name in ("SCHEMA_TYPES", "CAST_UNSUPPORTED", "from_native", "parse_type_string", "to_native_decimal"):
+    for name in ("SCHEMA_TYPES", "CAST_UNSUPPORTED"):
         assert hasattr(mod, name), f"{target.value} module missing {name}"
+    adapter = registry._adapter(target)
+    assert isinstance(adapter, NativeTypeAdapter)
+    assert isinstance(adapter, NativeArrowTransportAdapter)
+    assert adapter.target is target

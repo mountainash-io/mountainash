@@ -10,7 +10,9 @@ from __future__ import annotations
 import pyarrow as pa
 import pytest
 
-from mountainash.core.dtypes import target_pyarrow
+from mountainash.core.dtypes.target_pyarrow import PyArrowTypeAdapter
+
+ARROW = PyArrowTypeAdapter()
 
 
 class TestParameterizedRoundTrip:
@@ -24,11 +26,11 @@ class TestParameterizedRoundTrip:
         ("time32[s]", pa.time32("s")),
     ])
     def test_parameterized_repr_round_trips(self, s, expected):
-        assert target_pyarrow.parse_type_string(s) == expected
+        assert ARROW.parse_type_string(s) == expected
 
     def test_bare_name_via_alias_unchanged(self):
-        assert target_pyarrow.parse_type_string("int64") == pa.int64()
-        assert target_pyarrow.parse_type_string("string") == pa.string()
+        assert ARROW.parse_type_string("int64") == pa.int64()
+        assert ARROW.parse_type_string("string") == pa.string()
 
 
 class TestSemanticallyInvalidReturnsNone:
@@ -45,7 +47,7 @@ class TestSemanticallyInvalidReturnsNone:
         "duration[badunit]",
     ])
     def test_semantically_invalid_returns_none(self, s):
-        assert target_pyarrow.parse_type_string(s) is None
+        assert ARROW.parse_type_string(s) is None
 
 
 class TestOutOfScopeStaysNone:
@@ -57,8 +59,8 @@ class TestOutOfScopeStaysNone:
     def test_recursive_grammar_returns_none(self, s):
         """Asserted explicitly: a silent partial parse would be worse than
         None (canonical fallback handles the container honestly)."""
-        assert target_pyarrow.parse_type_string(s) is None
+        assert ARROW.parse_type_string(s) is None
 
     def test_garbage_returns_none(self):
-        assert target_pyarrow.parse_type_string("not_a_type") is None
-        assert target_pyarrow.parse_type_string("timestamp[us, tz=UTC") is None
+        assert ARROW.parse_type_string("not_a_type") is None
+        assert ARROW.parse_type_string("timestamp[us, tz=UTC") is None

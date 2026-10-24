@@ -23,7 +23,7 @@ import pytest
 import mountainash as ma
 from mountainash.conform.contract import FIELDS_MATCH_PRESETS
 from mountainash.conform.drift import ColumnDrift
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
@@ -68,11 +68,9 @@ class TestTypedNullEmission:
     ):
 
         df = backend_factory.create({"a": [1, 2, 3]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=universal_type),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=UniversalType.INTEGER),
+                "b": FieldDefinition(type=universal_type),},
             fields_match="open",
             contract={"missing_columns": "null_fill"},
         )
@@ -108,8 +106,8 @@ class TestTypedNullEmission:
         real values pass through the ordinary transform pipeline unchanged,
         never replaced by a typed null."""
         df = backend_factory.create({"a": [1, 2, 3]}, backend_name)
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=UniversalType.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=UniversalType.INTEGER)},
             fields_match="open",
             contract={"missing_columns": "null_fill"},
         )
@@ -137,11 +135,9 @@ class TestNullFillUnderStrictPresetOverride:
         # "equal" normally freezes on a missing field (MissingFieldsError);
         # an explicit contract override selects null_fill instead.
         df = backend_factory.create({"a": [1]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=UniversalType.INTEGER),
+                "b": FieldDefinition(type=UniversalType.STRING),},
             fields_match="equal",
             contract={"missing_columns": "null_fill"},
         )
@@ -166,11 +162,9 @@ class TestNullFillUnderStrictPresetOverride:
 class TestNullFillDriftRecording:
     def test_missing_field_records_null_fill_column_drift(self, backend_name, backend_factory):
         df = backend_factory.create({"a": [1]}, backend_name)
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=UniversalType.INTEGER),
+                "b": FieldDefinition(type=UniversalType.STRING),},
             fields_match="open",
             contract={"missing_columns": "null_fill"},
         )
@@ -213,11 +207,9 @@ class TestPresetsUnaffected:
         # a missing field is skipped (not emitted as a null column) unless
         # a contract explicitly opts into null_fill.
         df = pl.DataFrame({"a": [1]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=UniversalType.INTEGER),
-                FieldSpec(name="b", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=UniversalType.INTEGER),
+                "b": FieldDefinition(type=UniversalType.STRING),},
             fields_match="open",
         )
 

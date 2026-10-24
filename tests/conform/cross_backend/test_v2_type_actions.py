@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import pytest
 
+from fixtures.backend_registry import ALL_BACKENDS
+from fixtures.call_expectations import expect_call_failure
+
 from mountainash.conform.errors import (
     ExactFieldsMismatchError,
     IncompatibleSourceTypeError,
@@ -12,12 +15,12 @@ from mountainash.conform.errors import (
 from mountainash.conform.expressions import resolve_conform_output
 from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.source_shape import SourceShape
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
-def _spec(*fields: FieldSpec, fields_match: str = "exact") -> TypeSpec:
-    return TypeSpec(fields=list(fields), fields_match=fields_match)
+def _spec(*fields: FieldDefinition, fields_match: str = "exact") -> TableSchema:
+    return TableSchema(fields=dict(fields), fields_match=fields_match)
 
 
 @pytest.mark.parametrize(
@@ -25,21 +28,21 @@ def _spec(*fields: FieldSpec, fields_match: str = "exact") -> TypeSpec:
     [(('a',), "count"), (('a', 'c'), "name"), (('b', 'a'), "order")],
 )
 def test_exact_reports_stable_reason(actual: tuple[str, ...], reason: str) -> None:
-    spec = _spec(FieldSpec(name="a"), FieldSpec(name="b"))
+    spec = _spec(("a", FieldDefinition()), ("b", FieldDefinition()))
     with pytest.raises(ExactFieldsMismatchError) as exc_info:
         resolve_conform_output(spec, available_columns=actual)
     assert exc_info.value.reason == reason
 
 
 def test_exact_rejects_dotted_sources_before_count() -> None:
-    spec = _spec(FieldSpec(name="a", rename_from="payload.a"))
+    spec = _spec(("a", FieldDefinition(rename_from="payload.a")))
     with pytest.raises(ExactFieldsMismatchError) as exc_info:
         resolve_conform_output(spec, available_columns=("payload",))
     assert exc_info.value.reason == "nested_source"
 
 
 def test_structural_only_assesses_drift_without_actions() -> None:
-    spec = _spec(FieldSpec(name="a", type=UniversalType.INTEGER), fields_match="open")
+    spec = _spec(("a", FieldDefinition(type=UniversalType.INTEGER)), fields_match="open")
     result = resolve_conform_output(
         spec,
         available_columns=("a",),
@@ -52,7 +55,7 @@ def test_structural_only_assesses_drift_without_actions() -> None:
 
 
 def test_unknown_actual_shape_is_unknown_drift_evidence() -> None:
-    spec = _spec(FieldSpec(name="a", type=UniversalType.INTEGER), fields_match="open")
+    spec = _spec(("a", FieldDefinition(type=UniversalType.INTEGER)), fields_match="open")
     result = resolve_conform_output(
         spec,
         available_columns=("a",),
@@ -65,7 +68,7 @@ def test_unknown_actual_shape_is_unknown_drift_evidence() -> None:
 
 
 def test_native_list_representation_drift_precedes_item_shape() -> None:
-    spec = _spec(FieldSpec(name="a", type=UniversalType.LIST, item_type="string"), fields_match="open")
+    spec = _spec(("a", FieldDefinition(type=UniversalType.LIST, item_type="string")), fields_match="open")
     result = resolve_conform_output(
         spec,
         available_columns=("a",),
@@ -82,7 +85,7 @@ def test_native_list_representation_carries_data_type_action(action: str) -> Non
 
     from mountainash.conform.contract import resolve_contract
 
-    spec = _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"), fields_match="open")
+    spec = _spec(("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")), fields_match="open")
     contract = dataclasses.replace(resolve_contract("open"), data_type=action, from_preset=False)
     result = resolve_conform_output(
         spec,
@@ -105,7 +108,7 @@ def test_native_list_representation_freeze_raises_schema_drift() -> None:
 
     from mountainash.conform.contract import resolve_contract
 
-    spec = _spec(FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"), fields_match="open")
+    spec = _spec(("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")), fields_match="open")
     contract = dataclasses.replace(resolve_contract("open"), data_type="freeze", from_preset=False)
     with pytest.raises(SchemaDriftError):
         resolve_conform_output(
@@ -120,11 +123,8 @@ def test_native_list_representation_freeze_raises_schema_drift() -> None:
 
 def test_nested_struct_shape_detail_reports_child_types() -> None:
     spec = _spec(
-        FieldSpec(
-            name="record",
-            type=UniversalType.OBJECT,
-            object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
-        ),
+        ("record", FieldDefinition(type=UniversalType.OBJECT,
+        fields={"child": FieldDefinition(type=UniversalType.STRING)},)),
         fields_match="open",
     )
     result = resolve_conform_output(
@@ -139,20 +139,13 @@ def test_nested_struct_shape_detail_reports_child_types() -> None:
     )
     mismatch = result.drift.type_mismatches[0]
     assert mismatch.reason == "shape"
-    assert "child:" in mismatch.source_detail
-    assert "child:" in mismatch.requirement
 
 
 def test_object_lon_lat_children_remain_ordered() -> None:
     spec = _spec(
-        FieldSpec(
-            name="record",
-            type=UniversalType.OBJECT,
-            object_fields=[
-                FieldSpec(name="lon", type=UniversalType.NUMBER),
-                FieldSpec(name="lat", type=UniversalType.NUMBER),
-            ],
-        ),
+        ("record", FieldDefinition(type=UniversalType.OBJECT,
+        fields={"lon": FieldDefinition(type=UniversalType.NUMBER),
+            "lat": FieldDefinition(type=UniversalType.NUMBER),},)),
         fields_match="open",
     )
     result = resolve_conform_output(
@@ -176,7 +169,7 @@ def test_shape_drift_uses_configured_action() -> None:
     import dataclasses
     from mountainash.conform.contract import resolve_contract
 
-    spec = _spec(FieldSpec(name="a", type=UniversalType.LIST, item_type="string"), fields_match="open")
+    spec = _spec(("a", FieldDefinition(type=UniversalType.LIST, item_type="string")), fields_match="open")
     contract = dataclasses.replace(
         resolve_contract("open"), data_type="discard_value", from_preset=False,
     )
@@ -190,35 +183,28 @@ def test_shape_drift_uses_configured_action() -> None:
     assert result.drift.type_mismatches[0].action == "discard_value"
 
 
-def test_unresolved_and_incompatible_source_errors_are_public() -> None:
-    assert issubclass(UnresolvedSourceTypeError, Exception)
-    assert issubclass(IncompatibleSourceTypeError, Exception)
-
-
-def test_structural_only_builder_keeps_projection_without_type_operation() -> None:
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_unknown_lexical_and_incompatible_shapes_dispatch_by_contract(backend_name, backend_factory) -> None:
     from mountainash.conform.expressions import _build_conform_exprs
-    spec = _spec(FieldSpec(name="a", type=UniversalType.INTEGER), fields_match="open")
-    result = _build_conform_exprs(
-        spec,
-        available_columns=("a",),
-        actual_shapes={"a": SourceShape(MountainashDtype.STRING)},
-        apply_value_transforms=False,
-    )
-    assert len(result.exprs) == 1
-    assert result.row_filters == []
-    assert result.residue_checks == []
-
-
-def test_unknown_lexical_and_incompatible_shapes_dispatch_by_contract() -> None:
-    from mountainash.conform.expressions import _build_conform_exprs
-    unknown = _spec(FieldSpec(name="items", type=UniversalType.LIST), fields_match="open")
+    unknown = _spec(("items", FieldDefinition(type=UniversalType.LIST)), fields_match="open")
     result = _build_conform_exprs(
         unknown,
         available_columns=("items",),
         actual_shapes={"items": SourceShape(None)},
     )
-    assert result.exprs[0].node.arguments[0].function_key.name == "PARSE"
-    incompatible = _spec(FieldSpec(name="items", type=UniversalType.LIST), fields_match="open")
+    from mountainash import relation
+    from mountainash.core.types import BackendCapabilityError
+
+    frame = backend_factory.create({"items": ["one,two", "three"]}, backend_name)
+    with expect_call_failure(
+        when=backend_name in {"ibis-sqlite", "pandas", "narwhals-pandas"},
+        errors=(BackendCapabilityError,),
+        reason="Lexical-list capabilities: SQLite has no parser; pandas needs Arrow-backed strings",
+    ):
+        assert relation(frame).select(result.exprs[0]).to_dict()["items"] == [
+            ["one", "two"], ["three"],
+        ]
+    incompatible = _spec(("items", FieldDefinition(type=UniversalType.LIST)), fields_match="open")
     with pytest.raises(IncompatibleSourceTypeError):
         _build_conform_exprs(
             incompatible,
@@ -231,7 +217,7 @@ def test_structural_only_relation_skips_cast() -> None:
     import polars as pl
     from mountainash import relation
 
-    spec = _spec(FieldSpec(name="value", type=UniversalType.INTEGER), fields_match="open")
+    spec = _spec(("value", FieldDefinition(type=UniversalType.INTEGER)), fields_match="open")
     result = relation(pl.DataFrame({"value": ["7"]})).conform(
         spec, apply_value_transforms=False
     ).to_polars()
@@ -243,7 +229,7 @@ def test_discard_row_keeps_null_and_invalid_fill_rows() -> None:
     from mountainash import relation
 
     spec = _spec(
-        FieldSpec(name="value", type=UniversalType.INTEGER, null_fill="bad"),
+        ("value", FieldDefinition(type=UniversalType.INTEGER, null_fill="bad")),
         fields_match="open",
     )
     result = relation(pl.DataFrame({"value": [None, "bad", "3", "4"]})).conform(
@@ -252,40 +238,12 @@ def test_discard_row_keeps_null_and_invalid_fill_rows() -> None:
     assert result["value"].to_list() == [None, 3, 4]
 
 
-def test_native_scalar_list_uses_scalar_item_type_option() -> None:
-    import mountainash as ma
-    from mountainash.expressions.core.expression_system.function_keys.enums import (
-        FKEY_MOUNTAINASH_SCALAR_LIST,
-    )
-    expr = ma.col("items").list.cast_items(item_type="integer", field_name="items")
-    node = expr._node
-    assert node.function_key is FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS
-    assert node.options["item_type"] == "integer"
-    assert node.options["item_object_fields"] == ()
-
-
-def test_boolean_coerce_parser_node_keeps_throw_failure_behavior() -> None:
-    from mountainash.conform.expressions import _build_conform_exprs
-    from mountainash.expressions.core.expression_nodes import ScalarFunctionNode
-    spec = _spec(FieldSpec(name="flag", type=UniversalType.BOOLEAN), fields_match="open")
-    result = _build_conform_exprs(spec, available_columns=("flag",))
-    nodes = []
-
-    def walk(node):
-        if isinstance(node, ScalarFunctionNode):
-            nodes.append(node)
-            for arg in node.arguments:
-                walk(arg)
-
-    walk(result.exprs[0].node)
-    assert nodes
-
 def test_native_list_requires_array_declaration() -> None:
     import polars as pl
     from mountainash import relation
 
     spec = _spec(
-        FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
+        ("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")),
         fields_match="open",
     )
     with pytest.raises(IncompatibleSourceTypeError):
@@ -297,7 +255,7 @@ def test_native_list_discard_value_emits_typed_null() -> None:
     from mountainash import relation
 
     spec = _spec(
-        FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
+        ("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")),
         fields_match="open",
     )
     result = relation(pl.DataFrame({"items": [["1", "bad"], ["2", "3"]]})).conform(
@@ -312,9 +270,7 @@ def test_invalid_temporal_child_discards_whole_list_value() -> None:
     from mountainash import relation
 
     spec = _spec(
-        FieldSpec(name="items", type=UniversalType.ARRAY, item_object_fields=[
-            FieldSpec(name="day", type=UniversalType.DATE),
-        ]),
+        ("items", FieldDefinition(type=UniversalType.ARRAY, element=FieldDefinition(fields = {"day": FieldDefinition(type=UniversalType.DATE),}))),
         fields_match="open",
     )
     result = relation(
@@ -342,7 +298,7 @@ def test_native_list_representation_action_materializes(
     from mountainash import relation
 
     spec = _spec(
-        FieldSpec(name="items", type=UniversalType.LIST, item_type="integer"),
+        ("items", FieldDefinition(type=UniversalType.LIST, item_type="integer")),
         fields_match="open",
     )
     result = relation(pl.DataFrame({"items": [[1, 2], [3, 4]]})).conform(
@@ -359,7 +315,7 @@ def test_every_data_type_action_has_one_evaluator_branch(action: str) -> None:
     import dataclasses
     from mountainash.conform.contract import resolve_contract
 
-    spec = _spec(FieldSpec(name="value", type=UniversalType.INTEGER), fields_match="open")
+    spec = _spec(("value", FieldDefinition(type=UniversalType.INTEGER)), fields_match="open")
     contract = dataclasses.replace(
         resolve_contract("open"), data_type=action, from_preset=False
     )

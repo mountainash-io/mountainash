@@ -1,4 +1,4 @@
-"""Pure, deterministic semantic validation for operational TypeSpecs."""
+"""Pure, deterministic semantic validation for operational TableSchemas."""
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -9,8 +9,8 @@ import re
 from types import MappingProxyType
 from typing import Any
 
+from mountainash.core.dtypes import SchemaTypeStatus
 from mountainash.typespec.errors import (
-    AmbiguousFieldName,
     InvalidConstraintDeclaration,
     InvalidFieldIdentifier,
     InvalidJSONSchemaConstraint,
@@ -19,10 +19,10 @@ from mountainash.typespec.errors import (
 )
 from mountainash.typespec.spec import (
     FieldConstraints,
-    LabeledValue,
-    FieldSpec,
+    FieldDefinition,
     ForeignKey,
-    TypeSpec,
+    LabeledValue,
+    TableSchema,
 )
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.jsonschema import compile_json_schema
@@ -39,8 +39,13 @@ class ValidationImplementationKind(Enum):
     UNSUPPORTED = auto()
 
 
+# An unspecified type (ANY) is a legitimate partial declaration: a constraint
+# neither invents a physical type nor is refused for the lack of one. Its checks
+# run against whatever logical value is present (a value of an unsuitable kind
+# fails the check rather than being silently accepted).
 _RANGE_TYPES = frozenset(
     {
+        UniversalType.ANY,
         UniversalType.INTEGER,
         UniversalType.NUMBER,
         UniversalType.DATE,
@@ -53,12 +58,15 @@ _RANGE_TYPES = frozenset(
 )
 _LENGTH_TYPES = frozenset(
     {
+        UniversalType.ANY,
         UniversalType.STRING,
         UniversalType.ARRAY,
         UniversalType.OBJECT,
         UniversalType.GEOJSON,
     }
 )
+_STRING_TYPES = frozenset({UniversalType.ANY, UniversalType.STRING})
+_JSON_SCHEMA_TYPES = frozenset({UniversalType.ANY, UniversalType.ARRAY, UniversalType.OBJECT})
 
 
 def _implementation_kind(
@@ -83,13 +91,21 @@ def _implementation_kind(
     if constraint == "pattern":
         return (
             ValidationImplementationKind.VALUE_CHECK
-            if field_type is UniversalType.STRING
+            if field_type in _STRING_TYPES
             else ValidationImplementationKind.UNSUPPORTED
         )
     if constraint == "json_schema":
         return (
             ValidationImplementationKind.VALUE_CHECK
-            if field_type in {UniversalType.ARRAY, UniversalType.OBJECT}
+            if field_type in _JSON_SCHEMA_TYPES
+            else ValidationImplementationKind.UNSUPPORTED
+        )
+    if constraint in {"eq", "ne", "notin"}:
+        return ValidationImplementationKind.EXPRESSION_CHECK
+    if constraint in {"str_contains", "str_startswith", "str_endswith"}:
+        return (
+            ValidationImplementationKind.EXPRESSION_CHECK
+            if field_type in _STRING_TYPES
             else ValidationImplementationKind.UNSUPPORTED
         )
     if constraint == "enum_weights":
@@ -107,7 +123,7 @@ VALIDATION_IMPLEMENTATION_REGISTRY: Mapping[
     }
 )
 @dataclass(frozen=True)
-class TypeSpecIssue:
+class TableSchemaIssue:
     """One declaration error with a stable pointer and machine-readable code."""
     path: str
     code: str
@@ -116,17 +132,17 @@ class TypeSpecIssue:
 
 
 def _issue(
-    issues: list[TypeSpecIssue],
+    issues: list[TableSchemaIssue],
     *,
     path: str,
     code: str,
     cause: TypeSpecError,
 ) -> None:
-    issues.append(TypeSpecIssue(path=path, code=code, message=str(cause), cause=cause))
+    issues.append(TableSchemaIssue(path=path, code=code, message=str(cause), cause=cause))
 
 
 def _constraint_issue(
-    issues: list[TypeSpecIssue], path: str, message: str
+    issues: list[TableSchemaIssue], path: str, message: str
 ) -> None:
     _issue(
         issues,
@@ -137,11 +153,9 @@ def _constraint_issue(
 
 
 def _validate_constraints(
-    field: FieldSpec, path: str, issues: list[TypeSpecIssue]
+    definition: FieldDefinition, path: str, issues: list[TableSchemaIssue]
 ) -> None:
-    constraints = field.constraints
-    if constraints is None:
-        return
+    constraints = definition.constraints
     if not isinstance(constraints, FieldConstraints):
         _constraint_issue(issues, f"{path}/constraints", "constraints must be FieldConstraints")
         return
@@ -174,10 +188,10 @@ def _validate_constraints(
         name = constraint.name
         value = getattr(constraints, name)
         kind = VALIDATION_IMPLEMENTATION_REGISTRY.get(
-            (field.type, name), ValidationImplementationKind.UNSUPPORTED
+            (definition.type, name), ValidationImplementationKind.UNSUPPORTED
         )
         if value is not None and kind is ValidationImplementationKind.UNSUPPORTED:
-            type_name = getattr(field.type, "value", repr(field.type))
+            type_name = getattr(definition.type, "value", repr(definition.type))
             _constraint_issue(
                 issues,
                 f"{path}/constraints/{name}",
@@ -194,8 +208,17 @@ def _validate_constraints(
                 _constraint_issue(issues, f"{path}/constraints/pattern", str(error))
 
     if constraints.enum is not None:
-        if not isinstance(constraints.enum, list) or not constraints.enum:
+        if not isinstance(constraints.enum, (list, tuple)) or not constraints.enum:
             _constraint_issue(issues, f"{path}/constraints/enum", "enum must be a non-empty list")
+
+    if constraints.notin is not None:
+        if not isinstance(constraints.notin, (list, tuple)) or not constraints.notin:
+            _constraint_issue(issues, f"{path}/constraints/notin", "notin must be a non-empty list")
+
+    for name in ("str_contains", "str_startswith", "str_endswith"):
+        value = getattr(constraints, name)
+        if value is not None and not isinstance(value, str):
+            _constraint_issue(issues, f"{path}/constraints/{name}", f"{name} must be text")
 
     if constraints.json_schema is not None:
         try:
@@ -226,10 +249,10 @@ def _validate_constraints(
                     break
 
 
-def _validate_missing_values(values: Any, path: str, issues: list[TypeSpecIssue]) -> None:
+def _validate_missing_values(values: Any, path: str, issues: list[TableSchemaIssue]) -> None:
     if values is None:
         return
-    if not isinstance(values, list):
+    if not isinstance(values, (list, tuple)):
         _constraint_issue(issues, path, "missing_values must be a list")
         return
     seen_values: set[str] = set()
@@ -253,11 +276,11 @@ def _validate_missing_values(values: Any, path: str, issues: list[TypeSpecIssue]
 
 
 def _validate_field_properties(
-    field: FieldSpec, path: str, issues: list[TypeSpecIssue]
+    definition: FieldDefinition, path: str, issues: list[TableSchemaIssue]
 ) -> None:
-    if not isinstance(field.format, str) or not field.format:
+    if not isinstance(definition.format, str) or not definition.format:
         _constraint_issue(issues, f"{path}/format", "format must be a non-empty string")
-    elif field.format.startswith("fmt:"):
+    elif definition.format.startswith("fmt:"):
         _constraint_issue(
             issues,
             f"{path}/format",
@@ -270,24 +293,24 @@ def _validate_field_properties(
             UniversalType.TIME: {"default", "any"},
             UniversalType.DATETIME: {"default", "any"},
         }
-        if field.type in allowed_formats:
-            if field.format not in allowed_formats[field.type] and not (
-                field.type in {UniversalType.DATE, UniversalType.TIME, UniversalType.DATETIME}
-                and field.format
+        if definition.type in allowed_formats:
+            if definition.format not in allowed_formats[definition.type] and not (
+                definition.type in {UniversalType.DATE, UniversalType.TIME, UniversalType.DATETIME}
+                and definition.format
             ):
                 _constraint_issue(
                     issues,
                     f"{path}/format",
-                    f"format {field.format!r} is not valid for {field.type.value!r}",
+                    f"format {definition.format!r} is not valid for {definition.type.value!r}",
                 )
-        elif field.format != "default":
+        elif definition.format != "default":
             _constraint_issue(
                 issues,
                 f"{path}/format",
-                f"{field.type.value!r} has no format variants",
+                f"{definition.type.value!r} has no format variants",
             )
 
-    if field.item_type is not None:
+    if definition.item_type is not None:
         allowed_item_types = {
             UniversalType.STRING.value,
             UniversalType.INTEGER.value,
@@ -297,25 +320,25 @@ def _validate_field_properties(
             UniversalType.TIME.value,
             UniversalType.DATETIME.value,
         }
-        if field.item_type not in allowed_item_types:
+        if definition.item_type not in allowed_item_types:
             _constraint_issue(
                 issues,
                 f"{path}/item_type",
                 "item_type must be one of the supported primitive list item types",
             )
-    if field.delimiter is not None and (
-        not isinstance(field.delimiter, str) or not field.delimiter
+    if definition.delimiter is not None and (
+        not isinstance(definition.delimiter, str) or not definition.delimiter
     ):
         _constraint_issue(issues, f"{path}/delimiter", "delimiter must be a non-empty string")
-    _validate_missing_values(field.missing_values, f"{path}/missing_values", issues)
+    _validate_missing_values(definition.missing_values, f"{path}/missing_values", issues)
 
-    if field.decimal_char is not None and field.type is not UniversalType.NUMBER:
+    if definition.decimal_char is not None and definition.type is not UniversalType.NUMBER:
         _constraint_issue(
             issues,
             f"{path}/decimal_char",
             "decimal_char is valid only for number fields",
         )
-    if field.group_char is not None and field.type not in {
+    if definition.group_char is not None and definition.type not in {
         UniversalType.INTEGER,
         UniversalType.NUMBER,
     }:
@@ -324,7 +347,7 @@ def _validate_field_properties(
             f"{path}/group_char",
             "group_char is valid only for integer and number fields",
         )
-    if field.bare_number is not None and field.type not in {
+    if definition.bare_number is not None and definition.type not in {
         UniversalType.INTEGER,
         UniversalType.NUMBER,
     }:
@@ -334,8 +357,8 @@ def _validate_field_properties(
             "bare_number is valid only for integer and number fields",
         )
 
-    if field.type is not UniversalType.BOOLEAN and (
-        field.true_values is not None or field.false_values is not None
+    if definition.type is not UniversalType.BOOLEAN and (
+        definition.true_values is not None or definition.false_values is not None
     ):
         _constraint_issue(
             issues,
@@ -344,11 +367,11 @@ def _validate_field_properties(
         )
     boolean_values: dict[str, set[str]] = {}
     for property_name in ("true_values", "false_values"):
-        values = getattr(field, property_name)
+        values = getattr(definition, property_name)
         if values is None:
             continue
         property_path = f"{path}/{property_name}"
-        if not isinstance(values, list) or not values or any(
+        if not isinstance(values, (list, tuple)) or not values or any(
             not isinstance(value, str) or not value for value in values
         ):
             _constraint_issue(
@@ -372,24 +395,24 @@ def _validate_field_properties(
             "true_values and false_values must be disjoint",
         )
 
-    if field.categories is not None:
-        if field.type not in {UniversalType.STRING, UniversalType.INTEGER}:
+    if definition.categories is not None:
+        if definition.type not in {UniversalType.STRING, UniversalType.INTEGER}:
             _constraint_issue(
                 issues,
                 f"{path}/categories",
                 "categories are valid only for string and integer fields",
             )
-        elif not isinstance(field.categories, list):
+        elif not isinstance(definition.categories, (list, tuple)):
             _constraint_issue(issues, f"{path}/categories", "categories must be a list")
         else:
             seen_categories: set[tuple[type[Any], Any]] = set()
             labels: set[str] = set()
-            for index, category in enumerate(field.categories):
+            for index, category in enumerate(definition.categories):
                 category_path = f"{path}/categories/{index}"
                 value = category.value if isinstance(category, LabeledValue) else category
                 label = category.label if isinstance(category, LabeledValue) else None
                 if type(value) is not (
-                    str if field.type is UniversalType.STRING else int
+                    str if definition.type is UniversalType.STRING else int
                 ):
                     _constraint_issue(
                         issues,
@@ -407,14 +430,14 @@ def _validate_field_properties(
                     elif label in labels:
                         _constraint_issue(issues, category_path, "category label is duplicated")
                     labels.add(label)
-    if field.categories_ordered is not None:
-        if field.categories is None:
+    if definition.categories_ordered is not None:
+        if definition.categories is None:
             _constraint_issue(
                 issues,
                 f"{path}/categories_ordered",
                 "categories_ordered requires categories",
             )
-        elif type(field.categories_ordered) is not bool:  # noqa: E721 — strict declaration shape
+        elif type(definition.categories_ordered) is not bool:  # noqa: E721 — strict declaration shape
             _constraint_issue(
                 issues,
                 f"{path}/categories_ordered",
@@ -422,68 +445,81 @@ def _validate_field_properties(
             )
 
 
-def _validate_field_list(
+def _validate_definition(
+    definition: FieldDefinition, path: str, issues: list[TableSchemaIssue]
+) -> None:
+    """Validate one unnamed declaration, then its nested members and element."""
+    if definition.rename_from is not None and (
+        not isinstance(definition.rename_from, str) or not definition.rename_from
+    ):
+        _issue(
+            issues,
+            path=f"{path}/rename_from",
+            code="typespec.invalid_field_identifier",
+            cause=InvalidFieldIdentifier(path, "rename_from", definition.rename_from),
+        )
+
+    _validate_constraints(definition, path, issues)
+    _validate_field_properties(definition, path, issues)
+
+    members = definition.fields
+    if isinstance(members, Mapping):
+        _validate_field_mapping(
+            members, path=f"{path}/fields", issues=issues, allow_empty=True
+        )
+    elif members is not None and members is not SchemaTypeStatus.UNKNOWN:
+        _constraint_issue(
+            issues, f"{path}/fields", "fields must be a mapping of FieldDefinition or UNKNOWN"
+        )
+    element = definition.element
+    if isinstance(element, FieldDefinition):
+        _validate_definition(element, f"{path}/element", issues)
+    elif element is not None and element is not SchemaTypeStatus.UNKNOWN:
+        _constraint_issue(
+            issues, f"{path}/element", "element must be a FieldDefinition or UNKNOWN"
+        )
+
+
+def _validate_field_mapping(
     fields: Any,
     *,
     path: str,
-    issues: list[TypeSpecIssue],
+    issues: list[TableSchemaIssue],
+    allow_empty: bool = False,
 ) -> set[str]:
-    if not isinstance(fields, list) or not fields:
-        _constraint_issue(issues, path, "fields must be a non-empty list of FieldSpec")
+    """Validate an ordered name→definition mapping; pointers use member position.
+
+    An empty nested record is a declared (empty) structure, distinct from an
+    unknown one, so only the top-level schema requires at least one field.
+    """
+    if not isinstance(fields, Mapping):
+        _constraint_issue(issues, path, "fields must be a mapping of name to FieldDefinition")
+        return set()
+    if not fields and not allow_empty:
+        _constraint_issue(issues, path, "fields must be a non-empty mapping of name to FieldDefinition")
         return set()
 
     names: set[str] = set()
-    for index, field in enumerate(fields):
+    for index, (name, definition) in enumerate(fields.items()):
         field_path = f"{path}/{index}"
-        if not isinstance(field, FieldSpec):
-            _constraint_issue(issues, field_path, "field must be FieldSpec")
-            continue
-        if not isinstance(field.name, str) or not field.name:
+        if not isinstance(name, str) or not name:
             _issue(
                 issues,
                 path=f"{field_path}/name",
                 code="typespec.invalid_field_identifier",
-                cause=InvalidFieldIdentifier(field_path, "name", field.name),
-            )
-        elif field.name in names:
-            _issue(
-                issues,
-                path=f"{field_path}/name",
-                code="typespec.ambiguous_field_name",
-                cause=AmbiguousFieldName(f"duplicate field name {field.name!r}"),
+                cause=InvalidFieldIdentifier(field_path, "name", name),
             )
         else:
-            names.add(field.name)
-
-        if field.rename_from is not None and (
-            not isinstance(field.rename_from, str) or not field.rename_from
-        ):
-            _issue(
-                issues,
-                path=f"{field_path}/rename_from",
-                code="typespec.invalid_field_identifier",
-                cause=InvalidFieldIdentifier(field_path, "rename_from", field.rename_from),
-            )
-
-        _validate_constraints(field, field_path, issues)
-        _validate_field_properties(field, field_path, issues)
-        if field.object_fields is not None:
-            _validate_field_list(
-                field.object_fields,
-                path=f"{field_path}/object_fields",
-                issues=issues,
-            )
-        if field.item_object_fields is not None:
-            _validate_field_list(
-                field.item_object_fields,
-                path=f"{field_path}/item_object_fields",
-                issues=issues,
-            )
+            names.add(name)
+        if not isinstance(definition, FieldDefinition):
+            _constraint_issue(issues, field_path, "field must be FieldDefinition")
+            continue
+        _validate_definition(definition, field_path, issues)
     return names
 
 
 def _validate_key(
-    key: Any, *, path: str, known_names: set[str], issues: list[TypeSpecIssue]
+    key: Any, *, path: str, known_names: set[str], issues: list[TableSchemaIssue]
 ) -> None:
     if not isinstance(key, list) or not key:
         _constraint_issue(issues, path, "key must be a non-empty list of field names")
@@ -499,15 +535,15 @@ def _validate_key(
 
 
 def _validate_relationships(
-    spec: TypeSpec,
+    schema: TableSchema,
     *,
     resource_name: str | None,
     package_resource_names: frozenset[str] | None,
-    package_specs: Mapping[str, TypeSpec] | None,
+    package_schemas: Mapping[str, TableSchema] | None,
     known_names: set[str],
-    issues: list[TypeSpecIssue],
+    issues: list[TableSchemaIssue],
 ) -> None:
-    foreign_keys = spec.foreign_keys
+    foreign_keys = schema.foreign_keys
     if foreign_keys is None:
         return
     if not isinstance(foreign_keys, list) or not foreign_keys:
@@ -525,77 +561,81 @@ def _validate_relationships(
             _constraint_issue(issues, f"{path}/reference/resource", f"resource {target!r} is not in the package")
         if len(foreign_key.fields) != len(reference.fields):
             _constraint_issue(issues, path, "foreign key child and parent arity differ")
-        target_spec = (
-            package_specs.get(target)
-            if package_specs is not None and target is not None
-            else spec
+        target_schema = (
+            package_schemas.get(target)
+            if package_schemas is not None and target is not None
+            else schema
             if target == resource_name
             else None
         )
-        if target_spec is not None:
-            target_names = {field.name for field in target_spec.fields if isinstance(field.name, str)}
+        if target_schema is not None:
+            target_names = {name for name in target_schema.fields if isinstance(name, str)}
             _validate_key(reference.fields, path=f"{path}/reference/fields", known_names=target_names, issues=issues)
 
 
-def validate_typespec_semantics(
-    spec: TypeSpec,
+def validate_table_schema_semantics(
+    schema: TableSchema,
     *,
     resource_name: str | None = None,
     package_resource_names: frozenset[str] | None = None,
-    package_specs: Mapping[str, TypeSpec] | None = None,
-) -> tuple[TypeSpecIssue, ...]:
+    package_schemas: Mapping[str, TableSchema] | None = None,
+) -> tuple[TableSchemaIssue, ...]:
     """Return all semantic declaration issues in deterministic pointer order."""
-    issues: list[TypeSpecIssue] = []
-    known_names = _validate_field_list(spec.fields, path="/fields", issues=issues)
-    _validate_missing_values(spec.missing_values, "/missing_values", issues)
+    issues: list[TableSchemaIssue] = []
+    known_names = _validate_field_mapping(schema.fields, path="/fields", issues=issues)
+    _validate_missing_values(schema.missing_values, "/missing_values", issues)
 
-    if spec.fields_match not in {"exact", "equal", "subset", "superset", "partial", "open"}:
+    if schema.fields_match not in {"exact", "equal", "subset", "superset", "partial", "open"}:
         _constraint_issue(issues, "/fields_match", "fields_match is not a supported mode")
-    if spec.primary_key is not None:
-        _validate_key(spec.primary_key, path="/primary_key", known_names=known_names, issues=issues)
-    if spec.unique_keys is not None:
-        if not isinstance(spec.unique_keys, list) or not spec.unique_keys:
+    if schema.primary_key is not None:
+        _validate_key(schema.primary_key, path="/primary_key", known_names=known_names, issues=issues)
+    if schema.unique_keys is not None:
+        if not isinstance(schema.unique_keys, list) or not schema.unique_keys:
             _constraint_issue(issues, "/unique_keys", "unique_keys must be a non-empty list")
         else:
-            for index, key in enumerate(spec.unique_keys):
+            for index, key in enumerate(schema.unique_keys):
                 _validate_key(key, path=f"/unique_keys/{index}", known_names=known_names, issues=issues)
-    if package_resource_names is not None and package_specs is not None:
+    if package_resource_names is not None and package_schemas is not None:
         _validate_relationships(
-            spec,
+            schema,
             resource_name=resource_name,
             package_resource_names=package_resource_names,
-            package_specs=package_specs,
+            package_schemas=package_schemas,
             known_names=known_names,
             issues=issues,
         )
-    elif spec.foreign_keys is not None:
+    elif schema.foreign_keys is not None:
         _validate_relationships(
-            spec,
+            schema,
             resource_name=resource_name,
             package_resource_names=None,
-            package_specs=None,
+            package_schemas=None,
             known_names=known_names,
             issues=issues,
         )
     return tuple(sorted(issues, key=lambda issue: (issue.path, issue.code)))
 
 
-def require_valid_typespec(
-    spec: TypeSpec,
+def require_valid_table_schema(
+    schema: TableSchema,
     *,
     resource_name: str | None = None,
     package_resource_names: frozenset[str] | None = None,
-    package_specs: Mapping[str, TypeSpec] | None = None,
+    package_schemas: Mapping[str, TableSchema] | None = None,
 ) -> None:
     """Raise one aggregate error before a declared schema can execute."""
-    issues = validate_typespec_semantics(
-        spec,
+    issues = validate_table_schema_semantics(
+        schema,
         resource_name=resource_name,
         package_resource_names=package_resource_names,
-        package_specs=package_specs,
+        package_schemas=package_schemas,
     )
     if issues:
         raise InvalidTypeSpecSemantics(issues, resource_name)
 
 
-__all__ = ["TypeSpecIssue", "require_valid_typespec", "validate_typespec_semantics"]
+__all__ = [
+    "TableSchemaIssue",
+    "require_valid_table_schema",
+    "validate_table_schema_semantics",
+]

@@ -184,51 +184,23 @@ def decode_structured_value(
 
 
 def transport_arrow_dtype(dtype: Any) -> Any:
-    """Translate an effective execution type to its Arrow transport representation."""
-    import pyarrow as pa
-    from mountainash.core.dtypes import (
-        DecimalDtype, MountainashDtype, NativeDtype, SchemaTypeStatus, TypeTarget, registry,
-    )
-    from mountainash.core.dtypes.target_pyarrow import to_native_parameterized
+    """Delegate representation conversion to the registered native type owner."""
+    from mountainash.core.dtypes import registry
 
-    if dtype is None:
-        return None
-    if dtype is SchemaTypeStatus.UNKNOWN:
-        return pa.null()
-    native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
-    if native is not None:
-        value = registry.to_native_schema(native, native.target)
-        if native.target is TypeTarget.PYARROW:
-            return value
-        if native.target is TypeTarget.POLARS:
-            import polars as pl
-            return pl.Series("", [], dtype=value).to_arrow().type
-        if native.target is TypeTarget.PANDAS:
-            import pandas as pd
-            return pa.Array.from_pandas(pd.Series([], dtype=value)).type
-        if native.target is TypeTarget.NARWHALS:
-            from narwhals._arrow.utils import narwhals_to_native_dtype
-            from narwhals._utils import Version
-            return narwhals_to_native_dtype(value, Version.MAIN)
-        if native.target is TypeTarget.IBIS:
-            from ibis.formats.pyarrow import PyArrowType
-            return PyArrowType.from_ibis(value)
-        return registry.to_native_schema(dtype, TypeTarget.PYARROW)
-    if isinstance(dtype, (MountainashDtype, DecimalDtype)):
-        return registry.to_native_schema(dtype, TypeTarget.PYARROW)
-    return to_native_parameterized(dtype, child_lowerer=transport_arrow_dtype)
+    return registry.to_arrow_transport(dtype)
 
 
 def _convert_struct_mapping(value: Mapping[str, Any], children: Any, dtypes: Any = None) -> dict[str, Any]:
-    by_name = {child.name: child for child in children}
+    by_name = children if isinstance(children, Mapping) else {}
     names = value if dtypes is None else dtypes
     result = {}
     for name in names:
-        item = value.get(name)
         child = by_name.get(name)
+        source_name = child.rename_from if child is not None and child.rename_from is not None else name
+        item = value.get(source_name)
         if child is None and dtypes is not None:
-            from mountainash.typespec.spec import FieldSpec
-            child = FieldSpec(name=name)
+            from mountainash.typespec.spec import FieldDefinition
+            child = FieldDefinition()
         if child is not None:
             if isinstance(item, str) and child.missing_values is not None:
                 from mountainash.typespec._categorical import categorical_values
@@ -242,20 +214,20 @@ def _convert_struct_mapping(value: Mapping[str, Any], children: Any, dtypes: Any
 
 
 def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
-    """Apply retained nested FieldSpec conversion instructions to decoded cells."""
+    """Apply retained nested FieldDefinition conversion instructions to decoded cells."""
     if value is None:
         return None
     from mountainash.core.dtypes import (
         ArrayDtype, DecimalDtype, ListDtype, StructDtype, MountainashDtype,
         NativeDtype, SchemaTypeStatus, dtype_family, registry,
     )
-    from mountainash.typespec.converters import effective_child_fields, resolve_field_canonical
+    from mountainash.typespec.converters import resolve_field_canonical
 
     if dtype is None:
         dtype = field.dtype
         if dtype is None or dtype is SchemaTypeStatus.UNKNOWN:
             dtype = resolve_field_canonical(field)
-    if dtype is SchemaTypeStatus.UNKNOWN:
+    if dtype in (SchemaTypeStatus.UNKNOWN, SchemaTypeStatus.UNCONSTRAINED):
         return value
     native = dtype if isinstance(dtype, NativeDtype) else getattr(dtype, "native", None)
     if native is not None:
@@ -285,25 +257,31 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         from mountainash.core.types import BackendCapabilityError
 
         raise BackendCapabilityError(
-            f"Structured conversion metadata for {field.name!r} cannot be honored by direct Arrow casting.",
+            "Structured conversion metadata cannot be honored by direct Arrow casting.",
             backend="pyarrow",
             function_key=None,
         )
     if family is MountainashDtype.STRUCT and isinstance(value, Mapping):
         fields = dict(dtype.fields) if isinstance(dtype, StructDtype) and dtype.fields is not SchemaTypeStatus.UNKNOWN else None
-        return _convert_struct_mapping(value, effective_child_fields(field), fields)
-    if family is MountainashDtype.LIST and isinstance(value, list):
+        return _convert_struct_mapping(value, field.fields, fields)
+    if family is MountainashDtype.LIST and isinstance(value, (list, tuple)):
+        from mountainash.typespec.spec import FieldDefinition
+
         element = dtype.element if isinstance(dtype, (ListDtype, ArrayDtype)) else SchemaTypeStatus.UNKNOWN
+        child = field.element if isinstance(field.element, FieldDefinition) else FieldDefinition()
         if isinstance(dtype, ArrayDtype) and dtype.dimensions is not SchemaTypeStatus.UNKNOWN and len(dtype.dimensions) > 1:
             element = ArrayDtype(dtype.element, dtype.dimensions[1:])
-        if dtype_family(element) is MountainashDtype.STRUCT:
-            children = effective_child_fields(field)
-            fields = dict(element.fields) if element.fields is not SchemaTypeStatus.UNKNOWN else None
-            return [
-                None if item is None else _convert_struct_mapping(item, children, fields)
-                for item in value
-            ]
-        return [_convert_declared_value(item, field, element) for item in value]
+            child = field
+        converted = []
+        for item in value:
+            if isinstance(item, str) and child.missing_values is not None:
+                from mountainash.typespec._categorical import categorical_values
+                if item in categorical_values(list(child.missing_values)):
+                    item = None
+            if item is None and child.null_fill is not None:
+                item = child.null_fill
+            converted.append(_convert_declared_value(item, child, element))
+        return converted
     if family in {MountainashDtype.TIMESTAMP, MountainashDtype.TIME, MountainashDtype.DATE}:
         if not isinstance(value, str):
             return value

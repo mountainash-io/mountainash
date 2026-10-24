@@ -1,15 +1,15 @@
-"""Immutable TypeSpec-to-validation-plan compilation."""
+"""Immutable TableSchema-to-validation-plan compilation."""
 
 import pytest
 
-from mountainash.datacontracts.compiler import compile_datacontract
+from mountainash.datacontracts.compiler import compile_datacontract, compile_field_checks
 from mountainash.exceptions import InvalidTypeSpecSemantics
 from mountainash.typespec import (
     FieldConstraints,
-    FieldSpec,
+    FieldDefinition,
     ForeignKey,
     ForeignKeyReference,
-    TypeSpec,
+    TableSchema,
     UniversalType,
 )
 from mountainash.validation import CompiledValidationPlan, ValueRule, ValueValidatorKey
@@ -17,14 +17,13 @@ from mountainash.validation import CompiledValidationPlan, ValueRule, ValueValid
 
 def test_compiled_plan_isolated_from_nested_mutation() -> None:
     """Mutating a declaration after compilation must not alter executable checks."""
-    spec = TypeSpec(
-        fields=[
-            FieldSpec(
-                name="payload",
+    schema = TableSchema(
+        fields={
+            "payload": FieldDefinition(
                 type=UniversalType.OBJECT,
-                object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                fields={"child": FieldDefinition(type=UniversalType.STRING)},
             )
-        ],
+        },
         foreign_keys=[
             ForeignKey(
                 fields=["payload"],
@@ -33,12 +32,12 @@ def test_compiled_plan_isolated_from_nested_mutation() -> None:
         ],
     )
 
-    plan = compile_datacontract(spec)
+    plan = compile_datacontract(schema)
     fingerprint = plan.declaration_fingerprint
     check_ids = tuple(check.id for check in plan.checks)
 
-    spec.fields[0].object_fields[0].name = "renamed"
-    spec.foreign_keys[0].reference.fields.append("other")
+    schema.fields["renamed"] = schema.fields.pop("payload")
+    schema.foreign_keys[0].reference.fields.append("other")
 
     assert isinstance(plan, CompiledValidationPlan)
     assert plan.declaration_fingerprint == fingerprint
@@ -48,62 +47,84 @@ def test_compiled_plan_isolated_from_nested_mutation() -> None:
 
 def test_compile_datacontract_rejects_semantics_before_compilation() -> None:
     """An executable plan cannot be built from a semantically invalid declaration."""
-    spec = TypeSpec(fields=[FieldSpec(name="", type=UniversalType.STRING)])
+    schema = TableSchema(fields={"": FieldDefinition(type=UniversalType.STRING)})
 
     with pytest.raises(InvalidTypeSpecSemantics):
-        compile_datacontract(spec)
+        compile_datacontract(schema)
 
 
-def test_compilation_preserves_native_field_extensions_and_severity() -> None:
-    """Dropping native rules during plan compilation would weaken a contract."""
-    from mountainash.datacontracts import BaseDataContract, Field
-
-    class NativeContract(BaseDataContract):
-        value: int = Field(
-            eq=1,
-            ne=2,
-            gt=0,
-            lt=3,
-            notin=[-1],
-            str_contains="1",
-            str_startswith="1",
-            str_endswith="1",
-            severity="warning",
-        )
-
+def test_compilation_preserves_extended_constraints_and_severity() -> None:
+    """Dropping a retained requirement during plan compilation would weaken a contract."""
     plan = compile_datacontract(
-        NativeContract.to_typespec(),
-        extensions=NativeContract._contract_fields,
+        TableSchema(
+            fields={
+                "value": FieldDefinition(
+                    type=UniversalType.INTEGER,
+                    eq=1,
+                    ne=2,
+                    exclusive_minimum=0,
+                    exclusive_maximum=3,
+                    notin=[-1],
+                    severity="warning",
+                ),
+                "text": FieldDefinition(
+                    type=UniversalType.STRING,
+                    str_contains="1",
+                    str_startswith="1",
+                    str_endswith="1",
+                    severity="warning",
+                ),
+            }
+        )
     )
 
     checks = {check.id: check for check in plan.checks}
     expected = {
         "value__eq",
         "value__ne",
-        "value__gt",
-        "value__lt",
         "value__notin",
-        "value__str_contains",
-        "value__str_startswith",
-        "value__str_endswith",
+        "value_range",
+        "text__str_contains",
+        "text__str_startswith",
+        "text__str_endswith",
     }
     assert expected <= set(checks)
     assert {checks[check_id].severity for check_id in expected} == {"warning"}
+    assert checks["value_range"].options == {"exclusive_minimum": 0, "exclusive_maximum": 3}
 
+
+def test_constraint_not_valid_for_the_declared_type_fails_before_compilation() -> None:
+    """The semantic boundary keeps its per-type constraint dispositions for the new vocabulary."""
+    schema = TableSchema(
+        fields={"value": FieldDefinition(type=UniversalType.INTEGER, str_contains="1")}
+    )
+
+    with pytest.raises(InvalidTypeSpecSemantics):
+        compile_datacontract(schema)
+
+
+def test_compile_field_checks_addresses_the_supplied_local_name() -> None:
+    """Definitions are unnamed; the explicit local name selects the column."""
+    definition = FieldDefinition(type=UniversalType.INTEGER, required=True, minimum=0)
+
+    checks = compile_field_checks(definition, "qty")
+
+    assert [check.id for check in checks] == ["qty_type_format", "qty__not_null", "qty_range"]
+    assert all(tuple(check.fields) == ("qty",) for check in checks)
+    assert compile_field_checks(definition, "other")[0].id == "other_type_format"
 
 
 def test_every_declared_field_gets_type_format_first() -> None:
     """Intrinsic format validation exists even without declared constraints."""
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(
-                    name="label",
+        TableSchema(
+            fields={
+                "id": FieldDefinition(type=UniversalType.INTEGER),
+                "label": FieldDefinition(
                     type=UniversalType.STRING,
                     constraints=FieldConstraints(min_length=1, max_length=8),
                 ),
-            ]
+            }
         )
     )
 
@@ -120,10 +141,9 @@ def test_every_declared_field_gets_type_format_first() -> None:
 def test_compiler_maps_each_standard_constraint_once() -> None:
     """The complete standard vocabulary has one explicit ValueRule owner."""
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="amount",
+        TableSchema(
+            fields={
+                "amount": FieldDefinition(
                     type=UniversalType.NUMBER,
                     constraints=FieldConstraints(
                         required=True,
@@ -136,8 +156,7 @@ def test_compiler_maps_each_standard_constraint_once() -> None:
                         enum_weights={"1": 1.0},
                     ),
                 ),
-                FieldSpec(
-                    name="label",
+                "label": FieldDefinition(
                     type=UniversalType.STRING,
                     constraints=FieldConstraints(
                         min_length=1,
@@ -147,19 +166,20 @@ def test_compiler_maps_each_standard_constraint_once() -> None:
                     ),
                     categories=["draft"],
                 ),
-                FieldSpec(
-                    name="payload",
+                "payload": FieldDefinition(
                     type=UniversalType.OBJECT,
-                    object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                    fields={"child": FieldDefinition(type=UniversalType.STRING)},
                     constraints=FieldConstraints(json_schema={"type": "object"}),
                 ),
-                FieldSpec(
-                    name="items",
+                "items": FieldDefinition(
                     type=UniversalType.ARRAY,
-                    item_object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                    element=FieldDefinition(
+                        type=UniversalType.OBJECT,
+                        fields={"child": FieldDefinition(type=UniversalType.STRING)},
+                    ),
                 ),
-                FieldSpec(name="shape", type=UniversalType.GEOJSON),
-            ]
+                "shape": FieldDefinition(type=UniversalType.GEOJSON),
+            }
         )
     )
 
@@ -195,3 +215,24 @@ def test_compiler_maps_each_standard_constraint_once() -> None:
     }
     assert rules["shape_geojson_winding"].severity == "warning"
     assert rules["amount_enum_membership"].metadata["enum_weights"] == {"1": 1.0}
+
+
+def test_unknown_and_empty_nested_shape_declare_no_nested_check() -> None:
+    """Unknown or empty structure declares no member/element requirement to check."""
+    from mountainash.core.dtypes import SchemaTypeStatus
+
+    plan = compile_datacontract(
+        TableSchema(
+            fields={
+                "unknown_record": FieldDefinition(
+                    type=UniversalType.OBJECT, fields=SchemaTypeStatus.UNKNOWN
+                ),
+                "empty_record": FieldDefinition(type=UniversalType.OBJECT, fields={}),
+                "unknown_items": FieldDefinition(
+                    type=UniversalType.ARRAY, element=SchemaTypeStatus.UNKNOWN
+                ),
+            }
+        )
+    )
+
+    assert not [check for check in plan.checks if check.id.endswith("_nested")]

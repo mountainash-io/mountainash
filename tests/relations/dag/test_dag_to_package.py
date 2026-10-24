@@ -104,16 +104,15 @@ def test_dag_to_package_conformed_relation_exports():
 
     The conformed relation must carry its inferred conform schema in the output.
     """
-    from mountainash.typespec.spec import TypeSpec, FieldSpec
+    from mountainash.typespec.spec import TableSchema, FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
 
     dag = RelationDAG()
     df = pl.DataFrame({"id": [1, 2], "value": ["10", "20"]})
     dag.add("raw", ma.relation(df))
 
-    spec = TypeSpec(fields=[
-        FieldSpec(name="id", type="integer"),
-        FieldSpec(name="value", type="integer"),
-    ])
+    spec = TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER),
+        "value": FieldDefinition(type=UniversalType.INTEGER),})
     dag.add("conformed", ma.relation(df).conform(spec))
 
     pkg = dag.to_package()

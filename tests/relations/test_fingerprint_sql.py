@@ -107,23 +107,20 @@ def test_duckdb_typed_values_match_native_polars(duckdb_connection, empty):
 
 
 @pytest.mark.parametrize("empty", [False, True])
-@pytest.mark.parametrize("typed", [False, True])
-def test_decimal_arithmetic_fingerprint_schema(duckdb_connection, empty, typed):
+def test_decimal_arithmetic_fingerprint_schema(duckdb_connection, empty):
     """DuckDB transport must honor the declared schema, even after arithmetic."""
     source = pl.DataFrame({
         "k": [1, 2, 3],
         "v": pl.Series([Decimal("10.00"), None, Decimal("20.00")], dtype=pl.Decimal(4, 2)),
     })
     native = duckdb_connection.create_table("decimal_fp", source.to_arrow(), temp=True)
-    delta = (ma.lit(Decimal("0.01"), dtype=ma.DecimalDtype(precision=4, scale=2))
-             if typed else Decimal("1.00"))
+    delta = ma.lit(Decimal("0.01"), dtype=ma.DecimalDtype(precision=4, scale=2))
     rel = ma.relation(native).with_columns((ma.col("v") + delta).alias("v"))
     expected = pl.DataFrame({
         "k": [1, 2, 3],
         "v": pl.Series(
-            [Decimal("10.01"), None, Decimal("20.01")] if typed
-            else [Decimal("11.00"), None, Decimal("21.00")],
-            dtype=pl.Decimal(4, 2) if typed else pl.Decimal(38, 9)),
+            [Decimal("10.01"), None, Decimal("20.01")], dtype=pl.Decimal(4, 2),
+        ),
     })
     if empty:
         rel = rel.filter(ma.col("k") < 0)

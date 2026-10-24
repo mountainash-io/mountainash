@@ -76,7 +76,7 @@ The mountainash form is the same length as the Polars form. We didn't invent a n
 
 Once a relation chain is backend-agnostic, the rest of the library can be:
 
-- [Schemas](typespec-conform.md) authored once; conform works on any backend.
+- [Shared schemas](typespec-conform.md) authored once; conform works on any backend.
 - [Data contracts](datacontracts.md) validating on any backend.
 - [Pipelines](pipelines.md) composed with relations, so a pipeline step's output flows into a relation that ends on the backend the caller needs.
 - [Expressions](expressions.md) — the building blocks — themselves cross-backend.

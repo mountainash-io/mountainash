@@ -38,14 +38,12 @@ def test_dataclass_source_conforms_and_joins_structured_relation():
     import polars as pl
 
     from mountainash.typespec.extraction import extract_from_dataclass
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType as U
 
     left = ma.relation([JoinRow("a", "first")]).conform(extract_from_dataclass(JoinRow))
-    right_spec = TypeSpec(fields=[
-        FieldSpec("id", U.STRING),
-        FieldSpec("metadata", U.OBJECT, object_fields=[FieldSpec("tag", U.STRING)]),
-    ])
+    right_spec = TableSchema(fields={"id": FieldDefinition(type = U.STRING),
+        "metadata": FieldDefinition(type = U.OBJECT, fields={"tag": FieldDefinition(type = U.STRING)}),})
     right = ma.relation(pl.DataFrame({
         "id": ["a"], "metadata": [{"tag": "kept"}],
     })).conform(right_spec)
@@ -73,11 +71,11 @@ def test_selector_alias_replacement_requires_actual_output(selector, target):
     """Polars selector expansion boundary: a zero-output alias is a no-op."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
     result = relation.with_columns(ma.col(selector).alias(target)).to_polars()
     expected = {"payload": [[1]]}
@@ -92,11 +90,11 @@ def test_select_selector_carries_structured_transport(selector, as_string):
     """Existing Polars selector lowering must retain logical terminal decoding."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
     expression = selector if as_string else ma.col(selector)
     assert relation.select(expression).to_dict() == {"payload": [[1]]}
@@ -109,11 +107,11 @@ def test_unresolved_projection_cannot_discard_transport(operation, shape):
     import polars as pl
 
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
     expression = {
         "native": ma.native(pl.col("payload")),
@@ -300,7 +298,7 @@ def test_join_requests_unknown_names_only_for_the_suffixed_metadata_side(how, si
 def test_opaque_left_join_requires_names_only_for_metadata(backend_name, backend_factory, structured):
     """Opaque passthrough remains valid unless a physical carrier needs suffixing."""
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left_source, right_source = backend_factory.create_pair(
@@ -312,8 +310,8 @@ def test_opaque_left_join_requires_names_only_for_metadata(backend_name, backend
     left = ma.relation(left_source).with_columns(ma.native(native).alias("extra"))
     right = ma.relation(right_source)
     if structured:
-        right = right.conform(TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        right = right.conform(TableSchema(
+            fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
         ))
     # Check the actual metadata boundary: native structured backends need no
     # carrier suffix mapping, while JSON transport does.
@@ -397,7 +395,7 @@ def test_filter_rejects_transport_before_backend_filter_dispatch(monkeypatch):
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     def filter_must_not_run(*args, **kwargs):
@@ -405,7 +403,7 @@ def test_filter_rejects_transport_before_backend_filter_dispatch(monkeypatch):
 
     monkeypatch.setattr(PolarsRelationSystem, "filter", filter_must_not_run)
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
 
     with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
@@ -425,7 +423,7 @@ def test_sort_rejects_transport_before_backend_sort_dispatch(monkeypatch):
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     def sort_must_not_run(*args, **kwargs):
@@ -433,7 +431,7 @@ def test_sort_rejects_transport_before_backend_sort_dispatch(monkeypatch):
 
     monkeypatch.setattr(PolarsRelationSystem, "sort", sort_must_not_run)
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
 
     with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
@@ -453,7 +451,7 @@ def test_aggregate_rejects_transport_before_backend_aggregate_dispatch(monkeypat
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     def aggregate_must_not_run(*args, **kwargs):
@@ -461,11 +459,9 @@ def test_aggregate_rejects_transport_before_backend_aggregate_dispatch(monkeypat
 
     monkeypatch.setattr(PolarsRelationSystem, "aggregate", aggregate_must_not_run)
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"], "other": [1]})).conform(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="payload", type=UniversalType.ARRAY),
-                FieldSpec(name="other", type=UniversalType.INTEGER),
-            ]
+        TableSchema(
+            fields={"payload": FieldDefinition(type=UniversalType.ARRAY),
+                "other": FieldDefinition(type=UniversalType.INTEGER),}
         )
     )
 
@@ -476,20 +472,20 @@ def test_open_conform_preserves_incoming_structured_transport_lineage():
     """An open conform keeps a transported field it does not redeclare."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     first = ma.relation(pl.DataFrame({"payload": ["[1]"], "other": [1]})).conform(
-        TypeSpec(
+        TableSchema(
             fields_match="open",
-            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+            fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
         ),
         contract={"data_type": "coerce"},
     )
     second = first.conform(
-        TypeSpec(
+        TableSchema(
             fields_match="open",
-            fields=[FieldSpec(name="other", type=UniversalType.INTEGER)],
+            fields={"other": FieldDefinition(type=UniversalType.INTEGER)},
         ),
         contract={"data_type": "coerce"},
     )
@@ -506,11 +502,11 @@ def test_with_columns_overwrite_clears_stale_transport_lineage():
     """Replacing a transported output with a computed value drops its old plan."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
 
     result = relation.with_columns(ma.lit("not-json").alias("payload")).to_polars()
@@ -521,11 +517,11 @@ def test_native_with_columns_overwrite_rejects_when_transport_is_active():
     """Raw backend expressions fail closed while a transported field is carried."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     relation = ma.relation(pl.DataFrame({"payload": ["[1]"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
 
     with pytest.raises(UnsupportedStructuredTransportUse, match="payload"):
@@ -537,7 +533,7 @@ def test_join_resolves_ref_left_output_names_for_suffix():
     import polars as pl
 
     from mountainash.relations.dag import RelationDAG
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     dag = RelationDAG()
@@ -545,9 +541,9 @@ def test_join_resolves_ref_left_output_names_for_suffix():
     dag.add(
         "right",
         ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(
-            TypeSpec(
+            TableSchema(
                 fields_match="open",
-                fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+                fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
             )
         ),
     )
@@ -564,12 +560,12 @@ def test_direct_ref_join_does_not_replay_resolution_for_lineage():
 
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left = ma.relation(pl.DataFrame({"id": [1], "payload": ["left"]}))
     right = ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(
-        TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
     left_value, visitor = left._compile_and_execute_with_visitor()
     visitor = type(visitor)(visitor.backend, visitor.expr_visitor, execution_context=visitor.execution_context)
@@ -596,7 +592,7 @@ def test_direct_ref_join_does_not_replay_resolution_for_lineage():
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars", "narwhals-pandas", "ibis-duckdb"])
 def test_right_join_suffixes_right_side_transport(backend_name, backend_factory):
     """RIGHT joins name columns like every other join: the right field takes the suffix."""
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left_source, right_source = backend_factory.create_pair(
@@ -604,7 +600,7 @@ def test_right_join_suffixes_right_side_transport(backend_name, backend_factory)
     )
     left = ma.relation(left_source)
     right = ma.relation(right_source).conform(
-        TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+        TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     )
 
     result = left.join(right, on="id", how="right").to_dicts()
@@ -616,12 +612,12 @@ def test_lineage_multi_clash_order_matches_execution():
     """`_n` increments follow right-column order in lineage exactly as in execution."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left = ma.relation(pl.DataFrame({"id": [1], "a": ["x"], "a_1": ["y"]}))
     right = ma.relation(pl.DataFrame({"id": [1], "a_1": ["[5]"], "a": ["[7]"]})).conform(
-        TypeSpec(fields_match="open", fields=[FieldSpec(name="a", type=UniversalType.ARRAY)])
+        TableSchema(fields_match="open", fields={"a": FieldDefinition(type=UniversalType.ARRAY)})
     )
     rel = left.join(right, on="id", suffix="_1")
     assert rel.columns == ["id", "a", "a_1", "a_1_1", "a_1_2"]
@@ -634,10 +630,10 @@ def test_nested_join_lineage_tracks_each_level():
     """Nested joins on the same fields decode each level under its own name."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="p", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"p": FieldDefinition(type=UniversalType.ARRAY)})
     base = ma.relation(pl.DataFrame({"id": [1], "p": ["[0]"]})).conform(spec)
     lookup = ma.relation(pl.DataFrame({"id": [1], "p": ["[9]"]})).conform(spec)
     rel = base.join(lookup, on="id").join(lookup, on="id")
@@ -649,14 +645,14 @@ def test_join_tracks_right_transport_under_backend_suffix():
     """A colliding right-side transported field is decoded under payload_right."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left = ma.relation(pl.DataFrame({"id": [1], "payload": ["left"]}))
     right = ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(
-        TypeSpec(
+        TableSchema(
             fields_match="open",
-            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+            fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
         )
     )
 
@@ -668,22 +664,22 @@ def test_join_tracks_right_transport_under_backend_suffix():
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
 def test_asof_payload_lineage_survives_following_join(backend_name, backend_factory):
     """A merged grouping key must not reserve a phantom name for the next join."""
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left, right = backend_factory.create_pair(
         {"g": ["a"], "t": [2], "payload": ["left"]},
         {"g": ["a"], "t": [1], "payload": ["[1]"]}, backend_name,
     )
-    right = ma.relation(right).conform(TypeSpec(
+    right = ma.relation(right).conform(TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     ))
     extra = ma.relation(backend_factory.create(
         {"g": ["a"], "g_right": ["[2]"]}, backend_name,
-    )).conform(TypeSpec(
+    )).conform(TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="g_right", type=UniversalType.ARRAY)],
+        fields={"g_right": FieldDefinition(type=UniversalType.ARRAY)},
     ))
     joined = ma.relation(left).join_asof(right, on="t", by="g").join(extra, on="g")
     assert joined.columns == ["g", "t", "payload", "payload_right", "g_right"]
@@ -700,7 +696,7 @@ def test_join_asof_rejects_transport_used_as_group_key(monkeypatch):
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     def join_asof_must_not_run(*args, **kwargs):
@@ -710,9 +706,9 @@ def test_join_asof_rejects_transport_used_as_group_key(monkeypatch):
     left = ma.relation(
         pl.DataFrame({"time": [1], "payload": ["[1]"]})
     ).conform(
-        TypeSpec(
+        TableSchema(
             fields_match="open",
-            fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+            fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
         )
     )
     right = ma.relation(pl.DataFrame({"time": [1], "payload": ["[1]"]}))
@@ -727,7 +723,7 @@ def test_drop_nulls_without_subset_rejects_every_transported_field(monkeypatch):
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     def drop_nulls_must_not_run(*args, **kwargs):
@@ -735,7 +731,7 @@ def test_drop_nulls_without_subset_rejects_every_transported_field(monkeypatch):
 
     monkeypatch.setattr(PolarsRelationSystem, "drop_nulls", drop_nulls_must_not_run)
     relation = ma.relation(pl.DataFrame({"payload": ["{broken"]})).conform(
-        TypeSpec(fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)]),
+        TableSchema(fields={"payload": FieldDefinition(type=UniversalType.ARRAY)}),
         contract={"data_type": "discard_value"},
     )
 
@@ -746,17 +742,15 @@ def test_unpivot_preserves_transport_on_explicit_index():
     """An index carrier survives unpivot while value columns are melted."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     relation = ma.relation(
         pl.DataFrame({"payload": ["[1]", "[2]"], "metric": [10, 20]})
     ).conform(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="payload", type=UniversalType.ARRAY),
-                FieldSpec(name="metric", type=UniversalType.INTEGER),
-            ]
+        TableSchema(
+            fields={"payload": FieldDefinition(type=UniversalType.ARRAY),
+                "metric": FieldDefinition(type=UniversalType.INTEGER),}
         )
     )
 
@@ -768,12 +762,12 @@ def test_join_keeps_both_transport_plans_when_right_name_collides():
     """Both colliding carriers remain tracked under their final output names."""
     import polars as pl
 
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     )
     left = ma.relation(pl.DataFrame({"id": [1], "payload": ["[1]"]})).conform(spec)
     right = ma.relation(pl.DataFrame({"id": [1], "payload": ["[2]"]})).conform(spec)
@@ -791,7 +785,7 @@ def test_unpivot_rejects_transport_used_as_value(monkeypatch):
     from mountainash.relations.backends.relation_systems.polars import (
         PolarsRelationSystem,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     def unpivot_must_not_run(*args, **kwargs):
@@ -801,11 +795,9 @@ def test_unpivot_rejects_transport_used_as_value(monkeypatch):
     relation = ma.relation(
         pl.DataFrame({"payload": ["[1]"], "metric": [10]})
     ).conform(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="payload", type=UniversalType.ARRAY),
-                FieldSpec(name="metric", type=UniversalType.INTEGER),
-            ]
+        TableSchema(
+            fields={"payload": FieldDefinition(type=UniversalType.ARRAY),
+                "metric": FieldDefinition(type=UniversalType.INTEGER),}
         )
     )
 
@@ -818,7 +810,7 @@ def test_opaque_aggregate_join_never_guesses_carrier_collision(backend_name, bac
     import ibis
 
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     left_source, right_source = backend_factory.create_pair(
@@ -830,7 +822,7 @@ def test_opaque_aggregate_join_never_guesses_carrier_collision(backend_name, bac
     left = ma.relation(left_source).group_by("id").agg(ma.native(native).alias("payload"))
     assert left.to_dicts() == [{"id": 1, "payload": 5}]
     right = ma.relation(right_source).conform(
-        TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)]),
+        TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)}),
     )
     try:
         rows = left.join(right, on="id").to_dicts()

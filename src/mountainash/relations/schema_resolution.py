@@ -12,6 +12,7 @@ from mountainash.core.types import (
 from mountainash.relations.core.errors import CompileRequiresExecutionError, IncompleteSchemaError
 from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 from mountainash.relations.schema_inference import (
     _aggregate_input_names, _schema_from_dataframe, infer_schema,
 )
@@ -41,8 +42,18 @@ def _is_native(value: Any) -> bool:
     ))
 
 
-def _native_evidence(value: Any) -> _SchemaEvidence:
-    return _SchemaEvidence(_schema_from_dataframe(value, physical=True), _is_native(value))
+def _describe_native(system: Any, native: Any, location: Any) -> _SchemaEvidence:
+    """Physical output evidence from the relation system that owns ``native``."""
+    return _SchemaEvidence(system.describe_output_schema(native, location=location), _is_native(native))
+
+
+def _source_evidence(node: Any) -> _SchemaEvidence:
+    """Describe a native source through the system its actual location selects."""
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
+    location = LocationResolver(IdentityTokens()).resolve(node)
+    system = get_relation_system(location.family)(dialect=location.dialect)
+    return _describe_native(system, node.dataframe, location)
 
 
 def _structural_evidence(relation: Any) -> _SchemaEvidence:
@@ -102,7 +113,7 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
     node = relation._node
     if isinstance(node, ReadRelNode) and _is_native(node.dataframe):
         try:
-            return _native_evidence(node.dataframe)
+            return _source_evidence(node)
         except CompileRequiresExecutionError as error:
             names = _schema_from_dataframe(node.dataframe)
             return _SchemaEvidence(
@@ -139,11 +150,13 @@ def _compiled_evidence(relation: Any, *, execute: bool) -> _SchemaEvidence:
     )
 
     def inspect() -> _SchemaEvidence:
+        # The location and system established by compilation, not re-derived from the result.
+        location = visitor.execution.prepared.locations[visitor.execution_key]
         if not execute:
             from polars.exceptions import ColumnNotFoundError
 
             try:
-                evidence = _native_evidence(result)
+                evidence = _describe_native(visitor.backend, result, location)
             except ColumnNotFoundError as error:
                 visitor.metadata_session.raise_if_bounded(error)
                 raise
@@ -165,7 +178,7 @@ def _compiled_evidence(relation: Any, *, execute: bool) -> _SchemaEvidence:
                     result, _compiler_identity(visitor), MaterializationPurpose.LOGICAL_TERMINAL,
                     execution_context=visitor.execution_context, scope=scope,
                 )
-                return _native_evidence(native.value)
+                return _describe_native(visitor.backend, native.value, location)
 
         return enrich_materialization(
             visitor.backend, materialize,

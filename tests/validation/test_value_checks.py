@@ -143,7 +143,7 @@ def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
     import mountainash as ma
     from mountainash.datacontracts.compiler import compile_datacontract
     from mountainash.relations import Relation
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
     from mountainash.validation import ValidationRunner
 
     relation = ma.relation(pl.DataFrame({"old": ["1", "2"]}))
@@ -157,10 +157,10 @@ def test_compiled_plan_runner_conforms_once_before_checks(monkeypatch) -> None:
 
     monkeypatch.setattr(Relation, "_compile_and_execute_with_visitor", counted_compile)
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="id", rename_from="old", type=UniversalType.INTEGER),
-            ]
+        TableSchema(
+            fields={
+                "id": FieldDefinition(rename_from="old", type=UniversalType.INTEGER),
+            }
         )
     )
 
@@ -176,20 +176,19 @@ def test_binary_string_format_uses_base64_lexical_validation() -> None:
     import polars as pl
 
     from mountainash.datacontracts.compiler import compile_datacontract
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
     from mountainash.validation import ValidationRunner
 
     result = ValidationRunner().validate_relation(
         pl.DataFrame({"payload": ["AQI=", "not base64"]}),
         plan=compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.STRING,
                         format="binary",
                     )
-                ]
+                }
             )
         ),
     )
@@ -227,20 +226,19 @@ def test_nested_object_rule_executes_instead_of_isolating_an_error() -> None:
     import polars as pl
 
     from mountainash.datacontracts.compiler import compile_datacontract
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
     from mountainash.validation import ValidationRunner
 
     result = ValidationRunner().validate_relation(
         pl.DataFrame({"payload": [{"child": "ok"}]}),
         plan=compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.OBJECT,
-                        object_fields=[FieldSpec(name="child", type=UniversalType.STRING)],
+                        fields={"child": FieldDefinition(type=UniversalType.STRING)},
                     )
-                ]
+                }
             )
         ),
     )

@@ -1,6 +1,10 @@
 """Tests for reusable FieldConstraints constants and combinators."""
 from __future__ import annotations
 
+import pytest
+import mountainash as ma
+from fixtures.backend_registry import ALL_BACKENDS
+from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 from mountainash.typespec.spec import FieldConstraints
 from mountainash.datacontracts.constraints import (
     SINGLE_CHAR, ISO_DATE, ISO_DATETIME, POSITIVE_INT, PERCENTAGE,
@@ -44,11 +48,6 @@ class TestConstraintCombinators:
         _ = required(SINGLE_CHAR)
         assert SINGLE_CHAR.required is False
 
-    def test_with_enum(self):
-        result = with_enum(SINGLE_CHAR, ["Y", "N"])
-        assert result.enum == ["Y", "N"]
-        assert result.min_length == 1
-
     def test_with_range(self):
         result = with_range(FieldConstraints(), minimum=0, maximum=999)
         assert result.minimum == 0
@@ -59,8 +58,18 @@ class TestConstraintCombinators:
         assert result.min_length == 5
         assert result.max_length == 20
 
-    def test_chained_combinators(self):
-        result = required(with_enum(SINGLE_CHAR, ["Y", "N"]))
-        assert result.required is True
-        assert result.enum == ["Y", "N"]
-        assert result.min_length == 1
+    @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+    @pytest.mark.parametrize(
+        "values,passes",
+        [(["Y", "N"], True), (["X"], False), (["LONG"], False), (["Y", None], False)],
+    )
+    def test_composed_constraints_enforce_their_intersection(
+        self, backend_name, backend_factory, values, passes,
+    ):
+        constraints = required(with_enum(SINGLE_CHAR, ["Y", "N", "LONG"]))
+        schema = TableSchema(fields={
+            "flag": FieldDefinition(type=UniversalType.STRING, constraints=constraints),
+        })
+        contract = ma.datacontract(schema)
+        frame = backend_factory.create({"flag": values}, backend_name)
+        assert contract.validate_datacontract(frame).passes is passes

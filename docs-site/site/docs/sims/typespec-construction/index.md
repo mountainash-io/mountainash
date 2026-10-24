@@ -1,5 +1,5 @@
 ---
-title: TypeSpec Construction Sources
+title: TableSchema Construction Sources
 description: Interactive vis-network MicroSim for typespec construction sources.
 image: /sims/typespec-construction/typespec-construction.png
 og:image: /sims/typespec-construction/typespec-construction.png
@@ -9,11 +9,11 @@ social:
 quality_score: 0
 ---
 
-# TypeSpec Construction Sources
+# TableSchema Construction Sources
 
 <iframe src="main.html" height="502" width="100%" scrolling="no"></iframe>
 
-[Run the TypeSpec Construction Sources MicroSim Fullscreen](./main.html){ .md-button .md-button--primary }
+[Run the TableSchema Construction Sources MicroSim Fullscreen](./main.html){ .md-button .md-button--primary }
 <br/>
 [Edit in the p5.js Editor](https://editor.p5js.org/)
 

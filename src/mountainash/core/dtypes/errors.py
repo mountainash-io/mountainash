@@ -27,7 +27,7 @@ class DtypeMappingError(DtypeError):
 
 
 class InvalidBackendTypeError(DtypeError):
-    """A non-empty FieldSpec.backend_type could not be parsed for the target."""
+    """A non-empty FieldDefinition.backend_type could not be parsed for the target."""
 
     def __init__(self, field_name: str, backend_type: str, target: "TypeTarget") -> None:
         self.field_name = field_name

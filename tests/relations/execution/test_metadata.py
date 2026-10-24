@@ -16,7 +16,7 @@ from mountainash.relations.core.execution.location import ExecutionLocation, Ide
 from mountainash.relations.core.execution.metadata import MetadataSession, OwnedResidue
 from mountainash.relations.core.materialization import ExecutionForm
 from mountainash.relations.core.structured_lineage import propagate_owned_residue
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -383,7 +383,7 @@ def test_same_visitor_conform_check_enters_output_map_and_survives_parent(backen
             )
         )
         frame = backend_factory.create({"id": [1], "year": ["2024"]}, "ibis-duckdb")
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         child = ma.relation(frame).conform(spec)
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             _, visitor = child._compile_and_execute_with_visitor()
@@ -462,7 +462,7 @@ def test_two_child_structured_origins_survive_join_adoption(backend_name, backen
     from mountainash.relations.core.relation_system.relation_mapping.registry import RelationOperationRegistry
     from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
 
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     left, right = backend_factory.create_pair(
         {"id": [1], "payload": ["[1]"]},
         {"id": [1], "payload": ["[2]"]},

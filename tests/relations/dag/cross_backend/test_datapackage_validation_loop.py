@@ -108,7 +108,7 @@ def test_conforming_data_passes_cross_backend(tmp_path, backend_name):
         ],
     )
     dag = pkg.to_relation_dag()
-    specs = {r.name: r.to_typespec() for r in pkg.resources}
+    specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
     result = dag.validate(specs, backend=backend_name)
 
@@ -137,7 +137,7 @@ def test_duplicate_primary_key_isolates_identity_failure(tmp_path, backend_name)
         ],
     )
     dag = pkg.to_relation_dag()
-    specs = {r.name: r.to_typespec() for r in pkg.resources}
+    specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
     result = dag.validate(specs, backend=backend_name)  # must not raise
 
@@ -167,7 +167,7 @@ def test_drifting_data_reports_specific_checks_cross_backend(tmp_path, backend_n
         ],
     )
     dag = pkg.to_relation_dag()
-    specs = {r.name: r.to_typespec() for r in pkg.resources}
+    specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
     result = dag.validate(specs, backend=backend_name)
 
@@ -202,7 +202,7 @@ def test_pattern_violation_is_detected_cross_backend(tmp_path, backend_name):
         ],
     )
     dag = pkg.to_relation_dag()
-    specs = {r.name: r.to_typespec() for r in pkg.resources}
+    specs = {r.name: r.to_table_schema() for r in pkg.resources}
 
     result = dag.validate(specs, backend=backend_name)
 
@@ -220,4 +220,4 @@ def test_to_contract_round_trip_via_datapackage(tmp_path):
         children=[{"id": 10, "customer_id": 1, "status": "active"}],
     )
     resource = pkg.resources[0]
-    assert resource.to_contract().to_typespec().fields == resource.to_typespec().fields
+    assert resource.to_contract().to_table_schema().fields == resource.to_table_schema().fields

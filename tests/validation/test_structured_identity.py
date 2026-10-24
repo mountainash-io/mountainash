@@ -16,7 +16,7 @@ import polars as pl
 import pytest
 
 import mountainash as ma
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation import ValidationRunner
 from mountainash.validation.checks import ValueRule, ValueValidatorKey
@@ -68,15 +68,15 @@ class TestCanonicalValueKeyStructuredEquality:
 
 def _structured_relation(rows: dict, *, action: str = "coerce"):
     df = pl.DataFrame(rows)
-    fields = []
+    fields = {}
     if "tags" in rows:
-        fields.append(FieldSpec(name="tags", type=UniversalType.ARRAY))
+        fields["tags"] = FieldDefinition(type=UniversalType.ARRAY)
     if "meta" in rows:
-        fields.append(FieldSpec(name="meta", type=UniversalType.OBJECT))
+        fields["meta"] = FieldDefinition(type=UniversalType.OBJECT)
     for name in rows:
         if name not in {"tags", "meta"}:
-            fields.append(FieldSpec(name=name, type=UniversalType.INTEGER))
-    spec = TypeSpec(fields_match="open", fields=fields)
+            fields[name] = FieldDefinition(type=UniversalType.INTEGER)
+    spec = TableSchema(fields_match="open", fields=fields)
     return ma.relation(df).conform(spec, contract={"data_type": action})
 
 

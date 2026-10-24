@@ -1,27 +1,34 @@
 """BaseDataContract — native contract declaration layer (no Pandera).
 
-Declaration style is unchanged for users: `age: int = Field(ge=0)`.
-Contracts compile to validation checks; execution belongs to
-mountainash.validation.ValidationRunner (spec §9.2).
+Members are shared ``FieldDefinition`` declarations:
+``age: int = FieldDefinition(dtype=D.I64, minimum=0)``. Contracts compile to
+validation checks; execution belongs to mountainash.validation.ValidationRunner
+(spec §9.2).
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from mountainash.datacontracts.field import Field
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
     from mountainash.validation.checks import ValidationCheck
     from mountainash.validation.result import ValidationResult
+
+def _is_class_variable(annotation: Any) -> bool:
+    """True for a ``ClassVar`` annotation (evaluated or deferred-string form)."""
+    if isinstance(annotation, str):
+        return annotation.lstrip().startswith(("ClassVar", "typing.ClassVar"))
+    return annotation is ClassVar or getattr(annotation, "__origin__", None) is ClassVar
+
 
 
 class BaseDataContract:
     """Base class for native data contracts."""
 
-    _contract_fields: ClassVar["dict[str, Field]"] = {}
-    _contract_annotations: ClassVar["dict[str, Any]"] = {}
-    __typespec__: ClassVar["TypeSpec | None"] = None
+    _contract_fields: ClassVar["dict[str, FieldDefinition]"] = {}
+    __table_schema__: ClassVar["TableSchema | None"] = None
 
     class Config:
         name: str | None = None
@@ -32,50 +39,53 @@ class BaseDataContract:
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        annotations: dict[str, Any] = {}
+        # Base-class order first; a subclass redeclaration keeps the base
+        # position (dict update semantics) and its own definition replaces it.
+        names: dict[str, Any] = {}
         for klass in reversed(cls.__mro__):
-            annotations.update(getattr(klass, "__annotations__", {}))
-        cls._contract_annotations = {
-            name: annotation
-            for name, annotation in annotations.items()
-            if not name.startswith("_") and name != "Config"
-        }
-        fields: dict[str, Field] = {}
-        for name in cls._contract_annotations:
+            for name, annotation in getattr(klass, "__annotations__", {}).items():
+                names[name] = annotation
+            for name, value in vars(klass).items():
+                if isinstance(value, FieldDefinition):
+                    names.setdefault(name, None)
+        members: dict[str, FieldDefinition] = {}
+        for name, annotation in names.items():
+            if name.startswith("_") or name == "Config" or _is_class_variable(annotation):
+                continue
             value = getattr(cls, name, None)
-            if isinstance(value, Field):
-                fields[name] = value
-        cls._contract_fields = fields
+            if not isinstance(value, FieldDefinition):
+                raise TypeError(
+                    f"{cls.__name__}.{name} is annotated but not declared as a "
+                    f"FieldDefinition; contract members are explicit definitions: "
+                    f"`{name}: ... = FieldDefinition(...)`"
+                )
+            # The attached definition is authoritative, whatever the annotation says.
+            members[name] = value
+        cls._contract_fields = members
 
     @classmethod
     def contract_name(cls) -> str:
         return getattr(cls.Config, "name", None) or cls.__name__
 
     @classmethod
-    def to_typespec(cls) -> "TypeSpec":
-        if cls.__typespec__ is not None:
-            return cls.__typespec__
-        from mountainash.typespec.extraction import python_type_to_universal
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
-        from mountainash.typespec.universal_types import parse_universal
-
-        fields = []
-        for name, annotation in cls._contract_annotations.items():
-            contract_field = cls._contract_fields.get(name)
-            fields.append(
-                FieldSpec(
-                    name=name,
-                    type=parse_universal(python_type_to_universal(annotation)),
-                    title=contract_field.title if contract_field else None,
-                    description=contract_field.description if contract_field else None,
-                    constraints=contract_field.to_constraints() if contract_field else None,
-                )
-            )
+    def to_table_schema(cls) -> "TableSchema":
+        if "__table_schema__" in vars(cls):
+            # The class's own schema is authoritative (schema-generated contracts
+            # and explicit assignment).
+            return deepcopy(cls.__table_schema__)
+        if cls.__table_schema__ is not None:
+            # A subclass of a schema-generated contract keeps the inherited
+            # table-level declaration; members it redeclares replace in place and
+            # new members append.
+            schema = deepcopy(cls.__table_schema__)
+            for name, definition in cls._contract_fields.items():
+                schema.fields[name] = deepcopy(definition)
+            return schema
         # primary_key falls back to natural_key so keyed identity survives the
-        # TypeSpec round-trip (DAG validation resolves identity from
-        # TypeSpec.primary_key; a natural_key-only contract must not lose it).
-        return TypeSpec(
-            fields=fields,
+        # TableSchema round-trip (DAG validation resolves identity from
+        # TableSchema.primary_key; a natural_key-only contract must not lose it).
+        return TableSchema(
+            fields=dict(cls._contract_fields),
             title=cls.contract_name(),
             primary_key=(
                 getattr(cls.Config, "primary_key", None)
@@ -87,11 +97,7 @@ class BaseDataContract:
     def to_checks(cls) -> "list[ValidationCheck]":
         from mountainash.datacontracts.compiler import compile_datacontract
 
-        plan = compile_datacontract(
-            cls.to_typespec(),
-            extensions=cls._contract_fields,
-        )
-        return list(plan.checks)
+        return list(compile_datacontract(cls.to_table_schema()).checks)
 
     @classmethod
     def validate_datacontract(

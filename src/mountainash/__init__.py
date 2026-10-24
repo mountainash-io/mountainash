@@ -21,7 +21,7 @@ from mountainash.core.value_classification import (
 )
 from mountainash.typespec.datapackage import DataPackage, DataResource, TableDialect
 from mountainash.typespec.frictionless_codec import DescriptorWriteMode
-from mountainash.typespec.spec import TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 
 import lazy_loader
 
@@ -77,31 +77,31 @@ __getattr__, _lazy_dir, _LAZY_EXPORTS = lazy_loader.attach(
 )
 
 
-def typespec(columns: dict[str, str], **metadata) -> TypeSpec:
-    """Create a TypeSpec from a simple {name: type_string} dict."""
-    return TypeSpec.from_simple_dict(columns, **metadata)
+def table_schema(columns: dict[str, str], **metadata) -> TableSchema:
+    """Create a TableSchema from a simple {name: type_string} dict."""
+    return TableSchema.from_simple_dict(columns, **metadata)
 
 
-def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDataContract]":
+def datacontract(source: "dict | TableSchema | type | str | Path") -> "type[BaseDataContract]":
     """Create a DataContract from various schema sources.
 
     Accepts:
-        - TypeSpec object
+        - TableSchema object
         - BaseDataContract subclass (returned as-is)
-        - Pydantic BaseModel subclass (extracted to TypeSpec, then compiled)
+        - Pydantic BaseModel subclass (extracted to TableSchema, then compiled)
         - str or Path to a Frictionless JSON schema file
         - dict with "fields" key (Frictionless descriptor)
         - dict without "fields" key (simple {name: type_string} mapping)
     """
     from pathlib import Path as _Path
-    from mountainash.datacontracts.compiler import contract_from_typespec
+    from mountainash.datacontracts.compiler import contract_from_table_schema
     from mountainash.datacontracts.contract import BaseDataContract as _BaseDataContract
 
     if isinstance(source, type) and issubclass(source, _BaseDataContract):
         return source
 
-    if isinstance(source, TypeSpec):
-        return contract_from_typespec(source)
+    if isinstance(source, TableSchema):
+        return contract_from_table_schema(source)
 
     try:
         from pydantic import BaseModel as _PydanticBaseModel
@@ -111,8 +111,8 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
     if _PydanticBaseModel is not None and isinstance(source, type) and issubclass(source, _PydanticBaseModel):
         from mountainash.typespec.extraction import extract_from_pydantic
 
-        _spec = extract_from_pydantic(source)
-        return contract_from_typespec(_spec)
+        _schema = extract_from_pydantic(source)
+        return contract_from_table_schema(_schema)
 
     if isinstance(source, (str, _Path)):
         import json
@@ -138,23 +138,23 @@ def datacontract(source: "dict | TypeSpec | type | str | Path") -> "type[BaseDat
             },
             base_uri=base_uri,
         )
-        _spec = package.resources[0].to_typespec()
-        if _spec is None:
+        _schema = package.resources[0].to_table_schema()
+        if _schema is None:
             raise TypeError("Frictionless schema input did not produce a schema mapping")
-        return contract_from_typespec(_spec)
+        return contract_from_table_schema(_schema)
 
     if isinstance(source, dict):
         if "fields" in source:
-            from mountainash.typespec.frictionless import typespec_from_frictionless
+            from mountainash.typespec.frictionless import table_schema_from_frictionless
 
-            _spec = typespec_from_frictionless(source)
-            return contract_from_typespec(_spec)
-        _spec = TypeSpec.from_simple_dict(source)
-        return contract_from_typespec(_spec)
+            _schema = table_schema_from_frictionless(source)
+            return contract_from_table_schema(_schema)
+        _schema = TableSchema.from_simple_dict(source)
+        return contract_from_table_schema(_schema)
 
     raise TypeError(
         f"Cannot create datacontract from {type(source).__name__}. "
-        "Expected TypeSpec, dict, BaseModel subclass, "
+        "Expected TableSchema, dict, BaseModel subclass, "
         "or path to a Frictionless JSON file."
     )
 
@@ -176,8 +176,9 @@ __all__ = [
     "DataResource",
     "TableDialect",
     "DescriptorWriteMode",
-    "TypeSpec",
-    "typespec",
+    "TableSchema",
+    "FieldDefinition",
+    "table_schema",
     "datacontract",
     "CapabilityIssueClass",
     "CapabilityPolicy",

@@ -27,7 +27,7 @@ from mountainash.conform.errors import ExactFieldsMismatchError, SchemaDriftErro
 from mountainash.core.dtypes import MountainashDtype as D, SchemaTypeStatus
 from mountainash.core.dtypes import TypeTarget, registry
 from mountainash.relations.schema_inference import infer_schema
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType as U
 
 
@@ -53,7 +53,7 @@ def test_projected_decimal_conform_introspection_and_execution(decimal_projectio
     from decimal import Decimal
 
     dtype = ma.DecimalDtype(precision=4, scale=2)
-    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=dtype)])
+    spec = TableSchema(fields={"value": FieldDefinition(type=U.NUMBER, dtype=dtype)})
     projected = decimal_projection_source.select(
         ma.col("value").cast(dtype, rounding="half_to_even").alias("value")
     )
@@ -71,7 +71,7 @@ def test_projected_decimal_conform_still_enforces_concrete_conversion(decimal_pr
 
     source_dtype = ma.DecimalDtype(precision=4, scale=2)
     target = ma.DecimalDtype(precision=3, scale=1)
-    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=target)])
+    spec = TableSchema(fields={"value": FieldDefinition(type=U.NUMBER, dtype=target)})
     with pytest.raises(DecimalConversionRequiredError):
         _ = decimal_projection_source.conform(spec).schema
     projected = decimal_projection_source.select(
@@ -87,7 +87,7 @@ def test_decimal_conform_terminal_unknown_requires_rounding():
     from mountainash.conform.errors import DecimalConversionRequiredError
     from mountainash.conform.expressions import resolve_conform_output
 
-    spec = TypeSpec(fields=[FieldSpec(name="value", type=U.NUMBER, dtype=ma.DecimalDtype(4, 2))])
+    spec = TableSchema(fields={"value": FieldDefinition(type=U.NUMBER, dtype=ma.DecimalDtype(4, 2))})
     with pytest.raises(DecimalConversionRequiredError):
         resolve_conform_output(
             spec, available_columns=["value"],
@@ -108,8 +108,8 @@ class TestOpenMode:
 
     def test_open_keeps_unmapped_extras(self):
         df = pl.DataFrame({"a": [1], "b": [2], "c": ["x"]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -121,12 +121,10 @@ class TestOpenMode:
 
     def test_open_renamed_source_drops_original(self):
         df = pl.DataFrame({"src_a": [1], "b": [2]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="a", type=U.INTEGER, rename_from="src_a",
-                ),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(
+                    type=U.INTEGER, rename_from="src_a",
+                ),},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -137,8 +135,8 @@ class TestOpenMode:
 
     def test_open_typed_cast(self):
         df = pl.DataFrame({"a": ["1", "2"]})  # string source, cast to INTEGER
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -147,8 +145,8 @@ class TestOpenMode:
     def test_open_any_no_transform_passthrough_source_type(self):
         # Non-dotted ANY type with no null_fill → passthrough → source dtype.
         df = pl.DataFrame({"a": [1.5, 2.5]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.ANY)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.ANY)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -157,8 +155,8 @@ class TestOpenMode:
 
     def test_open_any_with_null_fill_undetermined(self):
         df = pl.DataFrame({"a": [1, None]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.ANY, null_fill=0)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.ANY, null_fill=0)},
             fields_match="open",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -169,11 +167,9 @@ class TestOpenMode:
 class TestSelectExact:
     def test_select_exact_rejects_positional_mapping(self):
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="x", type=U.INTEGER),
-                FieldSpec(name="y", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"x": FieldDefinition(type=U.INTEGER),
+                "y": FieldDefinition(type=U.STRING),},
             fields_match="exact",
         )
         with pytest.raises(ExactFieldsMismatchError, match="name mismatch"):
@@ -182,11 +178,9 @@ class TestSelectExact:
 class TestSelectEqual:
     def test_select_equal_one_to_one(self):
         df = pl.DataFrame({"a": [1], "b": ["x"]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER),
+                "b": FieldDefinition(type=U.STRING),},
             fields_match="equal",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -197,8 +191,8 @@ class TestSelectSubset:
     def test_select_subset_drops_extras(self):
         # Subset: spec is subset of available — extras are dropped from output.
         df = pl.DataFrame({"a": [1], "b": ["x"], "extra": [3.14]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER)},
             fields_match="subset",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -210,11 +204,9 @@ class TestSelectSuperset:
     def test_select_superset_skips_absent_sources(self):
         # Superset: spec may declare more than available; absent skipped in infer.
         df = pl.DataFrame({"a": [1]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="missing", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER),
+                "missing": FieldDefinition(type=U.STRING),},
             fields_match="superset",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -224,12 +216,10 @@ class TestSelectSuperset:
 class TestSelectPartial:
     def test_select_partial_some_present_some_absent(self):
         df = pl.DataFrame({"a": [1], "c": [2.0]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-                FieldSpec(name="c", type=U.NUMBER),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER),
+                "b": FieldDefinition(type=U.STRING),
+                "c": FieldDefinition(type=U.NUMBER),},
             fields_match="partial",
         )
         schema = _infer(ma.relation(df).conform(spec))
@@ -275,8 +265,8 @@ def _polars_schema_canonical(plschema):
 class TestParityGuards:
     def test_parity_open_typed_cast(self):
         df = pl.DataFrame({"a": ["1", "2"], "b": ["keep", "me"]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER)},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -292,11 +282,9 @@ class TestParityGuards:
     def test_parity_select_exact_rejects_positional_mapping(self):
         # Exact-mode requires ordered source names, not positional renaming.
         df = pl.DataFrame({"x_src": [1], "y_src": ["a"]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="x", type=U.INTEGER),
-                FieldSpec(name="y", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"x": FieldDefinition(type=U.INTEGER),
+                "y": FieldDefinition(type=U.STRING),},
             fields_match="exact",
         )
         rel = ma.relation(df).conform(spec)
@@ -306,12 +294,10 @@ class TestParityGuards:
     def test_parity_categorical_string_field(self):
         # Categorical on a STRING field → registry maps pl.Categorical → STRING.
         df = pl.DataFrame({"grade": ["A", "B", "A"]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="grade", type=U.STRING, categories=["A", "B"],
-                ),
-            ],
+        spec = TableSchema(
+            fields={"grade": FieldDefinition(
+                    type=U.STRING, categories=["A", "B"],
+                ),},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -330,12 +316,10 @@ class TestParityGuards:
         # without an intermediate string step — the inference contract is what
         # we're verifying.
         df = pl.DataFrame({"grade": ["1", "2", "3"]})  # string source
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="grade", type=U.INTEGER, categories=[1, 2, 3],
-                ),
-            ],
+        spec = TableSchema(
+            fields={"grade": FieldDefinition(
+                    type=U.INTEGER, categories=[1, 2, 3],
+                ),},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -355,8 +339,8 @@ class TestDottedSource:
         # Open mode: struct root 'payload' is NOT tracked as a renamed_source
         # (dotted roots are excluded from renamed_sources), so it survives.
         df = pl.DataFrame({"payload": [{"id": 1, "tag": "x"}]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.INTEGER, rename_from="payload.id")],
+        spec = TableSchema(
+            fields={"id": FieldDefinition(type=U.INTEGER, rename_from="payload.id")},
             fields_match="open",
         )
         rel = ma.relation(df).conform(spec)
@@ -384,8 +368,8 @@ class TestDottedSource:
         # There is NO to_polars() oracle here; asserting parity would be wrong
         # because UNKNOWN ≠ the runtime's concrete type by design.
         df = pl.DataFrame({"payload": [{"id": 1}]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.ANY, rename_from="payload.id")],
+        spec = TableSchema(
+            fields={"id": FieldDefinition(type=U.ANY, rename_from="payload.id")},
             fields_match="open",
         )
         inferred = _infer(ma.relation(df).conform(spec))
@@ -396,8 +380,8 @@ class TestDottedSource:
         # presence. Inference shares resolve_conform_output with runtime,
         # so the emitted column set must match to_polars() exactly.
         df = pl.DataFrame({"payload": [{"id": 1, "tag": "x"}]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="id", type=U.INTEGER, rename_from="payload.id")],
+        spec = TableSchema(
+            fields={"id": FieldDefinition(type=U.INTEGER, rename_from="payload.id")},
             fields_match="equal",
         )
         rel = ma.relation(df).conform(spec)
@@ -419,17 +403,15 @@ class TestExactModeOrderParity:
     that exercise distinct inference paths.
     """
 
-    _SPEC = TypeSpec(
-        fields=[
-            FieldSpec(name="x_src", type=U.INTEGER),
-            FieldSpec(name="y_src", type=U.STRING),
-        ],
+    _SPEC = TableSchema(
+        fields={"x_src": FieldDefinition(type=U.INTEGER),
+            "y_src": FieldDefinition(type=U.STRING),},
         fields_match="exact",
     )
 
     def test_exact_order_polars_lazy(self):
-        # Polars LazyFrame exercises the collect_schema() branch of
-        # _schema_from_dataframe.
+        # A Polars LazyFrame is acquired through its schema adapter's
+        # collect_schema() evidence.
         lazy_df = pl.LazyFrame({"x_src": [1], "y_src": ["a"]})
         rel = ma.relation(lazy_df).conform(self._SPEC)
         inferred = _infer(rel)
@@ -446,12 +428,10 @@ class TestExactModeOrderParity:
         assert list(inferred.keys()) == list(actual.columns)
 
     def test_exact_order_callable_schema_source(self):
-        # A bound ibis table exposes callable .schema() returning an ibis Schema
-        # whose items() yield (name, ibis_type) pairs — this exercises the
-        # callable-schema branch of _schema_from_dataframe (lines 108-113).
-        # The ibis types map to SchemaTypeStatus.UNKNOWN (not Polars natives),
-        # but the conform node's declared types (concrete U.INTEGER / U.STRING)
-        # drive the inferred output, so order parity is still testable.
+        # A bound ibis table is acquired through the Ibis schema adapter's
+        # schema() evidence, which maps to canonical Ibis types; the conform
+        # node's declared types (concrete U.INTEGER / U.STRING) drive the
+        # inferred output, so order parity is still testable.
         import ibis
 
         t = ibis.duckdb.connect().create_table(
@@ -485,7 +465,7 @@ class TestDataTypePolicyParity:
         # "evolve" skips the cast entirely -- output keeps STRING. Infer
         # must report the same STRING via EmittedField.effective_type (R2).
         df = pl.DataFrame({"n": ["1", "2"]})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        spec = TableSchema(fields={"n": FieldDefinition(type=U.INTEGER)}, fields_match="open")
         rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
 
         inferred = _infer(rel)
@@ -497,8 +477,8 @@ class TestDataTypePolicyParity:
         # override) -- exercises the spec_contract layer infer previously
         # ignored entirely.
         df = pl.DataFrame({"n": ["1", "2"]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="n", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"n": FieldDefinition(type=U.INTEGER)},
             fields_match="open",
             contract={"data_type": "evolve"},
         )
@@ -513,7 +493,7 @@ class TestDataTypePolicyParity:
         # "evolve" has nothing to evolve -- declared_type still applies, and
         # parity holds via the ordinary (non-evolve) path.
         df = pl.DataFrame({"n": pl.Series([1, 2], dtype=pl.Int32)})
-        spec = TypeSpec(fields=[FieldSpec(name="n", type=U.INTEGER)], fields_match="open")
+        spec = TableSchema(fields={"n": FieldDefinition(type=U.INTEGER)}, fields_match="open")
         rel = ma.relation(df).conform(spec, contract={"data_type": "evolve"})
 
         inferred = _infer(rel)
@@ -525,11 +505,9 @@ class TestDataTypePolicyParity:
         # normally-strict "equal" preset -- the missing field is skipped
         # instead of raising MissingFieldsError, matching to_polars() exactly.
         df = pl.DataFrame({"a": [1]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER),
+                "b": FieldDefinition(type=U.STRING),},
             fields_match="equal",
             contract={"missing_columns": "skip"},
         )
@@ -547,11 +525,9 @@ class TestDataTypePolicyParity:
         # report the SAME declared type the typed null actually casts to at
         # execute time -- the whole point of the "typed" null (finding 11).
         df = pl.DataFrame({"a": [1]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER),
+                "b": FieldDefinition(type=U.STRING),},
             fields_match="equal",
             contract={"missing_columns": "null_fill"},
         )
@@ -570,8 +546,8 @@ class TestFreezeNeverRaisesDuringInference:
 
     def test_freeze_data_type_contract_does_not_raise_during_schema(self):
         df = pl.DataFrame({"n": ["a", "b"]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="n", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"n": FieldDefinition(type=U.INTEGER)},
             fields_match="open",
             contract={"data_type": "freeze"},
         )
@@ -587,11 +563,9 @@ class TestFreezeNeverRaisesDuringInference:
 
     def test_freeze_missing_columns_contract_does_not_raise_during_schema(self):
         df = pl.DataFrame({"a": [1]})
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="a", type=U.INTEGER),
-                FieldSpec(name="b", type=U.STRING),
-            ],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER),
+                "b": FieldDefinition(type=U.STRING),},
             fields_match="open",
             contract={"missing_columns": "freeze"},
         )
@@ -605,8 +579,8 @@ class TestFreezeNeverRaisesDuringInference:
 
     def test_freeze_extra_columns_contract_does_not_raise_during_schema(self):
         df = pl.DataFrame({"a": [1], "extra": [2]})
-        spec = TypeSpec(
-            fields=[FieldSpec(name="a", type=U.INTEGER)],
+        spec = TableSchema(
+            fields={"a": FieldDefinition(type=U.INTEGER)},
             fields_match="open",
             contract={"extra_columns": "freeze"},
         )
@@ -623,7 +597,7 @@ class TestFreezeNeverRaisesDuringInference:
 
 
 def test_mapping_tuple_conform_has_no_native_shape_requirement():
-    rel = ma.relation(({"x": 1},)).conform(TypeSpec.from_simple_dict({"x": "integer"}))
+    rel = ma.relation(({"x": 1},)).conform(TableSchema.from_simple_dict({"x": "integer"}))
     assert rel.schema["x"] is ma.MountainashDtype.I64
     assert rel.to_polars()["x"].to_list() == [1]
 
@@ -634,7 +608,7 @@ def test_narwhals_routed_native_subclass_uses_selected_dtype_domain():
     class Frame(pl.DataFrame):
         pass
 
-    spec = TypeSpec(fields=[FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type=nw.Int64)])
+    spec = TableSchema(fields={"id": FieldDefinition(dtype=ma.MountainashDtype.I8, backend_type=nw.Int64)})
     rel = ma.relation(Frame({"id": [300]})).conform(spec, contract={"data_type": "freeze"})
     assert rel.schema["id"] is ma.MountainashDtype.I64
     with pytest.warns(UserWarning):
@@ -648,18 +622,67 @@ def test_conform_inference_retains_parameterized_target_without_native_defaults(
 
     exact = TimestampDtype(6, True, "UTC")
     source = pl.DataFrame({"at": pl.Series([None], dtype=pl.Datetime("ns", "UTC"))})
-    declared = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("at", dtype=exact)], missing_values=[],
+    declared = ma.relation(source).conform(TableSchema(
+        fields={"at": FieldDefinition(dtype=exact)}, missing_values=[],
     ))
     assert infer_schema(declared._node) == {"at": exact}
 
     partial = TimestampDtype(timezone_aware=True, timezone=None)
-    resolved = ma.relation(source).conform(TypeSpec(
-        fields=[FieldSpec("at", dtype=partial)], missing_values=[],
+    resolved = ma.relation(source).conform(TableSchema(
+        fields={"at": FieldDefinition(dtype=partial)}, missing_values=[],
     ))
     assert infer_schema(resolved._node) == {"at": TimestampDtype(9, True, None)}
-    unresolved = ma.relation({"at": [None]}).conform(TypeSpec(
-        fields=[FieldSpec("at", dtype=partial)], missing_values=[],
+    unresolved = ma.relation({"at": [None]}).conform(TableSchema(
+        fields={"at": FieldDefinition(dtype=partial)}, missing_values=[],
     ))
     assert infer_schema(unresolved._node) == {"at": partial}
     assert partial.precision is SchemaTypeStatus.UNKNOWN
+
+
+@pytest.mark.parametrize("carrier", ["pandas", "narwhals-pandas", "pyarrow", "narwhals-pyarrow"])
+def test_unspecified_time_precision_resolves_from_schema_evidence_of_an_empty_source(carrier):
+    """Public inference reads precision from the source schema, never from sampled values,
+    and never writes it into the authored declaration."""
+    import narwhals as nw
+    import pandas as pd
+    import pyarrow as pa
+    from mountainash.core.dtypes import TimeDtype
+
+    arrow = pa.table({"t": pa.array([], type=pa.time64("us"))})
+    pandas_frame = pd.DataFrame({"t": pd.Series([], dtype=pd.ArrowDtype(pa.time64("us")))})
+    frame = {
+        "pandas": pandas_frame,
+        "narwhals-pandas": nw.from_native(pandas_frame),
+        "pyarrow": arrow,
+        "narwhals-pyarrow": nw.from_native(arrow),
+    }[carrier]
+    authored = TimeDtype()
+    schema = TableSchema(fields={"t": FieldDefinition(dtype=authored)})
+
+    relation = ma.relation(frame).conform(schema)
+
+    assert relation.schema == {"t": TimeDtype(precision=6)}
+    assert not any(report.type_mismatches for report in relation.assess_drift())
+    assert schema.fields["t"].dtype == TimeDtype()
+    assert schema.fields["t"].dtype.precision is SchemaTypeStatus.UNKNOWN
+
+
+@pytest.mark.parametrize("eager", [True, False])
+def test_narwhals_wrapped_polars_resolves_source_parameters_like_polars(eager):
+    """Known source evidence (ns precision, UTC) is retained, never dropped, whether or
+    not Narwhals wraps the Polars frame; the authored partial declaration is unchanged."""
+    import narwhals as nw
+    from mountainash.core.dtypes import TimestampDtype
+
+    source = pl.DataFrame({"at": pl.Series([None], dtype=pl.Datetime("ns", "UTC"))})
+    wrapped = nw.from_native(source if eager else source.lazy())
+    partial = TimestampDtype(timezone_aware=True, timezone=None)
+    declaration = TableSchema(fields={"at": FieldDefinition(dtype=partial)}, missing_values=[])
+
+    relation = ma.relation(wrapped).conform(declaration)
+
+    assert relation.schema == ma.relation(source).conform(declaration).schema
+    assert relation.schema["at"].precision == 9
+    assert relation.schema["at"].timezone == "UTC"
+    assert not any(report.type_mismatches for report in relation.assess_drift())
+    assert declaration.fields["at"].dtype == TimestampDtype(timezone_aware=True, timezone=None)

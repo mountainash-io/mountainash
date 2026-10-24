@@ -117,23 +117,23 @@ plan = (
 result = plan.to_polars()
 ```
 
-`Relation.conform` attaches a backend-agnostic TypeSpec to a plan. The transformation runs when the plan compiles.
+`Relation.conform` attaches a backend-agnostic `TableSchema` to a plan as a deferred `ConformRelNode`. The transformation runs when the plan compiles. Conform converts; contracts and validation check.
 
 ```python
 import mountainash as ma
-spec = ma.typespec({"name": "string", "age": "integer"})
+schema = ma.table_schema({"name": "string", "age": "integer"})
 
-result = ma.relation({"name": ["Ada"], "age": ["37"]}).conform(spec).collect()
+result = ma.relation({"name": ["Ada"], "age": ["37"]}).conform(schema).collect()
 ```
 
-Python ingress resolves source dtypes per column: explicit `source_spec`, then
+Python ingress resolves source dtypes per column: explicit `source_table_schema`, then
 dataclass/Pydantic scalar annotations, then native inference. Unrefined `ANY`
 leaves the next source of evidence in control. Declared nullable columns retain
 their types even when all values are null or the first non-null value is late.
 Undeclared row input still uses Polars' 100-row inference limit; ingress does not
 scan farther or retry on failure.
 
-`type_spec` describes a conversion target, not the source representation:
+`table_schema` describes a conversion target, not the source representation:
 
 ```python
 from mountainash.pydata import PydataIngress
@@ -141,11 +141,11 @@ from mountainash.pydata import PydataIngress
 rows = [{"raw": None}] * 100 + [{"raw": "2026-10-12"}]
 raw = PydataIngress.convert(
     rows,
-    source_spec=ma.typespec({"raw": "string"}),
-    type_spec=ma.typespec({"raw": "date"}),
+    source_table_schema=ma.table_schema({"raw": "string"}),
+    table_schema=ma.table_schema({"raw": "date"}),
     inline_conform=False,
 )  # String source; no target conversion
-dates = ma.relation(raw).conform(ma.typespec({"raw": "date"})).to_polars()
+dates = ma.relation(raw).conform(ma.table_schema({"raw": "date"})).to_polars()
 ```
 
 `inline_conform` defaults to `True`. Setting it to `False` suppresses target
@@ -219,10 +219,10 @@ inspection.
 | `core` | Shared types, canonical dtypes, backend detection, registries, capability facts, and common errors. It supplies infrastructure used by other modules rather than a user-facing query API. |
 | `expressions` | Fluent expression builders and the backend-agnostic expression AST. Its boundary ends at native expression compilation through registered expression systems. |
 | `relations` | Fluent relational plans, relation nodes, joins, aggregates, schema inference, and `RelationDAG`. Its boundary ends at native plan compilation and materialization. |
-| `typespec` | Typed, serializable schemas with universal types, field constraints, keys, and Frictionless descriptor and dialect models. It describes data and does not execute transforms. |
-| `conform` | Structural schema conformance and drift reporting. It turns a TypeSpec into relation and expression work. Value-level checks belong to `validation`. |
+| `typespec` | Typed, serializable schemas: immutable unnamed `FieldDefinition` declarations (copy with `.variant(...)`), an ordered name-to-definition `TableSchema`, `FieldConstraints`, keys, and Frictionless descriptor and dialect models. It describes data and does not execute transforms. |
+| `conform` | Structural schema conformance and drift reporting. It turns a `TableSchema` into relation and expression work. Value-level checks belong to `validation`. |
 | `validation` | Backend-agnostic value checks, identities, runners, diagnostics, and validation results. Checks compile through existing visitors instead of embedding backend code. |
-| `datacontracts` | Data contract declarations and compilation from TypeSpec. It maps constraints to checks and provides contract validation plans and results. |
+| `datacontracts` | Data contract declarations and compilation from `TableSchema`. It maps constraints to checks and provides contract validation plans and results. |
 | `pydata` | Ingress from Python collections and models, plus egress to Python data. It owns conversion at the Python boundary, not relational semantics. |
 | `graph` | General graph algorithms such as topological order, ancestor discovery, and parallel layers. Relation-specific dependency and constraint edges remain in `relations`. |
 | `pipelines` | Pipeline sources, steps, fluent builders, parameters, and relation integration. It connects pipeline execution to relations without replacing the relation AST. |
@@ -252,9 +252,9 @@ mountainash does not currently provide native Substrait serialization. The align
 
 `typespec` models the typed operational schema. It maps universal types, field properties, constraints, keys, missing values, and Mountainash extensions to the Frictionless Table Schema shape.
 
-`DataPackage`, `DataResource`, and `TableDialect` represent Frictionless Data Package descriptors. The descriptor boundary can preserve raw schema and dialect mappings, resolve local references through descriptor context, and convert a resource schema to a `TypeSpec`. Standard properties stay in their standard locations. Mountainash-specific properties use the `x-mountainash` namespace.
+`DataPackage`, `DataResource`, and `TableDialect` represent Frictionless Data Package descriptors. The descriptor boundary can preserve raw schema and dialect mappings, resolve local references through descriptor context, and convert a resource schema to a `TableSchema` with `DataResource.to_table_schema()`. Standard properties stay in their standard locations. Mountainash-specific properties use the `x-mountainash` namespace.
 
-This support covers the current descriptor, Table Schema, and TypeSpec mapping code. Frictionless v2 also defines separate conformance, validation, and resource-reader boundaries. Those boundaries are not all complete, so this README does not describe v2 support as a complete implementation.
+This support covers the current descriptor, Table Schema, and `TableSchema` mapping code. Frictionless v2 also defines separate conformance, validation, and resource-reader boundaries. Those boundaries are not all complete, so this README does not describe v2 support as a complete implementation.
 
 ## Roadmap
 

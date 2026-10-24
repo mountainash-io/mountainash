@@ -3,7 +3,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from mountainash.typespec.frictionless import typespec_to_frictionless
+from mountainash.typespec.frictionless import table_schema_to_frictionless
 from mountainash.typespec.datapackage import TableDialect
 from mountainash.typespec.errors import (
     InvalidDescriptorStructure,
@@ -20,7 +20,7 @@ from mountainash.typespec.frictionless_invariants import (
     require_package_mapping,
     validate_resource_source_shape,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.datapackage import DataResource
 from mountainash.typespec.universal_types import UniversalType
 
@@ -101,22 +101,22 @@ def test_location_is_immutable_and_reference_root_can_be_rebased() -> None:
 def test_typed_profile_boundaries_allow_unknown_or_absent(schema_url: str | None) -> None:
     dialect = TableDialect(schema_url=schema_url)
     assert dialect.schema_url == schema_url
-    spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)], schema_url=schema_url)
-    assert typespec_to_frictionless(spec).get("$schema") == schema_url
+    spec = TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)}, schema_url=schema_url)
+    assert table_schema_to_frictionless(spec).get("$schema") == schema_url
 
 
 def test_typed_profile_fields_reject_v1_and_are_immutable() -> None:
     with pytest.raises(UnsupportedDescriptorVersion):
         TableDialect(schema_url="https://datapackage.org/profiles/1.0/tabledialect.json")
     with pytest.raises(UnsupportedDescriptorVersion):
-        TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
+        TableSchema(
+            fields={"id": FieldDefinition(type=UniversalType.INTEGER)},
             schema_url="https://datapackage.org/profiles/1.0/tableschema.json",
         )
     dialect = TableDialect(schema_url="https://example.com/custom")
     with pytest.raises(TypeError):
         dialect.schema_url = "https://example.com/other"
-    spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    spec = TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)})
     with pytest.raises(TypeError):
         spec.schema_url = "https://example.com/other"
 
@@ -144,10 +144,10 @@ def test_serializers_revalidate_mutated_typed_profile_fields() -> None:
     with pytest.raises(UnsupportedDescriptorVersion):
         dialect.to_descriptor()
 
-    spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    spec = TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)})
     object.__setattr__(spec, "schema_url", "https://datapackage.org/profiles/1.0/tableschema.json")
     with pytest.raises(UnsupportedDescriptorVersion):
-        typespec_to_frictionless(spec)
+        table_schema_to_frictionless(spec)
 
 
 @pytest.mark.parametrize(

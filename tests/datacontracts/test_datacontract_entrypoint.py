@@ -7,14 +7,14 @@ import pytest
 import polars as pl
 
 import mountainash as ma
-from mountainash.typespec.spec import TypeSpec, FieldSpec
+from mountainash.typespec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.datacontracts.contract import BaseDataContract
 
 
-class TestDatacontractFromTypeSpec:
-    def test_typespec_compiles(self):
-        spec = TypeSpec(fields=[FieldSpec(name="x", type=UniversalType.STRING)])
+class TestDatacontractFromTableSchema:
+    def test_table_schema_compiles(self):
+        spec = TableSchema(fields={"x": FieldDefinition(type=UniversalType.STRING)})
         Contract = ma.datacontract(spec)
         assert issubclass(Contract, BaseDataContract)
         df = pl.DataFrame({"x": ["a"]})
@@ -76,24 +76,24 @@ class TestDatacontractFromPydantic:
 class TestDatacontractFromDataFrameModel:
     def test_existing_base_data_contract_returned_as_is(self):
         class MyContract(BaseDataContract):
-            name: str
+            name: str = FieldDefinition(type=UniversalType.STRING)
 
         result = ma.datacontract(MyContract)
         assert result is MyContract
 
-    def test_typespec_source_round_trips_through_compiled_contract(self):
+    def test_table_schema_source_round_trips_through_compiled_contract(self):
         # Replaces the removed Pandera-DataFrameModel-wrapping test: the
         # native entrypoint no longer accepts an arbitrary pa.DataFrameModel
-        # source (no honest analogue — compile_datacontract/contract_from_typespec
-        # only understand TypeSpec-shaped sources). The equivalent native
-        # guarantee is that a TypeSpec source compiles to a working contract
-        # whose declared field survives the TypeSpec round-trip.
-        spec = TypeSpec(fields=[FieldSpec(name="name", type=UniversalType.STRING)])
+        # source (no honest analogue — compile_datacontract/contract_from_table_schema
+        # only understand TableSchema-shaped sources). The equivalent native
+        # guarantee is that a TableSchema source compiles to a working contract
+        # whose declared field survives the TableSchema round-trip.
+        spec = TableSchema(fields={"name": FieldDefinition(type=UniversalType.STRING)})
         Contract = ma.datacontract(spec)
         assert issubclass(Contract, BaseDataContract)
         assert hasattr(Contract, "validate_datacontract")
-        round_tripped = Contract.to_typespec()
-        assert [f.name for f in round_tripped.fields] == ["name"]
+        round_tripped = Contract.to_table_schema()
+        assert list(round_tripped.fields) == ["name"]
         df = pl.DataFrame({"name": ["a"]})
         result = Contract.validate_datacontract(df)
         assert result.passes is True

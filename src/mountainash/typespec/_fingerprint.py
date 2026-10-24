@@ -1,9 +1,10 @@
-"""Stable hashes for frozen TypeSpec declarations."""
+"""Stable hashes for frozen TableSchema declarations."""
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import fields, is_dataclass
 from datetime import date, time, timedelta
+from decimal import Decimal
 from enum import Enum
 import hashlib
 from types import MappingProxyType
@@ -21,13 +22,20 @@ def freeze_declaration(value: Any) -> Any:
     if isinstance(value, Enum):
         return ("__enum__", value.__class__.__module__, value.__class__.__qualname__, value.value)
     if is_dataclass(value) and not isinstance(value, type):
+        ordered = getattr(type(value), "__ordered_named_fields__", ())
+        omitted = value._snapshot_omitted_fields() if hasattr(value, "_snapshot_omitted_fields") else ()
         return MappingProxyType(
             {
                 "__dataclass__": f"{value.__class__.__module__}:{value.__class__.__qualname__}",
                 "fields": MappingProxyType(
                     {
-                        item.name: freeze_declaration(getattr(value, item.name))
+                        item.name: (
+                            _freeze_ordered(getattr(value, item.name))
+                            if item.name in ordered
+                            else freeze_declaration(getattr(value, item.name))
+                        )
                         for item in fields(value)
+                        if item.name not in omitted
                     }
                 ),
             }
@@ -43,9 +51,24 @@ def freeze_declaration(value: Any) -> Any:
     return value
 
 
-def freeze_typespec(spec: Any) -> Mapping[str, Any]:
-    """Freeze every TypeSpec field before compiling executable metadata."""
-    frozen = freeze_declaration(spec)
+def _freeze_ordered(value: Any) -> Any:
+    """Freeze an ordered named map as tagged ordered pairs; other values pass through."""
+    if not isinstance(value, Mapping):
+        return freeze_declaration(value)
+    return (
+        "__ordered__",
+        tuple((name, freeze_declaration(item)) for name, item in value.items()),
+    )
+
+
+def freeze_table_schema(schema: Any) -> Mapping[str, Any]:
+    """Freeze every TableSchema field before compiling executable metadata.
+
+    Ordered named maps (``TableSchema.fields``, ``FieldDefinition.fields``) become
+    ``("__ordered__", ((name, frozen), ...))`` so declaration order is part of
+    the fingerprint; generic metadata mappings stay order-insensitive.
+    """
+    frozen = freeze_declaration(schema)
     assert isinstance(frozen, Mapping)
     return frozen
 
@@ -61,6 +84,8 @@ def _canonical_bytes(value: Any) -> bytes:
     if isinstance(value, (date, time, timedelta)):
         # Preserve temporal value, timezone and fold without float conversion.
         return b"temporal" + _canonical_bytes(pickle.dumps(value, protocol=5))
+    if isinstance(value, Decimal):
+        return b"decimal" + _canonical_bytes(value.as_tuple())
     if value is None:
         return b"n"
     if type(value) is bool:  # noqa: E721 — bool has its own canonical tag

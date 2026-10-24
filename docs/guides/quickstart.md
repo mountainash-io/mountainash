@@ -127,15 +127,15 @@ ma.relation(df).unnest("address", separator="_")
 
 See [unnest.md](unnest.md). Not yet implemented on Narwhals.
 
-## Schemas (TypeSpec) and Conformance
+## Schemas (TableSchema) and Conformance
 
 ```python
-spec = ma.typespec({"id": "integer", "amount": "number", "ts": "datetime"})
+schema = ma.table_schema({"id": "integer", "amount": "number", "ts": "datetime"})
 
-ma.relation(df).conform(spec).to_polars()
+ma.relation(df).conform(schema).to_polars()
 ```
 
-`conform()` builds a `ProjectRelNode` from TypeSpec fields — cross-backend automatic. The Frictionless Data Package model is the canonical multi-resource form:
+`conform()` stores the `TableSchema` as a deferred `ConformRelNode` that is compiled with the plan — cross-backend automatic. Conform converts; contracts and validation check. The Frictionless Data Package model is the canonical multi-resource form:
 
 ```python
 pkg = ma.DataPackage.from_path("datapackage.json")
@@ -146,11 +146,11 @@ df  = dag.collect("orders")
 ## Data Contracts
 
 ```python
-Contract = ma.datacontract(spec)        # compiles TypeSpec → contract class
+Contract = ma.datacontract(schema)     # compiles TableSchema → contract class
 Contract.validate(df)
 ```
 
-Accepts: `TypeSpec`, `dict`, pandera `DataFrameModel`, Pydantic `BaseModel`, or a Frictionless JSON path.
+Accepts: `TableSchema`, an existing `BaseDataContract` subclass, a simple or Frictionless `dict`, Pydantic `BaseModel`, or a Frictionless JSON path.
 
 ## Pipelines
 

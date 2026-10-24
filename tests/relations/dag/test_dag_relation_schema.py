@@ -65,7 +65,7 @@ def test_assess_drift_resolves_refs_without_compiling(monkeypatch):
     # assess_drift remains structural even though the regular schema property
     # compiles through the owning DAG.
     dag = _dag()
-    spec = ma.typespec({"x": "integer", "y": "string"})
+    spec = ma.TableSchema.from_simple_dict({"x": "integer", "y": "string"})
     rel = dag.ref("raw").conform(spec)
 
     def fail_compile(*args, **kwargs):
@@ -83,7 +83,7 @@ def test_assess_drift_plain_relation_over_ref_is_degenerate():
     from mountainash.relations.core.relation_nodes.extensions_mountainash import (
         RefRelNode,
     )
-    spec = ma.typespec({"x": "integer", "y": "string"})
+    spec = ma.TableSchema.from_simple_dict({"x": "integer", "y": "string"})
     # fields_match must be "open" explicitly (the model default is now the
     # strict "exact", which would raise on the ref's empty inferred schema
     # instead of under-assessing). This test pins the resolver-less degenerate

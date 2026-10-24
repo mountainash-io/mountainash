@@ -15,6 +15,7 @@ import re
 from types import MappingProxyType
 from typing import Any, Literal
 
+from mountainash.core.dtypes import SchemaTypeStatus
 from mountainash.typespec.temporal import parse_xsd_duration, parse_xsd_partial_date
 from mountainash.validation.checks import ValueValidatorKey
 from mountainash.validation.errors import CheckDeclarationError
@@ -434,92 +435,245 @@ def _json_schema_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
     return not compile_json_schema(options["schema"]).validate(value)
 
 
-def _nested_fields(snapshot: Any) -> Sequence[Any]:
-    """Thaw the plan-owned field snapshot only for one logical evaluation."""
-    if not snapshot:
-        return ()
+@dataclass(frozen=True)
+class NestedViolation:
+    """One unmet member/element requirement and the location it was found at.
+
+    ``instance_path`` is an RFC 6901 pointer of literal member names and element
+    indices below the checked field, so a dotted member name stays one segment.
+    ``severity`` is the violated definition's own severity (system default when
+    unspecified); it is never inherited from an enclosing definition.
+    """
+
+    instance_path: str
+    schema_path: str | None
+    validator: str
+    message: str
+    severity: str
+
+
+def _nested_definition(options: Mapping[str, Any]) -> Any:
+    """Thaw the plan-owned definition snapshot only for one logical evaluation."""
     from mountainash.validation.plan import thaw_value
 
-    fields = thaw_value(snapshot)
-    return fields if isinstance(fields, list) else ()
+    return thaw_value(options["definition"])
 
 
-def _nested_field_valid(value: Any, field: Any) -> bool:
-    """Apply the supported field vocabulary recursively to one logical value."""
-    constraints = field.constraints
-    if value is None:
-        return not (constraints and constraints.required)
-    if not _type_format_execute(
-        value, {"type": field.type.value, "format": field.format}
-    ):
+def _nested_options(options: Mapping[str, Any]) -> None:
+    _mapping_only(options)
+    if not isinstance(options.get("definition"), Mapping):
+        raise CheckDeclarationError(
+            "nested value rule requires the declaring FieldDefinition snapshot as 'definition'"
+        )
+    severity = options.get("severity")
+    if severity is not None:
+        from mountainash.validation.checks import validate_severity
+
+        validate_severity("nested value rule", severity)
+
+
+def _equal_execute(value: Any, options: Mapping[str, Any]) -> bool:
+    return canonical_value_key(value) == canonical_value_key(options["expected"])
+
+
+def _unequal_execute(value: Any, options: Mapping[str, Any]) -> bool:
+    return not _equal_execute(value, options)
+
+
+def _excluded_execute(value: Any, options: Mapping[str, Any]) -> bool:
+    return not _membership_execute(value, {"allowed": options["excluded"]})
+
+
+def _text_part_execute(value: Any, options: Mapping[str, Any]) -> bool:
+    part, operation = options["part"], options["operation"]
+    if not isinstance(value, str):
         return False
-    if constraints:
-        if any(
-            not _range_execute(value, {name: bound})
-            for name, bound in {
-                "minimum": constraints.minimum,
-                "maximum": constraints.maximum,
-                "exclusive_minimum": constraints.exclusive_minimum,
-                "exclusive_maximum": constraints.exclusive_maximum,
-            }.items()
-            if bound is not None
-        ):
-            return False
-        if any(
-            not _length_execute(value, {name: bound})
-            for name, bound in {
-                "min_length": constraints.min_length,
-                "max_length": constraints.max_length,
-            }.items()
-            if bound is not None
-        ):
-            return False
-        if constraints.pattern is not None and not _pattern_execute(
-            value, {"pattern": constraints.pattern}
-        ):
-            return False
-        if constraints.enum is not None and not _membership_execute(
-            value, {"allowed": constraints.enum}
-        ):
-            return False
-        if constraints.json_schema is not None and not _json_schema_execute(
-            value, {"schema": constraints.json_schema}
-        ):
-            return False
-    if field.object_fields and not _nested_object_valid(value, field.object_fields):
-        return False
-    if field.item_object_fields and not _nested_items_valid(
-        value, field.item_object_fields
-    ):
-        return False
-    return True
+    if operation == "str_contains":
+        return part in value
+    return value.startswith(part) if operation == "str_startswith" else value.endswith(part)
 
 
-def _nested_object_valid(value: Any, fields: Sequence[Any]) -> bool:
-    return isinstance(value, Mapping) and all(
-        _nested_field_valid(value.get(field.name), field) for field in fields
+def _nested_requirements(definition: Any):
+    """Yield ``(validator, evaluate, options)`` for each scalar requirement declared.
+
+    Every requirement delegates to the same executor the top-level rule uses.
+    """
+    constraints = definition.constraints
+    for name in ("minimum", "maximum", "exclusive_minimum", "exclusive_maximum"):
+        if getattr(constraints, name) is not None:
+            yield name, _range_execute, {name: getattr(constraints, name)}
+    for name in ("min_length", "max_length"):
+        if getattr(constraints, name) is not None:
+            yield name, _length_execute, {name: getattr(constraints, name)}
+    if definition.type.value == "string" and definition.format != "default":
+        yield "format", _string_format_execute, {"format": definition.format}
+    if constraints.pattern is not None:
+        yield "pattern", _pattern_execute, {"pattern": constraints.pattern}
+    if definition.categories:
+        from mountainash.typespec._categorical import categorical_values
+
+        allowed = categorical_values(definition.categories)
+        if allowed:
+            yield "categories", _membership_execute, {"allowed": allowed}
+    if constraints.enum is not None:
+        yield "enum", _membership_execute, {"allowed": constraints.enum}
+    if constraints.eq is not None:
+        yield "eq", _equal_execute, {"expected": constraints.eq}
+    if constraints.ne is not None:
+        yield "ne", _unequal_execute, {"expected": constraints.ne}
+    if constraints.notin is not None:
+        yield "notin", _excluded_execute, {"excluded": constraints.notin}
+    for name in ("str_contains", "str_startswith", "str_endswith"):
+        if getattr(constraints, name) is not None:
+            yield name, _text_part_execute, {"part": getattr(constraints, name), "operation": name}
+
+
+def _nested_structured_violations(value: Any, definition: Any, pointer: str, severity: str):
+    """JSON Schema and GeoJSON/TopoJSON diagnostics, located below ``pointer``."""
+    schema = definition.constraints.json_schema
+    if schema is not None:
+        from mountainash.validation.jsonschema import compile_json_schema
+
+        for item in compile_json_schema(schema).validate(value):
+            yield NestedViolation(
+                pointer + item.instance_path, item.schema_path, item.validator, item.message,
+                severity,
+            )
+    if definition.type.value != "geojson":
+        return
+    from mountainash.validation.geospatial import (
+        validate_geojson,
+        validate_geojson_winding,
+        validate_topojson,
     )
 
+    if definition.format == "topojson":
+        found = [(item, severity) for item in validate_topojson(value)]
+    else:
+        found = [(item, severity) for item in validate_geojson(value)]
+        found += [(item, "warning") for item in validate_geojson_winding(value)]
+    for item, level in found:
+        yield NestedViolation(pointer + item.instance_path, None, item.validator, item.message, level)
 
-def _nested_items_valid(value: Any, fields: Sequence[Any]) -> bool:
-    return isinstance(value, (list, tuple)) and all(
-        item is None or _nested_object_valid(item, fields) for item in value
+
+def _nested_value_violations(value: Any, definition: Any, path: tuple[Any, ...]):
+    """Every requirement ``definition`` places on one member/element value."""
+    from mountainash.validation.jsonschema import _json_pointer
+
+    severity = definition.severity or "blocking"
+    pointer = _json_pointer(path)
+    if value is None:
+        if definition.constraints.required:
+            yield NestedViolation(pointer, None, "required", "a value is required", severity)
+        return
+    if not _type_format_execute(
+        value, {"type": definition.type.value, "format": definition.format}
+    ):
+        yield NestedViolation(
+            pointer, None, "type", f"value is not a valid {definition.type.value}", severity
+        )
+        return
+    for validator, evaluate, options in _nested_requirements(definition):
+        if not evaluate(value, options):
+            yield NestedViolation(
+                pointer, None, validator, f"value does not satisfy {validator}", severity
+            )
+    yield from _nested_structured_violations(value, definition, pointer, severity)
+    yield from _nested_shape_violations(value, definition, path)
+
+
+def _nested_shape_violations(value: Any, definition: Any, path: tuple[Any, ...]):
+    """Violations of the members or element a definition declares.
+
+    Unknown shape (``UNKNOWN``) and an empty record declare nothing to check.
+    """
+    from mountainash.validation.jsonschema import _json_pointer
+
+    severity = definition.severity or "blocking"
+    members = definition.fields
+    if isinstance(members, Mapping) and members:
+        if not isinstance(value, Mapping):
+            yield NestedViolation(_json_pointer(path), None, "type", "value is not a record", severity)
+            return
+        for name, child in members.items():
+            yield from _nested_value_violations(value.get(name), child, (*path, name))
+        return
+    element = definition.element
+    if element is not None and element is not SchemaTypeStatus.UNKNOWN:
+        if not isinstance(value, (list, tuple)):
+            yield NestedViolation(
+                _json_pointer(path), None, "type", "value is not a collection", severity
+            )
+            return
+        for index, item in enumerate(value):
+            yield from _nested_value_violations(item, element, (*path, index))
+
+
+def _selected_nested_violations(
+    value: Any, options: Mapping[str, Any]
+) -> tuple[NestedViolation, ...]:
+    """The violations one nested rule owns: all, or only the severity it was built for."""
+    severity = options.get("severity")
+    return tuple(
+        violation
+        for violation in _nested_shape_violations(value, _nested_definition(options), ())
+        if severity is None or violation.severity == severity
     )
 
 
 def _nested_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
-    """Apply child field declarations recursively to object and array values."""
+    """Apply member and element declarations recursively to object and array values."""
     if value is INVALID_VALUE:
         return None
     if value is None:
         return True
-    object_fields = _nested_fields(options.get("object_fields"))
-    item_object_fields = _nested_fields(options.get("item_object_fields"))
-    if object_fields:
-        return _nested_object_valid(value, object_fields)
-    if item_object_fields:
-        return _nested_items_valid(value, item_object_fields)
-    return True
+    return not _selected_nested_violations(value, options)
+
+
+def _unique_options(options: Mapping[str, Any]) -> None:
+    _mapping_only(options)
+    path = options.get("path")
+    if path is not None and (
+        isinstance(path, (str, bytes))
+        or not isinstance(path, Sequence)
+        or any(segment is not None and not isinstance(segment, str) for segment in path)
+    ):
+        raise CheckDeclarationError(
+            "unique value rule 'path' must be a sequence of member names and None element markers"
+        )
+
+
+def nested_unique_occurrences(
+    value: Any, path: Sequence[str | None]
+) -> list[tuple[tuple[Any, ...] | None, tuple[Any, ...], tuple[Any, ...]]]:
+    """Non-null values found at a declaration ``path`` below one row's cell value.
+
+    ``path`` segments are literal member names, or None where a collection's
+    elements are entered. Each occurrence is ``(domain, canonical key, location)``.
+    The uniqueness domain follows the field meaning in its active row domain: with no
+    collection on the path it is None (the containing records of every row); once
+    a collection is entered it is that collection instance's location, so values
+    only compete within the collection that contains them.
+    """
+    found: list[tuple[tuple[Any, ...] | None, tuple[Any, ...], tuple[Any, ...]]] = []
+
+    def walk(current: Any, remaining: Sequence[str | None], location: tuple[Any, ...],
+             domain: tuple[Any, ...] | None) -> None:
+        if current is None:
+            return
+        if not remaining:
+            found.append((domain, canonical_value_key(current), location))
+            return
+        segment, rest = remaining[0], remaining[1:]
+        if segment is None:
+            if isinstance(current, (list, tuple)):
+                for index, item in enumerate(current):
+                    walk(item, rest, (*location, index), location)
+        elif isinstance(current, Mapping):
+            walk(current.get(segment), rest, (*location, segment), domain)
+
+    walk(value, tuple(path), (), None)
+    return found
 
 
 def _geojson_execute(value: Any, options: Mapping[str, Any]) -> bool | None:
@@ -569,6 +723,16 @@ def structured_value_diagnostics(
     """Return every nested diagnostic for an already-failed logical value."""
     if value is INVALID_VALUE or value is None:
         return ()
+    if validator is ValueValidatorKey.NESTED:
+        return tuple(
+            StructuredValueDiagnostic(
+                instance_path=item.instance_path,
+                schema_path=item.schema_path,
+                validator=item.validator,
+                message=item.message,
+            )
+            for item in _selected_nested_violations(value, options)
+        )
     if validator is ValueValidatorKey.JSON_SCHEMA:
         from mountainash.validation.jsonschema import compile_json_schema
 
@@ -641,8 +805,8 @@ VALUE_RULE_REGISTRY = MappingProxyType(
         ValueValidatorKey.STRING_FORMAT: _entry(_mapping_only, _string_format_execute, "format", "row"),
         ValueValidatorKey.XSD_PATTERN: _entry(_pattern_options, _pattern_execute, "pattern", "row"),
         ValueValidatorKey.MEMBERSHIP: _entry(_membership_options, _membership_execute, "membership", "row"),
-        ValueValidatorKey.UNIQUE: _entry(_mapping_only, _unavailable_execute, "unique", "column"),
-        ValueValidatorKey.NESTED: _entry(_mapping_only, _nested_execute, "nested", "row"),
+        ValueValidatorKey.UNIQUE: _entry(_unique_options, _unavailable_execute, "unique", "column"),
+        ValueValidatorKey.NESTED: _entry(_nested_options, _nested_execute, "nested", "row"),
         ValueValidatorKey.JSON_SCHEMA: _entry(_json_schema_options, _json_schema_execute, "json_schema", "row"),
         ValueValidatorKey.GEOJSON: _entry(_mapping_only, _geojson_execute, "geojson", "row"),
         ValueValidatorKey.GEOJSON_WINDING: _entry(_mapping_only, _geojson_winding_execute, "geojson_winding", "row"),

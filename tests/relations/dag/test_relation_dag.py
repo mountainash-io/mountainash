@@ -106,11 +106,11 @@ def test_cycle_raises():
 def _json_dag(
     backend_name, backend_factory, *, action: str = "coerce", apply_value_transforms: bool = True
 ):
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     df = backend_factory.create({"payload": ["[1,2]", "[3]"]}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     rel = ma.relation(df).conform(
         spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms
     )
