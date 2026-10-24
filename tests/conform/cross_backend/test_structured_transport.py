@@ -55,7 +55,7 @@ def test_nested_custom_format_and_child_fill_survive_parent_authority(
 ):
     import mountainash as ma
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, TimestampDtype, MountainashDtype as D
+    from mountainash.core.dtypes import TimestampDtype, MountainashDtype as D
     from mountainash.typespec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
@@ -87,7 +87,7 @@ def test_nested_custom_format_and_child_fill_survive_parent_authority(
 def test_invalid_nested_custom_temporal_value_remains_a_value_error():
     import mountainash as ma
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, TimestampDtype
+    from mountainash.core.dtypes import TimestampDtype
     from mountainash.typespec import FieldDefinition, TableSchema
     from mountainash.conform.errors import ConformTransformError
 
@@ -106,7 +106,7 @@ def test_nested_missing_sentinel_is_filled_before_temporal_conversion(
     backend_name, backend_factory,
 ):
     import mountainash as ma
-    from mountainash.core.dtypes import StructDtype, TimestampDtype
+    from mountainash.core.dtypes import TimestampDtype
     from mountainash.typespec import FieldDefinition, TableSchema
 
     declaration = FieldDefinition(
@@ -145,7 +145,7 @@ def test_nested_any_timestamp_preserves_nanoseconds(
 ):
     import mountainash as ma
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, TimestampDtype
+    from mountainash.core.dtypes import TimestampDtype
     from mountainash.typespec import FieldDefinition, TableSchema
 
     declaration = FieldDefinition(
@@ -163,3 +163,48 @@ def test_nested_any_timestamp_preserves_nanoseconds(
     assert result.select(
         pl.col("record").struct.field("at").dt.epoch("ns")
     ).to_series().to_list() == [expected_ns]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("container", ["list", "struct", "partial-struct"])
+@pytest.mark.parametrize("use_fill", [False, True], ids=["source-value", "child-fill"])
+@pytest.mark.parametrize("action", ["coerce", "discard_value", "discard_row"])
+def test_transported_uint64_maximum_survives_values_and_child_fills(
+    backend_name, backend_factory, container, use_fill, action,
+):
+    """Transport must not infer signed Int64 before applying an effective UInt64 target."""
+    import json
+
+    import mountainash as ma
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype as D, TimestampDtype
+    from mountainash.typespec import FieldDefinition, TableSchema
+
+    maximum = 18446744073709551615
+    child = FieldDefinition(dtype=D.U64, null_fill=maximum if use_fill else None)
+    value = None if use_fill else maximum
+    if container == "list":
+        field = FieldDefinition(element=child)
+        encoded = [json.dumps([value]), None, "[]"]
+        expected = [[maximum], None, []]
+        native = pl.List(pl.UInt64)
+    else:
+        field = FieldDefinition(fields={"id": child})
+        encoded = [json.dumps({"id": value}), None]
+        expected = [{"id": maximum}, None]
+        native = pl.Struct({"id": pl.UInt64})
+    if container == "partial-struct":
+        field = FieldDefinition(fields={"id": child, "at": FieldDefinition(dtype=TimestampDtype())})
+        encoded = [json.dumps({"id": value, "at": "2026-01-01 00:00:00.123456"}), None]
+        expected = [{"id": maximum, "at": datetime(2026, 1, 1, 0, 0, 0, 123456)}, None]
+    source = backend_factory.create({"record": encoded}, backend_name)
+    result = ma.relation(source).conform(
+        TableSchema(fields={"record": field}, missing_values=[]),
+        contract={"data_type": action},
+    ).to_polars()
+    if container == "partial-struct":
+        assert result.schema["record"].fields[0] == pl.Field("id", pl.UInt64)
+        assert isinstance(result.schema["record"].fields[1].dtype, pl.Datetime)
+    else:
+        assert result.schema["record"] == native
+    assert result["record"].to_list() == expected

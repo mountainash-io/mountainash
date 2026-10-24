@@ -249,3 +249,106 @@ def test_migrated_legacy_descriptor_conforms_and_validates(backend_name, backend
     result = ValidationRunner().validate_relation(conformed, plan=compile_datacontract(schema))
     nested = result.check_summaries.filter(pl.col("check_id") == "record_nested").row(0, named=True)
     assert (nested["status"], nested["pass_count"], nested["fail_count"]) == ("failed", 2, 1), backend_name
+
+
+def _interchange_contract_summary(result, check_id):
+    import polars as pl
+
+    return result.check_summaries.filter(pl.col("check_id") == check_id).row(0, named=True)
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_portable_composed_child_roundtrips_conforms_and_validates(backend_name, backend_factory):
+    """Authored I64 member: JSON text -> conform -> coercing contract agree on 128/129/-1."""
+    import polars as pl
+    from ibis.common.exceptions import UnsupportedBackendType
+
+    import mountainash as ma
+    from fixtures.call_expectations import expect_call_failure
+    from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.typespec import FieldDefinition, TableSchema
+    from mountainash.typespec.frictionless import table_schema_from_frictionless
+
+    schema = TableSchema(fields={"record": FieldDefinition(fields={
+        "keep": FieldDefinition(dtype=D.STRING),
+        "id": FieldDefinition(dtype=D.I64, null_fill=129, minimum=0),
+    })}, missing_values=[])
+    records = [
+        {"keep": "a", "id": 128}, {"keep": None, "id": None}, {"keep": "c", "id": -1}, None,
+    ]
+    text = json.dumps(table_schema_to_frictionless(schema))
+    restored = table_schema_from_frictionless(json.loads(text))
+    declared = table_schema_to_frictionless(restored)
+    assert declared == json.loads(text)
+    with expect_call_failure(
+        when=backend_name == "ibis-sqlite",
+        errors=(UnsupportedBackendType,),
+        reason="SQLite cannot construct the native Struct input",
+    ):
+        source = backend_factory.create({"record": records}, backend_name)
+    conformed = ma.relation(source).conform(restored)
+    output = conformed.to_polars()
+    assert output.schema["record"] == pl.Struct({"keep": pl.String, "id": pl.Int64}), backend_name
+    assert output["record"].to_list() == [
+        {"keep": "a", "id": 128}, {"keep": None, "id": 129}, {"keep": "c", "id": -1}, None,
+    ], backend_name
+
+    contract = restored.to_contract()
+    contract.Config.coerce = True
+    result = contract.validate_datacontract(source)
+    nested = _interchange_contract_summary(result, "record_nested")
+    # The null parent is a valid nullable value; only the negative member fails.
+    assert (nested["status"], nested["pass_count"], nested["fail_count"]) == ("failed", 3, 1), backend_name
+    assert result._materialized_source["record"].to_list()[1] == {"keep": None, "id": 129}, backend_name
+    assert table_schema_to_frictionless(restored) == declared
+    assert ma.relation(source).to_polars()["record"].to_list() == records, backend_name
+
+
+@pytest.mark.cross_backend
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_serialized_native_parent_keeps_authored_narrow_child_through_contract(backend_name, backend_factory):
+    """Int64 parent via serializable native string; authored I8 element fills/validates under Int64."""
+    import polars as pl
+    from ibis.common.exceptions import UnsupportedBackendType
+
+    import mountainash as ma
+    from fixtures.call_expectations import expect_call_failure
+    from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.typespec import FieldDefinition, TableSchema
+    from mountainash.core.types import BackendCapabilityError
+    from mountainash.typespec.frictionless import table_schema_from_frictionless
+
+    # Polars/Narwhals constructor-repr parsers do not admit Struct, so the
+    # serializable complete container override is List on every carrier.
+    native = "array<int64>" if backend_name.startswith("ibis") else "List(Int64)"
+    schema = TableSchema(fields={"groups": FieldDefinition(
+        backend_type=native,
+        element=FieldDefinition(dtype=D.I8, null_fill=129, minimum=0),
+    )}, missing_values=[])
+    text = json.dumps(table_schema_to_frictionless(schema))
+    wire = json.loads(text)["fields"][0]
+    assert wire["x-mountainash"]["backend_type"] == native
+    restored = table_schema_from_frictionless(json.loads(text))
+    declared = table_schema_to_frictionless(restored)
+    assert declared == json.loads(text)
+    assert restored.fields["groups"].element.dtype == D.I8
+    records = [[128, None, -1], None, []]
+    with expect_call_failure(
+        when=backend_name in {"narwhals-polars", "narwhals-lazy", "ibis-sqlite"},
+        errors=(UnsupportedBackendType,) if backend_name == "ibis-sqlite" else (BackendCapabilityError,),
+        reason="SQLite cannot store arrays; Narwhals lacks native element expressions",
+    ):
+        source = backend_factory.create({"groups": records}, backend_name)
+        output = ma.relation(source).conform(restored).to_polars()
+        assert output.schema["groups"] == pl.List(pl.Int64), backend_name
+        assert output["groups"].to_list() == [[128, 129, -1], None, []], backend_name
+
+        contract = restored.to_contract()
+        contract.Config.coerce = True
+        result = contract.validate_datacontract(source)
+        nested = _interchange_contract_summary(result, "groups_nested")
+        assert (nested["status"], nested["pass_count"], nested["fail_count"]) == ("failed", 2, 1), backend_name
+        assert result._materialized_source["groups"].to_list() == [[128, 129, -1], None, []], backend_name
+        assert table_schema_to_frictionless(restored) == declared
+        assert ma.relation(source).to_polars()["groups"].to_list() == records, backend_name

@@ -152,6 +152,21 @@ An authored Int8 child under an effective Int64 struct target preserves `128`;
 its `null_fill=129` also uses Int64. Unchanged target members retain their order,
 null parents remain null, and the original child definition stays Int8.
 
+JSON-restored declarations use the same conformance path as authored schemas.
+Coercing datacontracts validate the converted nested values, including child
+fills; non-coercing contracts retain source values while still applying structural
+aliases. This also applies to opaque pandas containers resolved at the logical
+materialization boundary.
+Unsigned JSON integer members are prepared using the selected unsigned target
+before Arrow container inference, including when a sibling's timestamp parameters
+remain partial. This preserves UInt64 values and fills without an intermediate
+signed-Int64 conversion; final casts retain native semantics.
+
+JSON stores supported native override strings, not native library dtype objects.
+Those strings belong to the selected adapter: for example, `List(Int64)` on
+Polars/Narwhals and `array<int64>` on Ibis. They are not a portable interchange
+syntax; use composed `FieldDefinition` declarations for portable structure.
+
 Direct expression casts accept the resolved physical target, not field
 declarations:
 
@@ -366,12 +381,13 @@ closed on.
 uniqueness, and foreign-key checks compare decoded logical values, never raw
 transported text — whitespace and object-key order never change the outcome.
 
-Nested conversion during direct validation of opaque/transported containers
-remains deferred under item 356. For example, a nested integer with
-`minimum=0, null_fill=7` over `["2", null, "-3"]` can report one passing and two
-failing records on that path, while validation after logical materialization
-reports two passing and one failing. This is existing debt, not newly qualified
-cross-carrier equivalence; the shared-schema migration does not repair or hide it.
+Validation consumes conversions and child fills when the relation requests
+conformance, including the logical terminal used by coercing datacontracts.
+Without requested value transformation, validation checks decoded source values;
+it does not apply a child fill merely because the declaration contains one.
+The historical carrier-dependent coercing-contract discrepancy recorded in item
+356 is repaired by the shared logical conversion path. This does not claim that
+every opaque source is representable by its provider's Arrow conversion.
 
 ## Exact decimals
 

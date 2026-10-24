@@ -219,7 +219,8 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         return None
     from mountainash.core.dtypes import (
         ArrayDtype, DecimalDtype, ListDtype, StructDtype, MountainashDtype,
-        NativeDtype, SchemaTypeStatus, dtype_family, registry,
+        NativeDtype, SchemaTypeStatus, TypeTarget, dtype_family, dtype_is_complete,
+        registry, resolve_dtype_parameters,
     )
     from mountainash.typespec.converters import resolve_field_canonical
 
@@ -245,6 +246,11 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         else:
             dtype = decoded
     family = dtype_family(dtype)
+    if family not in {MountainashDtype.STRUCT, MountainashDtype.LIST} and not dtype_is_complete(dtype):
+        import pyarrow as pa
+
+        source = registry.from_native(pa.scalar(value).type, TypeTarget.PYARROW)
+        dtype = resolve_dtype_parameters(dtype, source)
     unsupported_metadata = (
         (family is MountainashDtype.BOOL and (field.true_values is not None or field.false_values is not None))
         or field.decimal_char is not None
@@ -320,7 +326,11 @@ def _convert_declared_value(value: Any, field: Any, dtype: Any = None) -> Any:
         import pyarrow.compute as pc
 
         try:
-            return pc.cast(pa.scalar(value), transport_arrow_dtype(dtype))
+            native = transport_arrow_dtype(dtype)
+            # The requested unsigned domain supplies source representation;
+            # Arrow's untyped Python-int inference is signed Int64.
+            source_type = pa.uint64() if type(value) is int and pa.types.is_unsigned_integer(native) else None
+            return pc.cast(pa.scalar(value, type=source_type), native)
         except pa.ArrowNotImplementedError as error:
             from mountainash.core.types import BackendCapabilityError
 
@@ -344,12 +354,13 @@ def _convert_declared_structured(value: Any, plan: StructuredFieldPlan, native_d
     target = plan.target_dtype
     if target is SchemaTypeStatus.UNKNOWN or target in (MountainashDtype.LIST, MountainashDtype.STRUCT):
         target = None
+    converted = _convert_declared_value(value, field, target)
     if target is not None and not dtype_is_complete(target):
-        source = registry.from_native(pa.scalar(value).type, TypeTarget.PYARROW)
+        # Leaves carry their effective types before container inference, so a
+        # partial sibling cannot force a known UInt64 through signed Int64.
+        source = registry.from_native(pa.scalar(converted).type, TypeTarget.PYARROW)
         target = resolve_dtype_parameters(target, source)
     native = transport_arrow_dtype(target) if native_dtype is None else native_dtype
-    effective = target
-    converted = _convert_declared_value(value, field, effective)
     # Range/shape failures must participate in discard policies, not surface
     # later while constructing a terminal's output column.
     return pa.scalar(converted, type=native) if native is not None else converted
@@ -393,11 +404,17 @@ def resolve_structured_cell(
     )
     if (
         decoded is not INVALID_STRUCTURED_VALUE
-        and consumer is StructuredActionConsumer.LOGICAL_EGRESS
         and plan.requires_logical_terminal
     ):
         try:
             decoded = _convert_declared_structured(decoded, plan, native_dtype)
+            if consumer is StructuredActionConsumer.VALIDATION:
+                # Validation retains Python logical values (including invalid
+                # sentinels), but must consume the same conformance as egress.
+                import pyarrow as pa
+
+                if isinstance(decoded, pa.Scalar):
+                    decoded = decoded.as_py()
         except (TypeError, ValueError, OverflowError):
             decoded = INVALID_STRUCTURED_VALUE
     action = plan.configured_action

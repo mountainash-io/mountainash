@@ -251,6 +251,40 @@ def test_duckdb_sample_projection_treats_selector_like_names_literally(projectio
             )
 
 
+@pytest.mark.parametrize(
+    "retained, errors",
+    [(2**53 + 1, (AssertionError,)), (2**64 - 1, (pa.ArrowInvalid,))],
+    ids=["exact-above-2-53", "uint64-maximum"],
+)
+def test_pandas_arrow_struct_mask_retains_unsigned_child(retained, errors):
+    """Native pandas witness for 374 / NW-CAST-02; not public support or an unwrapping route."""
+    import pandas as pd
+    from fixtures.call_expectations import expect_call_failure
+
+    dtype = pa.struct([("number", pa.float32()), ("keep", pa.uint64())])
+    rows = [
+        {"number": None, "keep": 7},
+        {"number": 1.0, "keep": retained},
+        {"number": None, "keep": None},
+        {"number": None, "keep": 7},
+    ]
+    series = pd.Series(pa.array(rows, type=dtype), dtype=pd.ArrowDtype(dtype))
+    keep = pd.Series([False, True, False, True])
+    reason = "374 / NW-CAST-02: pandas Arrow struct where loses nullable UInt64 child integers"
+    with expect_call_failure(
+        reason=reason, errors=errors, when=errors == (pa.ArrowInvalid,),
+    ):
+        result = series.where(keep)
+    assert result.dtype == series.dtype
+    actual = result.array.__arrow_array__().to_pylist()
+    assert len(actual) == 4
+    assert actual[0] is None and actual[2] is None
+    assert actual[3] == {"number": None, "keep": 7}
+    assert actual[1]["number"] == 1.0
+    with expect_call_failure(reason=reason, errors=(AssertionError,)):
+        assert actual[1]["keep"] == retained
+
+
 def test_duckdb_shared_sample_branches_preserve_complete_rows():
     with _duckdb_connection() as connection:
         reads = []
