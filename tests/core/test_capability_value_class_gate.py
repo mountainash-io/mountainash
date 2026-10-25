@@ -106,6 +106,17 @@ _SELECTORS = {
 }
 
 
+@pytest.mark.parametrize("selector", _SELECTORS.values(), ids=_SELECTORS.keys())
+def test_presence_includes_each_selector_without_matching_a_call(selector):
+    _publish(_versioned_rule(selector, variant="presence", lower="1", upper="2"))
+    assert CapabilityRegistry.has_policy_candidates(
+        FK.TRUNCATE, CONST_BACKEND.IBIS, "ibis-duckdb", consumer=PolicyConsumer.GATE,
+    )
+    assert not CapabilityRegistry.has_policy_candidates(
+        FK.TRUNCATE, CONST_BACKEND.IBIS, "ibis-sqlite", consumer=PolicyConsumer.GATE,
+    )
+
+
 def test_adjacent_cross_selector_policies_publish_as_sibling_records(isolate):
     general = _versioned_rule(
         _SELECTORS["general"],
