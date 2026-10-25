@@ -292,6 +292,7 @@ class _RegistryState:
     load_error: BaseException | None
     predicate_buckets: Mapping[tuple[Any, CONST_BACKEND], tuple[tuple[CapabilityFact, frozenset[str]], ...]]
     views: Mapping[tuple[CONST_BACKEND | None, Enforcement | None], tuple[CapabilityFact, ...]]
+    policy_presence: frozenset[tuple[Any, CONST_BACKEND, str | None, PolicyConsumer]]
 
 
 def _prepare_state(
@@ -379,6 +380,7 @@ def _prepare_state(
         load_error,
         MappingProxyType({key: tuple(value) for key, value in buckets.items()}),
         MappingProxyType(views),
+        frozenset((fact.operation_key, fact.backend, fact.dialect, fact.consumer) for fact in ordered),
     )
 
 
@@ -1028,6 +1030,25 @@ class CapabilityRegistry:
                 raise ValueError(f"ambiguous policy answer: {answer.fact_key!r} and {classified.fact_key!r}")
             answer = classified
         return answer
+
+    @classmethod
+    def has_policy_candidates(
+        cls,
+        operation_key: Any,
+        backend: CONST_BACKEND,
+        dialect: str | None,
+        *,
+        consumer: PolicyConsumer,
+    ) -> bool:
+        """Whether this exact scope has executable candidates, before call/policy selection.
+
+        Uses ordinary loading and publication; absence is not a support claim.
+        """
+        _require_type(consumer, PolicyConsumer, "consumer")
+        state = cls._acquire_state()
+        if type(backend) is not CONST_BACKEND or dialect is None:
+            return False
+        return (operation_key, backend, dialect, consumer) in state.policy_presence
 
     @classmethod
     def capability_for(

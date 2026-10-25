@@ -8,6 +8,7 @@ from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
 from mountainash.core.capabilities.applicability import unbounded
 from mountainash.core.capabilities.declarations import BoundSegment, CapabilityKey, CapabilitySegment, Domain
 from mountainash.core.capabilities.identity import Dialect, FamilyWide, Scope
+from mountainash.core.capabilities.schema import PolicyConsumer
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK
 
@@ -62,16 +63,23 @@ def _segment(*, family=False, information=(), policies=(), suffix=""):
     )
 
 
-def test_negative_information_does_not_create_a_refusal():
+@pytest.mark.parametrize("family", [False, True])
+def test_negative_information_does_not_create_a_refusal(family):
     CapabilityRegistry.register_segment(
-        _segment(family=True, information=(_information("substring", "Description only"),))
+        _segment(family=family, information=(_information("substring", "Description only"),), suffix=".information")
     )
     assert CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars") is None
+    assert not CapabilityRegistry.has_policy_candidates(
+        FK.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+    )
 
     CapabilityRegistry.register_segment(_segment(policies=(_policy(),)))
     decision = CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, "polars")
     assert decision is not None
     assert decision.level is CapabilityLevel.UNSUPPORTED
+    assert CapabilityRegistry.has_policy_candidates(
+        FK.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+    )
 
     assert CapabilityRegistry.capability_for(FK.CONTAINS, "substring", CONST_BACKEND.POLARS, None) is None
 

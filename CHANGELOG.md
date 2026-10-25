@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — 2026-10-25
+
+### Added
+- Internal exact-scope executable-policy presence query, derived atomically with registry publication and preserved by reset/restore (backlog 372). Information-only records do not activate it; expression gate integration is not included in this batch.
+
 ## Unreleased — 2026-10-22
 
 ### Fixed
