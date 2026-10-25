@@ -73,13 +73,17 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
 
     dag = getattr(relation, "_dag", None)
     if dag is not None:
-        from mountainash.relations.dag.introspection import structural_schema
+        from mountainash.relations.dag.introspection import _name_identity_resolver
+
+        # Names inspect every set input; dtype inference can inspect only the
+        # first. Validate all referenced roots before either traversal.
+        identity_resolver = _name_identity_resolver(dag, relation._node)
 
         def ref_resolver(name):
-            return structural_schema(dag, name)
-
-        def identity_resolver(name):
-            return dag.relations[name]._node
+            return infer_schema(
+                identity_resolver(name), ref_resolver, identity_resolver=identity_resolver,
+                _name_resolver=name_resolver,
+            )
     else:
         ref_resolver = identity_resolver = None
 

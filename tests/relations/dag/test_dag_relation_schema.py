@@ -173,23 +173,33 @@ def test_constraint_cycle_does_not_recurse_or_collect_during_schema_inference(mo
 
 
 def test_dependency_cycle_retains_explicit_cycle_error_during_schema_inference():
-    dag = RelationDAG()
+    dag = _dag()
     dag.add("a", dag.ref("b"))
     dag.add("b", dag.ref("a"))
 
     with pytest.raises(ValueError, match="[Cc]ycle detected"):
         dag.schema("a")
-    for relation in (dag.ref("a"), dag.ref("a").select(ma.lit(1).alias("one"))):
-        with pytest.raises(ValueError, match="[Cc]ycle detected"):
-            _ = relation.columns
+    relations = (
+        dag.ref("a"), dag.ref("a").select(ma.lit(1).alias("one")),
+        ma.concat([dag.ref("raw"), dag.ref("a")]),
+    )
+    for relation in relations:
+        for property_name in ("columns", "schema"):
+            with pytest.raises(ValueError, match="[Cc]ycle detected"):
+                getattr(relation, property_name)
 
 
 def test_missing_dag_binding_retains_explicit_error_during_schema_inference():
-    dag = RelationDAG()
+    dag = _dag()
     missing = dag.ref("missing")
 
     with pytest.raises(KeyError, match="missing"):
         missing.collect_schema()
-    for relation in (missing, missing.select(ma.lit(1).alias("one"))):
-        with pytest.raises(KeyError, match="missing"):
-            _ = relation.columns
+    relations = (
+        missing, missing.select(ma.lit(1).alias("one")),
+        ma.concat([dag.ref("raw"), missing]),
+    )
+    for relation in relations:
+        for property_name in ("columns", "schema"):
+            with pytest.raises(KeyError, match="missing"):
+                getattr(relation, property_name)

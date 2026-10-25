@@ -491,3 +491,101 @@ def test_ibis_row_index_without_supported_dialect_is_unproven(dialect):
     system = _system(B.IBIS, dialect)
     location = _location(B.IBIS, dialect, "DEFERRED", binding="memory" if dialect is None else "bound")
     assert system.infer_row_index_names(("x",), name="ordinal", location=location) is None
+
+
+@pytest.mark.parametrize("backend_name", NAME_BACKENDS)
+def test_complete_names_survive_relational_composition(backend_name, monkeypatch):
+    """Projection, aggregate and set consumers must retain complete name evidence."""
+    source = ma.relation(_source(backend_name, {"x": [1, 2], "v": [2, 4]}, "names_composed"))
+    relation = source.cross_join(source.select(ma.col("v").alias("w")))
+
+    def check(candidate, names):
+        with monkeypatch.context() as guard:
+            _forbid_work(guard)
+            assert candidate.columns == names
+        assert candidate.to_polars().columns == names
+        return candidate
+
+    relation = check(relation.filter(ma.col("x") > 0).sort("x").head(3), ["x", "v", "w"])
+    tail = relation.tail(2)
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert tail.columns == ["x", "v", "w"]
+    if backend_name == "ibis-polars":
+        # Native Ibis-Polars cannot compile the dynamic offset used by tail.
+        with pytest.raises(NotImplementedError):
+            tail.to_polars()
+    else:
+        assert tail.to_polars().columns == ["x", "v", "w"]
+    relation = check(relation.select("w", "x", "v").drop("w"), ["x", "v"])
+    relation = check(relation.rename({"v": "value"}).with_columns(
+        ma.col("value").add(1).alias("next"),
+    ), ["x", "value", "next"])
+    relation = check(relation.group_by("x").agg(ma.col("value").sum().alias("total")), ["x", "total"])
+    relation = check(relation.join(source, on="x"), ["x", "total", "v"])
+    check(relation.join(source, on="x", how="semi"), ["x", "total", "v"])
+    check(relation.join(source, on="x", how="anti"), ["x", "total", "v"])
+    for distinct in (False, True):
+        check(ma.concat([relation, relation], distinct=distinct), ["x", "total", "v"])
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
+@pytest.mark.parametrize("shape", ["row", "set", "aggregate"])
+def test_names_borrow_bound_peer_through_nested_memory_plans(backend_name, shape, monkeypatch):
+    """A memory operand's row layout needs its consuming peer, not a new connection."""
+    import ibis
+
+    memory = ma.relation(ibis.memtable({"x": [1, 2], "value": [3, 4]})).with_row_index(name="ordinal")
+    expected = ["x", "value", "ordinal", "peer"]
+    if shape == "set":
+        memory = ma.concat([memory, memory]).select("x", "value", "ordinal")
+    elif shape == "aggregate":
+        memory = memory.group_by("x").agg(
+            ma.col("value").sum().alias("total"), ma.col("ordinal").max().alias("max_ordinal"),
+        ).with_row_index(name="group_row")
+        expected = ["x", "total", "max_ordinal", "group_row", "peer"]
+    peer = _source(backend_name, {"peer": [9]}, "names_bound_peer")
+    relation = memory.cross_join(peer)
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert relation.columns == expected
+    assert relation.to_polars().columns == expected
+    assert list(relation.schema) == expected
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
+@pytest.mark.parametrize("execute_on", ["left", "right"])
+def test_mixed_names_and_schema_follow_actual_target(backend_name, execute_on, monkeypatch):
+    left = ma.relation(pl.DataFrame({"x": [1], "v": [2]}))
+    right = _source(backend_name, {"x": [3], "w": [4]}, "names_mixed_target")
+    relation = left.join(right, how="cross", suffix="_r", execute_on=execute_on).with_row_index(name="ordinal")
+    expected = (
+        ["ordinal", "x", "v", "x_r", "w"] if execute_on == "left"
+        else ["x", "v", "x_r", "w", "ordinal"]
+    )
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert relation.columns == expected
+    assert list(relation.schema) == expected
+    assert relation.to_polars().columns == expected
+
+
+@pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
+@pytest.mark.parametrize("ibis_left", [False, True])
+def test_mixed_empty_suffix_keeps_right_name_and_original_dtype(backend_name, ibis_left, monkeypatch):
+    from mountainash.relations.schema_inference import infer_schema
+
+    sql = ma.relation(_source(backend_name, {"x": [3], "w": [4]}, "names_mixed_suffix"))
+    local = ma.relation(pl.DataFrame({"x": ["one"], "v": [2]}))
+    left, right = (sql, local) if ibis_left else (local, sql)
+    relation = left.join(right, how="cross", suffix="", execute_on="left" if ibis_left else "right")
+    expected = ["x", "w", "x_right", "v"] if ibis_left else ["x", "v", "x_right", "w"]
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert relation.columns == expected
+    structural = infer_schema(relation._node)
+    assert list(structural) == expected
+    assert structural["x"] is (D.I64 if ibis_left else D.STRING)
+    assert structural["x_right"] is (D.STRING if ibis_left else D.I64)
+    assert list(relation.schema) == expected
+    assert relation.to_polars().columns == expected
