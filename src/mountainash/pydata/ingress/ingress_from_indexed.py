@@ -8,7 +8,7 @@ from mountainash.core.lazy_imports import import_polars
 
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
 from mountainash.core.lowering_reuse import REPEATABLE, declare_lowering
@@ -81,9 +81,9 @@ class DataframeFromIndexedData(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 index_column_names: Optional[Union[str, List[str]]] = None, *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True) -> PolarsFrame:
         """
         Convert indexed data structure to Polars DataFrame.
@@ -94,8 +94,8 @@ class DataframeFromIndexedData(BasePydataIngressHandler):
             index_column_names: Name(s) for index column(s). If not provided:
                 - Single key: 'index'
                 - Composite key: 'index_0', 'index_1', etc.
-            source_spec: Optional source schema for constructor dtype overrides.
-            inline_conform: Whether to apply type_spec after construction.
+            source_table_schema: Optional source schema for constructor dtype overrides.
+            inline_conform: Whether to apply table_schema after construction.
 
         Returns:
             pl.DataFrame: Converted DataFrame with index values as columns
@@ -117,7 +117,7 @@ class DataframeFromIndexedData(BasePydataIngressHandler):
             >>> #         B     | 3     | z
         """
         from .custom_type_helpers import _source_schema_overrides
-        schema_overrides = _source_schema_overrides(source_spec)
+        schema_overrides = _source_schema_overrides(source_table_schema)
         pl = import_polars()
         if pl is None:
             raise ImportError("polars is required for this operation")
@@ -192,9 +192,9 @@ class DataframeFromIndexedData(BasePydataIngressHandler):
         df = pl.DataFrame(all_rows, strict=False, schema_overrides=schema_overrides)
 
         # Apply column transformations if provided
-        if type_spec is not None and inline_conform:
-            import mountainash as ma
-            df = ma.relation(df).conform(type_spec).to_polars()
+        if table_schema is not None and inline_conform:
+            from .custom_type_helpers import apply_hybrid_conversion_to_dataframe
+            df = apply_hybrid_conversion_to_dataframe(df, table_schema)
 
         return df
 declare_lowering(DataframeFromIndexedData.convert.__func__, REPEATABLE)

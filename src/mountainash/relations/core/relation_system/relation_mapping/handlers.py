@@ -208,7 +208,7 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
                 # External descriptor resolvers are callbacks, not a repeatable
                 # source contract inferred from the native reader's output.
                 fold_lowering(visitor, OCCURRENCE)
-        spec = node.resource.to_typespec()
+        spec = node.resource.to_table_schema()
         if spec is not None and node.apply_schema_conform:
             out = visitor.apply_conform(
                 out,

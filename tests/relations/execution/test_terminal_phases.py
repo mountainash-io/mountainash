@@ -134,7 +134,7 @@ def test_source_marker_is_checked_before_projection_drops_it(year, raises, targe
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
     )
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 
     snapshot = CapabilityRegistry.snapshot()
     try:
@@ -162,9 +162,9 @@ def test_source_marker_is_checked_before_projection_drops_it(year, raises, targe
         rel = (
             ma.relation(frame)
             .conform(
-                TypeSpec(
+                TableSchema(
                     fields_match="open",
-                    fields=[FieldSpec(name="year", type=UniversalType.YEAR)],
+                    fields={"year": FieldDefinition(type=UniversalType.YEAR)},
                 )
             )
             .select("id")
@@ -214,7 +214,7 @@ def test_checked_projection_returns_the_checked_source_snapshot():
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
     )
-    from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+    from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 
     snapshot = CapabilityRegistry.snapshot()
     try:
@@ -243,9 +243,9 @@ def test_checked_projection_returns_the_checked_source_snapshot():
         rel = (
             ma.relation(source)
             .conform(
-                TypeSpec(
+                TableSchema(
                     fields_match="open",
-                    fields=[FieldSpec(name="year", type=UniversalType.YEAR)],
+                    fields={"year": FieldDefinition(type=UniversalType.YEAR)},
                 )
             )
             .select("id")

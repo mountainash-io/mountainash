@@ -82,10 +82,10 @@ def test_decimal256_extraction_preserves_native_bitwidth():
     assert dtype.native == NativeDtype(value=native, target=TypeTarget.PYARROW)
 
 
-def test_extraction_of_unparameterised_python_decimal_is_not_decimal_dtype():
-    # A bare decimal.Decimal hint carries no p/s: it must not become a DecimalDtype.
-    with pytest.raises(UnknownDtypeError):
-        registry.from_native(Decimal, TypeTarget.PYTHON)
+def test_unparameterised_python_decimal_does_not_invent_precision_or_scale():
+    from mountainash.core.dtypes import SchemaTypeStatus
+
+    assert registry.from_native(Decimal, TypeTarget.PYTHON) is SchemaTypeStatus.UNKNOWN
 
 
 def test_arrow_decimal_beyond_precision_38_is_preserved_as_native():

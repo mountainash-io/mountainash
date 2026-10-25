@@ -9,23 +9,19 @@ import polars as pl
 import pytest
 
 from mountainash.conform.errors import ConformError
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.datapackage import DataResource, DataPackage
 
-CHILD = TypeSpec(
-    fields=[
-        FieldSpec(name="date", type=UniversalType.STRING),
-        FieldSpec(name="v", type=UniversalType.INTEGER),
-    ],
+CHILD = TableSchema(
+    fields={"date": FieldDefinition(type=UniversalType.STRING),
+        "v": FieldDefinition(type=UniversalType.INTEGER),},
     primary_key=["date", "v"],
     fields_match="open",
 )
-PARENT = TypeSpec(
-    fields=[
-        FieldSpec(name="date", type=UniversalType.STRING),
-        FieldSpec(name="total", type=UniversalType.INTEGER),
-    ],
+PARENT = TableSchema(
+    fields={"date": FieldDefinition(type=UniversalType.STRING),
+        "total": FieldDefinition(type=UniversalType.INTEGER),},
     primary_key=["date"],
     fields_match="open",
 )
@@ -93,9 +89,9 @@ def test_raw_dict_schema_via_from_descriptor():
 
 @pytest.mark.parametrize("mode", ["exact", "equal", "subset", "partial"])
 def test_strict_modes_still_raise_on_empty(mode):
-    spec = TypeSpec(
-        fields=[FieldSpec(name="date", type=UniversalType.STRING),
-                FieldSpec(name="v", type=UniversalType.INTEGER)],
+    spec = TableSchema(
+        fields={"date": FieldDefinition(type=UniversalType.STRING),
+                "v": FieldDefinition(type=UniversalType.INTEGER)},
         primary_key=["date", "v"], fields_match=mode,
     )
     pkg = DataPackage(name="t", resources=[

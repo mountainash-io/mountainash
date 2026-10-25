@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from mountainash.core.dtypes import CastTarget, DtypeError, NativeDtype, parse_cast_target
 from mountainash.core.errors import InvalidOptionValueError
-from mountainash.typespec.spec import FieldSpec
 from mountainash.expressions.core.expression_protocols.api_builders.substrait.prtcl_api_bldr_cast import CaseFailureBehaviour
 
 
@@ -21,19 +21,21 @@ def validate_field_name(method: str, field_name: Any) -> str:
     return field_name
 
 
+def validate_container_dtype(method: str, dtype: Any, container: type) -> CastTarget:
+    """Parse a required complete container target (portable ``container`` or native)."""
+    try:
+        target = parse_cast_target(dtype)
+    except DtypeError as error:
+        invalid(method, "dtype", f"must be a complete {container.__name__}: {error}")
+    if not isinstance(target, (container, NativeDtype)):
+        invalid(method, "dtype", f"must be a complete {container.__name__}")
+    return target
+
+
 def validate_failure_behavior(method: str, value: Any) -> CaseFailureBehaviour:
     if not isinstance(value, CaseFailureBehaviour):
         invalid(method, "failure_behavior", "must be CaseFailureBehaviour")
     return value
-
-
-def validate_fields(method: str, option: str, fields: Any) -> tuple[FieldSpec, ...]:
-    if not isinstance(fields, tuple) or not fields:
-        invalid(method, option, "must be a non-empty tuple of FieldSpec")
-    for index, field in enumerate(fields):
-        if not isinstance(field, FieldSpec):
-            invalid(method, f"{option}[{index}]", "must be FieldSpec")
-    return fields
 
 
 def validate_item_type(method: str, item_type: Any) -> str:

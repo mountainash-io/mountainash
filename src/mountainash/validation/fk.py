@@ -1,7 +1,7 @@
 """build_fk_checks — the single owner of FK check generation (spec §10).
 
 Canonicalises FK declarations from BOTH sources — dag.constraint_metadata
-(the DAG-native field-level store) and spec-supplied TypeSpec.foreign_keys —
+(the DAG-native field-level store) and spec-supplied TableSchema.foreign_keys —
 into one deduplicated set. Invalid or unresolvable declarations become
 CheckSummary(status="error") entries: never raised mid-run, never silently
 skipped (closed-by-default-verification). dependency_edges are never read;
@@ -161,7 +161,7 @@ def build_fk_checks(
     # Spec-declared field names are first-class evidence for declaration
     # validation (they don't depend on DAG schema inference succeeding).
     spec_fields: "dict[str, set[str]]" = {
-        name: {f.name for f in spec.fields}
+        name: set(spec.fields)
         for name, spec in specs.items()
         if getattr(spec, "fields", None)
     }
@@ -183,7 +183,7 @@ def build_fk_checks(
         for fk in fks:
             _add(child, fk)
 
-    # Source 2: spec-supplied TypeSpec.foreign_keys.
+    # Source 2: spec-supplied TableSchema.foreign_keys.
     for child, spec in specs.items():
         for fk in getattr(spec, "foreign_keys", None) or []:
             _add(child, fk)

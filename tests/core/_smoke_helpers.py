@@ -283,8 +283,7 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
         FKEY_SUBSTRAIT_SCALAR_DATETIME,
         SUBSTRAIT_ARITHMETIC_WINDOW,
     )
-    from mountainash.typespec.spec import FieldSpec
-    from mountainash.typespec.universal_types import UniversalType
+    from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
     import polars as pl
 
     c = ma.col("a")
@@ -292,7 +291,7 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
     b = ma.col("e")
     l = c
     r = c
-    item_fields = (FieldSpec(name="id", type=UniversalType.INTEGER),)
+    item_dtype = StructDtype((("id", D.I64),))
 
     return {
         **_init_shared_fkey_builders(),
@@ -323,11 +322,11 @@ def _init_smoke_expr_builders() -> dict[Enum, Any]:
         FKEY_MOUNTAINASH_SCALAR_LIST.TO_ARRAY: lambda: l.list.to_array(width=2),
         FKEY_MOUNTAINASH_SCALAR_LIST.TO_STRUCT: lambda: l.list.to_struct(upper_bound=2),
         FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS: lambda: l.list.cast_items(
-            item_object_fields=item_fields, field_name="a"
+            dtype=ListDtype(item_dtype), field_name="a"
         ),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.FIELD: lambda: r.struct.field("a"),
         FKEY_MOUNTAINASH_SCALAR_STRUCT.CAST: lambda: r.struct.cast(
-            fields=item_fields, field_name="a"
+            dtype=item_dtype, field_name="a"
         ),
         FKEY_MOUNTAINASH_SCALAR_CATEGORICAL.CAST: lambda: c.cat.cast(
             value_type="integer", categories=(1, 2), ordered=True, field_name="a"

@@ -1,22 +1,16 @@
-"""Schema-only structural evidence extracted from supported table carriers."""
+"""Schema-only structural evidence and its generic portable projection.
+
+Concrete carrier inspection is owned by the registered native schema adapters
+(``typespec/native_schema.py``); this module is the shared evidence model and the
+acquisition facade consumers call.
+"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Any
 
-from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, TypeTarget, registry
-from mountainash.core.dtypes.errors import UnknownDtypeError
-
-from mountainash.core.types import (
-    is_ibis_table,
-    is_narwhals_dataframe,
-    is_narwhals_lazyframe,
-    is_pandas_dataframe,
-    is_polars_dataframe,
-    is_polars_lazyframe,
-    is_pyarrow_table,
-)
+from mountainash.core.dtypes import DecimalDtype, MountainashDtype, NativeDtype, TypeTarget
+from mountainash.core.types import detect_schema_carrier
 
 
 
@@ -47,18 +41,11 @@ class SourceShape:
             raise ValueError("struct field names must be unique")
 
 
-def _resolve(native: Any, target: TypeTarget) -> Any:
-    try:
-        return registry.from_native(native, target=target)
-    except UnknownDtypeError:
-        return None
-
-def _shape_from_dtype(dtype: Any) -> SourceShape:
-    """Project the canonical detailed dtype to evidence needed by consumers."""
+def shape_from_dtype(dtype: Any) -> SourceShape:
+    """Project an already-decoded canonical dtype to the evidence consumers need."""
     from mountainash.core.dtypes import (
         ArrayDtype,
         ListDtype,
-        NativeDtype,
         StructDtype,
         dtype_family,
     )
@@ -70,7 +57,7 @@ def _shape_from_dtype(dtype: Any) -> SourceShape:
     family = dtype_family(dtype)
     canonical = family if isinstance(family, MountainashDtype) else None
     if isinstance(dtype, (ListDtype, ArrayDtype)):
-        child = _shape_from_dtype(dtype.element)
+        child = shape_from_dtype(dtype.element)
         if isinstance(dtype, ArrayDtype) and isinstance(dtype.dimensions, tuple):
             for _ in dtype.dimensions[1:]:
                 child = SourceShape(MountainashDtype.LIST, child)
@@ -79,100 +66,53 @@ def _shape_from_dtype(dtype: Any) -> SourceShape:
         fields = (
             ()
             if not isinstance(dtype.fields, tuple)
-            else tuple((name, _shape_from_dtype(child)) for name, child in dtype.fields)
+            else tuple((name, shape_from_dtype(child)) for name, child in dtype.fields)
         )
         return SourceShape(canonical, struct_fields=fields, detailed_dtype=dtype)
-    if isinstance(dtype, NativeDtype):
-        return SourceShape(canonical, detailed_dtype=dtype)
     return SourceShape(canonical, detailed_dtype=dtype)
-    
-
-
-def _from_native_dtype(native: Any, target: TypeTarget) -> SourceShape:
-    """Project detailed metadata while retaining executable native evidence."""
-    shape = _shape_from_dtype(_resolve(native, target))
-    evidence = NativeDtype(value=deepcopy(native), target=target)
-    if target is TypeTarget.PANDAS and (arrow := getattr(native, "pyarrow_dtype", None)) is not None:
-        return replace(_from_native_dtype(arrow, TypeTarget.PYARROW), native_dtype=evidence)
-    if target is TypeTarget.PYARROW and hasattr(native, "nullable"):
-        return replace(_from_native_dtype(native.type, target),
-                       native_dtype=NativeDtype(value=native.type, target=target))
-    if shape.item_shape is not None:
-        inner = getattr(native, "inner", getattr(native, "value_type", None))
-        if inner is not None:
-            shape = replace(shape, item_shape=_from_native_dtype(inner, target))
-    if shape.struct_fields:
-        fields = getattr(native, "fields", None)
-        if fields is None:
-            pairs = ((item.name, item.type) for item in native)
-        elif hasattr(fields, "items"):
-            pairs = fields.items()
-        else:
-            pairs = ((item.name, item.type if target is TypeTarget.PYARROW else item.dtype) for item in fields)
-        shape = replace(shape, struct_fields=tuple(
-            (name, _from_native_dtype(child, target)) for name, child in pairs
-        ))
-    return replace(shape, native_dtype=evidence)
-
-
-def _from_schema(schema: Any, target: TypeTarget) -> dict[str, SourceShape]:
-    return {
-        name: _from_native_dtype(dtype, target)
-        for name, dtype in schema.items()
-    }
-
-
-def _from_polars_schema(schema: Any) -> dict[str, SourceShape]:
-    return _from_schema(schema, TypeTarget.POLARS)
-
-
-def _from_pyarrow_schema(schema: Any) -> dict[str, SourceShape]:
-    return _from_schema(
-        {field.name: field for field in schema}, TypeTarget.PYARROW
-    )
-
-
-def _from_pandas_dtypes(dtypes: Any) -> dict[str, SourceShape]:
-    return _from_schema(dtypes, TypeTarget.PANDAS)
-
-
-def _from_ibis_schema(schema: Any) -> dict[str, SourceShape]:
-    return _from_schema(
-        {name: schema[name] for name in schema.names}, TypeTarget.IBIS
-    )
-
-
-def _from_narwhals_schema(native: Any) -> dict[str, SourceShape]:
-    underlying = native.to_native()
-    if is_pandas_dataframe(underlying):
-        from mountainash.core.lazy_imports import import_narwhals
-        schema = import_narwhals().Schema.from_pandas_like(underlying.dtypes.to_dict())
-        shapes = _from_pandas_dtypes(underlying.dtypes)
-        return {name: replace(shape, native_dtype=NativeDtype(
-            value=deepcopy(schema[name]), target=TypeTarget.NARWHALS,
-        )) for name, shape in shapes.items()}
-    return _from_schema(native.collect_schema(), TypeTarget.NARWHALS)
 
 
 def extract_source_shapes(native: Any, *, target: TypeTarget | None = None) -> dict[str, SourceShape]:
-    """Extract recursive source shapes using schema metadata only."""
-    if target is TypeTarget.NARWHALS and not (is_narwhals_dataframe(native) or is_narwhals_lazyframe(native)):
-        from mountainash.core.lazy_imports import import_narwhals
-        return _from_narwhals_schema(import_narwhals().from_native(native))
-    if is_polars_dataframe(native) or is_polars_lazyframe(native):
-        return _from_polars_schema(native.collect_schema())
-    if is_pyarrow_table(native):
-        return _from_pyarrow_schema(native.schema)
-    if is_pandas_dataframe(native):
-        return _from_pandas_dtypes(native.dtypes)
-    if is_ibis_table(native) and type(native).__name__ == "Table":
-        return _from_ibis_schema(native.schema())
-    if is_narwhals_dataframe(native) or is_narwhals_lazyframe(native):
-        return _from_narwhals_schema(native)
-    raise TypeError(
-        "extract_source_shapes: unsupported schema carrier "
-        f"{type(native).__module__}.{type(native).__qualname__}"
-    )
+    """Extract recursive source shapes using schema metadata only.
+
+    The carrier's schema adapter is selected by central recognition. An
+    execution placement of ``NARWHALS`` selects the Narwhals schema adapter for
+    any carrier it can wrap; the carrier's own representation is not rewritten.
+    """
+    from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+    schema_target = TypeTarget.NARWHALS if target is TypeTarget.NARWHALS else detect_schema_carrier(native)
+    if schema_target is None:
+        raise TypeError(
+            "extract_source_shapes: unsupported schema carrier "
+            f"{type(native).__module__}.{type(native).__qualname__}"
+        )
+    return get_native_schema_adapter(schema_target).extract_schema(native)
 
 
-__all__ = ["SourceShape", "extract_source_shapes"]
+def extract_source_names(native: Any) -> tuple[str, ...] | None:
+    """Complete ordered native names, ``()`` for known zero columns, None if unrecognised.
+
+    Uses the carrier's schema adapter metadata path without type evidence. The
+    selected adapter's exceptions propagate.
+    """
+    from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+    target = detect_schema_carrier(native)
+    if target is None:
+        return None
+    return get_native_schema_adapter(target).extract_names(native)
+
+
+def shape_type_evidence(shape: SourceShape) -> Any:
+    """The detailed type a shape evidences, or UNKNOWN when its decode was unrecognised.
+
+    Nested children are already part of the detailed dtype; the result is the
+    portable/native/UNKNOWN vocabulary of ``ResolvedType``, never a new model.
+    """
+    from mountainash.core.dtypes import SchemaTypeStatus
+
+    return SchemaTypeStatus.UNKNOWN if shape.detailed_dtype is None else shape.detailed_dtype
+
+
+__all__ = ["SourceShape", "extract_source_names", "extract_source_shapes", "shape_from_dtype", "shape_type_evidence"]

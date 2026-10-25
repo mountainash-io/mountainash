@@ -7,7 +7,7 @@ import mountainash as ma
 
 from mountainash.datacontracts.validator import Validator
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
+from mountainash.typespec import FieldDefinition, UniversalType
 from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.result import ValidationResult
@@ -37,23 +37,22 @@ class TestValidatorContractOnly:
 
 
 def test_coerce_false_still_applies_structural_conform():
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     class Contract(BaseDataContract):
-        value: str = Field(str_matches="^.+$")
+        value: str = FieldDefinition(type=UniversalType.STRING, pattern="^.+$")
 
         class Config(BaseDataContract.Config):
             coerce = False
 
-    Contract.__typespec__ = TypeSpec(
-        fields=[
-            FieldSpec(
-                name="value",
+    Contract.__table_schema__ = TableSchema(
+        fields={
+            "value": FieldDefinition(
                 type=UniversalType.INTEGER,
                 rename_from="raw_value",
             )
-        ],
+        },
         fields_match="open",
     )
 
@@ -73,18 +72,18 @@ def test_coerce_false_still_applies_structural_conform():
 )
 @pytest.mark.parametrize("coerce", [True, False])
 def test_validator_conforms_all_fields_match_modes(fields_match, coerce):
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     class Contract(BaseDataContract):
-        value: object = Field()
+        value: object = FieldDefinition(type=UniversalType.ANY)
 
         class Config(BaseDataContract.Config):
             pass
 
     Contract.Config.coerce = coerce
-    Contract.__typespec__ = TypeSpec(
-        fields=[FieldSpec(name="value", type=UniversalType.INTEGER)],
+    Contract.__table_schema__ = TableSchema(
+        fields={"value": FieldDefinition(type=UniversalType.INTEGER)},
         fields_match=fields_match,
     )
     source = {"value": ["1"]}
@@ -199,7 +198,7 @@ class TestValidatorProcessorWiring:
     def test_processor_receives_validator_name(self):
 
         class SimpleContract(BaseDataContract):
-            age: int = Field(ge=0)
+            age: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
 
         validator = Validator(name="test_v", contract=SimpleContract)
         df = pl.DataFrame({"age": [-1, 5, 10]})
@@ -211,7 +210,7 @@ class TestValidatorProcessorWiring:
     def test_processor_receives_natural_key(self):
 
         class SimpleContract(BaseDataContract):
-            age: int = Field(ge=0)
+            age: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
 
         validator = Validator(
             name="test_v", contract=SimpleContract, natural_key=["age"],
@@ -224,7 +223,7 @@ class TestValidatorProcessorWiring:
     def test_processor_receives_source_data(self):
 
         class SimpleContract(BaseDataContract):
-            age: int = Field(ge=0)
+            age: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
 
         validator = Validator(name="test_v", contract=SimpleContract)
         df = pl.DataFrame({"age": [-1, 5, 10]})
@@ -236,7 +235,7 @@ class TestValidatorProcessorWiring:
     def test_processor_source_data_reflects_head_slice(self):
 
         class SimpleContract(BaseDataContract):
-            age: int = Field(ge=0)
+            age: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
 
         validator = Validator(name="test_v", contract=SimpleContract)
         df = pl.DataFrame({"age": [-1, -2, -3, -4, -5]})
@@ -248,16 +247,12 @@ class TestSeededSlice:
     """Seeded validation slices stay on backend and avoid vacuous passes."""
 
     def _contract(self):
-        from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+        from mountainash.typespec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import parse_universal
 
-        spec = TypeSpec(fields=[
-            FieldSpec(
-                name="a",
-                type=parse_universal("integer"),
-                constraints=FieldConstraints(minimum=0),
-            ),
-        ])
+        spec = TableSchema(fields={
+            "a": FieldDefinition(type=parse_universal("integer"), minimum=0),
+        })
         return spec.to_contract(name="seeded_slice")
 
     @pytest.mark.parametrize("backend", ["polars", "pandas"])
@@ -299,7 +294,7 @@ class TestSeededSlice:
     @pytest.mark.parametrize("method", ["validate_datacontract", "validate_datacontract_quick"])
     def test_unseeded_sample_and_processor_share_one_source_read(self, method):
         import ibis
-        from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
+        from mountainash.typespec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import parse_universal
 
         reads = []
@@ -308,9 +303,8 @@ class TestSeededSlice:
             reads.append(len(reads) + 1)
             return -reads[-1]
 
-        contract = TypeSpec(
-            fields=[FieldSpec(name="a", type=parse_universal("integer"),
-                              constraints=FieldConstraints(minimum=0))],
+        contract = TableSchema(
+            fields={"a": FieldDefinition(type=parse_universal("integer"), minimum=0)},
             primary_key=["a"],
         ).to_contract(name="sample_source")
         con = ibis.duckdb.connect()
@@ -331,13 +325,12 @@ class TestSeededSlice:
 # --- Declaration ownership (item 137) ---------------------------------------
 
 from fixtures.backend_registry import ALL_BACKENDS  # noqa: E402
-from mountainash.typespec.spec import FieldSpec, TypeSpec  # noqa: E402
-from mountainash.typespec.universal_types import UniversalType  # noqa: E402
+from mountainash.typespec import FieldDefinition, TableSchema, UniversalType  # noqa: E402
 from mountainash.validation.checks import RowRule  # noqa: E402
 
 
 def _int_spec(type_=UniversalType.INTEGER):
-    return TypeSpec(fields=[FieldSpec(name="value", type=type_)])
+    return TableSchema(fields={"value": FieldDefinition(type=type_)})
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -350,7 +343,7 @@ def test_validator_owns_custom_check_sequence(backend_name, backend_factory):
 
     class Contract(BaseDataContract):
         @classmethod
-        def to_typespec(cls):
+        def to_table_schema(cls):
             return spec
 
         @classmethod
@@ -374,7 +367,7 @@ def test_validator_honours_hook_that_removes_reorders_and_appends(
     backend_name, backend_factory
 ):
     class Contract(BaseDataContract):
-        value: int = Field(ge=0)
+        value: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
 
         @classmethod
         def to_checks(cls):
@@ -405,7 +398,7 @@ def test_prepare_cannot_change_acquired_schema(backend_name, backend_factory):
 
     class Contract(BaseDataContract):
         @classmethod
-        def to_typespec(cls):
+        def to_table_schema(cls):
             return spec
 
         @classmethod
@@ -413,14 +406,14 @@ def test_prepare_cannot_change_acquired_schema(backend_name, backend_factory):
             return [RowRule(id="is_seven", expr=ma.col("value").eq(7))]
 
     def prepare(data):
-        spec.fields[0].type = UniversalType.STRING
+        object.__setattr__(spec.fields["value"], "type", UniversalType.STRING)
         return data
 
     data = backend_factory.create({"value": ["7"]}, backend_name)
     old = Validator(name="old", contract=Contract, prepare=prepare)
     assert old.validate(data, row_identity="none").passes
     # the edit made during prepare reaches only a newly built consumer
-    assert spec.fields[0].type == UniversalType.STRING
+    assert spec.fields["value"].type == UniversalType.STRING
     assert old.validate(data, row_identity="none").passes
 
 
@@ -435,7 +428,7 @@ def test_config_coerce_edit_does_not_reach_existing_validator(
             coerce = True
 
         @classmethod
-        def to_typespec(cls):
+        def to_table_schema(cls):
             return spec
 
     old = Validator(name="old", contract=Contract)
@@ -448,7 +441,7 @@ def test_config_coerce_edit_does_not_reach_existing_validator(
 
 def test_config_name_edit_reaches_only_new_validator():
     class Contract(BaseDataContract):
-        value: int
+        value: int = FieldDefinition(type=UniversalType.INTEGER)
 
         class Config(BaseDataContract.Config):
             name = "first"
@@ -463,8 +456,8 @@ def test_config_name_edit_reaches_only_new_validator():
 
 def test_natural_key_edits_reach_only_new_validators():
     class Contract(BaseDataContract):
-        id: int
-        other: int
+        id: int = FieldDefinition(type=UniversalType.INTEGER)
+        other: int = FieldDefinition(type=UniversalType.INTEGER)
 
         class Config(BaseDataContract.Config):
             natural_key = ["id"]
@@ -492,7 +485,7 @@ def test_contextual_threshold_stays_per_call():
             return data
 
     class Contract(BaseDataContract):
-        value: int
+        value: int = FieldDefinition(type=UniversalType.INTEGER)
 
     validator = Validator(name="ctx", contract=Contract, prepare=NoCopy())
     assert validator.validate(pl.DataFrame({"value": [1]}), context={"t": 10}).passes
@@ -505,7 +498,7 @@ def test_duplicate_check_id_surfaces_before_prepare_runs():
     calls: list[str] = []
 
     class Contract(BaseDataContract):
-        value: int
+        value: int = FieldDefinition(type=UniversalType.INTEGER)
 
         @classmethod
         def to_checks(cls):

@@ -10,7 +10,9 @@ from __future__ import annotations
 import narwhals as nw
 import pytest
 
-from mountainash.core.dtypes import target_narwhals
+from mountainash.core.dtypes.target_narwhals import NarwhalsTypeAdapter
+
+NARWHALS = NarwhalsTypeAdapter()
 
 
 class TestGuardAdaptedNotCopied:
@@ -22,7 +24,7 @@ class TestGuardAdaptedNotCopied:
     def test_bare_name_guard_is_isinstance_type(self):
         """DTypeClass instances (nw.Int64 etc.) ARE types; a passing
         bare-name parse proves the guard was adapted, not copy-pasted."""
-        assert target_narwhals.parse_type_string("Int64") is nw.Int64
+        assert NARWHALS.parse_type_string("Int64") is nw.Int64
 
     def test_namespace_classes_present_at_pinned_floor(self):
         """Floor verification (spec §2.3 / plan Task 13, 2026-08-17): the four
@@ -48,22 +50,22 @@ class TestParameterizedRoundTrip:
         ("List(Int64)", nw.List(nw.Int64)),
     ])
     def test_parameterized_repr_round_trips(self, s, expected):
-        assert target_narwhals.parse_type_string(s) == expected
+        assert NARWHALS.parse_type_string(s) == expected
 
     def test_array_with_bare_name_arg_and_shape_tuple(self):
         """Critical-finding case (bare-Name arg + tuple-of-Constant kwarg)."""
-        result = target_narwhals.parse_type_string("Array(Int64, shape=(5,))")
+        result = NARWHALS.parse_type_string("Array(Int64, shape=(5,))")
         assert result == nw.Array(nw.Int64, shape=(5,))
 
     def test_enum_categories(self):
-        result = target_narwhals.parse_type_string("Enum(categories=['a', 'b'])")
+        result = NARWHALS.parse_type_string("Enum(categories=['a', 'b'])")
         assert result == nw.Enum(categories=["a", "b"])
 
 
 class TestBareNamesUnchanged:
     def test_bare_names_still_resolve(self):
-        assert target_narwhals.parse_type_string("Int32") is nw.Int32
-        assert target_narwhals.parse_type_string("String") is nw.String
+        assert NARWHALS.parse_type_string("Int32") is nw.Int32
+        assert NARWHALS.parse_type_string("String") is nw.String
 
 
 class TestGarbageRejected:
@@ -73,4 +75,4 @@ class TestGarbageRejected:
         "NotARealDtype",
     ])
     def test_unparseable_returns_none(self, s):
-        assert target_narwhals.parse_type_string(s) is None
+        assert NARWHALS.parse_type_string(s) is None

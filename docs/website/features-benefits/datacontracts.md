@@ -15,9 +15,9 @@ One contract, compiled once from the schema, runs on any backend the relation AP
 ```python
 import mountainash as ma
 
-spec = ma.typespec({"id": "integer", "amount": "number", "region": "string"})
+schema = ma.table_schema({"id": "integer", "amount": "number", "region": "string"})
 
-Contract = ma.datacontract(spec)
+Contract = ma.datacontract(schema)
 Contract.validate(df)    # works on Polars, pandas (via Narwhals), or Ibis tables
 ```
 
@@ -53,17 +53,17 @@ class Order(BaseModel):                                   # pydantic
 
 ```python
 # With mountainash: one contract
-spec = ma.typespec({
+schema = ma.table_schema({
     "id":     {"type": "integer", "constraints": {"required": True}},
     "amount": "number",
     "region": {"type": "string",  "constraints": {"enum": ["E", "W", "N", "S"]}},
 })
 
-Contract = ma.datacontract(spec)
+Contract = ma.datacontract(schema)
 Contract.validate(df)
 ```
 
-The TypeSpec is the contract. The contract validates on any backend. The same TypeSpec also drives [conformance](typespec-conform.md), can be emitted as a Frictionless `datapackage.json` descriptor (which the warehouse team can consume), and can be derived from pandera, Pydantic, or Frictionless JSON when one of those already exists.
+The TableSchema is the contract. The contract validates on any backend. The same TableSchema also drives [conformance](typespec-conform.md), can be emitted as a Frictionless `datapackage.json` descriptor (which the warehouse team can consume), and can be derived from Pydantic or Frictionless JSON when one of those already exists.
 
 ## What mountainash accepts as input
 
@@ -71,11 +71,10 @@ Existing schemas don't have to be discarded:
 
 | Source already in the project | Use it directly |
 |-------------------------------|-----------------|
-| A pandera `DataFrameModel` subclass | `ma.datacontract(MyModel)` |
 | A Pydantic `BaseModel` subclass | `ma.datacontract(MyModel)` |
 | A Frictionless `schema.json` file | `ma.datacontract("schema.json")` |
 | A plain dict (simple or Frictionless) | `ma.datacontract({"id": "integer", ...})` |
-| A `TypeSpec` | `ma.datacontract(spec)` |
+| A `TableSchema` | `ma.datacontract(schema)` |
 
 This makes the migration path incremental. Lift the existing schema in, get cross-backend validation today, refactor the schema source on whatever timeline makes sense.
 
@@ -84,7 +83,7 @@ This makes the migration path incremental. Lift the existing schema in, get cros
 Constraints in the schema cover the common cases (`required`, `unique`, `enum`, `min`, `max`, `pattern`). For business rules that don't fit constraint shapes, subclass:
 
 ```python
-class OrdersContract(ma.datacontract(spec)):
+class OrdersContract(ma.datacontract(schema)):
     @classmethod
     def rules(cls):
         return [
@@ -114,4 +113,4 @@ What we're offering is a library-level alternative: a schema and a contract obje
 ## Related
 
 - Technical: [Data contracts](../features-technical/datacontracts.md)
-- Comparison: [TypeSpec and conformance](typespec-conform.md)
+- Comparison: [Shared schemas and conformance](typespec-conform.md)

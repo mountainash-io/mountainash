@@ -291,21 +291,21 @@ class Relation(RelationBase):
         contract: Optional[Union[str, Mapping[str, str]]] = None,
         apply_value_transforms: bool = True,
     ) -> Relation:
-        """Conform the relation to a TypeSpec.
+        """Conform the relation to a TableSchema.
 
-        Stores the TypeSpec as a ConformRelNode in the plan tree. The actual
+        Stores the TableSchema as a ConformRelNode in the plan tree. The actual
         transformation (missingValues, type casting, fieldsMatch enforcement)
         happens at compile time when column information is available.
 
         Args:
-            spec: A TypeSpec describing the target schema. Set
+            spec: A TableSchema describing the target schema. Set
                 ``fields_match`` to control overflow/underflow behavior:
                 ``"exact"`` (the default when unset) requires the output
                 columns to match the spec exactly; ``"open"`` keeps unmapped
                 columns; ``"partial"`` drops them; stricter modes enforce
                 column presence.
             contract: Optional reconciliation-contract override, layered on
-                top of any ``TypeSpec.contract`` and the ``fields_match``
+                top of any ``TableSchema.contract`` and the ``fields_match``
                 preset (highest precedence). A scalar string (e.g.
                 ``"freeze"``) applies to the extension dimensions
                 (``data_type``, ``keys``) only; a dict maps dimension name ->
@@ -1144,8 +1144,8 @@ class Relation(RelationBase):
 
         Args:
             cls: The dataclass type to instantiate for each row.
-            spec: Optional TypeSpec for schema-aware transformations.
-            auto_derive_schema: Auto-derive TypeSpec from the dataclass if
+            spec: Optional TableSchema for schema-aware transformations.
+            auto_derive_schema: Auto-derive TableSchema from the dataclass if
                 no *spec* is provided (default ``True``).
             apply_defaults: Whether to apply dataclass field defaults.
 
@@ -1172,8 +1172,8 @@ class Relation(RelationBase):
 
         Args:
             cls: The Pydantic model class to instantiate for each row.
-            spec: Optional TypeSpec for schema-aware transformations.
-            auto_derive_schema: Auto-derive TypeSpec from the model if
+            spec: Optional TableSchema for schema-aware transformations.
+            auto_derive_schema: Auto-derive TableSchema from the model if
                 no *spec* is provided (default ``True``).
 
         Returns:
@@ -1268,8 +1268,13 @@ class Relation(RelationBase):
         """Return proven output names, using native inference only when needed."""
         from mountainash.relations.schema_inference import _aggregate_input_names
         from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+        identity_resolver = None
+        if getattr(self, "_dag", None) is not None:
+            from mountainash.relations.dag.introspection import _name_identity_resolver
+
+            identity_resolver = _name_identity_resolver(self._dag, self._node)
         try:
-            names = _aggregate_input_names(self._node)
+            names = _aggregate_input_names(self._node, identity_resolver=identity_resolver)
         except IncompleteProjectionSchemaError:
             names = None
         return list(names) if names is not None else list(self.schema)

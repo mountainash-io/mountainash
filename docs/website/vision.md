@@ -67,7 +67,7 @@ The vision above is multi-year. What works in the alpha:
 - Polars-shaped expression API across Polars / Narwhals / Ibis
 - Relational pipelines (filter, sort, join, group_by, conform, …) cross-backend
 - Frictionless DataPackage → RelationDAG round-trip
-- Data contracts compiled from TypeSpec / dict / pandera / Pydantic / Frictionless JSON
+- Data contracts compiled from TableSchema / dict / Pydantic / Frictionless JSON
 - Pipeline framework with typed `ParamSpec` parameter binding
 - Ternary (TRUE/UNKNOWN/FALSE) logic with automatic booleanization
 

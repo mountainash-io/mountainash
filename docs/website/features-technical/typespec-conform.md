@@ -1,15 +1,15 @@
-# TypeSpec and conformance
+# Shared schemas and conformance
 
-A schema is a contract about shape. `TypeSpec` represents that contract, and `conform()` applies its casts, renames, null handling and missing-field policies. Portable declarations serialize to Frictionless descriptors; backend-native dtype objects are supported only in memory.
+A `TableSchema` describes a table using shared `FieldDefinition` values. Conformance interprets their conversion instructions; data contracts compile their constraints into checks. Frictionless interchange is a separate codec boundary, not the definition of the Python object layout.
 
-## TypeSpec
+## TableSchema
 
-`TypeSpec` is a flat, Frictionless-aligned type specification:
+Use the simple constructor for broad type declarations:
 
 ```python
 import mountainash as ma
 
-spec = ma.typespec({
+spec = ma.table_schema({
     "id":     "integer",
     "name":   "string",
     "amount": "number",
@@ -17,29 +17,42 @@ spec = ma.typespec({
 })
 ```
 
-Under the hood this is a Pydantic model with a list of `FieldSpec` entries — name, type, format, constraints, foreign keys, custom metadata. The structure matches Frictionless Table Schema, which means you can load and emit `datapackage.json` and `schema.json` files byte-equivalent.
+`TableSchema.fields` is an insertion-ordered mapping of local names to unnamed, immutable `FieldDefinition` objects. The schema owns a copy of that mapping; operations capture stable snapshots. Raw DataPackage descriptor storage retains its separate lossless contract; a typed schema round-trip is not a claim of byte-identical serialization.
 
-### What's in a `FieldSpec`
+### What's in a `FieldDefinition`
 
-- `name` and `type` (Frictionless type names: `string`, `integer`, `number`, `boolean`, `date`, `time`, `datetime`, `array`, `object`, `geojson`, …)
+- Broad `type` semantics and optional precise `dtype`
 - `format`, `description`, `title`, `example`
 - `constraints`: required, unique, min, max, pattern, enum
-- `foreign_key`: cross-table reference (drives the DAG's constraint edges)
+- Recursive `fields`, `element` and fixed-array `dimensions`; table keys and foreign keys belong to `TableSchema`
 - `enum_weights`: for weighted enums (used by synthetic-data generators)
 - Custom types via `CustomTypeRegistry` for semantic types your domain cares about
 
-`TypeSpec` and `FieldSpec` are deliberately **structurally Frictionless** — flat fields matching the Frictionless layout, not nested custom submodels. If Frictionless gains a property, we add it as a peer field. If we add a property they don't have, it's clearly namespaced.
+Definitions retain the useful flat metadata and conversion properties. Standard Frictionless properties keep their standard wire locations; Mountainash extensions are namespaced by the codec. Python composition does not require a second, independently authored dtype tree.
+
+```python
+quantity = ma.FieldDefinition(dtype=ma.MountainashDtype.I64, minimum=0, maximum=100)
+shipment_quantity = quantity.variant(rename_from="qty", maximum=200)
+spec = ma.TableSchema(fields={
+    "ordered": quantity,
+    "shipped": shipment_quantity,
+})
+record = ma.FieldDefinition(fields={"quantity": quantity})
+records = ma.FieldDefinition(element=record)
+```
+
+Each variant is an independent declaration. Its local source binding and changed maximum do not alter `quantity`. Names come from mappings or data-contract members, not from the definition.
 
 ### Precise dtype declarations
 
 Use a canonical dtype when a broad Frictionless type such as `integer` is insufficient:
 
 ```python
-from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 
-short = FieldSpec(name="id", dtype=ma.MountainashDtype.I8)
-explicit = FieldSpec(name="id", type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I8)
-spec = TypeSpec(fields=[short])
+short = FieldDefinition(dtype=ma.MountainashDtype.I8)
+explicit = FieldDefinition(type=UniversalType.INTEGER, dtype=ma.MountainashDtype.I8)
+spec = TableSchema(fields={"id": short})
 ```
 
 Both forms declare an 8-bit signed integer. Broad-only declarations keep their existing behavior. An incompatible pair, such as `STRING` with `I8`, raises `InvalidDtypeDeclaration`.
@@ -57,7 +70,7 @@ Decimal declarations retain their `kind: "decimal"` precision/scale encoding. Dt
 ### Parameterized targets
 
 The existing descriptors in `mountainash.core.dtypes` can be used in `ma.lit`,
-both cast builders, and `FieldSpec.dtype`: `TimestampDtype`, `TimeDtype`,
+both cast builders, and `FieldDefinition.dtype`: `TimestampDtype`, `TimeDtype`,
 `DurationDtype`, `ListDtype`, `ArrayDtype`, `StructDtype`, and `DecimalDtype`.
 Nested fields retain their order, child types and fixed-array dimensions.
 
@@ -69,7 +82,7 @@ record = StructDtype((
     ("at", at),
     ("values", ListDtype(ma.MountainashDtype.I16)),
 ))
-spec = TypeSpec(fields=[FieldSpec("record", dtype=record)])
+spec = TableSchema(fields={"record": FieldDefinition(dtype=record)})
 padding = ma.lit(None, dtype=at)
 converted = ma.col("at").cast(at)
 ```
@@ -86,12 +99,12 @@ are not interchangeable:
   literal target uses ordinary inference. UNCONSTRAINED remains a schema status,
   not a native construction target.
 
-Portable descriptors persist recursively under `x-mountainash.dtype`. Unknown
-parameters are omitted; meaningful `None` values are retained. Native refinements
-remain in-memory only. During the legacy-authoring transition, known parent dtype
-parameters take precedence over conflicting `object_fields`/`item_object_fields`
-types; compatible legacy information can fill UNKNOWN parameters. Child metadata
-is matched by name, and explicit native overrides remain authoritative.
+Portable type-only descriptors persist recursively under `x-mountainash.dtype`.
+Composed definitions use `fields` and `element` declarations rather than a
+duplicate parent dtype tree. Unknown parameters and meaningful `None` values
+remain distinct. Native refinements are in-memory only. Retired
+`object_fields`/`item_object_fields` declarations are not an alternate normal
+authoring mode; persisted legacy conversion is an explicit migration boundary.
 
 Native type construction does not prove execution support. Item 340 is still in
 qualification; the following boundaries are not a blanket backend support claim.
@@ -122,8 +135,8 @@ native storage, parsing or export.
 ```python
 import polars as pl
 
-field = FieldSpec(name="id", dtype=ma.MountainashDtype.I8, backend_type="Int64")
-timestamp = FieldSpec(name="at", backend_type=pl.Datetime("ns", "UTC"))
+field = FieldDefinition(dtype=ma.MountainashDtype.I8, backend_type="Int64")
+timestamp = FieldDefinition(backend_type=pl.Datetime("ns", "UTC"))
 ```
 
 The first field produces Int64 on Polars and emits a `UserWarning` because its canonical declaration is I8. Overrides also warn when equivalence cannot be verified, including parameterized temporal and semantic carriers. Proven equivalent representations do not warn. Invalid strings and objects belonging to a different target raise; they do not fall back to the canonical declaration.
@@ -134,16 +147,106 @@ Schema inspection uses native metadata first and retains detailed dtype paramete
 
 Bare canonical timestamp/duration casts and source-bearing conform preserve compatible source precision, units and timezone where the destination supports them. Typed empty/all-null columns still carry source metadata; temporal null fills do not lower the source's precision. Without temporal source metadata, existing backend defaults apply; explicit targets remain authoritative. Destination-imposed precision loss is ordinary conversion behavior, not a reason to reduce every backend to a common precision. For example, DuckDB's aware timestamp ingestion converts `1001 ns` to `1000 ns`; that destination-specific result is tested as passing, while capable paths retain all digits. Native conversion errors remain errors.
 
-## Sources
+Whole-container overrides govern execution as well as schema construction.
+An authored Int8 child under an effective Int64 struct target preserves `128`;
+its `null_fill=129` also uses Int64. Unchanged target members retain their order,
+null parents remain null, and the original child definition stays Int8.
 
-`TypeSpec.from_*` and `ma.typespec(...)` accept many inputs:
+JSON-restored declarations use the same conformance path as authored schemas.
+Coercing datacontracts validate the converted nested values, including child
+fills; non-coercing contracts retain source values while still applying structural
+aliases. This also applies to opaque pandas containers resolved at the logical
+materialization boundary.
+Unsigned JSON integer members are prepared using the selected unsigned target
+before Arrow container inference, including when a sibling's timestamp parameters
+remain partial. This preserves UInt64 values and fills without an intermediate
+signed-Int64 conversion; final casts retain native semantics.
+
+JSON stores supported native override strings, not native library dtype objects.
+Those strings belong to the selected adapter: for example, `List(Int64)` on
+Polars/Narwhals and `array<int64>` on Ibis. They are not a portable interchange
+syntax; use composed `FieldDefinition` declarations for portable structure.
+
+Direct expression casts accept the resolved physical target, not field
+declarations:
 
 ```python
-ma.typespec({"id": "integer", "name": "string"})    # simple dict
-TypeSpec.from_dataframe(df)                          # extract from a DataFrame
-TypeSpec.from_dataclass(MyClass)                     # extract from a dataclass
-TypeSpec.from_pydantic(MyModel)                      # extract from a Pydantic model
-TypeSpec.from_frictionless("schema.json")            # load a Frictionless schema
+from mountainash.core.dtypes import ListDtype, StructDtype
+
+record = ma.col("record").struct.cast(
+    dtype=StructDtype((("id", ma.MountainashDtype.I64),)),
+    field_name="record",
+)
+items = ma.col("items").list.cast_items(
+    dtype=ListDtype(ma.MountainashDtype.I64),
+    field_name="items",
+)
+```
+
+For an already compiled child expression, pass
+`converted_fields=(("id", expression),)` to `struct.cast`; no children means
+cast the original struct directly. Parsing, missing-value and fill instructions
+remain in `FieldDefinition` and conformance. Do not combine a parent `dtype`
+with `fields` or `element`: those are alternative structural declarations.
+
+Explicit numeric casts retain the selected backend's native conversion semantics.
+Boundary tests expose overflow and wrapping limitations; they do not install
+runtime guards into otherwise-valid casts. Mountainash must preserve values
+through its own implicit preparation—for example, an effective Float64 target
+must not first narrow through an authored Float32 child.
+
+Native Float32 narrowing can turn finite `1e100` into infinity, and some pandas
+integer casts can wrap out-of-range values. These are known numerical limitations,
+not correct results or universal checked-cast guarantees. Narwhals list processing
+remains under 312/NW-LIST-05 and 319. Existing pandas typed nested-null literal
+broadcast remains 342; it is not a reason to introduce such literals into general
+casts that previously worked. DuckDB cannot represent a zero-member `STRUCT()`;
+Polars and Narwhals over Polars preserve empty structs versus null parents.
+No provider switching or Python traversal is used to hide these limitations.
+
+### Native schema boundaries
+
+Registered schema adapters acquire ordered `SourceShape` evidence and construct
+native schemas from the original `TableSchema` plus operation-local resolved
+types. Shared resolution owns declaration precedence and parameter inheritance;
+adapters own native construction. Extraction translates that evidence into new
+definitions rather than maintaining a second carrier-specific conversion ladder.
+
+Native-preserving Arrow extraction retains nested field metadata and nullability
+for re-encoding. Portable extraction does not turn observed non-nullability into
+a `required` constraint. Pandas ordered categorical native types and Polars
+multidimensional fixed-array shapes retain their native representations.
+
+Wrapped Arrow-backed pandas and Narwhals carriers retain underlying time
+precision even when the Narwhals dtype cannot express it. An unspecified
+`TimeDtype()` over `time64[us]` resolves to precision 6 without mutating the
+authored UNKNOWN precision. Conforming already-compatible values does not
+introduce a redundant unsupported Time cast. Metadata comparison does not
+construct the observed native type: unavailable evidence remains unknown, and
+known precision 6 does not satisfy an explicit precision-9 check.
+
+Physical relation description belongs to the selected relation system through
+`describe_output_schema`; both native-source and compiled-result paths use that
+boundary. Ibis dialect-specific inspection is private to its backend. DuckDB
+native and compiled Decimal/timestamp metadata have execution evidence;
+PostgreSQL service execution remains unverified without the live-harness
+configuration. Generic logical inference does not execute rows to fill unknown
+schema information.
+
+
+## Sources
+
+`TableSchema.from_*` and `ma.table_schema(...)` cover the existing authoring routes:
+
+```python
+ma.table_schema({"id": "integer", "name": "string"})  # simple dict
+from mountainash.typespec.extraction import (
+    extract_from_dataframe, extract_from_dataclass, extract_from_pydantic,
+)
+extract_from_dataframe(df)                          # native schema evidence
+extract_from_dataclass(MyClass)                     # dataclass annotations
+extract_from_pydantic(MyModel)                       # supported model metadata
+TableSchema.from_frictionless(descriptor)            # decode a resolved schema dict
 ```
 
 Going the other way:
@@ -153,6 +256,55 @@ spec.to_dict()                                       # plain dict
 spec.to_frictionless()                               # Frictionless dict
 ```
 
+### Typed interchange and raw resources
+
+The Frictionless codec reads and writes recursive `fields` and unnamed `element`
+definitions. Standard constraints retain their standard wire locations;
+additional Mountainash requirements use `x-mountainash`. Decimal and temporal
+requirements survive actual JSON text round-trips using the field's declared
+meaning. Conversion literals retain the lexical form where the existing parser
+consumes it.
+
+```python
+import json
+
+descriptor = json.loads(json.dumps(spec.to_frictionless()))
+restored = TableSchema.from_frictionless(descriptor)
+checks = restored.to_contract()
+```
+
+The packaged recursive grammar checks declaration structure; duplicate sibling
+names are rejected before constructing a mapping. Native objects cannot be
+persisted, including in nested definitions. Native strings remain serializable.
+Retired `object_fields` and `item_object_fields` require the explicit
+`mountainash.typespec.frictionless.migrate_nested_field_declarations` function.
+It returns a new descriptor without changing its input; ordinary reads do not
+silently migrate old declarations.
+
+`DataResource.table_schema` retains raw descriptor/reference storage.
+`DataResource.to_table_schema()` performs typed access without replacing that
+raw value. Reference resolution belongs to the resource boundary, not the
+typed codec. Typed structural errors retain their nested descriptor location,
+including when reached through a referenced schema.
+
+### Shared contract checks
+
+`TableSchema.to_contract()` and class-based data contracts compile the same
+`FieldDefinition` requirements through the existing validation rules and runner.
+Generated-contract subclasses can replace or add fields without losing the
+generated base schema.
+
+Nested checks use each definition's own severity, or the system default—not
+the enclosing definition's severity. Failures identify literal member names
+and element indices using JSON Pointer paths. Multiple duplicate locations
+can produce multiple diagnostics while counting one failed source row.
+
+An element's `unique=True` applies within each collection: `[[1, 2], [1, 3]]`
+passes, while `[[1, 1], [1, 2]]` fails for the first collection. A member is
+unique across its containing records; records inside a collection use that
+collection's domain. Uniqueness on the collection definition itself compares
+whole cells across table rows. Existing null-skipping and equality rules apply.
+
 ## Conformance
 
 `conform(spec)` is a relation method:
@@ -161,15 +313,15 @@ spec.to_frictionless()                               # Frictionless dict
 ma.relation(df).conform(spec).to_polars()
 ```
 
-Building the relation does not read data. It adds a deferred `ConformRelNode`; at execution the backend derives its operations from the TypeSpec fields:
+Building the relation does not read data. It adds a deferred `ConformRelNode`; at execution the existing backend interprets the captured definitions and reconciliation policy:
 
-- **Missing column?** Add it as `null` (or as `spec.field.constraints.default` if set).
-- **Type mismatch?** Cast to the spec'd type.
-- **Extra columns?** By default, drop them. Configurable.
-- **Renames?** If a field has `aliases`, normalise to the canonical name.
-- **Null handling?** If a field has `null_fill`, fill with it.
+- **Missing column?** The `missing_columns` policy determines rejection, omission or a typed null. A present-field `null_fill` does not authorize inserting an absent column.
+- **Type mismatch?** Apply the configured conversion/failure policy.
+- **Extra columns?** The `extra_columns` policy determines retention, removal or rejection; an explicit policy overrides the schema preset.
+- **Renames?** `rename_from` selects the unchanged source column. Mapping keys supply output names.
+- **Null handling?** Select the fill using original missingness, not a failed conversion's null result.
 
-The result is a frame whose schema matches the spec, ready for downstream work.
+Conformance does not certify that field constraints pass. Run the contract checks when validation is required.
 
 ### The relation owns its declaration
 
@@ -177,7 +329,7 @@ The result is a frame whose schema matches the spec, ready for downstream work.
 
 ```python
 old = ma.relation(df).conform(spec)
-spec.fields[0].type = UniversalType.STRING
+spec.fields["id"] = FieldDefinition(type=UniversalType.STRING)
 new = ma.relation(df).conform(spec)   # uses the edited declaration
 # `old` still conforms to the original type, on every execution
 ```
@@ -200,7 +352,7 @@ df = df[["id", "name", "amount", "ts", "region"]]
 
 ### Cross-backend
 
-`conform()` selects the source's execution backend. Schema conversion is separate from runtime capability: Polars, pandas, Arrow and Ibis have schema converters, while Narwhals uses the existing runtime registry. Null-on-failure casts remain unsupported on Narwhals-routed identities and Ibis-SQLite; decimal limits are listed below. NumPy-backed pandas float/NaN to integer conversion still fails through Narwhals (backlog 252). This pre-existing limitation remains separately tracked and is not repaired by canonical declarations. Ibis also requires compatible types when `null_fill` coalesces values.
+`conform()` selects the source's execution backend. Schema conversion is separate from runtime capability: native schema adapters own representation conversion, while conformance retains the existing expression and relation systems. Null-on-failure casts remain unsupported on Narwhals-routed identities and Ibis-SQLite; decimal limits are listed below. NumPy-backed pandas float/NaN to integer conversion still fails through Narwhals (backlog 252). That existing limitation is not permission to regress previously supported fill operations.
 
 ### Structured (`array`/`object`) fields
 
@@ -229,6 +381,14 @@ closed on.
 uniqueness, and foreign-key checks compare decoded logical values, never raw
 transported text — whitespace and object-key order never change the outcome.
 
+Validation consumes conversions and child fills when the relation requests
+conformance, including the logical terminal used by coercing datacontracts.
+Without requested value transformation, validation checks decoded source values;
+it does not apply a child fill merely because the declaration contains one.
+The historical carrier-dependent coercing-contract discrepancy recorded in item
+356 is repaired by the shared logical conversion path. This does not claim that
+every opaque source is representable by its provider's Arrow conversion.
+
 ## Exact decimals
 
 `ma.DecimalDtype(precision, scale)` is an exact decimal: `precision` is the total number of digits, `scale` the digits after the point (`1 <= precision <= 38`, `0 <= scale <= precision`). Declare it on a field, and convert into it with an explicit rounding mode:
@@ -237,12 +397,12 @@ transported text — whitespace and object-key order never change the outcome.
 from decimal import Decimal
 
 import mountainash as ma
-from mountainash.typespec import FieldSpec, TypeSpec, UniversalType
+from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 
 d = ma.DecimalDtype(precision=10, scale=3)
 
 # Declare it (persisted under `x-mountainash.dtype`; the Frictionless type stays `number`)
-spec = TypeSpec(fields=[FieldSpec(name="amount", type=UniversalType.NUMBER, dtype=d)])
+spec = TableSchema(fields={"amount": FieldDefinition(type=UniversalType.NUMBER, dtype=d)})
 
 # Convert into it: `rounding=` is required for a decimal target and rejected for any other
 ma.col("amount_text").cast(d, rounding="half_to_even")
@@ -394,15 +554,14 @@ The conversion is one vectorised native expression with no per-row checks, so so
 
 ### Conform
 
-Declare `FieldSpec.rounding` to let `conform()` convert a **top-level** field to its exact decimal type:
+Declare `FieldDefinition.rounding` to let `conform()` convert a **top-level** field to its exact decimal type:
 
 ```python
-spec = TypeSpec(fields=[FieldSpec(
-    name="amount",
+spec = TableSchema(fields={"amount": FieldDefinition(
     type=UniversalType.NUMBER,
     dtype=ma.DecimalDtype(precision=5, scale=2),
     rounding="half_to_even",
-)])
+)})
 result = ma.relation({"amount": ["12.345", "bad", None]}).conform(
     spec, contract={"data_type": "discard_row"},
 ).to_polars()
@@ -411,7 +570,7 @@ result = ma.relation({"amount": ["12.345", "bad", None]}).conform(
 
 The instruction accepts the three cast modes above. There is no default rounding mode or
 per-call override. When conversion is needed and the instruction is absent,
-`DecimalConversionRequiredError` points to `FieldSpec.rounding` or the explicit `.cast(...)`
+`DecimalConversionRequiredError` points to `FieldDefinition.rounding` or the explicit `.cast(...)`
 alternative. Unknown/non-string modes or rounding without a decimal target raise
 `InvalidDtypeDeclaration`.
 
@@ -429,9 +588,10 @@ instruction, not type identity: changing it alone does not create dtype drift.
 
 For a mismatching source, `coerce` throws on invalid input, `discard_value` replaces it
 with null, and `discard_row` removes failed non-null conversions. Source nulls and declared
-missing sentinels are retained. Existing lexical missing-value, numeric-text and `null_fill`
-instructions run before the native decimal cast. Overflow still raises under both discard
-policies. Converted output, inferred schema and effective schema retain exact precision/scale.
+missing sentinels are retained. Existing lexical missing-value and numeric-text
+instructions apply before conversion; a fill is selected only for an originally
+missing value. Overflow still raises under both discard policies. Converted output,
+inferred schema and effective schema retain exact precision/scale.
 
 A matching decimal column passes unchanged, **including nulls even when `null_fill` is set**.
 `evolve` retains a mismatching source type and values; `freeze` raises `SchemaDriftError`.
@@ -462,11 +622,11 @@ pkg2 = dag.to_package()
 pkg2.write("./out/datapackage.json")
 ```
 
-The raw Frictionless schema dict is stored verbatim on `DataResource.table_schema`, so the round-trip is byte-equivalent. Conversion to a `TypeSpec` happens lazily inside the visitor when conform actually runs.
+`DataResource.table_schema` owns the raw Frictionless schema mapping, independently of typed conversion. `DataResource.to_table_schema()` provides the typed view; raw read/write does not silently migrate descriptors.
 
 ## What this enables
 
-A TypeSpec is the same object that:
+A TableSchema is the shared declaration that:
 
 - drives `.conform(spec)` for transformation,
 - compiles to a [data contract](datacontracts.md) for validation,
@@ -479,5 +639,5 @@ One schema, all of the above. Authored once.
 ## Related
 
 - [Relations](relations.md) — `.conform()` is a relation method
-- [Data contracts](datacontracts.md) — TypeSpec → validation
+- [Data contracts](datacontracts.md) — shared declarations compiled into validation
 - [Cross-backend execution](cross-backend.md) — how conform compiles per-backend

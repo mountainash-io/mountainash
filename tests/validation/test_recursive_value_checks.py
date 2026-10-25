@@ -15,41 +15,159 @@ from mountainash.validation.value import (
 )
 
 
-def test_nested_object_fields_apply_child_constraints() -> None:
+def _nested_status(definition, values, dtype) -> str:
     import polars as pl
 
     from mountainash.datacontracts.compiler import compile_datacontract
-    from mountainash.typespec.spec import FieldConstraints, FieldSpec, TypeSpec
-    from mountainash.typespec.universal_types import UniversalType
+    from mountainash.typespec.spec import TableSchema
     from mountainash.validation import ValidationRunner
 
-    plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="payload",
-                    type=UniversalType.OBJECT,
-                    object_fields=[
-                        FieldSpec(
-                            name="age",
-                            type=UniversalType.INTEGER,
-                            constraints=FieldConstraints(required=True, minimum=0),
-                        )
-                    ],
-                )
-            ]
-        )
-    )
-
+    plan = compile_datacontract(TableSchema(fields={"payload": definition}))
     result = ValidationRunner().validate_relation(
-        pl.DataFrame({"payload": [{"age": -1}]}),
+        pl.DataFrame({"payload": pl.Series("payload", values, dtype=dtype)}),
         plan=plan,
     )
-
-    nested_summary = result.check_summaries.filter(
+    return result.check_summaries.filter(
         pl.col("check_id") == "payload_nested"
-    ).row(0, named=True)
-    assert nested_summary["status"] == "failed"
+    ).row(0, named=True)["status"]
+
+
+def _record(**members):
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    return FieldDefinition(type=UniversalType.OBJECT, fields=members)
+
+
+def test_nested_object_fields_apply_child_constraints() -> None:
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    definition = _record(
+        age=FieldDefinition(type=UniversalType.INTEGER, required=True, minimum=0)
+    )
+    dtype = pl.Struct({"age": pl.Int64})
+
+    assert _nested_status(definition, [{"age": -1}], dtype) == "failed"
+    assert _nested_status(definition, [{"age": 5}], dtype) == "passed"
+    # a required member is a member requirement, not a container requirement
+    assert _nested_status(definition, [{"age": None}], dtype) == "failed"
+
+
+def test_nested_member_applies_extended_constraints() -> None:
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    definition = _record(
+        code=FieldDefinition(
+            type=UniversalType.STRING,
+            str_startswith="a",
+            ne="abad",
+            notin=["aout"],
+        )
+    )
+    dtype = pl.Struct({"code": pl.String})
+
+    assert _nested_status(definition, [{"code": "agood"}], dtype) == "passed"
+    assert _nested_status(definition, [{"code": "bgood"}], dtype) == "failed"
+    assert _nested_status(definition, [{"code": "abad"}], dtype) == "failed"
+    assert _nested_status(definition, [{"code": "aout"}], dtype) == "failed"
+
+
+def test_nested_member_applies_string_format_and_categories() -> None:
+    """A member keeps every requirement its definition declares, as a top-level field does."""
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    definition = _record(
+        mail=FieldDefinition(type=UniversalType.STRING, format="email"),
+        tier=FieldDefinition(type=UniversalType.STRING, categories=["gold", "silver"]),
+    )
+    dtype = pl.Struct({"mail": pl.String, "tier": pl.String})
+
+    assert _nested_status(definition, [{"mail": "a@b.co", "tier": "gold"}], dtype) == "passed"
+    assert _nested_status(definition, [{"mail": "not-mail", "tier": "gold"}], dtype) == "failed"
+    assert _nested_status(definition, [{"mail": "a@b.co", "tier": "tin"}], dtype) == "failed"
+
+
+def test_nested_element_applies_string_format_and_categories() -> None:
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    dtype = pl.List(pl.String)
+    emails = FieldDefinition(
+        type=UniversalType.ARRAY,
+        element=FieldDefinition(type=UniversalType.STRING, format="email"),
+    )
+    tiers = FieldDefinition(
+        type=UniversalType.ARRAY,
+        element=FieldDefinition(type=UniversalType.STRING, categories=["gold"]),
+    )
+
+    assert _nested_status(emails, [["a@b.co"]], dtype) == "passed"
+    assert _nested_status(emails, [["a@b.co", "nope"]], dtype) == "failed"
+    assert _nested_status(tiers, [["gold"]], dtype) == "passed"
+    assert _nested_status(tiers, [["gold", "tin"]], dtype) == "failed"
+
+
+def test_nested_scalar_element_applies_element_constraints() -> None:
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    definition = FieldDefinition(
+        type=UniversalType.ARRAY,
+        element=FieldDefinition(type=UniversalType.INTEGER, minimum=0),
+    )
+    dtype = pl.List(pl.Int64)
+
+    assert _nested_status(definition, [[1, 2]], dtype) == "passed"
+    assert _nested_status(definition, [[1, -1]], dtype) == "failed"
+
+
+def test_nested_element_requirement_applies_to_null_items() -> None:
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    required = FieldDefinition(
+        type=UniversalType.ARRAY,
+        element=FieldDefinition(type=UniversalType.INTEGER, required=True),
+    )
+    optional = FieldDefinition(
+        type=UniversalType.ARRAY,
+        element=FieldDefinition(type=UniversalType.INTEGER),
+    )
+    dtype = pl.List(pl.Int64)
+
+    assert _nested_status(required, [[1, None]], dtype) == "failed"
+    assert _nested_status(optional, [[1, None]], dtype) == "passed"
+
+
+def test_nested_array_of_records_checks_each_item_member() -> None:
+    import polars as pl
+
+    from mountainash.typespec.spec import FieldDefinition
+    from mountainash.typespec.universal_types import UniversalType
+
+    definition = FieldDefinition(
+        type=UniversalType.ARRAY,
+        element=_record(qty=FieldDefinition(type=UniversalType.INTEGER, minimum=1)),
+    )
+    dtype = pl.List(pl.Struct({"qty": pl.Int64}))
+
+    assert _nested_status(definition, [[{"qty": 1}, {"qty": 2}]], dtype) == "passed"
+    assert _nested_status(definition, [[{"qty": 1}, {"qty": 0}]], dtype) == "failed"
 
 
 def test_duration_parser_preserves_calendar_months_and_decimal_seconds() -> None:

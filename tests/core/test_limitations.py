@@ -64,24 +64,56 @@ def single_split_policy():
         CapabilityRegistry.restore(snapshot)
 
 
-def test_explicit_unknown_dialect_does_not_borrow_backend_policy(single_split_policy):
+def _capture_native_failure(operation, captured):
+    try:
+        return operation()
+    except Exception as error:
+        captured.append((error, error.__context__, error.__traceback__))
+        raise
+
+
+@pytest.mark.parametrize("binding", ["unknown-dialect", "unbound-operation", "unrelated-error"])
+def test_unmatched_materialization_preserves_native_exception_identity(single_split_policy, binding):
+    """Real native errors retain identity, context and their original traceback."""
     backend, dataframe = single_split_policy
-    with pytest.raises(TypeError):
+    captured = []
+    options = {}
+    if binding == "unknown-dialect":
+        options = {"dialect": None, "prefer_operation_keys": frozenset({FK.SPLIT})}
+    def operation():
+        if binding == "unrelated-error":
+            import polars as pl
+
+            return pl.DataFrame({"x": [1]}).select(pl.col("x").replace_strict({0: 0}))
+        return dataframe.select(nw.col("text").str.split(","))
+    with pytest.raises(Exception) as raised:
+        enrich_materialization(
+            backend, lambda: _capture_native_failure(operation, captured), **options,
+        )
+    original, context, traceback = captured[0]
+    assert raised.value is original
+    assert raised.value.__context__ is context
+    chain = raised.value.__traceback__
+    while chain is not None and chain is not traceback:
+        chain = chain.tb_next
+    assert chain is traceback
+
+
+def test_matching_materialization_policy_enriches_the_captured_native_failure(single_split_policy):
+    from mountainash.core.types import BackendCapabilityError
+
+    backend, dataframe = single_split_policy
+    captured = []
+    with pytest.raises(BackendCapabilityError) as raised:
         enrich_materialization(
             backend,
-            lambda: dataframe.select(nw.col("text").str.split(",")),
-            dialect=None,
+            lambda: _capture_native_failure(
+                lambda: dataframe.select(nw.col("text").str.split(",")), captured,
+            ),
             prefer_operation_keys=frozenset({FK.SPLIT}),
         )
-
-
-def test_native_issue_without_bound_operation_does_not_guess(single_split_policy):
-    backend, dataframe = single_split_policy
-    with pytest.raises(TypeError):
-        enrich_materialization(
-            backend,
-            lambda: dataframe.select(nw.col("text").str.split(",")),
-        )
+    assert raised.value.function_key is FK.SPLIT
+    assert raised.value.__cause__ is captured[0][0]
 
 
 def test_enrich_materialization_does_not_execute_successful_ibis_table():

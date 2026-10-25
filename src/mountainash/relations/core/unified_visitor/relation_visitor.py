@@ -808,7 +808,7 @@ class UnifiedRelationVisitor:
         owner_node: RelationNode | None = None,
         apply_value_transforms: bool = True,
     ) -> Any:
-        """Apply conform from a TypeSpec or raw Frictionless schema dict.
+        """Apply conform from a TableSchema or raw Frictionless schema dict.
 
         Uses the shared _build_conform_exprs helper to build expressions,
         then compiles them against the native backend object. Works for
@@ -829,7 +829,7 @@ class UnifiedRelationVisitor:
         Args:
             native: The backend-native object (Polars/Ibis/pandas/etc.) to
                 conform.
-            schema: A TypeSpec or raw Frictionless schema dict.
+            schema: A TableSchema or raw Frictionless schema dict.
             empty_from_schema: Reconstruct an empty frame from the schema
                 when the native object has zero columns (resource-read path).
             contract: Optional raw ``ConformRelNode.contract`` override
@@ -841,8 +841,8 @@ class UnifiedRelationVisitor:
         """
         from mountainash.core.lowering_reuse import REPEATABLE
         if isinstance(schema, dict):
-            from mountainash.typespec.frictionless import typespec_from_frictionless
-            schema = typespec_from_frictionless(schema)
+            from mountainash.typespec.frictionless import table_schema_from_frictionless
+            schema = table_schema_from_frictionless(schema)
 
         from mountainash.conform.contract import resolve_contract
         from mountainash.conform.expressions import _VALID_FIELDS_MATCH, _build_conform_exprs
@@ -882,7 +882,7 @@ class UnifiedRelationVisitor:
         # that behaviour is a contract.py invariant this call must not
         # disturb. resolve_conform_output performs this identical check
         # later too; duplicating it here preserves the typed ConformError
-        # this entrypoint has always raised for a bad TypeSpec.fields_match.
+        # this entrypoint has always raised for a bad TableSchema.fields_match.
         if fields_match not in _VALID_FIELDS_MATCH:
             raise ConformError(
                 f"Invalid fields_match={fields_match!r}. "
@@ -894,7 +894,10 @@ class UnifiedRelationVisitor:
             override=contract,
         )
         if schema_only and not self.metadata_session.schema_complete and available is not None:
-            missing = {field.source_name.split(".", 1)[0] for field in schema.fields}.difference(available)
+            missing = {
+                (field.rename_from if field.rename_from is not None else name).split(".", 1)[0]
+                for name, field in schema.fields.items()
+            }.difference(available)
             if missing:
                 self.require_schema_execution(
                     "Bounded resource discovery does not establish conform input fields: "
@@ -954,25 +957,16 @@ class UnifiedRelationVisitor:
             if empty_from_schema and available == [] and schema.fields:
                 self.record_lowering(self.backend.empty_frame, REPEATABLE)
                 return self.backend.empty_frame(schema)
-            use_open = (
-                resolved_contract.extra_columns == "evolve"
-                and resolved_contract.mapping == "by_name"
-            )
             with self.expr_visitor.input_scope(native):
                 compiled_exprs = [
                     self.compile_expression(expr) for expr in conform_result.exprs
                 ]
             self.record_lowering(self.backend.read, REPEATABLE, value=native)
             rel = self.backend.read(native)
-            if use_open:
-                self.record_lowering(self.backend.project_with_columns, REPEATABLE, value=rel)
-                rel = self.backend.project_with_columns(rel, compiled_exprs)
-                if conform_result.renamed_sources:
-                    self.record_lowering(self.backend.project_drop, REPEATABLE, value=rel)
-                    rel = self.backend.project_drop(rel, list(conform_result.renamed_sources))
-            else:
-                self.record_lowering(self.backend.project_select, REPEATABLE, value=rel)
-                rel = self.backend.project_select(rel, compiled_exprs)
+            self.record_lowering(self.backend.project_with_columns, REPEATABLE, value=rel)
+            rel = self.backend.project_with_columns(rel, compiled_exprs)
+            self.record_lowering(self.backend.project_select, REPEATABLE, value=rel)
+            rel = self.backend.project_select(rel, list(conform_result.output_schema))
             return rel
         if owner_node is not None:
             self._conform_plans_by_node[id(owner_node)] = (
@@ -993,11 +987,11 @@ class UnifiedRelationVisitor:
         if owner_node is not None:
             available_set = set(available) if available is not None else None
             overwritten = frozenset(
-                field.name
-                for field in schema.fields
+                name
+                for name, field in schema.fields.items()
                 if (
                     available_set is None
-                    or field.source_name.split(".", 1)[0] in available_set
+                    or (field.rename_from if field.rename_from is not None else name).split(".", 1)[0] in available_set
                     or resolved_contract.missing_columns == "null_fill"
                 )
             )
@@ -1022,7 +1016,7 @@ class UnifiedRelationVisitor:
                     self.compile_expression(keep) for keep in conform_result.row_filters
                 ]
                 occupied = set(available or ())
-                occupied.update(getattr(field, "name", "") for field in schema.fields)
+                occupied.update(schema.fields)
                 marker_exprs = []
                 residue_checks = []
                 result_protection_enabled = self.execution_context.policy.has_demand(
@@ -1085,21 +1079,15 @@ class UnifiedRelationVisitor:
                 self.record_lowering(self.backend.filter, REPEATABLE, value=rel)
                 rel = self.backend.filter(rel, predicate)
 
-            if use_open:
-                self.record_lowering(self.backend.project_with_columns, REPEATABLE, value=rel)
-                rel = self.backend.project_with_columns(
-                    rel, compiled_exprs + marker_exprs
-                )
-                if conform_result.renamed_sources:
-                    self.record_lowering(self.backend.project_drop, REPEATABLE, value=rel)
-                    rel = self.backend.project_drop(
-                        rel, list(conform_result.renamed_sources)
-                    )
-            else:
-                self.record_lowering(self.backend.project_select, REPEATABLE, value=rel)
-                rel = self.backend.project_select(
-                    rel, compiled_exprs + marker_exprs
-                )
+            # Conformance preserves cardinality even when every output is a
+            # literal. Evaluate all bindings against the unchanged input, then
+            # apply the contract's order and remove undeclared source columns.
+            self.record_lowering(self.backend.project_with_columns, REPEATABLE, value=rel)
+            rel = self.backend.project_with_columns(rel, compiled_exprs + marker_exprs)
+            self.record_lowering(self.backend.project_select, REPEATABLE, value=rel)
+            rel = self.backend.project_select(
+                rel, list(conform_result.output_schema) + [check.marker for check in residue_checks],
+            )
             return rel
         except (BackendCapabilityError, ConformError):
             raise

@@ -565,9 +565,10 @@ def test_text_that_is_not_a_finite_number_is_null_under_null_mode(backend_name, 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)  # not BACKENDS: refusals asserted in-body
 @pytest.mark.parametrize("mode", ["half_to_even", "half_away_from_zero", "to_zero"])
 @pytest.mark.parametrize("fb", ["throw", "null"])
-def test_a_literal_source_converts_like_a_column(backend_name, backend_factory, mode, fb):
+@pytest.mark.parametrize("value", ["0.0045", D("0.0045")], ids=["text", "decimal"])
+def test_a_literal_source_converts_like_a_column(backend_name, backend_factory, mode, fb, value):
     df = backend_factory.create({"x": [1, 2]}, backend_name)
-    expr = ma.lit("0.0045").cast(ma.DecimalDtype(precision=10, scale=3), rounding=mode, failure_behavior=fb)
+    expr = ma.lit(value).cast(ma.DecimalDtype(precision=10, scale=3), rounding=mode, failure_behavior=fb)
     rel = ma.relation(df).select(expr.alias("r"))
     if backend_name == "ibis-sqlite" or backend_name in NARWHALS:
         with pytest.raises(BackendCapabilityError):

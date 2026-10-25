@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import pytest
 import mountainash as ma
-from mountainash.core.dtypes import MountainashDtype as D
+from mountainash.core.dtypes import MountainashDtype as D, StructDtype
 from mountainash.core.types import BackendCapabilityError
-from mountainash.typespec import FieldSpec
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_STRUCT as FK_STRUCT
 from mountainash.expressions import BaseExpressionAPI
 
@@ -19,12 +18,19 @@ TESTED_PARAMS: list[tuple] = [
     (FK_STRUCT.CAST, "converted_fields"),
 ]
 
+# Physical target width and named child association are exercised in
+# cross_backend/test_nested_cast.py and the converted-field matrix below.
+TESTED_OPTION_PARAMS = [
+    ("MountainAshScalarStructExpressionSystemProtocol", "cast_struct", "dtype", "value-sensitive"),
+    ("MountainAshScalarStructExpressionSystemProtocol", "cast_struct", "field_names", "value-sensitive"),
+]
+
 OP_SPECS: list[OpSpec] = [
     OpSpec(
         function_key=FK_STRUCT.CAST,
         op_name="cast_struct_children",
         build=lambda col, arg: col.struct.cast(
-            fields=(FieldSpec("v", dtype=D.I16),), field_name="a",
+            dtype=StructDtype((("v", D.I16),)), field_name="a",
             converted_fields=(("v", arg if isinstance(arg, BaseExpressionAPI) else ma.lit(arg)),),
         ),
         raw_arg=7, arg_col_name="replacement", param_name="converted_fields",

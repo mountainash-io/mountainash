@@ -97,7 +97,7 @@ def test_native_collect_protects_xsd_results_without_exposing_markers(backend_na
     from mountainash.expressions.core.expression_system.function_keys.enums import (
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
     )
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     snapshot = CapabilityRegistry.snapshot()
@@ -124,12 +124,10 @@ def test_native_collect_protects_xsd_results_without_exposing_markers(backend_na
                 ),
             )
         )
-        spec = TypeSpec(
+        spec = TableSchema(
             fields_match="open",
-            fields=[
-                FieldSpec(name="duration", type=UniversalType.DURATION),
-                FieldSpec(name="year", type=UniversalType.YEAR),
-            ],
+            fields={"duration": FieldDefinition(type=UniversalType.DURATION),
+                "year": FieldDefinition(type=UniversalType.YEAR),},
         )
         values = {"duration": ["P1D", None], "year": ["2024", None]}
         native = ma.relation(backend_factory.create(values, backend_name)).conform(spec).collect()

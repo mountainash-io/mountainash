@@ -63,11 +63,11 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
         ...
 
     def empty_frame(self, spec: Any) -> RelationT:
-        """Build a typed-empty (0, N) native frame from a TypeSpec.
+        """Build a typed-empty (0, N) native frame from a TableSchema.
 
         Used by the resource-read path to materialise a zero-row resource
         whose source carried no column information, reconstructing the
-        declared columns/dtypes from the schema. Accepts ONLY a TypeSpec
+        declared columns/dtypes from the schema. Accepts ONLY a TableSchema
         (callers convert raw Frictionless dicts first).
         """
         ...

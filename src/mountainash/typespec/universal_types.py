@@ -73,7 +73,7 @@ class UniversalType(StrEnum):
 #
 # _FORMAT_DEPENDENT_MEMBERS holds UniversalType members whose canonical
 # mapping cannot be determined without field context (GEOPOINT's canonical
-# shape depends on FieldSpec.format — see resolve_field_canonical in
+# shape depends on FieldDefinition.format — see resolve_field_canonical in
 # converters.py). Members here are deliberately absent from
 # UNIVERSAL_TO_CANONICAL; to_canonical() raises for them instead of
 # returning a wrong/arbitrary default. The completeness invariant is:
@@ -134,7 +134,7 @@ def to_canonical(universal: UniversalType) -> Optional[MountainashDtype]:
 
     Raises AmbiguousGeospatialTypeError for format-dependent members (only
     GEOPOINT today) — use converters.resolve_field_canonical(field), which
-    has the FieldSpec.format context needed to resolve them.
+    has the FieldDefinition.format context needed to resolve them.
     """
     if universal in _FORMAT_DEPENDENT_MEMBERS:
         raise AmbiguousGeospatialTypeError(universal)
@@ -147,7 +147,7 @@ def from_canonical(
     """Map canonical or detailed dtype evidence to its intentionally broad export.
 
     A ``DecimalDtype`` is a NUMBER refinement: its precision/scale are carried
-    by ``FieldSpec.dtype``. A ``DurationDtype`` is a native duration family,
+    by ``FieldDefinition.dtype``. A ``DurationDtype`` is a native duration family,
     not Frictionless's lexical XSD duration, so its broad export is ANY.
     Other detailed portable descriptors retain their broad family at this
     lossy export boundary.

@@ -5,10 +5,10 @@ from mountainash.exceptions import (
 )
 from mountainash.typespec.datapackage import DataPackage, DataResource
 from mountainash.typespec.spec import (
-    FieldSpec,
+    FieldDefinition,
     ForeignKey,
     ForeignKeyReference,
-    TypeSpec,
+    TableSchema,
 )
 from mountainash.typespec.universal_types import UniversalType
 
@@ -187,8 +187,8 @@ def test_package_revalidates_malformed_foreign_key_at_package_location():
 
 
 def test_package_accepts_typed_self_reference_none():
-    spec = TypeSpec(
-        fields=[FieldSpec("id", UniversalType.INTEGER)],
+    spec = TableSchema(
+        fields={"id": FieldDefinition(type=UniversalType.INTEGER)},
         foreign_keys=[
             ForeignKey(
                 fields=["id"],
@@ -200,5 +200,5 @@ def test_package_accepts_typed_self_reference_none():
         name="p",
         resources=[DataResource(name="r", data=[], schema=spec)],
     )
-    assert package.resources[0].to_typespec() == spec
-    assert package.resources[0].to_typespec() is not spec
+    assert package.resources[0].to_table_schema() == spec
+    assert package.resources[0].to_table_schema() is not spec

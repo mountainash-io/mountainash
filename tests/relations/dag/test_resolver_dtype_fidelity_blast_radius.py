@@ -14,24 +14,22 @@ from __future__ import annotations
 import polars as pl
 import pytest
 
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 # The three dtype families item 54 upgrades: parameterized backend_type
 # (gap 1), categorical (gap 3), nested list (gap 2).
-UPGRADED_SPEC = TypeSpec(fields=[
-    FieldSpec(
-        name="ts", type=UniversalType.ANY,
+UPGRADED_SPEC = TableSchema(fields={"ts": FieldDefinition(
+        type=UniversalType.ANY,
         backend_type="Datetime(time_unit='us', time_zone='UTC')",
     ),
-    FieldSpec(
-        name="cat", type=UniversalType.STRING,
+    "cat": FieldDefinition(
+        type=UniversalType.STRING,
         categories=["a", "b"], categories_ordered=True,
     ),
-    FieldSpec(
-        name="lst", type=UniversalType.LIST, item_type="integer",
-    ),
-])
+    "lst": FieldDefinition(
+        type=UniversalType.LIST, item_type="integer",
+    ),})
 
 # Same shape as a Frictionless descriptor (inline-read schema dict).
 UPGRADED_SCHEMA_DICT = {"fields": [
@@ -145,9 +143,7 @@ class TestNoRaisePartnerRegression:
 
     @pytest.mark.parametrize("backend_type", [None, ""])
     def test_empty_frame_no_raise(self, backend_type):
-        spec = TypeSpec(fields=[
-            FieldSpec(name="i", type=UniversalType.INTEGER, backend_type=backend_type),
-        ])
+        spec = TableSchema(fields={"i": FieldDefinition(type=UniversalType.INTEGER, backend_type=backend_type),})
         df = _polars_ext().empty_frame(spec).collect()
         assert df.schema["i"] == pl.Int64
 
@@ -166,14 +162,12 @@ class TestNoRaisePartnerRegression:
 # Task 6: six-field shared-resolver parity across all relation backends
 # ============================================================================
 
-V2_FIDELITY_SPEC = TypeSpec(fields=[
-    FieldSpec("list", UniversalType.LIST, item_type="integer"),
-    FieldSpec("point", UniversalType.GEOPOINT, format="array"),
-    FieldSpec("geometry", UniversalType.GEOJSON),
-    FieldSpec("duration", UniversalType.DURATION),
-    FieldSpec("year", UniversalType.YEAR),
-    FieldSpec("yearmonth", UniversalType.YEARMONTH),
-])
+V2_FIDELITY_SPEC = TableSchema(fields={"list": FieldDefinition(type = UniversalType.LIST, item_type="integer"),
+    "point": FieldDefinition(type = UniversalType.GEOPOINT, format="array"),
+    "geometry": FieldDefinition(type = UniversalType.GEOJSON),
+    "duration": FieldDefinition(type = UniversalType.DURATION),
+    "year": FieldDefinition(type = UniversalType.YEAR),
+    "yearmonth": FieldDefinition(type = UniversalType.YEARMONTH),})
 
 class TestV2SharedResolverParity:
     @pytest.mark.parametrize("backend", ["polars", "narwhals", "ibis"])

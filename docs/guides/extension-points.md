@@ -1,6 +1,6 @@
 # Extension Points
 
-Mountainash exposes three registries that let third-party code extend the relation AST without forking the core: `RelationVisitRegistry`, `OptimisationRegistry`, and the `PipelineStorage` protocol. The pipelines module is the canonical reference consumer of all three.
+Mountainash exposes three registries that let third-party code extend the relation AST without forking the core: `RelationVisitRegistry`, `OptimisationRegistry`, and the `PipelineStorage` protocol. The pipelines module is the canonical reference consumer of all three. The shared-schema boundaries (native type adapters, native schema adapters, schema codecs and physical output description) are covered under [Schema extension recipes](#schema-extension-recipes); they reuse existing registries and are not a plugin framework.
 
 > **Stability:** Public extension points but not yet versioned. The signatures below are accurate as of the current `develop` branch.
 
@@ -12,6 +12,7 @@ Mountainash exposes three registries that let third-party code extend the relati
 | Rewrite the AST before the visitor runs (algebraic optimisation, predicate pushdown, parameter folding, …) | `OptimisationRegistry` |
 | Plug a custom cache into the pipeline runner | `PipelineStorage` |
 | Add a new operation to existing nodes (e.g. a new scalar function on `ScalarFunctionNode`) | Not these — see [adding-operations.md](adding-operations.md) |
+| Add a native dtype family, schema carrier, interchange format, or physical-schema description | [Schema extension recipes](#schema-extension-recipes) |
 
 ## `RelationVisitRegistry` — custom node types
 
@@ -105,11 +106,66 @@ Pass an instance to `SimplePipelineRunner(pipeline, pipeline_storage=…)` or to
 
 Cache keys are derived from `(pipeline_name, step_name, version, sorted(bound_params), upstream_cache_keys)`. If your storage wraps a system that needs different keying (e.g. content-addressed), do the translation inside `get`/`put`/`has`.
 
+## Schema extension recipes
+
+Schema meaning lives once, in the immutable `FieldDefinition` and the ordered `TableSchema` (`mountainash.typespec.spec`). Extensions translate at a boundary; they never reinterpret field precedence, constraints, source bindings or null-fill, and they add no backend branches to conform, validation, contracts or inference. Conform compiles conversion instructions and validation compiles checks; both execute through the ordinary expression/relation backends.
+
+| Boundary | Contract | Registration route |
+|----------|----------|--------------------|
+| Native type adapter | `NativeTypeAdapter[NativeTypeT]` (`core/dtypes/protocols.py`): `from_native`, `to_native_schema`, `to_native_cast`, `parse_type_string`, `types_equal`; class attribute `target: TypeTarget` | `TypeTarget` member, then `_MODULES` and `_ADAPTER_CLASSES` in `core/dtypes/registry.py`; the `DtypeRegistry` loads the `target_*.py` module lazily and keeps one stateless instance |
+| Arrow transport companion | `NativeArrowTransportAdapter[NativeTypeT, ArrowTypeT]`: `to_arrow_transport(value)` | The same adapter class implements it; `DtypeRegistry.to_arrow_transport(dtype)` selects the owner of a native refinement by its `TypeTarget`, not by execution backend |
+| Native schema adapter | `NativeSchemaAdapter[CarrierT, NativeSchemaT]` (`typespec/protocols.py`): `extract_names`, `extract_schema`, `decode_schema`, `encode_schema(schema, *, resolved_types)` | `NATIVE_SCHEMA_ADAPTERS.register(target, "module:Class")` in `typespec/adapter_registry.py`; fetch with `get_native_schema_adapter(target)` |
+| Interchange codec | `SchemaCodec[DescriptorT]`: `decode(descriptor) -> TableSchema`, `encode(schema) -> DescriptorT` | `SCHEMA_CODECS.register("format", "module:Class")`; fetch with `get_schema_codec("format")` |
+| Physical output description | `RelationSystem.describe_output_schema(native, *, location)` (`relations/core/relation_protocols/relsys_base.py`) | The relation system already registered with `@register_relation_system(CONST_BACKEND.X)`; no new registry |
+| Native output names | `RelationSystem.infer_row_index_names(input_names, *, name, location)` and `infer_cross_join_names(left_names, right_names, *, suffix, location)` | Existing registered relation system, implemented in backend `base.py` mixins; no registry or executable operation keys added |
+
+Registrations are lazy `"module:attribute"` strings: importing declarations or one codec does not import every optional library, and there is no entry-point or filesystem discovery.
+
+### Recipes
+
+**New native dtype family.** Add the `TypeTarget` member, a `target_<name>.py` module holding one stateless adapter class that explicitly subclasses `NativeTypeAdapter` (and implements `to_arrow_transport` if it can be a native refinement), and the two registry map entries. Add `detect_target` recognition (`_MODULE_PREFIX_TO_TARGET` in `core/dtypes/targets.py`) if native dtype objects must be recognised. A dtype family is not an execution backend, and Python-type support does not imply a table adapter; `TypeTarget` is deliberately distinct from `CONST_BACKEND`.
+
+**New table/schema carrier.** Implement a `NativeSchemaAdapter` (reuse the existing type adapter for its dtypes), register it in `NATIVE_SCHEMA_ADAPTERS`, and extend central carrier recognition once in `detect_schema_carrier` (`core/types.py`). `extract_source_shapes(native)` then reaches it; consumers must not add their own recognition. Recognition is by schema representation, independent of execution placement: a pandas frame has a pandas schema even when it executes through Narwhals.
+
+Implement `extract_names(carrier) -> tuple[str, ...]` from native column metadata, without decoding dtypes, constructing `SourceShape` values or inspecting rows. Lazy metadata planning is allowed. Preserve native order and labels: `()` means a known zero-column carrier, not unavailable evidence. `extract_source_names(native)` uses central recognition and the existing adapter registry; an unrecognised carrier returns `None`, while a selected adapter's metadata error propagates. Structural name inference treats that error as unavailable evidence and falls back; compiled join/ASOF name acquisition propagates it. Keep `extract_schema` for consumers that actually need rich type evidence.
+
+**New execution backend or dialect.** Follow the existing expression/relation protocol implementation and `register_relation_system` path in [Backend architecture](backend-architecture.md); supply the native type/schema adapters its representations need. Implement `describe_output_schema` only where the native carrier's schema is not its physical output; `BaseRelationSystem` already derives it from the schema adapter, and the Ibis system overrides it with backend-local, private dialect inspectors (`relations/backends/relation_systems/ibis/schema_metadata.py`, selected by the location's dialect). A new SQL dialect adds a private technique there; it adds no registry, hierarchy or public setting, and schema declarations, codecs and resolution are untouched.
+
+Implement both native output-name methods in the backend base mixin, not the composed system class. Use complete name tuples and the selected location's route/form evidence; return ordered tuples (including `()`) or `None` when unavailable. Native ordinal placement, replacement and cross-join suffix rules belong here. Never inspect connection/prototype data, normalize collisions, or invent a route. Existing physical schema fallback remains responsible for unresolved cases. Third-party implementations must add both methods as well as adapter `extract_names`; existing protocol-alignment tests enforce the expanded contracts.
+
+**New interchange format.** Implement `SchemaCodec` with the format's own vocabulary and wire validation, and register it under an explicit format key. Frictionless is the only registered format (`"frictionless"`, `FrictionlessSchemaCodec`); `TableSchema.from_frictionless()` / `to_frictionless()` delegate to it. A codec is a pure import/export over resolved mappings: no file, network or reference resolution, no backend selection.
+
+**Reader/file dialect changes** (delimiter, quote) stay in resource/reader dialect handling; they are not type targets or SQL dialects.
+
+### Verification obligations
+
+Two kinds of evidence exist, and neither substitutes for the other.
+
+- **Registration/protocol alignment** (structural): `tests/core/test_protocol_alignment.py` and `tests/core/dtypes/test_completeness.py` check that adapters fulfil the protocols with matching parameter names, that registered keys are reachable, and that inherited protocol stubs do not count as implementations. They do not prove that any conversion is correct.
+- **Behavioural tests**: supply cases for precision, nesting, unknown evidence, extraction, interchange fidelity (through serialized JSON text for codecs) and consumer consistency, with expected values taken from the declared contract rather than from the helper under test.
+
+Implemented support is not the same as qualified support: a path that is compiled or rendered but not executed (for example an unavailable service dialect) is unexecuted, not qualified, and optional dependencies that are absent in an environment leave their implementations unqualified. Final contract qualification is tracked in the central plan, not claimed by this guide.
+
+Smoke check of the registration surface:
+
+```python
+from mountainash.core.dtypes import TypeTarget
+from mountainash.typespec.adapter_registry import get_native_schema_adapter, get_schema_codec
+from mountainash.typespec.spec import TableSchema
+
+schema = TableSchema.from_simple_dict({"id": "integer", "name": "string"})
+codec = get_schema_codec("frictionless")
+descriptor = codec.encode(schema)
+assert [f["name"] for f in descriptor["fields"]] == ["id", "name"]
+assert list(codec.decode(descriptor).fields) == ["id", "name"]
+assert get_native_schema_adapter(TypeTarget.POLARS) is get_native_schema_adapter(TypeTarget.POLARS)
+```
+
 ## Other extension surfaces
 
 These exist but are out of scope for this guide; see the relevant module:
 
-- **`CustomTypeRegistry`** (`typespec.custom_types`) — register new semantic types with TypeSpec.
+- **`CustomTypeRegistry`** (`typespec.custom_types`) — register new semantic types for `FieldDefinition` declarations.
 - **`ResolverRegistry`** (`pipelines.resolution`) — multi-tenant pipeline resolution.
 - **Function key registries** (`expressions.core.expression_system.function_keys`) — for adding scalar/aggregate/window functions, see [adding-operations.md](adding-operations.md) (six-step process).
 

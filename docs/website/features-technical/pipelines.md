@@ -143,5 +143,5 @@ If you have code using `StepCapabilities`, `PushableParam`, `PushedPredicates`, 
 ## Related
 
 - [Relations](relations.md) — `.params()` and `source()` are relation-level
-- [TypeSpec and conformance](typespec-conform.md) — schema-aware steps
+- [Shared schemas and conformance](typespec-conform.md) — schema-aware steps
 - [Cross-backend execution](cross-backend.md) — pipelines work on any backend the relation API supports

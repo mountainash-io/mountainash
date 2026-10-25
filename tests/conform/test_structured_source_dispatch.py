@@ -11,7 +11,7 @@ from mountainash.conform.expressions import _build_conform_exprs, resolve_confor
 from mountainash.conform.structured_transport import StructuredCarrier, StructuredRoot
 from mountainash.core.dtypes import MountainashDtype
 from mountainash.typespec.source_shape import SourceShape
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
@@ -41,9 +41,9 @@ def test_structured_source_schema_selects_a_carrier_without_decoding(
         raise AssertionError("source dispatch decoded a data value")
 
     monkeypatch.setattr(transport, "decode_structured_value", decode_must_not_run)
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=declared_type)],
+        fields={"payload": FieldDefinition(type=declared_type)},
     )
 
     result = _build_conform_exprs(
@@ -69,9 +69,9 @@ def test_known_incompatible_structured_source_is_rejected_for_every_action(
     declared_type, action
 ):
     """A known scalar cannot be silently treated as portable structured text."""
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=declared_type)],
+        fields={"payload": FieldDefinition(type=declared_type)},
     )
 
     with pytest.raises(IncompatibleSourceTypeError):
@@ -85,9 +85,9 @@ def test_known_incompatible_structured_source_is_rejected_for_every_action(
 @pytest.mark.parametrize("action", ["coerce", "discard_value", "discard_row"])
 def test_applied_transport_actions_require_logical_egress_for_non_native_carriers(action):
     """Portable transformed carriers cannot leave through native terminal APIs."""
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     )
 
     result = _build_conform_exprs(
@@ -102,9 +102,9 @@ def test_applied_transport_actions_require_logical_egress_for_non_native_carrier
 @pytest.mark.parametrize("action", ["coerce", "discard_value", "discard_row", "evolve", "freeze"])
 def test_structural_only_structured_actions_do_not_require_logical_egress(action):
     """Assessment-only conformance preserves the native physical representation."""
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     )
 
     result = _build_conform_exprs(
@@ -119,9 +119,9 @@ def test_structural_only_structured_actions_do_not_require_logical_egress(action
 
 def test_native_structured_carrier_does_not_require_logical_egress():
     """Native list/struct values keep their zero-JSON-round-trip terminal path."""
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     )
 
     result = _build_conform_exprs(
@@ -135,9 +135,9 @@ def test_native_structured_carrier_does_not_require_logical_egress():
 @pytest.mark.parametrize("source_type", [MountainashDtype.STRING, MountainashDtype.JSON, None])
 def test_applied_freeze_rejects_every_non_native_structured_representation(source_type):
     """Freeze rejects portable and opaque representation drift before lowering expressions."""
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     )
 
     with pytest.raises(SchemaDriftError):
@@ -151,9 +151,9 @@ def test_applied_freeze_rejects_every_non_native_structured_representation(sourc
 
 def test_structural_only_freeze_reports_unapplied_structured_drift():
     """Assessment-only freeze records the portable representation mismatch without raising."""
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)],
+        fields={"payload": FieldDefinition(type=UniversalType.ARRAY)},
     )
 
     output = resolve_conform_output(

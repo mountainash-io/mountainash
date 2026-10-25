@@ -17,7 +17,7 @@ from.pydata_ingress_factory import PydataIngressFactory
 
 if TYPE_CHECKING:
     from mountainash.core.types import PolarsFrame
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
 logger = logging.getLogger(__name__)
 
@@ -93,22 +93,22 @@ class PydataIngress():
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True,
     ) -> PolarsFrame:
         """
         Convert Python data structure to Polars DataFrame.
 
-        Source dtypes resolve per column: explicit source_spec, then model
+        Source dtypes resolve per column: explicit source_table_schema, then model
         annotations, then bounded native inference. Unrefined ANY is no override.
-        type_spec is a conversion target, never source-type evidence.
+        table_schema is a conversion target, never source-type evidence.
 
         Args:
             data: Input data (dataclass, Pydantic model, dict of lists, or list of dicts)
-            type_spec: Optional TypeSpec for column type coercion and renaming
-            source_spec: Optional input dtype declarations, not transformations.
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Optional input dtype declarations, not transformations.
             inline_conform: Run target conversions (default True). False still
                 applies source typing during construction.
 
@@ -125,6 +125,6 @@ class PydataIngress():
         """
         strategy = PydataIngressFactory.get_strategy(data)
         return strategy.convert(
-            data, type_spec=type_spec, source_spec=source_spec,
+            data, table_schema=table_schema, source_table_schema=source_table_schema,
             inline_conform=inline_conform,
         )

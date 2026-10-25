@@ -19,8 +19,7 @@ import mountainash as ma
 from mountainash.expressions.core.expression_system.function_mapping.registry import (
     ExpressionFunctionRegistry,
 )
-from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
+from mountainash.core.dtypes import ListDtype, MountainashDtype as D, StructDtype
 
 _TESTS_DIR = str(Path(__file__).resolve().parent.parent)
 if _TESTS_DIR not in sys.path:
@@ -66,10 +65,10 @@ def _builders() -> dict[Enum, Callable[[], Any]]:
         ML.ELEMENT: ma.element,
         ML.GET: lambda: c.list.get(0),
         ML.TO_ARRAY: lambda: c.list.to_array(width=2),
-        ML.CAST_ITEMS: lambda: c.list.cast_items(item_object_fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        ML.CAST_ITEMS: lambda: c.list.cast_items(dtype=ListDtype(StructDtype((("id", D.I64),))), field_name="x"),
         ML.PARSE: lambda: c.str.parse_list(field_name="x"),
         MS.FIELD: lambda: c.struct.field("x"),
-        MS.CAST: lambda: c.struct.cast(fields=(FieldSpec(name="id", type=UniversalType.INTEGER),), field_name="x"),
+        MS.CAST: lambda: c.struct.cast(dtype=StructDtype((("id", D.I64),)), field_name="x"),
         MG.PARSE_GEOPOINT: lambda: c.geo.parse_geopoint(format="default", source_representation="lexical", field_name="x"),
         MG.PARSE_GEOJSON: lambda: c.geo.parse_geojson(format="default", field_name="x"),
         MG.SERIALIZE_GEOJSON: lambda: c.geo.serialize_geojson(format="default", field_name="x"),

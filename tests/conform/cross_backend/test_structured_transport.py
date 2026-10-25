@@ -55,25 +55,24 @@ def test_nested_custom_format_and_child_fill_survive_parent_authority(
 ):
     import mountainash as ma
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, TimestampDtype, MountainashDtype as D
-    from mountainash.typespec import FieldSpec, TypeSpec
+    from mountainash.core.dtypes import TimestampDtype, MountainashDtype as D
+    from mountainash.typespec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
-    target = StructDtype((
-        ("count", D.I16), ("backup", D.I16),
-        ("at", TimestampDtype(6, True, "UTC")),
-    ))
-    declaration = FieldSpec("record", dtype=target, object_fields=[
-        FieldSpec("count", type=UniversalType.INTEGER, dtype=D.I64),
-        FieldSpec("backup", type=UniversalType.INTEGER, dtype=D.I64, null_fill=12),
-        FieldSpec("at", type=UniversalType.DATETIME, format=format_, null_fill=encoded),
-    ])
+    declaration = FieldDefinition(fields={
+        "count": FieldDefinition(type=UniversalType.INTEGER, dtype=D.I16),
+        "backup": FieldDefinition(type=UniversalType.INTEGER, dtype=D.I16, null_fill=12),
+        "at": FieldDefinition(
+            type=UniversalType.DATETIME, dtype=TimestampDtype(6, True, "UTC"),
+            format=format_, null_fill=encoded,
+        ),
+    })
     source = backend_factory.create(
         {"record": ['{"count":"13","backup":null,"at":null}', '{"count":"14"}', None]},
         backend_name,
     )
     result = ma.relation(source).conform(
-        TypeSpec(fields=[declaration], missing_values=[]),
+        TableSchema(fields={"record": declaration}, missing_values=[]),
     ).to_polars()
     assert result.schema["record"] == pl.Struct({
         "count": pl.Int16, "backup": pl.Int16, "at": pl.Datetime("us", "UTC"),
@@ -88,22 +87,18 @@ def test_nested_custom_format_and_child_fill_survive_parent_authority(
 def test_invalid_nested_custom_temporal_value_remains_a_value_error():
     import mountainash as ma
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, TimestampDtype
-    from mountainash.typespec import FieldSpec, TypeSpec
+    from mountainash.core.dtypes import TimestampDtype
+    from mountainash.typespec import FieldDefinition, TableSchema
     from mountainash.conform.errors import ConformTransformError
 
-    declaration = FieldSpec(
-        "record",
-        dtype=StructDtype((("at", TimestampDtype(6, False)),)),
-        object_fields=[
-            FieldSpec("at", dtype=TimestampDtype(6, False), format="%Y%m%d"),
-        ],
+    declaration = FieldDefinition(
+        fields={"at": FieldDefinition(dtype=TimestampDtype(6, False), format="%Y%m%d")},
     )
     source = pl.DataFrame({"record": ['{"at":"not-a-date"}']})
 
     with pytest.raises(ConformTransformError, match="invalid object value"):
         ma.relation(source).conform(
-            TypeSpec(fields=[declaration], missing_values=[]),
+            TableSchema(fields={"record": declaration}, missing_values=[]),
         ).to_polars()
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
@@ -111,26 +106,22 @@ def test_nested_missing_sentinel_is_filled_before_temporal_conversion(
     backend_name, backend_factory,
 ):
     import mountainash as ma
-    from mountainash.core.dtypes import StructDtype, TimestampDtype
-    from mountainash.typespec import FieldSpec, TypeSpec
+    from mountainash.core.dtypes import TimestampDtype
+    from mountainash.typespec import FieldDefinition, TableSchema
 
-    declaration = FieldSpec(
-        "record",
-        dtype=StructDtype((("at", TimestampDtype(6, False)),)),
-        object_fields=[
-            FieldSpec(
-                "at", dtype=TimestampDtype(6, False),
-                format="%Y-%m-%d %H:%M:%S", missing_values=["MISSING"],
-                null_fill="2026-01-01 00:00:00",
-            ),
-        ],
+    declaration = FieldDefinition(
+        fields={"at": FieldDefinition(
+            dtype=TimestampDtype(6, False),
+            format="%Y-%m-%d %H:%M:%S", missing_values=["MISSING"],
+            null_fill="2026-01-01 00:00:00",
+        )},
     )
     source = backend_factory.create(
         {"record": ['{"at":"MISSING"}']}, backend_name,
     )
 
     result = ma.relation(source).conform(
-        TypeSpec(fields=[declaration], missing_values=[]),
+        TableSchema(fields={"record": declaration}, missing_values=[]),
     ).to_polars()
 
     assert result["record"].to_list() == [{"at": datetime(2026, 1, 1)}]
@@ -154,25 +145,66 @@ def test_nested_any_timestamp_preserves_nanoseconds(
 ):
     import mountainash as ma
     import polars as pl
-    from mountainash.core.dtypes import StructDtype, TimestampDtype
-    from mountainash.typespec import FieldSpec, TypeSpec
+    from mountainash.core.dtypes import TimestampDtype
+    from mountainash.typespec import FieldDefinition, TableSchema
 
-    declaration = FieldSpec(
-        "record",
-        dtype=StructDtype((("at", TimestampDtype(9, False)),)),
-        object_fields=[
-            FieldSpec("at", dtype=TimestampDtype(9, False), format="any"),
-        ],
+    declaration = FieldDefinition(
+        fields={"at": FieldDefinition(dtype=TimestampDtype(9, False), format="any")},
     )
     source = backend_factory.create(
         {"record": [f'{{"at":"{encoded}"}}']}, backend_name,
     )
 
     result = ma.relation(source).conform(
-        TypeSpec(fields=[declaration], missing_values=[]),
+        TableSchema(fields={"record": declaration}, missing_values=[]),
     ).to_polars()
 
     assert result.schema["record"].fields[0].dtype == pl.Datetime("ns")
     assert result.select(
         pl.col("record").struct.field("at").dt.epoch("ns")
     ).to_series().to_list() == [expected_ns]
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+@pytest.mark.parametrize("container", ["list", "struct", "partial-struct"])
+@pytest.mark.parametrize("use_fill", [False, True], ids=["source-value", "child-fill"])
+@pytest.mark.parametrize("action", ["coerce", "discard_value", "discard_row"])
+def test_transported_uint64_maximum_survives_values_and_child_fills(
+    backend_name, backend_factory, container, use_fill, action,
+):
+    """Transport must not infer signed Int64 before applying an effective UInt64 target."""
+    import json
+
+    import mountainash as ma
+    import polars as pl
+    from mountainash.core.dtypes import MountainashDtype as D, TimestampDtype
+    from mountainash.typespec import FieldDefinition, TableSchema
+
+    maximum = 18446744073709551615
+    child = FieldDefinition(dtype=D.U64, null_fill=maximum if use_fill else None)
+    value = None if use_fill else maximum
+    if container == "list":
+        field = FieldDefinition(element=child)
+        encoded = [json.dumps([value]), None, "[]"]
+        expected = [[maximum], None, []]
+        native = pl.List(pl.UInt64)
+    else:
+        field = FieldDefinition(fields={"id": child})
+        encoded = [json.dumps({"id": value}), None]
+        expected = [{"id": maximum}, None]
+        native = pl.Struct({"id": pl.UInt64})
+    if container == "partial-struct":
+        field = FieldDefinition(fields={"id": child, "at": FieldDefinition(dtype=TimestampDtype())})
+        encoded = [json.dumps({"id": value, "at": "2026-01-01 00:00:00.123456"}), None]
+        expected = [{"id": maximum, "at": datetime(2026, 1, 1, 0, 0, 0, 123456)}, None]
+    source = backend_factory.create({"record": encoded}, backend_name)
+    result = ma.relation(source).conform(
+        TableSchema(fields={"record": field}, missing_values=[]),
+        contract={"data_type": action},
+    ).to_polars()
+    if container == "partial-struct":
+        assert result.schema["record"].fields[0] == pl.Field("id", pl.UInt64)
+        assert isinstance(result.schema["record"].fields[1].dtype, pl.Datetime)
+    else:
+        assert result.schema["record"] == native
+    assert result["record"].to_list() == expected

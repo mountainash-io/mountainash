@@ -154,10 +154,10 @@ class ValidationRunner:
         rel = relation if isinstance(relation, Relation) else as_relation(relation)
         if plan is not None:
             from mountainash.validation.fk import build_standalone_fk_checks
-            from mountainash.validation.plan import thaw_typespec
+            from mountainash.validation.plan import thaw_table_schema
 
             rel = rel.conform(
-                thaw_typespec(plan),
+                thaw_table_schema(plan),
                 contract=conform_contract,
                 apply_value_transforms=apply_value_transforms,
             )
@@ -585,9 +585,11 @@ class ValidationRunner:
             )
         entry = VALUE_RULE_REGISTRY[check.validator]
         values: list[Any] | None = None
-        diagnostics_by_source: list[Sequence[Any]] | None = None
+        diagnostics_by_source: list[Sequence[Any]] | dict[int, Sequence[Any]] | None = None
         if check.validator.name == "UNIQUE":
-            outcomes = self._unique_value_outcomes(frame, check.fields)
+            outcomes, diagnostics_by_source = self._unique_value_outcomes(
+                frame, check.fields, check.options
+            )
         elif len(check.fields) == 1:
             values = frame[check.fields[0]].to_list()
             if check.validator.name in {
@@ -627,7 +629,7 @@ class ValidationRunner:
                 )
                 for index in failed_indices
             ]
-            if values is not None
+            if diagnostics_by_source is not None or values is not None
             else [()] * len(failed_indices)
         )
         failures = frame.filter(pl.Series(failed, dtype=pl.Boolean))
@@ -703,31 +705,70 @@ class ValidationRunner:
         return pl.DataFrame(records, schema=failure_frame.schema)
 
     @staticmethod
-    def _unique_value_outcomes(frame: pl.DataFrame, fields: Sequence[str]) -> list[bool | None]:
-        """Return one logical uniqueness outcome per source row.
+    def _unique_value_outcomes(
+        frame: pl.DataFrame, fields: Sequence[str], options: Mapping[str, Any]
+    ) -> tuple[list[bool | None], dict[int, Sequence[Any]] | None]:
+        """Return source-row outcomes and concrete nested duplicate locations.
 
-        Null tuples pass under Frictionless field-unique semantics. A repeated
-        non-null key marks every member of that duplicate group as failed.
+        Null tuples pass under Frictionless field-unique semantics. Nested
+        occurrences compete within their containing collection, or across
+        containing records when no collection is entered. Multiple duplicate
+        locations remain one failed source row.
         """
-        from mountainash.validation.value import INVALID_VALUE, canonical_value_key
+        from mountainash.validation.jsonschema import _json_pointer
+        from mountainash.validation.value import (
+            INVALID_VALUE,
+            StructuredValueDiagnostic,
+            canonical_value_key,
+            nested_unique_occurrences,
+        )
 
+        path = options.get("path")
         outcomes: list[bool | None] = [True] * frame.height
-        first_index_by_key: dict[tuple[Any, ...], int] = {}
+        first_by_occurrence: dict[tuple[Any, ...], tuple[int, tuple[Any, ...]]] = {}
+        failed_locations: dict[int, set[tuple[Any, ...]]] = {}
         values_by_field = [frame[field].to_list() for field in fields]
         for row_index, values in enumerate(zip(*values_by_field, strict=True)):
             if any(value is INVALID_VALUE for value in values):
                 outcomes[row_index] = None
                 continue
-            if any(value is None for value in values):
-                continue
-            key = tuple(canonical_value_key(value) for value in values)
-            first_index = first_index_by_key.get(key)
-            if first_index is None:
-                first_index_by_key[key] = row_index
+            if path is None:
+                if any(value is None for value in values):
+                    continue
+                occurrences = [
+                    (None, tuple(canonical_value_key(value) for value in values), ())
+                ]
             else:
-                outcomes[first_index] = False
-                outcomes[row_index] = False
-        return outcomes
+                occurrences = [
+                    (None if domain is None else (row_index, domain), key, location)
+                    for domain, key, location in nested_unique_occurrences(values[0], path)
+                ]
+            for domain, key, location in occurrences:
+                occurrence = (domain, key)
+                first = first_by_occurrence.get(occurrence)
+                if first is None:
+                    first_by_occurrence[occurrence] = (row_index, location)
+                else:
+                    first_index, first_location = first
+                    outcomes[first_index] = False
+                    outcomes[row_index] = False
+                    if path is not None:
+                        failed_locations.setdefault(first_index, set()).add(first_location)
+                        failed_locations.setdefault(row_index, set()).add(location)
+        if path is None:
+            return outcomes, None
+        return outcomes, {
+            index: tuple(
+                StructuredValueDiagnostic(
+                    instance_path=_json_pointer(location),
+                    schema_path=None,
+                    validator="unique",
+                    message="duplicate value in this field's uniqueness domain",
+                )
+                for location in sorted(locations)
+            )
+            for index, locations in failed_locations.items()
+        }
 
     # -- ScalarRule ---------------------------------------------------------
 
@@ -902,14 +943,14 @@ class ValidationRunner:
         )
         from mountainash.relations.dag.validation_context import DAGValidationContext
         from mountainash.validation.checks import ForeignKeyRule
-        from mountainash.validation.plan import thaw_typespec
+        from mountainash.validation.plan import thaw_table_schema
 
         identity_by_resource = identity_by_resource or {}
         plans_by_resource = plans_by_resource or {}
 
         def _plan_transform(plan: Any) -> Any:
             def transform(rel: Any) -> Any:
-                return rel.conform(thaw_typespec(plan))
+                return rel.conform(thaw_table_schema(plan))
 
             return transform
 

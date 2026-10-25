@@ -153,7 +153,7 @@ def test_lossy_sqlite_route_rolls_back_owned_resources_without_touching_caller(m
     assert released == ["owned"]
 
 
-def test_source_export_enriches_diagnostic_failure_without_owned_checks():
+def test_source_export_propagates_native_failure_with_unmatched_diagnostic():
     from mountainash.conform.diagnostics import OperationDiagnostic
     from mountainash.conform.errors import ConformTransformError
     from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_CAST
@@ -174,10 +174,9 @@ def test_source_export_enriches_diagnostic_failure_without_owned_checks():
     )
     destination = resolver.resolve(ma.relation(target)._node)
     requirement = TransferRequirement("root/right", destination, "ibis_to_polars", True)
-    with pytest.raises(ConformTransformError) as caught:
+    with pytest.raises(Exception, match="not-an-integer") as caught:
         TransportSession(tokens).transfer(source, requirement)
-    assert caught.value.__cause__ is not None
-    assert caught.value.candidates == (diagnostic,)
+    assert not isinstance(caught.value, ConformTransformError)
 
 
 @pytest.mark.parametrize("source_name", IBIS_BACKENDS)
@@ -379,7 +378,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         FKEY_MOUNTAINASH_SCALAR_DATETIME as FK,
     )
     from mountainash.relations.core.execution.metadata import MetadataSession
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     snapshot = CapabilityRegistry.snapshot()
@@ -406,7 +405,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         )
         table = backend_factory.create({"id": [1], "year": [year]}, source_name)
         target = backend_factory.create({"id": [1]}, "ibis-sqlite")
-        spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="year", type=UniversalType.YEAR)])
+        spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
         rel = ma.relation(table).conform(spec)
         with ma.capability_policy(ma.CapabilityPolicy.checked()):
             native, visitor = rel._compile_and_execute_with_visitor()

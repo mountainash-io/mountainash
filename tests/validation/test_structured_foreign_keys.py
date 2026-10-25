@@ -13,7 +13,7 @@ import polars as pl
 
 import mountainash as ma
 from mountainash.relations.dag.dag import RelationDAG
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation import ForeignKeyRule, ValidationRunner
 
@@ -24,20 +24,20 @@ def _structured_dag(
 ):
     dag = RelationDAG()
 
-    def _fields(rows: dict) -> list[FieldSpec]:
-        fields = []
+    def _fields(rows: dict) -> dict[str, FieldDefinition]:
+        fields = {}
         for name, values in rows.items():
             sample = next((v for v in values if v is not None), None)
             if isinstance(sample, str) and name.startswith("meta"):
-                fields.append(FieldSpec(name=name, type=UniversalType.OBJECT))
+                fields[name] = FieldDefinition(type=UniversalType.OBJECT)
             elif isinstance(sample, str) and name.startswith("tags"):
-                fields.append(FieldSpec(name=name, type=UniversalType.ARRAY))
+                fields[name] = FieldDefinition(type=UniversalType.ARRAY)
             else:
-                fields.append(FieldSpec(name=name, type=UniversalType.INTEGER))
+                fields[name] = FieldDefinition(type=UniversalType.INTEGER)
         return fields
 
-    parent_spec = TypeSpec(fields_match="open", fields=_fields(parent_rows))
-    child_spec = TypeSpec(fields_match="open", fields=_fields(child_rows))
+    parent_spec = TableSchema(fields_match="open", fields=_fields(parent_rows))
+    child_spec = TableSchema(fields_match="open", fields=_fields(child_rows))
     parent_rel = ma.relation(pl.DataFrame(parent_rows)).conform(
         parent_spec, contract={"data_type": parent_action}
     )

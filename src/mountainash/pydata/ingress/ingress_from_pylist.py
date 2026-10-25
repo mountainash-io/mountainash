@@ -7,7 +7,7 @@ import logging
 from mountainash.core.lazy_imports import import_polars
 
 if TYPE_CHECKING:
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.core.types import PolarsFrame
 
 from .base_pydata_ingress_handler import BasePydataIngressHandler
@@ -27,9 +27,9 @@ class DataframeFromPylist(BasePydataIngressHandler):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True,
     ) -> PolarsFrame:
         """
@@ -44,8 +44,8 @@ class DataframeFromPylist(BasePydataIngressHandler):
         Args:
             data: List of dictionaries (row format)
                   Example: [{"col1": 1, "col2": "a"}, {"col1": 2, "col2": "b"}]
-            type_spec: Optional TypeSpec for column type coercion and renaming
-            source_spec: Optional source dtype declarations.
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Optional source dtype declarations.
             inline_conform: Whether to apply target conversions.
 
         Returns:
@@ -58,7 +58,7 @@ class DataframeFromPylist(BasePydataIngressHandler):
         from .custom_type_helpers import _source_schema_overrides, apply_hybrid_conversion
 
         df = apply_hybrid_conversion(
-            data, type_spec, schema_overrides=_source_schema_overrides(source_spec),
+            data, table_schema, schema_overrides=_source_schema_overrides(source_table_schema),
             inline_conform=inline_conform,
         )
 

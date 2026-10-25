@@ -190,3 +190,70 @@ class TestBackendMethodsHaveProtocols:
             for cls_name, methods in sorted(rogue.items()):
                 lines.append(f"  {cls_name}: {methods}")
             pytest.fail("\n".join(lines))
+
+
+class TestRelationSystemContractOperations:
+    """Operations declared on ``RelationSystem`` itself, outside the Substrait/extension protocols."""
+
+    @pytest.mark.parametrize(("backend_name", "backend_cls"), BACKENDS, ids=[name for name, _ in BACKENDS])
+    def test_describe_output_schema_is_implemented_with_the_declared_signature(
+        self, backend_name: str, backend_cls: type
+    ) -> None:
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.relations.core.relation_protocols.relsys_base import (
+            RelationSystem,
+            get_relation_system,
+        )
+
+        assert get_relation_system(CONST_BACKEND(backend_name)) is backend_cls
+        owner = next(klass for klass in backend_cls.__mro__ if "describe_output_schema" in klass.__dict__)
+        assert not owner.__name__.endswith("Protocol"), (
+            f"{backend_name} inherits the declared stub, not an implementation"
+        )
+
+        def shape(function) -> list[tuple[str, object]]:
+            return [(p.name, p.kind) for p in inspect.signature(function).parameters.values()]
+
+        assert shape(backend_cls.describe_output_schema) == shape(RelationSystem.describe_output_schema)
+        assert dict(inspect.signature(backend_cls.describe_output_schema).parameters)[
+            "location"
+        ].kind is inspect.Parameter.KEYWORD_ONLY
+
+    @pytest.mark.parametrize(("backend_name", "backend_cls"), BACKENDS, ids=[name for name, _ in BACKENDS])
+    @pytest.mark.parametrize(
+        ("method_name", "positional", "keyword_only"),
+        [
+            ("infer_row_index_names", ["self", "input_names"], ["name", "location"]),
+            (
+                "infer_cross_join_names",
+                ["self", "left_names", "right_names"],
+                ["suffix", "location"],
+            ),
+        ],
+    )
+    def test_name_inference_is_implemented_by_backend_base_with_declared_signature(
+        self, backend_name: str, backend_cls: type, method_name: str,
+        positional: list[str], keyword_only: list[str],
+    ) -> None:
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.relations.core.relation_protocols.relsys_base import (
+            RelationSystem,
+            get_relation_system,
+        )
+
+        assert get_relation_system(CONST_BACKEND(backend_name)) is backend_cls
+        assert getattr(RelationSystem, method_name).__isabstractmethod__
+        owner = next(klass for klass in backend_cls.__mro__ if method_name in klass.__dict__)
+        assert owner.__module__.endswith(f"relation_systems.{backend_name}.base"), (
+            f"{backend_name} must implement {method_name} in its backend base mixin, not {owner.__module__}"
+        )
+        # Method-free composition: the composed class itself carries no implementation.
+        assert method_name not in backend_cls.__dict__
+
+        def shape(function) -> list[tuple[str, object]]:
+            return [(p.name, p.kind) for p in inspect.signature(function).parameters.values()]
+
+        expected = [(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in positional]
+        expected += [(name, inspect.Parameter.KEYWORD_ONLY) for name in keyword_only]
+        assert shape(getattr(RelationSystem, method_name)) == expected
+        assert shape(getattr(backend_cls, method_name)) == expected

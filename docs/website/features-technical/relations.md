@@ -75,7 +75,7 @@ The minimal AST is deliberate — most operations are parameter values on these 
 | Sampling | `.sample(n=..., fraction=...)`, `.with_row_index()` |
 | Pivots | `.unpivot(on=..., index=...)`, `.pivot(on=..., index=...)` |
 | Struct expansion | `.unnest(*cols, separator="_")` |
-| Conformance | `.conform(spec)` — see [TypeSpec & conformance](typespec-conform.md) |
+| Conformance | `.conform(schema)` — see [shared schemas & conformance](typespec-conform.md) |
 | Terminal | `.to_polars()`, `.to_pandas()`, `.collect()`, `.execute()`, `.to_dicts()`, `.to_dict()` |
 | Pipeline params | `.params(**kwargs)` — see [Pipelines](pipelines.md) |
 
@@ -395,5 +395,5 @@ You drop into native Polars, do the thing, and the rest of your pipeline is stil
 
 - [Expressions](expressions.md) — what goes inside `.filter()`, `.with_columns()`, `.agg()`
 - [Cross-backend execution](cross-backend.md) — how the same relation runs on three backends
-- [TypeSpec & conformance](typespec-conform.md) — schema-driven `.conform()`
+- [Shared schemas & conformance](typespec-conform.md) — schema-driven `.conform()`
 - [Pipelines](pipelines.md) — named, parameter-bound relations

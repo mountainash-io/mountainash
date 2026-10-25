@@ -4,7 +4,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.datacontracts.compiler import compile_datacontract
-from mountainash.typespec import FieldConstraints, FieldSpec, TypeSpec, UniversalType
+from mountainash.typespec import FieldConstraints, FieldDefinition, TableSchema, UniversalType
 from mountainash.validation import ValidationRunner
 
 from ibis.common.exceptions import UnsupportedBackendType
@@ -20,13 +20,16 @@ def test_generated_datacontract_accepts_native_arrays(
 ):
     if element_kind == "scalar":
         values = [["a", "b"], [], None]
-        field = FieldSpec("x", UniversalType.ARRAY)
+        field = FieldDefinition(type=UniversalType.ARRAY)
         expected = {"x_type_format": (3, 0, 0)}
     else:
         values = [[{"tag": "a"}, {"tag": "b"}], [], None]
-        field = FieldSpec(
-            "x", UniversalType.ARRAY,
-            item_object_fields=[FieldSpec("tag", UniversalType.STRING)],
+        field = FieldDefinition(
+            type=UniversalType.ARRAY,
+            element=FieldDefinition(
+                type=UniversalType.OBJECT,
+                fields={"tag": FieldDefinition(type=UniversalType.STRING)},
+            ),
         )
         expected = {"x_type_format": (3, 0, 0), "x_nested": (3, 0, 0)}
     with expect_call_failure(
@@ -35,7 +38,7 @@ def test_generated_datacontract_accepts_native_arrays(
         reason="SQLite cannot construct the native Array input",
     ):
         source = backend_factory.create({"x": values}, backend_name)
-    spec = TypeSpec(fields=[field], missing_values=[])
+    spec = TableSchema(fields={"x": field}, missing_values=[])
     report = ma.datacontract(spec).validate_datacontract(source)
     assert report.passes
     assert {
@@ -49,13 +52,16 @@ def test_generated_native_array_contract_retains_constraints(
     backend_name, backend_factory
 ):
     values = [[{"tag": "good"}], [{"tag": "bad"}], [], None]
-    field = FieldSpec(
-        "x", UniversalType.ARRAY,
+    field = FieldDefinition(
+        type=UniversalType.ARRAY,
         constraints=FieldConstraints(required=True),
-        item_object_fields=[FieldSpec(
-            "tag", UniversalType.STRING,
-            constraints=FieldConstraints(pattern="^good$"),
-        )],
+        element=FieldDefinition(
+            type=UniversalType.OBJECT,
+            fields={"tag": FieldDefinition(
+                type=UniversalType.STRING,
+                constraints=FieldConstraints(pattern="^good$"),
+            )},
+        ),
     )
     with expect_call_failure(
         when=backend_name == "ibis-sqlite",
@@ -63,7 +69,7 @@ def test_generated_native_array_contract_retains_constraints(
         reason="SQLite cannot construct the native Array input",
     ):
         source = backend_factory.create({"x": values}, backend_name)
-    spec = TypeSpec(fields=[field], missing_values=[])
+    spec = TableSchema(fields={"x": field}, missing_values=[])
     report = ma.datacontract(spec).validate_datacontract(source)
     assert not report.passes
     assert {
@@ -81,10 +87,9 @@ def test_generated_native_array_contract_retains_constraints(
 def test_compiled_json_schema_reports_logical_object_failure(backend_name, backend_factory):
     """JSON Schema receives a logical object rather than backend-native state."""
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="payload",
+        TableSchema(
+            fields={
+                "payload": FieldDefinition(
                     type=UniversalType.OBJECT,
                     constraints=FieldConstraints(
                         json_schema={
@@ -94,7 +99,7 @@ def test_compiled_json_schema_reports_logical_object_failure(backend_name, backe
                         }
                     ),
                 )
-            ]
+            }
         )
     )
 
@@ -131,13 +136,13 @@ def test_compiled_json_schema_reports_logical_object_failure(backend_name, backe
 
 def _object_relation(backend_name, backend_factory, values, *, action="coerce", apply_value_transforms=True):
     df = backend_factory.create({"payload": values}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.OBJECT)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.OBJECT)})
     return ma.relation(df).conform(spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms)
 
 
 def _array_relation(backend_name, backend_factory, values, *, action="coerce", apply_value_transforms=True):
     df = backend_factory.create({"payload": values}, backend_name)
-    spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="payload", type=UniversalType.ARRAY)])
+    spec = TableSchema(fields_match="open", fields={"payload": FieldDefinition(type=UniversalType.ARRAY)})
     return ma.relation(df).conform(spec, contract={"data_type": action}, apply_value_transforms=apply_value_transforms)
 
 
@@ -163,10 +168,9 @@ def _value_check(rel, validator, *, options, mostly=None):
 class TestObjectAndArrayJSONSchema:
     def test_object_json_schema_passes_for_valid_values(self, backend_name, backend_factory):
         plan = compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.OBJECT,
                         constraints=FieldConstraints(
                             json_schema={
@@ -176,7 +180,7 @@ class TestObjectAndArrayJSONSchema:
                             }
                         ),
                     )
-                ]
+                }
             )
         )
         result = ValidationRunner().validate_relation(
@@ -191,10 +195,9 @@ class TestObjectAndArrayJSONSchema:
 
     def test_array_json_schema_reports_logical_failure(self, backend_name, backend_factory):
         plan = compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.ARRAY,
                         constraints=FieldConstraints(
                             json_schema={
@@ -204,7 +207,7 @@ class TestObjectAndArrayJSONSchema:
                             }
                         ),
                     )
-                ]
+                }
             )
         )
         result = ValidationRunner().validate_relation(
@@ -221,10 +224,9 @@ class TestObjectAndArrayJSONSchema:
 
     def test_array_json_schema_passes_for_valid_values(self, backend_name, backend_factory):
         plan = compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.ARRAY,
                         constraints=FieldConstraints(
                             json_schema={
@@ -234,7 +236,7 @@ class TestObjectAndArrayJSONSchema:
                             }
                         ),
                     )
-                ]
+                }
             )
         )
         result = ValidationRunner().validate_relation(
@@ -256,10 +258,9 @@ class TestRecursiveStructuredFields:
         against the fully-decoded native Python structure -- recursive
         validation is inherent to JSON Schema itself, not special-cased."""
         plan = compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.OBJECT,
                         constraints=FieldConstraints(
                             json_schema={
@@ -273,7 +274,7 @@ class TestRecursiveStructuredFields:
                             }
                         ),
                     )
-                ]
+                }
             )
         )
         result = ValidationRunner().validate_relation(
@@ -286,10 +287,9 @@ class TestRecursiveStructuredFields:
 
     def test_recursive_array_item_object_field_reports_the_item_index(self, backend_name, backend_factory):
         plan = compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.ARRAY,
                         constraints=FieldConstraints(
                             json_schema={
@@ -301,7 +301,7 @@ class TestRecursiveStructuredFields:
                             }
                         ),
                     )
-                ]
+                }
             )
         )
         result = ValidationRunner().validate_relation(
@@ -366,13 +366,13 @@ class TestStructuredCompositeKeys:
             {"id": [1, 1], "tags": ["[1, 2]", "[1,2]"], "meta": ['{"a": 1}', '{"a":1}']},
             backend_name,
         )
-        spec = TypeSpec(
+        spec = TableSchema(
             fields_match="open",
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="tags", type=UniversalType.ARRAY),
-                FieldSpec(name="meta", type=UniversalType.OBJECT),
-            ],
+            fields={
+                "id": FieldDefinition(type=UniversalType.INTEGER),
+                "tags": FieldDefinition(type=UniversalType.ARRAY),
+                "meta": FieldDefinition(type=UniversalType.OBJECT),
+            },
         )
         rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
         result = ValidationRunner().validate_relation(
@@ -390,8 +390,8 @@ class TestStructuredForeignKeys:
         from mountainash.relations.dag.dag import RelationDAG
         from mountainash.validation import ForeignKeyRule
 
-        parent_spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)])
-        child_spec = TypeSpec(fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)])
+        parent_spec = TableSchema(fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)})
+        child_spec = TableSchema(fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)})
         parent_rel = ma.relation(backend_factory.create({"meta": ['{"a": 1}']}, backend_name)).conform(
             parent_spec, contract={"data_type": "coerce"}
         )
@@ -472,10 +472,9 @@ class TestCoerceFalseStructuredValidation:
         Task 7 step 2/2.3) -- a `coerce=False` relation is exactly as
         strict as a coercing one."""
         plan = compile_datacontract(
-            TypeSpec(
-                fields=[
-                    FieldSpec(
-                        name="payload",
+            TableSchema(
+                fields={
+                    "payload": FieldDefinition(
                         type=UniversalType.OBJECT,
                         constraints=FieldConstraints(
                             json_schema={
@@ -485,7 +484,7 @@ class TestCoerceFalseStructuredValidation:
                             }
                         ),
                     )
-                ]
+                }
             )
         )
         rel = _object_relation(

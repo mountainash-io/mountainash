@@ -4,7 +4,7 @@ import pytest
 
 import mountainash as ma
 from mountainash.datacontracts.compiler import compile_datacontract
-from mountainash.typespec import FieldConstraints, FieldSpec, TypeSpec, UniversalType
+from mountainash.typespec import FieldConstraints, FieldDefinition, TableSchema, UniversalType
 from mountainash.validation import ValidationRunner
 
 from fixtures.backend_registry import ALL_BACKENDS
@@ -43,9 +43,9 @@ def test_empty_type_format_passes(backend_name, type_name, backend_factory):
         "any": "x",
     }
     source = backend_factory.create({"value": [seeds[type_name.value]]}, backend_name)
-    plan = compile_datacontract(TypeSpec(fields=[
-        FieldSpec(name="value", type=type_name),
-    ]))
+    plan = compile_datacontract(TableSchema(fields={
+        "value": FieldDefinition(type=type_name),
+    }))
     result = ValidationRunner().validate_relation(
         ma.relation(source).head(0), plan=plan, conform_contract={"data_type": "coerce"},
     )
@@ -89,22 +89,20 @@ def test_empty_type_format_passes(backend_name, type_name, backend_factory):
 def test_compiled_scalar_constraints_use_logical_values(backend_name, backend_factory):
     """Range, XML Schema pattern, enum, and categories agree cross-backend."""
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="amount",
+        TableSchema(
+            fields={
+                "amount": FieldDefinition(
                     type=UniversalType.INTEGER,
                     constraints=FieldConstraints(minimum=1, exclusive_maximum=3),
                 ),
-                FieldSpec(
-                    name="code",
+                "code": FieldDefinition(
                     type=UniversalType.STRING,
                     categories=["AB12"],
                     constraints=FieldConstraints(
                         pattern="[A-Z]{2}[0-9]{2}", enum=["AB12"]
                     ),
                 ),
-            ]
+            }
         )
     )
 
@@ -130,14 +128,13 @@ def test_compiled_required_and_unique_constraints_share_null_semantics(
 ):
     """Null fails required but does not enter a field-uniqueness comparison."""
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="id",
+        TableSchema(
+            fields={
+                "id": FieldDefinition(
                     type=UniversalType.STRING,
                     constraints=FieldConstraints(required=True, unique=True),
                 )
-            ]
+            }
         )
     )
 
@@ -157,14 +154,13 @@ def test_compiled_date_ranges_compare_conformed_logical_values(
 ):
     """ISO date text becomes logical dates before the range validator runs."""
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(
-                    name="day",
+        TableSchema(
+            fields={
+                "day": FieldDefinition(
                     type=UniversalType.DATE,
                     constraints=FieldConstraints(minimum="2024-01-01"),
                 )
-            ]
+            }
         )
     )
 

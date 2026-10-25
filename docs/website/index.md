@@ -40,13 +40,13 @@ Column-level computation: `ma.col("price") * ma.col("qty")`, `ma.col("name").str
 
 DataFrame-level pipelines: `ma.relation(df).filter(...).sort(...).group_by(...).agg(...).to_polars()`. The relation API mirrors a subset of Polars LazyFrame and pandas. Cross-type joins (Polars left, pandas right) coerce automatically.
 
-### [TypeSpec and conformance](features/typespec-conform.md)
+### [Shared schemas and conformance](features/typespec-conform.md)
 
-A serializable type specification that maps cleanly onto Frictionless Table Schema. Compile a TypeSpec into a `conform()` transformation that casts, renames, fills nulls, and validates — driven from the schema, not hand-written column by column. Read and write Frictionless `datapackage.json` descriptors directly.
+A serializable `TableSchema` of unnamed, immutable `FieldDefinition` declarations that maps cleanly onto Frictionless Table Schema. Attach it with `conform()` to build a deferred `ConformRelNode` that converts, renames, and fills nulls — driven from the schema, not hand-written column by column. Contracts and validation check values separately. Read and write Frictionless `datapackage.json` descriptors directly.
 
 ### [Data contracts](features/datacontracts.md)
 
-Compile any schema source — `TypeSpec`, dict, pandera `DataFrameModel`, Pydantic `BaseModel`, or a Frictionless JSON file — into a `BaseDataContract` class with `.validate(df)`. One schema, every backend.
+Compile any schema source — `TableSchema`, dict, Pydantic `BaseModel`, or a Frictionless JSON file — into a `BaseDataContract` class with `.validate(df)`. One schema, every backend.
 
 ### [Pipelines](features/pipelines.md)
 
@@ -97,7 +97,7 @@ The package is in active development. Specifically:
 | Narwhals backend | Settled for scalar/aggregate; relational coverage growing |
 | Public expression API (`ma.col`, `ma.lit`, etc.) | Stable in shape, occasional renames |
 | Public relation API (`ma.relation(...).…`) | Stable in shape, occasional renames |
-| TypeSpec / DataPackage | Stable; aligned with Frictionless Table Schema |
+| TableSchema / DataPackage | Stable; aligned with Frictionless Table Schema |
 | Data contracts | Stable for the supported source formats |
 | Pipelines | Recently redesigned (parameter system replaced pushdown in 2026-05); evolving |
 | Cross-backend test coverage | ≈ 3,000 parametrised tests; new operations require cross-backend coverage |

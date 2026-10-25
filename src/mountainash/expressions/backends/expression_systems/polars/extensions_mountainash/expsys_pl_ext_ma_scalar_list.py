@@ -7,12 +7,8 @@ import polars as pl
 from mountainash.expressions.backends.expression_systems.polars.base import PolarsBaseExpressionSystem
 from mountainash.expressions.core.expression_protocols.expression_systems.extensions_mountainash import MountainAshScalarListExpressionSystemProtocol
 from mountainash.expressions.constants import CONST_TERNARY_LOGIC_VALUES
-from mountainash.typespec.converters import _resolve_field_native
-from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
-from mountainash.core.dtypes import TypeTarget
-from .expsys_pl_ext_ma_scalar_struct import _invalid_nested
-from ..temporal_cast import cast_temporal_compatible
+from mountainash.core.dtypes import CastTarget, TypeTarget, registry
+from ..container_cast import cast_container
 _T_TRUE = CONST_TERNARY_LOGIC_VALUES.TERNARY_TRUE
 _T_UNKNOWN = CONST_TERNARY_LOGIC_VALUES.TERNARY_UNKNOWN
 _T_FALSE = CONST_TERNARY_LOGIC_VALUES.TERNARY_FALSE
@@ -85,60 +81,12 @@ class MountainAshPolarsScalarListExpressionSystem(PolarsBaseExpressionSystem, Mo
         self,
         x,
         /,
-        *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
-        item_type: str | None = None,
+        *,
+        dtype: CastTarget,
         failure_behavior: str = "throw",
     ):
-        if item_type is not None:
-            from mountainash.core.dtypes import registry
-            from mountainash.typespec.universal_types import parse_universal, to_canonical
-            canonical = to_canonical(parse_universal(item_type))
-            dtype = registry.to_native_schema(canonical, TypeTarget.POLARS)
-            result = cast_temporal_compatible(x, pl.List(dtype), strict=failure_behavior != "null")
-            if failure_behavior == "null":
-                original_count = x.list.eval(pl.element().is_not_null()).list.sum()
-                result_count = result.list.eval(pl.element().is_not_null()).list.sum()
-                invalid = result_count < original_count
-                return pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
-            return result
-        field = FieldSpec(
-            name="_items",
-            type=UniversalType.ARRAY,
-            item_object_fields=list(item_object_fields),
-        )
-        dtype = _resolve_field_native(field, TypeTarget.POLARS)
-        if converted_fields:
-            count = len(item_object_fields)
-            validity = converted_fields[count] if len(converted_fields) > count else None
-            element = pl.struct([
-                value.alias(child.name)
-                for child, value in zip(item_object_fields, converted_fields[:count], strict=True)
-            ])
-            element = pl.when(pl.element().is_null()).then(
-                pl.lit(None, dtype=dtype.inner),
-            ).otherwise(element.cast(dtype.inner, strict=failure_behavior != "null"))
-
-            def convert(bound, native, *, check=False):
-                nested = isinstance(native.inner, (pl.List, pl.Array))
-                body = convert(pl.element(), native.inner, check=check) if nested else (
-                    ~validity.fill_null(True) if check else element
-                )
-                mapped = bound.arr.eval(body) if isinstance(native, pl.Array) else bound.list.eval(body)
-                if check:
-                    return (mapped.arr.any() if isinstance(native, pl.Array) else mapped.list.any()).fill_null(False)
-                return mapped
-
-            result = x.pipe_with_dtype(convert)
-            if validity is not None:
-                invalid = x.pipe_with_dtype(lambda bound, native: convert(bound, native, check=True))
-                result = pl.when(invalid).then(None).otherwise(result)
-        else:
-            result = cast_temporal_compatible(x, dtype, strict=failure_behavior != "null")
-        if failure_behavior == "null" and not converted_fields:
-            invalid = _invalid_nested(x, field)
-            result = pl.when(x.is_null()).then(None).when(invalid).then(None).otherwise(result)
-        return result
+        native = registry.to_native_cast(dtype, TypeTarget.POLARS)
+        return cast_container(x, native, strict=failure_behavior != "null")
 
     def list_sum(self, x, /):
         return x.list.sum()

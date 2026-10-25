@@ -4,10 +4,14 @@ Helper functions for custom type conversion in ingress modules.
 Implements the hybrid strategy for optimal performance:
 - Custom converters: Apply at EDGES (Python layer, before DataFrame)
 - Native conversions: Apply in CENTER (DataFrame layer, vectorized)
+
+Declarations are unnamed: the conversion tiers are ``{target_name:
+FieldDefinition}`` mappings, and a target reads its source column from
+``definition.rename_from`` when set, otherwise from its own name. Every target
+reads the unchanged input, so swaps and fan-out share one source safely.
 """
 from __future__ import annotations
 
-from dataclasses import replace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import logging
 
@@ -15,65 +19,69 @@ import logging
 
 if TYPE_CHECKING:
     from mountainash.core.types import PolarsFrame
-    from mountainash.typespec.spec import TypeSpec, FieldSpec
+    from mountainash.typespec.spec import TableSchema, FieldDefinition
 
 logger = logging.getLogger(__name__)
 
 
-def separate_conversions(
-    spec: "TypeSpec",
-) -> Tuple[Dict[str, "FieldSpec"], Dict[str, "FieldSpec"], Dict[str, "FieldSpec"]]:
-    """
-    Separate a TypeSpec into three conversion tiers.
+def source_column_name(target_name: str, definition: "FieldDefinition") -> str:
+    """Source column a declared target reads: ``rename_from`` if set, else the target name."""
+    return definition.rename_from if definition.rename_from is not None else target_name
 
-    This is a standalone replacement for SchemaConfig.separate_conversions() that
-    operates on TypeSpec/FieldSpec instead of raw dicts.
+
+def separate_conversions(
+    schema: "TableSchema",
+) -> Tuple[Dict[str, "FieldDefinition"], Dict[str, "FieldDefinition"], Dict[str, "FieldDefinition"]]:
+    """
+    Separate a TableSchema into three conversion tiers.
 
     Returns:
-        (python_only, narwhals, native) — three dicts keyed by source_name:
+        (python_only, narwhals, native) — three dicts keyed by TARGET field name:
 
         - python_only: Fields with a custom_cast that has no Narwhals implementation
           (row-by-row Python conversion required)
         - narwhals: Fields with a custom_cast that has a vectorized Narwhals implementation
         - native: All other fields (no custom cast — handled by Relation.conform())
 
+        The source column of each entry is ``source_column_name(target, definition)``.
+
     Example:
-        >>> spec = TypeSpec(fields=[
+        >>> schema = TableSchema(fields={
         ...     # custom_cast takes routing precedence over type (here ANY):
-        ...     FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float"),  # → narwhals
-        ...     FieldSpec(name="id", type=UniversalType.INTEGER),    # → native
-        ... ])
-        >>> python_only, narwhals, native = separate_conversions(spec)
+        ...     "amount": FieldDefinition(type=UniversalType.ANY, custom_cast="safe_float"),  # → narwhals
+        ...     "id": FieldDefinition(type=UniversalType.INTEGER),    # → native
+        ... })
+        >>> python_only, narwhals, native = separate_conversions(schema)
     """
     from mountainash.typespec.custom_types import CustomTypeRegistry
 
-    python_only: Dict[str, "FieldSpec"] = {}
-    narwhals: Dict[str, "FieldSpec"] = {}
-    native: Dict[str, "FieldSpec"] = {}
+    python_only: Dict[str, "FieldDefinition"] = {}
+    narwhals: Dict[str, "FieldDefinition"] = {}
+    native: Dict[str, "FieldDefinition"] = {}
 
-    for field in spec.fields:
-        cast_type = field.custom_cast
+    for name, definition in dict(schema.fields).items():
+        cast_type = definition.custom_cast
 
         if cast_type is None:
             # No custom cast — route to native (Relation.conform() handles type + rename)
-            native[field.source_name] = field
+            native[name] = definition
             continue
 
         if CustomTypeRegistry.has_converter(cast_type):
             if CustomTypeRegistry.is_vectorized(cast_type):
-                narwhals[field.source_name] = field
+                narwhals[name] = definition
             else:
-                python_only[field.source_name] = field
+                python_only[name] = definition
         else:
             # Unknown custom_cast — treat as native and let Relation.conform() handle it
-            native[field.source_name] = field
+            native[name] = definition
 
     return python_only, narwhals, native
 
 
 def apply_custom_converters_to_dict(
     data_dict: Dict[str, Any],
-    custom_conversions: Dict[str, "FieldSpec"],
+    custom_conversions: Dict[str, "FieldDefinition"],
 ) -> Dict[str, Any]:
     """
     Apply custom type converters to a single dictionary.
@@ -82,52 +90,57 @@ def apply_custom_converters_to_dict(
     - Apply ONLY custom converters (safe_float, xml_string, etc.)
     - Leave native conversions for DataFrame layer (FAST!)
 
+    Each target is converted once from the value of its source key in the
+    unchanged input ``data_dict`` and stored under its target name, so a swap
+    or a fan-out of one source never sees another target's output.
+
     Args:
         data_dict: Dictionary of field_name -> value
-        custom_conversions: Dict of columns (keyed by source_name) with FieldSpec
+        custom_conversions: Dict of FieldDefinition keyed by target name, each
                            containing custom_cast. Returned by separate_conversions().
 
     Returns:
-        Dictionary with custom conversions applied
+        New dictionary with custom conversions applied
 
     Example:
         >>> # custom_cast takes routing precedence over type (here ANY):
-        >>> field = FieldSpec(name="amount", type=UniversalType.ANY, custom_cast="safe_float")
-        >>> result = apply_custom_converters_to_dict({"amount": "42.5"}, {"amount": field})
+        >>> definition = FieldDefinition(type=UniversalType.ANY, custom_cast="safe_float")
+        >>> result = apply_custom_converters_to_dict({"amount": "42.5"}, {"amount": definition})
         >>> result["amount"]
         42.5
     """
     from mountainash.typespec.custom_types import CustomTypeRegistry
 
-    converted_dict = {}
+    converted_dict = dict(data_dict)
 
-    for field_name, value in data_dict.items():
-        if field_name in custom_conversions:
-            field_spec = custom_conversions[field_name]
-            cast_type = field_spec.custom_cast
-
-            if cast_type is not None:
-                try:
-                    value = CustomTypeRegistry.convert(
-                        value,
-                        cast_type,
-                        field_name=field_name,
-                        raise_on_error=False,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Custom conversion failed for field '{field_name}' "
-                        f"with type '{cast_type}': {e}. Using original value."
-                    )
-
-        converted_dict[field_name] = value
+    for target_name, definition in custom_conversions.items():
+        cast_type = definition.custom_cast
+        if cast_type is None:
+            continue
+        source_name = source_column_name(target_name, definition)
+        if source_name not in data_dict:
+            continue
+        value = data_dict[source_name]
+        try:
+            value = CustomTypeRegistry.convert(
+                value,
+                cast_type,
+                field_name=source_name,
+                raise_on_error=False,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Custom conversion failed for field '{source_name}' "
+                f"with type '{cast_type}': {e}. Using original value."
+            )
+        converted_dict[target_name] = value
 
     return converted_dict
 
 
 def apply_custom_converters_to_dicts(
     data_dicts: List[Dict[str, Any]],
-    custom_conversions: Dict[str, "FieldSpec"],
+    custom_conversions: Dict[str, "FieldDefinition"],
 ) -> List[Dict[str, Any]]:
     """
     Apply custom type converters to a list of dictionaries.
@@ -136,7 +149,7 @@ def apply_custom_converters_to_dicts(
 
     Args:
         data_dicts: List of dictionaries
-        custom_conversions: Dict of columns (keyed by source_name) with FieldSpec
+        custom_conversions: Dict of FieldDefinition keyed by target name,
                            containing custom_cast.
 
     Returns:
@@ -153,7 +166,7 @@ def apply_custom_converters_to_dicts(
 
 def apply_native_conversions_to_dataframe(
     df: "PolarsFrame",
-    native_conversions: Dict[str, "FieldSpec"],
+    native_conversions: Dict[str, "FieldDefinition"],
 ) -> "PolarsFrame":
     """
     Apply native type conversions to a DataFrame using vectorized operations.
@@ -164,7 +177,7 @@ def apply_native_conversions_to_dataframe(
 
     Args:
         df: Polars DataFrame
-        native_conversions: Dict of columns (keyed by source_name) with FieldSpec.
+        native_conversions: Dict of FieldDefinition keyed by target name.
                            Returned by separate_conversions().
 
     Returns:
@@ -175,18 +188,15 @@ def apply_native_conversions_to_dataframe(
         return df
 
     import mountainash as ma
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.conform.expressions import _build_conform_exprs
     from mountainash.core.dtypes import TypeTarget
     from mountainash.typespec.source_shape import extract_source_shapes
 
     # Preserve columns outside the requested native conversions.
-    native_spec = TypeSpec(
-        fields=[f for f in native_conversions.values()],
-        fields_match="open",
-    )
+    native_schema = TableSchema(fields=native_conversions, fields_match="open")
     conform_result = _build_conform_exprs(
-        native_spec, available_columns=df.columns, actual_shapes=extract_source_shapes(df),
+        native_schema, available_columns=df.columns, actual_shapes=extract_source_shapes(df),
         type_target=TypeTarget.POLARS,
     )
     try:
@@ -202,7 +212,7 @@ def apply_native_conversions_to_dataframe(
 
 def _apply_narwhals_custom_converters(
     df: "PolarsFrame",
-    narwhals_custom: Dict[str, "FieldSpec"],
+    narwhals_custom: Dict[str, "FieldDefinition"],
 ) -> "PolarsFrame":
     """
     Apply Narwhals-vectorized custom converters to DataFrame.
@@ -212,9 +222,13 @@ def _apply_narwhals_custom_converters(
     2. Apply Narwhals expressions (vectorized!)
     3. Convert back to native format
 
+    Every target expression is built against the unchanged input frame and all
+    are applied in one ``with_columns``, so swapped or fanned-out sources are
+    read before any target replaces them.
+
     Args:
         df: DataFrame to transform
-        narwhals_custom: Dict of column specs (keyed by source_name) with FieldSpec
+        narwhals_custom: Dict of FieldDefinition keyed by target name
                         containing custom_cast.
 
     Returns:
@@ -231,45 +245,45 @@ def _apply_narwhals_custom_converters(
     was_native = not (is_narwhals_dataframe(df) or is_narwhals_lazyframe(df))
     nw_df = nw.from_native(df) if was_native else df
 
-    for col_name, field_spec in narwhals_custom.items():
-        cast_type = field_spec.custom_cast
+    exprs = []
+    for target_name, definition in narwhals_custom.items():
+        cast_type = definition.custom_cast
+        source_name = source_column_name(target_name, definition)
 
         narwhals_converter = CustomTypeRegistry.get_narwhals_converter(cast_type)
         if narwhals_converter is None:
             logger.warning(
-                f"Column '{col_name}' marked as Narwhals custom type '{cast_type}' "
+                f"Column '{source_name}' marked as Narwhals custom type '{cast_type}' "
                 "but no Narwhals converter found - skipping"
             )
             continue
 
-        expr_builder = narwhals_converter(col_name)
-        col_expr = expr_builder(nw_df)
-
-        # Use field.name as target (handles rename_from aliasing)
-        target_name = field_spec.name
-
-        nw_df = nw_df.with_columns(col_expr.alias(target_name))
+        expr_builder = narwhals_converter(source_name)
+        exprs.append(expr_builder(nw_df).alias(target_name))
 
         logger.debug(
-            f"Applied Narwhals custom converter '{cast_type}' to column '{col_name}' "
+            f"Applied Narwhals custom converter '{cast_type}' to column '{source_name}' "
             f"→ '{target_name}' (vectorized)"
         )
+
+    if exprs:
+        nw_df = nw_df.with_columns(*exprs)
 
     result = nw_df.to_native() if was_native else nw_df
     return result
 
 
 def _source_schema_overrides(
-    source_spec: Optional["TypeSpec"] = None,
+    source_table_schema: Optional["TableSchema"] = None,
     *,
-    model_spec: Optional["TypeSpec"] = None,
+    model_table_schema: Optional["TableSchema"] = None,
 ) -> Dict[str, Any]:
-    """Resolve source declarations without inspecting values or target specs."""
-    if source_spec is None and model_spec is None:
+    """Resolve source declarations without inspecting values or target schemas."""
+    if source_table_schema is None and model_table_schema is None:
         return {}
 
     from mountainash.typespec.converters import to_polars_schema
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     # Automatic model evidence is scalar only; nested ingress is a separate concern.
@@ -279,33 +293,30 @@ def _source_schema_overrides(
         UniversalType.TIME, UniversalType.DURATION, UniversalType.YEAR,
         UniversalType.YEARMONTH,
     }
+    # Keyed by source column: resolve in the source namespace, since a target
+    # alias can name another source field.
     fields = {
-        field.source_name: field
-        for field in model_spec.fields
-        if field.type in scalar_types
-    } if model_spec is not None else {}
-    if source_spec is not None:
-        for field in source_spec.fields:
+        source_column_name(name, definition): definition
+        for name, definition in model_table_schema.fields.items()
+        if definition.type in scalar_types
+    } if model_table_schema is not None else {}
+    if source_table_schema is not None:
+        for name, definition in source_table_schema.fields.items():
             if (
-                field.type != UniversalType.ANY
-                or field.dtype is not None
-                or field.backend_type
-                or field.categories is not None
+                definition.type != UniversalType.ANY
+                or definition.dtype is not None
+                or definition.backend_type
+                or definition.categories is not None
             ):
-                fields[field.source_name] = field
+                fields[source_column_name(name, definition)] = definition
     if not fields:
         return {}
-    # Resolve in the source namespace: a target alias can name another source field.
-    source_fields = [
-        field if field.name == name else replace(field, name=name)
-        for name, field in fields.items()
-    ]
-    return to_polars_schema(TypeSpec(fields=source_fields))
+    return to_polars_schema(TableSchema(fields=fields))
 
 
 def apply_hybrid_conversion(
     data_dicts: List[Dict[str, Any]],
-    spec: Optional["TypeSpec"] = None,
+    table_schema: Optional["TableSchema"] = None,
     *,
     schema_overrides: Optional[Dict[str, Any]] = None,
     inline_conform: bool = True,
@@ -329,7 +340,7 @@ def apply_hybrid_conversion(
 
     Args:
         data_dicts: List of dictionaries to convert
-        spec: Optional TypeSpec with field specifications
+        table_schema: Optional TableSchema with field declarations
         schema_overrides: Native source dtypes, independent of conversion targets.
         inline_conform: Whether to run target conversion stages.
 
@@ -342,11 +353,11 @@ def apply_hybrid_conversion(
     if pl is None:
         raise ImportError("polars is required for this operation")
 
-    if spec is None or not inline_conform:
+    if table_schema is None or not inline_conform:
         return pl.DataFrame(data_dicts, strict=False, schema_overrides=schema_overrides)
 
     # STEP 1: Separate conversions into THREE tiers
-    python_only, narwhals_custom, native = separate_conversions(spec)
+    python_only, narwhals_custom, native = separate_conversions(table_schema)
 
     logger.info(
         f"Three-tier conversion: {len(python_only)} Python-only custom, "
@@ -354,34 +365,117 @@ def apply_hybrid_conversion(
         f"{len(native)} native conversions"
     )
 
-    # STEP 2: Apply PYTHON-ONLY custom converters at edges (TIER 3)
+    # Python converters run before frame construction, but their targets must
+    # not replace the input read by either of the vectorized tiers.
+    source_overrides = schema_overrides
+    converted_rows = data_dicts
     if python_only:
-        data_dicts = apply_custom_converters_to_dicts(data_dicts, python_only)
-        # Edge converters may change the carrier or return the original on failure.
-        # Neither the old source dtype nor converter metadata proves the output dtype.
+        converted_rows = apply_custom_converters_to_dicts(data_dicts, python_only)
         if schema_overrides:
             schema_overrides = {
                 name: dtype for name, dtype in schema_overrides.items()
                 if name not in python_only
             }
-        logger.debug(f"Applied Python-only custom converters to {len(data_dicts)} records")
+    df = pl.DataFrame(converted_rows, strict=False, schema_overrides=schema_overrides)
+    if not narwhals_custom and not native:
+        return df
 
-    # STEP 3: Create DataFrame
-    df = pl.DataFrame(data_dicts, strict=False, schema_overrides=schema_overrides)
+    outputs = {name: df[name] for name in python_only if name in df.columns}
+    if python_only:
+        original_names = {name for row in data_dicts for name in row}
+        source_names = {
+            source_column_name(name, definition)
+            for name, definition in (*narwhals_custom.items(), *native.items())
+        }
+        df = df.drop([name for name in python_only if name not in original_names and name in df.columns])
+        restored_sources = [
+            pl.Series(
+                name, [row.get(name) for row in data_dicts],
+                dtype=(source_overrides or {}).get(name), strict=False,
+            )
+            for name in python_only
+            if name in source_names and name in original_names
+        ]
+        if restored_sources:
+            df = df.with_columns(restored_sources)
 
-    # STEP 4: Apply NARWHALS CUSTOM converters (TIER 2 — vectorized expressions)
+    # Each tier evaluates against the same source; commit targets together.
     if narwhals_custom:
-        df = _apply_narwhals_custom_converters(df, narwhals_custom)
-        logger.debug(f"Applied {len(narwhals_custom)} Narwhals custom converters (vectorized)")
-
-    # STEP 5: Apply NATIVE operations via expressions (TIER 1)
+        converted = _apply_narwhals_custom_converters(df, narwhals_custom)
+        outputs.update({name: converted[name] for name in narwhals_custom if name in converted.columns})
     if native:
-        df = apply_native_conversions_to_dataframe(df, native)
+        converted = apply_native_conversions_to_dataframe(df, native)
+        outputs.update({name: converted[name] for name in native if name in converted.columns})
+    return df.with_columns([outputs[name] for name in table_schema.fields if name in outputs])
 
-    return df
+
+def apply_hybrid_conversion_to_dataframe(
+    df: "PolarsFrame", table_schema: "TableSchema",
+) -> "PolarsFrame":
+    """Convert a constructed source frame without round-tripping untouched columns.
+
+    Frame-based ingress retains its existing conform projection/error policy.
+    Custom outputs are evaluated on the original source, then attached under
+    the target names selected by that projection.
+    """
+    from dataclasses import replace
+
+    import mountainash as ma
+    from mountainash.core.lazy_imports import import_polars
+    from mountainash.typespec.spec import FieldDefinition
+
+    python_only, narwhals_custom, _ = separate_conversions(table_schema)
+    custom = python_only | narwhals_custom
+    if not custom:
+        return ma.relation(df).conform(table_schema).to_polars()
+
+    pl = import_polars()
+    outputs = []
+    if python_only and df.height:
+        source_names = list(dict.fromkeys(
+            source_column_name(name, definition)
+            for name, definition in python_only.items()
+            if source_column_name(name, definition) in df.columns
+        ))
+        rows = apply_custom_converters_to_dicts(df.select(source_names).to_dicts(), python_only)
+        outputs.extend(
+            pl.Series(name, [row[name] for row in rows], strict=False)
+            for name, definition in python_only.items()
+            if source_column_name(name, definition) in df.columns
+        )
+    if narwhals_custom:
+        converted = _apply_narwhals_custom_converters(df, narwhals_custom)
+        outputs.extend(converted[name] for name in narwhals_custom if name in converted.columns)
+
+    projection = replace(table_schema, fields={
+        name: FieldDefinition(rename_from=definition.rename_from) if name in custom else definition
+        for name, definition in table_schema.fields.items()
+    })
+    if not outputs:
+        return ma.relation(df).conform(projection).to_polars()
+
+    # Let conform own row filtering; carry source positions through that same
+    # operation so custom results follow the surviving rows without re-evaluation.
+    occupied = set(df.columns) | set(table_schema.fields) | {
+        source_column_name(name, definition)
+        for name, definition in table_schema.fields.items()
+    }
+    row_index = "__ma_pydata_row_index"
+    while row_index in occupied:
+        row_index += "_"
+    projection.fields[row_index] = FieldDefinition()
+    indexed = df.with_columns(pl.int_range(0, df.height, dtype=pl.Int64).alias(row_index))
+    result = ma.relation(indexed).conform(projection).to_polars()
+    indices = result[row_index]
+    custom_outputs = [
+        series.gather(indices) if result.height != df.height else series
+        for series in outputs if series.name in result.columns
+    ]
+    return result.drop(row_index).with_columns(custom_outputs)
 
 
 __all__ = [
+    "source_column_name",
     "separate_conversions",
     "apply_custom_converters_to_dict",
     "apply_custom_converters_to_dicts",

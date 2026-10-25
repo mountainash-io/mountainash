@@ -1414,7 +1414,7 @@
     },
     {
       "id": 147,
-      "label": "TypeSpec",
+      "label": "TableSchema",
       "group": "TYPES",
       "source_module": "toplevel",
       "source_path": "src/mountainash/__init__.py",
@@ -1423,7 +1423,7 @@
     },
     {
       "id": 148,
-      "label": "FieldSpec",
+      "label": "FieldDefinition",
       "group": "TYPES",
       "source_module": "typespec",
       "source_path": "src/mountainash/typespec/",

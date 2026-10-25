@@ -455,9 +455,9 @@ class TestReaderTimingAndSchema:
         # Same declared schema on a native-path (CSV) and a fallback-path (JSON)
         # resource -> identical typed output (conform casts both).
         from mountainash.typespec.datapackage import DataResource
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.spec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import UniversalType
-        schema = TypeSpec(fields=[FieldSpec(name="n", type=UniversalType.INTEGER)])
+        schema = TableSchema(fields={"n": FieldDefinition(type=UniversalType.INTEGER)})
         (tmp_path / "c.csv").write_text("n\n1\n2\n")
         (tmp_path / "j.json").write_text('[{"n": "1"}, {"n": "2"}]')
         csv_res = DataResource(name="c", path=str(tmp_path / "c.csv"), format="csv", schema=schema)
@@ -468,12 +468,12 @@ class TestReaderTimingAndSchema:
 
     @pytest.mark.parametrize("backend", _DAG_BACKENDS)
     def test_empty_frame_typed_parity(self, backend):
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.spec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import UniversalType
         factories = {"polars": _get_polars_ext, "narwhals": _get_narwhals_ext,
                      "ibis": _get_ibis_ext}
         ext = factories[backend]()
-        spec = TypeSpec(fields=[FieldSpec(name="k", type=UniversalType.INTEGER)])
+        spec = TableSchema(fields={"k": FieldDefinition(type=UniversalType.INTEGER)})
         empty = ext.empty_frame(spec)
         assert _to_dict_list(empty) == []        # zero rows
         assert _column_names(empty) == ["k"]     # typed schema present, not just empty
@@ -563,8 +563,8 @@ class TestInlineReadSchemaFidelity:
         assert df.schema["d"] == pl.Date
 
     def test_table_schema_as_typespec_object(self, backend_ext):
-        from mountainash.typespec.frictionless import typespec_from_frictionless
-        spec = typespec_from_frictionless(
+        from mountainash.typespec.frictionless import table_schema_from_frictionless
+        spec = table_schema_from_frictionless(
             {"fields": [{"name": "note", "type": "any"}]}
         )
         res = DataResource(name="t", format="json", data={"note": [None]}, schema=spec)
@@ -706,7 +706,7 @@ def test_schema_inspection_uses_native_resource_metadata(tmp_path, monkeypatch, 
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
     import mountainash.relations.backends.relation_systems.resource_files as rf
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
     from mountainash.typespec.universal_types import UniversalType
 
     paths = [tmp_path / f"rows-{index}.{format}" for index in (1, 2)]
@@ -715,8 +715,8 @@ def test_schema_inspection_uses_native_resource_metadata(tmp_path, monkeypatch, 
             path.write_text(f"actual,value\n{index},x\n")
         else:
             pl.DataFrame({"actual": [index], "value": ["x"]}).write_parquet(path)
-    open_spec = TypeSpec(
-        fields=[FieldSpec(name="actual", type=UniversalType.INTEGER)],
+    open_spec = TableSchema(
+        fields={"actual": FieldDefinition(type=UniversalType.INTEGER)},
         fields_match="open",
     )
     resource = DataResource(name="rows", path=[str(path) for path in paths], format=format, schema=open_spec)
@@ -734,8 +734,8 @@ def test_schema_inspection_uses_native_resource_metadata(tmp_path, monkeypatch, 
     assert relation.collect_schema(allow_execution=True) == relation.collect_schema()
     assert reads == []
 
-    closed_spec = TypeSpec(
-        fields=[FieldSpec(name="actual", type=UniversalType.INTEGER)],
+    closed_spec = TableSchema(
+        fields={"actual": FieldDefinition(type=UniversalType.INTEGER)},
         fields_match="subset",
     )
     closed = Relation(ResourceReadRelNode(

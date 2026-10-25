@@ -98,14 +98,14 @@ class TestRoundTripWithSchema:
         df = pl.DataFrame({"age": ["30", "25"], "name": ["Alice", "Bob"]})
 
         # Apply conform to cast types, then filter
-        from mountainash.typespec.spec import FieldSpec, TypeSpec
+        from mountainash.typespec.spec import FieldDefinition, TableSchema
         from mountainash.typespec.universal_types import UniversalType
 
-        spec = TypeSpec(
-            fields=[
-                FieldSpec(name="age", type=UniversalType.INTEGER),
-                FieldSpec(name="name", type=UniversalType.STRING),
-            ],
+        spec = TableSchema(
+            fields={
+                "age": FieldDefinition(type=UniversalType.INTEGER),
+                "name": FieldDefinition(type=UniversalType.STRING),
+            },
         )
         result = (
             ma.relation(df)

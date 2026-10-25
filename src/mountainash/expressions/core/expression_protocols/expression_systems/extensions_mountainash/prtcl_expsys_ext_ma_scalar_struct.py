@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Protocol, Literal
 
 from mountainash.core.types import ExpressionT
-from mountainash.typespec.spec import FieldSpec  # noqa: TC001 - runtime get_type_hints() resolution
+from mountainash.core.dtypes import CastTarget  # noqa: TC001 - runtime get_type_hints() resolution
 
 
 class MountainAshScalarStructExpressionSystemProtocol(Protocol[ExpressionT]):
@@ -16,6 +16,7 @@ class MountainAshScalarStructExpressionSystemProtocol(Protocol[ExpressionT]):
         x: ExpressionT,
         /,
         *converted_fields: ExpressionT,
-        fields: tuple[FieldSpec, ...],
+        dtype: CastTarget,
+        field_names: tuple[str, ...] = (),
         failure_behavior: Literal["throw", "null"] = "throw",
     ) -> ExpressionT: ...

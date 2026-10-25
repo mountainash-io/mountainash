@@ -18,8 +18,8 @@ from mountainash.typespec.spec import (
     FieldConstraints,
     ForeignKeyReference,
     ForeignKey,
-    FieldSpec,
-    TypeSpec,
+    FieldDefinition,
+    TableSchema,
     SpecDiff,
     compare_specs,
 )
@@ -104,8 +104,8 @@ __all__ = [
     "FieldConstraints",
     "ForeignKeyReference",
     "ForeignKey",
-    "FieldSpec",
-    "TypeSpec",
+    "FieldDefinition",
+    "TableSchema",
     "SpecDiff",
     "compare_specs",
 

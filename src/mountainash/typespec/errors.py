@@ -76,7 +76,7 @@ class TypeSpecError(MountainashError, ValueError):
 
 
 class InvalidTypeSpecSemantics(TypeSpecError):
-    """A TypeSpec has one or more deterministic semantic declaration issues."""
+    """A TableSchema has one or more deterministic semantic declaration issues."""
 
     def __init__(self, issues: tuple[Any, ...], resource_name: str | None) -> None:
         self.issues = issues
@@ -85,7 +85,7 @@ class InvalidTypeSpecSemantics(TypeSpecError):
         details = "; ".join(
             f"{issue.path} [{issue.code}]: {issue.message}" for issue in issues
         )
-        super().__init__(f"invalid TypeSpec semantics{scope}: {details}")
+        super().__init__(f"invalid TableSchema semantics{scope}: {details}")
 
 
 class InvalidConstraintDeclaration(TypeSpecError):
@@ -101,7 +101,7 @@ class JSONSchemaReferenceDenied(TypeSpecError):
 
 
 class AmbiguousFieldName(TypeSpecError):
-    """A name-addressed TypeSpec scope contains duplicate field names."""
+    """A name-addressed TableSchema scope contains duplicate field names."""
 
 
 class InvalidFieldIdentifier(TypeSpecError):

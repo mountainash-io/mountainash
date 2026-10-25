@@ -35,11 +35,11 @@ class Validator:
     acquired at construction; later edits to the contract affect only Validators
     built afterwards.
 
-    Input is conformed to the contract's TypeSpec before any check runs, so a
+    Input is conformed to the contract's TableSchema before any check runs, so a
     column read by a rule but absent from the contract (a support column) is
     rejected under the default ``fields_match="exact"``. Declare the column in
-    the contract, or set ``fields_match="open"`` on its TypeSpec to retain it
-    (see :class:`~mountainash.typespec.spec.TypeSpec` for all six modes). A rule
+    the contract, or set ``fields_match="open"`` on its TableSchema to retain it
+    (see :class:`~mountainash.typespec.spec.TableSchema` for all six modes). A rule
     that cannot run reports an ``error`` summary with unavailable counts and
     other checks still execute; a shared conform failure is distinct from a
     rule-local failure.
@@ -63,7 +63,7 @@ class Validator:
         # Acquire the contract's declarations once. Later edits to the
         # authoring contract affect only Validators constructed afterwards.
         # Callbacks, registries and the contract class itself are not copied.
-        self._contract_spec = deepcopy(contract.to_typespec())
+        self._contract_spec = deepcopy(contract.to_table_schema())
         self._contract_checks = tuple(
             _freeze_check(check) for check in contract.to_checks()
         )

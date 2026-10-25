@@ -3,7 +3,7 @@ import polars as pl
 
 import mountainash as ma
 from mountainash.relations.dag.dag import RelationDAG
-from mountainash.typespec.spec import ForeignKey, ForeignKeyReference, TypeSpec, FieldSpec
+from mountainash.typespec.spec import ForeignKey, ForeignKeyReference, TableSchema, FieldDefinition
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.fk import build_fk_checks
 
@@ -38,8 +38,8 @@ def test_metadata_fk_becomes_rule():
 def test_spec_fk_union_and_dedup():
     dag = _dag()
     dag.add_constraint("orders_clean", _fk())
-    spec = TypeSpec(
-        fields=[FieldSpec(name="customer_id", type=UniversalType.ANY)],
+    spec = TableSchema(
+        fields={"customer_id": FieldDefinition(type=UniversalType.ANY)},
         foreign_keys=[_fk()],  # duplicate of the metadata declaration
     )
     rules, errors = build_fk_checks(dag, {"orders_clean": spec})
@@ -49,7 +49,7 @@ def test_spec_fk_union_and_dedup():
 
 def test_spec_only_fk_is_emitted():
     dag = _dag()
-    spec = TypeSpec(fields=[], foreign_keys=[_fk()])
+    spec = TableSchema(fields={}, foreign_keys=[_fk()])
     rules, errors = build_fk_checks(dag, {"orders": spec})
     assert len(rules) == 1
     assert rules[0].child == "orders"
@@ -57,7 +57,7 @@ def test_spec_only_fk_is_emitted():
 
 def test_unresolvable_parent_is_error_summary_not_skip():
     dag = _dag()
-    spec = TypeSpec(fields=[], foreign_keys=[_fk(parent="warehouse")])
+    spec = TableSchema(fields={}, foreign_keys=[_fk(parent="warehouse")])
     rules, errors = build_fk_checks(dag, {"orders": spec})
     assert rules == []
     assert len(errors) == 1
@@ -71,7 +71,7 @@ def test_arity_mismatch_is_error_summary():
         fields=["customer_id", "extra"],
         reference=ForeignKeyReference(resource="customers", fields=["id"]),
     )
-    spec = TypeSpec(fields=[], foreign_keys=[fk])
+    spec = TableSchema(fields={}, foreign_keys=[fk])
     rules, errors = build_fk_checks(dag, {"orders": spec})
     assert rules == []
     assert len(errors) == 1
@@ -80,7 +80,7 @@ def test_arity_mismatch_is_error_summary():
 
 def test_missing_field_is_error_summary():
     dag = _dag()
-    spec = TypeSpec(fields=[], foreign_keys=[_fk(child_field="ghost")])
+    spec = TableSchema(fields={}, foreign_keys=[_fk(child_field="ghost")])
     rules, errors = build_fk_checks(dag, {"orders": spec})
     assert rules == []
     assert len(errors) == 1
@@ -91,7 +91,7 @@ def test_self_reference_normalises_to_child():
     dag = RelationDAG()
     dag.add("employees", ma.relation(pl.DataFrame({"id": [1], "manager_id": [1]})))
     fk = ForeignKey(fields=["manager_id"], reference=ForeignKeyReference(resource=None, fields=["id"]))
-    spec = TypeSpec(fields=[], foreign_keys=[fk])
+    spec = TableSchema(fields={}, foreign_keys=[fk])
     rules, errors = build_fk_checks(dag, {"employees": spec})
     assert errors == []
     assert rules[0].parent == "employees"
@@ -106,8 +106,8 @@ def test_spec_fields_validate_without_schema_inference(monkeypatch):
         type(dag), "schema",
         lambda self, name: (_ for _ in ()).throw(RuntimeError("inference unavailable")),
     )
-    spec = TypeSpec(
-        fields=[FieldSpec(name="customer_id", type=UniversalType.ANY)],  # declares fields; "ghost" absent
+    spec = TableSchema(
+        fields={"customer_id": FieldDefinition(type=UniversalType.ANY)},  # declares fields; "ghost" absent
         foreign_keys=[_fk(child_field="ghost")],
     )
     rules, errors = build_fk_checks(dag, {"orders": spec})
@@ -125,7 +125,7 @@ def test_no_evidence_defers_to_execution(monkeypatch):
         type(dag), "schema",
         lambda self, name: (_ for _ in ()).throw(RuntimeError("inference unavailable")),
     )
-    spec = TypeSpec(fields=[], foreign_keys=[_fk(child_field="ghost")])
+    spec = TableSchema(fields={}, foreign_keys=[_fk(child_field="ghost")])
     rules, errors = build_fk_checks(dag, {"orders": spec})
     assert errors == []
     assert len(rules) == 1  # execution-time guard owns the failure
@@ -137,11 +137,11 @@ def test_compiled_plan_emits_standalone_self_reference_rule():
     from mountainash.validation.fk import build_standalone_fk_checks
 
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="manager_id", type=UniversalType.INTEGER),
-            ],
+        TableSchema(
+            fields={
+                "id": FieldDefinition(type=UniversalType.INTEGER),
+                "manager_id": FieldDefinition(type=UniversalType.INTEGER),
+            },
             foreign_keys=[
                 ForeignKey(
                     fields=["manager_id"],
@@ -163,11 +163,11 @@ def test_compiled_plan_runs_its_standalone_self_reference():
     from mountainash.validation import ValidationRunner
 
     plan = compile_datacontract(
-        TypeSpec(
-            fields=[
-                FieldSpec(name="id", type=UniversalType.INTEGER),
-                FieldSpec(name="manager_id", type=UniversalType.INTEGER),
-            ],
+        TableSchema(
+            fields={
+                "id": FieldDefinition(type=UniversalType.INTEGER),
+                "manager_id": FieldDefinition(type=UniversalType.INTEGER),
+            },
             foreign_keys=[
                 ForeignKey(
                     fields=["manager_id"],

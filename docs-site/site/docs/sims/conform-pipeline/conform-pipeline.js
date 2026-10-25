@@ -5,13 +5,13 @@ document.addEventListener('DOMContentLoaded', function() {
     main.innerHTML = `
         <div style="position:relative;width:100%;height:500px;background:#f0f8ff;font-family:Arial,sans-serif;">
             <div id="network" style="width:100%;height:100%;"></div>
-            <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:bold;background:rgba(240,248,255,0.9);padding:4px 12px;border-radius:4px;">Conform Transformation Pipeline</div>
+            <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:16px;font-weight:bold;background:rgba(240,248,255,0.9);padding:4px 12px;border-radius:4px;">Conform: plan from original sources, then execute</div>
             <div id="legend" style="position:absolute;top:10px;left:10px;background:rgba(255,255,255,0.95);padding:8px;border-radius:8px;font-size:11px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-weight:bold;margin-bottom:4px;">Legend</div>
-                <div><span style="color:#9370DB;">&#9679;</span> Type operation (FieldSpec)</div>
+                <div><span style="color:#9370DB;">&#9679;</span> Type operation (FieldDefinition)</div>
                 <div><span style="color:#20B2AA;">&#9679;</span> Relation operation</div>
                 <div><span style="color:#4682B4;">&#9679;</span> Data (input/output)</div>
-                <div style="margin-top:4px;font-size:10px;color:#666;">Click a step to see<br/>FieldSpec properties used</div>
+                <div style="margin-top:4px;font-size:10px;color:#666;">Click a step for its owner.<br/>Intermediate boxes are plans,<br/>not mutated input frames.</div>
             </div>
             <div id="info" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);max-width:550px;background:rgba(255,255,255,0.95);padding:12px;border-radius:8px;font-size:12px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:none;"></div>
         </div>
@@ -26,21 +26,21 @@ document.addEventListener('DOMContentLoaded', function() {
         { id: 'input', label: 'Input\nColumns', x: startX, type: 'data',
           columns: 'user_name, email_addr,\nage (str), score, dept,\nold_flag',
           info: null },
-        { id: 'detect', label: 'Detect\nRenames', x: startX + stepSpacing, type: 'type',
-          columns: 'user_name→name,\nemail_addr→email,\nage, score, dept, old_flag',
-          info: '<b>Detect Renames</b><br><br>FieldSpec properties used:<br>• <code>source_name</code> — original column name in source<br>• <code>target_name</code> — desired output name<br>• <code>aliases</code> — list of alternative source names to match' },
-        { id: 'rename', label: 'Apply\nRenames', x: startX + stepSpacing * 2, type: 'relation',
-          columns: 'name, email,\nage (str), score,\ndept, old_flag',
-          info: '<b>Apply Renames</b><br><br>FieldSpec properties used:<br>• <code>source_name</code> → <code>target_name</code> mapping<br>• Generates <code>col.alias()</code> expressions' },
+        { id: 'detect', label: 'Resolve\nSources', x: startX + stepSpacing, type: 'type',
+          columns: 'name←user_name,\nemail←email_addr,\nage←age, score←score',
+          info: '<b>Resolve Sources</b><br><br><code>FieldDefinition.rename_from</code> selects an original source. The key in <code>TableSchema.fields</code> supplies the target name; definitions have no name, target_name or aliases property.' },
+        { id: 'rename', label: 'Bind\nOutputs', x: startX + stepSpacing * 2, type: 'relation',
+          columns: 'name←user_name,\nemail←email_addr,\nage←age, score←score',
+          info: '<b>Bind Outputs</b><br><br>Build expressions against unchanged input columns, then alias each output. Swaps and fan-out do not read an earlier target result. These are planned expressions, not sequentially renamed frames.' },
         { id: 'cast', label: 'Cast\nTypes', x: startX + stepSpacing * 3, type: 'type',
           columns: 'name (str), email (str),\nage (int), score (float),\ndept (str), old_flag (bool)',
-          info: '<b>Cast Types</b><br><br>FieldSpec properties used:<br>• <code>dtype</code> — target data type<br>• <code>strict</code> — whether to error or coerce on mismatch<br>• <code>format</code> — parse format for dates/times' },
+          info: '<b>Cast Types</b><br><br><code>type</code>, precise <code>dtype</code> and <code>format</code> contribute to shared resolution. Native adapters own representations; existing expression systems own casts. <code>ConformContract</code> owns failure policy, not a FieldDefinition.strict flag.' },
         { id: 'fill', label: 'Fill\nNulls', x: startX + stepSpacing * 4, type: 'type',
           columns: 'name (str), email (str),\nage (int, filled),\nscore (float), dept (str),\nold_flag (bool)',
-          info: '<b>Fill Nulls</b><br><br>FieldSpec properties used:<br>• <code>default</code> — value to substitute for nulls<br>• <code>nullable</code> — whether the field allows nulls in output<br>• <code>fill_strategy</code> — forward, backward, literal, or mean' },
-        { id: 'filter', label: 'Filter\nColumns', x: startX + stepSpacing * 5, type: 'relation',
+          info: '<b>Fill Nulls</b><br><br><code>null_fill</code> substitutes original missing values, including configured <code>missing_values</code>. A failed cast is not an original null. Required/nullable checks belong to validation, not this conversion step.' },
+        { id: 'filter', label: 'Execute\nProjection', x: startX + stepSpacing * 5, type: 'relation',
           columns: 'name (str),\nemail (str),\nage (int),\nscore (float)',
-          info: '<b>Filter Columns</b><br><br>FieldSpec properties used:<br>• <code>include</code> — whether field appears in output<br>• <code>required</code> — whether absence raises an error<br>Drops dept and old_flag (not in TypeSpec)' },
+          info: '<b>Execute Projection</b><br><br><code>TableSchema.fields_match</code> and the conform contract govern columns and drift. This example uses partial mode, dropping dept and old_flag. Terminal execution compiles the deferred ConformRelNode through the existing relation system; no separate schema execution engine is used.' },
         { id: 'output', label: 'Output\nColumns', x: startX + stepSpacing * 6, type: 'data',
           columns: 'name (str),\nemail (str),\nage (int),\nscore (float)',
           info: null }

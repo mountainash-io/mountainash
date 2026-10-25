@@ -17,11 +17,11 @@ import polars as pl
 import mountainash as ma
 import mountainash.conform.expressions as conform_exprs
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
+from mountainash.typespec import FieldDefinition, TableSchema, UniversalType
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.validator import Validator
-from mountainash.typespec import FieldSpec, TypeSpec
+
 from mountainash.validation import RowRule, ValidationRunner
 
 
@@ -31,10 +31,10 @@ def _validation_execution_scope(validation_execution_scope):
     yield validation_execution_scope
 
 class WideContract(BaseDataContract):
-    a: str = Field(nullable=True)
-    b: str = Field(nullable=True)
-    c: str = Field(nullable=True)
-    d: str = Field(nullable=True)
+    a: str = FieldDefinition(type=UniversalType.STRING)
+    b: str = FieldDefinition(type=UniversalType.STRING)
+    c: str = FieldDefinition(type=UniversalType.STRING)
+    d: str = FieldDefinition(type=UniversalType.STRING)
 
 
 def _many_rules(n: int) -> RuleRegistry:
@@ -99,7 +99,7 @@ def test_upfront_materialize_failure_honours_isolation_contract():
     """
     # spec forces "n" -> integer, but the data is non-numeric: conform's strict
     # cast fails when the plan materialises.
-    spec = TypeSpec(fields=[FieldSpec(name="n", type="integer")])
+    spec = TableSchema(fields={"n": FieldDefinition(type=UniversalType.INTEGER)})
     df = pl.DataFrame({"n": ["not-a-number", "also-bad"]})
     rel = ma.relation(df).conform(spec)
     checks = [

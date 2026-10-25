@@ -289,13 +289,13 @@ def test_resolve_contract_unknown_fields_match_raises_keyerror():
 # remains the behaviour-parity gate for the fields_match-level API.
 
 from mountainash.conform.expressions import resolve_conform_output
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 
 def _spec(fields_match, field_names):
-    return TypeSpec(
-        fields=[FieldSpec(name=n, type=UniversalType.STRING) for n in field_names],
+    return TableSchema(
+        fields={n: FieldDefinition(type=UniversalType.STRING) for n in field_names},
         fields_match=fields_match,
     )
 

@@ -9,7 +9,7 @@ dimensions, not a separate mechanism: `FIELDS_MATCH_PRESETS` expands each
 expansion").
 
 `from_preset` is the provenance flag: a contract built purely from a preset
-(no explicit `TypeSpec.contract` / `conform(contract=...)` layer) still
+(no explicit `TableSchema.contract` / `conform(contract=...)` layer) still
 raises the legacy `fields_match` errors (`MissingFieldsError`,
 `ExtraFieldsError`, ...) on violation. Any explicit layer flips
 `from_preset` to `False`, and a `freeze` on a column dimension then raises
@@ -44,7 +44,7 @@ class ConformContract:
 
     `from_preset=True` (default) marks a contract as preset-only provenance:
     it was built solely from a `fields_match` preset, with no explicit
-    `TypeSpec.contract` or `conform(contract=...)` layer applied. Preset-only
+    `TableSchema.contract` or `conform(contract=...)` layer applied. Preset-only
     contracts raise the legacy `fields_match` errors on violation. Any
     explicit layer (via `resolve_contract`) flips this to `False`, after
     which violations raise `SchemaDriftError` instead.
@@ -92,7 +92,7 @@ def resolve_contract(
     spec_contract: Optional[Mapping[str, str]] = None,
     override: Optional[Union[str, Mapping[str, str]]] = None,
 ) -> ConformContract:
-    """Preset(fields_match) <- TypeSpec.contract <- conform(contract=) override.
+    """Preset(fields_match) <- TableSchema.contract <- conform(contract=) override.
 
     A scalar override ("freeze") applies to the extension dimensions only.
     Any explicit dict/scalar layer marks the contract non-preset (freeze on a

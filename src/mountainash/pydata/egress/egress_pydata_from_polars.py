@@ -306,8 +306,8 @@ class EgressFromPolars(BaseEgressDataFrame):
         Args:
             df: Input Polars DataFrame
             dataclass_type: The dataclass type to instantiate
-            spec: Optional TypeSpec for transformations
-            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
+            spec: Optional TableSchema for transformations
+            auto_derive_schema: Auto-derive TableSchema if not provided (default: True)
             apply_defaults: Whether to apply dataclass field defaults
 
         Returns:
@@ -372,8 +372,8 @@ class EgressFromPolars(BaseEgressDataFrame):
         Args:
             df: Input Polars DataFrame
             model_class: The Pydantic model class to instantiate
-            spec: Optional TypeSpec for transformations
-            auto_derive_schema: Auto-derive TypeSpec if not provided (default: True)
+            spec: Optional TableSchema for transformations
+            auto_derive_schema: Auto-derive TableSchema if not provided (default: True)
 
         Returns:
             List of Pydantic model instances

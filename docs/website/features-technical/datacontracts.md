@@ -7,9 +7,9 @@ A data contract is a runtime check that a DataFrame conforms to a known shape an
 ```python
 import mountainash as ma
 
-spec = ma.typespec({"id": "integer", "amount": "number", "region": "string"})
+schema = ma.table_schema({"id": "integer", "amount": "number", "region": "string"})
 
-Contract = ma.datacontract(spec)
+Contract = ma.datacontract(schema)
 Contract.validate(df)
 ```
 
@@ -21,15 +21,14 @@ Contract.validate(df)
 
 | Source | Example |
 |--------|---------|
-| `TypeSpec` | `ma.datacontract(spec)` |
+| `TableSchema` | `ma.datacontract(schema)` |
 | Plain dict (simple) | `ma.datacontract({"id": "integer", "name": "string"})` |
 | Plain dict (Frictionless) | `ma.datacontract({"fields": [{"name": "id", "type": "integer"}, ...]})` |
 | Pydantic `BaseModel` subclass | `ma.datacontract(MyPydanticModel)` |
-| pandera `DataFrameModel` subclass | `ma.datacontract(MyPanderaModel)` |
 | Path to a Frictionless JSON file | `ma.datacontract("schema.json")` or `ma.datacontract(Path("schema.json"))` |
 | An existing `BaseDataContract` subclass | `ma.datacontract(MyContract)` (returned as-is) |
 
-The common path is `TypeSpec → datacontract`. The pandera and Pydantic paths are convenience for codebases that already have models in those forms.
+The common path is `TableSchema → datacontract`. The Pydantic path is a convenience for codebases that already have models in that form.
 
 ## What gets validated
 
@@ -44,7 +43,7 @@ Validation runs through the cross-backend expression system — the same engine 
 
 ### Native array values
 
-`ma.datacontract(spec).validate_datacontract(df)` accepts native arrays for
+`ma.datacontract(schema).validate_datacontract(df)` accepts native arrays for
 declared `ARRAY` fields, including populated and empty lists and optional nulls.
 Declared object elements retain their nested constraints; required nulls and
 invalid nested values still fail. Native arrays do not need JSON serialization
@@ -76,7 +75,7 @@ Subclass `BaseDataContract` to add expression-based rules:
 ```python
 from mountainash.datacontracts.contract import BaseDataContract
 
-class OrdersContract(ma.datacontract(spec)):
+class OrdersContract(ma.datacontract(schema)):
     @classmethod
     def rules(cls):
         return [
@@ -110,7 +109,7 @@ Conform and validate are different stages, intentionally:
 ```python
 result = (
     ma.relation(raw_df)
-      .conform(spec)            # cast types, rename, fill nulls
+      .conform(schema)          # cast types, rename, fill nulls
       .pipe(lambda r: Contract.validate(r.to_polars()) or r)   # raise if violations
       .to_polars()
 )
@@ -124,6 +123,6 @@ The contract compiler is stable for the supported sources listed above. The fail
 
 ## Related
 
-- [TypeSpec and conformance](typespec-conform.md) — the schema layer underneath
+- [Shared schemas and conformance](typespec-conform.md) — the schema layer underneath
 - [Expressions](expressions.md) — what custom rules are made of
 - [Cross-backend execution](cross-backend.md) — how rules dispatch per-backend

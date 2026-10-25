@@ -1,6 +1,7 @@
 """Protocol walker that classifies parameters as arguments vs options."""
 from __future__ import annotations
 
+import collections.abc
 import inspect
 import typing
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ from mountainash.expressions.core.expression_protocols.expression_systems import
 from mountainash.expressions.core.expression_protocols.expression_systems import (
     substrait as _substrait_mod,
 )
+from mountainash.typespec.spec import FieldDefinition
 
 Kind = Literal["argument", "option", "unclassified"]
 
@@ -79,7 +81,7 @@ def _iter_protocol_classes():
 _CONCRETE_TYPES = (int, str, bool, float, bytes, object)
 # Canonical dtype specifiers are universally-literal cast targets, never visited
 # expressions, so they classify as options (arguments-vs-options principle).
-_OPTION_TYPES = (*_CONCRETE_TYPES, *typing.get_args(ConstructionDtype), NativeDtype)
+_OPTION_TYPES = (*_CONCRETE_TYPES, *typing.get_args(ConstructionDtype), NativeDtype, FieldDefinition)
 _UNION_ORIGINS = {typing.Union, type(int | None)}  # typing.Union + types.UnionType
 
 
@@ -100,6 +102,8 @@ def _classify_annotation(ann: Any) -> Kind:
             return "argument"
         if all(a is type(None) or a in _OPTION_TYPES for a in args):
             return "option"
+    if origin is collections.abc.Mapping and typing.get_args(ann) == (str, FieldDefinition):
+        return "option"
     if ann in _OPTION_TYPES:
         return "option"
     # Optional[concrete] (typing.Optional spelling)

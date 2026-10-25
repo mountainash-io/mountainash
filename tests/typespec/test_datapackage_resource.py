@@ -27,7 +27,7 @@ from mountainash.typespec.descriptor_context import (
 )
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.typespec.frictionless_invariants import InvariantLocation
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 
 VALID_SCHEMA = {"fields": [{"name": "id", "type": "integer"}]}
 EXTERNAL_FK_SCHEMA = {
@@ -99,7 +99,7 @@ def test_resource_model_copy_deep_copies_metadata() -> None:
 
 
 def test_resource_model_copy_deep_copies_typed_declarations() -> None:
-    schema = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+    schema = TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)})
     dialect = TableDialect(delimiter=";")
     resource = DataResource(name="r", data=[], schema=schema, dialect=dialect)
     copied = resource.model_copy()
@@ -370,25 +370,25 @@ def test_descriptor_owns_raw_mapping_values() -> None:
 
 
 
-def test_to_typespec_none_when_no_schema():
+def test_to_table_schema_none_when_no_schema():
     r = DataResource(name="t", path="t.csv")
-    assert r.to_typespec() is None
+    assert r.to_table_schema() is None
 
 
-def test_to_typespec_passthrough_when_already_typespec():
-    spec = TypeSpec(fields=[FieldSpec(name="id", type=UniversalType.INTEGER)])
+def test_to_table_schema_passthrough_when_already_typed():
+    spec = TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)})
     r = DataResource(name="t", path="t.csv", schema=spec)
-    assert r.to_typespec() is spec
+    assert r.to_table_schema() is spec
 
 
 
 
-def test_to_typespec_converts_raw_dict():
+def test_to_table_schema_converts_raw_dict():
     r = DataResource(
         name="t", path="t.csv",
         schema={"fields": [{"name": "id", "type": "integer"}]},
     )
-    spec = r.to_typespec()
+    spec = r.to_table_schema()
     assert spec.field_names == ["id"]
     assert spec.get_field("id").type == UniversalType.INTEGER
 
@@ -396,7 +396,7 @@ def test_to_typespec_converts_raw_dict():
 def test_to_typespec_raises_on_garbage_schema():
     r = DataResource(name="t", path="t.csv", schema="garbage")
     with pytest.raises(MissingDescriptorBase):
-        r.to_typespec()
+        r.to_table_schema()
 
 
 def test_inline_wrong_schema_kind_stays_structural_error() -> None:
@@ -406,7 +406,7 @@ def test_inline_wrong_schema_kind_stays_structural_error() -> None:
         schema={"resources": []},
     )
     with pytest.raises(InvalidDescriptorStructure):
-        resource.to_typespec()
+        resource.to_table_schema()
 
 
 @pytest.mark.parametrize(
@@ -429,7 +429,7 @@ def test_inline_wrong_schema_kind_stays_structural_error() -> None:
 def test_to_typespec_preserves_typespec_errors(schema, error_type) -> None:
     resource = DataResource(name="r", data=[], schema=schema)
     with pytest.raises(error_type):
-        resource.to_typespec()
+        resource.to_table_schema()
 
 
 
@@ -439,12 +439,24 @@ def test_to_contract_raises_when_no_schema():
         r.to_contract()
 
 
-def test_to_contract_delegates_to_typespec():
-    r = DataResource(
-        name="t", path="t.csv",
-        schema={"fields": [{"name": "id", "type": "integer"}]},
+def test_resource_contract_enforces_inline_constraints():
+    import polars as pl
+
+    resource = DataResource(
+        name="t",
+        path="t.csv",
+        schema={
+            "fields": [
+                {"name": "id", "type": "integer", "constraints": {"minimum": 0}}
+            ],
+            "primaryKey": ["id"],
+        },
     )
-    assert r.to_contract().to_typespec().fields == r.to_typespec().fields
+    result = resource.to_contract().validate_datacontract(
+        pl.DataFrame({"id": [-1, 1]})
+    )
+    assert not result.passes
+    assert result.failure_cases.get_column("id").to_list() == [-1]
 
 
 def test_to_dialect_none_when_no_dialect() -> None:
@@ -512,6 +524,47 @@ class RecordingResolver:
         return dict(self.documents[reference])
 
 
+@pytest.mark.parametrize("referenced", [False, True])
+def test_resource_retains_nested_codec_error_path_without_rewriting_raw(referenced):
+    schema = {
+        "fields": [{
+            "name": "payload",
+            "type": "object",
+            "x-mountainash": {
+                "fields": [
+                    {"name": "a.b", "type": "integer"},
+                    {"name": "a.b", "type": "integer"},
+                ]
+            },
+        }]
+    }
+    raw = {
+        "resources": [{
+            "name": "records",
+            "path": "records.csv",
+            "schema": "schema.json" if referenced else schema,
+        }]
+    }
+    resolver = RecordingResolver({"schema.json": schema})
+    package = DataPackage.from_descriptor(
+        raw, base_uri="file:///tmp/", resolver=resolver
+    )
+    assert package.to_descriptor() == raw
+    error_type = DescriptorReferenceInvalid if referenced else InvalidDescriptorStructure
+    with pytest.raises(error_type) as caught:
+        package.resources[0].to_table_schema()
+    suffix = ".fields[0].x-mountainash.fields[1].name"
+    prefix = "$.resources[0].schema" if referenced else "$"
+    assert caught.value.descriptor_path == prefix + suffix
+    if referenced:
+        assert isinstance(caught.value.__cause__, InvalidDescriptorStructure)
+        assert caught.value.__cause__.descriptor_path == "$" + suffix
+    assert resolver.calls == (
+        [("schema.json", DescriptorKind.SCHEMA)] if referenced else []
+    )
+    assert package.to_descriptor() == raw
+
+
 class SingleDocumentResolver:
     def __init__(self, document: Mapping[str, object]) -> None:
         self.document = document
@@ -545,14 +598,14 @@ def test_to_typespec_resolves_referenced_schema_once():
         base_uri="file:///tmp/",
         resolver=resolver,
     ).resources[0]
-    assert resource.to_typespec().field_names == ["id"]
+    assert resource.to_table_schema().field_names == ["id"]
     assert resolver.calls == [("schema.json", DescriptorKind.SCHEMA)]
 
 
 def test_standalone_external_target_fails_at_schema_location():
     resource = DataResource(name="child", data=[], schema=EXTERNAL_FK_SCHEMA)
     with pytest.raises(InvalidDescriptorRelationship) as caught:
-        resource.to_typespec()
+        resource.to_table_schema()
     assert caught.value.descriptor_path == "$.schema.foreignKeys[0].reference.resource"
 
 
@@ -571,7 +624,7 @@ def test_resolver_transport_failure_is_typed_with_cause() -> None:
     ).resources[0]
 
     with pytest.raises(DescriptorReferenceInvalid) as caught:
-        resource.to_typespec()
+        resource.to_table_schema()
     assert isinstance(caught.value.__cause__, PermissionError)
 
 
@@ -588,7 +641,7 @@ def test_schema_and_dialect_resolution_is_lazy_and_one_hop() -> None:
         resolver=resolver,
     )
     assert resolver.calls == []
-    assert package.resources[0].to_typespec().field_names == ["id"]
+    assert package.resources[0].to_table_schema().field_names == ["id"]
     assert package.resources[0].to_dialect().delimiter == ";"
     assert resolver.calls == [
         ("schema.json", DescriptorKind.SCHEMA),
@@ -614,7 +667,7 @@ def test_inline_accessors_do_not_resolve_or_mutate_mapping() -> None:
         resolver=resolver,
     ).resources[0]
 
-    assert resource.to_typespec().field_names == ["id"]
+    assert resource.to_table_schema().field_names == ["id"]
     assert resource.to_dialect().delimiter == ";"
     assert resolver.calls == []
     assert schema == {"fields": [{"name": "id", "type": "integer"}]}
@@ -624,8 +677,8 @@ def test_inline_accessors_do_not_resolve_or_mutate_mapping() -> None:
 @pytest.mark.parametrize(
     ("kind", "document", "accessor"),
     [
-        (DescriptorKind.SCHEMA, {}, "to_typespec"),
-        (DescriptorKind.SCHEMA, {"resources": []}, "to_typespec"),
+        (DescriptorKind.SCHEMA, {}, "to_table_schema"),
+        (DescriptorKind.SCHEMA, {"resources": []}, "to_table_schema"),
         (DescriptorKind.DIALECT, {"fields": []}, "to_dialect"),
         (DescriptorKind.DIALECT, {"resources": []}, "to_dialect"),
         (DescriptorKind.DIALECT, {}, "to_dialect"),
@@ -663,7 +716,7 @@ def test_resolved_documents_must_match_expected_kind(
                 "fields": [{"name": "id"}],
                 "$schema": "https://specs.frictionlessdata.io/schemas/table-schema.json",
             },
-            "to_typespec",
+            "to_table_schema",
         ),
         (
             "dialect.json",
@@ -721,7 +774,7 @@ def test_resolved_unknown_schema_profile_is_allowed() -> None:
         resolver=resolver,
     ).resources[0]
 
-    assert resource.to_typespec().field_names == ["id"]
+    assert resource.to_table_schema().field_names == ["id"]
 
 
 def test_resolved_unknown_dialect_profile_is_allowed() -> None:
@@ -797,14 +850,14 @@ def test_resolved_invalid_foreign_key_shape_raises_typed_key_shape_error() -> No
     ).resources[0]
 
     with pytest.raises(InvalidKeyShapeError) as caught:
-        resource.to_typespec()
+        resource.to_table_schema()
     assert caught.value.field_name == "foreign_key.fields"
 
 
 @pytest.mark.parametrize(
     ("reference", "expected_kind", "nested_key", "accessor"),
     [
-        ("schema.json", DescriptorKind.SCHEMA, "schema", "to_typespec"),
+        ("schema.json", DescriptorKind.SCHEMA, "schema", "to_table_schema"),
         ("dialect.json", DescriptorKind.DIALECT, "dialect", "to_dialect"),
     ],
 )

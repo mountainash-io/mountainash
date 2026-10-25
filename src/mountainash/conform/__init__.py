@@ -1,4 +1,4 @@
-"""Conform — shared expression builder for TypeSpec conformance.
+"""Conform — shared expression builder for TableSchema conformance.
 
 The primary API is Relation.conform(spec). This module provides the
 internal _build_conform_exprs helper used by both Relation.conform()

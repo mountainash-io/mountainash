@@ -6,14 +6,17 @@ mechanism for discovering relation systems by backend type.
 
 Mirrors the pattern in ``mountainash.expressions.core.expression_system.expsys_base``.
 """
-
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Type
+from typing import TYPE_CHECKING, Any, Type
 
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.registries import KeyedRegistry
+
+if TYPE_CHECKING:
+    from mountainash.core.dtypes.protocols import ResolvedType
+    from mountainash.relations.core.execution.location import ExecutionLocation
 
 # Import all protocols used for class inheritance (must be at runtime)
 from .relation_systems.substrait import (
@@ -52,6 +55,44 @@ class RelationSystem(
     @property
     @abstractmethod
     def backend_type(self) -> CONST_BACKEND: ...
+
+    @abstractmethod
+    def describe_output_schema(
+        self, native: Any, *, location: ExecutionLocation,
+    ) -> dict[str, ResolvedType]:
+        """Ordered output types of a selected native relation, from its metadata.
+
+        ``location`` is the relation's actual execution location. This describes
+        what the native relation produces; whether incomplete evidence may be
+        completed by executing is the caller's decision, and the description
+        itself neither executes data nor selects a connection.
+        """
+
+    @abstractmethod
+    def infer_row_index_names(
+        self, input_names: tuple[str, ...], *, name: str,
+        location: ExecutionLocation,
+    ) -> tuple[str, ...] | None:
+        """Complete ordered output names of a row-index, or None when unproven.
+
+        ``input_names`` are the complete ordered input names. The result follows
+        this route's native placement and collision behavior; it neither repairs
+        collisions nor inspects data. ``location`` supplies route/form metadata
+        only: its connection and prototype are never used.
+        """
+
+    @abstractmethod
+    def infer_cross_join_names(
+        self, left_names: tuple[str, ...], right_names: tuple[str, ...], *,
+        suffix: str, location: ExecutionLocation,
+    ) -> tuple[str, ...] | None:
+        """Complete ordered output names of a cross join, or None when unproven.
+
+        Inputs are complete ordered names. The result follows this route's
+        native left/right order and suffix behavior (including an empty suffix);
+        an unproven or colliding layout is None, never normalized. ``location``
+        supplies route metadata only: its connection and prototype are never used.
+        """
 
 
 # ---------------------------------------------------------------------------

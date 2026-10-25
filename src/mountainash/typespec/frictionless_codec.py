@@ -21,7 +21,7 @@ from mountainash.typespec.descriptor_context import (
     build_descriptor_context,
     DescriptorResolver,
 )
-from mountainash.typespec.spec import TypeSpec
+from mountainash.typespec.spec import TableSchema
 from mountainash.typespec.errors import (
     DescriptorReferenceNotFound,
     InvalidDescriptorStructure,
@@ -469,7 +469,7 @@ _DIALECT_PROFILE = "https://datapackage.org/profiles/2.0/tabledialect.json"
 def _encode_resource_preserve(resource: DataResource) -> dict[str, Any]:
     """Encode one resource while owning every value in the returned graph."""
     from mountainash.typespec.datapackage import TableDialect
-    from mountainash.typespec.frictionless import typespec_to_frictionless
+    from mountainash.typespec.frictionless import table_schema_to_frictionless
     location = InvariantLocation("$", resource.name)
     reject_typed_profile_at(
         resource.schema_url,
@@ -520,8 +520,8 @@ def _encode_resource_preserve(resource: DataResource) -> dict[str, Any]:
             dialect = resource.dialect
         out["dialect"] = deepcopy(dialect)
     if resource.table_schema is not None:
-        if isinstance(resource.table_schema, TypeSpec):
-            schema = typespec_to_frictionless(resource.table_schema)
+        if isinstance(resource.table_schema, TableSchema):
+            schema = table_schema_to_frictionless(resource.table_schema)
         else:
             schema = resource.table_schema
         out["schema"] = deepcopy(schema)

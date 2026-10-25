@@ -9,10 +9,8 @@ from mountainash.expressions.core.expression_protocols.expression_systems.extens
 
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_MOUNTAINASH_SCALAR_LIST
-from mountainash.typespec.converters import _resolve_field_native
-from mountainash.typespec.spec import FieldSpec
-from mountainash.typespec.universal_types import UniversalType
-from mountainash.core.dtypes import TypeTarget
+
+from mountainash.core.dtypes import CastTarget, TypeTarget, registry
 
 if TYPE_CHECKING:
     from mountainash.expressions.types import NarwhalsExpr
@@ -111,32 +109,17 @@ class MountainAshNarwhalsScalarListExpressionSystem(NarwhalsBaseExpressionSystem
         self,
         x,
         /,
-        *converted_fields,
-        item_object_fields: tuple[FieldSpec, ...] = (),
-        item_type: str | None = None,
+        *,
+        dtype: CastTarget,
         failure_behavior: str = "throw",
     ):
-        if converted_fields:
-            raise BackendCapabilityError(
-                "Narwhals has no native list-element expression for nested child conversion.",
-                backend=self.BACKEND_NAME,
-                function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
-            )
         if failure_behavior == "null":
             raise BackendCapabilityError(
                 "Narwhals list casting does not implement whole-list null on an invalid item.",
                 backend=self.BACKEND_NAME,
                 function_key=FKEY_MOUNTAINASH_SCALAR_LIST.CAST_ITEMS,
             )
-        if item_type is not None:
-            from mountainash.typespec.universal_types import parse_universal, to_canonical
-            canonical = to_canonical(parse_universal(item_type))
-            from mountainash.core.dtypes import registry
-            dtype = registry.to_native_schema(canonical, TypeTarget.NARWHALS)
-            return self._cast_target(x, nw.List(dtype))
-        field = FieldSpec(name="_items", type=UniversalType.ARRAY, item_object_fields=list(item_object_fields))
-        dtype = _resolve_field_native(field, TypeTarget.NARWHALS)
-        return self._cast_target(x, dtype)
+        return self._cast_target(x, registry.to_native_cast(dtype, TypeTarget.NARWHALS))
 
     def list_sum(self, x: NarwhalsExpr, /):
         return x.list.sum()

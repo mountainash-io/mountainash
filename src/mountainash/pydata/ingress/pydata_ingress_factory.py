@@ -11,7 +11,7 @@ from .base_pydata_ingress_handler import BasePydataIngressHandler
 if TYPE_CHECKING:
     from enum import Enum
     from mountainash.core.types import PolarsFrame
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +21,9 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
     @classmethod
     def convert(cls,
                 data: Any, /,
-                type_spec: Optional['TypeSpec'] = None,
+                table_schema: Optional['TableSchema'] = None,
                 *,
-                source_spec: Optional['TypeSpec'] = None,
+                source_table_schema: Optional['TableSchema'] = None,
                 inline_conform: bool = True,
     ) -> PolarsFrame:
         """
@@ -33,8 +33,8 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
 
         Args:
             data: Input data (dataclass, Pydantic model, dict of lists, or list of dicts)
-            type_spec: Optional TypeSpec for column type coercion and renaming
-            source_spec: Input dtypes overriding model evidence; ANY leaves inference.
+            table_schema: Optional TableSchema for column type coercion and renaming
+            source_table_schema: Input dtypes overriding model evidence; ANY leaves inference.
             inline_conform: Apply target conversions, independently of source typing.
 
         Returns:
@@ -51,7 +51,7 @@ class PydataIngressFactory(BaseStrategyFactory[Any, BasePydataIngressHandler]):
         """
         strategy = cls.get_strategy(data)
         return strategy.convert(
-            data, type_spec=type_spec, source_spec=source_spec,
+            data, table_schema=table_schema, source_table_schema=source_table_schema,
             inline_conform=inline_conform,
         )
 

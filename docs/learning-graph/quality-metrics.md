@@ -107,7 +107,7 @@ Top 10 concepts that are prerequisites for the most other concepts:
 | 4 | 1 | Python Type Hints | 11 |
 | 5 | 55 | ExpressionNode Base | 11 |
 | 6 | 4 | DataFrames | 10 |
-| 7 | 147 | TypeSpec | 9 |
+| 7 | 147 | TableSchema | 9 |
 | 8 | 169 | RelationDAG | 8 |
 | 9 | 2 | Protocol Classes | 7 |
 | 10 | 27 | Expression Building | 7 |

@@ -197,6 +197,17 @@ class _DummyRelationSystem(RelationSystem):
     def join_asof(self, left, right, *, on, by=None, strategy="backward", tolerance=None):
         return left
 
+    # --- RelationSystem: physical output description ---
+    def describe_output_schema(self, native, *, location):
+        return {}
+
+    # --- RelationSystem: output-name inference ---
+    def infer_row_index_names(self, input_names, *, name, location):
+        return (name, *input_names)
+
+    def infer_cross_join_names(self, left_names, right_names, *, suffix, location):
+        return (*left_names, *right_names)
+
 
 class TestRelationSystemRegistry:
     """Test register / get lifecycle."""

@@ -21,13 +21,12 @@ from datetime import date, datetime, time
 import pytest
 
 import mountainash as ma
-from mountainash.conform.errors import ConformTransformError
 from mountainash.core.types import BackendCapabilityError
 from mountainash.expressions.core.expression_system.function_keys.enums import (
     FKEY_MOUNTAINASH_SCALAR_DATETIME,
     FKEY_SUBSTRAIT_SCALAR_DATETIME,
 )
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 
 from fixtures.backend_registry import ALL_BACKENDS
@@ -59,9 +58,9 @@ def test_strptime_date_honors_format_or_reports_default_pandas_storage(
     backend_name, values, format, backend_factory
 ):
     df = backend_factory.create({"dt": values}, backend_name)
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="dt", type=UniversalType.DATE, format=format)],
+        fields={"dt": FieldDefinition(type=UniversalType.DATE, format=format)},
     )
     if backend_name in _DATE_REFUSED:
         with pytest.raises(BackendCapabilityError) as raised:
@@ -70,9 +69,8 @@ def test_strptime_date_honors_format_or_reports_default_pandas_storage(
         assert raised.value.backend == "ibis"
         assert raised.value.limitation is None
     elif backend_name in _DEFAULT_PANDAS_DATE_STORAGE:
-        with pytest.raises(ConformTransformError) as raised:
+        with pytest.raises(NotImplementedError):
             ma.relation(df).conform(spec).to_polars()
-        assert isinstance(raised.value.original_error, NotImplementedError)
     else:
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
@@ -101,9 +99,9 @@ def test_strptime_date_honors_format_with_arrow_backed_pandas_strings(
     )
     if backend_name == "narwhals-pandas":
         dataframe = nw.from_native(dataframe, eager_only=True)
-    spec = TypeSpec(
+    spec = TableSchema(
         fields_match="open",
-        fields=[FieldSpec(name="dt", type=UniversalType.DATE, format=format)],
+        fields={"dt": FieldDefinition(type=UniversalType.DATE, format=format)},
     )
     result = ma.relation(dataframe).conform(spec).to_polars()
     assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
@@ -122,14 +120,11 @@ class TestDatetimeFormatParsing:
         df = backend_factory.create(
             {"ts": ["26/01/2024 09:15:00", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(
-                    name="ts",
+        spec = TableSchema(fields_match="open", 
+            fields={"ts": FieldDefinition(
                     type=UniversalType.DATETIME,
                     format="%d/%m/%Y %H:%M:%S",
-                ),
-            ],
+                ),},
         )
         if backend_name in _DATETIME_GATED:
             with pytest.raises(BackendCapabilityError) as raised:
@@ -158,10 +153,8 @@ class TestTimeFormatParsing:
         df = backend_factory.create(
             {"t": ["09-15-30", "14-30-00", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="t", type=UniversalType.TIME, format="%H-%M-%S"),
-            ],
+        spec = TableSchema(fields_match="open", 
+            fields={"t": FieldDefinition(type=UniversalType.TIME, format="%H-%M-%S"),},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["t"].to_list() == [time(9, 15, 30), time(14, 30), None]
@@ -180,10 +173,8 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="dt", type=UniversalType.DATE, format="default"),
-            ],
+        spec = TableSchema(fields_match="open", 
+            fields={"dt": FieldDefinition(type=UniversalType.DATE, format="default"),},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
@@ -192,10 +183,8 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15", None]}, backend_name
         )
-        spec = TypeSpec(fields_match="open", 
-            fields=[
-                FieldSpec(name="dt", type=UniversalType.DATE),
-            ],
+        spec = TableSchema(fields_match="open", 
+            fields={"dt": FieldDefinition(type=UniversalType.DATE),},
         )
         result = ma.relation(df).conform(spec).to_polars()
         assert result["dt"].to_list() == [date(2024, 1, 26), date(2023, 6, 15), None]
@@ -203,9 +192,9 @@ class TestDefaultFormatFallback:
         df = backend_factory.create(
             {"dt": ["2024-01-26", "2023-06-15", None]}, backend_name
         )
-        spec = TypeSpec(
+        spec = TableSchema(
             fields_match="open",
-            fields=[FieldSpec(name="dt", type=UniversalType.DATE, format="any")],
+            fields={"dt": FieldDefinition(type=UniversalType.DATE, format="any")},
         )
         if backend_name not in _TEMPORAL_ANY_SUPPORTED:
             with pytest.raises(BackendCapabilityError) as raised:

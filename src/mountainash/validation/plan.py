@@ -8,14 +8,13 @@ from typing import Any, TYPE_CHECKING
 from mountainash.typespec._fingerprint import (
     declaration_fingerprint,
     freeze_declaration as freeze_value,
-    freeze_typespec,
+    freeze_table_schema,
 )
 
 
 if TYPE_CHECKING:
-    from mountainash.datacontracts.field import Field
     from mountainash.typespec.universal_types import UniversalType
-    from mountainash.typespec.spec import TypeSpec
+    from mountainash.typespec.spec import TableSchema
 
 
 @dataclass(frozen=True)
@@ -39,38 +38,6 @@ class FrozenForeignKey:
     declaration_key: bytes
     declaration_path: str
 
-
-@dataclass(frozen=True)
-class FieldValidationExtension:
-    severity: str
-    eq: Any = None
-    ne: Any = None
-    gt: Any = None
-    lt: Any = None
-    notin: tuple[Any, ...] | None = None
-    str_contains: str | None = None
-    str_startswith: str | None = None
-    str_endswith: str | None = None
-
-
-
-def freeze_field_extension(field: "Field") -> FieldValidationExtension:
-    """Freeze native-contract-only rules at the compiler boundary."""
-    return FieldValidationExtension(
-        severity=field.severity,
-        eq=freeze_value(field.eq),
-        ne=freeze_value(field.ne),
-        gt=freeze_value(field.gt),
-        lt=freeze_value(field.lt),
-        notin=(
-            tuple(freeze_value(value) for value in field.notin)
-            if field.notin is not None
-            else None
-        ),
-        str_contains=field.str_contains,
-        str_startswith=field.str_startswith,
-        str_endswith=field.str_endswith,
-    )
 
 @dataclass(frozen=True)
 class CompiledValidationPlan:
@@ -170,11 +137,11 @@ def _freeze_check(check: Any) -> Any:
     return replace(check, **replacements)
 
 
-def build_compiled_plan(spec: TypeSpec, checks: Sequence[Any]) -> CompiledValidationPlan:
-    declaration = freeze_typespec(spec)
+def build_compiled_plan(spec: TableSchema, checks: Sequence[Any]) -> CompiledValidationPlan:
+    declaration = freeze_table_schema(spec)
     fields_snapshot = tuple(
-        ValidationField(name=field.name, type=field.type, format=field.format)
-        for field in spec.fields
+        ValidationField(name=name, type=definition.type, format=definition.format)
+        for name, definition in spec.fields.items()
     )
     field_plan = ValidationFieldPlan(
         fields=fields_snapshot,
@@ -208,27 +175,31 @@ __all__ = ["CompiledValidationPlan"]
 
 
 def _thaw_dataclass_type(identifier: str) -> type[Any]:
-    """Resolve only the closed TypeSpec declaration vocabulary."""
-    from mountainash.core.dtypes import DecimalDtype
+    """Resolve only the closed schema declaration vocabulary."""
+    from mountainash.core.dtypes import (
+        ArrayDtype, DecimalDtype, DurationDtype, ListDtype, StructDtype,
+        TimeDtype, TimestampDtype,
+    )
     from mountainash.typespec.spec import (
         FieldConstraints,
-        FieldSpec,
+        FieldDefinition,
         ForeignKey,
         ForeignKeyReference,
         LabeledValue,
-        TypeSpec,
+        TableSchema,
     )
 
     allowed = {
         f"{cls.__module__}:{cls.__qualname__}": cls
         for cls in (
-            DecimalDtype,
+            ArrayDtype, DecimalDtype, DurationDtype, ListDtype, StructDtype,
+            TimeDtype, TimestampDtype,
             FieldConstraints,
-            FieldSpec,
+            FieldDefinition,
             ForeignKey,
             ForeignKeyReference,
             LabeledValue,
-            TypeSpec,
+            TableSchema,
         )
     }
     try:
@@ -240,11 +211,11 @@ def _thaw_dataclass_type(identifier: str) -> type[Any]:
 
 
 def _thaw_enum(module_name: str, class_name: str, value: Any) -> Any:
-    """Resolve only TypeSpec's closed declaration enum vocabulary."""
+    """Resolve only the closed schema declaration enum vocabulary."""
     from mountainash.typespec.universal_types import UniversalType
-    from mountainash.core.dtypes import MountainashDtype, TypeTarget
+    from mountainash.core.dtypes import MountainashDtype, SchemaTypeStatus, TypeTarget
 
-    for cls in (UniversalType, MountainashDtype, TypeTarget):
+    for cls in (UniversalType, MountainashDtype, SchemaTypeStatus, TypeTarget):
         if (module_name, class_name) == (cls.__module__, cls.__qualname__):
             return cls(value)
     raise ValueError(f"unsupported frozen enum declaration {module_name}:{class_name}")
@@ -258,26 +229,39 @@ def thaw_value(value: Any) -> Any:
         return deepcopy(value)
     if isinstance(value, Mapping) and "__dataclass__" in value:
         cls = _thaw_dataclass_type(value["__dataclass__"])
-        return cls(**{name: thaw_value(item) for name, item in value["fields"].items()})
+        values = {name: thaw_value(item) for name, item in value["fields"].items()}
+        if cls.__name__ == "FieldDefinition" and (
+            values.get("fields") is not None or values.get("element") is not None
+        ):
+            values.pop("dtype", None)
+        if cls.__name__ in {"TableSchema", "ForeignKey", "ForeignKeyReference"}:
+            for name in ("primary_key", "foreign_keys", "missing_values", "unique_keys", "fields"):
+                if isinstance(values.get(name), tuple):
+                    values[name] = list(values[name])
+            if values.get("unique_keys") is not None:
+                values["unique_keys"] = [list(key) for key in values["unique_keys"]]
+        return cls(**values)
     if (
         isinstance(value, tuple)
         and len(value) == 4
         and value[0] == "__enum__"
     ):
         return _thaw_enum(value[1], value[2], value[3])
+    if isinstance(value, tuple) and len(value) == 2 and value[0] == "__ordered__":
+        return {name: thaw_value(item) for name, item in value[1]}
     if isinstance(value, Mapping):
         return {thaw_value(key): thaw_value(item) for key, item in value.items()}
     if isinstance(value, tuple):
-        return [thaw_value(item) for item in value]
+        return tuple(thaw_value(item) for item in value)
     if isinstance(value, frozenset):
         return {thaw_value(item) for item in value}
     return value
 
 
-def thaw_typespec(plan: CompiledValidationPlan) -> TypeSpec:
-    """Build a fresh TypeSpec for runner-owned conform from a compiled plan."""
-    from mountainash.typespec.spec import TypeSpec
+def thaw_table_schema(plan: CompiledValidationPlan) -> TableSchema:
+    """Build an independently owned schema for runner-owned conform."""
+    from mountainash.typespec.spec import TableSchema
 
     thawed = thaw_value(plan.declaration)
-    assert isinstance(thawed, TypeSpec)
+    assert isinstance(thawed, TableSchema)
     return thawed

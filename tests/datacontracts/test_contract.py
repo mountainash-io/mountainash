@@ -4,16 +4,16 @@ from __future__ import annotations
 import polars as pl
 
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
+from mountainash.typespec import FieldDefinition, UniversalType
 from mountainash.validation.result import ValidationResult
 
 
 class SampleContract(BaseDataContract):
     """Test contract: id (int, >=1), name (str), score (float, nullable)."""
 
-    id: int = Field(ge=1, nullable=False)
-    name: str
-    score: float = Field(nullable=True)
+    id: int = FieldDefinition(type=UniversalType.INTEGER, minimum=1, required=True)
+    name: str = FieldDefinition(type=UniversalType.STRING)
+    score: float = FieldDefinition(type=UniversalType.NUMBER)
 
 
 class TestBaseDataContract:

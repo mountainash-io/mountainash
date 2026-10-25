@@ -12,7 +12,7 @@ import polars as pl
 import mountainash as ma
 
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
+from mountainash.typespec import FieldDefinition, UniversalType
 from mountainash.datacontracts.rule import Rule
 from mountainash.datacontracts.registry import RuleRegistry
 from mountainash.datacontracts.validator import Validator
@@ -24,9 +24,9 @@ from mountainash.validation.result import empty_failure_frame
 
 
 class OrderContract(BaseDataContract):
-    order_id: int = Field(unique=True)
-    amount: float = Field(ge=0)
-    status: str = Field(isin=["open", "closed", "pending"])
+    order_id: int = FieldDefinition(type=UniversalType.INTEGER, unique=True)
+    amount: float = FieldDefinition(type=UniversalType.NUMBER, minimum=0)
+    status: str = FieldDefinition(type=UniversalType.STRING, enum=["open", "closed", "pending"])
 
 
 @pytest.fixture

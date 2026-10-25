@@ -2672,7 +2672,7 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             substrait_uri=MountainashExtension.STRUCT,
             substrait_name="cast_struct",
             is_extension=True,
-            options=("fields", "failure_behavior"),
+            options=("dtype", "field_names", "failure_behavior"),
             protocol_method=MountainAshScalarStructExpressionSystemProtocol.cast_struct,
         ),
     ]
@@ -2708,7 +2708,7 @@ def _builtin_function_definitions() -> tuple[ExpressionFunctionDef, ...]:
             substrait_uri=MountainashExtension.LIST,
             substrait_name="cast_list_items",
             is_extension=True,
-            options=("item_object_fields", "item_type", "failure_behavior"),
+            options=("dtype", "failure_behavior"),
             protocol_method=MountainAshScalarListExpressionSystemProtocol.cast_list_items,
         ),
         ExpressionFunctionDef(

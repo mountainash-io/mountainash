@@ -3,7 +3,7 @@ import pytest
 from mountainash.typespec.datapackage import DataPackage, TableDialect
 from mountainash.typespec.errors import UnsupportedDescriptorVersion
 from mountainash.typespec.frictionless_invariants import is_recognized_v1_profile
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from tests.fixtures.f113_12_profile_cases import V1_DIALECT_MARKERS, V1_PROFILE_URIS
 
@@ -37,10 +37,7 @@ def test_raw_dialect_markers_have_shared_public_error(marker, required_form) -> 
 @pytest.mark.parametrize("profile_uri", V1_PROFILE_URIS[:4])
 def test_typed_schema_profile_boundary_matches_raw(profile_uri: str) -> None:
     with pytest.raises(UnsupportedDescriptorVersion):
-        TypeSpec(
-            fields=[FieldSpec(name="id", type=UniversalType.INTEGER)],
-            schema_url=profile_uri,
-        )
+        TableSchema(fields={"id": FieldDefinition(type=UniversalType.INTEGER)}, schema_url=profile_uri,)
 
 
 @pytest.mark.parametrize("profile_uri", V1_PROFILE_URIS[:4])

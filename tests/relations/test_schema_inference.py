@@ -287,14 +287,59 @@ class TestSchemaFromDataframe:
         assert schema["obj"].target is TypeTarget.PANDAS
 
     def test_ibis_table(self):
-        """item 48 Task 7 fix: the callable-.schema() (Ibis) branch must
-        resolve through TypeTarget.IBIS, not silently default to the
-        Polars target (which degraded every Ibis column to UNKNOWN)."""
+        """An Ibis table's logical schema decodes through the Ibis type target,
+        not the Polars default (which once degraded every Ibis column to UNKNOWN)."""
         import ibis
         t = ibis.memtable({"a": [1, 2], "b": ["x", "y"]})
         schema = _schema_from_dataframe(t)
         assert schema["a"] == D.I64
         assert schema["b"] == D.STRING
+
+    @pytest.mark.parametrize("lazy", [False, True])
+    def test_wrapped_polars_keeps_polars_time_precision(self, lazy):
+        """Narwhals' own Time carries no precision; the wrapped Polars schema does."""
+        import datetime
+
+        import narwhals as nw
+        from mountainash.core.dtypes import TimeDtype
+
+        frame = pl.DataFrame({"t": [datetime.time(1)]})
+        wrapped = nw.from_native(frame.lazy() if lazy else frame)
+        assert _schema_from_dataframe(wrapped)["t"] == TimeDtype(precision=9)
+        relation = ma.relation(wrapped)
+        assert relation.schema["t"] == TimeDtype(precision=9)
+        assert relation.collect_schema()["t"] == TimeDtype(precision=9)
+
+    @pytest.mark.parametrize("wrapped", [False, True])
+    def test_empty_arrow_backed_pandas_time_precision_comes_from_schema(self, wrapped):
+        """Schema evidence, not value sampling: a zero-row column still has precision."""
+        import narwhals as nw
+        import pandas as pd
+        import pyarrow as pa
+        from mountainash.core.dtypes import TimeDtype
+
+        frame = pd.DataFrame({"t": pd.Series([], dtype=pd.ArrowDtype(pa.time64("us")))})
+        relation = ma.relation(nw.from_native(frame) if wrapped else frame)
+        assert relation.schema["t"] == TimeDtype(precision=6)
+        assert relation.collect_schema()["t"] == TimeDtype(precision=6)
+
+    def test_logical_acquisition_never_describes_sql_output(self, monkeypatch):
+        """Logical Ibis types come from the expression; physical SQL description is
+        the relation system's separate operation."""
+        import ibis
+
+        connection = ibis.duckdb.connect()
+        try:
+            table = connection.create_table("logical_only", {"n": [1]})
+
+            def unexpected_compile(*args, **kwargs):
+                raise AssertionError("logical acquisition must not describe SQL output")
+
+            monkeypatch.setattr(connection, "compile", unexpected_compile)
+            assert _schema_from_dataframe(table) == {"n": D.I64}
+            assert infer_schema(ma.relation(table)._node) == {"n": D.I64}
+        finally:
+            connection.disconnect()
 
 
 class TestSchemaFromTableSchema:
@@ -875,11 +920,12 @@ def test_aggregate_resource_names_require_closed_effective_contract(fields_match
     from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
     from mountainash.relations.core.relation_api.relation import Relation
     from mountainash.relations.core.relation_nodes.extensions_mountainash import ResourceReadRelNode
-    from mountainash.typespec.frictionless import typespec_to_frictionless
-    from mountainash.typespec.spec import FieldSpec, TypeSpec
+    from mountainash.typespec.frictionless import table_schema_to_frictionless
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
+    from mountainash.typespec.universal_types import UniversalType
 
-    spec = TypeSpec(fields=[FieldSpec(name="x", type="integer")], fields_match=fields_match, contract=contract)
-    resource = ma.DataResource(name="source", data=[{"x": 1}], schema=typespec_to_frictionless(spec))
+    spec = TableSchema(fields={"x": FieldDefinition(type=UniversalType.INTEGER)}, fields_match=fields_match, contract=contract)
+    resource = ma.DataResource(name="source", data=[{"x": 1}], schema=table_schema_to_frictionless(spec))
     base = Relation(ResourceReadRelNode(resource=resource, apply_schema_conform=apply_conform))
     q = base.group_by(ma.col("*")).agg(ma.lit(1).alias("one"))
     if complete and apply_conform:
@@ -1060,3 +1106,20 @@ def test_whole_row_distinct_preserves_partial_type_evidence():
         "known": D.I64, "unknown": SchemaTypeStatus.UNKNOWN,
         "unconstrained": SchemaTypeStatus.UNCONSTRAINED,
     }
+
+
+@pytest.mark.cross_backend
+def test_registered_relation_system_describes_each_native_source(backend_name, backend_factory):
+    """The selected system, not a generic ladder, reports a native source's output."""
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+    from mountainash.relations.core.relation_nodes import ReadRelNode
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    frame = backend_factory.create({"n": [1], "text": ["a"]}, backend_name)
+    location = LocationResolver(IdentityTokens()).resolve(ReadRelNode(dataframe=frame))
+    system = get_relation_system(location.family)(dialect=location.dialect)
+
+    described = system.describe_output_schema(frame, location=location)
+
+    assert list(described.items()) == list(_native_source_schema(frame, backend_name).items())
+    assert ma.relation(frame).schema == described

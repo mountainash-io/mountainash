@@ -6,7 +6,7 @@ import polars as pl
 import mountainash as ma
 
 from mountainash.datacontracts.contract import BaseDataContract
-from mountainash.datacontracts.field import Field
+from mountainash.typespec import FieldDefinition, UniversalType
 from mountainash.datacontracts.rule import Rule, guarded
 from mountainash.datacontracts.registry import RuleRegistry
 
@@ -14,9 +14,9 @@ from mountainash.datacontracts.registry import RuleRegistry
 class PersonContract(BaseDataContract):
     """Hand-built contract for testing."""
 
-    name: str
-    age: int = Field(ge=0)
-    email: str = Field(nullable=True)
+    name: str = FieldDefinition(type=UniversalType.STRING)
+    age: int = FieldDefinition(type=UniversalType.INTEGER, minimum=0)
+    email: str = FieldDefinition(type=UniversalType.STRING, required=False)
 
 
 @pytest.fixture

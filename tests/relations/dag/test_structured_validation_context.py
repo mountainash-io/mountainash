@@ -26,7 +26,7 @@ from mountainash.relations.core.materialization import DiagnosticFrameView
 from mountainash.relations.dag import DAGMaterializationSession, RelationDAG
 from mountainash.relations.dag.materialization import _SessionRefResolver
 from mountainash.relations.dag.validation_context import DAGValidationContext
-from mountainash.typespec.spec import FieldSpec, TypeSpec
+from mountainash.typespec.spec import FieldDefinition, TableSchema
 from mountainash.typespec.universal_types import UniversalType
 from mountainash.validation.checks import ValueRule, ValueValidatorKey
 from mountainash.validation.identity import RowIdentity
@@ -44,8 +44,8 @@ def _validation_execution_scope(validation_execution_scope):
 def _structured_dag():
     dag = RelationDAG()
     df = pl.DataFrame({"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']})
-    spec = TypeSpec(
-        fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)]
+    spec = TableSchema(
+        fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)}
     )
     rel = ma.relation(df).conform(spec, contract={"data_type": "coerce"})
     dag.add("resource", rel)
@@ -141,8 +141,8 @@ class TestPerCallValidationContext:
         )
 
         compile_calls = 0
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)]
+        spec = TableSchema(
+            fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)}
         )
         rel = ma.relation(table).conform(spec, contract={"data_type": "coerce"})
         root_node = rel._node
@@ -180,8 +180,8 @@ class TestPerCallValidationContext:
         table = backend_factory.create(
             {"id": [1, 2], "meta": ['{"a": 1}', '{"a": 2}']}, "ibis-duckdb"
         )
-        spec = TypeSpec(
-            fields_match="open", fields=[FieldSpec(name="meta", type=UniversalType.OBJECT)]
+        spec = TableSchema(
+            fields_match="open", fields={"meta": FieldDefinition(type=UniversalType.OBJECT)}
         )
         rel = ma.relation(table).conform(spec, contract={"data_type": "coerce"})
         dag = RelationDAG()
