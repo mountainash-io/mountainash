@@ -611,6 +611,20 @@ def test_window_shape_policy_gates_on_effective_window(isolated, field, order_by
         expr.compile(df)
 
 
+def test_shared_window_success_does_not_bypass_later_refusal(isolated):
+    """This synthetic declaration is Polars-scoped; generic windows cover all backends."""
+    from mountainash.expressions.core.expression_system.function_keys.enums import SUBSTRAIT_ARITHMETIC_WINDOW
+
+    CapabilityRegistry.register_segment(
+        _window_segment(_window_shape_policy(SUBSTRAIT_ARITHMETIC_WINDOW.LAG, "any_descending"))
+    )
+    frame = pl.DataFrame({"g": [1, 1], "a": [1, 2]})
+    shared = ma.col("a").lag().is_null()
+    expression = shared.over("g", order_by="a") | shared.over("g", order_by="-a")
+    with pytest.raises(BackendCapabilityError, match="window any_descending blocked"):
+        expression.compile(frame)
+
+
 def test_window_shape_policy_rejected_on_non_window_operation(isolated):
     with pytest.raises(ValueError):
         CapabilityRegistry.register_segment(_window_segment(_window_shape_policy(_OP, "multi_key")))

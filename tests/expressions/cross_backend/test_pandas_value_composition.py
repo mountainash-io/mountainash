@@ -213,6 +213,14 @@ def test_floating_common_carrier_preserves_tiny_nonzero(composition, arrow) -> N
         if composition == "conditional"
         else ma.coalesce(ma.col("small"), ma.col("large"))
     )
+    visitor = _visitor_for(frame)
+    with visitor.input_scope(frame):
+        visitor.visit(expression.node)
+        visitor.type_context.resolve_native(expression.node)
+        compiled = visitor.visit(expression.node)
+        actual = nw.from_native(frame).select(compiled.alias("value")).to_native()["value"]
+        assert actual.tolist() == [1e-50, 0.0]
+        assert str(actual.dtype) in {"Float64", "double[pyarrow]"}
     result = _select(frame, expression.boolean_value(source="finite_number"))
     assert result.tolist() == [True, False]
 

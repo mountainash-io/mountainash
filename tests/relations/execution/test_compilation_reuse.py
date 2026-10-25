@@ -220,7 +220,10 @@ def test_raw_native_expression_keeps_occurrence_evaluation():
     for snapshot in ("today", "now")
     if snapshot == "today" or spec.family != "ibis"
 ])
-def test_host_clock_snapshots_are_evaluated_per_occurrence(backend_name, snapshot, monkeypatch):
+@pytest.mark.parametrize("shared_projection", [False, True])
+def test_host_clock_snapshots_are_evaluated_per_occurrence(
+    backend_name, snapshot, shared_projection, monkeypatch,
+):
     from datetime import date, datetime, timedelta
     from importlib import import_module
 
@@ -249,10 +252,14 @@ def test_host_clock_snapshots_are_evaluated_per_occurrence(backend_name, snapsho
 
     monkeypatch.setattr(module, "date" if snapshot == "today" else "datetime", Clock)
     frame = REGISTRY[backend_name].build({"id": [1]}, "clock_source")
-    branch = ma.relation(frame).select(getattr(ma, snapshot)().alias("stamp"))
+    stamp = getattr(ma, snapshot)()
+    expressions = [stamp.alias("stamp")]
+    if shared_projection:
+        expressions.append(stamp.alias("again"))
+    branch = ma.relation(frame).select(*expressions)
     result = ma.concat([branch] * 4).to_dicts()
-    assert sorted(row["stamp"] for row in result) == [
-        start + timedelta(days=index) for index in range(4)
+    assert sorted(value for row in result for value in row.values()) == [
+        start + timedelta(days=index) for index in range(8 if shared_projection else 4)
     ]
 
 

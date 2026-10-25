@@ -726,16 +726,19 @@ class TestListElement:
         assert result["centered"][0] == pytest.approx([-2 / 3, None, 4 / 3, -2 / 3])
         assert result["centered"][1:] == [[], None, [None], [-2.0, 2.0]]
 
-    def test_nested_and_sibling_scopes(self, backend_name, backend_factory):
+    @pytest.mark.parametrize("shared_element", [False, True])
+    def test_nested_and_sibling_scopes(self, backend_name, backend_factory, shared_element):
         source = backend_factory.create({
             "id": [0, 1, 2, 3],
             "nested": [[[1, None], [], None], [], None, [[2], [9, None]]],
             "ys": [[8], None, [], [1, 2, 3]],
         }, backend_name)
+        element = ma.element()
+        inner = element if shared_element else ma.element()
         result = ma.relation(source).select(
             ma.col("id"),
             ma.col("nested").list.agg(
-                ma.element().list.agg(ma.element() + 1),
+                element.list.agg(inner + 1),
             ).alias("mapped"),
             ma.col("nested").list.agg(
                 ma.element().list.agg(ma.element().sum()),

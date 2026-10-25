@@ -1,4 +1,4 @@
-"""Scope-bound, metadata-only operand resolution for expression compilation."""
+"""Input-scoped metadata resolution and native expression lowering state."""
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -19,8 +19,11 @@ class ResolvedOperand:
 
 @dataclass
 class _Scope:
+    """Compiler evidence and native lowerings owned by one input lifetime."""
+
     input_data: Any
     resolved: dict[int, tuple[Any, ResolvedOperand]] = field(default_factory=dict)
+    lowered: dict[tuple[int, int, int, int], tuple[Any, Any, Any, Any]] | None = None
 
 
 class TypeContext:
