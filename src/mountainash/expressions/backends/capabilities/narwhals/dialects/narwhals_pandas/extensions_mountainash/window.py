@@ -32,10 +32,13 @@ _RANK_MESSAGE = (
     "only elementary expressions."
 )
 _LAST_KEY_MESSAGE = "Narwhals pandas-like orders multi-key windows by the last key only (backlog 368)."
-_APPLICABILITY = Applicability((Region((
-    CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
-    CoordinateConstraint("package", "pandas", specifier="==3.0.6"),
-)),))
+_APPLICABILITY = Applicability(tuple(
+    Region((
+        CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
+        CoordinateConstraint("package", "pandas", specifier=f"=={version}"),
+    ))
+    for version in ("3.0.6", "3.1.0")
+))
 
 
 def _multi_key(operation) -> CapabilityKey:
