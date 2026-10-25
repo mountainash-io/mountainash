@@ -68,6 +68,32 @@ class RelationSystem(
         itself neither executes data nor selects a connection.
         """
 
+    @abstractmethod
+    def infer_row_index_names(
+        self, input_names: tuple[str, ...], *, name: str,
+        location: ExecutionLocation,
+    ) -> tuple[str, ...] | None:
+        """Complete ordered output names of a row-index, or None when unproven.
+
+        ``input_names`` are the complete ordered input names. The result follows
+        this route's native placement and collision behavior; it neither repairs
+        collisions nor inspects data. ``location`` supplies route/form metadata
+        only: its connection and prototype are never used.
+        """
+
+    @abstractmethod
+    def infer_cross_join_names(
+        self, left_names: tuple[str, ...], right_names: tuple[str, ...], *,
+        suffix: str, location: ExecutionLocation,
+    ) -> tuple[str, ...] | None:
+        """Complete ordered output names of a cross join, or None when unproven.
+
+        Inputs are complete ordered names. The result follows this route's
+        native left/right order and suffix behavior (including an empty suffix);
+        an unproven or colliding layout is None, never normalized. ``location``
+        supplies route metadata only: its connection and prototype are never used.
+        """
+
 
 # ---------------------------------------------------------------------------
 # Registry

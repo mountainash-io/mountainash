@@ -1268,8 +1268,13 @@ class Relation(RelationBase):
         """Return proven output names, using native inference only when needed."""
         from mountainash.relations.schema_inference import _aggregate_input_names
         from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
+        identity_resolver = None
+        if getattr(self, "_dag", None) is not None:
+            from mountainash.relations.dag.introspection import _name_identity_resolver
+
+            identity_resolver = _name_identity_resolver(self._dag, self._node)
         try:
-            names = _aggregate_input_names(self._node)
+            names = _aggregate_input_names(self._node, identity_resolver=identity_resolver)
         except IncompleteProjectionSchemaError:
             names = None
         return list(names) if names is not None else list(self.schema)

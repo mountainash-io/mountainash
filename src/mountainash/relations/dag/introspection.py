@@ -4,9 +4,21 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from mountainash.core.dtypes import MountainashDtype
     from mountainash.relations.dag.protocol import RelationDAGProtocol
     from mountainash.core.dtypes.canonical import SchemaTypeStatus
+
+
+def _name_identity_resolver(dag: RelationDAGProtocol, node: Any) -> Callable[[str], Any]:
+    """Validate names-only reference traversal without acquiring dtype evidence."""
+    from mountainash.relations.dag.traversal import walk_refs
+
+    for name in walk_refs(node):
+        if name not in dag.relations:
+            raise KeyError(f"relation {name!r} not in DAG")
+        dag.topological_order(target=name)
+    return lambda name: dag.relations[name]._node
 
 
 def structural_schema(

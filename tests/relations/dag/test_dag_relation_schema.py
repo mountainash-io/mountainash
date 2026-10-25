@@ -95,21 +95,44 @@ def test_assess_drift_plain_relation_over_ref_is_degenerate():
     assert isinstance(plain.assess_drift(), list)
 
 
-@pytest.mark.parametrize("backend_name", ["polars", "ibis-duckdb"])
-def test_row_index_schema_resolves_dag_identity(backend_factory, backend_name):
-    """Source identity must survive a ref and projection, not degrade to UNKNOWN."""
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_row_index_schema_resolves_dag_identity(backend_factory, backend_name, monkeypatch):
+    """Refs retain native order without compiling or substituting dtype-map keys."""
     from mountainash.core.dtypes import MountainashDtype as D
+    from mountainash.relations.core.execution.compilation import CompilationSession
+    from mountainash.typespec import source_shape
 
     dag = RelationDAG()
     dag.add("raw", ma.relation(backend_factory.create({"value": [8, 3]}, backend_name)))
     indexed = dag.ref("raw").with_row_index(name="ordinal")
     dag.add("indexed", indexed)
-    dtype = D.I64 if backend_name == "ibis-duckdb" else (
+    if backend_name == "narwhals-lazy":
+        # Existing lazy row-index execution requires an order_by argument.
+        with pytest.raises(TypeError):
+            _ = indexed.columns
+        with pytest.raises(TypeError):
+            indexed.to_polars()
+        return
+    dtype = (
         D.U64 if pl.get_index_type() == pl.UInt64 else D.U32
-    )
-    expected = [("value", D.I64), ("ordinal", dtype)] if backend_name == "ibis-duckdb" else [
+    ) if backend_name in {"polars", "polars-lazy", "narwhals-polars"} else D.I64
+    expected = [("value", D.I64), ("ordinal", dtype)] if backend_name.startswith("ibis-") else [
         ("ordinal", dtype), ("value", D.I64),
     ]
+    combined = indexed.cross_join(dag.ref("raw").select(ma.col("value").alias("other")))
+    names = ["value", "ordinal", "other"] if backend_name.startswith("ibis-") else [
+        "ordinal", "value", "other",
+    ]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("proven DAG names must not compile or decode types")
+
+    with monkeypatch.context() as guard:
+        guard.setattr(CompilationSession, "compile_root", forbidden)
+        guard.setattr(source_shape, "extract_source_shapes", forbidden)
+        assert combined.columns == names
+        assert combined.width == 3
+    assert combined.to_polars().columns == names
     assert list(indexed.schema.items()) == expected
     assert list(dag.schema("indexed").items()) == expected
     projected = indexed.select("ordinal")
@@ -146,6 +169,7 @@ def test_constraint_cycle_does_not_recurse_or_collect_during_schema_inference(mo
     assert dag.schema("computed") == {"next": D.I64}
     assert not collections
     assert not transfers
+    assert computed.columns == ["next"]
 
 
 def test_dependency_cycle_retains_explicit_cycle_error_during_schema_inference():
@@ -155,6 +179,9 @@ def test_dependency_cycle_retains_explicit_cycle_error_during_schema_inference()
 
     with pytest.raises(ValueError, match="[Cc]ycle detected"):
         dag.schema("a")
+    for relation in (dag.ref("a"), dag.ref("a").select(ma.lit(1).alias("one"))):
+        with pytest.raises(ValueError, match="[Cc]ycle detected"):
+            _ = relation.columns
 
 
 def test_missing_dag_binding_retains_explicit_error_during_schema_inference():
@@ -163,3 +190,6 @@ def test_missing_dag_binding_retains_explicit_error_during_schema_inference():
 
     with pytest.raises(KeyError, match="missing"):
         missing.collect_schema()
+    for relation in (missing, missing.select(ma.lit(1).alias("one"))):
+        with pytest.raises(KeyError, match="missing"):
+            _ = relation.columns

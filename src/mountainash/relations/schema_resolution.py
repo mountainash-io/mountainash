@@ -96,7 +96,9 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
         if isinstance(node, (FilterRelNode, SortRelNode, FetchRelNode, ProjectRelNode)):
             return preserves_types(node.input, active)
         if isinstance(node, SourceRelNode):
-            return _aggregate_input_names(node) is not None
+            return _aggregate_input_names(
+                node, identity_resolver=identity_resolver, _resolver=name_resolver,
+            ) is not None
         if isinstance(node, ExtensionRelNode) and node.operation in preserving_extensions:
             return preserves_types(node.input, active)
         return False
@@ -122,13 +124,20 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
                 dict.fromkeys(names if names is not None else (), SchemaTypeStatus.UNKNOWN),
                 names is not None, str(error), authoritative=False,
             )
-    schema = infer_schema(node, ref_resolver, identity_resolver=identity_resolver)
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
+    name_resolver = LocationResolver(IdentityTokens(), identity_resolver=identity_resolver)
+    schema = infer_schema(
+        node, ref_resolver, identity_resolver=identity_resolver, _name_resolver=name_resolver,
+    )
     if preserves_types(node):
         return _SchemaEvidence(schema, True)
     output_node = node
     while isinstance(output_node, RefRelNode) and identity_resolver is not None:
         output_node = identity_resolver(output_node.name)
-    names = _aggregate_input_names(output_node)
+    names = _aggregate_input_names(
+        output_node, identity_resolver=identity_resolver, _resolver=name_resolver,
+    )
     if changes_types(node):
         original = schema
         schema = {name: SchemaTypeStatus.UNKNOWN for name in schema}
