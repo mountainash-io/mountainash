@@ -54,26 +54,27 @@ def _values_for(source, native):
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
-def test_shared_window_keeps_order_and_requires_binding(backend_name, backend_factory):
-    source = backend_factory.create({
-        "g": [1, 1, 1], "x": [10, 20, 30], "a": [1, 2, 3], "b": [3, 2, 1],
-    }, backend_name)
-    shared = ma.col("x").row_number()
-    query = ma.relation(source).select(
-        "x",
-        shared.over("g", order_by="a").alias("a"),
-        shared.over("g", order_by="b").alias("b"),
-    )
-    assert query.sort("x").to_dict() == {
-        "x": [10, 20, 30], "a": [1, 2, 3], "b": [3, 2, 1],
-    }
-    # row_number has an implicit global window; lag requires an explicit binding.
-    shared = ma.col("x").lag().is_null()
-    with pytest.raises(ValueError):
-        ma.relation(source).select(
-            shared.over("g", order_by="a").alias("valid"),
-            shared.alias("unbound"),
-        ).to_polars()
+def test_shared_window_preserves_values_refusals_and_binding(backend_name, backend_factory):
+    source = backend_factory.create({"g": [1, 1, 1], "a": [1, 2, 3]}, backend_name)
+    left, right = ma.col("a").lag().is_null(), ma.col("a").lag().is_null()
+    distinct = left.over("g", order_by="a") | right.over("g", order_by="-a")
+    shared = left.over("g", order_by="a") | left.over("g", order_by="-a")
+
+    def outcome(expression):
+        try:
+            actual = ma.relation(source).select("a", expression.alias("out")).sort("a").to_dict()["out"]
+        except BackendCapabilityError as error:
+            return type(error), str(error)
+        assert actual == [True, False, True]
+        return actual
+
+    with ma.capability_policy(ma.CapabilityPolicy.checked()):
+        assert outcome(shared) == outcome(distinct)
+        with pytest.raises(ValueError):
+            ma.relation(source).select(
+                left.over("g", order_by="a").alias("valid"),
+                left.alias("unbound"),
+            ).to_polars()
 
 
 @pytest.mark.parametrize("backend_name", ALL_BACKENDS)
