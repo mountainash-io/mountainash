@@ -39,3 +39,15 @@ class BaseRelationSystem:
             name: shape_type_evidence(shape)
             for name, shape in extract_source_shapes(native).items()
         }
+
+    @staticmethod
+    def _cross_join_names(
+        left_names: tuple[str, ...], right_names: tuple[str, ...], suffix: str,
+    ) -> tuple[str, ...] | None:
+        """Left names, then right names, suffixing only those colliding with the left.
+
+        None when the combination yields duplicate output names.
+        """
+        left = set(left_names)
+        names = (*left_names, *(f"{n}{suffix}" if n in left else n for n in right_names))
+        return names if len(set(names)) == len(names) else None

@@ -198,6 +198,22 @@ The dialect inspectors are private and backend-local (`relations/backends/relati
 
 Support boundaries: the three Ibis dialect techniques above are the implemented set. Postgres is a service dialect: where such a service is unavailable, a rendered or compiled path is unexecuted and not qualified by rendering alone. Adding a dialect adds a private technique here and no registry or public setting; see [extension-points.md](extension-points.md#schema-extension-recipes).
 
+### Names-only metadata
+
+`extract_source_names(native)` selects the same native schema adapter as rich acquisition, but calls `extract_names`. Complete ordered tuples, including `()`, do not require dtype decoding or row inspection; an unrecognised carrier yields `None`. Native lazy metadata planning remains permitted.
+
+Every relation backend implements these abstract metadata operations in its owning `base.py` mixin:
+
+```python
+def infer_row_index_names(self, input_names, *, name, location): ...
+def infer_cross_join_names(self, left_names, right_names, *, suffix, location): ...
+```
+
+Inputs are complete name tuples and the actual `ExecutionLocation`, never ASTs or dataframes. Return a complete ordered tuple only when native placement/suffix semantics are proven; otherwise return `None`. Do not inspect the location's connection/prototype, decode types, repair collisions or execute data. The existing registry selects the system; composed classes remain method-free. Native naming methods are separate from executable operation categories.
+
+Shared structural inference handles backend-independent propagation and passes an Ibis consuming binding on demand, using the existing location resolver. `.columns` uses this evidence before ordinary schema fallback; `.width` follows it. Names are not an execution certificate: unsupported or invalid operations can have provable output names while ordinary schema compilation or execution still fails. A missing-field filter followed by a cross join is one example. Unknown names retain fallback; dtype completeness and execution permission are unchanged.
+
+
 ## The unified visitor
 
 A single visitor class dispatches **every** node type via a function registry. Source: `src/mountainash/expressions/core/unified_visitor/` and `src/mountainash/relations/core/unified_visitor/`.

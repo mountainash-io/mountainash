@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 2026-10-24
+
+### Changed
+- Output-name inspection (`.columns`/`.width`) uses native column metadata and backend-owned row-index/cross-join layouts without compiling relations or decoding types when complete names are provable (370). Names do not certify execution: unsupported or invalid operations may still fail during ordinary schema compilation or execution. Unproven names retain existing fallback.
+- Schema adapters implement `extract_names`; relation backend base mixins implement `infer_row_index_names` and `infer_cross_join_names`. Existing registries, native error policies and execution support are unchanged; extension-author guides describe the expanded contracts.
+
+### Fixed
+- Mixed-carrier cross joins targeting Ibis retain the native `x_right` output under an empty suffix in both names and structural schema evidence, with dtypes associated by original source names.
+- DAG name inspection, schema resolution and drift assessment validate referenced roots before name traversal, including previously unvisited projection/set references. Missing references and cycles produce explicit DAG errors instead of recursive traversal failures; constraint edges remain excluded.
+
 ## Unreleased — 2026-10-22
 
 ### Fixed

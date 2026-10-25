@@ -14,7 +14,7 @@ from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
 from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 from mountainash.relations.schema_inference import (
-    _aggregate_input_names, _schema_from_dataframe, infer_schema,
+    _aggregate_input_names, infer_schema,
 )
 
 
@@ -73,13 +73,17 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
 
     dag = getattr(relation, "_dag", None)
     if dag is not None:
-        from mountainash.relations.dag.introspection import structural_schema
+        from mountainash.relations.dag.introspection import _name_identity_resolver
+
+        # Names inspect every set input; dtype inference can inspect only the
+        # first. Validate all referenced roots before either traversal.
+        identity_resolver = _name_identity_resolver(dag, relation._node)
 
         def ref_resolver(name):
-            return structural_schema(dag, name)
-
-        def identity_resolver(name):
-            return dag.relations[name]._node
+            return infer_schema(
+                identity_resolver(name), ref_resolver, identity_resolver=identity_resolver,
+                _name_resolver=name_resolver,
+            )
     else:
         ref_resolver = identity_resolver = None
 
@@ -96,7 +100,9 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
         if isinstance(node, (FilterRelNode, SortRelNode, FetchRelNode, ProjectRelNode)):
             return preserves_types(node.input, active)
         if isinstance(node, SourceRelNode):
-            return _aggregate_input_names(node) is not None
+            return _aggregate_input_names(
+                node, identity_resolver=identity_resolver, _resolver=name_resolver,
+            ) is not None
         if isinstance(node, ExtensionRelNode) and node.operation in preserving_extensions:
             return preserves_types(node.input, active)
         return False
@@ -115,18 +121,27 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
         try:
             return _source_evidence(node)
         except CompileRequiresExecutionError as error:
-            names = _schema_from_dataframe(node.dataframe)
+            from mountainash.typespec.source_shape import extract_source_names
+
+            names = extract_source_names(node.dataframe)
             return _SchemaEvidence(
-                {name: SchemaTypeStatus.UNKNOWN for name in names},
-                True, str(error), authoritative=False,
+                dict.fromkeys(names if names is not None else (), SchemaTypeStatus.UNKNOWN),
+                names is not None, str(error), authoritative=False,
             )
-    schema = infer_schema(node, ref_resolver, identity_resolver=identity_resolver)
+    from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
+    name_resolver = LocationResolver(IdentityTokens(), identity_resolver=identity_resolver)
+    schema = infer_schema(
+        node, ref_resolver, identity_resolver=identity_resolver, _name_resolver=name_resolver,
+    )
     if preserves_types(node):
         return _SchemaEvidence(schema, True)
     output_node = node
     while isinstance(output_node, RefRelNode) and identity_resolver is not None:
         output_node = identity_resolver(output_node.name)
-    names = _aggregate_input_names(output_node)
+    names = _aggregate_input_names(
+        output_node, identity_resolver=identity_resolver, _resolver=name_resolver,
+    )
     if changes_types(node):
         original = schema
         schema = {name: SchemaTypeStatus.UNKNOWN for name in schema}

@@ -90,6 +90,20 @@ def extract_source_shapes(native: Any, *, target: TypeTarget | None = None) -> d
     return get_native_schema_adapter(schema_target).extract_schema(native)
 
 
+def extract_source_names(native: Any) -> tuple[str, ...] | None:
+    """Complete ordered native names, ``()`` for known zero columns, None if unrecognised.
+
+    Uses the carrier's schema adapter metadata path without type evidence. The
+    selected adapter's exceptions propagate.
+    """
+    from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+    target = detect_schema_carrier(native)
+    if target is None:
+        return None
+    return get_native_schema_adapter(target).extract_names(native)
+
+
 def shape_type_evidence(shape: SourceShape) -> Any:
     """The detailed type a shape evidences, or UNKNOWN when its decode was unrecognised.
 
@@ -101,4 +115,4 @@ def shape_type_evidence(shape: SourceShape) -> Any:
     return SchemaTypeStatus.UNKNOWN if shape.detailed_dtype is None else shape.detailed_dtype
 
 
-__all__ = ["SourceShape", "extract_source_shapes", "shape_from_dtype", "shape_type_evidence"]
+__all__ = ["SourceShape", "extract_source_names", "extract_source_shapes", "shape_from_dtype", "shape_type_evidence"]

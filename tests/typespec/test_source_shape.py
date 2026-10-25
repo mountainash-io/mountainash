@@ -382,3 +382,275 @@ def test_wrapped_native_storage_leaves_do_not_become_foreign_overrides(carrier):
     assert effective == ListDtype(MountainashDtype.STRING)
     assert registry.to_native_schema(effective, TypeTarget.NARWHALS) == nw.List(nw.String)
     assert authored.dtype.element is SchemaTypeStatus.UNKNOWN
+
+
+# ---------------------------------------------------------------------------
+# Names acquisition: ordered native names without type evidence
+# ---------------------------------------------------------------------------
+
+
+def _carrier(kind: str, columns: Any) -> Any:
+    """A real native or wrapped carrier, preserving an optional declared schema."""
+    import polars as pl
+    frame = pl.DataFrame(columns)
+    if kind == "polars":
+        return frame
+    if kind == "polars-lazy":
+        return frame.lazy()
+    if kind == "arrow":
+        return frame.to_arrow()
+    if kind == "pandas":
+        return frame.to_pandas()
+    if kind == "ibis":
+        return __import__("ibis").memtable(frame)
+    import narwhals as nw
+    if kind == "narwhals-polars":
+        return nw.from_native(frame)
+    if kind == "narwhals-polars-lazy":
+        return nw.from_native(frame.lazy())
+    if kind == "narwhals-pandas":
+        return nw.from_native(frame.to_pandas())
+    if kind == "narwhals-arrow":
+        return nw.from_native(frame.to_arrow())
+    raise AssertionError(kind)
+
+
+_NAME_CARRIERS = [
+    "polars", "polars-lazy", "arrow", "pandas", "ibis",
+    "narwhals-polars", "narwhals-polars-lazy", "narwhals-pandas", "narwhals-arrow",
+]
+
+
+@pytest.mark.parametrize("kind", _NAME_CARRIERS)
+@pytest.mark.parametrize("empty", [False, True])
+def test_source_names_preserve_native_order(kind: str, empty: bool) -> None:
+    import polars as pl
+    from mountainash.typespec.source_shape import extract_source_names
+
+    frame = pl.DataFrame({"b": [1], "a": ["x"], "c": [2.0]})
+    carrier = _carrier(kind, frame.head(0) if empty else frame)
+    assert extract_source_names(carrier) == ("b", "a", "c")
+
+
+@pytest.mark.parametrize("kind", _NAME_CARRIERS)
+def test_source_names_of_zero_column_carrier_is_known_empty(kind: str) -> None:
+    from mountainash.typespec.source_shape import extract_source_names
+
+    result = extract_source_names(_carrier(kind, {}))
+    assert result == ()
+    assert result is not None
+
+
+@pytest.mark.parametrize("kind", _NAME_CARRIERS)
+def test_names_with_nested_and_unknown_dtypes_skip_every_schema_decode(
+    kind: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mountainash.typespec import native_schema
+    from mountainash.typespec.source_shape import extract_source_names
+
+    import polars as pl
+    frame = pl.DataFrame(
+        {"s": [{"p": [1]}], "l": [[1]], "n": [None]},
+        schema={"s": pl.Struct({"p": pl.List(pl.Int64)}), "l": pl.List(pl.Int64), "n": pl.Null},
+    )
+    carrier = _carrier(kind, frame)
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("names must not acquire or decode type evidence")
+
+    for adapter in (
+        native_schema.PolarsSchemaAdapter, native_schema.ArrowSchemaAdapter,
+        native_schema.PandasSchemaAdapter, native_schema.IbisSchemaAdapter,
+        native_schema.NarwhalsSchemaAdapter,
+    ):
+        monkeypatch.setattr(adapter, "extract_schema", forbidden)
+        monkeypatch.setattr(adapter, "decode_schema", forbidden)
+    assert extract_source_names(carrier) == ("s", "l", "n")
+
+
+class _ExplodingCell:
+    def __repr__(self) -> str:
+        raise AssertionError("object cell value inspected")
+
+    def __eq__(self, other: object) -> bool:
+        raise AssertionError("object cell value inspected")
+
+    def __bool__(self) -> bool:
+        raise AssertionError("object cell value inspected")
+
+    __hash__ = None  # type: ignore[assignment]
+
+
+@pytest.mark.parametrize("wrap", [False, True])
+def test_pandas_object_columns_are_named_without_value_inspection(
+    wrap: bool, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pandas as pd
+    from mountainash.typespec.source_shape import extract_source_names
+
+    frame = pd.DataFrame({"o": pd.Series([_ExplodingCell()], dtype=object), "i": [1]})
+    carrier = __import__("narwhals").from_native(frame) if wrap else frame
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("object values must not be inferred for names")
+
+    monkeypatch.setattr(pd.api.types, "infer_dtype", forbidden)
+    assert extract_source_names(carrier) == ("o", "i")
+
+
+def test_raw_narwhals_adapter_carriers_are_named() -> None:
+    import polars as pl
+    import pandas as pd
+    import pyarrow as pa
+    from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+    adapter = get_native_schema_adapter(TypeTarget.NARWHALS)
+    frame = pl.DataFrame({"q": [1], "r": [2]})
+    for carrier in (frame, frame.lazy(), frame.to_pandas(), pa.table({"q": [1], "r": [2]})):
+        assert adapter.extract_names(carrier) == ("q", "r")
+    assert adapter.extract_names(pd.DataFrame()) == ()
+
+
+def test_unrecognised_carrier_names_are_unknown() -> None:
+    from mountainash.typespec.source_shape import extract_source_names
+
+    assert extract_source_names(object()) is None
+    assert extract_source_names({"a": 1}) is None
+
+
+
+
+def test_native_lazy_planning_error_is_not_swallowed() -> None:
+    import polars as pl
+    from mountainash.typespec.source_shape import extract_source_names
+
+    broken = pl.DataFrame({"a": [1]}).lazy().select("missing")
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
+        extract_source_names(broken)
+
+
+# ---------------------------------------------------------------------------
+# Consumers: distinct error policies and unrecognised duck fallbacks
+# ---------------------------------------------------------------------------
+
+
+def _fail_names(monkeypatch: pytest.MonkeyPatch, adapter_name: str) -> type[Exception]:
+    from mountainash.typespec import native_schema
+
+    class Boom(RuntimeError):
+        pass
+
+    def fail(self: Any, carrier: Any) -> Any:
+        raise Boom("metadata failure")
+
+    monkeypatch.setattr(getattr(native_schema, adapter_name), "extract_names", fail)
+    return Boom
+
+
+def test_adapter_error_propagates_through_facade_and_compiled_helper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mountainash.relations.core.join_layout import native_column_names
+    from mountainash.typespec.source_shape import extract_source_names
+
+    import polars as pl
+    frame = pl.DataFrame({"a": [1]})
+    boom = _fail_names(monkeypatch, "PolarsSchemaAdapter")
+    with pytest.raises(boom):
+        extract_source_names(frame)
+    with pytest.raises(boom):
+        native_column_names(frame)
+
+
+def test_aggregate_source_names_treats_adapter_error_as_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mountainash.relations.schema_inference import _aggregate_source_names
+
+    import polars as pl
+    _fail_names(monkeypatch, "PolarsSchemaAdapter")
+    assert _aggregate_source_names(pl.DataFrame({"a": [1]})) is None
+
+
+@pytest.mark.parametrize("kind", ["polars", "polars-lazy", "arrow", "pandas", "ibis", "narwhals-polars"])
+def test_consumers_use_names_not_schema_for_registered_carriers(
+    kind: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mountainash.relations.core.join_layout import native_column_names
+    from mountainash.relations.schema_inference import _aggregate_source_names
+    from mountainash.typespec import native_schema
+
+    carrier = _carrier(kind, {"b": [1], "a": [[1]]})
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("names consumers must not acquire type evidence")
+
+    for adapter in (
+        native_schema.PolarsSchemaAdapter, native_schema.ArrowSchemaAdapter,
+        native_schema.PandasSchemaAdapter, native_schema.IbisSchemaAdapter,
+        native_schema.NarwhalsSchemaAdapter,
+    ):
+        monkeypatch.setattr(adapter, "extract_schema", forbidden)
+        monkeypatch.setattr(adapter, "decode_schema", forbidden)
+    assert _aggregate_source_names(carrier) == ("b", "a")
+    assert native_column_names(carrier) == ["b", "a"]
+
+
+def test_aggregate_source_names_unrecognised_duck_fallbacks() -> None:
+    from mountainash.relations.schema_inference import _aggregate_source_names
+
+    class _Names:
+        def names(self) -> list[str]:
+            return ["p", "q"]
+
+    class Collect:
+        def collect_schema(self) -> Any:
+            return _Names()
+
+    class SchemaCallable:
+        def schema(self) -> dict[str, int]:
+            return {"s": 1, "t": 2}
+
+    class SchemaAttr:
+        schema = {"u": 1}
+
+    class Dtypes:
+        dtypes = {"v": 1, "w": 2}
+
+    class Empty:
+        schema = {}
+
+    assert _aggregate_source_names(Collect()) == ("p", "q")
+    assert _aggregate_source_names(SchemaCallable()) == ("s", "t")
+    assert _aggregate_source_names(SchemaAttr()) == ("u",)
+    assert _aggregate_source_names(Dtypes()) == ("v", "w")
+    assert _aggregate_source_names(Empty()) == ()
+    assert _aggregate_source_names(object()) is None
+
+
+def test_native_column_names_unrecognised_duck_fallbacks() -> None:
+    from mountainash.relations.core.join_layout import native_column_names
+
+    class _Names:
+        def names(self) -> list[str]:
+            return ["p", "q"]
+
+    class Collect:
+        def collect_schema(self) -> Any:
+            return _Names()
+
+    class Columns:
+        columns = ["c", "d"]
+
+    assert native_column_names(Collect()) == ["p", "q"]
+    assert native_column_names(Columns()) == ["c", "d"]
+
+
+def test_registered_arrow_direct_names_in_consumers() -> None:
+    from mountainash.relations.core.join_layout import native_column_names
+    from mountainash.relations.schema_inference import _aggregate_source_names
+
+    import pyarrow as pa
+    zero = pa.table({})
+    assert _aggregate_source_names(zero) == ()
+    assert native_column_names(zero) == []

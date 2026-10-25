@@ -33,6 +33,15 @@ class NativeSchemaAdapter(Protocol[CarrierT, NativeSchemaT]):
     """
 
     @abstractmethod
+    def extract_names(self, carrier: CarrierT) -> tuple[str, ...]:
+        """Complete ordered native column names from carrier metadata only.
+
+        ``()`` means a known zero-column carrier. No dtype evidence is
+        acquired or decoded and no row values are inspected; lazy metadata
+        planning is permitted. Native metadata errors propagate unchanged.
+        """
+
+    @abstractmethod
     def extract_schema(self, carrier: CarrierT) -> dict[str, SourceShape]: ...
 
     @abstractmethod

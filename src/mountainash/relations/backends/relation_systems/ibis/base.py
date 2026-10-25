@@ -39,3 +39,22 @@ class IbisBaseRelationSystem(BaseRelationSystem):
         if physical is None:
             return super().describe_output_schema(native, location=location)
         return physical
+
+    def infer_row_index_names(
+        self, input_names: tuple[str, ...], *, name: str,
+        location: ExecutionLocation,
+    ) -> tuple[str, ...] | None:
+        """Ibis appends the ordinal, replacing an existing column in place.
+
+        Needs a resolved dialect; Ibis-Polars has no row-index support.
+        """
+        if location.dialect in (None, "ibis-polars"):
+            return None
+        return input_names if name in input_names else (*input_names, name)
+
+    def infer_cross_join_names(
+        self, left_names: tuple[str, ...], right_names: tuple[str, ...], *,
+        suffix: str, location: ExecutionLocation,
+    ) -> tuple[str, ...] | None:
+        """Ibis supplies its own ``_right`` suffix when none is given."""
+        return self._cross_join_names(left_names, right_names, suffix or "_right")
