@@ -18,7 +18,12 @@ def _name_identity_resolver(dag: RelationDAGProtocol, node: Any) -> Callable[[st
         if name not in dag.relations:
             raise KeyError(f"relation {name!r} not in DAG")
         dag.topological_order(target=name)
-    return lambda name: dag.relations[name]._node
+    def resolve(name: str) -> Any:
+        if name not in dag.relations:
+            raise KeyError(f"relation {name!r} not in DAG")
+        return dag.relations[name]._node
+
+    return resolve
 
 
 def structural_schema(
@@ -32,15 +37,18 @@ def structural_schema(
     dag.topological_order(target=name)
     from mountainash.relations.schema_inference import infer_schema
 
-    def resolver(ref_name: str) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+    def identity_resolver(ref_name: str) -> Any:
         if ref_name not in dag.relations:
             raise KeyError(f"relation {ref_name!r} not in DAG")
-        node = getattr(dag.relations[ref_name], "_node", None)
+        return getattr(dag.relations[ref_name], "_node", None)
+
+    def resolver(ref_name: str) -> dict[str, MountainashDtype | SchemaTypeStatus]:
+        node = identity_resolver(ref_name)
         if node is None:
             return {}
         return infer_schema(
             node, ref_resolver=resolver,
-            identity_resolver=lambda target: dag.relations[target]._node,
+            identity_resolver=identity_resolver,
         )
 
     return resolver(name)

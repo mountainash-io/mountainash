@@ -612,7 +612,7 @@ def _aggregate_input_names(
     node: Any, *, identity_resolver: Any = None, _resolver: Any = None, _binding: Any = None,
 ) -> tuple[str, ...] | None:
     """Prove complete ordered names independently of best-effort dtype evidence."""
-    from mountainash.core.constants import JoinType, SetType
+    from mountainash.core.constants import JoinType
     from mountainash.pydata.constants import CONST_PYTHON_DATAFORMAT as PF
     from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
     from mountainash.relations.core.relation_nodes import (
@@ -680,7 +680,7 @@ def _aggregate_input_names(
                 return system.infer_cross_join_names(left, right, suffix=node.suffix, location=location)
         return None
     if isinstance(node, SetRelNode):
-        if node.set_type not in (SetType.UNION_ALL, SetType.UNION_DISTINCT) or not node.inputs:
+        if not node.inputs:
             return None
         names = names_of(node.inputs[0])
         if names is None:

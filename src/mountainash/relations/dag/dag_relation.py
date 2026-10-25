@@ -69,17 +69,19 @@ class DAGRelation(Relation):
 
     def assess_drift(self) -> "list":
         """Assess drift structurally, without compiling the relation."""
-        from mountainash.relations.dag.introspection import structural_schema
+        from mountainash.relations.dag.introspection import _name_identity_resolver, structural_schema
         from mountainash.relations.schema_inference import (
             assess_drift as _assess_drift,
         )
+
+        identity_resolver = _name_identity_resolver(self._dag, self._node)
 
         def resolver(ref_name: str):
             return structural_schema(self._dag, ref_name)
 
         return _assess_drift(
             self._node, ref_resolver=resolver,
-            identity_resolver=lambda name: self._dag.relations[name]._node,
+            identity_resolver=identity_resolver,
         )
 
 

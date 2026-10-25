@@ -211,7 +211,7 @@ def infer_cross_join_names(self, left_names, right_names, *, suffix, location): 
 
 Inputs are complete name tuples and the actual `ExecutionLocation`, never ASTs or dataframes. Return a complete ordered tuple only when native placement/suffix semantics are proven; otherwise return `None`. Do not inspect the location's connection/prototype, decode types, repair collisions or execute data. The existing registry selects the system; composed classes remain method-free. Native naming methods are separate from executable operation categories.
 
-Shared structural inference handles backend-independent propagation and passes an Ibis consuming binding on demand, using the existing location resolver. `.columns` uses this evidence before ordinary schema fallback; `.width` follows it. Names are not an execution certificate: a missing-field filter followed by a cross join can have provable output names while ordinary schema compilation and execution still reject the filter. Unknown names retain fallback; dtype completeness and execution permission are unchanged.
+Shared structural inference handles backend-independent propagation and passes an Ibis consuming binding on demand, using the existing location resolver. `.columns` uses this evidence before ordinary schema fallback; `.width` follows it. Names are not an execution certificate: unsupported or invalid operations can have provable output names while ordinary schema compilation or execution still fails. A missing-field filter followed by a cross join is one example. Unknown names retain fallback; dtype completeness and execution permission are unchanged.
 
 
 ## The unified visitor

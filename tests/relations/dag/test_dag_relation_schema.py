@@ -181,25 +181,32 @@ def test_dependency_cycle_retains_explicit_cycle_error_during_schema_inference()
         dag.schema("a")
     relations = (
         dag.ref("a"), dag.ref("a").select(ma.lit(1).alias("one")),
+        ma.concat([dag.ref("raw"), dag.ref("a")]).group_by("x").agg(ma.col("y").sum().alias("total")),
         ma.concat([dag.ref("raw"), dag.ref("a")]),
     )
     for relation in relations:
-        for property_name in ("columns", "schema"):
+        for property_name in ("columns", "schema", "assess_drift"):
             with pytest.raises(ValueError, match="[Cc]ycle detected"):
-                getattr(relation, property_name)
+                result = getattr(relation, property_name)
+                if callable(result):
+                    result()
 
 
 def test_missing_dag_binding_retains_explicit_error_during_schema_inference():
     dag = _dag()
     missing = dag.ref("missing")
+    dag.add("indirect", missing)
 
     with pytest.raises(KeyError, match="missing"):
         missing.collect_schema()
     relations = (
         missing, missing.select(ma.lit(1).alias("one")),
         ma.concat([dag.ref("raw"), missing]),
+        dag.ref("indirect").with_row_index(),
     )
     for relation in relations:
-        for property_name in ("columns", "schema"):
-            with pytest.raises(KeyError, match="missing"):
-                getattr(relation, property_name)
+        for property_name in ("columns", "schema", "assess_drift"):
+            with pytest.raises(KeyError, match="relation 'missing' not in DAG"):
+                result = getattr(relation, property_name)
+                if callable(result):
+                    result()

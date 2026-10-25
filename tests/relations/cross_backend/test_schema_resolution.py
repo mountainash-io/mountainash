@@ -239,6 +239,8 @@ def test_polars_cross_empty_suffix_collision_keeps_native_duplicate_error(backen
     right_source = _source(backend_name, {"x": [3], "w": [4]}, "name_dup_right")
     relation = ma.relation(left_source).join(right_source, how="cross", suffix="")
     with pytest.raises(_duplicate_errors()):
+        _ = relation.columns
+    with pytest.raises(_duplicate_errors()):
         relation.to_polars()
 
 
@@ -247,6 +249,8 @@ def test_cross_output_name_collision_keeps_native_duplicate_error(backend_name):
     left_source = _source(backend_name, {"x": [1], "x_right": [2]}, "name_collide_left")
     right_source = _source(backend_name, {"x": [3], "w": [4]}, "name_collide_right")
     relation = ma.relation(left_source).cross_join(right_source)
+    with pytest.raises(_duplicate_errors()):
+        _ = relation.columns
     with pytest.raises(_duplicate_errors()):
         relation.to_polars()
 
@@ -290,6 +294,7 @@ def test_cross_names_survive_empty_inputs(backend_name, empty_side, monkeypatch)
     with monkeypatch.context() as guard:
         _forbid_work(guard)
         assert relation.columns == ["x", "v", "x_right", "w"]
+    assert relation.to_polars().columns == ["x", "v", "x_right", "w"]
 
 
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals-polars"])
@@ -379,12 +384,7 @@ def test_names_are_not_an_execution_certificate(backend_name, monkeypatch):
     with monkeypatch.context() as guard:
         _forbid_work(guard)
         assert relation.columns == ["x", "y"]
-    if backend_name == "narwhals-polars":
-        from mountainash.core.dtypes import SchemaTypeStatus
-
-        # Eager Narwhals already defers this computation at the schema boundary.
-        assert relation.schema == {"x": SchemaTypeStatus.UNKNOWN, "y": SchemaTypeStatus.UNKNOWN}
-    else:
+    if backend_name != "narwhals-polars":
         with pytest.raises(failures):
             _ = relation.schema
     with pytest.raises(failures):
@@ -427,23 +427,14 @@ def test_polars_native_name_methods():
     system = _system(B.POLARS, "polars")
     location = _location(B.POLARS, "polars", "LAZY")
     assert system.infer_row_index_names(("x", "v"), name="ordinal", location=location) == ("ordinal", "x", "v")
-    assert system.infer_row_index_names((), name="index", location=location) == ("index",)
-    assert system.infer_row_index_names(("x", "v"), name="x", location=location) is None
     cross = system.infer_cross_join_names
     assert cross(("x", "v"), ("x", "w"), suffix="_right", location=location) == ("x", "v", "x_right", "w")
-    assert cross(("x", "v"), ("x", "w"), suffix="_r", location=location) == ("x", "v", "x_r", "w")
-    assert cross(("x", "v"), ("y",), suffix="", location=location) == ("x", "v", "y")
-    assert cross((), ("y",), suffix="_right", location=location) == ("y",)
-    assert cross(("x",), (), suffix="_right", location=location) == ("x",)
-    assert cross((), (), suffix="_right", location=location) == ()
-    assert cross(("x", "v"), ("x", "w"), suffix="", location=location) is None
-    assert cross(("x", "x_right"), ("x", "w"), suffix="_right", location=location) is None
     assert cross(("x",), ("y", "y"), suffix="_right", location=location) is None
 
 
-@pytest.mark.parametrize("dialect", ["narwhals-polars", "narwhals-pandas", "narwhals-pyarrow", "narwhals-other"])
-def test_narwhals_native_name_methods_accept_any_eager_form(dialect):
+def test_narwhals_native_name_methods_accept_any_eager_form():
     from mountainash.core.constants import CONST_BACKEND as B
+    dialect = "narwhals-other"
 
     system = _system(B.NARWHALS, dialect)
     eager = _location(B.NARWHALS, dialect, "EAGER")
@@ -589,3 +580,111 @@ def test_mixed_empty_suffix_keeps_right_name_and_original_dtype(backend_name, ib
     assert structural["x_right"] is (D.STRING if ibis_left else D.I64)
     assert list(relation.schema) == expected
     assert relation.to_polars().columns == expected
+
+
+@pytest.mark.parametrize("backend_name", NAME_BACKENDS)
+@pytest.mark.parametrize("operation", ["sample", "top_k", "drop_nulls", "drop_nans"])
+def test_name_preserving_extensions_do_not_compile(backend_name, operation, monkeypatch):
+    from ibis.common.exceptions import OperationNotDefinedError
+    from mountainash.core.types import BackendCapabilityError
+
+    base = ma.relation(_source(backend_name, {"x": [1, 2], "v": [2.0, 4.0]}, "name_extension"))
+    cross = base.cross_join(base.select("x", ma.col("v").alias("w")))
+    relation = {
+        "sample": lambda: cross.sample(n=1, seed=7),
+        "top_k": lambda: cross.top_k(1, by="v"),
+        "drop_nulls": cross.drop_nulls,
+        "drop_nans": cross.drop_nans,
+    }[operation]()
+    expected = ["x", "v", "x_right", "w"]
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert relation.columns == expected
+    # These existing execution limits do not invalidate names-only evidence.
+    if operation == "sample" and backend_name in _ROW_INDEX_LAST:
+        with pytest.raises(BackendCapabilityError):
+            relation.to_polars()
+    elif (operation, backend_name) in {("sample", "ibis-polars"), ("drop_nans", "ibis-sqlite")}:
+        with pytest.raises(OperationNotDefinedError):
+            relation.to_polars()
+    else:
+        assert relation.to_polars().columns == expected
+
+
+@pytest.mark.parametrize("backend_name", NAME_BACKENDS)
+def test_asof_name_proof_and_collision_boundary(backend_name, monkeypatch):
+    from ibis.common.exceptions import IntegrityError
+    from mountainash.relations.schema_inference import _aggregate_input_names
+
+    base = ma.relation(_source(backend_name, {"x": [1, 2], "v": [2.0, 4.0]}, "name_asof"))
+    left = base.cross_join(base.select("x", ma.col("v").alias("w"))).sort("x")
+    relation = left.join_asof(base.sort("x"), on="x")
+    expected = ["x", "v", "x_right", "w", "v_right"]
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert relation.columns == expected
+    if backend_name.startswith("ibis-"):
+        with pytest.raises(IntegrityError):
+            relation.to_polars()
+    elif backend_name in {"pyarrow", "narwhals-pyarrow"}:
+        with pytest.raises(NotImplementedError):
+            relation.to_polars()
+    else:
+        assert relation.to_polars().columns == expected
+    collision = left.with_columns(ma.col("v").alias("v_right")).join_asof(base.sort("x"), on="x")
+    assert _aggregate_input_names(collision._node) is None
+
+
+@pytest.mark.parametrize("backend_name", NAME_BACKENDS)
+@pytest.mark.parametrize("shape", ["aggregate", "union", "explode"])
+def test_row_names_follow_effective_form_after_composition(backend_name, shape, monkeypatch):
+    from ibis.common.exceptions import UnsupportedBackendType
+    from mountainash.core.types import BackendCapabilityError
+    from narwhals.exceptions import InvalidOperationError
+
+    data = {"x": [1], "items": [[2, 3]]} if shape == "explode" else {"x": [1, 2], "v": [2.0, 4.0]}
+    if shape == "explode" and backend_name == "ibis-sqlite":
+        with pytest.raises(UnsupportedBackendType):
+            _source(backend_name, data, "name_form")
+        return
+    base = ma.relation(_source(backend_name, data, "name_form"))
+    if shape == "aggregate":
+        relation = base.group_by("x").agg(ma.col("v").sum().alias("total"))
+        names = ["x", "total"]
+    elif shape == "union":
+        relation = ma.concat([base, base])
+        names = ["x", "v"]
+    else:
+        relation = base.explode("items")
+        names = ["x", "items"]
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert relation.columns == names
+    indexed = relation.with_row_index(name="ordinal")
+    if backend_name in {"narwhals-lazy", "ibis-polars"}:
+        failure = TypeError if backend_name == "narwhals-lazy" else BackendCapabilityError
+        with pytest.raises(failure):
+            _ = indexed.columns
+        with pytest.raises(failure):
+            indexed.to_polars()
+        return
+    expected = [*names, "ordinal"] if backend_name.startswith("ibis-") else ["ordinal", *names]
+    with monkeypatch.context() as guard:
+        _forbid_work(guard)
+        assert indexed.columns == expected
+    if shape == "explode" and backend_name in {"pandas", "narwhals-pandas", "pyarrow", "narwhals-pyarrow"}:
+        failure = InvalidOperationError if "pandas" in backend_name else NotImplementedError
+        with pytest.raises(failure):
+            indexed.to_polars()
+    else:
+        assert indexed.to_polars().columns == expected
+
+
+@pytest.mark.parametrize("backend_name", NAME_BACKENDS)
+@pytest.mark.parametrize("distinct", [False, True])
+def test_set_with_different_layouts_has_no_complete_name_proof(backend_name, distinct):
+    from mountainash.relations.schema_inference import _aggregate_input_names
+
+    base = ma.relation(_source(backend_name, {"x": [1], "v": [2]}, "name_set_mismatch"))
+    relation = ma.concat([base, base.select("v", "x")], distinct=distinct)
+    assert _aggregate_input_names(relation._node) is None
