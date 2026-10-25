@@ -2,6 +2,8 @@
 
 import pytest
 
+from fixtures.backend_registry import ALL_BACKENDS
+
 from mountainash.core.capabilities.applicability import unbounded
 
 
@@ -180,3 +182,66 @@ def test_unknown_native_regex_retains_ordinary_error(backend_factory, collect_ex
     for policy in (ma.CapabilityPolicy.checked(), ma.CapabilityPolicy.trusted()):
         with ma.capability_policy(policy), pytest.raises(TypeError):
             collect_expr(table, expression)
+
+
+_POLICY_DIALECT = {"polars-lazy": "polars", "pandas": "narwhals-pandas"}
+
+
+@pytest.mark.parametrize("backend_name", ALL_BACKENDS)
+def test_nested_contains_child_follows_policy_publication_lifecycle(backend_name, backend_factory, select_and_extract):
+    """Direct compilation must reactivate child gates without relation preflight."""
+    import mountainash as ma
+    from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
+    from mountainash.core.capabilities.declarations import (
+        BoundSegment, CapabilityKey, CapabilityPolicyRule, CapabilitySegment, Domain, Selector,
+    )
+    from mountainash.core.capabilities.identity import Dialect, Scope
+    from mountainash.core.capabilities.schema import (
+        CapabilityIssueClass, Clause, ClauseOp, PolicyAction, PolicyConsumer, Predicate,
+    )
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.core.types import BackendCapabilityError
+    from mountainash.expressions.core.expression_system.function_keys.enums import FKEY_SUBSTRAIT_SCALAR_STRING as FK
+
+    dialect = _POLICY_DIALECT.get(backend_name, backend_name)
+    family = CONST_BACKEND(dialect.split("-")[0])
+    before = CapabilityRegistry.snapshot()
+    try:
+        CapabilityRegistry.reset()
+        frame = backend_factory.create({"text": ["a", "b"]}, backend_name)
+        expression = ma.when(ma.col("text").str.contains("a")).then(1).otherwise(0)
+
+        def run():
+            return select_and_extract(frame, expression.compile(frame), "found", backend_name)
+
+        assert run() == [1, 0]
+        segment = BoundSegment(
+            f"mountainash.expressions.backends.capabilities.{family.value}.dialects."
+            f"{dialect.replace('-', '_')}.substrait.string",
+            Scope(family, Dialect(dialect)),
+            CapabilitySegment(Domain.STRING, policies=(CapabilityPolicyRule(
+                CapabilityKey(
+                    FK.CONTAINS, "substring",
+                    Selector("predicate", Predicate((Clause("substring", ClauseOp.EQ, "a"),))),
+                ),
+                CapabilityLevel.UNSUPPORTED,
+                "selected substring",
+                PolicyConsumer.GATE,
+                PolicyAction.BLOCK,
+                issue_classes=frozenset({CapabilityIssueClass.SEMANTICS}),
+                applicability=unbounded,
+            ),)),
+        )
+        CapabilityRegistry.register_segment(segment)
+        with pytest.raises(BackendCapabilityError, match="selected substring"):
+            run()
+        neighbour = ma.col("text").str.contains("b")
+        assert select_and_extract(frame, neighbour.compile(frame), "found", backend_name) == [False, True]
+        accepted = CapabilityRegistry.snapshot()
+        CapabilityRegistry.reset()
+        assert run() == [1, 0]
+        CapabilityRegistry.restore(accepted)
+        with pytest.raises(BackendCapabilityError, match="selected substring"):
+            run()
+    finally:
+        CapabilityRegistry.restore(before)
