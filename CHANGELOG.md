@@ -8,6 +8,9 @@
 ### Changed
 - Shared expression gate paths skip optional binding, capability lookup and metadata work when no executable GATE rule exists for the operation/backend/dialect (backlog 372). Publishing a rule reactivates the existing checks without rewiring. Native preparation, required metadata, child protections and other capability consumers remain unchanged.
 
+### Fixed
+- Extend the NW-WIN-05 multi-key window refusal qualification to Narwhals 2.27.1 with pandas 3.1.0, retaining pandas 3.0.6 (backlog 368). Only these verified version pairs are covered; single-key windows, other backends, ranking-dtype information and strict expected-failure exception filters remain unchanged. The upstream ordering defect is not repaired.
+
 ## Unreleased — 2026-10-24
 
 ### Changed
