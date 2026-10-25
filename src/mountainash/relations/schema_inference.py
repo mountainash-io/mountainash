@@ -511,6 +511,11 @@ def _aggregate_source_names(data: Any) -> tuple[str, ...] | None:
     if isinstance(data, (list, tuple)) and data and all(isinstance(row, dict) for row in data):
         return tuple(dict.fromkeys(str(name) for row in data for name in row))
     try:
+        from mountainash.typespec.source_shape import extract_source_names
+
+        names = extract_source_names(data)
+        if names is not None:
+            return names
         if hasattr(data, "collect_schema"):
             return tuple(data.collect_schema().names())
         if hasattr(data, "schema"):

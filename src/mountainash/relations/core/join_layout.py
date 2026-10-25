@@ -112,11 +112,11 @@ def asof_right_name_map(node: Any, left_names: list[str], right_names: list[str]
 
 def native_column_names(native: Any) -> list[str]:
     """Ordered output column names of a compiled native relation."""
-    from mountainash.relations.schema_inference import _schema_from_dataframe
+    from mountainash.typespec.source_shape import extract_source_names
 
-    schema = _schema_from_dataframe(native)
-    if schema:
-        return list(schema)
+    names = extract_source_names(native)
+    if names is not None:
+        return list(names)
     if hasattr(native, "collect_schema"):
         return list(native.collect_schema().names())
     return list(native.columns)

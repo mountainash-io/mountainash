@@ -35,6 +35,7 @@ from mountainash.core.types import (
     detect_schema_carrier,
     is_narwhals_dataframe,
     is_narwhals_lazyframe,
+    is_polars_dataframe,
 )
 from mountainash.typespec.converters import format_declaration_path, lexical_list_element
 from mountainash.typespec.protocols import NativeSchemaAdapter
@@ -149,6 +150,11 @@ def _polars_shape(native: Any) -> SourceShape:
 class PolarsSchemaAdapter(NativeSchemaAdapter["pl.DataFrame | pl.LazyFrame", "Mapping[str, pl.DataType | type[pl.DataType]]"]):
     """Polars DataFrame/LazyFrame carriers; schema form: ``dict[str, DataType]``."""
 
+    def extract_names(self, carrier: Any) -> tuple[str, ...]:
+        if is_polars_dataframe(carrier):
+            return tuple(carrier.columns)
+        return tuple(carrier.collect_schema().names())
+
     def extract_schema(self, carrier: Any) -> dict[str, SourceShape]:
         return self.decode_schema(carrier.collect_schema())
 
@@ -229,6 +235,9 @@ def _arrow_shape(native: Any) -> SourceShape:
 
 class ArrowSchemaAdapter(NativeSchemaAdapter["pa.Table", "pa.Schema"]):
     """PyArrow Table carriers; schema form: ``pyarrow.Schema``."""
+
+    def extract_names(self, carrier: Any) -> tuple[str, ...]:
+        return tuple(carrier.column_names)
 
     def extract_schema(self, carrier: Any) -> dict[str, SourceShape]:
         return self.decode_schema(carrier.schema)
@@ -344,6 +353,9 @@ def _pandas_shape(native: Any) -> SourceShape:
 class PandasSchemaAdapter(NativeSchemaAdapter["pd.DataFrame", "Mapping[str, object]"]):
     """pandas DataFrame carriers; schema form: ``dict[str, dtype]``."""
 
+    def extract_names(self, carrier: Any) -> tuple[str, ...]:
+        return tuple(carrier.columns)
+
     def extract_schema(self, carrier: Any) -> dict[str, SourceShape]:
         return self.decode_schema(carrier.dtypes)
 
@@ -390,6 +402,9 @@ def _ibis_shape(native: Any) -> SourceShape:
 
 class IbisSchemaAdapter(NativeSchemaAdapter["ir.Table", "Mapping[str, str | dt.DataType]"]):
     """Ibis Table carriers; schema form: ``dict[str, type name or Ibis dtype]``."""
+
+    def extract_names(self, carrier: Any) -> tuple[str, ...]:
+        return tuple(carrier.columns)
 
     def extract_schema(self, carrier: Any) -> dict[str, SourceShape]:
         return self.decode_schema(carrier.schema())
@@ -462,6 +477,23 @@ class NarwhalsSchemaAdapter(NativeSchemaAdapter["nw.DataFrame | nw.LazyFrame | p
     representation. A standalone schema decodes only what the Narwhals schema
     carries.
     """
+
+    def extract_names(self, carrier: Any) -> tuple[str, ...]:
+        from mountainash.core.lazy_imports import import_narwhals
+        from mountainash.typespec.adapter_registry import get_native_schema_adapter
+
+        nw = import_narwhals()
+        frame = carrier if is_narwhals_dataframe(carrier) or is_narwhals_lazyframe(carrier) \
+            else nw.from_native(carrier)
+        underlying = frame.to_native()
+        owner = detect_schema_carrier(underlying)
+        if owner is not None and owner is not TypeTarget.NARWHALS:
+            # The wrapped carrier's own metadata; Narwhals would infer pandas
+            # object-column types from row values.
+            return get_native_schema_adapter(owner).extract_names(underlying)
+        if is_narwhals_lazyframe(frame):
+            return tuple(frame.collect_schema().names())
+        return tuple(frame.columns)
 
     def extract_schema(self, carrier: Any) -> dict[str, SourceShape]:
         from mountainash.core.lazy_imports import import_narwhals

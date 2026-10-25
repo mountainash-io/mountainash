@@ -14,7 +14,7 @@ from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.core.projection_names import IncompleteProjectionSchemaError
 from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 from mountainash.relations.schema_inference import (
-    _aggregate_input_names, _schema_from_dataframe, infer_schema,
+    _aggregate_input_names, infer_schema,
 )
 
 
@@ -115,10 +115,12 @@ def _structural_evidence(relation: Any) -> _SchemaEvidence:
         try:
             return _source_evidence(node)
         except CompileRequiresExecutionError as error:
-            names = _schema_from_dataframe(node.dataframe)
+            from mountainash.typespec.source_shape import extract_source_names
+
+            names = extract_source_names(node.dataframe)
             return _SchemaEvidence(
-                {name: SchemaTypeStatus.UNKNOWN for name in names},
-                True, str(error), authoritative=False,
+                dict.fromkeys(names if names is not None else (), SchemaTypeStatus.UNKNOWN),
+                names is not None, str(error), authoritative=False,
             )
     schema = infer_schema(node, ref_resolver, identity_resolver=identity_resolver)
     if preserves_types(node):
