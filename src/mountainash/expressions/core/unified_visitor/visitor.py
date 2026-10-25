@@ -265,6 +265,7 @@ class UnifiedExpressionVisitor:
         """Visit a node and return the compiled backend expression.
 
         This is the main entry point. Uses double-dispatch via node.accept().
+        Permitted native lowerings are reused within an unchanged input context.
 
         Args:
             node: Any SubstraitNode to compile
@@ -275,10 +276,31 @@ class UnifiedExpressionVisitor:
         Raises:
             ValueError: If node type is unknown
         """
-        if self._input_data is not None and not self.type_context.active:
-            with self.input_scope(self._input_data):
-                return node.accept(self)
-        return node.accept(self)
+        scopes = self.type_context._scopes
+        if not scopes:
+            if self._input_data is not None:
+                with self.input_scope(self._input_data):
+                    return self.visit(node)
+            return node.accept(self)
+        if self.diagnostic_trace is not None or not self.reusable_lowering:
+            return node.accept(self)
+
+        scope = scopes[-1]
+        if scope.lowered is None:
+            scope.lowered = {}
+        window = self._over_window_spec
+        # Every backend-scoped lowering binding must be represented here.
+        elements = getattr(self.backend, "_list_element_scope", ())
+        # Resolved evidence is append-only. Capture its generation before
+        # lowering: newly acquired metadata must invalidate an earlier result.
+        key = (id(node), id(window), id(elements), len(scope.resolved))
+        cached = scope.lowered.get(key)
+        if cached is not None:
+            return cached[3]
+        result = node.accept(self)
+        if self.reusable_lowering:
+            scope.lowered[key] = (node, window, elements, result)
+        return result
 
     def visit_literal(self, node: LiteralNode) -> SupportedExpressions:
         """Compile a literal value to backend expression.

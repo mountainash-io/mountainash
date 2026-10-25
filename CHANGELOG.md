@@ -14,6 +14,7 @@
 ## Unreleased — 2026-10-24
 
 ### Changed
+- Shared expression nodes reuse permitted native lowering within an equivalent input, window, element-binding and metadata context (371). Diagnostics and occurrence-specific lowerings retain ordinary traversal; evaluated results are not cached across operations or requests.
 - Output-name inspection (`.columns`/`.width`) uses native column metadata and backend-owned row-index/cross-join layouts without compiling relations or decoding types when complete names are provable (370). Names do not certify execution: unsupported or invalid operations may still fail during ordinary schema compilation or execution. Unproven names retain existing fallback.
 - Schema adapters implement `extract_names`; relation backend base mixins implement `infer_row_index_names` and `infer_cross_join_names`. Existing registries, native error policies and execution support are unchanged; extension-author guides describe the expanded contracts.
 
