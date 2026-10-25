@@ -32,6 +32,13 @@ _APPLICABILITY = Applicability((Region((
     CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
     CoordinateConstraint("package", "pandas", specifier="==3.0.6"),
 )),))
+_LAST_KEY_APPLICABILITY = Applicability(tuple(
+    Region((
+        CoordinateConstraint("package", "narwhals", specifier="==2.27.1"),
+        CoordinateConstraint("package", "pandas", specifier=f"=={version}"),
+    ))
+    for version in ("3.0.6", "3.1.0")
+))
 
 
 def _multi_key(operation) -> CapabilityKey:
@@ -117,7 +124,7 @@ SEGMENT = CapabilitySegment(
                 level=CapabilityLevel.UNSUPPORTED,
                 message=_LAST_KEY_MESSAGE,
                 issue="NW-WIN-05",
-                applicability=_APPLICABILITY,
+                applicability=_LAST_KEY_APPLICABILITY,
             )
             for key in _LAST_KEY_KEYS
         ),
@@ -157,7 +164,7 @@ SEGMENT = CapabilitySegment(
                 consumer=PolicyConsumer.GATE,
                 action=PolicyAction.BLOCK,
                 information=QualifiedInformationKey(SCOPE, key, InformationLayer.NATIVE),
-                applicability=_APPLICABILITY,
+                applicability=_LAST_KEY_APPLICABILITY,
                 issue_classes=frozenset({CapabilityIssueClass.AVAILABILITY}),
             )
             for key in _LAST_KEY_KEYS

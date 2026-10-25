@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry
@@ -69,7 +71,8 @@ def test_policy_publication_requires_a_concrete_scope():
 
 def test_duplicate_policy_rolls_back_the_whole_segment():
     initial = _segment(_policy(), suffix=".initial")
-    duplicate = _segment(_policy(), suffix=".duplicate")
+    new_operation = replace(_policy(), key=CapabilityKey(FK_STR.CENTER, "length"))
+    duplicate = _segment(new_operation, _policy(), suffix=".duplicate")
     CapabilityRegistry.register_segment(initial)
 
     with pytest.raises(ValueError, match="duplicate"):
@@ -77,6 +80,12 @@ def test_duplicate_policy_rolls_back_the_whole_segment():
 
     assert CapabilityRegistry.segments() == (initial,)
     assert CapabilityRegistry.reader(_SCOPE).policy(_policy().key).assertion is initial.segment.policies[0]
+    assert CapabilityRegistry.has_policy_candidates(
+        FK_STR.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+    )
+    assert not CapabilityRegistry.has_policy_candidates(
+        FK_STR.CENTER, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+    )
 
 
 def test_lookup_is_exact_to_the_concrete_dialect_and_consumer():
@@ -104,8 +113,59 @@ def test_lookup_is_exact_to_the_concrete_dialect_and_consumer():
     assert CapabilityRegistry.capability_for(FK_STR.CONTAINS, "substring", CONST_BACKEND.POLARS) is None
 
 
+def test_presence_follows_publication_reset_and_restore():
+    def present():
+        return CapabilityRegistry.has_policy_candidates(
+            FK_STR.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+        )
+
+    assert present() is False
+    CapabilityRegistry.register_segment(_segment(_policy()))
+    assert present() is True
+    accepted = CapabilityRegistry.snapshot()
+    CapabilityRegistry.reset()
+    assert present() is False
+    CapabilityRegistry.restore(accepted)
+    assert present() is True
+
+
+@pytest.mark.parametrize(
+    ("consumer", "action", "error_fields"),
+    [
+        (PolicyConsumer.GATE, PolicyAction.BLOCK, {}),
+        (PolicyConsumer.IMMEDIATE_ERROR, PolicyAction.ENRICH,
+         {"native_errors": (TypeError,), "native_issue": "CONTAINS-NATIVE"}),
+        (PolicyConsumer.MATERIALIZATION_ERROR, PolicyAction.ENRICH,
+         {"native_errors": (TypeError,), "native_issue": "CONTAINS-NATIVE"}),
+        (PolicyConsumer.RESULT_PROTECTION, PolicyAction.DETECT_NON_NULL_TO_NULL, {}),
+    ],
+)
+def test_presence_is_exact_to_operation_backend_dialect_and_consumer(consumer, action, error_fields):
+    CapabilityRegistry.register_segment(_segment(_policy(consumer=consumer, action=action, **error_fields)))
+    for queried_consumer in PolicyConsumer:
+        assert CapabilityRegistry.has_policy_candidates(
+            FK_STR.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=queried_consumer,
+        ) is (queried_consumer is consumer)
+    for operation, backend, dialect in (
+        (FK_STR.CENTER, CONST_BACKEND.POLARS, "polars"),
+        (FK_STR.CONTAINS, CONST_BACKEND.IBIS, "polars"),
+        (FK_STR.CONTAINS, CONST_BACKEND.POLARS, "polars-unknown"),
+        (FK_STR.CONTAINS, CONST_BACKEND.POLARS, None),
+        (FK_STR.CONTAINS, "polars", "polars"),
+    ):
+        assert not CapabilityRegistry.has_policy_candidates(operation, backend, dialect, consumer=consumer)
+
+
+def test_presence_includes_nonblocking_rules():
+    CapabilityRegistry.register_segment(
+        _segment(_policy(level=CapabilityLevel.EXPR_CAPABLE, action=PolicyAction.PERMIT))
+    )
+    assert CapabilityRegistry.has_policy_candidates(
+        FK_STR.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+    )
+
+
 def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_versioned_variant():
-    from dataclasses import replace
     from types import SimpleNamespace
 
     from mountainash.core.capabilities.applicability import (
@@ -134,6 +194,9 @@ def test_context_aware_direct_lookup_selects_only_the_applicable_enabled_version
         applicability=interval("2", "3"),
     )
     CapabilityRegistry.register_segment(_segment(earlier, later, suffix=".versioned_direct"))
+    assert CapabilityRegistry.has_policy_candidates(
+        FK_STR.CONTAINS, CONST_BACKEND.POLARS, "polars", consumer=PolicyConsumer.GATE,
+    )
 
     def context(version, policy=CapabilityPolicy.checked()):
         observed = Environment((EnvironmentCoordinate("package", "polars", version),))

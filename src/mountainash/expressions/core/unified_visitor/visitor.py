@@ -353,6 +353,16 @@ class UnifiedExpressionVisitor:
         fold_lowering(self, selected_lowering(method))
         return method(node.field)
 
+    def _gate_enabled(self, function_key) -> bool:
+        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+            return False
+        from mountainash.core.capabilities import CapabilityRegistry
+
+        return CapabilityRegistry.has_policy_candidates(
+            function_key, self.backend.backend_type, getattr(self.backend, "dialect", None),
+            consumer=PolicyConsumer.GATE,
+        )
+
     def _gate_and_resolve_args(
         self,
         function_key,
@@ -360,6 +370,7 @@ class UnifiedExpressionVisitor:
         protocol_method,
         *,
         method_name: str,
+        gate_enabled: bool,
         compiled_arguments=None,
     ):
         """Apply optional gates, then resolve through an operation companion.
@@ -368,7 +379,7 @@ class UnifiedExpressionVisitor:
         never decide how an accepted literal is lowered: that is the category
         companion's ordinary backend responsibility.
         """
-        if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+        if gate_enabled:
             from mountainash.core.capabilities import (
                 CapabilityLevel,
                 CapabilityRegistry,
@@ -428,7 +439,11 @@ class UnifiedExpressionVisitor:
             resolved.append(value)
         return resolved
 
-    def _bound_call(self, function_key, protocol_method, arguments, options, *, window_spec=None):
+    def _bound_call(
+        self, function_key, protocol_method, arguments, options, *, gate_enabled: bool, window_spec=None,
+    ):
+        if not gate_enabled:
+            return None
         from mountainash.core.capabilities.predicates import bind_expression_call
 
         bound = bind_expression_call(
@@ -447,8 +462,6 @@ class UnifiedExpressionVisitor:
                 "multi_key": len(keys) > 1,
                 "any_descending": any(sf.descending for sf in keys),
             }})
-        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
-            return bound
         from mountainash.core.capabilities import CapabilityRegistry
 
         names = CapabilityRegistry.argument_form_names(bound, execution_context=self.execution_context)
@@ -459,10 +472,12 @@ class UnifiedExpressionVisitor:
         }
         return replace(bound, native_argument_forms=forms) if forms else bound
 
-    def _gate_predicate_violations(self, bound, *, phase: str) -> None:
-        """Collect capability blockers in the requested metadata-resolution phase."""
-        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+    def _gate_predicate_violations(self, bound, *, phase: str, operand_types=None) -> None:
+        """Collect blockers only when this operation has an active gate path."""
+        if bound is None:
             return
+        if operand_types is not None:
+            bound = replace(bound, operand_types=operand_types)
         from mountainash.core.capabilities import CapabilityRegistry
         from mountainash.core.types import BackendCapabilityError
 
@@ -480,8 +495,8 @@ class UnifiedExpressionVisitor:
                 candidate_fact_keys=tuple(fact.fact_key for fact in ordered),
             )
 
-    def _gate_operation(self, function_key) -> None:
-        if not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+    def _gate_operation(self, function_key, *, gate_enabled: bool) -> None:
+        if not gate_enabled:
             return
         from mountainash.core.capabilities import (
             CapabilityLevel, CapabilityRegistry, Enforcement, WILDCARD_PARAM,
@@ -504,8 +519,8 @@ class UnifiedExpressionVisitor:
                 function_key=function_key, limitation=fact,
             )
 
-    def _gate_options(self, function_key, options) -> None:
-        if not options or not self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+    def _gate_options(self, function_key, options, *, gate_enabled: bool) -> None:
+        if not gate_enabled or not options:
             return
         from mountainash.core.capabilities import CapabilityLevel, CapabilityRegistry, Enforcement
         from mountainash.core.types import BackendCapabilityError
@@ -531,10 +546,12 @@ class UnifiedExpressionVisitor:
                     function_key=function_key, limitation=fact,
                 )
 
-    def _required_operand_types(self, func_def, protocol_method, arguments, options=None) -> dict[str, Any]:
+    def _required_operand_types(
+        self, func_def, protocol_method, arguments, options=None, *, gate_enabled: bool,
+    ) -> dict[str, Any]:
         """Resolve function-declared and capability metadata operands."""
         required = func_def.type_arguments
-        if self.execution_context.policy.has_demand(PolicyConsumer.GATE):
+        if gate_enabled:
             from mountainash.core.capabilities import CapabilityRegistry
 
             capability_names = CapabilityRegistry.metadata_operand_names(
@@ -589,14 +606,19 @@ class UnifiedExpressionVisitor:
         # Get method name from protocol method
         method_name = protocol_method.__name__
 
-        bound = self._bound_call(node.function_key, protocol_method, node.arguments, node.options)
+        gate_enabled = self._gate_enabled(node.function_key)
+        bound = self._bound_call(
+            node.function_key, protocol_method, node.arguments, node.options, gate_enabled=gate_enabled,
+        )
         self._gate_predicate_violations(bound, phase="raw")
 
-        self._gate_operation(node.function_key)
+        self._gate_operation(node.function_key, gate_enabled=gate_enabled)
 
-        operand_types = self._required_operand_types(func_def, protocol_method, node.arguments)
+        operand_types = self._required_operand_types(
+            func_def, protocol_method, node.arguments, gate_enabled=gate_enabled,
+        )
         args = self._gate_and_resolve_args(
-            node.function_key, node.arguments, protocol_method, method_name=method_name
+            node.function_key, node.arguments, protocol_method, method_name=method_name, gate_enabled=gate_enabled,
         )
         from ..expression_system.function_keys.enums import (
             FKEY_SUBSTRAIT_SCALAR_COMPARISON,
@@ -610,7 +632,7 @@ class UnifiedExpressionVisitor:
                 [self.type_context.is_null_scalar(argument) for argument in node.arguments],
                 self.type_context.cached_native(node),
             )
-        self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
+        self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
 
         # Get the backend method
         if not hasattr(self.backend, method_name):
@@ -622,7 +644,7 @@ class UnifiedExpressionVisitor:
         fold_lowering(self, selected_lowering(method, func_def.lowering))
 
         options = node.options or {}
-        self._gate_options(node.function_key, options)
+        self._gate_options(node.function_key, options, gate_enabled=gate_enabled)
         diagnostic = None
         if self.diagnostic_trace is not None:
             diagnostic = self.diagnostic_trace.record(
@@ -661,10 +683,8 @@ class UnifiedExpressionVisitor:
         function_key = FKEY_SUBSTRAIT_CONDITIONAL.IF_THEN_ELSE
         func_def = FunctionRegistry.get(function_key)
         protocol_method = func_def.protocol_method
-        needs_binding = (
-            self.execution_context.policy.has_demand(PolicyConsumer.GATE)
-            or bool(func_def.type_arguments)
-        )
+        gate_enabled = self._gate_enabled(function_key)
+        needs_binding = gate_enabled or bool(func_def.type_arguments)
         result_type, requires_null_carrier = self._conditional_result_metadata(node)
         logical_else = node.else_clause
         last_index = len(node.conditions) - 1
@@ -673,20 +693,26 @@ class UnifiedExpressionVisitor:
             condition, branch = node.conditions[index]
             arguments = (condition, branch, logical_else)
             operand_types = {}
-            if needs_binding:
-                bound = self._bound_call(function_key, protocol_method, arguments, None)
+            if gate_enabled:
+                bound = self._bound_call(
+                    function_key, protocol_method, arguments, None, gate_enabled=gate_enabled,
+                )
                 self._gate_predicate_violations(bound, phase="raw")
-                self._gate_operation(function_key)
-                operand_types = self._required_operand_types(func_def, protocol_method, arguments)
+                self._gate_operation(function_key, gate_enabled=gate_enabled)
+            if needs_binding:
+                operand_types = self._required_operand_types(
+                    func_def, protocol_method, arguments, gate_enabled=gate_enabled,
+                )
             args = self._gate_and_resolve_args(
                 function_key,
                 arguments,
                 protocol_method,
                 method_name="if_then_else",
+                gate_enabled=gate_enabled,
                 compiled_arguments=compiled_arguments,
             )
-            if needs_binding:
-                self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
+            if gate_enabled:
+                self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
             args[1] = self._normalize_conditional_branch(
                 branch, args[1], result_type, requires_null_carrier
             )
@@ -804,9 +830,12 @@ class UnifiedExpressionVisitor:
         protocol_method = func_def.protocol_method
         arguments = (node.input,)
         options = {"dtype": node.target_type, "failure_behavior": node.failure_behavior}
-        bound = self._bound_call(function_key, protocol_method, arguments, options)
+        gate_enabled = self._gate_enabled(function_key)
+        bound = self._bound_call(
+            function_key, protocol_method, arguments, options, gate_enabled=gate_enabled,
+        )
         self._gate_predicate_violations(bound, phase="raw")
-        self._gate_operation(function_key)
+        self._gate_operation(function_key, gate_enabled=gate_enabled)
         from mountainash.core.dtypes import (
             MountainashDtype, dtype_is_complete, registry, resolve_dtype_parameters,
         )
@@ -827,12 +856,14 @@ class UnifiedExpressionVisitor:
                 options["dtype"] = resolve_dtype_parameters(
                     target, registry.from_native(source.native_dtype),
                 )
-        operand_types = self._required_operand_types(func_def, protocol_method, arguments)
-        args = self._gate_and_resolve_args(
-            function_key, arguments, protocol_method, method_name="cast"
+        operand_types = self._required_operand_types(
+            func_def, protocol_method, arguments, gate_enabled=gate_enabled,
         )
-        self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
-        self._gate_options(function_key, options)
+        args = self._gate_and_resolve_args(
+            function_key, arguments, protocol_method, method_name="cast", gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
+        self._gate_options(function_key, options, gate_enabled=gate_enabled)
         method = getattr(self.backend, "cast")
         fold_lowering(self, selected_lowering(method, func_def.lowering))
         with self.backend.operand_types(operand_types):
@@ -848,6 +879,7 @@ class UnifiedExpressionVisitor:
         )
 
         protocol_method = ExpressionFunctionRegistry.get_protocol_method(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
+        gate_enabled = self._gate_enabled(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
         # needle maps to param 0; every options member maps to *haystack
         # (VAR_POSITIONAL) via _param_name_for's trailing-varargs rule.
         value_expr, *options = self._gate_and_resolve_args(
@@ -855,6 +887,7 @@ class UnifiedExpressionVisitor:
             (node.value, *node.options),
             protocol_method,
             method_name="is_in",
+            gate_enabled=gate_enabled,
         )
         func_def = ExpressionFunctionRegistry.get(FKEY_MOUNTAINASH_SCALAR_SET.IS_IN)
         method = getattr(self.backend, "is_in")
@@ -893,17 +926,21 @@ class UnifiedExpressionVisitor:
         options = dict(node.options) if node.options else {}
         takes_order_by = any(p.name == "order_by" for p in _protocol_sig_params(protocol_method))
 
+        gate_enabled = self._gate_enabled(node.function_key)
         bound = self._bound_call(
             node.function_key, protocol_method, node.arguments, options, window_spec=window_spec,
+            gate_enabled=gate_enabled,
         )
         self._gate_predicate_violations(bound, phase="raw")
-        self._gate_operation(node.function_key)
-        operand_types = self._required_operand_types(func_def, protocol_method, node.arguments, options)
-        compiled_args = self._gate_and_resolve_args(
-            node.function_key, node.arguments, protocol_method, method_name=method_name
+        self._gate_operation(node.function_key, gate_enabled=gate_enabled)
+        operand_types = self._required_operand_types(
+            func_def, protocol_method, node.arguments, options, gate_enabled=gate_enabled,
         )
-        self._gate_predicate_violations(replace(bound, operand_types=operand_types), phase="complete")
-        self._gate_options(node.function_key, options)
+        compiled_args = self._gate_and_resolve_args(
+            node.function_key, node.arguments, protocol_method, method_name=method_name, gate_enabled=gate_enabled,
+        )
+        self._gate_predicate_violations(bound, phase="complete", operand_types=operand_types)
+        self._gate_options(node.function_key, options, gate_enabled=gate_enabled)
 
         # Ranking functions receive every sort key with its direction (backlog 364).
         # Keys are native expressions, so they bypass option gating.

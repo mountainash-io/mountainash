@@ -65,8 +65,17 @@ def registry_isolation():
         CapabilityRegistry.restore(snapshot)
 
 
+@pytest.fixture(params=["capture", "presence"])
+def state_query(request):
+    if request.param == "capture":
+        return CapabilityRegistry.capture
+    return lambda: CapabilityRegistry.has_policy_candidates(
+        FK_STR.CENTER, CONST_BACKEND.IBIS, "ibis-duckdb", consumer=PolicyConsumer.GATE,
+    )
+
+
 @pytest.mark.parametrize("specifier", [">=>1", ">=2,<1"])
-def test_bad_applicability_load_cannot_disappear_or_replace_prior_state(monkeypatch, specifier):
+def test_bad_applicability_load_cannot_disappear_or_replace_prior_state(monkeypatch, specifier, state_query):
     from mountainash.core.capabilities.applicability import Applicability, CoordinateConstraint, Region
 
     prior = _decl()
@@ -80,9 +89,9 @@ def test_bad_applicability_load_cannot_disappear_or_replace_prior_state(monkeypa
 
     monkeypatch.setattr(bootstrap, "_load_segments", load_bad_segment)
     with pytest.raises(ValueError) as first:
-        CapabilityRegistry.capture()
+        state_query()
     with pytest.raises(ValueError) as repeated:
-        CapabilityRegistry.capture()
+        state_query()
     assert repeated.value is first.value
     failed = CapabilityRegistry.snapshot()
     CapabilityRegistry.restore(replace(failed, load_state=_LoadState.ISOLATED, load_error=None))
@@ -93,6 +102,9 @@ def test_bad_applicability_load_cannot_disappear_or_replace_prior_state(monkeypa
 def test_reset_disables_enumerating_capture():
     CapabilityRegistry.reset()
     assert CapabilityRegistry.capability_for(FK_STR.CENTER, "length", CONST_BACKEND.IBIS, "ibis-duckdb") is None
+    assert not CapabilityRegistry.has_policy_candidates(
+        FK_STR.CENTER, CONST_BACKEND.IBIS, "ibis-duckdb", consumer=PolicyConsumer.GATE,
+    )
     with pytest.raises(RuntimeError, match="ISOLATED"):
         load_all_capability_declarations()
 
@@ -110,16 +122,16 @@ def test_segment_publication_keeps_policy_origins_atomic():
     assert CapabilityRegistry.reader(_SCOPE).policy(segment.segment.policies[0].key) is policy
 
 
-def test_late_load_failure_keeps_prior_generation_and_original_error(monkeypatch):
+def test_late_load_failure_keeps_prior_generation_and_original_error(monkeypatch, state_query):
     prior = _decl()
     CapabilityRegistry.register_segment(prior)
     late = _decl("character", suffix=".late")
     monkeypatch.setattr(bootstrap, "_load_segments", lambda: (late, prior))
     with pytest.raises(ValueError) as first:
-        CapabilityRegistry.capture()
+        state_query()
     failed = CapabilityRegistry.snapshot()
     with pytest.raises(ValueError) as again:
-        CapabilityRegistry.capture()
+        state_query()
     assert again.value is first.value
     CapabilityRegistry.restore(replace(failed, load_state=_LoadState.ISOLATED, load_error=None))
     assert (
@@ -127,7 +139,8 @@ def test_late_load_failure_keeps_prior_generation_and_original_error(monkeypatch
     )
 
 
-def test_concurrent_first_readers_observe_one_complete_load(monkeypatch):
+@pytest.mark.parametrize("presence", [False, True])
+def test_concurrent_first_readers_observe_one_complete_load(monkeypatch, presence):
     entered, release = threading.Event(), threading.Event()
     declaration = _decl()
     attempts, results = [], []
@@ -141,7 +154,13 @@ def test_concurrent_first_readers_observe_one_complete_load(monkeypatch):
     monkeypatch.setattr(bootstrap, "_load_segments", collect)
 
     def query():
-        results.append(CapabilityRegistry.capability_for(FK_STR.CENTER, "length", CONST_BACKEND.IBIS, "ibis-duckdb"))
+        if presence:
+            result = CapabilityRegistry.has_policy_candidates(
+                FK_STR.CENTER, CONST_BACKEND.IBIS, "ibis-duckdb", consumer=PolicyConsumer.GATE,
+            )
+        else:
+            result = CapabilityRegistry.capability_for(FK_STR.CENTER, "length", CONST_BACKEND.IBIS, "ibis-duckdb")
+        results.append(result)
 
     threads = [threading.Thread(target=query) for _ in range(2)]
     threads[0].start()
@@ -152,7 +171,8 @@ def test_concurrent_first_readers_observe_one_complete_load(monkeypatch):
         thread.join(10)
         assert not thread.is_alive()
     assert attempts == [True]
-    assert results == [declaration.segment.policies[0].qualify(_SCOPE)] * 2
+    expected = True if presence else declaration.segment.policies[0].qualify(_SCOPE)
+    assert results == [expected] * 2
 
 
 def test_failed_segment_registration_retains_existing_policy():

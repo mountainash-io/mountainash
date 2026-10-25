@@ -1388,8 +1388,13 @@ issues:
   upstream_issue_filed_by: null
   status: needs_filing
   our_workaround: none
-  notes: 'Backlog 368. Refused by a declared capability fact; not filed (owner decision 2026-10-22).'
-  last_verified: '2026-10-22'
+  notes: 'Backlog 368. Refused by a declared capability fact on Narwhals 2.27.1 with
+    pandas 3.0.6 or 3.1.0 (exact verified versions, not a continuous range).
+    Native wrong ordering reverified on pandas 3.1.0; public refusals and working
+    neighbors verified on both pandas versions. The strict expected-failure filter
+    remains BackendCapabilityError only. No upstream repair; not filed (owner
+    decision 2026-10-22).'
+  last_verified: '2026-10-25'
 - id: NW-LIST-01
   project: narwhals
   category: list-ops
