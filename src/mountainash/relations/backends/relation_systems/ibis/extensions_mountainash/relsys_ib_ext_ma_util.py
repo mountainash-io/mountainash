@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import functools
+import operator
 from typing import Any, Optional
 
 import ibis
@@ -26,9 +28,6 @@ def _duckdb_error(message: str) -> bool:
 def _duckdb_explode_shape_guard(cols: list[ir.ArrayValue]) -> ir.BooleanValue:
     """Polars' multi-column explode contract: every list null, or none null with
     equal lengths; any other row raises (Polars ``ShapeError``)."""
-    import functools
-    import operator
-
     all_null = functools.reduce(operator.and_, [c.isnull() for c in cols])
     none_null = functools.reduce(operator.and_, [c.notnull() for c in cols])
     same_len = functools.reduce(
@@ -75,8 +74,16 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         return relation.mutate(**{name: ibis.row_number()})
 
     def explode(self, relation: ir.Table, /, *, columns: list[str]) -> ir.Table:
+        # Polars defaults (empty_as_null=False, keep_nulls=True): a row whose
+        # lists are all empty yields no row; a null list yields one null row.
+        relation = relation.filter(
+            ~functools.reduce(
+                operator.and_,
+                [(relation[c].length() == 0).fill_null(False) for c in columns],
+            )
+        )
         if len(columns) == 1:
-            return relation.unnest(columns[0])
+            return relation.unnest(columns[0], keep_empty=True)
         # Sequential unnests would form a per-row Cartesian product; zip the
         # arrays into one array of structs so elements pair positionally.
         cols = [relation[c] for c in columns]
@@ -85,7 +92,9 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             cols = [relation[c] for c in columns]
         zipped = "__mountainash_explode_zip"
         first, *rest = cols
-        result = relation.mutate(**{zipped: first.zip(*rest)}).unnest(zipped)
+        result = relation.mutate(**{zipped: first.zip(*rest)}).unnest(
+            zipped, keep_empty=True
+        )
         fields = result[zipped].type().names
         result = result.mutate(
             **{c: result[zipped][f] for c, f in zip(columns, fields)}
