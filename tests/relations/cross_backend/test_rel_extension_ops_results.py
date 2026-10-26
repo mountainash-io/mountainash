@@ -160,6 +160,59 @@ class TestExplode:
             {"id": 2, "vals": 30},
         ]
 
+    def test_explode_multiple_columns_zips(self, backend_name, backend_factory):
+        """Several list columns explode element-wise together (zip), not as a product."""
+        df = _list_frame(
+            backend_name,
+            {"k": [1, 2], "x": [[1, 2], [3, 4]], "y": [["a", "b"], ["c", "d"]]},
+        )
+        result = ma.relation(df).explode("x", "y").to_dicts()
+        assert sorted_dicts(result, ["k", "x"]) == [
+            {"k": 1, "x": 1, "y": "a"},
+            {"k": 1, "x": 2, "y": "b"},
+            {"k": 2, "x": 3, "y": "c"},
+            {"k": 2, "x": 4, "y": "d"},
+        ]
+
+    @pytest.mark.parametrize(
+        ("x", "y"),
+        [([1, 2], ["a"]), (None, ["a"]), ([], ["a"])],
+        ids=["unequal-lengths", "null-and-list", "empty-and-list"],
+    )
+    def test_explode_multiple_columns_mismatch_raises(
+        self, backend_name, backend_factory, x, y
+    ):
+        """Rows whose lists cannot be zipped element-wise fail, as in Polars."""
+        import duckdb
+        import polars as pl
+
+        frame = pl.DataFrame(
+            {"k": [1, 2], "x": [[9], x], "y": [["z"], y]},
+            schema={"k": pl.Int64, "x": pl.List(pl.Int64), "y": pl.List(pl.String)},
+        )
+        df = _list_frame(backend_name, frame)
+        with pytest.raises(
+            (pl.exceptions.ShapeError, duckdb.Error), match="matching element counts"
+        ):
+            ma.relation(df).explode("x", "y").to_dicts()
+
+
+def _list_frame(backend_name: str, data):
+    import polars as pl
+
+    frame = data if isinstance(data, pl.DataFrame) else pl.DataFrame(data)
+    if backend_name == "polars":
+        return frame
+    if backend_name == "narwhals-polars":
+        import narwhals as nw
+
+        return nw.from_native(frame)
+    if backend_name == "ibis-duckdb":
+        import ibis
+
+        return ibis.duckdb.connect().create_table("t", frame)
+    raise AssertionError(f"uncovered list backend: {backend_name}")
+
 
 # ---------------------------------------------------------------------------
 # Unnest (struct columns — reduced backend set, intrinsic refusal on Narwhals)
