@@ -169,6 +169,16 @@ class MountainashNarwhalsExtensionRelationSystem(
         return relation.with_row_index(name=name)
 
     def explode(self, relation: Any, /, *, columns: list[str]) -> Any:
+        # Narwhals pins empty_as_null=True; Polars (the reference) defaults to
+        # False, so a row whose lists are all empty yields no row. Non-List
+        # columns (e.g. pandas object) keep native explode's own error.
+        schema = relation.collect_schema()
+        if all(isinstance(schema[c], nw.List) for c in columns):
+            all_empty = nw.all_horizontal(
+                *[(nw.col(c).list.len() == 0).fill_null(False) for c in columns],
+                ignore_nulls=False,
+            )
+            relation = relation.filter(~all_empty)
         return relation.explode(columns)
 
     def sample(

@@ -10,7 +10,8 @@
 
 ### Fixed
 - Extend the NW-WIN-05 multi-key window refusal qualification to Narwhals 2.27.1 with pandas 3.1.0, retaining pandas 3.0.6 (backlog 368). Only these verified version pairs are covered; single-key windows, other backends, ranking-dtype information and strict expected-failure exception filters remain unchanged. The upstream ordering defect is not repaired.
-- `Relation.explode()` over several list columns on Ibis now zips elements positionally, matching Polars, instead of producing a per-row Cartesian product (backlog 377). On Ibis-DuckDB, rows whose lists cannot be zipped (unequal lengths, or null mixed with a list) raise like Polars' `ShapeError`; other Ibis dialects pad with nulls. Rows where every list is null are still dropped on Ibis (Polars keeps a null row), as with single-column explode.
+- `Relation.explode()` over several list columns on Ibis now zips elements positionally, matching Polars, instead of producing a per-row Cartesian product (backlog 377). On Ibis-DuckDB, rows whose lists cannot be zipped (unequal lengths, or null mixed with a list) raise like Polars' `ShapeError`; other Ibis dialects pad with nulls.
+- `Relation.explode()` follows Polars' null/empty-list defaults on every list backend (backlog 378): a null list yields one null row (Ibis previously dropped it) and a row whose lists are all empty yields no row (Narwhals previously emitted a null row, since Narwhals pins `empty_as_null=True`). Non-List columns, such as pandas object dtype, keep native explode's error.
 
 ## Unreleased — 2026-10-24
 

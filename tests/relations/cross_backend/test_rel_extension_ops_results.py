@@ -196,6 +196,38 @@ class TestExplode:
         ):
             ma.relation(df).explode("x", "y").to_dicts()
 
+    def test_explode_null_and_empty_lists(self, backend_name, backend_factory):
+        """Polars defaults: a null list yields one null row; an empty list yields none."""
+        import polars as pl
+
+        frame = pl.DataFrame(
+            {"k": [1, 2, 3, 4], "x": [[1, 2], None, [], [None]]},
+            schema={"k": pl.Int64, "x": pl.List(pl.Int64)},
+        )
+        result = ma.relation(_list_frame(backend_name, frame)).explode("x").to_dicts()
+        assert sorted(result, key=lambda r: (r["k"], r["x"] is None, r["x"])) == [
+            {"k": 1, "x": 1},
+            {"k": 1, "x": 2},
+            {"k": 2, "x": None},
+            {"k": 4, "x": None},
+        ]
+
+    def test_explode_multiple_columns_null_and_empty_lists(
+        self, backend_name, backend_factory
+    ):
+        """All-null rows yield one null row; all-empty rows yield none."""
+        import polars as pl
+
+        frame = pl.DataFrame(
+            {"k": [1, 2, 3], "x": [[1], None, []], "y": [["a"], None, []]},
+            schema={"k": pl.Int64, "x": pl.List(pl.Int64), "y": pl.List(pl.String)},
+        )
+        result = ma.relation(_list_frame(backend_name, frame)).explode("x", "y").to_dicts()
+        assert sorted_dicts(result, "k") == [
+            {"k": 1, "x": 1, "y": "a"},
+            {"k": 2, "x": None, "y": None},
+        ]
+
 
 def _list_frame(backend_name: str, data):
     import polars as pl
