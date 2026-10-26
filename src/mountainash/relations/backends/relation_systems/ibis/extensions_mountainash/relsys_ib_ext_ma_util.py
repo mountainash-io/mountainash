@@ -18,6 +18,28 @@ from mountainash.relations.backends.relation_systems.ibis._sqlite_compat import 
 )
 
 
+@ibis.udf.scalar.builtin(name="error")
+def _duckdb_error(message: str) -> bool:
+    """DuckDB's ``error(msg)``: aborts the query when evaluated."""
+
+
+def _duckdb_explode_shape_guard(cols: list[ir.ArrayValue]) -> ir.BooleanValue:
+    """Polars' multi-column explode contract: every list null, or none null with
+    equal lengths; any other row raises (Polars ``ShapeError``)."""
+    import functools
+    import operator
+
+    all_null = functools.reduce(operator.and_, [c.isnull() for c in cols])
+    none_null = functools.reduce(operator.and_, [c.notnull() for c in cols])
+    same_len = functools.reduce(
+        operator.and_, [c.length() == cols[0].length() for c in cols[1:]]
+    )
+    ok = all_null | (none_null & same_len)
+    return ibis.ifelse(
+        ok, True, _duckdb_error("explode: exploded columns must have matching element counts")
+    )
+
+
 class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemProtocol[ir.Table]):
     """Mountainash-specific relation operations for the Ibis backend."""
 
@@ -53,10 +75,22 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         return relation.mutate(**{name: ibis.row_number()})
 
     def explode(self, relation: ir.Table, /, *, columns: list[str]) -> ir.Table:
-        result = relation
-        for col in columns:
-            result = result.unnest(col)
-        return result
+        if len(columns) == 1:
+            return relation.unnest(columns[0])
+        # Sequential unnests would form a per-row Cartesian product; zip the
+        # arrays into one array of structs so elements pair positionally.
+        cols = [relation[c] for c in columns]
+        if self.dialect == "ibis-duckdb":
+            relation = relation.filter(_duckdb_explode_shape_guard(cols))
+            cols = [relation[c] for c in columns]
+        zipped = "__mountainash_explode_zip"
+        first, *rest = cols
+        result = relation.mutate(**{zipped: first.zip(*rest)}).unnest(zipped)
+        fields = result[zipped].type().names
+        result = result.mutate(
+            **{c: result[zipped][f] for c, f in zip(columns, fields)}
+        )
+        return result.select(*relation.columns)
 
     def sample(
         self,
