@@ -121,24 +121,35 @@ class CompilationSession:
         finally:
             self._compiled.clear()
 
-    def egress(self, location: ExecutionLocation) -> Any:
-        """The compiled root value, moved to ``location`` (a terminal representation change)."""
+    def egress(self, location: ExecutionLocation, *, arrow: Any = None) -> Any:
+        """The compiled root value, moved to ``location`` (a terminal representation change).
+
+        ``arrow`` is an already-resolved logical Arrow table standing in for the
+        root: it is transferred as its own source, with only the terminal
+        requirement -- the compiled root's prepared transfer and residue
+        discharge have already happened at logical resolution.
+        """
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.relations.core.execution.location import ExecutionLocation as _Location
+        from mountainash.relations.core.execution.metadata import CompilationMetadata, CompiledSubtree
         from mountainash.relations.core.execution.preparation import TransferRequirement
+        from mountainash.relations.core.materialization import ExecutionForm
 
         root_key = self.prepared.root_key
+        terminal = TransferRequirement(root_key, location, requires_execution=True)
+        if arrow is not None:
+            source = _Location(CONST_BACKEND.NARWHALS, "narwhals-pyarrow", ExecutionForm.EAGER, "bound")
+            envelope = CompiledSubtree(
+                arrow, source, self.prepared.tokens.token(arrow), CompilationMetadata(),
+            )
+            return self.transport.transfer(envelope, terminal).value
         envelope = self._root_envelope
         if envelope is None:
             envelope, _ = self.compile(root_key)
         requirement = self.prepared.transfers.get(root_key)
         if requirement is not None:
             envelope = self.transport.transfer(envelope, requirement)
-        return self.transport.transfer(
-            envelope, TransferRequirement(root_key, location, requires_execution=True),
-        ).value
-
-    def egress_arrow(self, arrow: Any, location: ExecutionLocation) -> Any:
-        """A resolved logical Arrow table imported at ``location`` (no compiled envelope involved)."""
-        return self.transport.import_arrow(arrow, location)
+        return self.transport.transfer(envelope, terminal).value
 
     def _compile_once(self, key: str):
         from mountainash.core.constants import CONST_BACKEND

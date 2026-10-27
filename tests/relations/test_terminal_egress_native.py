@@ -121,3 +121,12 @@ def test_native_to_ibis_keeps_dag_owned_copies_alive():
     result = dag.ref("b").to_ibis()
     assert _owned(con)
     assert result.to_pyarrow().column("id").to_pylist() == [2, 3]
+
+
+def test_logical_to_pandas_keeps_polars_date_column_native():
+    import datetime
+
+    spec = TableSchema(fields_match="open", fields={"tags": FieldDefinition(type=UniversalType.ARRAY)})
+    df = pl.DataFrame({"tags": ["[1]"], "d": [datetime.date(2024, 1, 2)]})
+    out = ma.relation(df).conform(spec, contract={"data_type": "coerce"}).to_pandas()
+    assert str(out["d"].dtype).startswith("datetime64")

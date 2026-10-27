@@ -199,7 +199,11 @@ def _native_column_to_polars(family: CONST_BACKEND, column: Any) -> "pl.Series":
 def _native_column_to_pandas(family: CONST_BACKEND, column: Any) -> "pd.Series":
     if family is CONST_BACKEND.PANDAS:
         return cast("pd.Series", column)  # same family: dtype-preserving, not a conversion
-    return cast("pd.Series", _column_to_arrow(family, column).to_pandas())
+    # Polars' own Series.to_pandas keeps temporal dates native (date_as_object=False);
+    # Arrow's default would turn them into Python objects.
+    return cast(
+        "pd.Series", _column_to_arrow(family, column).to_pandas(date_as_object=False),
+    )
 
 
 class _PolarsSnapshotAdapter(_BaseSnapshotAdapter):

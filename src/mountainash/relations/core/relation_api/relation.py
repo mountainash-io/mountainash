@@ -1325,7 +1325,7 @@ class Relation(RelationBase):
                     execution_context=visitor.execution_context,
                     to_native=logical_to_arrow,
                 )
-                return visitor._egress_session.egress_arrow(arrow, memory)
+                return visitor._egress_session.egress(memory, arrow=arrow)
             if native:
                 return result
             return visitor._egress_session.egress(memory)
