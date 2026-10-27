@@ -187,15 +187,10 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
     if visitor.execution_phase is not None and visitor.execution_phase.name == "SCHEMA":
         resource = node.resource
         backend = visitor.backend.backend_type.name
-        from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
-            MountainashPolarsExtensionRelationSystem,
-        )
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
-        fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-        native_scan = (
-            backend in {"POLARS", "NARWHALS"}
-            and rf.polars_native_scan_supported(resource, fmt, resource.to_dialect())
+        native_scan = backend in {"POLARS", "NARWHALS"} and visitor.backend.native_scan_eligible(
+            resource, location=visitor.location,
         )
         if not native_scan:
             if resource.data is not None or resource.path is None:

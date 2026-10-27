@@ -163,7 +163,7 @@ class CompilationSession:
         node = self.prepared.nodes[key]
         location = self.prepared.locations[key]
         if self.prepared.phase is not ExecutionPhase.SCHEMA and isinstance(node, ReadRelNode) \
-                and location.dialect == "ibis-sqlite" and hasattr(node.dataframe, "op"):
+                and location.family is CONST_BACKEND.IBIS and hasattr(node.dataframe, "op"):
             op = node.dataframe.op()
             if isinstance(op, import_ibis_expr_ops().InMemoryTable):
                 self.transport.validate(

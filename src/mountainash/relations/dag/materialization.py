@@ -24,6 +24,7 @@ from mountainash.relations.core.materialization import (
     diagnostic_polars_view,
     materialize_native,
 )
+from mountainash.relations.core.execution.location import ExecutionLocation
 from mountainash.relations.core.execution.preparation import ExecutionPhase
 from mountainash.relations.dag.traversal import walk_refs as _walk_refs
 
@@ -46,41 +47,16 @@ __all__ = [
 ]
 
 
-def _anchor_prototype(family: CONST_BACKEND, dialect: "str | None") -> Any:
-    """A lightweight empty object of *family* for coercion to target."""
-    
-
+def _consumer_location(family: CONST_BACKEND, dialect: "str | None") -> ExecutionLocation:
+    """The in-memory destination a coerced dependency is moved to for a consumer of *family*."""
     if family is CONST_BACKEND.POLARS:
-        import polars as pl
-
-        return pl.DataFrame({}).lazy()
+        return ExecutionLocation(family, "polars", ExecutionForm.LAZY, "bound")
     if family is CONST_BACKEND.IBIS:
-        import ibis
-
-        return ibis.memtable({})
+        return ExecutionLocation(family, None, ExecutionForm.DEFERRED, "memory")
     if family is CONST_BACKEND.NARWHALS:
-        import narwhals as nw
-
-        if dialect == "narwhals-polars":
-            import polars as pl
-
-            return nw.from_native(pl.DataFrame({}), eager_only=True)
-        if dialect == "narwhals-pyarrow":
-            import pyarrow as pa
-
-            return nw.from_native(pa.table({}), eager_only=True)
-        import pandas as pd
-
-        pandas_empty = pd.DataFrame({})
-        return nw.from_native(pandas_empty, eager_only=True)
-    return None
-
-
-def _consumer_prototype(family: CONST_BACKEND, dialect: "str | None") -> Any:
-    """Alias for :func:`_anchor_prototype` (the consumer-side prototype
-    reuses the exact same construction the anchor-side already used --
-    without rewriting item 92's territory)."""
-    return _anchor_prototype(family, dialect)
+        implementation = dialect if dialect in ("narwhals-polars", "narwhals-pyarrow") else "narwhals-pandas"
+        return ExecutionLocation(family, implementation, ExecutionForm.EAGER, "bound")
+    raise ValueError(f"no coercion destination for backend family {family!r}")
 
 
 def _is_lazy_narwhals(obj: Any) -> bool:
@@ -853,11 +829,8 @@ class DAGMaterializationSession:
                 self._execution_tokens = IdentityTokens()
                 self._execution_metadata = MetadataSession(self._execution_tokens)
                 self._execution_transport = TransportSession(self._execution_tokens)
-            from mountainash.relations.core.execution.location import LocationResolver
-
-            proto = _consumer_prototype(consumer_family, consumer_dialect)
             coerced_value = self._execution_transport.transfer_native(
-                native.value, LocationResolver(self._execution_tokens)._read(proto),
+                native.value, _consumer_location(consumer_family, consumer_dialect),
             )
             destination_identity = self._destination_identity(
                 consumer_family, consumer_dialect

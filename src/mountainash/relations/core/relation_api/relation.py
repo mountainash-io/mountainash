@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from mountainash.core.capabilities.identity import BackendIdentity
 
 from mountainash.core.constants import (
+    CONST_BACKEND,
     ExecutionTarget,
     JoinType,
     SetType,
@@ -165,6 +166,14 @@ def _finish_terminal(visitor: Any, thunk: Callable[[], Any], *, release_owned_on
         raise
     close_all(release_owned_on_success)
     return result
+
+
+_OWN_LOCATION_COLLECT_FAMILIES = frozenset({
+    CONST_BACKEND.POLARS, CONST_BACKEND.IBIS, CONST_BACKEND.PANDAS, CONST_BACKEND.PYARROW,
+})
+_OWN_LOCATION_COLLECT_DIALECTS = frozenset({
+    "narwhals-polars", "narwhals-lazy", "narwhals-pandas", "narwhals-pyarrow",
+})
 
 
 def _family_export(native: Any) -> Any:
@@ -1072,9 +1081,7 @@ class Relation(RelationBase):
         return self._polars_from_compiled(result, visitor)
 
     def _polars_from_compiled(self, result: Any, visitor: Any) -> Any:
-        from mountainash.core.constants import CONST_BACKEND
         from mountainash.core.limitations import enrich_materialization
-        from mountainash.core.types import is_narwhals_dataframe, is_polars_dataframe
         from mountainash.relations.core.execution.location import ExecutionLocation
         from mountainash.relations.core.materialization import (
             ExecutionForm,
@@ -1083,6 +1090,10 @@ class Relation(RelationBase):
         )
 
         compiler_identity = _compiler_identity(visitor)
+        polars_native = compiler_identity.family is CONST_BACKEND.POLARS or (
+            compiler_identity.family is CONST_BACKEND.NARWHALS
+            and compiler_identity.dialect in ("narwhals-polars", "narwhals-lazy")
+        )
 
         def _egress_thunk() -> Any:
             if _blocking_structured_plans(visitor.structured_field_plans):
@@ -1095,24 +1106,21 @@ class Relation(RelationBase):
                     execution_context=visitor.execution_context,
                     to_native=resolved_snapshot_to_polars,
                 )
-            if compiler_identity.family in (CONST_BACKEND.POLARS, CONST_BACKEND.IBIS) or (
+            # Collect at the result's own location; an eager carrier is a pass-through.
+            if compiler_identity.family in _OWN_LOCATION_COLLECT_FAMILIES or (
                 compiler_identity.family is CONST_BACKEND.NARWHALS
-                and compiler_identity.dialect == "narwhals-polars"
+                and compiler_identity.dialect in _OWN_LOCATION_COLLECT_DIALECTS
             ):
                 native = materialize_native(
                     result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
                     execution_context=visitor.execution_context,
                 )
-                if is_polars_dataframe(native.value) or is_narwhals_dataframe(native.value):
+                if polars_native:
                     return _unwrap_native(native.value, unwrap=True)
             return visitor._egress_session.egress(
                 ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound"),
             )
 
-        polars_native = compiler_identity.family is CONST_BACKEND.POLARS or (
-            compiler_identity.family is CONST_BACKEND.NARWHALS
-            and compiler_identity.dialect == "narwhals-polars"
-        )
         # The envelope egress discharges the root's residue checks at its source
         # (transport); only a native or logical branch is checked here.
         via_transport = not polars_native and not _blocking_structured_plans(
