@@ -214,9 +214,16 @@ class TransportSession:
         src, destination, value = source.location, requirement.destination, source.value
         if _is_raw(value):
             arrow = rows_to_arrow(list(value)) if isinstance(value, (list, tuple)) else pa.table(value)
-        elif not requirement.owned and src.key == destination.key and self._physically_bound(source):
+        elif (not requirement.owned and src.key == destination.key
+                and not source.metadata.owned_checks and self._physically_bound(source)):
             return Imported(value)
         elif not requirement.owned and _same_implementation(src, destination):
+            if source.metadata.owned_checks or source.metadata.diagnostic_records:
+                # Source-owned residue is evaluated on the rows before its markers
+                # are removed, as on the Arrow path; the data stays native.
+                value = self._source_export(
+                    source, lambda: value.collect() if hasattr(value, "collect") else value,
+                )
             return Imported(_native_move(value, destination))
         else:
             arrow = self._export(source)

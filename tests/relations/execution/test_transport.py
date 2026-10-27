@@ -439,6 +439,29 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
         CapabilityRegistry.restore(snapshot)
 
 
+@pytest.mark.parametrize("year", ["2024", "invalid"])
+def test_source_residue_is_checked_on_the_native_same_implementation_move(year):
+    """Narwhals-over-Polars -> Polars moves natively, yet still discharges source residue."""
+    import narwhals as nw
+    import polars as pl
+
+    from mountainash.core.types import BackendCapabilityError
+    from mountainash.typespec.spec import FieldDefinition, TableSchema
+    from mountainash.typespec.universal_types import UniversalType
+
+    operand = nw.from_native(pl.DataFrame({"id": [1], "year": [year]}), eager_only=True)
+    spec = TableSchema(fields_match="open", fields={"year": FieldDefinition(type=UniversalType.YEAR)})
+    with ma.capability_policy(ma.CapabilityPolicy.checked()):
+        joined = ma.relation(pl.DataFrame({"id": [1]})).join(ma.relation(operand).conform(spec), on="id")
+        if year == "invalid":
+            with pytest.raises(BackendCapabilityError):
+                joined.collect()
+        else:
+            result = joined.collect()
+            assert not any(name.startswith("__ma_residue_") for name in result.columns)
+            assert result["id"].to_list() == [1]
+
+
 # --- Owned-flag transfer, native wrapper -----------------------------------
 import narwhals as nw
 import pandas as pd
