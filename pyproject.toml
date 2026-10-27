@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,14 +8,14 @@ dynamic = ["version"]
 description = "Unified cross-backend DataFrame expressions, relations, and schema management"
 readme = "README.md"
 requires-python = ">=3.12"
-license = {text = "MIT"}
+license = "Apache-2.0 AND MIT"
+license-files = ["LICENSE", "NOTICE", "src/mountainash/validation/schemas/LICENSE.geojson-schema.txt"]
 authors = [
     { name = "Nathaniel Ramm", email = "nathaniel.ramm@discretedatascience.com" },
 ]
 keywords = ["dataframe", "expressions", "polars", "pandas", "ibis", "cross-backend"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

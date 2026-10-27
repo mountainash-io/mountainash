@@ -290,7 +290,11 @@ Publish a supported distribution only when installation, dependency resolution, 
 
 ## License
 
-mountainash is released under the [MIT License](LICENSE).
+Mountainash's first-party code is licensed under the [Apache License, Version 2.0](LICENSE).
+The bundled [GeoJSON schema](src/mountainash/validation/schemas/GeoJSON.json) retains its
+[MIT licence and Tim Schaub attribution](src/mountainash/validation/schemas/LICENSE.geojson-schema.txt).
+The distribution's SPDX licence expression is `Apache-2.0 AND MIT`; this does not
+offer Mountainash's first-party code under MIT. See [NOTICE](NOTICE).
 
 ## Textbook
 

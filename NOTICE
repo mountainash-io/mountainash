@@ -1,0 +1,10 @@
+mountainash
+Copyright 2024-2026 Mountain Ash Solutions Pty. Ltd.
+
+Mountainash's first-party code is licensed under the Apache License, Version 2.0.
+See the LICENSE file.
+
+The bundled GeoJSON schema (src/mountainash/validation/schemas/GeoJSON.json)
+is Copyright (c) 2018 Tim Schaub and is licensed under the MIT License.
+Its original licence and attribution are retained in
+src/mountainash/validation/schemas/LICENSE.geojson-schema.txt.
