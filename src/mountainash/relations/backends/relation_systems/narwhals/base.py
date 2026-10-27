@@ -93,4 +93,4 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
     def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
         if resource.data is not None or resource.path is None:
             return False
-        return self._native_scan_for(resource, resource.to_dialect())
+        return self._native_scan_for(resource, resource.to_dialect(), location=location)

@@ -74,10 +74,11 @@ class CompilationSession:
             from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
 
             # The recorded boundary between a named plan and the ref that uses it.
-            requirement, inherited = None, None
+            requirement, inherited, placement = None, None, None
             if isinstance(self.prepared.nodes[key], RefRelNode):
                 child_key = self.prepared.inputs[key][0]
                 requirement = self.prepared.transfers.get(child_key)
+                placement = self.prepared.locations[child_key]
                 # This plan's decisions under the ref are the named plan's own.
                 inherited = {
                     f"root{other[len(child_key):]}": replace(
@@ -86,7 +87,7 @@ class CompilationSession:
                     for other, found in self.prepared.transfers.items()
                     if other.startswith(f"{child_key}/")
                 }
-            resolver = self.ref_resolver_factory(location, requirement, inherited)
+            resolver = self.ref_resolver_factory(location, requirement, inherited, placement)
         return relation_visitor.UnifiedRelationVisitor(
             system, expression_visitor, execution_context=context,
             metadata_session=self.metadata, execution=self, execution_key=key,

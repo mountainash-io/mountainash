@@ -151,16 +151,20 @@ class _SessionRefResolver:
         destination: Any = None,
         requirement: Any = None,
         inherited: Any = None,
+        placement: Any = None,
     ) -> None:
         self._session = session
         self._consumer_context = consumer_context
         self._destination = destination
         self._requirement = requirement
         self._inherited = inherited
+        self._placement = placement
 
     def __call__(self, name: str) -> Any:
         if self._destination is not None:
-            value = self._session.resolve_at(name, self._destination, self._requirement, self._inherited)
+            value = self._session.resolve_at(
+                name, self._destination, self._requirement, self._inherited, self._placement,
+            )
             self._destination = self._session._destination_for(self._destination)
             return value
         return self._session.resolve(name, self._consumer_context)
@@ -276,20 +280,24 @@ class DAGMaterializationSession:
 
     def resolver_for(
         self, destination: Any, requirement: Any = None, inherited: Any = None,
+        placement: Any = None,
     ) -> _SessionRefResolver:
         """Bind a ref resolver to this consumer's complete physical location.
 
         ``requirement`` is the prepared transfer recorded for the ref's
         ``/ref/<name>`` key, if its named plan does not already live there.
         ``inherited`` are the consumer plan's transfers beneath that key,
-        re-keyed to the named plan's own root.
+        re-keyed to the named plan's own root. ``placement`` is the location the
+        consumer's preparation gave the named plan at that key.
         """
         return _SessionRefResolver(
             self, destination=destination, requirement=requirement, inherited=inherited,
+            placement=placement,
         )
 
     def resolve_at(
         self, name: str, destination: Any, requirement: Any = None, inherited: Any = None,
+        placement: Any = None,
     ) -> Any:
         """Resolve a named plan in its own location, then apply the prepared transfer for this consumer."""
         from mountainash.relations.core.execution.compilation import CompilationSession
@@ -313,9 +321,18 @@ class DAGMaterializationSession:
         destination = self._destination_for(destination)
         root = self._canonical_node(name)
         tokens = self._execution_tokens
-        location = LocationResolver(
-            tokens, identity_resolver=self._canonical_node,
-        ).resolve(root)
+        # A resource the consumer placed (bound Ibis connection or Narwhals) keeps
+        # that placement: the named plan resolves against it, not a Polars default.
+        from mountainash.core.constants import CONST_BACKEND
+        placed = (placement if placement is not None and (
+            (placement.family is CONST_BACKEND.IBIS and placement.connection is not None)
+            or placement.family is CONST_BACKEND.NARWHALS) else None)
+        named_resolver = LocationResolver(tokens, identity_resolver=self._canonical_node)
+        location = named_resolver.resolve(root)
+        if location.binding == "memory":
+            placed = None  # a borrowed memory plan follows the consumer's binding below
+        else:
+            location = named_resolver.resolve(root, binding=placed)
         connectionless = location.binding == "memory"
         # Only pure ref aliases of an in-memory read carry the eager payload.
         # A unary transformation is a deferred Ibis plan and cannot borrow a
@@ -351,7 +368,7 @@ class DAGMaterializationSession:
                 prepared = prepare_execution(
                     root, phase=self._execution_phase,
                     identity_resolver=self._canonical_node,
-                    tokens=tokens, binding=destination if connectionless else None,
+                    tokens=tokens, binding=destination if connectionless else placed,
                     inherited=inherited,
                 )
                 from mountainash.relations.core.owned_copy import assert_prepared_owned_open

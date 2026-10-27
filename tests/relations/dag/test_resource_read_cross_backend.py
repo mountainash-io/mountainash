@@ -928,3 +928,67 @@ def test_resource_narwhals_pandas(tmp_path, kind):
     out = _pkg(tmp_path, kind).to_relation_dag().collect("orders", target="narwhals-pandas")
     assert str(out.implementation).lower().endswith("pandas")
     assert out.to_dict(as_series=False) == {"id": [1, 2], "amount": [10, 20]}
+
+
+# --- review fixes: referenced resources, unary chains, narwhals form/predicate ---
+def _count_owned(B):
+    return [t for t in B.list_tables() if t.startswith("ma_owned_")]
+
+
+@pytest.mark.parametrize("kind", ["csv", "inline", "json"])
+def test_referenced_resource_on_target_connection(tmp_path, kind):
+    B = ibis.duckdb.connect()
+    dag = _pkg(tmp_path, kind).to_relation_dag()
+    dag.add("alias", dag.ref("orders"))
+    out = dag.collect("alias", target=B)
+    assert out.get_backend() is B and out.to_polars().to_dicts() == EXPECTED
+
+
+@pytest.mark.parametrize("kind", ["csv", "inline"])
+def test_referenced_resource_narwhals_pandas(tmp_path, kind):
+    dag = _pkg(tmp_path, kind).to_relation_dag()
+    dag.add("alias", dag.ref("orders"))
+    out = dag.collect("alias", target="narwhals-pandas")
+    assert str(out.implementation).lower().endswith("pandas")
+    assert out.to_dict(as_series=False) == {"id": [1, 2], "amount": [10, 20]}
+
+
+@pytest.mark.parametrize("kind", ["inline", "json", "csv"])
+def test_resource_unary_chain_on_target_connection(tmp_path, kind):
+    B = ibis.duckdb.connect()
+    dag = _pkg(tmp_path, kind).to_relation_dag()
+    out = dag.ref("orders").sort("id").head(1).collect(target=B)
+    assert out.get_backend() is B and out.to_polars().to_dicts() == EXPECTED[:1]
+    if kind != "csv":
+        assert len(_count_owned(B)) <= 1
+
+
+def test_resource_csv_joins_eager_narwhals_polars(tmp_path):
+    import narwhals as nw
+    dag = _pkg(tmp_path, "csv").to_relation_dag()
+    left = nw.from_native(pl.DataFrame({"id": [1, 2], "tag": ["a", "b"]}))
+    dag.source("left", left)
+    dag.add("j", dag.ref("left").join(dag.ref("orders"), on="id"))
+    out = dag.collect("j", target="narwhals-polars")
+    assert sorted(out.to_dict(as_series=False)["amount"]) == [10, 20]
+
+
+def test_narwhals_predicate_and_reader_agree_on_location(tmp_path):
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+    ext = get_relation_system(CONST_BACKEND.NARWHALS)()
+    resource = DataResource(name="o", path=str(tmp_path / "o.csv"), format="csv", type="table")
+    (tmp_path / "o.csv").write_text("id,amount\n1,10\n")
+    pandas_loc = ExecutionLocation(CONST_BACKEND.NARWHALS, "narwhals-pandas", ExecutionForm.EAGER, "bound")
+    polars_loc = ExecutionLocation(CONST_BACKEND.NARWHALS, "narwhals-polars", ExecutionForm.EAGER, "bound")
+    assert ext.native_scan_eligible(resource, location=pandas_loc) is False
+    assert ext.native_scan_eligible(resource, location=polars_loc) is True
+    assert ext.native_scan_eligible(resource) is True
+    out = ext.read_resource(resource, location=pandas_loc)
+    assert str(out.implementation).lower().endswith("pandas")
+    from mountainash.core.lowering_reuse import DEFERRED_ONLY
+    assert ext._resource_lowering is not DEFERRED_ONLY
+    eager = ext.read_resource(resource, location=polars_loc)
+    assert type(eager).__name__ == "DataFrame"

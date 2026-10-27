@@ -361,7 +361,8 @@ def prepare_execution(
                 )
     selected = transfers["root"].destination if "root" in transfers else locations["root"]
     if phase not in (ExecutionPhase.EXPLAIN, ExecutionPhase.SCHEMA) \
-            and selected.family is CONST_BACKEND.IBIS and selected.binding != "bound":
+            and selected.family is CONST_BACKEND.IBIS and selected.binding != "bound" \
+            and not (selected.binding == "memory" and selected.connection is not None):
         raise UnresolvedExecutionLocationError(
             f"Selected execution location at root has unresolved Ibis binding: {_label(selected)}",
             node_key="root", destination=_label(selected),

@@ -8,6 +8,7 @@ import narwhals as nw
 
 
 from mountainash.core.types import BackendCapabilityError
+from mountainash.relations.core.materialization import ExecutionForm
 from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 from mountainash.relations.core.relation_protocols.relation_systems.extensions_mountainash import (
     MountainashExtensionRelationSystemProtocol,
@@ -272,14 +273,18 @@ class MountainashNarwhalsExtensionRelationSystem(
             function_key=RKEY_MOUNTAINASH_REL.UNNEST,
         )
 
-    def _native_scan_for(self, resource: Any, dialect: Any) -> bool:
+    def _native_scan_for(self, resource: Any, dialect: Any, *, location: Any = None) -> bool:
+        """The one native-scan decision (predicate and reader): the Polars-backed
+        scan applies only at a polars/lazy Narwhals location, or with none."""
+        if location is not None and location.dialect not in (None, "narwhals-polars", "narwhals-lazy"):
+            return False
         from mountainash.relations.backends.relation_systems import resource_files as rf
         from mountainash.relations.backends.relation_systems.polars.extensions_mountainash.relsys_pl_ext_ma_util import (
             MountainashPolarsExtensionRelationSystem,
         )
 
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
-        return rf.polars_native_scan_supported(resource, fmt, dialect)
+        return bool(rf.polars_native_scan_supported(resource, fmt, dialect))
 
     def read_resource(self, resource: Any, *, location: Any = None) -> Any:
         """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
@@ -307,16 +312,17 @@ class MountainashNarwhalsExtensionRelationSystem(
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
         raw_path = resource.path
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
-        native_ok = self._native_scan_for(resource, dialect) and (
-            location is None or location.dialect in (None, "narwhals-polars", "narwhals-lazy"))
-        if native_ok:
+        if self._native_scan_for(resource, dialect, location=location):
             self._resource_lowering = DEFERRED_ONLY
             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
                 resource, fmt, dialect
             )
             scan = nw.scan_csv if fmt == "csv" else nw.scan_parquet
             frames = [scan(p, backend="polars", **(kwargs if fmt == "csv" else {})) for p in paths]
-            return frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")
+            scanned = frames[0] if len(frames) == 1 else nw.concat(frames, how="vertical")
+            if location is not None and location.form is ExecutionForm.EAGER:
+                scanned = scanned.collect()
+            return scanned
 
         # Files fallback: Arrow -> Polars lazy -> Narwhals lazy.
         import polars as pl
