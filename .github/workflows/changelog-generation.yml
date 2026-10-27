@@ -12,7 +12,9 @@ permissions:
 
 jobs:
   generate-changelog:
-    if: github.event.pull_request.merged == true
+    # Disabled for release (backlog item 380): PR text reaches a write-capable
+    # AI agent as prompt. Redesign or removal is decided after release.
+    if: false && github.event.pull_request.merged == true
     runs-on: ubuntu-24.04
 
     steps:
@@ -30,14 +32,14 @@ jobs:
       - name: Extract PR Information
         id: pr_info
         env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          SOURCE_BRANCH: ${{ github.event.pull_request.head.ref }}
+          MERGE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
-          # Get PR details — title and body passed via env to avoid shell injection
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          SOURCE_BRANCH="${{ github.event.pull_request.head.ref }}"
-          MERGE_COMMIT="${{ github.event.pull_request.merge_commit_sha }}"
+          # PR fields arrive via env, never interpolated into the script
 
           # Get all commits in the PR
           COMMITS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
