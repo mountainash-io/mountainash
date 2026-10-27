@@ -170,3 +170,76 @@ def test_decimal_to_sqlite_fails_with_typed_context_not_driver_exception():
     assert caught.value.route == "ibis_arrow_ibis"
     assert caught.value.__cause__ is not None
     assert "decimal" in str(caught.value.__cause__).lower()
+
+
+# --- Location-centred export / import_into --------------------------------
+import narwhals as nw
+import pandas as pd
+from ibis.expr import operations as ops
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.core.errors import BackendConversionError
+from mountainash.relations.core.execution.location import ExecutionLocation
+from mountainash.relations.core.materialization import ExecutionForm
+from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+ARROW = pa.table({"id": [1, 2, 3], "v": [10.0, None, 30.0]})
+
+
+def _loc(f, d, form=ExecutionForm.EAGER, b="bound", con=None, tok=None):
+    return ExecutionLocation(f, d, form, b, tok, con)
+
+
+def sys_(f):
+    return get_relation_system(f)()
+
+
+@pytest.mark.parametrize("form, cls", [(ExecutionForm.EAGER, pl.DataFrame), (ExecutionForm.LAZY, pl.LazyFrame)])
+def test_polars_import_form(form, cls):
+    assert isinstance(sys_(CONST_BACKEND.POLARS).import_into(ARROW, location=_loc(CONST_BACKEND.POLARS, "polars", form)).value, cls)
+
+
+@pytest.mark.parametrize("dialect, impl, lazy", [
+    ("narwhals-pandas", "pandas", False), ("narwhals-polars", "polars", False),
+    ("narwhals-pyarrow", "pyarrow", False), ("narwhals-lazy", "polars", True)])
+def test_narwhals_import(dialect, impl, lazy):
+    out = sys_(CONST_BACKEND.NARWHALS).import_into(ARROW, location=_loc(CONST_BACKEND.NARWHALS, dialect)).value
+    assert str(out.implementation).lower().endswith(impl) and isinstance(out, nw.LazyFrame) is lazy
+
+
+@pytest.mark.parametrize("dialect", ["narwhals-duckdb", "narwhals-dask"])
+def test_narwhals_lazy_only_import_refused(dialect):
+    with pytest.raises(BackendConversionError):
+        sys_(CONST_BACKEND.NARWHALS).import_into(ARROW, location=_loc(CONST_BACKEND.NARWHALS, dialect))
+
+
+@pytest.mark.parametrize("native", [pd.DataFrame({"id": [1]}), pa.table({"id": [1]})])
+def test_narwhals_export_native_carrier(native):
+    src = _loc(CONST_BACKEND.NARWHALS, "narwhals-pandas" if isinstance(native, pd.DataFrame) else "narwhals-pyarrow")
+    assert sys_(CONST_BACKEND.NARWHALS).export(native, source=src).to_pylist() == [{"id": 1}]
+
+
+def test_ibis_unowned_import_is_memtable():
+    out = sys_(CONST_BACKEND.IBIS).import_into(ARROW, location=_loc(CONST_BACKEND.IBIS, "ibis-duckdb", ExecutionForm.DEFERRED, "memory"))
+    assert isinstance(out.value.op(), ops.InMemoryTable) and out.release is None
+
+
+@pytest.mark.parametrize("connect", [ibis.duckdb.connect, ibis.polars.connect])
+def test_ibis_owned_import(connect):
+    con = connect()
+    out = sys_(CONST_BACKEND.IBIS).import_into(
+        ARROW, location=_loc(CONST_BACKEND.IBIS, f"ibis-{con.name}", ExecutionForm.DEFERRED, "bound", con, 0), owned=True)
+    assert out.value.get_backend() is con and out.release is not None
+    assert out.value.to_pyarrow().to_pylist() == ARROW.to_pylist()
+
+
+def test_ibis_export_memtable_without_execution(monkeypatch):
+    t = ibis.memtable(ARROW)
+    monkeypatch.setattr(type(t), "to_pyarrow", lambda *a, **k: pytest.fail("executed"))
+    assert sys_(CONST_BACKEND.IBIS).export(t, source=_loc(CONST_BACKEND.IBIS, None, ExecutionForm.DEFERRED, "memory")).equals(ARROW)
+
+
+def test_ibis_sqlite_import_rejects_nan():
+    con = ibis.sqlite.connect()
+    with pytest.raises(ValueError, match="NaN"):
+        sys_(CONST_BACKEND.IBIS).import_into(pa.table({"x": [1.0, float("nan")]}),
+            location=_loc(CONST_BACKEND.IBIS, "ibis-sqlite", ExecutionForm.DEFERRED, "memory", con, 0))

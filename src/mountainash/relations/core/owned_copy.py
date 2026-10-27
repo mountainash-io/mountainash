@@ -364,6 +364,16 @@ def owned_arrow_table(table: Any, connection: Any) -> OwnedCopy:
         adopt_connection, owned_transaction, require_idle,
     )
 
+    if getattr(connection, "name", None) == "polars":
+        drain_pending_drops(connection)
+        name = "ma_owned_" + uuid.uuid4().hex
+        try:
+            native = connection.create_table(name, import_polars().from_arrow(table))
+            return register_owned_ibis_table(connection, name, native)
+        except BaseException as original:
+            _failed_copy(connection, (name,), original)
+            raise
+
     with adopt_connection(connection) as backend:
         require_idle(backend)
         drain_pending_drops(connection)

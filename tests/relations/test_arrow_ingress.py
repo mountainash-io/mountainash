@@ -185,3 +185,8 @@ def test_failed_ingestion_releases_only_imported_storage(connection, monkeypatch
     drain_pending_drops(connection)
     assert set(connection.list_tables()) == baseline
     assert connection.table("caller_kept").to_pyarrow().to_pylist() == [{"marker": 42}]
+
+
+def test_from_arrow_on_ibis_polars():
+    con = ibis.polars.connect()
+    assert ma.from_arrow(pa.table({"id": [1]}), target=con).collect().get_backend() is con

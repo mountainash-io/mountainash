@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Optional, Protocol
 
 from mountainash.core.types import RelationT
+
+if TYPE_CHECKING:
+    import pyarrow as pa
+
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.execution.metadata import Imported
 
 
 class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
@@ -95,4 +101,22 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
         Substrait's ``JoinRel`` join-type enum has no ``ASOF`` member; as-of
         join is a Mountainash addition.
         """
+        ...
+
+    def export(self, native: Any, *, source: ExecutionLocation) -> pa.Table:
+        """Export a native value of this family to Arrow."""
+        ...
+
+    def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:
+        """Raise ``ValueError`` for values the destination cannot store."""
+        ...
+
+    def import_into(
+        self, arrow: pa.Table, *, location: ExecutionLocation, owned: bool = False,
+    ) -> Imported:
+        """Import Arrow at ``location``; ``owned`` alone selects an owned copy."""
+        ...
+
+    def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
+        """Non-executing decision whether ``read_resource`` scans natively."""
         ...

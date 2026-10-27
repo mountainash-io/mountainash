@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import functools
 import operator
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import ibis
 import ibis.expr.types as ir
+
+if TYPE_CHECKING:
+    from mountainash.relations.core.execution.location import ExecutionLocation
 
 
 from mountainash.core.types import BackendCapabilityError
@@ -177,6 +180,30 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             result = result.drop(col)
         return result
 
+    def _native_scan_for(
+        self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
+    ) -> bool:
+        import ibis
+
+        from mountainash.core.io import is_remote
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        if resource.data is not None or resource.path is None:
+            return False
+        fmt = self._detect_format_name(resource)
+        raw_path = resource.path
+        paths = raw_path if isinstance(raw_path, list) else [raw_path]
+        all_local = all(not is_remote(p) for p in paths)
+        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
+        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
+        con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
+        native = {"csv": "read_csv", "parquet": "read_parquet"}.get(fmt)
+        return bool(
+            all_local and no_glob and no_archive and native
+            and hasattr(con, native)
+            and (fmt != "csv" or rf.dialect_is_default(dialect))
+        )
+
     def read_resource(self, resource: Any) -> ir.Table:
         """Load a DataResource into an Ibis table. Native engine reads for local
         plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
@@ -202,26 +229,13 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
         assert raw_path is not None, f"DataResource '{resource.name}' has no path"
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
 
-        from mountainash.core.io import is_remote
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         if fmt == "csv":
             rf.ensure_dialect_supported(dialect)
-        all_local = all(not is_remote(p) for p in paths)
-        no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
-        no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
-        con = ibis.get_backend()
-        # NATIVE only for local plain CSV/Parquet. CSV also requires a default
-        # dialect (con.read_csv ignores our dialect). JSON is fallback-routed
-        # for parity even though con.read_json exists.
-        native = {"csv": "read_csv", "parquet": "read_parquet"}.get(fmt)
-        native_ok = (
-            all_local and no_glob and no_archive and native
-            and hasattr(con, native)
-            and (fmt != "csv" or rf.dialect_is_default(dialect))
-        )
-        if native_ok:
-            return getattr(con, native)(paths if len(paths) > 1 else paths[0])
+        if self._native_scan_for(resource, dialect):
+            native = {"csv": "read_csv", "parquet": "read_parquet"}[fmt]
+            return getattr(ibis.get_backend(), native)(paths if len(paths) > 1 else paths[0])
 
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).

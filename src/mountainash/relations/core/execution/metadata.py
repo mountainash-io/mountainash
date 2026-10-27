@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from mountainash.conform.diagnostics import OperationDiagnosticTrace
 from mountainash.conform.structured_transport import freeze_structured_field_plans
@@ -13,6 +13,14 @@ if TYPE_CHECKING:
     from mountainash.conform.structured_transport import StructuredFieldPlanMap
     from mountainash.relations.core.execution.location import ExecutionLocation, IdentityTokens
     from mountainash.relations.core.relation_nodes import RelationNode
+
+
+@dataclass(frozen=True)
+class Imported:
+    """A value imported at a location, with the release hook of an owned copy."""
+
+    value: Any
+    release: Callable[[], None] | None = None
 
 
 @dataclass(frozen=True)

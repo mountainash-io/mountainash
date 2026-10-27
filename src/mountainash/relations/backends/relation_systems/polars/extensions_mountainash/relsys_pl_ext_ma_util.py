@@ -145,6 +145,11 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
     # read_resource — load a DataResource into a Polars LazyFrame
     # ------------------------------------------------------------------
 
+    def _native_scan_for(self, resource: Any, dialect: Any) -> bool:
+        from mountainash.relations.backends.relation_systems import resource_files as rf
+
+        return rf.polars_native_scan_supported(resource, self._detect_format(resource), dialect)
+
     def read_resource(self, resource: Any) -> pl.LazyFrame:
         """Load a DataResource into a Polars LazyFrame."""
         from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
@@ -162,7 +167,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
 
         # Keep schema-phase eligibility identical to this reader's actual lazy
         # route; all other formats and path forms use the eager files fallback.
-        if rf.polars_native_scan_supported(resource, fmt, dialect):
+        if self._native_scan_for(resource, dialect):
             self._resource_lowering = DEFERRED_ONLY
             return self._native_local_scan(fmt, paths, resource, dialect)
         return pl.from_arrow(
