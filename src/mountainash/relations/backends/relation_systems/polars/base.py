@@ -49,6 +49,7 @@ class PolarsBaseRelationSystem(BaseRelationSystem):
     ) -> Imported:
         import polars as pl
 
+        self.check_import(arrow, location=location)
         from mountainash.relations.core.execution.metadata import Imported
         from mountainash.relations.core.materialization import ExecutionForm
 

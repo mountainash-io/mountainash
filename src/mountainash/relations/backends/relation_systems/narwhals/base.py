@@ -60,6 +60,7 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
     ) -> Imported:
         import narwhals as nw
 
+        self.check_import(arrow, location=location)
         from mountainash.core.errors import BackendConversionError
         from mountainash.relations.core.execution.metadata import Imported
 
@@ -84,4 +85,6 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
         raise ValueError(f"unknown narwhals dialect: {location.dialect!r}")
 
     def native_scan_eligible(self, resource: Any, *, location: ExecutionLocation | None = None) -> bool:
+        if resource.data is not None or resource.path is None:
+            return False
         return self._native_scan_for(resource, resource.to_dialect())

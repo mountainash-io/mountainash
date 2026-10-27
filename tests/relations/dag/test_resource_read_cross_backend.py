@@ -871,3 +871,23 @@ def test_native_semicolon_dialect_schema_inference_stays_lazy(tmp_path, monkeypa
     monkeypatch.setattr(rf, "parse_resource_to_arrow", eager_read)
     assert list(relation.collect_schema()) == ["actual", "value"]
     assert relation.collect_schema(allow_execution=True) == relation.collect_schema()
+
+
+@pytest.fixture(params=["polars", "narwhals", "ibis"])
+def _family_system(request):
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    return get_relation_system(CONST_BACKEND(request.param))()
+
+
+def test_native_scan_eligible_false_for_inline(_family_system):
+    resource = DataResource(name="d", data=[{"a": 1}])
+    assert _family_system.native_scan_eligible(resource) is False
+
+
+def test_native_scan_eligible_true_for_local_csv(_family_system, tmp_path):
+    path = tmp_path / "d.csv"
+    path.write_text("a,b\n1,2\n")
+    resource = DataResource(name="d", path=str(path), format="csv")
+    assert _family_system.native_scan_eligible(resource) is True
