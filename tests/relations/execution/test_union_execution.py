@@ -7,6 +7,7 @@ import pandas as pd
 import polars as pl
 
 import mountainash as ma
+from mountainash.core.constants import CONST_BACKEND
 from fixtures.backend_registry import REGISTRY
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
@@ -99,7 +100,9 @@ def test_targeted_first_set_moves_only_foreign_sources(
     real = TransportSession._move
 
     def observed(self, source, requirement):
-        moves.append((source.location.connection, requirement.destination.connection))
+        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
+        if requirement.destination.family is not CONST_BACKEND.POLARS:
+            moves.append((source.location.connection, requirement.destination.connection))
         return real(self, source, requirement)
 
     monkeypatch.setattr(TransportSession, "_move", observed)
@@ -160,7 +163,9 @@ def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypat
     moves = []
 
     def observed(self, source, requirement):
-        moves.append(source.source_token)
+        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
+        if requirement.destination.family is not CONST_BACKEND.POLARS:
+            moves.append(source.source_token)
         return real(self, source, requirement)
 
     monkeypatch.setattr(TransportSession, "_move", observed)

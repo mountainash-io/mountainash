@@ -35,6 +35,7 @@ class CompilationSession:
         )
         self._schema_prototypes: dict[int, Any] = {}
         self._compiled = {}
+        self._root_envelope = None
 
     def schema_input(self, value: Any) -> Any:
         from mountainash.relations.core.execution.location import schema_prototype
@@ -108,6 +109,7 @@ class CompilationSession:
         root_key = self.prepared.root_key
         try:
             envelope, visitor = self.compile(root_key)
+            self._root_envelope = envelope
             requirement = self.prepared.transfers.get(root_key)
             if requirement is not None:
                 node = self.prepared.nodes[root_key]
@@ -124,7 +126,9 @@ class CompilationSession:
         from mountainash.relations.core.execution.preparation import TransferRequirement
 
         root_key = self.prepared.root_key
-        envelope, _ = self.compile(root_key)
+        envelope = self._root_envelope
+        if envelope is None:
+            envelope, _ = self.compile(root_key)
         requirement = self.prepared.transfers.get(root_key)
         if requirement is not None:
             envelope = self.transport.transfer(envelope, requirement)
@@ -285,3 +289,4 @@ class CompilationSession:
             self.transport.close(release_owned=release_owned)
         finally:
             self._compiled.clear()
+            self._root_envelope = None

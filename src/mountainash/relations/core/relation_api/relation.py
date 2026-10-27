@@ -147,6 +147,17 @@ def _finish_terminal(visitor: Any, thunk: Callable[[], Any], *, release_owned_on
     return result
 
 
+def _family_export(native: Any) -> Any:
+    """The native value's own family ``export`` to Arrow, collected at its own location."""
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    identity = native.value_identity
+    source = ExecutionLocation(identity.family, identity.dialect, ExecutionForm.EAGER, "bound")
+    return get_relation_system(identity.family)().export(native.value, source=source)
+
+
 def _unwrap_native(value: Any, *, unwrap: bool) -> Any:
     """Unwrap a Narwhals frame to its native value when requested.
 
@@ -1024,28 +1035,30 @@ class Relation(RelationBase):
         return fingerprint_relation(self, keys=keys, columns=columns, batch_size=batch_size)
 
     def to_polars(self) -> Any:
-        """Execute and return a Polars DataFrame.
+        """Execute and return an eager Polars DataFrame.
 
-        A declared route per source family (spec 8.3): Ibis prefers Arrow
-        (``to_pyarrow()`` then ``pl.from_arrow()``), PyArrow converts
-        directly, a pandas-selected source uses ``pl.from_pandas()``, and
-        Narwhals uses its own ``to_polars()``. No non-pandas fallback: a
-        source with no declared route raises ``BackendConversionError``.
+        A Polars-native result (including a Narwhals-over-Polars carrier,
+        unwrapped) is collected at its own location and returned. Every other
+        result moves through the transport envelope path to an eager Polars
+        location -- never through pandas.
         """
-        result, visitor = self._compile_and_execute_with_visitor()
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
         return self._polars_from_compiled(result, visitor)
 
     def _to_polars(self, *, execution_context) -> Any:
         result, visitor = self._compile_and_execute_with_visitor(
-            execution_context=execution_context,
+            execution_context=execution_context, retain_execution_scope=True,
         )
         return self._polars_from_compiled(result, visitor)
 
     def _polars_from_compiled(self, result: Any, visitor: Any) -> Any:
+        from mountainash.core.constants import CONST_BACKEND
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import is_narwhals_dataframe, is_polars_dataframe
+        from mountainash.relations.core.execution.location import ExecutionLocation
         from mountainash.relations.core.materialization import (
+            ExecutionForm,
             MaterializationPurpose,
-            explicit_polars_egress,
             materialize_native,
         )
 
@@ -1062,11 +1075,19 @@ class Relation(RelationBase):
                     execution_context=visitor.execution_context,
                     to_native=resolved_snapshot_to_polars,
                 )
-            native = materialize_native(
-                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
-                execution_context=visitor.execution_context,
+            if compiler_identity.family in (CONST_BACKEND.POLARS, CONST_BACKEND.IBIS) or (
+                compiler_identity.family is CONST_BACKEND.NARWHALS
+                and compiler_identity.dialect == "narwhals-polars"
+            ):
+                native = materialize_native(
+                    result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                    execution_context=visitor.execution_context,
+                )
+                if is_polars_dataframe(native.value) or is_narwhals_dataframe(native.value):
+                    return _unwrap_native(native.value, unwrap=True)
+            return visitor._egress_session.egress(
+                ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound"),
             )
-            return explicit_polars_egress(native)
 
         return _finish_terminal(visitor, lambda: enrich_materialization(
             visitor.backend, _egress_thunk,
@@ -1078,15 +1099,15 @@ class Relation(RelationBase):
     def to_pandas(self) -> Any:
         """Execute and return a Pandas DataFrame.
 
-        A declared route per source family (spec 8.3): a pandas-selected
-        source passes through, Polars/Narwhals/Ibis/PyArrow each call their
-        own native ``to_pandas()`` terminal directly. Ibis and PyArrow never
-        route through :meth:`to_polars` first.
+        A pandas-selected result (pandas or Narwhals-over-pandas) is an
+        approved native endpoint and is returned or unwrapped as is. Any
+        other native result goes through its family ``export`` to Arrow and
+        then ``to_pandas()``.
         """
         from mountainash.core.limitations import enrich_materialization
+        from mountainash.core.types import is_narwhals_dataframe, is_pandas_dataframe
         from mountainash.relations.core.materialization import (
             MaterializationPurpose,
-            explicit_pandas_egress,
             materialize_native,
         )
 
@@ -1108,7 +1129,12 @@ class Relation(RelationBase):
                 result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
                 execution_context=visitor.execution_context,
             )
-            return explicit_pandas_egress(native)
+            value = native.value
+            if is_pandas_dataframe(value):
+                return value
+            if is_narwhals_dataframe(value) and native.value_identity.dialect == "narwhals-pandas":
+                return value.to_native()
+            return _family_export(native).to_pandas()
 
         return _finish_terminal(visitor, lambda: enrich_materialization(
             visitor.backend, _egress_thunk,
@@ -1202,9 +1228,40 @@ class Relation(RelationBase):
         )
 
     def to_pyarrow(self) -> Any:
-        """Execute and return a PyArrow Table."""
-        df = self.to_polars()
-        return self._egress_strategy().to_pyarrow(df)
+        """Execute and return a PyArrow Table.
+
+        A result with structured fields awaiting logical resolution goes
+        through the logical terminal snapshot; every other result is its
+        own family's Arrow ``export``.
+        """
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.logical_snapshot import logical_to_arrow
+        from mountainash.relations.core.materialization import (
+            MaterializationPurpose,
+            materialize_native,
+        )
+
+        result, visitor = self._compile_and_execute_with_visitor()
+        compiler_identity = _compiler_identity(visitor)
+
+        def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                return _resolve_logical_egress(
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=logical_to_arrow,
+                )
+            return _family_export(materialize_native(
+                result, compiler_identity, MaterializationPurpose.EXPLICIT_EGRESS,
+                execution_context=visitor.execution_context,
+            ))
+
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ))
 
     def to_narwhals(self, *, as_lazy: Optional[bool] = None) -> Any:
         """Execute and return a narwhals DataFrame or LazyFrame."""
@@ -1212,9 +1269,44 @@ class Relation(RelationBase):
         return self._egress_strategy().to_narwhals(df, as_lazy=as_lazy)
 
     def to_ibis(self) -> Any:
-        """Execute and return an Ibis memtable."""
-        df = self.to_polars()
-        return self._egress_strategy().to_ibis(df)
+        """Return an Ibis table.
+
+        An Ibis-native result is returned unchanged, keeping its connection.
+        Any other result is carried through the transport envelope path into
+        an in-memory (memtable) Ibis location.
+        """
+        from mountainash.core.constants import CONST_BACKEND
+        from mountainash.core.limitations import enrich_materialization
+        from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.materialization import ExecutionForm
+
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
+        compiler_identity = _compiler_identity(visitor)
+
+        def _egress_thunk() -> Any:
+            if _blocking_structured_plans(visitor.structured_field_plans):
+                from mountainash.relations.core.logical_snapshot import (
+                    resolved_snapshot_to_polars,
+                )
+
+                frame = _resolve_logical_egress(
+                    result, visitor, compiler_identity,
+                    execution_context=visitor.execution_context,
+                    to_native=resolved_snapshot_to_polars,
+                )
+                return self._egress_strategy().to_ibis(frame)
+            if compiler_identity.family is CONST_BACKEND.IBIS:
+                return result
+            return visitor._egress_session.egress(
+                ExecutionLocation(CONST_BACKEND.IBIS, None, ExecutionForm.DEFERRED, "memory"),
+            )
+
+        return _finish_terminal(visitor, lambda: enrich_materialization(
+            visitor.backend, _egress_thunk,
+            diagnostic_trace=visitor._active_diagnostic_trace(),
+            residue_checks=visitor.terminal_residue_checks(),
+            execution_context=visitor.execution_context,
+        ))
 
     def to_dict_of_series_polars(self) -> dict[str, Any]:
         """Execute and return a dict of column name -> Polars Series."""

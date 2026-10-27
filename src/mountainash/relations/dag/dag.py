@@ -414,6 +414,7 @@ class RelationDAG:
                 _guard_native_terminal(visitor.structured_field_plans)
                 envelope = session.cache_root(key_target_name, envelope, visitor)
             visitor._execution_session = session if retain_execution_scope else compilation
+            visitor._egress_session = compilation
             return envelope.value, visitor
         except BaseException as primary:
             for owner in (compilation, session):

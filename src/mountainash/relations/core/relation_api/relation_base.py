@@ -77,6 +77,7 @@ class RelationBase:
         # The native graph retains its own Arrow-backed operands; keep its
         # provenance/visitor alive for subsequent terminal materialization.
         visitor._execution_session = session
+        visitor._egress_session = session
         return envelope.value, visitor
 
     def _apply_optimisations(self, node: RelationNode) -> RelationNode:

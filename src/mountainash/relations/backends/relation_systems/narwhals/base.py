@@ -54,7 +54,18 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             # An index is not data; to_arrow() would emit a named index as a column.
             import pyarrow as pa
 
-            return pa.Table.from_pandas(frame.to_native(), preserve_index=False)
+            native_frame = frame.to_native()
+            table = pa.Table.from_pandas(native_frame, preserve_index=False)
+            if table.num_rows == 0:
+                # An empty object column has no values to infer from; Arrow reports
+                # null, Polars' pandas import reports String. Keep the latter.
+                for index, field in enumerate(table.schema):
+                    if pa.types.is_null(field.type) and native_frame[field.name].dtype == object:
+                        table = table.set_column(
+                            index, field.with_type(pa.string()),
+                            table.column(index).cast(pa.string()),
+                        )
+            return table
         return frame.to_arrow()
 
     def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:

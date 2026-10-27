@@ -401,7 +401,9 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
         return real_compile(self, key)
 
     def observed_convert(self, source, requirement):
-        transfers.append((source.location.connection, requirement.destination.connection))
+        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
+        if requirement.destination.family is not CONST_BACKEND.POLARS:
+            transfers.append((source.location.connection, requirement.destination.connection))
         return real_convert(self, source, requirement)
 
     def observed_materialize(value, identity, purpose, **kwargs):

@@ -3,6 +3,7 @@
 import pytest
 
 import mountainash as ma
+from mountainash.core.constants import CONST_BACKEND
 from fixtures.backend_registry import REGISTRY
 from mountainash.relations.core.execution.transport import TransportSession
 
@@ -27,7 +28,9 @@ def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, 
         return accept(node, visitor)
 
     def observe_convert(session, source, requirement):
-        calls["transfer"] += 1
+        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
+        if requirement.destination.family is not CONST_BACKEND.POLARS:
+            calls["transfer"] += 1
         return convert(session, source, requirement)
 
     monkeypatch.setattr(node_type, "accept", observe_accept)
@@ -171,7 +174,9 @@ def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatc
     convert = TransportSession._move
 
     def observe(session, source, requirement):
-        conversions.append(source.value)
+        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
+        if requirement.destination.family is not CONST_BACKEND.POLARS:
+            conversions.append(source.value)
         return convert(session, source, requirement)
 
     monkeypatch.setattr(TransportSession, "_move", observe)
@@ -296,7 +301,9 @@ def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, m
     convert = TransportSession._move
 
     def observe(session, source, requirement):
-        conversions.append(source.value)
+        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
+        if requirement.destination.family is not CONST_BACKEND.POLARS:
+            conversions.append(source.value)
         return convert(session, source, requirement)
 
     monkeypatch.setattr(TransportSession, "_move", observe)
