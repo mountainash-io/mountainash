@@ -170,34 +170,36 @@ class _BaseSnapshotAdapter:
         return pd.DataFrame(columns)
 
 
+def _column_to_arrow(family: CONST_BACKEND, column: Any) -> Any:
+    """One captured native column as Arrow, through its family's own ``export``.
+
+    Arrow-family captures (PyArrow, Narwhals, Ibis snapshots) already hold
+    Arrow columns and pass through unchanged.
+    """
+    if family not in (CONST_BACKEND.POLARS, CONST_BACKEND.PANDAS):
+        return column
+    from mountainash.relations.core.execution.location import ExecutionLocation
+    from mountainash.relations.core.materialization import ExecutionForm
+    from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+    # Pandas is a Narwhals carrier: its export is the Narwhals family's.
+    system = CONST_BACKEND.POLARS if family is CONST_BACKEND.POLARS else CONST_BACKEND.NARWHALS
+    source = ExecutionLocation(system, None, ExecutionForm.EAGER, "bound")
+    return get_relation_system(system)().export(column.to_frame(), source=source).column(0)
+
+
 def _native_column_to_polars(family: CONST_BACKEND, column: Any) -> "pl.Series":
     import polars as pl
 
     if family is CONST_BACKEND.POLARS:
-        return cast("pl.Series", column)
-    if family is CONST_BACKEND.PANDAS:
-        return cast(
-            "pl.Series",
-            pl.from_pandas(column),
-        )
-    return cast(
-        "pl.Series",
-        pl.from_arrow(column),
-    )
+        return cast("pl.Series", column)  # same family: dtype-preserving, not a conversion
+    return cast("pl.Series", pl.from_arrow(_column_to_arrow(family, column)))
 
 
 def _native_column_to_pandas(family: CONST_BACKEND, column: Any) -> "pd.Series":
     if family is CONST_BACKEND.PANDAS:
-        return cast("pd.Series", column)
-    if family is CONST_BACKEND.POLARS:
-        return cast(
-            "pd.Series",
-            column.to_pandas(),
-        )
-    return cast(
-        "pd.Series",
-        column.to_pandas(),
-    )
+        return cast("pd.Series", column)  # same family: dtype-preserving, not a conversion
+    return cast("pd.Series", _column_to_arrow(family, column).to_pandas())
 
 
 class _PolarsSnapshotAdapter(_BaseSnapshotAdapter):
@@ -417,16 +419,6 @@ def logical_column_values(
     return tuple(_python_value(value) for value in column)
 
 
-def _native_column_to_arrow(family: CONST_BACKEND, column: Any) -> Any:
-    import pyarrow as pa
-
-    if family is CONST_BACKEND.PANDAS:
-        return pa.Array.from_pandas(column)
-    if family is CONST_BACKEND.POLARS:
-        return column.to_arrow()
-    return column
-
-
 def logical_to_arrow(resolved: ResolvedLogicalSnapshot) -> "pa.Table":
     """Arrow table of one resolved logical snapshot, in the physical column order.
 
@@ -446,7 +438,7 @@ def logical_to_arrow(resolved: ResolvedLogicalSnapshot) -> "pa.Table":
     for name in names:
         logical = resolved.logical_columns[name]
         if logical is resolved.physical.columns.get(name):
-            columns[name] = _native_column_to_arrow(family, _slice_native(family, logical, positions))
+            columns[name] = _column_to_arrow(family, _slice_native(family, logical, positions))
             continue
         try:
             columns[name] = pa.array(

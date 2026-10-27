@@ -130,20 +130,40 @@ def _compiler_identity(visitor: "Any") -> "BackendIdentity":
 
 
 def _finish_terminal(visitor: Any, thunk: Callable[[], Any], *, release_owned_on_success: bool = False) -> Any:
-    """Keep transfer dependencies alive through egress, then hand off or roll back."""
-    scope = getattr(visitor, "_execution_session", None)
+    """Keep transfer dependencies alive through egress, then hand off or roll back.
+
+    Every session the terminal opened is closed: the retained execution scope
+    and the compilation session that carries the root envelope. An eager
+    result (``release_owned_on_success``) releases everything it owned; a
+    returned deferred graph keeps what it references.
+    """
+    scopes = [getattr(visitor, "_execution_session", None)]
+    egress = getattr(visitor, "_egress_session", None)
+    if egress is not None and all(egress is not scope for scope in scopes):
+        scopes.append(egress)
+    scopes = [scope for scope in scopes if scope is not None]
+
+    def close_all(release_owned: bool) -> None:
+        failure: BaseException | None = None
+        for scope in scopes:
+            try:
+                scope.close(release_owned=release_owned)
+            except BaseException as cleanup:
+                if failure is None:
+                    failure = cleanup
+        if failure is not None:
+            raise failure
+
     try:
         result = thunk()
     except BaseException as primary:
-        if scope is not None:
-            try:
-                scope.close(release_owned=True)
-            except BaseException as cleanup:
-                if hasattr(primary, "add_note"):
-                    primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
+        try:
+            close_all(True)
+        except BaseException as cleanup:
+            if hasattr(primary, "add_note"):
+                primary.add_note(f"Owned-resource cleanup also failed: {type(cleanup).__name__}")
         raise
-    if scope is not None:
-        scope.close(release_owned=release_owned_on_success)
+    close_all(release_owned_on_success)
     return result
 
 
@@ -1089,12 +1109,21 @@ class Relation(RelationBase):
                 ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound"),
             )
 
+        polars_native = compiler_identity.family is CONST_BACKEND.POLARS or (
+            compiler_identity.family is CONST_BACKEND.NARWHALS
+            and compiler_identity.dialect == "narwhals-polars"
+        )
+        # The envelope egress discharges the root's residue checks at its source
+        # (transport); only a native or logical branch is checked here.
+        via_transport = not polars_native and not _blocking_structured_plans(
+            visitor.structured_field_plans
+        )
         return _finish_terminal(visitor, lambda: enrich_materialization(
             visitor.backend, _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.terminal_residue_checks(),
+            residue_checks=() if via_transport else visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        ))
+        ), release_owned_on_success=True)
 
     def to_pandas(self) -> Any:
         """Execute and return a Pandas DataFrame.
@@ -1111,7 +1140,7 @@ class Relation(RelationBase):
             materialize_native,
         )
 
-        result, visitor = self._compile_and_execute_with_visitor()
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
         compiler_identity = _compiler_identity(visitor)
 
         def _egress_thunk() -> Any:
@@ -1141,7 +1170,7 @@ class Relation(RelationBase):
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        ))
+        ), release_owned_on_success=True)
 
     def to_dict(self) -> dict[str, list[Any]]:
         """Execute and return a dict of column name -> list of values."""
@@ -1241,7 +1270,7 @@ class Relation(RelationBase):
             materialize_native,
         )
 
-        result, visitor = self._compile_and_execute_with_visitor()
+        result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
         compiler_identity = _compiler_identity(visitor)
 
         def _egress_thunk() -> Any:
@@ -1261,7 +1290,7 @@ class Relation(RelationBase):
             diagnostic_trace=visitor._active_diagnostic_trace(),
             residue_checks=visitor.terminal_residue_checks(),
             execution_context=visitor.execution_context,
-        ))
+        ), release_owned_on_success=True)
 
     def to_narwhals(self, *, as_lazy: Optional[bool] = None) -> Any:
         """Execute and return a narwhals DataFrame or LazyFrame."""
@@ -1273,40 +1302,42 @@ class Relation(RelationBase):
 
         An Ibis-native result is returned unchanged, keeping its connection.
         Any other result is carried through the transport envelope path into
-        an in-memory (memtable) Ibis location.
+        an in-memory (memtable) Ibis location. A result with structured fields
+        is first resolved to its logical Arrow table, which is imported the
+        same way; a value Arrow cannot represent raises ``BackendConversionError``.
         """
         from mountainash.core.constants import CONST_BACKEND
         from mountainash.core.limitations import enrich_materialization
         from mountainash.relations.core.execution.location import ExecutionLocation
+        from mountainash.relations.core.logical_snapshot import logical_to_arrow
         from mountainash.relations.core.materialization import ExecutionForm
 
         result, visitor = self._compile_and_execute_with_visitor(retain_execution_scope=True)
         compiler_identity = _compiler_identity(visitor)
+        memory = ExecutionLocation(CONST_BACKEND.IBIS, None, ExecutionForm.DEFERRED, "memory")
+        structured = bool(_blocking_structured_plans(visitor.structured_field_plans))
+        native = not structured and compiler_identity.family is CONST_BACKEND.IBIS
 
         def _egress_thunk() -> Any:
-            if _blocking_structured_plans(visitor.structured_field_plans):
-                from mountainash.relations.core.logical_snapshot import (
-                    resolved_snapshot_to_polars,
-                )
-
-                frame = _resolve_logical_egress(
+            if structured:
+                arrow = _resolve_logical_egress(
                     result, visitor, compiler_identity,
                     execution_context=visitor.execution_context,
-                    to_native=resolved_snapshot_to_polars,
+                    to_native=logical_to_arrow,
                 )
-                return self._egress_strategy().to_ibis(frame)
-            if compiler_identity.family is CONST_BACKEND.IBIS:
+                return visitor._egress_session.egress_arrow(arrow, memory)
+            if native:
                 return result
-            return visitor._egress_session.egress(
-                ExecutionLocation(CONST_BACKEND.IBIS, None, ExecutionForm.DEFERRED, "memory"),
-            )
+            return visitor._egress_session.egress(memory)
 
+        # Envelope egress discharges the root's residue checks at its source.
+        checked = native or structured
         return _finish_terminal(visitor, lambda: enrich_materialization(
             visitor.backend, _egress_thunk,
             diagnostic_trace=visitor._active_diagnostic_trace(),
-            residue_checks=visitor.terminal_residue_checks(),
+            residue_checks=visitor.terminal_residue_checks() if checked else (),
             execution_context=visitor.execution_context,
-        ))
+        ), release_owned_on_success=structured)
 
     def to_dict_of_series_polars(self) -> dict[str, Any]:
         """Execute and return a dict of column name -> Polars Series."""

@@ -77,3 +77,47 @@ def test_logical_to_arrow_unrepresentable():
         logical_columns={"x": ([1, 2], {"a": 1})}, keep_ordinals=(0, 1), target_dtypes={})
     with pytest.raises(BackendConversionError, match="not Arrow-representable"):
         logical_to_arrow(snap)
+
+
+def test_structured_to_ibis_is_logical_memtable(structured_rel):
+    table = structured_rel.to_ibis()
+    assert isinstance(table.op(), ops.InMemoryTable)
+    assert table.to_pyarrow().column("tags").to_pylist() == [[1, 2], [3]]
+    assert table.to_pyarrow().column("name").to_pylist() == ["a", "b"]
+
+
+def test_structured_to_ibis_unrepresentable_raises_conversion_error():
+    spec = TableSchema(fields_match="open", fields={"tags": FieldDefinition(type=UniversalType.ARRAY)})
+    rel = ma.relation(pl.DataFrame({"tags": ['[1,"a"]']})).conform(spec, contract={"data_type": "coerce"})
+    with pytest.raises(BackendConversionError, match="not Arrow-representable"):
+        rel.to_ibis()
+    with pytest.raises(BackendConversionError, match="not Arrow-representable"):
+        rel.to_pyarrow()
+
+
+def _owned(con):
+    return [n for n in con.list_tables() if n.startswith("ma_owned_")]
+
+
+def _connection_dag():
+    con = ibis.duckdb.connect()
+    t = con.create_table("t", pa.table({"id": [1, 2, 3]}))
+    dag = ma.RelationDAG()
+    dag.add("a", ma.relation(t).filter(ma.col("id") > 1))
+    dag.add("b", dag.ref("a").select("id"))
+    return con, dag
+
+
+@pytest.mark.parametrize("terminal", ["to_polars", "to_pandas", "to_pyarrow"])
+def test_eager_terminals_release_dag_owned_copies(terminal):
+    con, dag = _connection_dag()
+    before = _owned(con)
+    getattr(dag.ref("b"), terminal)()
+    assert _owned(con) == before
+
+
+def test_native_to_ibis_keeps_dag_owned_copies_alive():
+    con, dag = _connection_dag()
+    result = dag.ref("b").to_ibis()
+    assert _owned(con)
+    assert result.to_pyarrow().column("id").to_pylist() == [2, 3]

@@ -7,7 +7,6 @@ import pandas as pd
 import polars as pl
 
 import mountainash as ma
-from mountainash.core.constants import CONST_BACKEND
 from fixtures.backend_registry import REGISTRY
 from mountainash.relations.core.errors import UnsupportedRelationTransportError
 
@@ -74,7 +73,7 @@ def test_targeted_first_union_exports_foreign_input_only(monkeypatch, distinct, 
     (False, [2, 2, 2, 3, 3, 3]), (True, [2, 3]),
 ])
 def test_targeted_first_set_moves_only_foreign_sources(
-    monkeypatch, named, derived, distinct, expected,
+    monkeypatch, named, derived, distinct, expected, terminal_egress,
 ):
     """The join and a separate A operand each cross to B, but B never does."""
     from mountainash.relations.core.execution.transport import TransportSession
@@ -100,8 +99,7 @@ def test_targeted_first_set_moves_only_foreign_sources(
     real = TransportSession._move
 
     def observed(self, source, requirement):
-        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
-        if requirement.destination.family is not CONST_BACKEND.POLARS:
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
             moves.append((source.location.connection, requirement.destination.connection))
         return real(self, source, requirement)
 
@@ -150,7 +148,7 @@ def test_targeted_first_set_rejects_missing_route_before_native_union(
     assert caught.value.source_family == "ibis"
 
 
-def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypatch):
+def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypatch, terminal_egress):
     from mountainash.relations.core.execution.transport import TransportSession
 
     a = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "source")
@@ -163,8 +161,7 @@ def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypat
     moves = []
 
     def observed(self, source, requirement):
-        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
-        if requirement.destination.family is not CONST_BACKEND.POLARS:
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
             moves.append(source.source_token)
         return real(self, source, requirement)
 

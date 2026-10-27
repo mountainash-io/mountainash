@@ -234,6 +234,16 @@ class TransportSession:
         except (BackendConversionError, ValueError) as exc:
             raise import_refusal(src, destination, exc) from exc
 
+    def import_arrow(self, arrow: pa.Table, destination: ExecutionLocation) -> Any:
+        """Unowned import of an already-built Arrow table (a logical result with no source envelope)."""
+        if self._closed:
+            raise RuntimeError("transport session is closed")
+        imported = get_relation_system(destination.family)().import_into(
+            arrow, location=destination, owned=False,
+        )
+        self._retain(imported, destination)
+        return imported.value
+
     def _retain(self, imported: Imported, destination: ExecutionLocation) -> None:
         """Keep the destination graph alive and register the lifetime of what it created."""
         self._retained.append(imported.value)

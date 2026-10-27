@@ -349,7 +349,7 @@ def test_repeated_named_ref_prepares_original_plan_once(monkeypatch):
     assert calls.count("source") == 1
 
 
-def test_one_session_separates_canonical_plan_bound_compilations_and_value_transfers(monkeypatch):
+def test_one_session_separates_canonical_plan_bound_compilations_and_value_transfers(monkeypatch, terminal_egress):
     import mountainash.relations.dag.materialization as dag_materialization
     from mountainash.relations.core.execution.compilation import CompilationSession
     from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
@@ -401,8 +401,7 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
         return real_compile(self, key)
 
     def observed_convert(self, source, requirement):
-        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
-        if requirement.destination.family is not CONST_BACKEND.POLARS:
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
             transfers.append((source.location.connection, requirement.destination.connection))
         return real_convert(self, source, requirement)
 

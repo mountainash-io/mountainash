@@ -3,7 +3,6 @@
 import pytest
 
 import mountainash as ma
-from mountainash.core.constants import CONST_BACKEND
 from fixtures.backend_registry import REGISTRY
 from mountainash.relations.core.execution.transport import TransportSession
 
@@ -11,7 +10,7 @@ from mountainash.relations.core.execution.transport import TransportSession
 @pytest.mark.parametrize("backend_name", [
     name for name, spec in REGISTRY.items() if spec.family == "ibis"
 ])
-def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, monkeypatch):
+def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, monkeypatch, terminal_egress):
     payload = {"id": [1, 3]}
     request = ma.relation(payload).filter(ma.col("id") > 0)
     frame = REGISTRY[backend_name].build({"id": [1, 2]}, "stored")
@@ -28,8 +27,7 @@ def test_shared_request_lowering_and_transfer_are_execution_local(backend_name, 
         return accept(node, visitor)
 
     def observe_convert(session, source, requirement):
-        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
-        if requirement.destination.family is not CONST_BACKEND.POLARS:
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
             calls["transfer"] += 1
         return convert(session, source, requirement)
 
@@ -155,7 +153,7 @@ def test_independent_equal_requests_keep_distinct_lowerings(monkeypatch):
 
 @pytest.mark.parametrize("wrapper", ["conditional", "cast", "window"])
 @pytest.mark.parametrize("seed", [None, 42])
-def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatch):
+def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatch, terminal_egress):
     expression = ma.col("items").list.sample(n=1, seed=seed)
     if wrapper == "conditional":
         expression = ma.when(ma.col("id") > 0).then(expression).otherwise(ma.col("items"))
@@ -174,8 +172,7 @@ def test_nested_list_sample_keeps_occurrence_transfers(wrapper, seed, monkeypatc
     convert = TransportSession._move
 
     def observe(session, source, requirement):
-        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
-        if requirement.destination.family is not CONST_BACKEND.POLARS:
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
             conversions.append(source.value)
         return convert(session, source, requirement)
 
@@ -289,7 +286,7 @@ def test_native_window_partition_keeps_occurrence_evaluation():
 @pytest.mark.parametrize("backend_name", [
     name for name, spec in REGISTRY.items() if spec.family == "ibis"
 ])
-def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, monkeypatch):
+def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, monkeypatch, terminal_egress):
     expression = (
         ma.when(ma.col("id") == 1).then(10)
         .when(ma.col("id") == 2).then(20).otherwise(30)
@@ -301,8 +298,7 @@ def test_trusted_multiarm_conditional_retains_qualified_transfer(backend_name, m
     convert = TransportSession._move
 
     def observe(session, source, requirement):
-        # The terminal's own Arrow-to-Polars egress is not a plan transfer.
-        if requirement.destination.family is not CONST_BACKEND.POLARS:
+        if not terminal_egress.active:  # the terminal's own egress is not a plan transfer
             conversions.append(source.value)
         return convert(session, source, requirement)
 

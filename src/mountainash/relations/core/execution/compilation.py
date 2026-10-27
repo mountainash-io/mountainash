@@ -136,6 +136,10 @@ class CompilationSession:
             envelope, TransferRequirement(root_key, location, requires_execution=True),
         ).value
 
+    def egress_arrow(self, arrow: Any, location: ExecutionLocation) -> Any:
+        """A resolved logical Arrow table imported at ``location`` (no compiled envelope involved)."""
+        return self.transport.import_arrow(arrow, location)
+
     def _compile_once(self, key: str):
         from mountainash.core.constants import CONST_BACKEND
         from mountainash.core.lazy_imports import import_ibis_expr_ops
