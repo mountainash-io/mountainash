@@ -157,3 +157,44 @@ def test_egress_moves_compiled_root_to_requested_location():
         assert out.to_native()["id"].tolist() == [2, 3]
     finally:
         session.close(release_owned=False)
+
+
+def _derived_memory_dag():
+    dag = RelationDAG()
+    dag.add("t", ma.relation(ibis.memtable(SRC.to_arrow())).filter(ma.col("id").gt(1)))
+    return dag
+
+
+def test_borrowed_anchor_under_ref_is_consumed_by_the_named_compilation():
+    con = ibis.duckdb.connect()
+    dag = _derived_memory_dag()
+    out = dag.execute(dag.ref("t"), target=con)
+    assert out.get_backend() is con
+    assert len(con.list_tables()) == 1
+    assert out.to_polars().sort("id").to_dicts() == [{"id": 2, "v": None}, {"id": 3, "v": 30}]
+
+
+def test_borrowed_anchor_under_nested_alias_is_consumed():
+    con = ibis.duckdb.connect()
+    dag = _derived_memory_dag()
+    dag.add("alias", dag.ref("t"))
+    out = dag.execute(dag.ref("alias"), target=con)
+    assert out.get_backend() is con
+    assert len(con.list_tables()) == 1
+    assert out.to_polars().sort("id")["id"].to_list() == [2, 3]
+
+
+def test_registered_native_read_with_session_target_is_moved_before_publication():
+    from mountainash.core.capabilities.policy import _resolve_policy
+    from mountainash.relations.dag.materialization import DAGMaterializationSession
+
+    dag = RelationDAG()
+    dag.add("p", ma.relation(SRC))
+    session = DAGMaterializationSession(dag, execution_policy=_resolve_policy(), target="narwhals")
+    try:
+        native, _visitor = session.compile_registered("p")
+        assert str(native.value.implementation).lower().endswith("polars")
+        assert type(native.value).__module__.startswith("narwhals")
+        assert native.value_identity.family.value == "narwhals"
+    finally:
+        session.close(release_owned=True)

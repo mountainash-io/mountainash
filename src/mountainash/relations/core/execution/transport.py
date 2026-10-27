@@ -54,16 +54,33 @@ def _is_raw(value: Any) -> bool:
     )
 
 
+def _implementation(location: ExecutionLocation) -> str | None:
+    """The native library a location's values live in, whatever wraps them."""
+    if location.family is CONST_BACKEND.POLARS:
+        return "polars"
+    if location.family is CONST_BACKEND.NARWHALS and location.dialect:
+        name = location.dialect.removeprefix("narwhals-")
+        return "polars" if name == "lazy" else name
+    return None
+
+
 def _same_implementation(a: ExecutionLocation, b: ExecutionLocation) -> bool:
-    """Differ only in eager/lazy form within one implementation."""
-    return a.family is b.family and a.form is not b.form and (
-        a.dialect == b.dialect or {a.dialect, b.dialect} == {"narwhals-polars", "narwhals-lazy"}
-    )
+    """Both sides hold one native implementation: only wrapping and form can differ."""
+    implementation = _implementation(a)
+    return implementation is not None and implementation == _implementation(b)
 
 
-def _native_form(value: Any, form: ExecutionForm) -> Any:
+def _native_move(value: Any, destination: ExecutionLocation) -> Any:
+    """Unwrap/wrap and change eager/lazy form without leaving the native library."""
+    import narwhals as nw
+
+    wrapped = isinstance(value, (nw.DataFrame, nw.LazyFrame))
+    if destination.family is CONST_BACKEND.POLARS:
+        value = value.to_native() if wrapped else value
+    elif not wrapped:
+        value = nw.from_native(value)
     deferred = hasattr(value, "collect")
-    if form is ExecutionForm.LAZY:
+    if destination.form is ExecutionForm.LAZY:
         return value if deferred else value.lazy()
     return value.collect() if deferred else value
 
@@ -200,7 +217,7 @@ class TransportSession:
         elif not requirement.owned and src.key == destination.key and self._physically_bound(source):
             return Imported(value)
         elif not requirement.owned and _same_implementation(src, destination):
-            return Imported(_native_form(value, destination.form))
+            return Imported(_native_move(value, destination))
         else:
             arrow = self._export(source)
         try:

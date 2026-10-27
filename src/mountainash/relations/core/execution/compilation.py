@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from mountainash.expressions.core.expression_system.expsys_base import get_expression_system
@@ -73,9 +74,19 @@ class CompilationSession:
             from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
 
             # The recorded boundary between a named plan and the ref that uses it.
-            requirement = (self.prepared.transfers.get(self.prepared.inputs[key][0])
-                           if isinstance(self.prepared.nodes[key], RefRelNode) else None)
-            resolver = self.ref_resolver_factory(location, requirement)
+            requirement, inherited = None, None
+            if isinstance(self.prepared.nodes[key], RefRelNode):
+                child_key = self.prepared.inputs[key][0]
+                requirement = self.prepared.transfers.get(child_key)
+                # This plan's decisions under the ref are the named plan's own.
+                inherited = {
+                    f"root{other[len(child_key):]}": replace(
+                        found, source_key=f"root{found.source_key[len(child_key):]}",
+                    )
+                    for other, found in self.prepared.transfers.items()
+                    if other.startswith(f"{child_key}/")
+                }
+            resolver = self.ref_resolver_factory(location, requirement, inherited)
         return relation_visitor.UnifiedRelationVisitor(
             system, expression_visitor, execution_context=context,
             metadata_session=self.metadata, execution=self, execution_key=key,

@@ -378,6 +378,13 @@ def _get_extension_enum_names() -> set[str]:
 # item_name → "reason. Since YYYY-MM-DD."
 _KNOWN_ENUM_PROTOCOL_DRIFT: dict[str, str] = {}
 
+# Transfer/scan services called directly by transport and the resolver, not
+# dispatched from a relation node; they take no enum member (a single
+# IMPORT_INTO capability key is registered separately).
+_NON_OPERATION_PROTOCOL_METHODS = frozenset(
+    {"export", "check_import", "import_into", "native_scan_eligible"}
+)
+
 
 class TestRelExtensionEnumProtocolConsistency:
     """R-A3: RKEY_MOUNTAINASH_REL enum and extension protocol must be consistent."""
@@ -398,7 +405,7 @@ class TestRelExtensionEnumProtocolConsistency:
         protocol_methods = _get_extension_protocol_methods()
         registry_handled_lower = {op.lower() for op in _REGISTRY_HANDLED_OPS}
         for name in sorted(protocol_methods):
-            if name in registry_handled_lower:
+            if name in registry_handled_lower or name in _NON_OPERATION_PROTOCOL_METHODS:
                 continue
             if name in _KNOWN_ENUM_PROTOCOL_DRIFT:
                 continue

@@ -150,15 +150,17 @@ class _SessionRefResolver:
         consumer_context: "_ExecutionContext | None" = None,
         destination: Any = None,
         requirement: Any = None,
+        inherited: Any = None,
     ) -> None:
         self._session = session
         self._consumer_context = consumer_context
         self._destination = destination
         self._requirement = requirement
+        self._inherited = inherited
 
     def __call__(self, name: str) -> Any:
         if self._destination is not None:
-            value = self._session.resolve_at(name, self._destination, self._requirement)
+            value = self._session.resolve_at(name, self._destination, self._requirement, self._inherited)
             self._destination = self._session._destination_for(self._destination)
             return value
         return self._session.resolve(name, self._consumer_context)
@@ -272,15 +274,23 @@ class DAGMaterializationSession:
         values.extend(envelope.value for envelope, _ in self._bound.values())
         return tuple(values)
 
-    def resolver_for(self, destination: Any, requirement: Any = None) -> _SessionRefResolver:
+    def resolver_for(
+        self, destination: Any, requirement: Any = None, inherited: Any = None,
+    ) -> _SessionRefResolver:
         """Bind a ref resolver to this consumer's complete physical location.
 
         ``requirement`` is the prepared transfer recorded for the ref's
         ``/ref/<name>`` key, if its named plan does not already live there.
+        ``inherited`` are the consumer plan's transfers beneath that key,
+        re-keyed to the named plan's own root.
         """
-        return _SessionRefResolver(self, destination=destination, requirement=requirement)
+        return _SessionRefResolver(
+            self, destination=destination, requirement=requirement, inherited=inherited,
+        )
 
-    def resolve_at(self, name: str, destination: Any, requirement: Any = None) -> Any:
+    def resolve_at(
+        self, name: str, destination: Any, requirement: Any = None, inherited: Any = None,
+    ) -> Any:
         """Resolve a named plan in its own location, then apply the prepared transfer for this consumer."""
         from mountainash.relations.core.execution.compilation import CompilationSession
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
@@ -342,6 +352,7 @@ class DAGMaterializationSession:
                     root, phase=self._execution_phase,
                     identity_resolver=self._canonical_node,
                     tokens=tokens, binding=destination if connectionless else None,
+                    inherited=inherited,
                 )
                 from mountainash.relations.core.owned_copy import assert_prepared_owned_open
                 assert_prepared_owned_open(prepared)
@@ -594,6 +605,27 @@ class DAGMaterializationSession:
         compiled = root.accept(visitor)
         residue_checks_this = visitor.terminal_residue_checks()
         visitor.residue_checks.clear()
+
+        root_transfer = prepared.transfers.get(prepared.root_key)
+        if root_transfer is not None:
+            # A retargeted native read was compiled where it lives; its recorded
+            # move to the target happens before the canonical value is published.
+            from mountainash.relations.core.execution.metadata import CompilationMetadata, CompiledSubtree
+
+            compiled = self._execution_transport.transfer(
+                CompiledSubtree(
+                    compiled, placement, self._execution_tokens.token(root), CompilationMetadata(),
+                    repeatable_result=True,
+                ),
+                root_transfer,
+            ).value
+            destination = root_transfer.destination
+            resolved_backend, dialect = destination.family, destination.dialect
+            execution_context = _prepare_capability_context(
+                self._execution_policy,
+                destination.capability_target(default_owner=compiled),
+                package_versions=self._package_versions,
+            )
 
         if guard_native_terminal:
             from mountainash.relations.core.relation_api.relation import (

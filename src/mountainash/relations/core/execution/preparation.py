@@ -206,11 +206,16 @@ def prepare_execution(
     execution_context: Any = None,
     tokens: IdentityTokens | None = None,
     binding: ExecutionLocation | None = None,
+    inherited: Mapping[str, TransferRequirement] | None = None,
 ) -> PreparedExecution:
     """Resolve the entire graph, preflight all gates, then reject unsafe phases.
 
     ``target`` is the public execution-target vocabulary (family, dialect
     identifier or Ibis connection); see ``LocationResolver.resolve_target``.
+
+    ``inherited`` are transfer decisions an enclosing plan already made for
+    this plan's occurrences (keyed as this plan's own); they replace what
+    preparation would record for the same keys.
     """
     policy = execution_context.policy if execution_context is not None else _resolve_policy()
     tokens = tokens if tokens is not None else IdentityTokens()
@@ -327,6 +332,7 @@ def prepare_execution(
                 transfers[child_key] = requirement
 
     walk(root, "root", binding=binding)
+    transfers.update(inherited or {})
     prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens,
                                  execution_context, policy)
     if binding is None:

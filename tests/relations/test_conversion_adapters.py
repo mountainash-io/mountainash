@@ -294,9 +294,6 @@ def test_polars_conversion_preserves_native_object_identity(wrapped, endpoint):
     if endpoint == "public":
         result = ma.relation(source).to_polars()
     else:
-        if wrapped:
-            pytest.xfail("a Narwhals-wrapped Polars operand crosses families through Arrow, "
-                         "which carries Object pointers as bytes (spec 5, spike D1)")
         result = _move(pl.DataFrame({"id": [1]}).lazy(), source).collect()
     assert result.schema == {"obj": pl.Object}
     assert result["obj"][0] is token
