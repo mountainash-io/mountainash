@@ -204,7 +204,7 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             and (fmt != "csv" or rf.dialect_is_default(dialect))
         )
 
-    def read_resource(self, resource: Any) -> ir.Table:
+    def read_resource(self, resource: Any, *, location: ExecutionLocation | None = None) -> ir.Table:
         """Load a DataResource into an Ibis table. Native engine reads for local
         plain CSV/Parquet (default dialect); Arrow-coerced fallback (no pandas)
         for JSON, glob, archive, remote, and non-default-dialect CSV -- uniform
@@ -222,7 +222,9 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             self._resource_lowering = reader._resource_lowering
             ensure_sqlite_nat_adapter()
             arrow = lf.collect().to_arrow()
-            return ibis.memtable(arrow)
+            if location is None:
+                return ibis.memtable(arrow)
+            return self.import_into(arrow, location=location).value
 
         fmt = self._detect_format_name(resource)
         raw_path = resource.path
@@ -233,14 +235,18 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
 
         if fmt == "csv":
             rf.ensure_dialect_supported(dialect)
-        if self._native_scan_for(resource, dialect):
+        if self._native_scan_for(resource, dialect, location=location):
             native = {"csv": "read_csv", "parquet": "read_parquet"}[fmt]
-            return getattr(ibis.get_backend(), native)(paths if len(paths) > 1 else paths[0])
+            con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
+            return getattr(con, native)(paths if len(paths) > 1 else paths[0])
 
         # Fallback: mountainash-files -> Arrow -> memtable (no pandas). The files
         # reader honours the full CSV dialect via CsvSpec (>=26.7.1).
         ensure_sqlite_nat_adapter()
-        return ibis.memtable(rf.parse_resource_to_arrow(resource, dialect=dialect),)
+        arrow = rf.parse_resource_to_arrow(resource, dialect=dialect)
+        if location is None:
+            return ibis.memtable(arrow)
+        return self.import_into(arrow, location=location).value
 
     @staticmethod
     def _detect_format_name(resource: Any) -> str:

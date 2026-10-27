@@ -150,7 +150,7 @@ class MountainashPolarsExtensionRelationSystem(MountainashExtensionRelationSyste
 
         return rf.polars_native_scan_supported(resource, self._detect_format(resource), dialect)
 
-    def read_resource(self, resource: Any) -> pl.LazyFrame:
+    def read_resource(self, resource: Any, *, location: Any = None) -> pl.LazyFrame:
         """Load a DataResource into a Polars LazyFrame."""
         from mountainash.core.lowering_reuse import DEFERRED_ONLY, OCCURRENCE
 

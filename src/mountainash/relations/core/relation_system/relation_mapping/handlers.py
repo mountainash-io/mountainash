@@ -199,7 +199,7 @@ def visit_resource_read(node: Any, visitor: Any) -> Any:
                 schema_input = nw.from_native(schema_input)
 
     def _read_and_conform():
-        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource)
+        out = schema_input if schema_input is not None else visitor.backend.read_resource(node.resource, location=visitor.location)
         if schema_input is None:
             # The selected reader reports the path it actually took. Repeating
             # routing here would resolve external descriptors a second time.

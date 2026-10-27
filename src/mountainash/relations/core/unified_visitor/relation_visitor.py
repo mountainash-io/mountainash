@@ -291,6 +291,13 @@ class UnifiedRelationVisitor:
         self.structured_field_plans: Any = MappingProxyType({})
 
     @property
+    def location(self):
+        """The prepared execution location of the node being visited, if any."""
+        if self.execution is None:
+            return None
+        return self.execution.prepared.locations[self.execution_key]
+
+    @property
     def execution_phase(self):
         """Phase of the prepared traversal, or None for standalone visits."""
         if self.execution is None:

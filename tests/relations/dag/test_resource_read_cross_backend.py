@@ -891,3 +891,40 @@ def test_native_scan_eligible_true_for_local_csv(_family_system, tmp_path):
     path.write_text("a,b\n1,2\n")
     resource = DataResource(name="d", path=str(path), format="csv")
     assert _family_system.native_scan_eligible(resource) is True
+
+
+
+# --- resource reads bind to the resolved location ---------------------------
+import ibis
+from mountainash import DataPackage
+
+
+def _pkg(tmp_path, kind):
+    fields = '[{"name":"id","type":"integer"},{"name":"amount","type":"integer"}]'
+    if kind == "inline":
+        body = '{"name":"orders","type":"table","data":[{"id":1,"amount":10},{"id":2,"amount":20}],"schema":{"fields":%s}}' % fields
+    elif kind == "json":
+        (tmp_path / "orders.json").write_text('[{"id":1,"amount":10},{"id":2,"amount":20}]')
+        body = '{"name":"orders","path":"%s","type":"table","format":"json","schema":{"fields":%s}}' % (tmp_path / "orders.json", fields)
+    else:
+        (tmp_path / "orders.csv").write_text("id,amount\n1,10\n2,20\n")
+        body = '{"name":"orders","path":"%s","type":"table","schema":{"fields":%s}}' % (tmp_path / "orders.csv", fields)
+    (tmp_path / "datapackage.json").write_text('{"resources":[%s]}' % body)
+    return DataPackage.from_path(tmp_path / "datapackage.json")
+
+
+EXPECTED = [{"id": 1, "amount": 10}, {"id": 2, "amount": 20}]
+
+
+@pytest.mark.parametrize("kind", ["csv", "inline", "json"])
+def test_resource_on_target_connection(tmp_path, kind):
+    B = ibis.duckdb.connect()
+    out = _pkg(tmp_path, kind).to_relation_dag().collect("orders", target=B)
+    assert out.get_backend() is B and out.to_polars().to_dicts() == EXPECTED
+
+
+@pytest.mark.parametrize("kind", ["csv", "inline"])
+def test_resource_narwhals_pandas(tmp_path, kind):
+    out = _pkg(tmp_path, kind).to_relation_dag().collect("orders", target="narwhals-pandas")
+    assert str(out.implementation).lower().endswith("pandas")
+    assert out.to_dict(as_series=False) == {"id": [1, 2], "amount": [10, 20]}

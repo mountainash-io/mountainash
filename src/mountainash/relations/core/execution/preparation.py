@@ -138,6 +138,8 @@ def _is_borrowed_leaf(node: Any, location: ExecutionLocation, resolver: Location
     """
     if isinstance(node, ReadRelNode):
         return resolver._read(node.dataframe).binding == "memory" and location.binding == "bound"
+    if isinstance(node, ResourceReadRelNode):
+        return location.family is CONST_BACKEND.IBIS and location.binding == "memory"
     return False
 
 
@@ -261,8 +263,11 @@ def prepare_execution(
         and requested.connection is None and resource_only(root)
     )
 
+    resolved: dict[str, ExecutionLocation] = {}
+
     def walk(node: RelationNode, key: str, binding: ExecutionLocation | None = None) -> None:
         location = resolver.resolve(node, binding=binding)
+        resolved[key] = location  # before any terminal-target overlay
         if isinstance(node, JoinRelNode) and requested is not None and node.execute_on is not None:
             if _conflicts(location, requested):
                 raise ConflictingExecutionTargetError(
@@ -313,7 +318,7 @@ def prepare_execution(
         inputs[key] = child_keys
         for (part, child), child_key in zip(children, child_keys):
             # Only connectionless local data may inherit the consuming binding.
-            child_binding = location if location.family is CONST_BACKEND.IBIS else None
+            child_binding = location if location.family in (CONST_BACKEND.IBIS, CONST_BACKEND.NARWHALS) else None
             walk(child, child_key, binding=child_binding)
         boundary = isinstance(node, (JoinRelNode, SetRelNode)) or key == "root"
         for child_key in child_keys:
@@ -331,14 +336,19 @@ def prepare_execution(
             if requirement is not None:
                 transfers[child_key] = requirement
 
-    walk(root, "root", binding=binding)
+    root_binding = binding
+    if (root_binding is None and requested is not None and resource_only(root)
+            and ((requested.family is CONST_BACKEND.IBIS and requested.binding == "bound")
+                 or requested.family is CONST_BACKEND.NARWHALS)):
+        root_binding = requested
+    walk(root, "root", binding=root_binding)
     transfers.update(inherited or {})
     prepared = PreparedExecution("root", nodes, locations, inputs, transfers, phase, tokens,
                                  execution_context, policy)
     if binding is None:
         # A consumer-supplied binding means the consumer's own plan owns the anchor.
         _plan_anchors(prepared, frozenset(
-            key for key, node in nodes.items() if _is_borrowed_leaf(node, locations[key], resolver)
+            key for key, node in nodes.items() if _is_borrowed_leaf(node, resolved[key], resolver)
         ))
     # Gate every reachable occurrence before phase rejection or any transfer.
     preflight_capabilities(prepared)

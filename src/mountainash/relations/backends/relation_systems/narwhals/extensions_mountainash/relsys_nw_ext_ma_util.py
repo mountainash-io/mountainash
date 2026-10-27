@@ -281,7 +281,7 @@ class MountainashNarwhalsExtensionRelationSystem(
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
         return rf.polars_native_scan_supported(resource, fmt, dialect)
 
-    def read_resource(self, resource: Any) -> Any:
+    def read_resource(self, resource: Any, *, location: Any = None) -> Any:
         """Load a DataResource into a Narwhals LazyFrame. Native lazy scan for
         local plain CSV/Parquet; Arrow-coerced (lazy-wrapped) fallback for JSON,
         glob, archive, remote."""
@@ -298,6 +298,8 @@ class MountainashNarwhalsExtensionRelationSystem(
             reader = MountainashPolarsExtensionRelationSystem()
             lf = reader._read_inline(resource)
             self._resource_lowering = reader._resource_lowering
+            if location is not None:
+                return self.import_into(lf.collect().to_arrow(), location=location).value
             return nw.from_native(lf)  # stays lazy
 
         from mountainash.relations.backends.relation_systems import resource_files as rf
@@ -305,7 +307,9 @@ class MountainashNarwhalsExtensionRelationSystem(
         fmt = MountainashPolarsExtensionRelationSystem._detect_format(resource)
         raw_path = resource.path
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
-        if self._native_scan_for(resource, dialect):
+        native_ok = self._native_scan_for(resource, dialect) and (
+            location is None or location.dialect in (None, "narwhals-polars", "narwhals-lazy"))
+        if native_ok:
             self._resource_lowering = DEFERRED_ONLY
             kwargs = MountainashPolarsExtensionRelationSystem._reader_kwargs(
                 resource, fmt, dialect
@@ -317,6 +321,8 @@ class MountainashNarwhalsExtensionRelationSystem(
         # Files fallback: Arrow -> Polars lazy -> Narwhals lazy.
         import polars as pl
         table = rf.parse_resource_to_arrow(resource, dialect=dialect)
+        if location is not None:
+            return self.import_into(table, location=location).value
         return nw.from_native(pl.from_arrow(table).lazy())
 
     def empty_frame(self, spec: Any) -> Any:

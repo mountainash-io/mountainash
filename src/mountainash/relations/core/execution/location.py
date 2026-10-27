@@ -186,6 +186,14 @@ class LocationResolver:
         if isinstance(node, SourceRelNode):
             return ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
         if isinstance(node, ResourceReadRelNode):
+            if binding is not None and binding.family is CONST_BACKEND.IBIS and binding.binding == "bound":
+                from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
+
+                native = get_relation_system(CONST_BACKEND.IBIS)().native_scan_eligible(
+                    node.resource, location=binding)
+                return replace(binding, binding="bound" if native else "memory")
+            if binding is not None and binding.family is CONST_BACKEND.NARWHALS:
+                return binding
             return ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.LAZY, "bound")
         if isinstance(node, RefRelNode):
             if self.identity_resolver is None:
