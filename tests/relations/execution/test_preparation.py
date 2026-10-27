@@ -117,14 +117,14 @@ def test_override_checks_inner_explicit_targets():
     root = inner.join(b, on="id", execute_on="right")._node
     for backend in ("polars", "ibis"):
         with pytest.raises(ConflictingExecutionTargetError):
-            prepare_execution(root, phase=ExecutionPhase.EXECUTE, backend=backend)
+            prepare_execution(root, phase=ExecutionPhase.EXECUTE, target=backend)
 
 
 def test_matching_override_keeps_selected_connection():
     a = REGISTRY["polars"].build({"id": [1]}, "a")
     b = REGISTRY["ibis-sqlite"].build({"id": [1]}, "b")
     root = ma.relation(a).join(b, on="id", execute_on="right")._node
-    prepared = prepare_execution(root, phase=ExecutionPhase.EXPLAIN, backend="ibis")
+    prepared = prepare_execution(root, phase=ExecutionPhase.EXPLAIN, target="ibis")
     assert prepared.locations["root"].connection is b._find_backend(use_default=False)
     assert prepared.locations["root"].dialect == "ibis-sqlite"
 
@@ -307,9 +307,9 @@ def test_terminal_override_gates_embedded_expression_at_actual_operation(scope):
         )
         if scope == "output":
             with pytest.raises(BackendCapabilityError, match="target polars comparison gate"):
-                prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN, backend="polars")
+                prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN, target="polars")
         else:
-            prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN, backend="polars")
+            prepare_execution(rel._node, phase=ExecutionPhase.EXPLAIN, target="polars")
     finally:
         CapabilityRegistry.restore(snapshot)
 

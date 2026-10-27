@@ -89,7 +89,7 @@ def test_public_arrow_ingestion_fidelity(target, empty, monkeypatch):
             raise AssertionError("Ibis ingestion used Polars")
         monkeypatch.setattr(pl, "from_arrow", forbidden)
         monkeypatch.setattr(pl.DataFrame, "__init__", forbidden)
-    rel = ma.from_arrow(source, connection=target)
+    rel = ma.from_arrow(source, target=target)
     expected = source.to_pylist()
     physical_schema = expected_schema(source, target)
     for _ in range(2):
@@ -112,7 +112,7 @@ def test_ingested_data_survives_input_and_initial_owner(target, owner_kind):
     baseline = caller_sentinel(target) if target is not None else None
     source = arrow_sample()
     expected = source.select(["id", "money"]).to_pylist()
-    rel = ma.from_arrow(source, connection=target)
+    rel = ma.from_arrow(source, target=target)
     if target is not None:
         imported_catalogue = set(target.list_tables())
         assert len(imported_catalogue - baseline) == 1
@@ -146,7 +146,7 @@ def test_ingestion_preserves_caller_transaction(connection):
     try:
         connection.raw_sql("INSERT INTO caller_tx VALUES (7)")
         with pytest.raises(BackendCapabilityError):
-            ma.from_arrow(arrow_sample(), connection=connection)
+            ma.from_arrow(arrow_sample(), target=connection)
         assert connection.table("caller_tx").to_pyarrow().to_pylist() == [{"marker": 7}]
     finally:
         connection.raw_sql("ROLLBACK")
@@ -179,7 +179,7 @@ def test_failed_ingestion_releases_only_imported_storage(connection, monkeypatch
             module = importlib.import_module("mountainash.relations.core.relation_api.relation")
             patch.setattr(module, "relation", fail)
         with pytest.raises(RuntimeError) as caught:
-            ma.from_arrow(arrow_sample(), connection=connection)
+            ma.from_arrow(arrow_sample(), target=connection)
         assert caught.value is failure
     gc.collect()
     drain_pending_drops(connection)

@@ -86,7 +86,7 @@ class TestCollectWithDriftBasics:
         spec = TableSchema(fields_match="open", fields={"n": FieldDefinition(type=U.INTEGER)})
         rel = ma.relation(df).conform(spec)
 
-        collection = rel.collect_with_drift(backend="polars")
+        collection = rel.collect_with_drift(target="polars")
 
         assert collection.frame["n"].to_list() == [1, 2]
 

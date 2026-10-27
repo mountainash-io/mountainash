@@ -762,7 +762,7 @@ class Relation(RelationBase):
                 pass
         return render_execution(prepared)
 
-    def collect(self, *, unwrap: bool = True, backend: Optional[str] = None) -> Any:
+    def collect(self, *, unwrap: bool = True, target: Any = None) -> Any:
         """Execute the plan and return a fully materialized native result.
 
         A Polars ``LazyFrame`` source returns a ``DataFrame``; Ibis returns a
@@ -776,9 +776,9 @@ class Relation(RelationBase):
                 PyArrow, or Ibis otherwise). Pass *False* to keep the
                 narwhals wrapper (useful for internal code that needs
                 narwhals-level operations on the result).
-            backend: Optional explicit backend name, overriding auto-detection
-                -- see :meth:`_compile_and_execute_with_visitor`. Mirrors
-                :meth:`collect_with_drift`'s ``backend`` override.
+            target: Optional execution target -- backend family, dialect
+                identifier or Ibis connection -- see
+                :meth:`_compile_and_execute_with_visitor`.
         """
         from mountainash.core.limitations import enrich_materialization
         from mountainash.relations.core.materialization import (
@@ -786,7 +786,7 @@ class Relation(RelationBase):
             materialize_native,
         )
 
-        result, visitor = self._compile_and_execute_with_visitor(backend=backend)
+        result, visitor = self._compile_and_execute_with_visitor(target=target)
         compiler_identity = _compiler_identity(visitor)
 
         def _materialize_thunk() -> Any:
@@ -804,7 +804,7 @@ class Relation(RelationBase):
             execution_context=visitor.execution_context,
         ))
 
-    def collect_with_drift(self, *, backend: Optional[str] = None) -> "ConformCollection":
+    def collect_with_drift(self, *, target: Any = None) -> "ConformCollection":
         """Collect and return the frame plus per-conform-node drift reports.
 
         Terminals stay single-typed: this is the ONE report terminal; every
@@ -814,8 +814,8 @@ class Relation(RelationBase):
         ``.drift`` carries that node's identity).
 
         Args:
-            backend: Optional explicit backend name, overriding
-                auto-detection -- see :meth:`_compile_and_execute_with_visitor`.
+            target: Optional execution target -- see
+                :meth:`_compile_and_execute_with_visitor`.
 
         Returns:
             A :class:`~mountainash.conform.drift.ConformCollection` with the
@@ -832,7 +832,7 @@ class Relation(RelationBase):
         )
         from mountainash.relations.schema_inference import _schema_from_dataframe
 
-        result, visitor = self._compile_and_execute_with_visitor(backend=backend)
+        result, visitor = self._compile_and_execute_with_visitor(target=target)
         compiler_identity = _compiler_identity(visitor)
 
         def _materialize_thunk() -> Any:

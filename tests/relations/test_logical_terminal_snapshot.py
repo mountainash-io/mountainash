@@ -232,7 +232,7 @@ def test_ibis_snapshot_uses_one_owned_copy_and_arrow_extraction(
     backend_name, backend_factory, mocker
 ):
     """A logical snapshot preserves values with one owned copy and one extraction."""
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
     from mountainash.relations.core.materialization import (
         MaterializationPurpose,
@@ -242,7 +242,7 @@ def test_ibis_snapshot_uses_one_owned_copy_and_arrow_extraction(
     from mountainash.relations.core.logical_snapshot import logical_terminal_snapshot
 
     table = backend_factory.create({"age": [30, -1, None], "name": ["a", "b", "c"]}, backend_name)
-    identity = identify_backend_identity(table)
+    identity = native_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
 
     from mountainash.relations.core import owned_copy

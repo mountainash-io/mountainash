@@ -34,7 +34,7 @@ class RelationBase:
         return result
 
     def _compile_and_execute_with_visitor(
-        self, backend: "str | None" = None, execution_context: "_ExecutionContext | None" = None,
+        self, target: Any = None, execution_context: "_ExecutionContext | None" = None,
         *, phase: ExecutionPhase = ExecutionPhase.EXECUTE, retain_execution_scope: bool = False,
     ) -> "tuple[Any, UnifiedRelationVisitor]":
         """Compile the relational AST and return ``(result, visitor)``.
@@ -50,23 +50,18 @@ class RelationBase:
         Standalone compilation already retains its whole scope this way.
 
         Args:
-            backend: Optional explicit backend name (``"polars"``, ``"ibis"``,
-                ...), overriding auto-detection from the plan's leaf
-                ``ReadRelNode``. ``None`` (default) preserves the existing
-                auto-detect behaviour.
+            target: Optional execution target -- a backend family (``"polars"``,
+                ``"ibis"``, ...), a dialect identifier (``"ibis-duckdb"``) or an
+                Ibis connection. ``None`` (default) preserves the detected,
+                default-left placement.
             execution_context: Already-prepared context to reuse instead of
                 freezing a new one. Only the outer delegation boundary (a
                 public terminal's first, and only, call for its own request)
                 leaves this ``None`` and lets this method prepare it.
         """
         node = self._apply_optimisations(self._node)
-        if backend is not None:
-            try:
-                backend = CONST_BACKEND(backend.lower()).value
-            except (AttributeError, ValueError) as exc:
-                raise ValueError(f"unknown backend: {backend!r}") from exc
         prepared = prepare_execution(
-            node, phase=phase, backend=backend, execution_context=execution_context,
+            node, phase=phase, target=target, execution_context=execution_context,
         )
         from mountainash.relations.core.owned_copy import assert_prepared_owned_open
         assert_prepared_owned_open(prepared)

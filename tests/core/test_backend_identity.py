@@ -3,41 +3,39 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.backend_detection import native_identity
 from mountainash.core.capabilities import KNOWN_DIALECTS, BackendIdentity
 from mountainash.core.constants import CONST_BACKEND
 
 
 class TestPolarsIdentity:
     def test_eager(self):
-        ident = identify_backend_identity(pl.DataFrame({"a": [1]}))
+        ident = native_identity(pl.DataFrame({"a": [1]}))
         assert ident == BackendIdentity(CONST_BACKEND.POLARS, "polars")
 
     def test_lazy(self):
-        ident = identify_backend_identity(pl.DataFrame({"a": [1]}).lazy())
+        ident = native_identity(pl.DataFrame({"a": [1]}).lazy())
         assert ident == BackendIdentity(CONST_BACKEND.POLARS, "polars")
 
 
 class TestNarwhalsIdentity:
     def test_polars_eager(self):
         import narwhals as nw
-        ident = identify_backend_identity(nw.from_native(pl.DataFrame({"a": [1]})))
+        ident = native_identity(nw.from_native(pl.DataFrame({"a": [1]})))
         assert ident == BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-polars")
 
     def test_polars_lazy_maps_to_narwhals_lazy(self):
         import narwhals as nw
-        ident = identify_backend_identity(nw.from_native(pl.DataFrame({"a": [1]}).lazy()))
+        ident = native_identity(nw.from_native(pl.DataFrame({"a": [1]}).lazy()))
         assert ident == BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-lazy")
 
     def test_pandas(self):
         import narwhals as nw
-        ident = identify_backend_identity(
-            nw.from_native(pd.DataFrame({"a": [1]}), eager_only=True)
-        )
+        ident = native_identity(nw.from_native(pd.DataFrame({"a": [1]}), eager_only=True))
         assert ident == BackendIdentity(CONST_BACKEND.NARWHALS, "narwhals-pandas")
 
     def test_native_pandas_fallback(self):
-        ident = identify_backend_identity(pd.DataFrame({"a": [1]}))
+        ident = native_identity(pd.DataFrame({"a": [1]}))
         assert ident.family is CONST_BACKEND.NARWHALS
         assert ident.dialect == "narwhals-pandas"
 
@@ -47,17 +45,15 @@ class TestIbisIdentity:
         ibis = pytest.importorskip("ibis")
         con = ibis.duckdb.connect()
         t = con.create_table("t", pd.DataFrame({"a": [1]}))
-        assert identify_backend_identity(t) == BackendIdentity(
+        assert native_identity(t) == BackendIdentity(
             CONST_BACKEND.IBIS, "ibis-duckdb"
         )
-        assert identify_backend_identity(t.mutate(b=t.a + 1)).dialect == "ibis-duckdb"
+        assert native_identity(t.mutate(b=t.a + 1)).dialect == "ibis-duckdb"
 
     def test_unbound_and_memtable_degrade_to_family(self):
         ibis = pytest.importorskip("ibis")
-        assert identify_backend_identity(
-            ibis.table({"a": "int64"}, name="u")
-        ) == BackendIdentity(CONST_BACKEND.IBIS, None)
-        assert identify_backend_identity(ibis.memtable({"a": [1]})).dialect is None
+        assert native_identity(ibis.table({"a": "int64"}, name="u")) == BackendIdentity(CONST_BACKEND.IBIS, None)
+        assert native_identity(ibis.memtable({"a": [1]})).dialect is None
 
 
 def test_known_dialects_vocabulary():

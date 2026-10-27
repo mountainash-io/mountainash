@@ -291,7 +291,7 @@ def _collect_via_dag(res, backend: str):
     )
     dag = RelationDAG()
     dag.add(res.name, Relation(ResourceReadRelNode(resource=res)))
-    return dag.collect(res.name, backend=backend)
+    return dag.collect(res.name, target=backend)
 
 
 def _column_names(native) -> list[str]:

@@ -3,7 +3,7 @@
 import pytest
 
 from expressions.argument_types.conftest import make_df
-from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.backend_detection import native_identity
 from mountainash.core.capabilities import (
     CapabilityLevel,
     CapabilityRegistry,
@@ -60,7 +60,7 @@ def _abs_node_with_options(options):
 
 
 def _compile_node(node, df, backend):
-    identity = identify_backend_identity(df)
+    identity = native_identity(df)
     assert identity.family is CONST_BACKEND(backend)
     context = _new_execution_context(df)
     system_cls = get_expression_system(identity.family)

@@ -113,7 +113,7 @@ assert result == [{"customer_id": 2, "name": "Ada"}]
 An Ibis memtable-only plan cannot choose a database by itself: with no bound
 Ibis peer, joins and unions now raise an unresolved-location error rather than
 opening an implicit default connection, even during `.collect()`. For migration,
-use a bound table as above; `backend="ibis"` names a family, **not** a connection.
+use a bound table as above, or pass the connection as `target=`; `target="ibis"` names a family, **not** a connection.
 `.to_polars()` chooses the output representation, not the join's execution site.
 See [backend architecture](backend-architecture.md) for cross-connection and
 compile-only behavior.

@@ -399,13 +399,13 @@ class UnifiedRelationVisitor:
         if seen is None:
             seen = set()
         try:
-            from mountainash.core.backend_detection import identify_backend_identity
+            from mountainash.core.backend_detection import native_identity
             from mountainash.relations.core.relation_nodes import ReadRelNode
             from mountainash.relations.core.relation_nodes.extensions_mountainash import (
                 RefRelNode, ResourceReadRelNode, SourceRelNode,
             )
             if isinstance(node, ReadRelNode):
-                ident = identify_backend_identity(node.dataframe)
+                ident = native_identity(node.dataframe)
                 return ident.family, ident.dialect
             if isinstance(node, RefRelNode):
                 if self.identity_resolver is None or node.name in seen:

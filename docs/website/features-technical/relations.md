@@ -262,7 +262,7 @@ assert plan.to_dicts() == [{"id": 2}]
 assert plan.collect()._find_backend(use_default=False) is destination
 ```
 
-`backend="ibis"` is a family override, not a database connection; it cannot
+`target="ibis"` names a family, not a database connection (pass the connection object as `target=` to select one); it cannot
 contradict an explicit join target. A selected Ibis memtable plan can borrow a
 bound Ibis peer's connection, but with no bound peer it now raises an
 unresolved-target error, including for materializing terminals. Supply a bound

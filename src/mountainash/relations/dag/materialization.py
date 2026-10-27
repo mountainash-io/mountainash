@@ -96,10 +96,10 @@ def _is_lazy_narwhals(obj: Any) -> bool:
 def _resolve_backend_and_dialect(
     actual_family: "CONST_BACKEND | None",
     actual_dialect: "str | None",
-    backend: "str | None",
+    requested: Any = None,
 ) -> "tuple[CONST_BACKEND, str | None]":
     """Combine a detected physical ``(family, dialect)`` with an optional
-    explicit ``backend=`` override into one coherent resolved pair.
+    resolved ``target=`` location into one coherent resolved pair.
 
     The dialect is trusted only when it was actually detected on a leaf
     belonging to the resolved (possibly overridden) family -- never an
@@ -108,13 +108,12 @@ def _resolve_backend_and_dialect(
     override or fallback to Polars always yields dialect ``"polars"``,
     never an unnecessarily lossy ``None``.
     """
-    if backend is not None:
-        try:
-            resolved = CONST_BACKEND(backend.lower())
-        except ValueError:
-            raise ValueError(f"unknown backend: {backend!r}") from None
+    if requested is not None:
+        resolved = requested.family
         if resolved is CONST_BACKEND.POLARS:
             return resolved, "polars"
+        if requested.dialect is not None:
+            return resolved, requested.dialect
         return resolved, (actual_dialect if actual_family == resolved else None)
     resolved = actual_family if actual_family is not None else CONST_BACKEND.POLARS
     if actual_dialect is not None:
@@ -223,13 +222,13 @@ class DAGMaterializationSession:
         dag: "RelationDAG",
         *,
         execution_policy: "CapabilityPolicy",
-        backend: "str | None" = None,
+        target: Any = None,
         isolate_failures: bool = False,
         node_transforms: "Mapping[str, Callable[[Any], Any]] | None" = None,
         mode: SessionMode = SessionMode.NATIVE_COLLECTION,
     ) -> None:
         self.dag = dag
-        self.backend = backend
+        self.target = target
         self.isolate_failures = isolate_failures
         self.mode = mode
         self._node_transforms = dict(node_transforms or {})
@@ -392,7 +391,7 @@ class DAGMaterializationSession:
     def cache_root(self, name: str, envelope: Any, visitor: Any) -> Any:
         """Materialize one bound named result, preserving its source metadata."""
         from mountainash.conform.structured_transport import freeze_structured_field_plans
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.core.limitations import enrich_materialization
         from mountainash.core.types import is_ibis_table, is_polars_lazyframe
 
@@ -418,7 +417,7 @@ class DAGMaterializationSession:
         else:
             native = NativeExecutionValue(
                 envelope.value, envelope.location.capability_identity,
-                identify_backend_identity(envelope.value),
+                native_identity(envelope.value),
                 ExecutionForm.LAZY if is_polars_lazyframe(envelope.value) else envelope.location.form,
                 target=visitor.execution_context.target,
             )
@@ -455,8 +454,12 @@ class DAGMaterializationSession:
         self, name: str, *, honor_override: bool
     ) -> "tuple[CONST_BACKEND, str | None]":
         actual_family, actual_dialect = self.dag._resolve_actual_identity_for(name)
-        backend = self.backend if honor_override else None
-        return _resolve_backend_and_dialect(actual_family, actual_dialect, backend)
+        requested = None
+        if honor_override and self.target is not None:
+            from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
+
+            requested = LocationResolver(IdentityTokens()).resolve_target(self.target)
+        return _resolve_backend_and_dialect(actual_family, actual_dialect, requested)
 
     def _compile_named(
         self, name: str, *, honor_override: bool = False, guard_native_terminal: bool = False
@@ -494,7 +497,7 @@ class DAGMaterializationSession:
 
         prepared = prepare_execution(
             root, phase=ExecutionPhase.EXPLAIN,
-            backend=self.backend if honor_override else None,
+            target=self.target if honor_override else None,
             identity_resolver=self._canonical_node,
         )
         placement = prepared.locations[prepared.root_key]
@@ -589,7 +592,7 @@ class DAGMaterializationSession:
 
             _guard_native_terminal(visitor.structured_field_plans)
 
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.core.capabilities.identity import BackendIdentity
         from mountainash.core.types import (
             is_ibis_table,
@@ -640,7 +643,7 @@ class DAGMaterializationSession:
                 relazified = forced.value.lazy()
                 native = NativeExecutionValue(
                     relazified, forced.compiler_identity,
-                    identify_backend_identity(relazified),
+                    native_identity(relazified),
                     ExecutionForm.LAZY, target=forced.target,
                 )
             else:
@@ -648,7 +651,7 @@ class DAGMaterializationSession:
         else:
             # No residue to enrich -- cache the raw compiled value as-is
             # (possibly still lazy), only detecting its identity.
-            value_identity = identify_backend_identity(compiled)
+            value_identity = native_identity(compiled)
             form = ExecutionForm.LAZY if was_lazy else ExecutionForm.EAGER
             native = NativeExecutionValue(compiled, compiler_identity, value_identity, form, target=execution_context.target)
 

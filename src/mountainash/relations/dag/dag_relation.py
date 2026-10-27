@@ -44,7 +44,7 @@ class DAGRelation(Relation):
 
     def _compile_and_execute_with_visitor(
         self,
-        backend: "str | None" = None,
+        target: Any = None,
         execution_context: Any = None,
         *, phase: ExecutionPhase = ExecutionPhase.EXECUTE, retain_execution_scope: bool = False,
     ) -> "tuple[Any, Any]":
@@ -54,7 +54,7 @@ class DAGRelation(Relation):
             execution_context.policy if execution_context is not None else _resolve_policy()
         )
         return self._dag._execute_with_visitor(
-            self, backend=backend, execution_policy=execution_policy,
+            self, target=target, execution_policy=execution_policy,
             phase=phase, execution_context=execution_context,
             retain_execution_scope=retain_execution_scope,
         )

@@ -8,7 +8,7 @@ import datetime as _dt
 import pytest
 
 import mountainash as ma
-from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.backend_detection import native_identity
 from mountainash.core.capabilities.policy import CapabilityPolicy, _new_execution_context
 from mountainash.core.types import is_ibis_table
 from mountainash.relations.core.materialization import (
@@ -27,7 +27,7 @@ def test_validation_materialization_caches_ibis_without_changing_identity(
     backend_name, backend_factory
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    identity = identify_backend_identity(table)
+    identity = native_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
     with MaterializationScope() as scope:
         native = materialize_native(
@@ -37,7 +37,7 @@ def test_validation_materialization_caches_ibis_without_changing_identity(
             execution_context=context,
             scope=scope,
         )
-        assert identify_backend_identity(native.value) == identity
+        assert native_identity(native.value) == identity
         assert native.form is ExecutionForm.DEFERRED
         assert native.value.to_pyarrow()["age"].to_pylist() == [30, -1, None]
 
@@ -49,7 +49,7 @@ def test_logical_terminal_materialization_caches_ibis_once_per_scope(
 ):
     """Logical terminal snapshots force a cache without executing through pandas."""
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    identity = identify_backend_identity(table)
+    identity = native_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
 
     with MaterializationScope() as scope:
@@ -76,7 +76,7 @@ def test_materialization_scope_releases_owned_callbacks_once():
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])
 def test_repeated_ibis_cache_lifetime_releases_after_use(backend_name, backend_factory):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    identity = identify_backend_identity(table)
+    identity = native_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
     for _ in range(5):
         with MaterializationScope() as scope:
@@ -94,7 +94,7 @@ def test_repeated_ibis_cache_lifetime_releases_after_use(backend_name, backend_f
 @pytest.mark.parametrize("backend_name", ["polars", "narwhals"])
 def test_ordinary_collect_purpose_returns_eager_native(backend_name, backend_factory):
     df = backend_factory.create({"x": [1, 2, 3]}, backend_name)
-    identity = identify_backend_identity(df)
+    identity = native_identity(df)
     context = _new_execution_context(df, policy=CapabilityPolicy.trusted())
     native = materialize_native(df, identity, MaterializationPurpose.NATIVE_COLLECT, execution_context=context)
     assert native.form is ExecutionForm.EAGER
@@ -106,7 +106,7 @@ def test_ordinary_native_collect_purpose_leaves_ibis_table_uncached(
     backend_name, backend_factory
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    identity = identify_backend_identity(table)
+    identity = native_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
     native = materialize_native(table, identity, MaterializationPurpose.NATIVE_COLLECT, execution_context=context)
     assert native.value is table
@@ -126,7 +126,7 @@ def test_diagnostic_polars_view_from_polars_eager_native():
     import polars as pl
 
     df = pl.DataFrame({"x": [1, 2, 3]})
-    identity = identify_backend_identity(df)
+    identity = native_identity(df)
     context = _new_execution_context(df, policy=CapabilityPolicy.trusted())
     native = materialize_native(df, identity, MaterializationPurpose.DIAGNOSTIC_VIEW, execution_context=context)
     view = diagnostic_polars_view(native)
@@ -139,7 +139,7 @@ def test_diagnostic_polars_view_from_ibis_uses_arrow_not_pandas(
     backend_name, backend_factory, monkeypatch
 ):
     table = backend_factory.create({"age": [30, -1, None]}, backend_name)
-    identity = identify_backend_identity(table)
+    identity = native_identity(table)
     context = _new_execution_context(table, policy=CapabilityPolicy.trusted())
     native = materialize_native(table, identity, MaterializationPurpose.DIAGNOSTIC_VIEW, execution_context=context)
 
@@ -156,7 +156,7 @@ def test_collect_retains_ibis_table_and_dialect(backend_name, backend_factory):
     table = backend_factory.create({"d": [_dt.date(2024, 1, 2), None]}, backend_name)
     result = ma.relation(table).collect(unwrap=False)
     assert is_ibis_table(result)
-    assert identify_backend_identity(result).dialect == backend_name
+    assert native_identity(result).dialect == backend_name
 
 
 @pytest.mark.parametrize("backend_name", ["ibis-duckdb", "ibis-sqlite"])

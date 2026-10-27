@@ -56,7 +56,7 @@ def test_required_arguments_without_catalogue(
     backend_name, backend_factory, select_and_extract, operation, arguments, expected
 ):
     """Internal argument preparation must survive absent declarations and guards."""
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.capabilities.policy import (
         CapabilityPolicy, ProtectionMechanism, _new_execution_context,
@@ -69,7 +69,7 @@ def test_required_arguments_without_catalogue(
 
     df = backend_factory.create({"s": ["'-abc-'", "--xyz--"]}, backend_name)
     expression = getattr(ma.col("s").str, operation)(*arguments)
-    identity = identify_backend_identity(df)
+    identity = native_identity(df)
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()
@@ -105,7 +105,7 @@ def test_required_arguments_without_catalogue(
 def test_dynamic_replacement_operands_without_catalogue(
     backend_name, backend_factory, select_and_extract, dynamic_operand,
 ):
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.capabilities import CapabilityRegistry
     from mountainash.core.capabilities.policy import (
         CapabilityPolicy, ProtectionMechanism, _new_execution_context,
@@ -129,7 +129,7 @@ def test_dynamic_replacement_operands_without_catalogue(
         expression = ma.col("s").str.replace("a", ma.col("replacement"))
         unsupported = backend_name in ("pandas", "narwhals-pandas")
         expected = ["xbx", "bby"]
-    identity = identify_backend_identity(df)
+    identity = native_identity(df)
     snapshot = CapabilityRegistry.snapshot()
     try:
         CapabilityRegistry.reset()

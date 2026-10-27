@@ -11,7 +11,7 @@ import pyarrow as pa
 import pytest
 
 import mountainash as ma
-from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.backend_detection import native_identity
 from mountainash.core.types import BackendCapabilityError
 from mountainash.relations.core.batch_materialization import consume_native_batches
 
@@ -74,7 +74,7 @@ def test_early_consumer_failure_preserves_caller_work(duckdb_connection):
             raise original
     try:
         with pytest.raises(ValueError) as caught:
-            consume_native_batches(source, compiler_identity=identify_backend_identity(source),
+            consume_native_batches(source, compiler_identity=native_identity(source),
                                    batch_size=5000, on_schema=lambda schema: None, on_batch=fail)
         assert caught.value is original
         assert sizes == [5000, 5000]
@@ -170,7 +170,7 @@ def test_unsafe_batch_conversion_preserves_reader_and_transaction(
     try:
         with pytest.raises(pa.ArrowInvalid):
             consume_native_batches(
-                source, compiler_identity=identify_backend_identity(source),
+                source, compiler_identity=native_identity(source),
                 batch_size=1, on_schema=lambda schema: None, on_batch=delivered.append,
             )
         assert delivered == []
@@ -189,7 +189,7 @@ def test_duckdb_late_source_failure_preserves_error_and_connection(duckdb_connec
     )
     sizes = []
     with pytest.raises(OSError, match="Could not convert string 'bad'"):
-        consume_native_batches(source, compiler_identity=identify_backend_identity(source),
+        consume_native_batches(source, compiler_identity=native_identity(source),
                                batch_size=5000, on_schema=lambda schema: None,
                                on_batch=lambda frame: sizes.append(frame.height))
     assert 0 < sum(sizes) < 1_000_000

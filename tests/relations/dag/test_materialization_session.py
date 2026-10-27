@@ -36,7 +36,7 @@ def test_session_compiles_each_resource_once_and_memoizes_consumer_coercion(monk
 
     monkeypatch.setattr(source_node_type, "accept", counted_accept)
     policy = CapabilityPolicy.trusted()
-    session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
+    session = DAGMaterializationSession(dag, execution_policy=policy, target="polars")
     first, visitor = session.compile_registered("target")
     consumer_context = visitor.execution_context
     second = session.resolve("source", consumer_context)
@@ -59,7 +59,7 @@ def test_same_family_same_dialect_ref_is_not_coerced():
     dag.add("target", dag.ref("source").select("id"))
 
     policy = CapabilityPolicy.trusted()
-    session = DAGMaterializationSession(dag, execution_policy=policy, backend="polars")
+    session = DAGMaterializationSession(dag, execution_policy=policy, target="polars")
     native, _visitor = session.compile_registered("target")
     assert native.value_identity.family is CONST_BACKEND.POLARS
     # No coercion needed: source is already polars/polars, matching target's

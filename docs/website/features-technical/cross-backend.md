@@ -72,11 +72,11 @@ Unions retain input-zero authority, even when that input is a right-targeted
 join; foreign union inputs use the same location-aware transfer rules. A
 deferred transfer is not allowed under `.compile()` (including plain unions):
 use `.collect()`. `.explain()` reports placements without running the sources.
-`backend="ibis"` cannot choose a physical connection; a connectionless
-memtable authority with no bound Ibis peer now raises an unresolved-target
-error rather than using an implicit default. `.to_polars()` is only an output
-adapter. Explicit terminal `backend=` may not contradict any explicit nested
-join target.
+`target="ibis"` names a family, not a connection; pass the connection object
+as `target=` to choose one. A connectionless memtable authority with no bound
+Ibis peer and no connection target raises an unresolved-target error rather
+than using an implicit default. `.to_polars()` is only an output adapter. An
+explicit terminal `target=` may not contradict any explicit nested join target.
 
 ## What's the same across backends
 

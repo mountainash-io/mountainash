@@ -74,7 +74,7 @@ def test_matching_override_keeps_selected_connection_and_polars_is_only_egress()
     a = REGISTRY["ibis-duckdb"].build({"id": [1]}, "a")
     b = REGISTRY["ibis-sqlite"].build({"id": [1]}, "b")
     rel = ma.relation(a).join(b, on="id", execute_on="right")
-    native = rel.collect(backend="ibis")
+    native = rel.collect(target="ibis")
     assert native._find_backend(use_default=False) is b._find_backend(use_default=False)
     assert rel.to_polars().to_dict(as_series=False) == {"id": [1]}
 

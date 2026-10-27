@@ -5,7 +5,7 @@ import ibis
 import polars as pl
 import pytest
 
-from mountainash.core.backend_detection import identify_backend_identity
+from mountainash.core.backend_detection import native_identity
 
 
 
@@ -28,7 +28,7 @@ def stream_source(request, tmp_path):
 
 def consume(source, schema, batch):
     from mountainash.relations.core.batch_materialization import consume_native_batches
-    consume_native_batches(source, compiler_identity=identify_backend_identity(source),
+    consume_native_batches(source, compiler_identity=native_identity(source),
                            batch_size=127, on_schema=schema, on_batch=batch)
 
 

@@ -179,14 +179,14 @@ class BaseExpressionAPI(ABC):
             >>> backend_expr = expr.compile(df, booleanizer=None)
         """
         from ..expression_system.expsys_base import get_expression_system
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.core.capabilities.policy import _new_execution_context
 
         # Auto-booleanize non-terminal ternary expressions
         node_to_compile = self._maybe_booleanize(booleanizer)
 
         # Detect backend and get ExpressionSystem
-        identity = identify_backend_identity(dataframe)
+        identity = native_identity(dataframe)
         execution_context = _new_execution_context(dataframe)
         expression_system_class = get_expression_system(identity.family)
         expression_system = expression_system_class(

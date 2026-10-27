@@ -186,13 +186,13 @@ class RelationDAG:
     # Task 17: collect() — topological compilation with per-call cache
     # ------------------------------------------------------------------
 
-    def collect(self, name: str, *, backend: Optional[str] = None) -> Any:
+    def collect(self, name: str, *, target: Any = None) -> Any:
         """Topologically walk dependencies and materialize residue once."""
         from mountainash.core.capabilities.policy import _resolve_policy
 
         execution_policy = _resolve_policy()
         result, visitor = self._collect_with_visitor(
-            name, backend=backend, execution_policy=execution_policy,
+            name, target=target, execution_policy=execution_policy,
         )
         checks = visitor.terminal_residue_checks()
         has_trace = any(
@@ -217,7 +217,7 @@ class RelationDAG:
         return result
 
     def collect_with_drift(
-        self, name: str, *, backend: Optional[str] = None
+        self, name: str, *, target: Any = None
     ) -> "ConformCollection":
         """Collect ``name`` and return the frame plus per-conform-node drift reports.
 
@@ -239,7 +239,7 @@ class RelationDAG:
         from mountainash.core.capabilities.policy import _resolve_policy
 
         result, visitor = self._collect_with_visitor(
-            name, backend=backend, execution_policy=_resolve_policy(),
+            name, target=target, execution_policy=_resolve_policy(),
         )
         checks = visitor.terminal_residue_checks()
         frame = enrich_materialization(
@@ -259,7 +259,7 @@ class RelationDAG:
         self,
         name: str,
         *,
-        backend: Optional[str] = None,
+        target: Any = None,
         execution_policy: "CapabilityPolicy",
     ) -> "tuple[Any, Any]":
         """Shared core for :meth:`collect` / :meth:`collect_with_drift`."""
@@ -278,12 +278,12 @@ class RelationDAG:
         return self._compile_with_refs(
             root,
             ref_names,
-            backend=backend,
+            target=target,
             key_target_name=name,
             execution_policy=execution_policy,
         )
 
-    def execute(self, relation: Relation, *, backend: Optional[str] = None) -> Any:
+    def execute(self, relation: Relation, *, target: Any = None) -> Any:
         """Compile an ad-hoc relation against this DAG without registering it.
 
         Any ``RefRelNode`` leaves in the relation's AST are resolved from
@@ -297,7 +297,7 @@ class RelationDAG:
         from mountainash.core.capabilities.policy import _resolve_policy
 
         result, _visitor = self._execute_with_visitor(
-            relation, backend=backend, execution_policy=_resolve_policy(),
+            relation, target=target, execution_policy=_resolve_policy(),
         )
         return result
 
@@ -305,7 +305,7 @@ class RelationDAG:
         self,
         relation: "Relation",
         *,
-        backend: Optional[str] = None,
+        target: Any = None,
         execution_policy: "CapabilityPolicy",
         phase: ExecutionPhase = ExecutionPhase.EXECUTE,
         execution_context: Any = None,
@@ -338,7 +338,7 @@ class RelationDAG:
         return self._compile_with_refs(
             node,
             all_refs,
-            backend=backend,
+            target=target,
             key_target_name=None,
             execution_policy=execution_policy,
             phase=phase,
@@ -351,7 +351,7 @@ class RelationDAG:
         node: Any,
         ref_names: set[str],
         *,
-        backend: Optional[str] = None,
+        target: Any = None,
         key_target_name: Optional[str] = None,
         execution_policy: "CapabilityPolicy",
         phase: ExecutionPhase = ExecutionPhase.EXECUTE,
@@ -373,11 +373,11 @@ class RelationDAG:
         from mountainash.relations.dag.materialization import DAGMaterializationSession
 
         session = DAGMaterializationSession(
-            self, execution_policy=execution_policy, backend=backend,
+            self, execution_policy=execution_policy, target=target,
         )
 
         prepared = prepare_execution(
-            node, phase=phase, backend=backend,
+            node, phase=phase, target=target,
             identity_resolver=session._canonical_node,
             execution_context=execution_context,
         )
@@ -537,11 +537,11 @@ class RelationDAG:
         dependency tree, walking in the SAME topological/ancestor order the
         two independent resolvers below used historically (so both keep
         resolving from the same leaf), but in ONE walk making exactly ONE
-        :func:`identify_backend_identity` probe per candidate leaf --
+        :func:`native_identity` probe per candidate leaf --
         replacing the previous two independent walks (one via
-        ``identify_backend``, one via ``identify_backend_identity``) that
+        ``identify_backend``, one via ``native_identity``) that
         duplicated detection for no reason (round-2 finding:
-        ``identify_backend_identity`` already calls ``identify_backend``
+        ``native_identity`` already calls ``identify_backend``
         internally).
 
         Deliberately IGNORES any explicit ``backend=`` override -- the
@@ -567,7 +567,7 @@ class RelationDAG:
         from mountainash.relations.core.relation_api.relation_base import (
             RelationBase,
         )
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.relations.dag.errors import RelationDAGRequired
 
         order = self.topological_order(target=target_name)
@@ -585,7 +585,7 @@ class RelationDAG:
                 continue
             if read_node is not None:
                 try:
-                    identity = identify_backend_identity(read_node.dataframe)
+                    identity = native_identity(read_node.dataframe)
                     return identity.family, identity.dialect
                 except Exception:
                     pass
@@ -596,7 +596,7 @@ class RelationDAG:
     ) -> "tuple[CONST_BACKEND | None, str | None, Any | None]":
         """Return the identity and leaf selected for a named relation."""
         from mountainash.relations.core.relation_api.relation_base import RelationBase
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.relations.dag.errors import RelationDAGRequired
 
         for n in self.topological_order(target=target_name):
@@ -609,7 +609,7 @@ class RelationDAG:
                 continue
             if read_node is not None:
                 try:
-                    identity = identify_backend_identity(read_node.dataframe)
+                    identity = native_identity(read_node.dataframe)
                     return identity.family, identity.dialect, read_node
                 except Exception:
                     pass
@@ -626,7 +626,7 @@ class RelationDAG:
         from mountainash.relations.core.relation_api.relation_base import (
             RelationBase,
         )
-        from mountainash.core.backend_detection import identify_backend_identity
+        from mountainash.core.backend_detection import native_identity
         from mountainash.relations.dag.errors import RelationDAGRequired
 
         try:
@@ -636,7 +636,7 @@ class RelationDAG:
         if read_node is None:
             return None, None
         try:
-            identity = identify_backend_identity(read_node.dataframe)
+            identity = native_identity(read_node.dataframe)
             return identity.family, identity.dialect
         except Exception:
             return None, None

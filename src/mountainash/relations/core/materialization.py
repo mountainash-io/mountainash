@@ -211,7 +211,7 @@ def materialize_native(
     ``execution_context.target`` becomes every resulting carrier's own
     ``target`` -- the actual native owner this value was produced for.
     """
-    from mountainash.core.backend_detection import identify_backend_identity
+    from mountainash.core.backend_detection import native_identity
     from mountainash.core.types import (
         is_ibis_table,
         is_narwhals_dataframe,
@@ -231,12 +231,12 @@ def materialize_native(
 
     if is_narwhals_lazyframe(value):
         narwhals_native = value.collect()
-        lazy_identity = identify_backend_identity(narwhals_native)
+        lazy_identity = native_identity(narwhals_native)
         _assert_declared_family(compiler_identity, lazy_identity)
         return NativeExecutionValue(narwhals_native, compiler_identity, lazy_identity, ExecutionForm.EAGER, target=target)
 
     if is_narwhals_dataframe(value):
-        eager_identity = identify_backend_identity(value)
+        eager_identity = native_identity(value)
         _assert_declared_family(compiler_identity, eager_identity)
         return NativeExecutionValue(value, compiler_identity, eager_identity, ExecutionForm.EAGER, target=target)
 
@@ -247,10 +247,10 @@ def materialize_native(
             copy = owned_ibis_table(value)
             if scope is not None and copy.release is not None:
                 scope.own(copy.release, owner=copy.value)
-            value_identity = identify_backend_identity(copy.value)
+            value_identity = native_identity(copy.value)
             _assert_declared_family(compiler_identity, value_identity)
             return NativeExecutionValue(copy.value, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)
-        value_identity = identify_backend_identity(value)
+        value_identity = native_identity(value)
         _assert_declared_family(compiler_identity, value_identity)
         return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.DEFERRED, target=target)
 
@@ -258,7 +258,7 @@ def materialize_native(
     # or unwrap by caller policy upstream, retaining whatever identity is
     # actually observed (spec 7.2's "pandas source" row — a pandas family
     # here is expected, not an undeclared change).
-    value_identity = identify_backend_identity(value)
+    value_identity = native_identity(value)
     return NativeExecutionValue(value, compiler_identity, value_identity, ExecutionForm.EAGER, target=target)
 
 

@@ -188,7 +188,7 @@ class TestExplicitBackendAnchorCoherence:
         dag = RelationDAG()
         dag.add("pandas_only", ma.relation(_nw_pandas({"k": [1]})))
         try:
-            dag.collect("pandas_only", backend="polars")
+            dag.collect("pandas_only", target="polars")
         except Exception:
             pass  # PolarsRelationSystem cannot read a raw Narwhals frame --
             # irrelevant, we assert the identity used to CONSTRUCT the
@@ -205,7 +205,7 @@ class TestExplicitBackendAnchorCoherence:
         dag = RelationDAG()
         rel = ma.relation(_nw_pandas({"k": [1]})).select("k")
         try:
-            dag.execute(rel, backend="polars")
+            dag.execute(rel, target="polars")
         except Exception:
             pass
 
@@ -390,7 +390,7 @@ class TestExplicitBackendPerRefNeverBuildsInvalidHybrid:
         # Item 92: the bare narwhals-pandas ref is compiled in its own family
         # (narwhals) and coerced to the explicit polars override -- so its
         # visit entry observes narwhals, not the invalid polars hybrid.
-        result = dag.collect("final", backend="polars")
+        result = dag.collect("final", target="polars")
         assert result is not None
 
         captured = _dialect_spy_factory.captured["pandas_ref"]["entry"]

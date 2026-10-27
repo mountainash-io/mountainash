@@ -29,7 +29,7 @@ def test_nested_target_conflicting_backend_is_rejected():
     right = REGISTRY["ibis-duckdb"].build({"id": [1]}, "b")
     rel = ma.relation(left).join(right, on="id", execute_on="right")
     with pytest.raises(ConflictingExecutionTargetError):
-        rel.collect(backend="polars")
+        rel.collect(target="polars")
 
 
 @pytest.mark.parametrize("terminal", ["collect", "collect_with_drift"])
@@ -40,8 +40,8 @@ def test_unknown_terminal_backend_is_rejected_before_compilation(terminal, targe
     if targeted:
         right = REGISTRY["ibis-duckdb"].build({"id": [1]}, "right")
         rel = rel.join(right, on="id", execute_on="right")
-    with pytest.raises(ValueError, match="unknown backend: 'bogus'"):
-        getattr(rel, terminal)(backend="bogus")
+    with pytest.raises(ValueError, match="unknown target: 'bogus'"):
+        getattr(rel, terminal)(target="bogus")
 
 
 def test_failed_native_terminal_releases_execution_scope(monkeypatch):
@@ -266,3 +266,54 @@ def test_checked_projection_returns_the_checked_source_snapshot():
             gc.collect()
     finally:
         CapabilityRegistry.restore(snapshot)
+
+
+# --- target= vocabulary: connection-level conflicts (location-centred transfer, Task 2) ---
+
+import polars as pl  # noqa: E402
+import pyarrow as pa  # noqa: E402
+
+
+@pytest.fixture
+def two_duck():
+    import ibis
+
+    a, b = ibis.duckdb.connect(), ibis.duckdb.connect()
+    return a, b, a.create_table("ta", {"id": [1, 2], "x": [1, 2]}), b.create_table("tb", {"id": [1, 2], "y": [3, 4]})
+
+
+def _right(ta, tb):
+    return ma.relation(ta).join(ma.relation(tb), on="id", execute_on="right")
+
+
+def test_family_target_keeps_selected_connection(two_duck):
+    a, b, ta, tb = two_duck
+    assert _right(ta, tb).collect(target="ibis").get_backend() is b
+
+
+def test_same_connection_target_is_compatible(two_duck):
+    a, b, ta, tb = two_duck
+    assert _right(ta, tb).collect(target=b).get_backend() is b
+
+
+@pytest.mark.parametrize("pick", [lambda a, b: a, lambda a, b: "ibis-sqlite"], ids=["connection", "dialect"])
+def test_conflicting_target(two_duck, pick):
+    a, b, ta, tb = two_duck
+    with pytest.raises(ConflictingExecutionTargetError):
+        _right(ta, tb).collect(target=pick(a, b))
+
+
+def test_removed_keywords_are_rejected():
+    rel = ma.relation(pl.DataFrame({"a": [1]}))
+    with pytest.raises(TypeError):
+        rel.collect(backend="polars")
+    with pytest.raises(TypeError):
+        rel.compile(target="polars")
+    with pytest.raises(TypeError):
+        ma.from_arrow(pa.table({"a": [1]}), connection=None)
+
+
+def test_dag_ref_default_collect():
+    dag = ma.RelationDAG()
+    dag.add("t", ma.relation(pl.DataFrame({"a": [1]})))
+    assert dag.ref("t").collect().to_dicts() == [{"a": 1}]

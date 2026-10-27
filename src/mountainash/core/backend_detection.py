@@ -151,12 +151,13 @@ def bound_ibis_backend(dataframe: Any) -> Any | None:
         return None
 
 
-def identify_backend_identity(dataframe_or_backend: Any) -> "BackendIdentity":
-    """Resolve (family, dialect) from a DataFrame/Table (spec Section 1).
+def native_identity(dataframe_or_backend: Any) -> "BackendIdentity":
+    """Resolve (family, dialect) from a native value or backend identifier.
 
+    The single native-value recognizer: execution locations, capability
+    targets, materialization and validation all derive identity here.
     Dialect resolution is best-effort: unknown/unbound sources yield
-    dialect=None and the capability gate degrades to family-level facts —
-    exactly today's KNOWN_EXPR_LIMITATIONS granularity, never worse.
+    dialect=None and the capability gate degrades to family-level facts.
     """
     from mountainash.core.capabilities.identity import BackendIdentity
 

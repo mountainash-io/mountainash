@@ -81,14 +81,12 @@ def test_resource_metadata_composes_with_selected_backend_and_conform(backend, t
     # without introducing a cross-backend row transfer into this schema test.
     with monkeypatch.context() as guard:
         guard.setattr(resource_files, "parse_resource_to_arrow", forbid_rows)
-        native, visitor = resource._compile_and_execute_with_visitor(
-            backend=backend, phase=ExecutionPhase.SCHEMA,
-        )
+        native, visitor = resource._compile_and_execute_with_visitor(target=backend, phase=ExecutionPhase.SCHEMA)
         try:
             assert ma.relation(native).collect_schema() == {"id": D.I64, "amount": D.FP64}
         finally:
             visitor._execution_session.close(release_owned=True)
-    assert ma.relation(resource.collect(backend=backend)).to_dict() == {"id": [7], "amount": [2.5]}
+    assert ma.relation(resource.collect(target=backend)).to_dict() == {"id": [7], "amount": [2.5]}
 
 
 def test_resource_schema_observes_replacement(tmp_path):

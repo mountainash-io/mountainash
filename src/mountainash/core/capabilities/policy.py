@@ -341,7 +341,7 @@ def _identify_capability_target(
     from mountainash.core.backend_detection import (
         bound_ibis_backend,
         identify_backend,
-        identify_backend_identity,
+        native_identity,
     )
     from mountainash.core.capabilities.identity import BackendIdentity
 
@@ -367,7 +367,7 @@ def _identify_capability_target(
     if family_override is not None and family_override is not detected_family:
         return _CapabilityTarget(BackendIdentity(family_override, placeholder_dialect), object())
     if isinstance(data, (str, CONST_BACKEND)):
-        return _CapabilityTarget(identify_backend_identity(data), object())
+        return _CapabilityTarget(native_identity(data), object())
 
     if detected_family is CONST_BACKEND.IBIS:
         backend = bound_ibis_backend(data)
@@ -378,7 +378,7 @@ def _identify_capability_target(
             BackendIdentity(CONST_BACKEND.IBIS, f"ibis-{name}"),
             backend,
         )
-    return _CapabilityTarget(identify_backend_identity(data), data)
+    return _CapabilityTarget(native_identity(data), data)
 
 
 def _prepare_capability_context(

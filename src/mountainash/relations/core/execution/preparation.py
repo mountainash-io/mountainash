@@ -7,7 +7,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
 from mountainash.core.capabilities.policy import (
-    _CapabilityTarget, _prepare_capability_context, _resolve_policy,
+    _prepare_capability_context, _resolve_policy,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.core.errors import (
@@ -61,18 +61,14 @@ class PreparedExecution:
         if location.capability_identity is None:
             return None
         if location.key not in self._contexts:
-            owner = location.connection if location.connection is not None else location.prototype
-            if owner is None:
-                owner = self.nodes[self.root_key]
+            target = location.capability_target(default_owner=self.nodes[self.root_key])
             prior = self.execution_context
-            if (prior is not None and prior.target.identity == location.capability_identity
-                    and prior.target.owner is owner):
+            if (prior is not None and prior.target.identity == target.identity
+                    and prior.target.owner is target.owner):
                 context = prior
             else:
                 context = _prepare_capability_context(
-                    self._policy,
-                    _CapabilityTarget(location.capability_identity, owner),
-                    package_versions=self._package_versions,
+                    self._policy, target, package_versions=self._package_versions,
                 )
             self._contexts[location.key] = context
         return self._contexts[location.key]
@@ -131,14 +127,40 @@ def _route(
     return TransferRequirement(key, target, route, derived or compiled_form is not ExecutionForm.EAGER)
 
 
+def _apply_target(selected: ExecutionLocation, requested: ExecutionLocation) -> ExecutionLocation:
+    """Overlay only the dimensions a terminal target actually specifies."""
+    if requested.family is not selected.family:
+        return requested
+    if requested.connection is not None:
+        return requested
+    if requested.dialect is not None and requested.dialect != selected.dialect:
+        return requested
+    return selected
+
+
+def _conflicts(explicit: ExecutionLocation, requested: ExecutionLocation) -> bool:
+    """Whether a terminal target contradicts an explicit join placement."""
+    if explicit.family is None:
+        return False
+    if requested.family is not explicit.family:
+        return True
+    if requested.dialect is not None and requested.dialect != explicit.dialect:
+        return True
+    return requested.connection_token is not None and requested.connection_token != explicit.connection_token
+
+
 def prepare_execution(
-    root: RelationNode, *, phase: ExecutionPhase, backend: str | None = None,
+    root: RelationNode, *, phase: ExecutionPhase, target: Any = None,
     identity_resolver: Callable[[str], RelationNode] | None = None,
     execution_context: Any = None,
     tokens: IdentityTokens | None = None,
     binding: ExecutionLocation | None = None,
 ) -> PreparedExecution:
-    """Resolve the entire graph, preflight all gates, then reject unsafe phases."""
+    """Resolve the entire graph, preflight all gates, then reject unsafe phases.
+
+    ``target`` is the public execution-target vocabulary (family, dialect
+    identifier or Ibis connection); see ``LocationResolver.resolve_target``.
+    """
     policy = execution_context.policy if execution_context is not None else _resolve_policy()
     tokens = tokens if tokens is not None else IdentityTokens()
     resolver = LocationResolver(tokens, identity_resolver=identity_resolver)
@@ -174,35 +196,27 @@ def prepare_execution(
 
         return isinstance(node.dataframe.op(), import_ibis_expr_ops().InMemoryTable)
 
-    requested_family = None
-    if backend is not None:
-        try:
-            requested_family = CONST_BACKEND(backend.lower()) if isinstance(backend, str) else CONST_BACKEND(backend)
-        except (AttributeError, ValueError) as exc:
-            raise ValueError(f"unknown backend: {backend!r}") from exc
+    requested = resolver.resolve_target(target)
     # A resource without a physical Ibis peer has its own declared/default
     # Polars read location. An Ibis family override alone is not a binding;
     # retain the resource's existing fallback instead of manufacturing one.
-    resource_ibis_fallback = requested_family is CONST_BACKEND.IBIS and resource_only(root)
+    resource_ibis_fallback = (
+        requested is not None and requested.family is CONST_BACKEND.IBIS
+        and requested.connection is None and resource_only(root)
+    )
 
     def walk(node: RelationNode, key: str, binding: ExecutionLocation | None = None) -> None:
         location = resolver.resolve(node, binding=binding)
-        if isinstance(node, JoinRelNode) and requested_family is not None and node.execute_on is not None:
-            if location.family is not None and requested_family is not location.family:
+        if isinstance(node, JoinRelNode) and requested is not None and node.execute_on is not None:
+            if _conflicts(location, requested):
                 raise ConflictingExecutionTargetError(
-                    f"Explicit target at {key} is {_label(location)}, not {requested_family.value}",
-                    node_key=key, source=requested_family.value, destination=_label(location),
+                    f"Explicit target at {key} is {_label(location)}, not {_label(requested)}",
+                    node_key=key, source=_label(requested), destination=_label(location),
                 )
-        if (key == "root" and requested_family is not None
-                and requested_family is not location.family and not resource_ibis_fallback):
-            # A terminal override is a root placement request, not a source
+        if key == "root" and requested is not None and not resource_ibis_fallback:
+            # A terminal target is a root placement request, not a source
             # identity. Descendants retain their own native dialects.
-            if requested_family is CONST_BACKEND.IBIS:
-                location = ExecutionLocation(requested_family, None, ExecutionForm.DEFERRED, "unresolved")
-            elif requested_family is CONST_BACKEND.POLARS:
-                location = ExecutionLocation(requested_family, "polars", ExecutionForm.LAZY, "bound")
-            else:
-                location = ExecutionLocation(requested_family, None, ExecutionForm.EAGER, "bound")
+            location = _apply_target(location, requested)
         nodes[key] = node
         locations[key] = location
         if isinstance(node, RefRelNode) and identity_resolver is not None:

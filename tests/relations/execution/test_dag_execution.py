@@ -204,7 +204,7 @@ def test_explicit_backend_cannot_override_nested_dag_join_target():
     dag.add("b", ma.relation(b))
     dag.add("target", dag.ref("a").join(dag.ref("b"), on="id", execute_on="right").select("id"))
     with pytest.raises(ConflictingExecutionTargetError):
-        dag.collect("target", backend="polars")
+        dag.collect("target", target="polars")
 
 
 def test_resource_ref_with_ibis_family_override_keeps_declared_read_location():
@@ -225,7 +225,7 @@ def test_resource_ref_with_ibis_family_override_keeps_declared_read_location():
         ),
     )
     dag.add("projected", dag.ref("inline").select("id"))
-    assert dag.collect("projected", backend="ibis").collect().to_dict(as_series=False) == {
+    assert dag.collect("projected", target="ibis").collect().to_dict(as_series=False) == {
         "id": [1, 2],
     }
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from mountainash.conform.diagnostics import OperationDiagnosticTrace
 from mountainash.core.capabilities.policy import (
-    _CapabilityTarget, _prepare_capability_context, _resolve_policy,
+    _prepare_capability_context, _resolve_policy,
 )
 from mountainash.core.constants import CONST_BACKEND
 from mountainash.core.errors import BackendConversionError
@@ -42,16 +42,15 @@ class TransportSession:
         if self._context_for is not None:
             return self._context_for(location)
         prior = self._execution_context
-        owner = location.connection if location.connection is not None else location.prototype
-        if owner is None or location.capability_identity is None:
+        target = location.capability_target()
+        if target is None:
             raise RuntimeError("Cannot evaluate source residue without its execution location")
-        if (prior is not None and prior.target.identity == location.capability_identity
-                and prior.target.owner is owner):
+        if (prior is not None and prior.target.identity == target.identity
+                and prior.target.owner is target.owner):
             return prior
         return _prepare_capability_context(
             prior.policy if prior is not None else _resolve_policy(),
-            _CapabilityTarget(location.capability_identity, owner),
-            package_versions=self._package_versions,
+            target, package_versions=self._package_versions,
         )
 
     def _source_export(self, source: CompiledSubtree, fn: Any) -> Any:

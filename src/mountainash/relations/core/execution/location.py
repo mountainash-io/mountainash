@@ -5,8 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
-from mountainash.core.backend_detection import identify_backend, identify_backend_identity
-from mountainash.core.capabilities.identity import BackendIdentity
+from mountainash.core.backend_detection import identify_backend, native_identity
+from mountainash.core.capabilities.identity import KNOWN_DIALECTS, BackendIdentity
+from mountainash.core.capabilities.policy import _CapabilityTarget
+from mountainash.core.dtypes.targets import TypeTarget
+from mountainash.core.types import is_ibis_backend
 from mountainash.core.constants import CONST_BACKEND, ExecutionTarget
 from mountainash.core.lazy_imports import import_ibis_expr_ops
 from mountainash.relations.core.errors import UnresolvedExecutionLocationError
@@ -56,6 +59,42 @@ class ExecutionLocation:
     @property
     def connection_label(self) -> str | None:
         return f"connection-{self.connection_token}" if self.connection_token is not None else None
+
+    @property
+    def type_target(self) -> TypeTarget:
+        """The type-system target used to describe this location's native types."""
+        if self.family is CONST_BACKEND.IBIS:
+            return TypeTarget.IBIS
+        if self.family is CONST_BACKEND.NARWHALS:
+            return _NARWHALS_TYPE_TARGETS.get(self.dialect, TypeTarget.POLARS)
+        return TypeTarget.POLARS
+
+    def capability_target(self, default_owner: object | None = None) -> _CapabilityTarget | None:
+        """The capability owner for this location: its connection, else its prototype."""
+        if self.capability_identity is None:
+            return None
+        owner = self.connection if self.connection is not None else self.prototype
+        if owner is None:
+            owner = default_owner
+        if owner is None:
+            return None
+        return _CapabilityTarget(self.capability_identity, owner)
+
+
+_NARWHALS_TYPE_TARGETS = {
+    "narwhals-pandas": TypeTarget.PANDAS,
+    "narwhals-pyarrow": TypeTarget.PYARROW,
+}
+
+# Public ``target=`` family spellings; pandas and pyarrow are carriers that
+# execute through Narwhals (``CONST_BACKEND_SYSTEM``), not execution families.
+_TARGET_FAMILIES: dict[str, tuple[CONST_BACKEND, str | None]] = {
+    "polars": (CONST_BACKEND.POLARS, "polars"),
+    "narwhals": (CONST_BACKEND.NARWHALS, "narwhals-polars"),
+    "pandas": (CONST_BACKEND.NARWHALS, "narwhals-pandas"),
+    "pyarrow": (CONST_BACKEND.NARWHALS, "narwhals-pyarrow"),
+    "ibis": (CONST_BACKEND.IBIS, None),
+}
 
 
 def schema_prototype(value: Any) -> Any:
@@ -113,6 +152,32 @@ class LocationResolver:
         if key not in self._cache:
             self._cache[key] = self._resolve(node, binding)
         return self._cache[key]
+
+    def resolve_target(self, target: Any) -> ExecutionLocation | None:
+        """Resolve a public ``target=`` value: family, dialect identifier or Ibis connection."""
+        if target is None:
+            return None
+        if isinstance(target, str):
+            name = target.lower()
+            if name in _TARGET_FAMILIES:
+                family, dialect = _TARGET_FAMILIES[name]
+            else:
+                family = next((f for f, names in KNOWN_DIALECTS.items() if name in names), None)
+                if family is None or family in (CONST_BACKEND.PANDAS, CONST_BACKEND.PYARROW):
+                    raise ValueError(f"unknown target: {target!r}")
+                dialect = name
+            if family is CONST_BACKEND.IBIS:
+                return ExecutionLocation(family, dialect, ExecutionForm.DEFERRED, "unresolved")
+            if family is CONST_BACKEND.POLARS:
+                return ExecutionLocation(family, dialect, ExecutionForm.LAZY, "bound")
+            form = ExecutionForm.LAZY if dialect == "narwhals-lazy" else ExecutionForm.EAGER
+            return ExecutionLocation(family, dialect, form, "bound")
+        if is_ibis_backend(target):
+            return ExecutionLocation(
+                CONST_BACKEND.IBIS, f"ibis-{target.name}", ExecutionForm.DEFERRED, "bound",
+                self.tokens.token(target), target,
+            )
+        raise TypeError("target must be a backend family, dialect identifier, or Ibis connection")
 
     def _resolve(self, node: RelationNode, binding: ExecutionLocation | None) -> ExecutionLocation:
         if isinstance(node, ReadRelNode):
@@ -195,7 +260,7 @@ class LocationResolver:
         family = identify_backend(value)
         # The shared dialect probe deliberately raises for mixed Ibis graphs.
         # Inspect all source nodes ourselves before identifying a single source.
-        identity = identify_backend_identity(value) if family is not CONST_BACKEND.IBIS else None
+        identity = native_identity(value) if family is not CONST_BACKEND.IBIS else None
         form = ExecutionForm.DEFERRED if family is CONST_BACKEND.IBIS else (
             ExecutionForm.LAZY if type(value).__name__ == "LazyFrame" else ExecutionForm.EAGER
         )
