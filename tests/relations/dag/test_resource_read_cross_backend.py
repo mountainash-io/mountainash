@@ -960,7 +960,7 @@ def test_resource_unary_chain_on_target_connection(tmp_path, kind):
     out = dag.ref("orders").sort("id").head(1).collect(target=B)
     assert out.get_backend() is B and out.to_polars().to_dicts() == EXPECTED[:1]
     if kind != "csv":
-        assert len(_count_owned(B)) <= 1
+        assert len(_count_owned(B)) == 1
 
 
 def test_resource_csv_joins_eager_narwhals_polars(tmp_path):
@@ -992,3 +992,16 @@ def test_narwhals_predicate_and_reader_agree_on_location(tmp_path):
     assert ext._resource_lowering is not DEFERRED_ONLY
     eager = ext.read_resource(resource, location=polars_loc)
     assert type(eager).__name__ == "DataFrame"
+
+
+def test_schema_of_eager_narwhals_join_never_collects_scan(tmp_path, monkeypatch):
+    import narwhals as nw
+    dag = _pkg(tmp_path, "csv").to_relation_dag()
+    dag.source("left", nw.from_native(pl.DataFrame({"id": [1, 2], "tag": ["a", "b"]})))
+    dag.add("j", dag.ref("left").join(dag.ref("orders"), on="id"))
+    collected = []
+    real = nw.LazyFrame.collect
+    monkeypatch.setattr(nw.LazyFrame, "collect", lambda self, *a, **k: (r := real(self, *a, **k), collected.append(len(r)))[0])
+    schema = dag.ref("j").collect_schema()
+    assert set(schema) == {"id", "tag", "amount"}
+    assert all(n == 0 for n in collected)  # type-only: never a row
