@@ -132,7 +132,7 @@ def test_polars_nan_to_sqlite_rejects_loss_without_changing_source(lazy):
         ma.relation(source).join(target, on="id", execute_on="right").to_dicts()
     assert caught.value.source_family == "polars"
     assert caught.value.destination_dialect == "ibis-sqlite"
-    assert caught.value.route == "polars_to_ibis"
+    assert caught.value.route == "import_into"
     assert isinstance(caught.value.__cause__, ValueError)
     assert "NaN" in str(caught.value.__cause__)
 
@@ -167,7 +167,7 @@ def test_decimal_to_sqlite_fails_with_typed_context_not_driver_exception():
         ma.relation(source).join(target, on="id", execute_on="right").to_dicts()
     assert caught.value.source_dialect == "ibis-duckdb"
     assert caught.value.destination_dialect == "ibis-sqlite"
-    assert caught.value.route == "ibis_arrow_ibis"
+    assert caught.value.route == "import_into"
     assert caught.value.__cause__ is not None
     assert "decimal" in str(caught.value.__cause__).lower()
 

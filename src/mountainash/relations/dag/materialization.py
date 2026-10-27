@@ -149,14 +149,16 @@ class _SessionRefResolver:
         session: "DAGMaterializationSession",
         consumer_context: "_ExecutionContext | None" = None,
         destination: Any = None,
+        requirement: Any = None,
     ) -> None:
         self._session = session
         self._consumer_context = consumer_context
         self._destination = destination
+        self._requirement = requirement
 
     def __call__(self, name: str) -> Any:
         if self._destination is not None:
-            value = self._session.resolve_at(name, self._destination)
+            value = self._session.resolve_at(name, self._destination, self._requirement)
             self._destination = self._session._destination_for(self._destination)
             return value
         return self._session.resolve(name, self._consumer_context)
@@ -270,17 +272,21 @@ class DAGMaterializationSession:
         values.extend(envelope.value for envelope, _ in self._bound.values())
         return tuple(values)
 
-    def resolver_for(self, destination: Any) -> _SessionRefResolver:
-        """Bind a ref resolver to this consumer's complete physical location."""
-        return _SessionRefResolver(self, destination=destination)
+    def resolver_for(self, destination: Any, requirement: Any = None) -> _SessionRefResolver:
+        """Bind a ref resolver to this consumer's complete physical location.
 
-    def resolve_at(self, name: str, destination: Any) -> Any:
-        """Resolve a named plan in its own location, then transport for this consumer."""
+        ``requirement`` is the prepared transfer recorded for the ref's
+        ``/ref/<name>`` key, if its named plan does not already live there.
+        """
+        return _SessionRefResolver(self, destination=destination, requirement=requirement)
+
+    def resolve_at(self, name: str, destination: Any, requirement: Any = None) -> Any:
+        """Resolve a named plan in its own location, then apply the prepared transfer for this consumer."""
         from mountainash.relations.core.execution.compilation import CompilationSession
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
         from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
         from mountainash.relations.core.execution.metadata import MetadataSession
-        from mountainash.relations.core.execution.preparation import prepare_execution, _route
+        from mountainash.relations.core.execution.preparation import prepare_execution
         from mountainash.relations.core.execution.transport import TransportSession
         from mountainash.relations.core.errors import UnresolvedExecutionLocationError
         from mountainash.relations.core.relation_nodes import ReadRelNode
@@ -363,10 +369,6 @@ class DAGMaterializationSession:
             if visitor is not None:
                 self._visitors[name] = visitor
         envelope, visitor = self._bound[binding_key]
-        requirement = _route(
-            name, source_location, destination, derived=not isinstance(root, ReadRelNode),
-            memory_payload=payload_transfer,
-        )
         if requirement is None:
             self._resolved[(name, destination.key)] = envelope
             return envelope.value
@@ -492,7 +494,10 @@ class DAGMaterializationSession:
             raise ValueError(f"relation {name!r} has no _node attribute")
 
         resolved_backend, dialect = self._resolve_identity(name, honor_override=honor_override)
+        from mountainash.relations.core.execution.location import IdentityTokens
+        from mountainash.relations.core.execution.metadata import MetadataSession
         from mountainash.relations.core.execution.preparation import prepare_execution
+        from mountainash.relations.core.execution.transport import TransportSession
         from mountainash.relations.core.owned_copy import require_copy_idle
 
         prepared = prepare_execution(
@@ -508,7 +513,7 @@ class DAGMaterializationSession:
             resolved_backend, dialect = placement.family, placement.dialect
 
         # Item 97: a lazy Narwhals anchor consuming a foreign-family ref
-        # must reject before caching -- _coerce_to_match's eager-over-lazy
+        # must reject before caching -- a cross-family transfer's eager-over-lazy
         # handling is order-dependent and must not be relied upon. Scoped
         # to this resource's own direct refs; a foreign family reached
         # transitively through an intermediate dependency is caught when
@@ -571,6 +576,10 @@ class DAGMaterializationSession:
         )
 
         ref_resolver = _SessionRefResolver(self, execution_context)
+        if self._execution_transport is None:
+            self._execution_tokens = IdentityTokens()
+            self._execution_metadata = MetadataSession(self._execution_tokens)
+            self._execution_transport = TransportSession(self._execution_tokens)
 
         visitor = UnifiedRelationVisitor(
             relation_system,
@@ -579,6 +588,7 @@ class DAGMaterializationSession:
             key_context=key_context,
             identity_resolver=lambda n: self.dag.relations[n]._node,
             execution_context=execution_context,
+            transport=self._execution_transport,
         )
 
         compiled = root.accept(visitor)
@@ -775,7 +785,7 @@ class DAGMaterializationSession:
                 destination_family=consumer_family.value,
                 destination_dialect=consumer_dialect,
                 source_type=type(native.value).__name__,
-                route="_coerce_to_match",
+                route="transfer_native",
                 reason="no declared Ibis conversion route between distinct connection owners",
             )
         needs_coercion = src_family != consumer_family or (
@@ -786,12 +796,20 @@ class DAGMaterializationSession:
 
         key = (name, consumer_context.target.token, consumer_context.observations)
         if key not in self._coerced:
-            from mountainash.relations.core.unified_visitor.relation_visitor import (
-                UnifiedRelationVisitor,
-            )
+            if self._execution_transport is None:
+                from mountainash.relations.core.execution.location import IdentityTokens
+                from mountainash.relations.core.execution.metadata import MetadataSession
+                from mountainash.relations.core.execution.transport import TransportSession
+
+                self._execution_tokens = IdentityTokens()
+                self._execution_metadata = MetadataSession(self._execution_tokens)
+                self._execution_transport = TransportSession(self._execution_tokens)
+            from mountainash.relations.core.execution.location import LocationResolver
 
             proto = _consumer_prototype(consumer_family, consumer_dialect)
-            coerced_value = UnifiedRelationVisitor._coerce_to_match(proto, native.value)
+            coerced_value = self._execution_transport.transfer_native(
+                native.value, LocationResolver(self._execution_tokens)._read(proto),
+            )
             destination_identity = self._destination_identity(
                 consumer_family, consumer_dialect
             )

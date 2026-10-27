@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import ibis
 import polars as pl
 import pyarrow as pa
@@ -74,7 +76,7 @@ def test_polars_authority_consumes_alias_of_named_bare_ibis_memory(monkeypatch, 
     else:
         relation = ma.concat([left, right], distinct=operation == "union_distinct")
         expected = [1, 2, 3] if operation == "union_distinct" else [1, 2, 2, 2, 2, 3]
-    assert "ibis_memory_payload" in relation.explain()
+    assert re.search(r"transfer .*: ibis \(unresolved binding\) -> polars \(bound\)", relation.explain())
     assert sorted(relation.compile().collect()["id"].to_list()) == expected
     result = relation.to_polars()
     assert sorted(result["id"].to_list()) == expected
@@ -118,7 +120,7 @@ def test_named_bare_memory_compile_and_explain_do_not_execute_ibis(monkeypatch):
         raise AssertionError("bare memory payload executed through Ibis")
 
     monkeypatch.setattr(type(memory), "to_pyarrow", forbidden)
-    assert "ibis_memory_payload" in relation.explain()
+    assert re.search(r"transfer .*: ibis \(unresolved binding\) -> polars \(bound\)", relation.explain())
     assert relation.compile().collect()["id"].to_list() == [2]
 
 
@@ -156,14 +158,14 @@ def test_repeated_named_memory_ref_reuses_payload_transfer_without_rebinding(mon
     memory = ibis.memtable(pa.table({"id": [2]}))
     dag = ma.RelationDAG()
     dag.add("memory", ma.relation(memory))
-    original = TransportSession._convert
+    original = TransportSession._move
     routes = []
 
     def counted(self, source, requirement):
-        routes.append((source.location.binding, requirement.route))
+        routes.append((source.location.binding, requirement.destination.family.value, requirement.owned))
         return original(self, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", counted)
+    monkeypatch.setattr(TransportSession, "_move", counted)
     relation = ma.concat(
         [
             ma.relation(pl.DataFrame({"id": [1]})),
@@ -172,7 +174,7 @@ def test_repeated_named_memory_ref_reuses_payload_transfer_without_rebinding(mon
         ]
     )
     assert sorted(relation.to_polars()["id"].to_list()) == [1, 2, 2]
-    assert routes == [("memory", "ibis_memory_payload")]
+    assert routes == [("memory", "polars", False)]
 
 
 @pytest.mark.parametrize("registered", [False, True])
@@ -365,11 +367,27 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
     b = REGISTRY["ibis-duckdb"].build({"id": [2, 3]}, "b")
     c = REGISTRY["ibis-sqlite"].build({"id": [2, 3]}, "c")
     tokens = IdentityTokens()
+
+    def at(name, destination):
+        # The prepared plan records the boundary between a named plan and its
+        # consumer; here that boundary is derived the same way, per call.
+        from mountainash.relations.core.execution.preparation import _requirement
+        from mountainash.relations.core.relation_nodes import ReadRelNode
+
+        node = session._canonical_node(name)
+        source = LocationResolver(tokens, identity_resolver=session._canonical_node).resolve(
+            node, binding=destination,
+        )
+        return session.resolve_at(
+            name, destination,
+            _requirement(name, source, destination,
+                         derived=not isinstance(node, ReadRelNode)),
+        )
     locations = [LocationResolver(tokens).resolve(ma.relation(frame)._node) for frame in (a, b, c)]
     session = DAGMaterializationSession(dag, execution_policy=CapabilityPolicy.trusted())
     real_node = session._node_for
     real_compile = CompilationSession.compile
-    real_convert = TransportSession._convert
+    real_convert = TransportSession._move
     real_materialize = dag_materialization.materialize_native
     prepared_names, native_bindings, transfers, canonical_materializations = [], [], [], []
 
@@ -393,14 +411,14 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
 
     monkeypatch.setattr(session, "_node_for", observed_node)
     monkeypatch.setattr(CompilationSession, "compile", observed_compile)
-    monkeypatch.setattr(TransportSession, "_convert", observed_convert)
+    monkeypatch.setattr(TransportSession, "_move", observed_convert)
     monkeypatch.setattr(dag_materialization, "materialize_native", observed_materialize)
     try:
         bound_values = []
         for frame, destination in zip(
             (a, a, b, c, c), (locations[0], locations[0], locations[1], locations[2], locations[2])
         ):
-            value = session.resolve_at("memory", destination)
+            value = at("memory", destination)
             bound_values.append(value)
             joined = frame.join(value, "id")
             assert joined._find_backend(use_default=False) is destination.connection
@@ -420,22 +438,22 @@ def test_one_session_separates_canonical_plan_bound_compilations_and_value_trans
 
         # Two different compatible consumers share the bound dependency's
         # canonical native value, without a materialized-value transfer.
-        local = session.resolve_at("bound", LocationResolver(tokens).resolve(ma.relation(bound)._node))
-        same_connection = session.resolve_at("bound", LocationResolver(tokens).resolve(ma.relation(peer)._node))
+        local = at("bound", LocationResolver(tokens).resolve(ma.relation(bound)._node))
+        same_connection = at("bound", LocationResolver(tokens).resolve(ma.relation(peer)._node))
         assert same_connection is local
         assert sorted(ma.relation(peer.join(local, "id")).to_dict()["id"]) == [2, 3]
         assert len(canonical_materializations) == 1
         assert canonical_materializations[0] is bound
         assert transfers == []
 
-        first = session.resolve_at("bound", locations[1])
-        assert session.resolve_at("bound", locations[1]) is first
+        first = at("bound", locations[1])
+        assert at("bound", locations[1]) is first
         bound_join = b.join(first, "id")
         assert sorted(ma.relation(bound_join).to_dict()["id"]) == [2, 3]
         assert bound_join._find_backend(use_default=False) is b._find_backend(use_default=False)
         assert transfers == [(bound._find_backend(use_default=False), b._find_backend(use_default=False))]
-        sqlite_value = session.resolve_at("bound", locations[2])
-        assert session.resolve_at("bound", locations[2]) is sqlite_value
+        sqlite_value = at("bound", locations[2])
+        assert at("bound", locations[2]) is sqlite_value
         assert sorted(ma.relation(c.join(sqlite_value, "id")).to_dict()["id"]) == [2, 3]
         assert transfers == [
             (bound._find_backend(use_default=False), b._find_backend(use_default=False)),

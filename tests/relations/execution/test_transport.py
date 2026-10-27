@@ -56,7 +56,7 @@ def test_derived_sources_have_separate_cached_transfers(source_name, destination
                 value, source_location, tokens.token(value), CompilationMetadata(),
                 reusable_lowering=True, repeatable_result=True,
             )
-            requirement = TransferRequirement(str(selected), destination, "ibis_arrow_ibis", True)
+            requirement = TransferRequirement(str(selected), destination, True)
             first = session.transfer(source, requirement)
             assert session.transfer(source, requirement) is first
             assert first.location is destination
@@ -84,7 +84,7 @@ def test_cache_is_per_session_and_failed_adapter_does_not_cache(monkeypatch):
         value, resolver.resolve(ma.relation(source_table)._node), tokens.token(value), CompilationMetadata()
     )
     requirement = TransferRequirement(
-        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
+        "root/right", resolver.resolve(ma.relation(target)._node), True
     )
     session = TransportSession(tokens)
     original_memtable = ibis.memtable
@@ -131,7 +131,6 @@ def test_lossy_sqlite_route_rolls_back_owned_resources_without_touching_caller(m
     requirement = TransferRequirement(
         "root/left",
         resolver.resolve(ma.relation(target)._node),
-        "polars_to_ibis",
         True,
     )
     released = []
@@ -173,7 +172,7 @@ def test_source_export_propagates_native_failure_with_unmatched_diagnostic():
         CompilationMetadata(diagnostic_records=(diagnostic,)),
     )
     destination = resolver.resolve(ma.relation(target)._node)
-    requirement = TransferRequirement("root/right", destination, "ibis_to_polars", True)
+    requirement = TransferRequirement("root/right", destination, True)
     with pytest.raises(Exception, match="not-an-integer") as caught:
         TransportSession(tokens).transfer(source, requirement)
     assert not isinstance(caught.value, ConformTransformError)
@@ -195,7 +194,7 @@ def test_arrow_route_does_not_use_python_data_pandas_or_polars(source_name, dest
         CompilationMetadata(),
     )
     requirement = TransferRequirement(
-        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
+        "root/right", resolver.resolve(ma.relation(target)._node), True
     )
 
     def forbidden(*args, **kwargs):
@@ -221,7 +220,7 @@ def test_failed_source_and_destination_cleanup_never_releases_caller_resources(m
         table, resolver.resolve(ma.relation(table)._node), tokens.token(table), CompilationMetadata()
     )
     requirement = TransferRequirement(
-        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_arrow_ibis", True
+        "root/right", resolver.resolve(ma.relation(target)._node), True
     )
     released = []
     caller_released = []
@@ -269,7 +268,7 @@ def test_bare_memory_payload_uses_arrow_without_evaluating_table(destination_nam
         memory, resolver.resolve(ma.relation(memory)._node), tokens.token(memory), CompilationMetadata()
     )
     requirement = TransferRequirement(
-        "root/right", resolver.resolve(ma.relation(target)._node), "ibis_memory_ibis", False
+        "root/right", resolver.resolve(ma.relation(target)._node), False
     )
 
     def forbidden(*args, **kwargs):
@@ -296,13 +295,13 @@ def test_derived_polars_plan_is_collected_before_ibis_ingress(destination_name):
         tokens.token(object()),
         CompilationMetadata(),
     )
-    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node), "polars_to_ibis", True)
+    requirement = TransferRequirement("root/right", resolver.resolve(ma.relation(target)._node), True)
     with TransportSession(tokens) as session:
         moved = session.transfer(source, requirement)
     assert ma.relation(target.inner_join(moved.value, "id").select(target.id)).to_dict() == {"id": [2]}
 
 
-def test_foreign_owned_check_cannot_be_discarded_by_transfer():
+def test_foreign_owned_check_cannot_be_discarded_by_transfer(monkeypatch):
     from mountainash.conform.expressions import MaterializationResidueCheck
     from mountainash.relations.core.errors import UnsupportedRelationTransportError
     from mountainash.relations.core.execution.metadata import OwnedResidue
@@ -315,13 +314,17 @@ def test_foreign_owned_check_cannot_be_discarded_by_transfer():
     destination = resolver.resolve(ma.relation(target)._node)
     check = OwnedResidue(MaterializationResidueCheck(None, "id", "marker"), "root/source", destination)
     source = CompiledSubtree(table, source_location, tokens.token(table), CompilationMetadata(owned_checks=(check,)))
-    requirement = TransferRequirement("root/right", destination, "ibis_arrow_ibis", True)
+    requirement = TransferRequirement("root/right", destination, True)
     with pytest.raises(RuntimeError, match="source boundary"):
         TransportSession(tokens).transfer(source, requirement)
+    from mountainash.relations.backends.relation_systems.ibis.base import IbisBaseRelationSystem
+
+    def refuse(*args, **kwargs):
+        raise ValueError("destination cannot store this")
+
+    monkeypatch.setattr(IbisBaseRelationSystem, "import_into", refuse)
     with pytest.raises(UnsupportedRelationTransportError) as caught:
-        TransportSession(tokens).transfer(
-            replace(source, metadata=CompilationMetadata()), replace(requirement, route="not_declared")
-        )
+        TransportSession(tokens).transfer(replace(source, metadata=CompilationMetadata()), requirement)
     assert caught.value.source_dialect == "ibis-duckdb"
     assert caught.value.destination_dialect == "ibis-sqlite"
 
@@ -416,7 +419,7 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
             assert source.metadata.owned_checks
             assert source.metadata.diagnostic_records
             session = TransportSession(tokens, execution_context=visitor.execution_context)
-            requirement = TransferRequirement("root/right", destination, "ibis_arrow_ibis", True)
+            requirement = TransferRequirement("root/right", destination, True)
             if year == "invalid":
                 with pytest.raises(BackendCapabilityError, match="Source lexical residue") as caught:
                     session.transfer(source, requirement)
@@ -434,3 +437,50 @@ def test_source_residue_is_checked_before_arrow_export_and_never_leaks(
             session.close(release_owned=True)
     finally:
         CapabilityRegistry.restore(snapshot)
+
+
+# --- Owned-flag transfer, native wrapper -----------------------------------
+import narwhals as nw
+import pandas as pd
+import polars as pl
+
+from mountainash.core.constants import CONST_BACKEND
+from mountainash.relations.backends.relation_systems.polars.base import PolarsBaseRelationSystem
+from mountainash.relations.core.execution.location import ExecutionForm, ExecutionLocation
+
+
+@pytest.fixture
+def transport():
+    t = TransportSession(IdentityTokens())
+    yield t
+    t.close(release_owned=True)
+
+
+def test_passthrough_no_export(transport, monkeypatch):
+    monkeypatch.setattr(PolarsBaseRelationSystem, "export", lambda *a, **k: pytest.fail("exported"))
+    df = pl.DataFrame({"a": [1]})
+    assert transport.transfer_native(df, LocationResolver(transport.tokens)._read(df)) is df
+
+
+def test_lazy_to_eager_native(transport, monkeypatch):
+    monkeypatch.setattr(PolarsBaseRelationSystem, "export", lambda *a, **k: pytest.fail("exported"))
+    out = transport.transfer_native(
+        pl.LazyFrame({"a": [1]}),
+        ExecutionLocation(CONST_BACKEND.POLARS, "polars", ExecutionForm.EAGER, "bound"),
+    )
+    assert isinstance(out, pl.DataFrame)
+
+
+def test_narwhals_pandas_to_polars_not_passthrough(transport):
+    out = transport.transfer_native(
+        nw.from_native(pd.DataFrame({"a": [1]})),
+        LocationResolver(transport.tokens).resolve_target("narwhals-polars"),
+    )
+    assert str(out.implementation).lower().endswith("polars")
+
+
+def test_sparse_rows_keep_all_keys(transport):
+    out = transport.transfer_native(
+        [{"a": 1}, {"b": 2}], LocationResolver(transport.tokens).resolve_target("polars"),
+    )
+    assert set(out.collect_schema().names()) == {"a", "b"}

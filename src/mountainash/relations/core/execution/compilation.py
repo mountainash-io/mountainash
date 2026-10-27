@@ -14,6 +14,7 @@ from mountainash.relations.core.execution.transport import TransportSession
 from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 
 if TYPE_CHECKING:
+    from mountainash.relations.core.execution.location import ExecutionLocation
     from mountainash.relations.core.execution.preparation import PreparedExecution
     from mountainash.relations.core.unified_visitor.relation_visitor import UnifiedRelationVisitor
 
@@ -51,10 +52,10 @@ class CompilationSession:
         finally:
             visitor.execution_key = previous
 
-    def _visitor(self, key: str) -> UnifiedRelationVisitor:
+    def _visitor(self, key: str, location: ExecutionLocation | None = None) -> UnifiedRelationVisitor:
         from mountainash.relations.core.unified_visitor import relation_visitor
 
-        location = self.prepared.locations[key]
+        location = location if location is not None else self.prepared.locations[key]
         family = location.family
         context = self.prepared.context_for(location)
         system = get_relation_system(family)(dialect=location.dialect)
@@ -67,7 +68,14 @@ class CompilationSession:
         expression_visitor = UnifiedExpressionVisitor(
             expression_system, input_data=prototype, execution_context=context,
         )
-        resolver = self.ref_resolver_factory(location) if self.ref_resolver_factory else None
+        resolver = None
+        if self.ref_resolver_factory:
+            from mountainash.relations.core.relation_nodes.extensions_mountainash import RefRelNode
+
+            # The recorded boundary between a named plan and the ref that uses it.
+            requirement = (self.prepared.transfers.get(self.prepared.inputs[key][0])
+                           if isinstance(self.prepared.nodes[key], RefRelNode) else None)
+            resolver = self.ref_resolver_factory(location, requirement)
         return relation_visitor.UnifiedRelationVisitor(
             system, expression_visitor, execution_context=context,
             metadata_session=self.metadata, execution=self, execution_key=key,
@@ -85,10 +93,32 @@ class CompilationSession:
         return self._compiled[identity]
 
     def compile_root(self):
+        root_key = self.prepared.root_key
         try:
-            return self.compile(self.prepared.root_key)
+            envelope, visitor = self.compile(root_key)
+            requirement = self.prepared.transfers.get(root_key)
+            if requirement is not None:
+                node = self.prepared.nodes[root_key]
+                envelope = self.transport.transfer(envelope, requirement)
+                # The terminal consumes the root where it now lives.
+                visitor = self._visitor(root_key, requirement.destination)
+                self.metadata.adopt(visitor, node, envelope)
+            return envelope, visitor
         finally:
             self._compiled.clear()
+
+    def egress(self, location: ExecutionLocation) -> Any:
+        """The compiled root value, moved to ``location`` (a terminal representation change)."""
+        from mountainash.relations.core.execution.preparation import TransferRequirement
+
+        root_key = self.prepared.root_key
+        envelope, _ = self.compile(root_key)
+        requirement = self.prepared.transfers.get(root_key)
+        if requirement is not None:
+            envelope = self.transport.transfer(envelope, requirement)
+        return self.transport.transfer(
+            envelope, TransferRequirement(root_key, location, requires_execution=True),
+        ).value
 
     def _compile_once(self, key: str):
         from mountainash.core.constants import CONST_BACKEND
@@ -96,7 +126,6 @@ class CompilationSession:
         
         from mountainash.relations.core.errors import UnresolvedExecutionLocationError
         from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
-        from mountainash.relations.core.execution.preparation import TransferRequirement
         from mountainash.relations.core.relation_nodes import JoinRelNode, ReadRelNode
         from polars.exceptions import ColumnNotFoundError
 
@@ -106,10 +135,10 @@ class CompilationSession:
                 and location.dialect == "ibis-sqlite" and hasattr(node.dataframe, "op"):
             op = node.dataframe.op()
             if isinstance(op, import_ibis_expr_ops().InMemoryTable):
-                payload = op.data.to_pyarrow(node.dataframe.schema(),)
-                source = CompiledSubtree(payload, location, self.prepared.tokens.token(node), CompilationMetadata())
-                requirement = TransferRequirement(key, location, "ibis_memory_ibis", False)
-                self.transport._validate_ibis_storage(source, requirement, payload)
+                self.transport.validate(
+                    CompiledSubtree(node.dataframe, location, self.prepared.tokens.token(node), CompilationMetadata()),
+                    location,
+                )
 
         visitor = self._visitor(key)
         with self.at(visitor, key):
@@ -193,7 +222,6 @@ class CompilationSession:
         if (self.prepared.phase is not ExecutionPhase.SCHEMA
                 and isinstance(node, ReadRelNode) and isinstance(node.dataframe, (dict, list, tuple))):
             from mountainash.relations.core.execution.metadata import CompiledSubtree, CompilationMetadata
-            from mountainash.relations.core.execution.preparation import TransferRequirement
 
             raw = node.dataframe
             if not isinstance(raw, dict) and raw and not isinstance(raw[0], dict):
@@ -206,14 +234,7 @@ class CompilationSession:
                 raw, self.prepared.locations[key], self.prepared.tokens.token(node),
                 CompilationMetadata(), reusable_lowering=repeatable, repeatable_result=repeatable,
             )
-            route = {
-                CONST_BACKEND.IBIS: "raw_to_ibis",
-                CONST_BACKEND.NARWHALS: "raw_to_narwhals",
-                CONST_BACKEND.POLARS: "raw_to_polars",
-            }[destination.family]
-            envelope = self.transport.transfer(
-                source, TransferRequirement(key, destination, route, False),
-            )
+            envelope = self.transport.transfer(source, self.prepared.transfers[key])
             visitor.reusable_lowering &= envelope.reusable_lowering
             visitor.repeatable_result &= envelope.repeatable_result
             if destination.family is CONST_BACKEND.POLARS:

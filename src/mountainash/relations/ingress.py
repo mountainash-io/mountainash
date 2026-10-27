@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from mountainash.core.constants import CONST_BACKEND
+
 if TYPE_CHECKING:
     import pyarrow as pa
 
@@ -23,28 +25,22 @@ def from_arrow(table: pa.Table, *, target: Any = None) -> Relation:
     datetime conversions and Polars large-string/list representations apply.
     Polars may share Arrow buffers; use snapshot() for an independent copy.
     """
-    from mountainash.core.constants import CONST_BACKEND
     from mountainash.relations.core.errors import UnresolvedExecutionLocationError
     from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
-    from mountainash.relations.core.materialization import coerce_to_polars
-    from mountainash.relations.core.owned_copy import owned_arrow_table
     from mountainash.relations.core.relation_api.relation import relation
 
-    location = LocationResolver(IdentityTokens()).resolve_target(target)
-    if location is None or location.family is CONST_BACKEND.POLARS:
-        return relation(coerce_to_polars(None, table))
+    location = LocationResolver(IdentityTokens()).resolve_target("polars" if target is None else target)
     if location.family is CONST_BACKEND.IBIS and location.connection is None:
         raise UnresolvedExecutionLocationError("from_arrow needs target=<connection> for Ibis")
-    if location.family is not CONST_BACKEND.IBIS:
-        # Removed by the transfer-contract task, which routes every target
-        # through prepared execution.
-        raise NotImplementedError(f"from_arrow(target={target!r}) is not yet supported")
-    copy = owned_arrow_table(table, location.connection)
+    # The import is the relation's own prepared transfer: preparation decides
+    # whether it anchors an owned table; the transport session owns its lifetime.
+    native, visitor = relation(table)._compile_and_execute_with_visitor(
+        target=target if target is not None else "polars", retain_execution_scope=True,
+    )
     try:
-        return relation(copy.value)
-    except BaseException as original:
-        try:
-            copy.release()
-        except BaseException as cleanup:
-            original.add_note(f"Owned import cleanup also failed: {type(cleanup).__name__}")
+        result = relation(native)
+    except BaseException:
+        visitor._execution_session.close(release_owned=True)
         raise
+    visitor._execution_session.close(release_owned=False)
+    return result

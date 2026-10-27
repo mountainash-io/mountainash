@@ -50,6 +50,11 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
         frame = nw.from_native(native)
         if isinstance(frame, nw.LazyFrame):
             frame = frame.collect()
+        if frame.implementation.is_pandas():
+            # An index is not data; to_arrow() would emit a named index as a column.
+            import pyarrow as pa
+
+            return pa.Table.from_pandas(frame.to_native(), preserve_index=False)
         return frame.to_arrow()
 
     def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:
@@ -68,7 +73,8 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
         if impl == "lazy":
             return Imported(nw.from_arrow(arrow, backend="polars").lazy())
         if impl in ("pandas", "polars", "pyarrow"):
-            return Imported(nw.from_arrow(arrow, backend=impl))
+            frame = nw.from_arrow(arrow, backend=impl)
+            return Imported(frame.lazy() if location.form is ExecutionForm.LAZY else frame)
         if impl in ("duckdb", "dask"):
             reason = "eager Arrow import unsupported for lazy-only narwhals implementation"
             raise BackendConversionError(

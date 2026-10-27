@@ -96,13 +96,13 @@ def test_targeted_first_set_moves_only_foreign_sources(
     if named:
         dag.add("result", relation)
     moves = []
-    real = TransportSession._convert
+    real = TransportSession._move
 
     def observed(self, source, requirement):
         moves.append((source.location.connection, requirement.destination.connection))
         return real(self, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", observed)
+    monkeypatch.setattr(TransportSession, "_move", observed)
     result = dag.collect("result") if named else relation.collect()
     assert result._find_backend(use_default=False) is b._find_backend(use_default=False)
     assert sorted(ma.relation(result).to_dict()["id"]) == expected
@@ -156,14 +156,14 @@ def test_equivalent_unnamed_derived_set_operands_do_not_share_transfer(monkeypat
     # Separate occurrences of the same recipe are not the same materialized operand.
     second = ma.relation(a).filter(ma.col("id") > 2)
     third = ma.relation(a).filter(ma.col("id") > 2)
-    real = TransportSession._convert
+    real = TransportSession._move
     moves = []
 
     def observed(self, source, requirement):
         moves.append(source.source_token)
         return real(self, source, requirement)
 
-    monkeypatch.setattr(TransportSession, "_convert", observed)
+    monkeypatch.setattr(TransportSession, "_move", observed)
     result = ma.concat([first, second, third]).collect()
     assert result._find_backend(use_default=False) is b._find_backend(use_default=False)
     assert sorted(ma.relation(result).to_dict()["id"]) == [2, 3, 3, 3]
