@@ -40,6 +40,40 @@ jobs:
             PIP_INDEX_URL=https://pypi.org/simple \
             python -I -m build --wheel --sdist --outdir "$RUNNER_TEMP/dist"
           python -I -m twine check "$RUNNER_TEMP/dist"/*
+      - name: Verify Apache-2.0 and bundled MIT licences in built artifacts
+        env:
+          DIST_DIR: ${{ runner.temp }}/dist
+        run: |
+          python -I - "$DIST_DIR" <<'PY'
+          import sys, tarfile, zipfile
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          dist = Path(sys.argv[1])
+          licence_files = ('LICENSE', 'NOTICE', 'src/mountainash/validation/schemas/LICENSE.geojson-schema.txt')
+          wheels, sdists = sorted(dist.glob('*.whl')), sorted(dist.glob('*.tar.gz'))
+          if len(wheels) != 1 or len(sdists) != 1 or len(list(dist.iterdir())) != 2:
+              raise SystemExit(f'{dist} must contain exactly one wheel and one sdist')
+          with zipfile.ZipFile(wheels[0]) as archive:
+              names = archive.namelist()
+              info, = {name.split('/')[0] for name in names if name.split('/')[0].endswith('.dist-info')}
+              wheel = {'METADATA': archive.read(f'{info}/METADATA')}
+              wheel.update({name: archive.read(f'{info}/licenses/{name}') for name in licence_files})
+          with tarfile.open(sdists[0]) as archive:
+              root, = {name.split('/')[0] for name in archive.getnames()}
+              sdist = {'METADATA': archive.extractfile(f'{root}/PKG-INFO').read()}
+              sdist.update({name: archive.extractfile(f'{root}/{name}').read() for name in licence_files})
+          for kind, files in (('wheel', wheel), ('sdist', sdist)):
+              metadata = BytesParser().parsebytes(files['METADATA'])
+              if metadata.get_all('License-Expression') != ['Apache-2.0 AND MIT']:
+                  raise SystemExit(f'{kind} License-Expression is not exactly Apache-2.0 AND MIT')
+              if not set(licence_files) <= set(metadata.get_all('License-File', [])):
+                  raise SystemExit(f'{kind} License-File must include all first-party and bundled licence files')
+              for name in licence_files:
+                  if files[name] != Path(name).read_bytes():
+                      raise SystemExit(f'{kind} {name} differs from the checked-out {name}')
+          print('Apache-2.0 AND MIT metadata and all licence files verified in wheel and sdist')
+          PY
       - name: Verify wheel, sdist, and every advertised extra
         id: verify
         run: |

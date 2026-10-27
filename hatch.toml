@@ -8,7 +8,7 @@ path = "src/mountainash/__version__.py"
 packages = ["src/mountainash"]
 
 [build.targets.sdist]
-include = ["/src", "/pyproject.toml", "/hatch.toml", "/requirements-hatch.txt", "/README.md", "/LICENSE"]
+include = ["/src", "/pyproject.toml", "/hatch.toml", "/requirements-hatch.txt", "/README.md", "/LICENSE", "/NOTICE"]
 
 
 #================
