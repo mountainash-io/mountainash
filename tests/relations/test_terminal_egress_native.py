@@ -130,3 +130,14 @@ def test_logical_to_pandas_keeps_polars_date_column_native():
     df = pl.DataFrame({"tags": ["[1]"], "d": [datetime.date(2024, 1, 2)]})
     out = ma.relation(df).conform(spec, contract={"data_type": "coerce"}).to_pandas()
     assert str(out["d"].dtype).startswith("datetime64")
+
+
+def test_duckdb_join_with_pyarrow_dataset_memtable_compiles_and_collects():
+    import pyarrow.dataset as ds
+
+    con = ibis.duckdb.connect()
+    bound = con.create_table("bound", pa.table({"id": [1, 2]}))
+    memory = ibis.memtable(ds.dataset(pa.table({"id": [1]})))
+    joined = ma.relation(bound).join(ma.relation(memory), on="id")
+    joined.compile()
+    assert ma.relation(joined.collect()).to_dicts() == [{"id": 1}]

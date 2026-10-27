@@ -8,6 +8,8 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.backends.relation_systems.base import BaseRelationSystem
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pyarrow as pa
 
     from mountainash.relations.core.execution.metadata import Imported
@@ -41,7 +43,9 @@ class PolarsBaseRelationSystem(BaseRelationSystem):
             native = native.collect()
         return native.to_arrow()
 
-    def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:
+    def check_import(
+        self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
+    ) -> None:
         return None
 
     def import_into(

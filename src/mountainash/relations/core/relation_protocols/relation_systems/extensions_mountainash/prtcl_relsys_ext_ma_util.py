@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol
 from mountainash.core.types import RelationT
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pyarrow as pa
 
     from mountainash.relations.core.execution.location import ExecutionLocation
@@ -107,8 +109,15 @@ class MountainashExtensionRelationSystemProtocol(Protocol[RelationT]):
         """Export a native value of this family to Arrow."""
         ...
 
-    def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:
-        """Raise ``ValueError`` for values the destination cannot store."""
+    def check_import(
+        self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
+    ) -> None:
+        """Raise ``ValueError`` for values the destination cannot store.
+
+        ``arrow`` is the table or a zero-argument callable producing it; a
+        destination with nothing to check never calls it, so the source is not
+        exported for no reason.
+        """
         ...
 
     def import_into(

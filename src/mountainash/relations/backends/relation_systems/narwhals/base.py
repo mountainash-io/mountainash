@@ -10,6 +10,8 @@ from mountainash.relations.backends.relation_systems.base import BaseRelationSys
 from mountainash.relations.core.materialization import ExecutionForm
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pyarrow as pa
 
     from mountainash.relations.core.execution.metadata import Imported
@@ -68,7 +70,9 @@ class NarwhalsBaseRelationSystem(BaseRelationSystem):
             return table
         return frame.to_arrow()
 
-    def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:
+    def check_import(
+        self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
+    ) -> None:
         return None
 
     def import_into(

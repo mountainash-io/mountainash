@@ -8,6 +8,8 @@ from mountainash.core.constants import CONST_BACKEND
 from mountainash.relations.backends.relation_systems.base import BaseRelationSystem
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pyarrow as pa
 
     from mountainash.relations.core.execution.metadata import Imported
@@ -71,11 +73,13 @@ class IbisBaseRelationSystem(BaseRelationSystem):
             return op.data.to_pyarrow(native.schema())
         return native.to_pyarrow()
 
-    def check_import(self, arrow: pa.Table, *, location: ExecutionLocation) -> None:
+    def check_import(
+        self, arrow: pa.Table | Callable[[], pa.Table], *, location: ExecutionLocation,
+    ) -> None:
         if location.dialect == "ibis-sqlite":
             from mountainash.relations.backends.relation_systems.ibis import _sqlite_storage
 
-            _sqlite_storage.check(arrow)
+            _sqlite_storage.check(arrow() if callable(arrow) else arrow)
 
     def import_into(
         self, arrow: pa.Table, *, location: ExecutionLocation, owned: bool = False,

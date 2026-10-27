@@ -289,7 +289,9 @@ class TransportSession:
         """Compile-phase storage check for a bare-memory payload; nothing is imported."""
         try:
             get_relation_system(destination.family)().check_import(
-                get_relation_system(source.location.family)().export(source.value, source=source.location),
+                lambda: get_relation_system(source.location.family)().export(
+                    source.value, source=source.location,
+                ),
                 location=destination,
             )
         except ValueError as exc:
