@@ -289,3 +289,58 @@ def test_transaction_rolls_back_on_insert_failure(con, monkeypatch):
     monkeypatch.setattr(k, "_tx_exec", bad)
     with pytest.raises(RuntimeError): k.run({"s": Value.of(_rows((2, "a", 2)), Identity.of("i"))}, _ctx())
     assert con.table("t").count().execute() == 1                                              # DELETE rolled back
+
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
+@pytest.mark.cell("mode:IbisTableSink:APPEND")
+def test_existing_table_insert_maps_columns_by_name_not_position(con):
+    con.create_table("t", pl.DataFrame({"id": [1], "v": [10]}).to_arrow())
+    for mode, rows in ((WriteMode.UPSERT, {"v": [20], "id": [1]}), (WriteMode.APPEND, {"v": [5], "id": [2]})):
+        k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=mode, keys=("id",))
+        k.run({"s": Value.of(pl.DataFrame(rows), Identity.of("i"))}, _ctx())
+    assert {r["id"]: r["v"] for r in con.table("t").to_pyarrow().to_pylist()} == {1: 20, 2: 5}
+
+@pytest.mark.parametrize("composite", [False, True])
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
+def test_replace_partition_matches_null_partitions(con, composite):
+    parts = ("p", "q") if composite else ("p",)
+    part = (lambda p: (p, "x")) if composite else (lambda p: p)
+    def df(*rows): return pl.DataFrame({"id": [r[0] for r in rows], "p": [r[1] for r in rows], "q": ["x"] * len(rows), "v": [r[2] for r in rows]},
+                                       schema={"id": pl.Int64, "p": pl.String, "q": pl.String, "v": pl.Int64})
+    k = IbisTableSink(con, "t", name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=parts)
+    cov = lambda *s: Coverage.source({part("a"), part(None)}, set(s), set())
+    k.run({"s": Value.of(df((1, None, 1), (2, "a", 1)), Identity.of("i"), cov(part(None), part("a")))}, _ctx())
+    k.run({"s": Value.of(df((3, None, 9)), Identity.of("i"), cov(part(None)))}, _ctx())
+    assert sorted((r["id"], r["v"]) for r in con.table("t").to_pyarrow().to_pylist()) == [(2, 1), (3, 9)]   # NULL partition replaced, 'a' kept
+    k.run({"s": Value.of(df((4, "a", 7)), Identity.of("i"), cov(part(None)))}, _ctx())
+    assert sorted(r["id"] for r in con.table("t").to_pyarrow().to_pylist()) == [2]      # empty success clears the NULL partition
+
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:IbisTableSink:UPSERT")
+@pytest.mark.cell("mode:IbisTableSink:REPLACE_PARTITION")
+def test_reserved_and_spaced_identifiers_are_quoted(con):
+    name = "select"
+    cols = {"group by": [1, 2], "order": ["a", "b"], "my val": [1, 2]}
+    con.create_table(name, pl.DataFrame(cols).to_arrow())
+    up = IbisTableSink(con, name, name="u", depends_on=("s",), mode=WriteMode.UPSERT, keys=("group by",))
+    up.run({"s": Value.of(pl.DataFrame({"my val": [9], "group by": [1], "order": ["a"]}), Identity.of("i"))}, _ctx())
+    rp = IbisTableSink(con, name, name="r", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("order",))
+    rp.run({"s": Value.of(pl.DataFrame({"my val": [7], "group by": [3], "order": ["b"]}), Identity.of("i"), Coverage.source({"b"}, {"b"}, set()))}, _ctx())
+    assert sorted((r["group by"], r["my val"]) for r in con.table(name).to_pyarrow().to_pylist()) == [(1, 9), (3, 7)]
+    con.drop_table(name, force=True)
+
+@pytest.mark.parametrize("shape", ["foreign", "records"])
+@pytest.mark.cell("unit:IbisTableSink")
+@pytest.mark.cell("unit:SinkUnit")
+def test_foreign_input_goes_through_destination_import_check(tmp_path, shape):
+    sqlite = ibis.sqlite.connect(tmp_path / "n.db")
+    nan = float("nan")
+    payload = pl.DataFrame({"id": [1], "m": [nan]}) if shape == "foreign" else [{"id": 1, "m": nan}]
+    k = IbisTableSink(sqlite, "t", name="k", depends_on=("s",), mode=WriteMode.APPEND)
+    with pytest.raises(ValueError, match="NaN"):
+        k.run({"s": Value.of(payload, Identity.of("i"))}, _ctx())
+    assert "t" not in sqlite.list_tables()

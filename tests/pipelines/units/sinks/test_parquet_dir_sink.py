@@ -41,3 +41,34 @@ def test_composite_partition_directories(tmp_path):                             
     k.run({"s": Value.of(df, Identity.of("i"), Coverage.source({("a", "x"), ("a", "y")}, {("a", "x"), ("a", "y")}, set()))}, _ctx())
     k.run({"s": Value.of(pl.DataFrame({"p": ["a"], "q": ["x"], "v": [9]}), Identity.of("i"), Coverage.source({("a", "x")}, {("a", "x")}, set()))}, _ctx())
     assert pl.read_parquet(tmp_path / "p=a" / "q=y" / "*.parquet")["v"].to_list() == [2] and pl.read_parquet(tmp_path / "p=a" / "q=x" / "*.parquet")["v"].to_list() == [9]
+
+@pytest.mark.cell("unit:ParquetDirectorySink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:ParquetDirectorySink:REPLACE_PARTITION")
+def test_partition_values_are_path_safe_and_distinct(tmp_path):
+    root = tmp_path / "root"
+    k = ParquetDirectorySink(root, name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=("p",))
+    vals = ["a", "a/b", "..", "../x", "__HIVE_DEFAULT_PARTITION__", None]
+    df = pl.DataFrame({"p": vals, "v": list(range(len(vals)))})
+    k.run({"s": Value.of(df, Identity.of("i"), Coverage.source(set(vals), set(vals), set()))}, _ctx())
+    assert len({d.name for d in root.iterdir()}) == len(vals) and not (tmp_path / "x").exists()
+    assert all(d.is_dir() and d.parent == root for d in root.iterdir())
+    k.run({"s": Value.of(pl.DataFrame({"p": ["a"], "v": [99]}), Identity.of("i"), Coverage.source({"a", "a/b"}, {"a"}, {"a/b"}))}, _ctx())
+    got = pl.read_parquet(root / "**" / "*.parquet", hive_partitioning=False).sort("v")["v"].to_list()
+    assert got == [1, 2, 3, 4, 5, 99]      # 'a' replaced, failed 'a/b' (v=1) untouched
+
+@pytest.mark.parametrize("composite", [False, True])
+@pytest.mark.cell("unit:ParquetDirectorySink")
+@pytest.mark.cell("unit:SinkUnit")
+@pytest.mark.cell("mode:ParquetDirectorySink:REPLACE_PARTITION")
+def test_replace_partition_matches_null_partition(tmp_path, composite):
+    parts = ("p", "q") if composite else ("p",)
+    part = (lambda p: (p, "x")) if composite else (lambda p: p)
+    def df(*rows): return pl.DataFrame({"p": [r[0] for r in rows], "q": ["x"] * len(rows), "v": [r[1] for r in rows]}, schema={"p": pl.String, "q": pl.String, "v": pl.Int64})
+    k = ParquetDirectorySink(tmp_path, name="k", depends_on=("s",), mode=WriteMode.REPLACE_PARTITION, partition_columns=parts)
+    cov = Coverage.source({part(None)}, {part(None)}, set())
+    k.run({"s": Value.of(df((None, 1)), Identity.of("i"), cov)}, _ctx())
+    k.run({"s": Value.of(df((None, 2)), Identity.of("i"), cov)}, _ctx())
+    assert sorted(pl.read_parquet(tmp_path / "**" / "*.parquet", hive_partitioning=False)["v"].to_list()) == [2]
+    k.run({"s": Value.of(df(("a", 3)), Identity.of("i"), cov)}, _ctx())              # empty success clears the NULL partition
+    assert not list(tmp_path.glob("**/*.parquet"))

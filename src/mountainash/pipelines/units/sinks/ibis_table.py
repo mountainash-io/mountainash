@@ -38,24 +38,44 @@ class IbisTableSink(SinkUnit):
             self.con.drop_table(n, force=True)
 
     def _as_expr(self, value: Value):
-        ibis = import_ibis()
         if value.kind is ValueKind.TABULAR and getattr(value.location, "connection", None) is self.con:
             return value.payload  # same connection: native, zero export
-        if value.kind is ValueKind.RECORDS:
-            return ibis.memtable(DagUnit.adapt(value))
+        from mountainash.relations.core.execution.location import IdentityTokens, LocationResolver
         from mountainash.relations.core.relation_protocols.relsys_base import get_relation_system
 
-        arrow = get_relation_system(value.location.family)().export(
-            value.payload, source=value.location
-        )  # foreign: export once
-        return ibis.memtable(arrow)
+        if value.kind is ValueKind.RECORDS:
+            arrow = DagUnit.adapt(value)
+        else:  # foreign: export once
+            arrow = get_relation_system(value.location.family)().export(value.payload, source=value.location)
+        destination = LocationResolver(IdentityTokens()).resolve_target(self.con)
+        # the destination family's own import: check_import refuses what this connection cannot store (e.g. SQLite NaN)
+        return get_relation_system(destination.family)().import_into(arrow, location=destination, owned=False).value
+
+    def _q(self, name: str) -> str:
+        """Quote an identifier in the destination's dialect."""
+        from sqlglot import exp
+
+        return exp.to_identifier(name, quoted=True).sql(dialect=self.con.compiler.dialect)
+
+    def _key_table(self, expr, value: Value):
+        """Succeeded partition keys typed like the staged columns, so NULL keys keep a comparable type."""
+        schema = expr.schema()
+        typed = import_ibis().schema({c: schema[c] for c in self.partition_columns})
+        return import_ibis().memtable(_key_rows(self.partition_columns, value.coverage.succeeded), schema=typed)
 
     def _scoped(self, expr, value: Value):
         """REPLACE_PARTITION: restrict staged rows to coverage.succeeded — never touch failed partitions (F19)."""
         if self.mode is not WriteMode.REPLACE_PARTITION:
             return expr
-        keys = import_ibis().memtable(_key_rows(self.partition_columns, value.coverage.succeeded))
-        return expr.semi_join(keys, list(self.partition_columns))
+        keys = self._key_table(expr, value)
+        return expr.semi_join(keys, [expr[c].identical_to(keys[c]) for c in self.partition_columns])  # NULL-safe
+
+    def _delete_matching(self, source: str, columns) -> str:
+        """DELETE the destination rows whose ``columns`` match a ``source`` row, NULL-safely (IN would drop NULL)."""
+        on = " AND ".join(
+            f"{self._q(self.table)}.{self._q(c)} IS NOT DISTINCT FROM {self._q(source)}.{self._q(c)}" for c in columns
+        )
+        return f"DELETE FROM {self._q(self.table)} WHERE EXISTS (SELECT 1 FROM {self._q(source)} WHERE {on})"
 
     def write(self, value: Value) -> LocatorReference:
         if (
@@ -68,7 +88,7 @@ class IbisTableSink(SinkUnit):
             return LocatorReference(self.destination(), self._count())
         expr = self._scoped(self._as_expr(value), value)
         stage, keys = f"_ma_stage_{self.table}", f"_ma_keys_{self.table}"
-        cols = lambda cs: ", ".join(cs)  # noqa: E731
+        columns = ", ".join(self._q(c) for c in expr.columns)  # by name, never by position
         if self.table not in self.con.list_tables():
             self.con.create_table(self.table, expr)
         else:
@@ -76,25 +96,16 @@ class IbisTableSink(SinkUnit):
                 stage, expr, temp=True, overwrite=True
             )  # snapshot BEFORE any delete: self-dependent input (B4)
             if self.mode is WriteMode.REPLACE_PARTITION:
-                self.con.create_table(
-                    keys,
-                    import_ibis().memtable(_key_rows(self.partition_columns, value.coverage.succeeded)),
-                    temp=True,
-                    overwrite=True,
-                )
+                self.con.create_table(keys, self._key_table(expr, value), temp=True, overwrite=True)
             self._tx_exec("BEGIN")
             try:
                 if self.mode is WriteMode.REPLACE:
-                    self._tx_exec(f"DELETE FROM {self.table}")
+                    self._tx_exec(f"DELETE FROM {self._q(self.table)}")
                 elif self.mode is WriteMode.REPLACE_PARTITION:
-                    self._tx_exec(
-                        f"DELETE FROM {self.table} WHERE ({cols(self.partition_columns)}) IN (SELECT {cols(self.partition_columns)} FROM {keys})"
-                    )
+                    self._tx_exec(self._delete_matching(keys, self.partition_columns))
                 elif self.mode is WriteMode.UPSERT:
-                    self._tx_exec(
-                        f"DELETE FROM {self.table} WHERE ({cols(self.keys)}) IN (SELECT {cols(self.keys)} FROM {stage})"
-                    )
-                self._tx_exec(f"INSERT INTO {self.table} SELECT * FROM {stage}")
+                    self._tx_exec(self._delete_matching(stage, self.keys))
+                self._tx_exec(f"INSERT INTO {self._q(self.table)} ({columns}) SELECT {columns} FROM {self._q(stage)}")
                 self._tx_exec("COMMIT")
             except Exception:
                 self._tx_exec("ROLLBACK")

@@ -3,11 +3,15 @@ from __future__ import annotations
 import shutil
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 from mountainash.core.lazy_imports import import_pyarrow
 from mountainash.pipelines.core.values import LocatorReference, Value, ValueKind
 from mountainash.pipelines.errors import UnsupportedValueKind
 from mountainash.pipelines.units.dag import DagUnit
 from mountainash.pipelines.units.sinks.base import SinkUnit, WriteMode
+
+
+_HIVE_NULL = "__HIVE_DEFAULT_PARTITION__"
 
 
 class ParquetDirectorySink(SinkUnit):
@@ -30,10 +34,20 @@ class ParquetDirectorySink(SinkUnit):
 
         return get_relation_system(value.location.family)().export(value.payload, source=value.location)
 
+    @staticmethod
+    def _component(col, v) -> str:
+        """Reversible, path-safe ``col=value`` directory name: percent-encoding (so ``/``, ``\\`` and NUL never form
+        path structure and ``%`` round-trips) with Hive's own NULL marker; a literal that equals the marker is
+        escaped so it cannot alias NULL. Readers that unquote Hive paths (e.g. pyarrow) recover the values."""
+        enc = _HIVE_NULL if v is None else quote(str(v), safe="")
+        if v is not None and enc == _HIVE_NULL:
+            enc = "%5F" + enc[1:]
+        return f"{quote(str(col), safe='')}={enc}"
+
     def _part_dir(self, p) -> Path:
         d = self.path
         for col, v in zip(self.partition_columns, p if isinstance(p, tuple) else (p,)):
-            d = d / f"{col}={v}"
+            d = d / self._component(col, v)
         return d
 
     def write(self, value: Value) -> LocatorReference:
@@ -56,7 +70,9 @@ class ParquetDirectorySink(SinkUnit):
                     shutil.rmtree(d)
                 mask = None
                 for col, v in zip(self.partition_columns, p if isinstance(p, tuple) else (p,)):
-                    m = pc.equal(table[col], v)
+                    m = (
+                        pc.is_null(table[col]) if v is None else pc.fill_null(pc.equal(table[col], v), False)
+                    )  # NULL-safe
                     mask = m if mask is None else pc.and_(mask, m)
                 sub = table.filter(mask)
                 if sub.num_rows:

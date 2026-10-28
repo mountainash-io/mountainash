@@ -154,7 +154,7 @@ Behaviour that holds for every dialect: same-connection Ibis inputs are written 
 |---|---|
 | APPEND | new file per write |
 | REPLACE | clears the directory, writes one file |
-| REPLACE_PARTITION | hive-style `p=a/q=x` directories; composite partition columns supported; empty succeeded partitions are cleared |
+| REPLACE_PARTITION | hive-style `p=a/q=x` directories; composite partition columns supported; empty succeeded partitions are cleared. Values are percent-encoded into path-safe directory names (`a/b` → `p=a%2Fb`, so it can never alias or escape `p=a`); a NULL partition is `p=__HIVE_DEFAULT_PARTITION__` and matches/clears NULL rows |
 | UPSERT | not supported — raises `UnsupportedValueKind` |
 
 A file destination has no self-dependent-input case; that column does not apply.
