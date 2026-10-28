@@ -62,7 +62,9 @@ def _placement(rel):
     if location.family is CONST_BACKEND.IBIS:
         if location.connection is None:
             raise _refusal("Snapshot requires an explicit Ibis connection")
-        if location.connection.name not in {"polars", "sqlite", "duckdb", "postgres"}:
+        from mountainash.relations.backends.relation_systems.ibis._physical import owned_adoption_refusal
+
+        if owned_adoption_refusal(location.connection.name) is not None:
             raise _refusal("Unsupported snapshot backend")
         if any(loc.connection is not None and loc.connection is not location.connection
                for loc in prepared.locations.values()):

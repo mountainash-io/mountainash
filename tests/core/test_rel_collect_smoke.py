@@ -381,9 +381,10 @@ class TestRelSmokeExceptionSetIntegrity:
         # resource-read/conform path calls directly (relation_visitor.py) and
         # not an ExtensionRelNode transform, and SOURCE/CONFORM are dedicated
         # node classes (SourceRelNode/ConformRelNode) rather than
-        # ExtensionRelNode operations.
+        # ExtensionRelNode operations. IMPORT_INTO is the transport import
+        # capability key; it has no transform node.
         _NON_TRANSFORM_OPS = {
-            "REF", "READ_RESOURCE", "EMPTY_FRAME", "SOURCE", "CONFORM",
+            "REF", "READ_RESOURCE", "EMPTY_FRAME", "SOURCE", "CONFORM", "IMPORT_INTO",
         }
         enum_ops = {
             op.name.lower()

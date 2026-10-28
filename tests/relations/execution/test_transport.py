@@ -507,3 +507,70 @@ def test_sparse_rows_keep_all_keys(transport):
         [{"a": 1}, {"b": 2}], LocationResolver(transport.tokens).resolve_target("polars"),
     )
     assert set(out.collect_schema().names()) == {"a", "b"}
+
+
+# --- IMPORT_INTO capability declarations (spec §6, Task 9) ---
+
+def _import_into_fact(dialect, consumer):
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.constants import CONST_BACKEND
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
+    family = CONST_BACKEND.IBIS if dialect.startswith("ibis-") else CONST_BACKEND.NARWHALS
+    return CapabilityRegistry.capability_for(
+        RKEY_MOUNTAINASH_REL.IMPORT_INTO, "*", family, dialect, consumer=consumer,
+    )
+
+
+@pytest.mark.parametrize("columns", [
+    {"x": [float("nan")]},
+    {"d": "decimal"},
+    {"l": [[1, 2]]},
+], ids=["nan", "decimal", "list"])
+def test_sqlite_import_refusal_carries_declared_limitation(columns):
+    import decimal
+
+    import ibis
+    import polars as pl
+
+    if columns == {"d": "decimal"}:
+        frame = pl.DataFrame({"id": [1], "d": [decimal.Decimal("1.10")]},
+                             schema={"id": pl.Int64, "d": pl.Decimal(10, 2)})
+    else:
+        frame = pl.DataFrame({"id": [1], **columns})
+    con = ibis.sqlite.connect()
+    table = con.create_table("t", {"id": [1]})
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        ma.relation(table).join(ma.relation(frame), on="id").collect()
+    assert caught.value.limitation is not None
+    assert caught.value.limitation.dialect == "ibis-sqlite"
+
+
+@pytest.mark.parametrize("target", ["narwhals-dask", "narwhals-duckdb"])
+def test_lazy_only_narwhals_refusal_carries_declared_limitation(target):
+    import polars as pl
+
+    with pytest.raises(UnsupportedRelationTransportError) as caught:
+        ma.relation(pl.DataFrame({"id": [1]})).collect(target=target)
+    assert caught.value.limitation is not None
+    assert caught.value.limitation.dialect == target
+
+
+def test_same_location_sqlite_join_unaffected():
+    import ibis
+
+    con = ibis.sqlite.connect()
+    a = con.create_table("a", {"id": [1]})
+    b = con.create_table("b", {"id": [1]})
+    assert ma.relation(a).join(ma.relation(b), on="id").to_dicts() == [{"id": 1}]
+
+
+def test_import_into_declarations_are_discriminated_by_consumer():
+    from mountainash.core.capabilities.schema import PolicyConsumer as C
+
+    assert _import_into_fact("ibis-sqlite", C.MATERIALIZATION_ERROR) is not None
+    assert _import_into_fact("ibis-sqlite", C.GATE) is None
+    for dialect in ("ibis-mysql", "ibis-singlestoredb", "ibis-exasol"):
+        assert _import_into_fact(dialect, C.GATE) is not None
+    for dialect in ("ibis-duckdb", "ibis-postgres", "ibis-polars", "ibis-sqlite"):
+        assert _import_into_fact(dialect, C.GATE) is None

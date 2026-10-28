@@ -66,6 +66,7 @@ class RKEY_MOUNTAINASH_REL(Enum):
     EMPTY_FRAME = auto()
     FETCH_FROM_END = auto()
     JOIN_ASOF = auto()
+    IMPORT_INTO = auto()
 
 
 RelationKeyEnum = Union[RKEY_SUBSTRAIT_REL, RKEY_MOUNTAINASH_REL]

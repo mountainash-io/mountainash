@@ -28,16 +28,34 @@ if TYPE_CHECKING:
 def import_refusal(
     source: ExecutionLocation, destination: ExecutionLocation, cause: BaseException | None,
 ) -> UnsupportedRelationTransportError:
-    """The one owner of import-refusal enrichment for a source -> destination boundary."""
+    """The one owner of import-refusal enrichment for a source -> destination boundary.
+
+    The destination's declared ``IMPORT_INTO`` fact is attached when the native
+    cause is one it declares; an unrelated failure is never relabelled.
+    """
+    from mountainash.core.capabilities.registry import CapabilityRegistry
+    from mountainash.core.capabilities.schema import PolicyConsumer
+    from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
+
     def label(location: ExecutionLocation) -> str:
         return location.dialect or (location.family.value if location.family else "unknown")
 
+    fact = None
+    if cause is not None and destination.family is not None:
+        fact = CapabilityRegistry.capability_for(
+            RKEY_MOUNTAINASH_REL.IMPORT_INTO, "*", destination.family, destination.dialect,
+            consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+        )
+        if fact is not None and not isinstance(cause, fact.native_errors):
+            fact = None
     if cause is None:
         reason = "no declared adapter"
         message = f"No declared transport from {label(source)} to {label(destination)}"
     else:
         reason = type(cause).__name__
         message = f"No usable transport from {label(source)} to {label(destination)}"
+    if fact is not None:
+        message = f"{message}: {fact.message}"
     return UnsupportedRelationTransportError(
         message, boundary_key=None,
         source_family=source.family.value if source.family else None,
@@ -45,6 +63,7 @@ def import_refusal(
         destination_family=destination.family.value if destination.family else None,
         destination_dialect=destination.dialect,
         source_type="RelationNode", route="import_into", reason=reason,
+        limitation=fact,
     )
 
 

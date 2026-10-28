@@ -77,6 +77,8 @@ TRANSPORT_LINEAGE_POLICIES: Mapping[Enum, TransportLineagePolicy] = MappingProxy
         RM.FETCH_FROM_END: _PRESERVE,
         RM.JOIN_ASOF: _JOIN,
         RM.EMPTY_FRAME: _START,
+        # Never a plan node: the transport import capability key.
+        RM.IMPORT_INTO: _START,
     }
 )
 

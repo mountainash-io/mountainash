@@ -1,7 +1,7 @@
 """Core relations errors (visitor dispatch layer)."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from mountainash.conform.structured_transport import StructuredFieldPlanMap
@@ -38,7 +38,15 @@ class CompileRequiresExecutionError(MountainashError, RuntimeError):
 
 
 class UnsupportedRelationTransportError(BackendConversionError):
-    """No declared adapter can carry this relation operand to its destination."""
+    """No declared adapter can carry this relation operand to its destination.
+
+    ``limitation`` is the destination's declared ``IMPORT_INTO`` capability
+    fact when one explains the refusal, else ``None``.
+    """
+
+    def __init__(self, message: str, *, limitation: Any = None, **context: Any) -> None:
+        super().__init__(message, **context)
+        self.limitation = limitation
 
 
 class UnresolvedExecutionLocationError(MountainashError, ValueError):

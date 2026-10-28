@@ -3,21 +3,43 @@
 from __future__ import annotations
 
 from mountainash.core.capabilities.applicability import unbounded
-from mountainash.core.capabilities.declarations import CapabilityPolicyRule, CapabilitySegment, Domain
+from mountainash.core.capabilities.declarations import (
+    CapabilityKey,
+    CapabilityPolicyRule,
+    CapabilitySegment,
+    Domain,
+)
 from mountainash.core.capabilities.schema import CapabilityLevel, PolicyAction, PolicyConsumer
 from mountainash.relations.backends.capabilities.ibis.family.extensions_mountainash.relation import (
     SAMPLE_SEEDED_COUNT_KEY,
     SAMPLE_SEEDED_COUNT_MESSAGE,
 )
+from mountainash.relations.core.relation_system.relation_keys.enums import RKEY_MOUNTAINASH_REL
 
 SEGMENT = CapabilitySegment(
     domain=Domain.RELATION,
-    policies=(CapabilityPolicyRule(
-        key=SAMPLE_SEEDED_COUNT_KEY,
-        level=CapabilityLevel.UNSUPPORTED,
-        message=SAMPLE_SEEDED_COUNT_MESSAGE,
-        consumer=PolicyConsumer.GATE,
-        action=PolicyAction.BLOCK,
-        applicability=unbounded,
-    ),),
+    policies=(
+        CapabilityPolicyRule(
+            key=SAMPLE_SEEDED_COUNT_KEY,
+            level=CapabilityLevel.UNSUPPORTED,
+            message=SAMPLE_SEEDED_COUNT_MESSAGE,
+            consumer=PolicyConsumer.GATE,
+            action=PolicyAction.BLOCK,
+            applicability=unbounded,
+        ),
+        CapabilityPolicyRule(
+            key=CapabilityKey(RKEY_MOUNTAINASH_REL.IMPORT_INTO, "*"),
+            level=CapabilityLevel.UNSUPPORTED,
+            message=(
+                "SQLite cannot store IEEE NaN (stored as NULL), bind non-null Decimal "
+                "values, or hold nested types; an owned table copy also cannot hold a "
+                "decimal column (backlog 336)"
+            ),
+            consumer=PolicyConsumer.MATERIALIZATION_ERROR,
+            action=PolicyAction.ENRICH,
+            native_errors=(ValueError,),
+            native_issue="sqlite:storage-domain",
+            applicability=unbounded,
+        ),
+    ),
 )
