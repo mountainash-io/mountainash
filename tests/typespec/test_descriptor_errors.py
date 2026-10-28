@@ -3,7 +3,6 @@ from mountainash.exceptions import (
     DescriptorError,
     DescriptorReferenceInvalid,
     DescriptorReferenceNotFound,
-    DescriptorReferenceSchemeDenied,
     InvalidDescriptorRelationship,
     InvalidDescriptorStructure,
     InvalidDescriptorSyntax,
@@ -21,7 +20,6 @@ def test_descriptor_errors_are_public_and_typed() -> None:
     assert issubclass(MissingDescriptorBase, ValueError)
     assert issubclass(DescriptorReferenceNotFound, FileNotFoundError)
     assert issubclass(DescriptorReferenceInvalid, ValueError)
-    assert issubclass(DescriptorReferenceSchemeDenied, PermissionError)
     assert issubclass(InvalidDescriptorRelationship, ValueError)
     assert issubclass(UnsupportedResourceDialect, ValueError)
 

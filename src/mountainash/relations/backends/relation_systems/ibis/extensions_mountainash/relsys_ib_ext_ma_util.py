@@ -183,26 +183,52 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
     def _native_scan_for(
         self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
     ) -> bool:
+        return self._native_scan_paths(resource, dialect, location=location) is not None
+
+    def _native_scan_paths(
+        self, resource: Any, dialect: Any, *, location: ExecutionLocation | None = None,
+    ) -> list[str] | None:
+        """The one native-scan decision (predicate and reader), yielding the
+        effective paths. Routing classifies the descriptor-resolved location; under
+        an active policy only DuckDB reads natively, and a directory whose path
+        has glob characters falls back (its confinement is then refused there)."""
+        import os
+
         import ibis
 
         from mountainash.core.io import is_remote
+        from mountainash.core.location import resolve_resource_location, resource_policy
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         if resource.data is not None or resource.path is None:
-            return False
+            return None
         fmt = self._detect_format_name(resource)
         raw_path = resource.path
         paths = raw_path if isinstance(raw_path, list) else [raw_path]
-        all_local = all(not is_remote(p) for p in paths)
+        all_local = all(not is_remote(resolve_resource_location(resource, p)) for p in paths)
         no_glob = all("*" not in p and "?" not in p and "[" not in p for p in paths)
         no_archive = all(not p.lower().endswith((".gz", ".zip")) for p in paths)
         con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
         native = {"csv": "read_csv", "parquet": "read_parquet"}.get(fmt)
-        return bool(
+        if not (
             all_local and no_glob and no_archive and native
             and hasattr(con, native)
             and (fmt != "csv" or rf.dialect_is_default(dialect))
-        )
+        ):
+            return None
+        policy = resource_policy(resource)
+        if policy is not None:
+            key = location.dialect if location is not None and location.dialect else f"ibis-{con.name}"
+            if key != "ibis-duckdb":
+                return None
+        effective = rf.confined_local_paths(resource, tree=policy is not None)
+        if effective is None:
+            return None
+        if policy is not None and any(
+            os.path.isdir(p) and any(c in p for c in "[*?") for p in effective
+        ):
+            return None
+        return effective
 
     def read_resource(self, resource: Any, *, location: ExecutionLocation | None = None) -> ir.Table:
         """Load a DataResource into an Ibis table. Native engine reads for local
@@ -227,15 +253,19 @@ class MountainashIbisExtensionRelationSystem(MountainashExtensionRelationSystemP
             return self._import_resource(arrow, location)
 
         fmt = self._detect_format_name(resource)
-        raw_path = resource.path
-        assert raw_path is not None, f"DataResource '{resource.name}' has no path"
-        paths = raw_path if isinstance(raw_path, list) else [raw_path]
+        assert resource.path is not None, f"DataResource '{resource.name}' has no path"
 
+        import os
+
+        from mountainash.core.location import resource_policy
         from mountainash.relations.backends.relation_systems import resource_files as rf
 
         if fmt == "csv":
             rf.ensure_dialect_supported(dialect)
-        if self._native_scan_for(resource, dialect, location=location):
+        paths = self._native_scan_paths(resource, dialect, location=location)
+        if paths is not None:
+            if resource_policy(resource) is not None:  # files are literal; directories unchanged
+                paths = [p if os.path.isdir(p) else rf.escape_duckdb_glob(p) for p in paths]
             native = {"csv": "read_csv", "parquet": "read_parquet"}[fmt]
             con = location.connection if location is not None and location.connection is not None else ibis.get_backend()
             return getattr(con, native)(paths if len(paths) > 1 else paths[0])

@@ -58,6 +58,55 @@ resource = package.resources[0]
 The package must contain at least one resource. Resource names are unique, and each
 resource declares exactly one of `path` or `data`.
 
+## Location policy
+
+Descriptor loaders (`from_path`, `from_json`, `from_descriptor`, `datacontract`) confine
+every resource, schema and dialect location by default. `from_path`, `from_json` and
+`from_descriptor` accept `policy=`, a `mountainash_transport.location.LocationPolicy`;
+`datacontract(source)` takes no `policy` and always confines to the source's parent directory.
+
+| Loader call | Root when `policy` has none |
+|---|---|
+| `from_path(path)` | the descriptor directory |
+| `from_json` / `from_descriptor` with a local `base_uri` | that directory |
+| the same with a remote `base_uri`, or no `base_uri` | the working directory at load time |
+| `datacontract(source)` | the source file's parent directory |
+| `DataPackage(...)` / `DataResource(...)` built in code | none (unconfined) |
+
+- Relative resource paths resolve beside the descriptor (or against `base_uri` / the
+  working directory), matching Frictionless. A remote `base_uri` joins relative paths but
+  grants no permission to fetch from its host.
+- Absolute local paths outside the root, symlinks leaving the root, and `file://` URIs outside
+  the root raise `LocationNotAllowed` at read time (absolute paths inside the root are accepted),
+  including paths assigned after load. `..` and hidden
+  segments are still rejected at decode time with the existing error.
+- Remote resources and references (`http(s)`, `s3`, ...) need
+  `LocationPolicy(allowed_remote={"https": frozenset({"host.example"})})`; an empty set
+  allows any host for that scheme. Unknown schemes are rejected.
+- `LocationPolicy(root=...)` replaces the declared root; `allowed_remote` alone keeps it.
+  `LocationPolicy(allow_unconfined=True)` is the single opt-out.
+- `model_copy`, `DataResource.model_validate(bound)` and `DataPackage.model_validate(bound)`
+  keep the context and its policy. `to_package()` exports build a new package in code and
+  are rootless.
+- Reads are confined on Polars, Narwhals and Ibis alike; the descriptor round-trip is
+  unchanged because the policy is a private, non-serialized context field.
+
+```python
+from mountainash import DataPackage
+from mountainash_transport.location import LocationPolicy
+
+package = DataPackage.from_path("pkg/datapackage.json")  # confined to pkg/
+open_pkg = DataPackage.from_path(
+    "pkg/datapackage.json", policy=LocationPolicy(allow_unconfined=True)
+)
+```
+
+Not covered: a writer who can change the filesystem inside the root between check and open,
+DNS rebinding, custom `DescriptorResolver` code, and endpoints named by profiles you
+supplied. Under a policy, an Ibis read of a directory raises `LocationNotAllowed` unless
+the backend is DuckDB and the directory path contains none of `[`, `*`, `?` (use a glob);
+see the [resource-read support matrix](resource-read-support-matrix.md).
+
 ## Outputs and ownership
 
 The default writer is preserve mode:
@@ -239,35 +288,31 @@ without mutating package or resource storage.
 
 ## Resolver security
 
-The default resolver is local-only. It reads absolute local paths and `file://` URIs,
-and it resolves relative references only when a base URI is available. It denies every
-non-local URI scheme with `DescriptorReferenceSchemeDenied`. Missing bases, missing
-files, malformed JSON, and wrong document kinds use the typed errors exported from
+There is one default resolver, `DefaultDescriptorResolver`. It resolves a reference under
+the context `LocationPolicy` (the one passed to the loader): local references (absolute
+paths, `file://` URIs, and base-relative paths) must stay inside the policy root, and
+remote references (including references relative to a remote base) are read through the
+storage facade only when the policy's `allowed_remote` allow-list names their scheme and
+host. Violations raise `mountainash_transport.location.LocationNotAllowed`, before any
+network request. With no policy (a programmatic package with no base) local reads are
+allowed and every remote reference is denied with `LocationNotAllowed`. Missing bases,
+missing files, malformed JSON, and wrong document kinds use the typed errors exported from
 `mountainash.exceptions`.
-
-Remote resolution requires an injected resolver with an explicit scheme allow-list. To
-use the storage-backed resolver, install the optional dependency:
-
-```bash
-uv pip install "mountainash[storage]"
-```
-
-Then construct an opt-in resolver and pass it to an input method:
 
 ```python
 from mountainash import DataPackage
-from mountainash.typespec.descriptor_context import StorageDescriptorResolver
+from mountainash_transport.location import LocationPolicy
 
-resolver = StorageDescriptorResolver(allowed_schemes={"s3"})
+policy = LocationPolicy(allowed_remote={"s3": frozenset({"bucket"})})
 package = DataPackage.from_json(
     text,
     base_uri="s3://bucket/descriptors/",
-    resolver=resolver,
+    policy=policy,
 )
 ```
 
-The storage resolver still denies schemes that are not in its allow-list. Do not use a
-remote resolver when local-only resolution is sufficient.
+A custom resolver may accept an optional `policy` keyword; it receives the context policy
+and may ignore it (custom resolvers are caller code).
 
 ## V2-only policy
 

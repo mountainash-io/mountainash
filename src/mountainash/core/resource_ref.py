@@ -44,10 +44,21 @@ class ResourceRef:
         if isinstance(path, list):
             path = path[0]
         from mountainash.core.io import facade_read_bytes, is_remote
+        from mountainash.core.location import (
+            resolve_resource_location,
+            resource_policy,
+        )
 
-        if is_remote(path):
-            return facade_read_bytes(path)
-        return Path(path).read_bytes()
+        location = resolve_resource_location(self.resource, path)
+        policy = resource_policy(self.resource)
+        from mountainash_transport.location import require_known_scheme
+
+        require_known_scheme(location, policy)
+        if is_remote(location):
+            return facade_read_bytes(location, policy)
+        from mountainash_transport.location import confine_local
+
+        return Path(confine_local(location, policy)).read_bytes()
 
     def relation(self) -> Relation:
         from mountainash.relations.dag.packaging import resource_to_relation
