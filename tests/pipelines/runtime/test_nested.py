@@ -134,3 +134,16 @@ def test_nested_regeneration_invalidates_enclosing_runner_descendants(tmp_path, 
     cp = FileCheckpoint(tmp_path).scoped("N")
     if depth == 2: cp = cp.scoped("M")
     assert cp.progress("S").cursor == A and cp.pending("S") is None
+
+
+def test_outer_reuse_checks_inner_sink_destination(tmp_path):            # F32/P8
+    from mountainash.pipelines.units.sinks.base import WriteMode
+    from mountainash.pipelines.units.sinks.parquet_dir import ParquetDirectorySink
+    import polars as pl
+    inner = Pipeline("inner").add(PythonUnit(lambda ctx: pl.DataFrame({"a": [1]}), name="src")).add(ParquetDirectorySink(tmp_path / "out", name="K", depends_on=("src",), mode=WriteMode.APPEND))
+    outer = Pipeline("outer").add(PipelineUnit(inner, "K", name="N"))
+    Runner(outer, checkpoint=FileCheckpoint(tmp_path / "cp")).run()
+    assert Runner(outer, checkpoint=FileCheckpoint(tmp_path / "cp")).run().statuses["N"] is Status.REUSED
+    import shutil; shutil.rmtree(tmp_path / "out")
+    assert Runner(outer, checkpoint=FileCheckpoint(tmp_path / "cp")).run().statuses["N"] is Status.COMPLETE     # destination gone → not reused
+
