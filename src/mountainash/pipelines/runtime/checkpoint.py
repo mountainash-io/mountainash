@@ -114,6 +114,19 @@ def _dec_set(items) -> frozenset:
 _UNRETAINED = {"__unretained__": True}
 
 
+def _json_faithful(p: Any) -> bool:
+    """True iff `p` survives a JSON round trip unchanged: exact JSON scalar types, lists, and str-keyed dicts.
+    Tuples (-> list), non-str dict keys (-> str) and scalar subclasses (-> base type) would reload altered."""
+    t = type(p)
+    if p is None or t in (str, int, float, bool):
+        return True
+    if t is list:
+        return all(_json_faithful(x) for x in p)
+    if t is dict:
+        return all(type(k) is str and _json_faithful(x) for k, x in p.items())
+    return False
+
+
 def _enc_value(v: Value | None) -> Any:
     if v is None:
         return None
@@ -123,10 +136,11 @@ def _enc_value(v: Value | None) -> Any:
         payload = {"locator": v.payload.locator, "record_count": v.payload.record_count}
     else:
         try:
-            json.dumps(v.payload)
-            payload = v.payload
-        except TypeError:
+            if not _json_faithful(v.payload):
+                return _UNRETAINED
+        except RecursionError:  # self-referential payload
             return _UNRETAINED
+        payload = v.payload
     return {"payload": payload, "identity": v.identity.digest, "kind": v.kind.value, "coverage": _enc_cov(v.coverage)}
 
 

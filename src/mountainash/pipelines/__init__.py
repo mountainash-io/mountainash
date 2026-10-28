@@ -16,6 +16,7 @@ from mountainash.pipelines.core.values import (
 from mountainash.pipelines.errors import *  # noqa: F403
 from mountainash.pipelines.runtime.checkpoint import FileCheckpoint, MemoryCheckpoint
 from mountainash.pipelines.runtime.runner import Runner, RunResult
+from mountainash.pipelines.units.base import Unit
 from mountainash.pipelines.units.dag import DagUnit
 from mountainash.pipelines.units.nested import PipelineUnit
 from mountainash.pipelines.units.python import PythonUnit, unit

@@ -55,3 +55,26 @@ def test_layers_describe_dot():
     assert g.describe()["c"] == {"depends_on": ["a", "b"], "constraints": []}
     dot = g.to_dot()
     assert dot.startswith("digraph") and '"a" -> "c"' in dot
+
+
+def test_to_dot_is_parametrised_not_duplicated():
+    g: Graph[int] = Graph()
+    g.add("b", 2)
+    g.add("a", 1)
+    g.add("c", 3, depends_on=["a"])
+    g.add_constraint("b", "c")
+    assert g.to_dot() == "\n".join(
+        ["digraph G {", '    "a";', '    "b";', '    "c";', '    "a" -> "c";', '    "b" -> "c" [style=dashed];', "}"]
+    )
+    dot = g.to_dot(
+        name="X",
+        graph_attrs=("rankdir=BT",),
+        label=lambda n: f"{n}!",
+        constraint_attrs=("style=dashed", 'label="FK"'),
+    )
+    assert dot == "\n".join(
+        [
+            "digraph X {", "    rankdir=BT;", '    "a" [label="a!"];', '    "b" [label="b!"];', '    "c" [label="c!"];',
+            '    "a" -> "c";', '    "b" -> "c" [style=dashed, label="FK"];', "}",
+        ]
+    )

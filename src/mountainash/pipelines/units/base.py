@@ -2,12 +2,42 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import threading
-from typing import Any, ClassVar, Mapping
+from typing import Any, ClassVar, Mapping, Protocol, runtime_checkable
 from mountainash.pipelines.core.policies import EmptyPolicy
 from mountainash.pipelines.core.values import Affinity, Identity, SourceState, Value
 
 
-class BaseUnit(ABC):
+@runtime_checkable
+class Unit(Protocol):
+    """The declared unit contract the Runner, lifecycles and ``Pipeline.graph`` are typed against.
+
+    Structural: ``BaseUnit`` is the convenient implementation, not a requirement (design spec §7).
+    """
+
+    lifecycle: ClassVar[type]  # UnitLifecycle | SourceLifecycle | NestedLifecycle (runtime.lifecycle)
+    name: str
+    version: str
+    affinity: Affinity
+    empty: EmptyPolicy
+    partitions_preserved: bool
+
+    @property
+    def exec_lock(self) -> threading.Lock:
+        """One lock per unit instance: a unit never runs concurrently with itself (spec §7; F14)."""
+        ...
+
+    def inputs(self) -> tuple[str, ...]: ...
+
+    def identity(
+        self, upstream: Mapping[str, Identity], params: Mapping[str, Any], state: SourceState | None
+    ) -> Identity: ...
+
+    def reference_exists(self, ref) -> bool: ...
+
+    def run(self, upstream: Mapping[str, Value], ctx) -> Any: ...
+
+
+class BaseUnit(ABC, Unit):
     lifecycle: ClassVar[type]  # assigned by mountainash.pipelines.runtime.lifecycle at import
     name: str
     version: str = "1"

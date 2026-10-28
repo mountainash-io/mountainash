@@ -7,7 +7,7 @@ import pytest
 
 import mountainash.pipelines as P
 from mountainash.pipelines.core.values import Status, ValueKind
-from mountainash.pipelines.units.base import BaseUnit
+from mountainash.pipelines.units.base import BaseUnit, Unit
 from mountainash.pipelines.units.sinks.base import WriteMode
 
 EXPECTED_UNITS = {"PythonUnit", "DagUnit", "SourceUnit", "CallableSource", "SinkUnit", "IbisTableSink", "ParquetDirectorySink", "PipelineUnit"}
@@ -31,6 +31,25 @@ def _production_subclasses(base):
 
 def test_every_unit_kind_is_known():
     assert _production_subclasses(BaseUnit) - set(EXCEPTIONS) == EXPECTED_UNITS
+
+
+def _declared_members(cls) -> set[str]:
+    return {n for klass in cls.__mro__ for n in (*vars(klass), *getattr(klass, "__annotations__", {}))}
+
+
+def test_every_production_unit_satisfies_the_declared_unit_protocol():
+    members = {n for n in (*vars(Unit), *Unit.__annotations__) if not n.startswith("_")}
+    assert members == {"name", "affinity", "lifecycle", "version", "empty", "partitions_preserved", "exec_lock",
+                       "inputs", "identity", "reference_exists", "run"}
+    units = [c for c in _production_classes() if issubclass(c, BaseUnit)]
+    assert {c.__name__ for c in units} - {"BaseUnit"} == EXPECTED_UNITS
+    for c in units:
+        missing = members - _declared_members(c)
+        assert not missing, f"{c.__name__} lacks Unit members {sorted(missing)}"
+
+
+def test_unit_is_exported_and_base_unit_is_one_implementation():
+    assert P.Unit is Unit and Unit in BaseUnit.__mro__
 
 
 def test_every_checkpoint_impl_is_known():

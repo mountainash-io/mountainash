@@ -120,6 +120,7 @@ def test_structural_unit_without_baseunit_runs():                         # P10:
     import threading
     from mountainash.pipelines.runtime.lifecycle import UnitLifecycle
     from mountainash.pipelines.core.policies import EmptyPolicy
+    from mountainash.pipelines import Unit
     class Bare:
         lifecycle = UnitLifecycle; name = "bare"; version = "1"; affinity = Affinity.WORKER; empty = EmptyPolicy.SILENT; partitions_preserved = False
         exec_lock = threading.Lock()
@@ -127,7 +128,9 @@ def test_structural_unit_without_baseunit_runs():                         # P10:
         def identity(self, upstream, params, state): return Identity.of("bare", self.version, dict(params))
         def reference_exists(self, ref): return True
         def run(self, upstream, ctx): return rows(1)
-    r = Runner(Pipeline("p").add(Bare())).run()
+    bare: Unit = Bare()
+    assert isinstance(bare, Unit)
+    r = Runner(Pipeline("p").add(bare)).run()
     assert r.statuses["bare"] is Status.COMPLETE
 
 @pytest.mark.cell("unit:PythonUnit")

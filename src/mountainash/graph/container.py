@@ -7,7 +7,7 @@ pass it derived dependency names.
 """
 from __future__ import annotations
 
-from typing import Any, Generic, Iterable, TypeVar
+from typing import Any, Callable, Generic, Iterable, TypeVar
 
 from mountainash.graph.algorithms import ancestors as _ancestors
 from mountainash.graph.algorithms import parallel_layers as _layers
@@ -71,10 +71,26 @@ class Graph(Generic[N]):
             for n in self.nodes
         }
 
-    def to_dot(self) -> str:
-        lines = ["digraph G {"]
-        lines += [f'  "{n}";' for n in self.nodes]
-        lines += [f'  "{u}" -> "{d}";' for (u, d) in sorted(self.dependency_edges)]
-        lines += [f'  "{p}" -> "{c}" [style=dashed];' for (p, c) in sorted(self.constraint_edges)]
+    def to_dot(
+        self,
+        *,
+        name: str = "G",
+        graph_attrs: Iterable[str] = (),
+        label: Callable[[str], str] | None = None,
+        constraint_attrs: Iterable[str] = ("style=dashed",),
+    ) -> str:
+        """Graphviz DOT: nodes (sorted), then dependency edges, then constraint edges (each sorted).
+
+        Owners layer detail on the structure via ``graph_attrs`` (bare ``key=value`` graph lines), ``label``
+        (node name -> label text) and ``constraint_attrs`` (attributes of every constraint edge).
+        """
+        c_attrs = ", ".join(constraint_attrs)
+        c_suffix = f" [{c_attrs}]" if c_attrs else ""
+        lines = [f"digraph {name} {{"]
+        lines += [f"    {a};" for a in graph_attrs]
+        for n in sorted(self.nodes):
+            lines.append(f'    "{n}" [label="{label(n)}"];' if label else f'    "{n}";')
+        lines += [f'    "{u}" -> "{d}";' for (u, d) in sorted(self.dependency_edges)]
+        lines += [f'    "{p}" -> "{c}"{c_suffix};' for (p, c) in sorted(self.constraint_edges)]
         lines.append("}")
         return "\n".join(lines)

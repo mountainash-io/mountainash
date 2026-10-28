@@ -100,3 +100,19 @@ def test_invalidate_exact_units_only(cp):
     cp.invalidate({"a"})
     assert cp.lookup("a", Identity.of("i")) is None and cp.pending("a") is None
     assert cp.lookup("b", Identity.of("i")) is not None and cp.pending("b") is not None
+
+
+@pytest.mark.cell("checkpoint:FileCheckpoint")
+@pytest.mark.parametrize("payload", [(1, 2), {1: "a"}, [(1, 2)], {"k": {2: "b"}}, {"k": (1,)}])
+def test_file_checkpoint_never_returns_a_silently_altered_payload(tmp_path, payload):
+    cp = FileCheckpoint(tmp_path)
+    cp.record("u", _rec(payload))
+    again = FileCheckpoint(tmp_path).lookup("u", Identity.of("i"))
+    assert again.value is None or (again.value.payload == payload and type(again.value.payload) is type(payload))
+
+
+@pytest.mark.cell("checkpoint:FileCheckpoint")
+def test_file_checkpoint_retains_faithful_json_payload(tmp_path):
+    payload = {"a": [1, 2.5, "x", None, True], "b": {"c": []}}
+    FileCheckpoint(tmp_path).record("u", _rec(payload))
+    assert FileCheckpoint(tmp_path).lookup("u", Identity.of("i")).value.payload == payload

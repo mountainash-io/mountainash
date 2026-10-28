@@ -4,16 +4,16 @@ from typing import TYPE_CHECKING, Iterable
 from mountainash.graph.container import Graph
 
 if TYPE_CHECKING:
-    from mountainash.pipelines.units.base import BaseUnit
+    from mountainash.pipelines.units.base import Unit
 
 
 class Pipeline:
     def __init__(self, name: str, *, inputs: Iterable[str] = ()) -> None:
         self.name = name
         self.inputs = frozenset(inputs)
-        self.graph: Graph[BaseUnit] = Graph()
+        self.graph: Graph[Unit] = Graph()
 
-    def add(self, unit: BaseUnit) -> "Pipeline":
+    def add(self, unit: Unit) -> "Pipeline":
         internal = [d for d in unit.inputs() if d not in self.inputs]
         for d in internal:
             if d not in self.graph.nodes:
